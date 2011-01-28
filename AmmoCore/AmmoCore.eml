@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component>
+	<exclude-output/>
+	<contentEntry url="file://$MODULE_DIR$"/>
+	<lib name="gson-1.5.jar" scope="COMPILE">
+		<relative-module-cls project-related="jar://$MODULE_DIR$/../AmmoLib/lib/gson-1.5.jar!/"/>
+	</lib>
+	<lib name="slf4j-android-1.5.8.jar" scope="COMPILE">
+		<relative-module-cls project-related="jar://$MODULE_DIR$/../AmmoLib/lib/slf4j-android-1.5.8.jar!/"/>
+	</lib>
+</component>

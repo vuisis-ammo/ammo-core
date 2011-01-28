@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+<string name="port_label">Current Port: </string>
+<string name="ipaddr_label">Current IP Addr: </string>
+<string name="channel_journal">Channel Journal: </string>
+
+<string name="device_id_label">Device ID: </string>
+<string name="operator_id_label">Operator ID: </string>
+<string name="operator_key_label">Operator Pass Key: </string>
+</resources>

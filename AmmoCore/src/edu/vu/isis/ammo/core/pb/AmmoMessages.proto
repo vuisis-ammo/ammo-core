@@ -1,0 +1,254 @@
+package ammo.protocol;
+
+/** 
+*  This file appears in two places, make sure they match.
+* 
+*  code/Gateway/AndroidGatewayPlugin/AmmoMessages.proto
+*  code/AmmoCore/src/edu/vu/isis/ammo/core/pb/AmmoMessage.proto
+*  
+*  This file is similar but distinct from...
+*  ./Gateway/LibGatewayConnector/protocol/GatewayPrivateMessages.proto
+* 
+*  In all cases...
+*  
+*  data : is not defined by the gateway protocols but by specific application protocols.
+*   
+*  mime_type : a type specification providing enough information to identify the data 
+*              so that the proper readers will be invoked or notified.
+*   e.g. application/vnd.ammo.incident
+*        application/vnd.tigr.report
+*    It is the responsibility of a plug-in to mutate these mime types as needed for other uses.
+*    
+*  uri : when used serves as a unique identifier for the data being sent.
+*    It includes the name of the source type and an optional tuple id.
+*    If the tuple id is missing the receiver must force uniqueness itself.
+*/
+
+option java_package = "edu.vu.isis.ammo.core.pb";
+
+/**
+* Sent on initial connection to gateway to authenticate user.
+* 
+* device : a unique identifier for the device
+*
+* user : a unique identifier for the user/role
+* 
+* key : an encrypted version of the user's pass key.
+*    If the key is not sent then the session_id must be sent.
+*    A request without a key or with a session_id is a 
+*    request for a new authenticated session.
+*/
+/*
+message AuthenticationRequest {
+  required string device_id = 1;
+  required string user_id = 2;
+  required string user_key = 3;
+}
+*/
+message AuthenticationMessage {
+  required string device_id = 1;
+  required string user_id = 2;
+  required string user_key = 3;
+}
+
+/**
+* Sent in response to an AssociateDevice request.
+* 
+* result : was the association successful?
+*     If it was the optional session_id should be set and
+*     used in all subsequent communication.
+*/
+/*
+message AuthenticationResponse {
+  enum Status {
+    FAILED = 0;
+    SUCCESS = 1;
+  }
+  required Status result = 1;
+  optional string message = 2;
+}
+*/
+message AuthenticationResult {
+  enum Status {
+    FAILED = 0;
+    SUCCESS = 1;
+  }
+  required Status result = 1;
+  optional string message = 2;
+}
+
+/**
+* When data is to be sent to the Gateway for distribution.
+* 
+* uri : is a unique identifier of the primary source of the data.
+*    note -- it is not unique outside of the data source.
+*/
+/*
+message PushRequest {
+  required string uri = 1;
+  optional string mime_type = 3;
+  optional bytes data = 2;
+}
+*/
+message DataMessage {
+  required string uri = 1;
+  optional string mime_type = 3;
+  optional bytes data = 2;
+}
+
+
+/**
+* The server will send an acknowledgement message to the client.
+* The client is not required to receive it.
+*/
+/*
+message PushResponse {
+  required string uri = 1;
+}
+*/
+message PushAcknowledgement {
+  required string uri = 1;
+}
+
+/**
+* A request for data of a certain type.
+* 
+* max_results : specifies the desired number of items matching the query.
+* - 0 : unlimited results, send as many as possible
+*
+* live query : implies that only the most recent item need be retained
+*    and sent to the client when it performs a pull response. 
+*
+* request_uid : is set by the client so that it will be able 
+*     to correlate responses to requests.
+* 
+* mime_type : essentially a relation (table) of tuples (see above)
+*
+* query : selects a subset of the tuples from the relation indicated by the mime_type
+*    e.g. 'x' = 3 AND 'a b' LIKE "%frog%"
+*    
+* projection : the fields of the tuple of interest
+*
+* expiration : a measure of time in microseconds since the epoch.
+*    i.e. the number of microseconds since 1970-01-01:00:00:00.000000
+*    This is not a signed value as times in the past are not needed.
+*    The time value 0 is special, indicating no expiration [the default].
+*/
+message PullRequest {
+  required string request_uid = 1;
+  required string device_id = 2;
+  required string mime_type = 3;
+  required string query = 4;
+  optional string projection = 5;
+  optional uint32 max_results = 6 [default = 0]; 
+  optional uint32 start_from_count = 7 [default = 0];
+  optional bool live_query = 8 [default = false];
+  optional int64 expiration = 9 [default = 0x0];
+}
+
+/**
+* see PullRequest for request_id, plugin_id and mime_type.
+*/
+message PullResponse {
+  required string request_uid = 1;
+  required string device_id = 2;
+  required string mime_type = 3;
+  required string uri = 4;
+  required bytes data = 5;
+}
+
+/**
+* The device/process is no longer interested in the data.
+*/
+message PullUnregister {
+  required string request_uid = 1;
+  required string device_id = 2;
+  required string mime_type = 3;
+}
+
+/**
+* Subscribe is similar to PullRequest but presumes connected protocols (e.g. tcp).
+*/
+/*
+message Subscribe {
+  required string mime_type = 1;
+  optional string query = 2;
+}
+*/
+message SubscribeMessage {
+  required string mime_type = 1;
+  optional string query = 2;
+}
+
+message Unsubscribe {
+  required string mime_type = 1;
+}
+
+/**
+  The top message wrapper for all gateway messages.
+  
+  type: Generally only one of the optional elements is sent for
+      a particular type.
+      
+  session_uuid : a universally unique session id.
+      The presence of a session id indicates the data portion is encrypted
+      using the user's registered encryption key.
+*/
+/*
+message MessageWrapper {
+  enum MessageType {
+    AUTHENTICATION_REQUEST = 0;
+    AUTHENTICATION_RESPONSE = 1;
+    
+    PUSH_REQUEST = 2;
+    PUSH_RESPONSE = 3;
+   
+    PULL_REQUEST = 6;
+    PULL_RESPONSE = 7;
+    PULL_UNREGISTER = 8;
+    
+    SUBSCRIBE_REQUEST = 9;
+    SUBSCRIBE_RESPONSE = 10;
+    UNSUBSCRIBE = 11;
+  }
+
+  required MessageType type = 1;
+  optional string session_uuid = 2;
+  
+  optional AuthenticationRequest authentication_message= 3;
+  optional AuthenticationResponse authentication_response = 4;
+  
+  optional PushRequest push_request = 5;
+  optional PushResponse push_response = 6;
+  
+  optional PullRequest pull_request = 7;
+  optional PullResponse pull_response = 9;
+  optional PullUnregister pull_unregister = 10;
+  
+  optional Subscribe subscribe = 11;
+  optional Unsubscribe unsubscribe = 12;
+}
+*/
+
+message MessageWrapper {
+  enum MessageType {
+    DATA_MESSAGE = 0;
+    AUTHENTICATION_MESSAGE = 1;
+    AUTHENTICATION_RESULT = 2;
+    SUBSCRIBE_MESSAGE = 4;
+    PUSH_ACKNOWLEDGEMENT = 5;
+    PULL_REQUEST = 6;
+    PULL_RESPONSE = 7;
+  }
+
+  required MessageType type = 1;
+  optional string session_uuid = 2;
+  
+  optional DataMessage data_message = 3;
+  optional AuthenticationMessage authentication_message= 4;
+  optional AuthenticationResult authentication_result = 5;
+  optional SubscribeMessage subscribe_message = 6;
+  optional PushAcknowledgement push_acknowledgement = 7;
+  optional PullRequest pull_request = 8;
+  optional PullResponse pull_response = 9;
+}

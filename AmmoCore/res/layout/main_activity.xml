@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:id="@+id/widget34"
+	android:layout_width="fill_parent" android:layout_height="fill_parent"
+	android:orientation="vertical" xmlns:android="http://schemas.android.com/apk/res/android">
+	 <Button android:id="@+id/disconnect_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" 
+        android:text="@string/disconnect_button_label"
+         android:background="@drawable/run_status_button">
+        </Button> 
+     <Button android:id="@+id/reconnect_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" 
+        android:text="@string/reconnect_button_label"
+        android:background="@drawable/run_status_button">
+        </Button> 
+	<TextView android:layout_width="wrap_content"
+		android:layout_height="wrap_content" android:layout_gravity="center"
+		android:text="Tap the menu button to adjust server settings"
+		android:textSize="16dip" />
+</LinearLayout>
