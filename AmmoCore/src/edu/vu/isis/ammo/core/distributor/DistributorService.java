@@ -381,13 +381,12 @@ public class DistributorService extends Service implements IDistributorService {
 			        moreItems = cur.moveToNext()) 
 			{
 				String rowUri = cur.getString(cur.getColumnIndex(PostalTableSchema.URI));
+				String cpType = cur.getString(cur.getColumnIndex(PostalTableSchema.CP_TYPE));
 				
 				Log.d("DistributorService", "serializing: " + rowUri);
-				Log.d("DistributorService", "rowUriType: " + cr.getType(Uri.parse(rowUri)));
+				Log.d("DistributorService", "rowUriType: " + cpType );
 				
-				String mimeType = InternetMediaType.getInst(
-						cr.getType(Uri.parse(rowUri)))
-						  .setType("application")
+				String mimeType = InternetMediaType.getInst(cpType)
 						  .toString();
 				byte[] serialized;
 				try {
