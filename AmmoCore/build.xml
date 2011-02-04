@@ -97,5 +97,7 @@
              - customize to your needs.
     -->
     <setup />
+	
+	<target name="help"/>
 
 </project>

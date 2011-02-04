@@ -42,6 +42,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.core.CorePreferences;
+import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -292,6 +293,12 @@ implements OnSharedPreferenceChangeListener
 		if (key.equals(CorePreferences.PREF_OPERATOR_ID)) {
 			operatorId = prefs.getString(CorePreferences.PREF_OPERATOR_ID, operatorId);
 			this.authenticateGatewayConnection();
+			
+			// TBD SKN: broadcast login id change to apps ...
+			Intent loginIntent = new Intent(ICoreService.AMMO_LOGIN);
+			loginIntent.putExtra("operatorId", operatorId);
+			this.sendBroadcast(loginIntent);
+			
 			return;
 		}
 		if (key.equals(CorePreferences.PREF_OPERATOR_KEY)) {
@@ -353,6 +360,11 @@ implements OnSharedPreferenceChangeListener
 		}
 		else {
 			String msg = "Connected to "+gatewayHostname+" on port "+gatewayPort;
+			// TBD SKN: broadcast ammo connected to apps ...
+			Intent connIntent = new Intent(ICoreService.AMMO_CONNECTED);
+			connIntent.putExtra("operatorId", operatorId);
+			this.sendBroadcast(connIntent);
+			
 			Toast.makeText(NetworkProxyService.this,msg, Toast.LENGTH_SHORT).show();
 		}
 

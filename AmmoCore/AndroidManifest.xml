@@ -63,7 +63,8 @@
 			   <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
             </intent-filter>
 		</service>
-		
+
+		<!--  TBD SKN - should we add android.intent.BOOT_COMPLETED here, so the core starts after boot -->		
 		<service android:enabled="true"	android:name=".CoreService">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.core.CoreService.LAUNCH" />

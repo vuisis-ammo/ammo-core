@@ -10,7 +10,9 @@ import edu.vu.isis.ammo.core.distributor.DistributorService;
 import android.app.Service;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 
 /**
  * The CoreService is the main service that all other applications,
@@ -75,7 +77,17 @@ public class CoreService extends Service implements ICoreService {
 		} else {
 			logger.debug("Not starting distributor service...it's already been started");
 		}
-			
+		
+		// get operator id
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+		String operatorId = "foo";
+		operatorId = prefs.getString(CorePreferences.PREF_OPERATOR_ID, operatorId);
+		
+		// broadcast start intent to apps ...
+		Intent readyIntent = new Intent(ICoreService.AMMO_READY);
+		readyIntent.putExtra("operatorId", operatorId);
+		this.sendBroadcast(readyIntent);
+		
 		// We want this service to continue running until it is explicitly
 	    // stopped, so return sticky.
 	    return START_STICKY;	
