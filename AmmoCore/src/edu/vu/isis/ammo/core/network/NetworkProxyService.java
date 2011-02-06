@@ -854,7 +854,7 @@ implements OnSharedPreferenceChangeListener
 		} catch (InvalidProtocolBufferException ex) {
 			ex.printStackTrace();
 		}
-		if (mw == null) return true;
+		if (mw == null) return false; // TBD SKN: this was true, why? if we can't parse it then its bad
 		
 		switch (mw.getType()) {
 		

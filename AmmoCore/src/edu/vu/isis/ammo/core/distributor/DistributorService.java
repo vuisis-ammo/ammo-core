@@ -386,7 +386,7 @@ public class DistributorService extends Service implements IDistributorService {
 				Log.d("DistributorService", "serializing: " + rowUri);
 				Log.d("DistributorService", "rowUriType: " + cpType );
 				
-				String mimeType = InternetMediaType.getInst(cpType)
+				String mimeType = InternetMediaType.getInst(cpType).setType("application")
 						  .toString();
 				byte[] serialized;
 				try {
