@@ -21,6 +21,8 @@ import android.os.FileObserver;
 import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 
+import android.util.Log;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2615,6 +2617,7 @@ static public class SubscriptionWrapper {
       @Override
       public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
          SQLiteDatabase db = openHelper.getWritableDatabase();
+	 Uri notifUri = uri;
          int count;
          switch (uriMatcher.match(uri)) {
                case DELIVERY_MECHANISM_SET:
@@ -2653,6 +2656,7 @@ static public class SubscriptionWrapper {
                   break;
 
                case SERIALIZED_ID:
+		   notifUri = SerializedTableSchemaBase.CONTENT_URI; // notify on the base URI - without the ID ?
                   String serializedID = uri.getPathSegments().get(1);
                   count = db.update(Tables.SERIALIZED_TBL, values, SerializedTableSchemaBase._ID
                         + "="
@@ -2663,11 +2667,14 @@ static public class SubscriptionWrapper {
                   break;
                
                case RETRIVAL_SET:
+		   Log.d("DistributorProviderBase", "RETRIVAL_SET");
                   count = db.update(Tables.RETRIVAL_TBL, values, selection,
                         selectionArgs);
                   break;
 
                case RETRIVAL_ID:
+		   notifUri = RetrivalTableSchemaBase.CONTENT_URI; // notify on the base URI - without the ID - probably there is a better way?
+		   Log.d("DistributorProviderBase", "RETRIVAL_ID");
                   String retrivalID = uri.getPathSegments().get(1);
                   count = db.update(Tables.RETRIVAL_TBL, values, RetrivalTableSchemaBase._ID
                         + "="
@@ -2683,6 +2690,7 @@ static public class SubscriptionWrapper {
                   break;
 
                case PUBLICATION_ID:
+		   notifUri = PublicationTableSchemaBase.CONTENT_URI; // notify on the base URI - without the ID - probably there is a better way?
                   String publicationID = uri.getPathSegments().get(1);
                   count = db.update(Tables.PUBLICATION_TBL, values, PublicationTableSchemaBase._ID
                         + "="
@@ -2698,6 +2706,7 @@ static public class SubscriptionWrapper {
                   break;
 
                case SUBSCRIPTION_ID:
+		   notifUri = SubscriptionTableSchemaBase.CONTENT_URI; // notify on the base URI - without the ID ?
                   String subscriptionID = uri.getPathSegments().get(1);
                   count = db.update(Tables.SUBSCRIPTION_TBL, values, SubscriptionTableSchemaBase._ID
                         + "="
@@ -2711,8 +2720,9 @@ static public class SubscriptionWrapper {
          default:
             throw new IllegalArgumentException("Unknown URI " + uri);
          }
+	 Log.d("DistributorProviderBase", "DB update - generating notification");
 
-         getContext().getContentResolver().notifyChange(uri, null);
+         getContext().getContentResolver().notifyChange(notifUri, null);
          return count;   
       }
 
