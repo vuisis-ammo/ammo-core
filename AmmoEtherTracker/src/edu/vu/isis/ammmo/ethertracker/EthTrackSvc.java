@@ -38,7 +38,13 @@ public class EthTrackSvc extends Service {
 	}
 	
 	/*
-	 * This function will make native calls 
+	 * @function handleCommand
+	 * It initiates the RTM message handling by 
+	 * calling the native method initEthernetNative.
+	 * 
+	 * It then starts the thread which waits on any 
+	 * RTM messages signifying state changes of the 
+	 * interface
 	 */
 	public void handleCommand()
 	{
@@ -50,7 +56,12 @@ public class EthTrackSvc extends Service {
 	
 		
 	private static final int HELLO_ID = 1;
-	
+
+	/*
+	 * @function Notify
+	 * Send a notification to android once interface 
+	 * goes up or down
+	 */
 	public int Notify (String msg)
 	{
 	    String ns = Context.NOTIFICATION_SERVICE;
@@ -103,28 +114,54 @@ public class EthTrackSvc extends Service {
      */
     public native int initEthernetNative ();
     
+    /*
+     * This function is not used now
+     */
     public native String getInterfaceName (int index);
     
+    /*
+     * This function is not used now
+     */
     public native int getInterfaceCnt ();	
     
+    /*
+     * @class EtherStatReceiver
+     * 
+     * This extends the Thread class and makes a 
+     * call on the Native waitForEvent function. 
+     * 
+     * The waitForEvent returns when there is a 
+     * status change in the underlying interface.
+     */
     private class EtherStatReceiver extends Thread {
 
     	EthTrackSvc parent;
+    	
+    	/*
+    	 * The Thread constructor 
+    	 */
     	
     	public EtherStatReceiver (String str, EthTrackSvc _parent) {
         	super(str);
         	parent = _parent;
         }
         
+    	/*
+    	 * The main thread function. 
+    	 * 
+    	 * It makes a call on the waitForEvent
+    	 * and makes call on the notify function 
+    	 * to send a notification once the interface is 
+    	 * either up or down.
+    	 */
         public void run() {
         	while (true){
-    		//Log.i (TAG, "Inside Thread");
     		
     		String res = waitForEvent ();
     		
-    		//Log.i (TAG, "WaitForEvent Returns :" + res);
-    		//Log.i (TAG, "WaitForEvent Returns :");
     		
+    		// send the notification if the interface is 
+    		// up or down 
     		if ((res.indexOf("Up") > 0) || (res.indexOf("Down") > 0))
     			parent.Notify (res);
     		
