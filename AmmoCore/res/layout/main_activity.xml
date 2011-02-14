@@ -1,21 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout android:id="@+id/widget34"
-	android:layout_width="fill_parent" android:layout_height="fill_parent"
-	android:orientation="vertical" xmlns:android="http://schemas.android.com/apk/res/android">
-	 <Button android:id="@+id/disconnect_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" 
-        android:text="@string/disconnect_button_label"
-         android:background="@drawable/run_status_button">
-        </Button> 
-     <Button android:id="@+id/reconnect_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" 
-        android:text="@string/reconnect_button_label"
-        android:background="@drawable/run_status_button">
-        </Button> 
-	<TextView android:layout_width="wrap_content"
-		android:layout_height="wrap_content" android:layout_gravity="center"
+<ScrollView android:id="@+id/widget34" android:layout_width="fill_parent"
+	android:layout_height="fill_parent" android:orientation="vertical"
+	xmlns:android="http://schemas.android.com/apk/res/android">
+	<LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content"
+	android:orientation="vertical">
+	<TextView android:layout_width="fill_parent"
+		android:layout_height="wrap_content" android:textSize="20dip"
+		android:text="Ammo Core" android:gravity="center" />
+	<TextView android:layout_width="fill_parent"
+		android:layout_height="wrap_content" android:gravity="center"
 		android:text="Tap the menu button to adjust server settings"
 		android:textSize="16dip" />
+
+	<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+		android:layout_height="wrap_content" android:layout_width="wrap_content"
+		android:layout_marginTop="10dip" android:layout_marginBottom="10dip"
+		android:layout_gravity="center" android:gravity="center">
+		<TableRow android:gravity="center">
+			<TextView android:text="Physical Link: "
+				android:padding="3dip"/>
+			<TextView android:id="@+id/main_activity_physical_link_status"
+			    style="@style/TableRowTextView"
+			    android:text="Not Connected"  />
+		</TableRow>
+		<TableRow android:gravity="center">
+            <TextView android:text="TCP/IP: "
+                android:padding="3dip" />
+            <TextView android:id="@+id/main_activity_tcpip_status"
+                style="@style/TableRowTextView" android:text="Not Connected" />
+        </TableRow>
+	</TableLayout>
+
+	<Button android:id="@+id/disconnect_button"
+		android:layout_gravity="center" android:layout_width="wrap_content"
+		android:layout_height="wrap_content" android:text="@string/disconnect_button_label"
+		android:background="@drawable/run_status_button">
+	</Button>
+	<Button android:id="@+id/reconnect_button" android:layout_width="wrap_content"
+		android:layout_gravity="center"
+		android:layout_height="wrap_content" android:text="@string/reconnect_button_label"
+		android:background="@drawable/run_status_button">
+	</Button>
 </LinearLayout>
+</ScrollView>

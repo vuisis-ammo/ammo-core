@@ -42,6 +42,9 @@ public class MainActivity extends Activity implements OnClickListener {
 	private Button disconnectButton = null;
 	private Button reconnectButton = null;
 	
+	/**
+	 * @Cateogry Lifecycle
+	 */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
