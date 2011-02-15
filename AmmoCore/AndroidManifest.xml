@@ -107,12 +107,6 @@
 			</intent-filter>
 		</receiver>
 
-        <receiver android:name="ConnectionReceiver">
-            <intent-filter>
-                <action android:name="android.net.wifi.supplicant.CONNECTION_CHANGE"/>
-            </intent-filter>
-        </receiver>
-
 		<receiver android:name=".ethertracker.EthrTrckrStartupReceiver">
 			<intent-filter>
 				<action android:name="android.intent.action.BOOT_COMPLETED" />
