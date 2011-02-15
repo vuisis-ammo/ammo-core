@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.ethertracker;
+package edu.vu.isis.ammo.core.ethertracker;
 
 import android.app.Notification;
 import android.app.NotificationManager;

@@ -272,7 +272,7 @@ static char* process_msg (struct nlmsghdr* nl_msg)
 */
 
 	jstring 
-Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_waitForEvent(JNIEnv *env,
+Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_waitForEvent(JNIEnv *env,
 		jobject clazz)
 {
 	char *buff;
@@ -414,7 +414,7 @@ static int netlink_send_dump_request(int sock, int type, int family) {
 	followed by the waitForEvent function.
  */
 
-jint Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_initEthernetNative(JNIEnv *env,
+jint Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative(JNIEnv *env,
 		jobject clazz)
 {
 	int ret = -1;
@@ -492,7 +492,7 @@ error:
 	This function is not used now
 */
 jstring 
-Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_getInterfaceName (
+Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_getInterfaceName (
 		JNIEnv *env,
 		jobject clazz,
 		jint index
@@ -507,7 +507,7 @@ Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_getInterfaceName (
 	This function is not used now
 */
 jint 
-Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_getInterfaceCnt(
+Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_getInterfaceCnt(
 		JNIEnv *env,
 		jobject clazz
 		)
@@ -522,13 +522,13 @@ Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_getInterfaceCnt(
 static JNINativeMethod gEthernetMethods[] = {
 	{"waitForEvent", "()Ljava/lang/String;",
 		//(void *)android_net_ethernet_waitForEvent},
-	(void *)Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_waitForEvent},
+	(void *)Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_waitForEvent},
 {"getInterfaceName", "(I)Ljava/lang/String;",
-	(void *)Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_getInterfaceName},
+	(void *)Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_getInterfaceName},
 {"initEthernetNative", "()I",
-	(void *)Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_initEthernetNative},
+	(void *)Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative},
 {"getInterfaceCnt","()I",
-	(void *)Java_edu_vu_isis_ammo_ethertracker_EthTrackSvc_getInterfaceCnt}
+	(void *)Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_getInterfaceCnt}
 	};
 
 /*

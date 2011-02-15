@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.ethertracker;
+package edu.vu.isis.ammo.core.ethertracker;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
