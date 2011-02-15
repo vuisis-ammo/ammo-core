@@ -5,6 +5,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -23,6 +24,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.res.AssetFileDescriptor;
 import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
@@ -31,6 +33,7 @@ import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
@@ -284,8 +287,21 @@ public class DistributorService extends Service implements IDistributorService {
 	ByteArrayOutputStream bout = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
         BufferedInputStream bis = null;
+        InputStream instream = null;
         try {
-            bis = new BufferedInputStream(this.getContentResolver().openInputStream(serialUri));
+        	 try {
+        		//instream = this.getContentResolver().openInputStream(serialUri);
+        		 AssetFileDescriptor afd = this.getContentResolver().openAssetFileDescriptor(serialUri, "r");
+        		afd.createInputStream();
+        		
+        		 ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+        		 instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+        	     
+        	} catch (IOException e) {
+        	     throw new FileNotFoundException("Unable to create stream");
+        	}
+        	// if (instream)
+            bis = new BufferedInputStream(instream);
             
             for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1; ) {
             	bout.write(buffer, 0, bytesRead);
@@ -308,7 +324,12 @@ public class DistributorService extends Service implements IDistributorService {
     }
 
 	
-    /**
+    private String String(String string) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/**
      * When the connection to the gateway is established the connection
      * must be re-authenticated and the request for data must be reposted.
      */
@@ -325,7 +346,7 @@ public class DistributorService extends Service implements IDistributorService {
 	 * similarly pull query must also be made explicitly by applications based on what they want,
 	 * and we should not automatically reissue pull requests
 	 */
-	callback.processRetrivalChange(false);
+	callback.processRetrievalChange(false);
 	callback.processPostalChange(false);
     }
 	
@@ -392,22 +413,25 @@ public class DistributorService extends Service implements IDistributorService {
 		    Log.d("DistributorService", "serializing: " + rowUri);
 		    Log.d("DistributorService", "rowUriType: " + cpType );
 				
-		    String mimeType = InternetMediaType.getInst(cpType).setType("application")
-			.toString();
+		    String mimeType = InternetMediaType.getInst(cpType).setType("application").toString();
 		    byte[] serialized;
 		    try {
-			serialized = this.queryUriForSerializedData(rowUri);
+		    	serialized = this.queryUriForSerializedData(rowUri);
 		    } catch (IOException e1) {
-			logger.error("invalid row for serialization");
-			continue;
+				logger.error("invalid row for serialization");
+				continue;
+		    }
+		    if (serialized == null) {
+		    	logger.error("no serialized data produced");
+		    	continue;
 		    }
 
 		    // Dispatch the message.
 		    boolean dispatchSuccessful = false;
 		    try {
-			dispatchSuccessful = network.dispatchPushRequestToGateway(rowUri.toString(), mimeType, serialized);					
+		    	dispatchSuccessful = network.dispatchPushRequestToGateway(rowUri.toString(), mimeType, serialized);					
 		    } catch (NullPointerException e) {
-			logger.debug("NullPointerException, sending to gateway failed");
+		    	logger.debug("NullPointerException, sending to gateway failed");
 		    } 
 
 		    // Update distributor status if message dispatch successful.
@@ -435,7 +459,7 @@ public class DistributorService extends Service implements IDistributorService {
      * Garbage collect items which are expired.
      */
     @Override
-	public void processRetrivalChange(boolean repost) {
+	public void processRetrievalChange(boolean repost) {
 	logger.debug("::processRetrivalChange()");
 	if (! bindToNetworkProxyService()) return;
 		
@@ -567,10 +591,10 @@ public class DistributorService extends Service implements IDistributorService {
 		    boolean sent = network.dispatchSubscribeRequestToGateway(mime, selection );
 				
 		    if (!sent) {
-			++failedSendCount;
-			Toast.makeText(this, "subscription to "+mime+" failed", Toast.LENGTH_SHORT).show();
+				++failedSendCount;
+				Toast.makeText(this, "subscription to "+mime+" failed", Toast.LENGTH_SHORT).show();
 		    } else {
-			Toast.makeText(this, "subscription to "+mime+" sent", Toast.LENGTH_SHORT).show();
+		    	Toast.makeText(this, "subscription to "+mime+" sent", Toast.LENGTH_SHORT).show();
 		    }
 				
 		    ContentValues values = new ContentValues();
@@ -691,7 +715,7 @@ public class DistributorService extends Service implements IDistributorService {
 	@Override
 	    public void onChange(boolean selfChange) {
 	    logger.debug("RetrivalObserver::onChange");
-	    callback.processRetrivalChange(false);
+	    callback.processRetrievalChange(false);
 	}
     }
 	
@@ -754,13 +778,13 @@ public class DistributorService extends Service implements IDistributorService {
 	    }
 
 	    {
-		final String state = Environment.getExternalStorageState();
-		logger.info("sdcard state: " + state);
-		mSdCardAvailable = Environment.MEDIA_MOUNTED.equals(state);
-		if (DEBUGMODE)
-		    logger.debug("mSdcardAvailable=" + mSdCardAvailable);
-	    }
-	}
+			final String state = Environment.getExternalStorageState();
+			logger.info("sdcard state: " + state);
+			mSdCardAvailable = Environment.MEDIA_MOUNTED.equals(state);
+			if (DEBUGMODE)
+			    logger.debug("mSdcardAvailable=" + mSdCardAvailable);
+		    }
+		}
     }
 	
     // ================================================
@@ -772,7 +796,7 @@ public class DistributorService extends Service implements IDistributorService {
      */
     @Override
 	public boolean dispatchPushResponse(PushAcknowledgement resp) {		
-	return true;
+    	return true;
     }
 	
     /**
@@ -782,27 +806,31 @@ public class DistributorService extends Service implements IDistributorService {
      */
     @Override
 	public boolean dispatchPullResponse(PullResponse resp) {
-        logger.debug("dispatching pull response : {} : {}",resp.getRequestUid(), resp.getUri());
-	String uriStr = resp.getRequestUid(); //resp.getUri(); --- why do we have uri in data message and pull response?
-	Uri uri = Uri.parse(uriStr);
-	ContentResolver cr = this.getContentResolver();
-	try {
-	    uri = Uri.withAppendedPath(uri, "_serial");
-	    OutputStream outstream = cr.openOutputStream(uri);
-	    ByteString data = resp.getData();
-	    if (data != null) outstream.write(data.toByteArray());
-	    outstream.close();
-	} catch (FileNotFoundException e) {
-	    String msg = "could not connect to content provider";
-	    logger.warn(msg);
-	    e.printStackTrace();
-	    return false;
-	} catch (IOException e) {
-	    String msg = "could not write to the content provider";
-	    logger.warn(msg);
-	    e.printStackTrace();
-	}
-	return true;
+	    logger.debug("dispatching pull response : {} : {}",resp.getRequestUid(), resp.getUri());
+		String uriStr = resp.getRequestUid(); //resp.getUri(); --- why do we have uri in data message and pull response?
+		Uri uri = Uri.parse(uriStr);
+		ContentResolver cr = this.getContentResolver();
+		try {
+		    uri = Uri.withAppendedPath(uri, "_serial");
+		    OutputStream outstream = cr.openOutputStream(uri);
+		    if (outstream == null) {
+		    	logger.error("could not open output stream to content provider: "+uri);
+		    	return false;
+		    }
+		    ByteString data = resp.getData();
+		    if (data != null) outstream.write(data.toByteArray());
+		    outstream.close();
+		} catch (FileNotFoundException e) {
+		    String msg = "could not connect to content provider";
+		    logger.warn(msg);
+		    e.printStackTrace();
+		    return false;
+		} catch (IOException e) {
+		    String msg = "could not write to the content provider";
+		    logger.warn(msg);
+		    e.printStackTrace();
+		}
+		return true;
     }
 	
     /**
