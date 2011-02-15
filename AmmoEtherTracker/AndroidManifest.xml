@@ -1,26 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="edu.vu.isis.ammmo.ethertracker"
-      android:versionCode="1"
-      android:versionName="1.0">
+	package="edu.vu.isis.ammmo.ethertracker" android:versionCode="1"
+	android:versionName="1.0">
 
 
-    <application android:icon="@drawable/icon" android:label="@string/app_name">
+	<application android:icon="@drawable/icon" android:label="@string/app_name">
 
-	<receiver android:name="EthrTrckrStartupReceiver">
-	<intent-filter>
-	<action
-	android:name="android.intent.action.BOOT_COMPLETED" />
-	<category android:name="android.intent.category.HOME" />
-	</intent-filter>
-	</receiver>
+		<receiver android:name="EthrTrckrStartupReceiver">
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED" />
+				<category android:name="android.intent.category.HOME" />
+			</intent-filter>
+		</receiver>
 
-	<service android:name="EthTrackSvc">
-	<intent-filter>
-	<action 
-	android:name="edu.vu.isis.ammmo.startatboot.EthTrackSvc" />
-	</intent-filter>
-	</service>
+		<service android:name="EthTrackSvc">
+			<intent-filter>
+				<action android:name="edu.vu.isis.ammmo.startatboot.EthTrackSvc" />
+			</intent-filter>
+		</service>
 
-    </application>
+	</application>
 </manifest>
