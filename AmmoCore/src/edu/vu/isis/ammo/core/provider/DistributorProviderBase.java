@@ -2737,7 +2737,7 @@ static public class SubscriptionWrapper {
             throw new IllegalArgumentException("Unknown URI " + uri);
          }
 
-         getContext().getContentResolver().notifyChange(notiUri, null);
+         getContext().getContentResolver().notifyChange(notifUri, null);
          return count;   
       }
 
