@@ -291,8 +291,8 @@ public class DistributorService extends Service implements IDistributorService {
         try {
         	 try {
         		//instream = this.getContentResolver().openInputStream(serialUri);
-        		 AssetFileDescriptor afd = this.getContentResolver().openAssetFileDescriptor(serialUri, "r");
-        		afd.createInputStream();
+        		AssetFileDescriptor afd = this.getContentResolver().openAssetFileDescriptor(serialUri, "r");
+        		//afd.createInputStream();
         		
         		 ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
         		 instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
