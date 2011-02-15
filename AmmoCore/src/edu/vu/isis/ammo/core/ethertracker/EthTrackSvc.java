@@ -10,6 +10,7 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.R;
 
@@ -28,6 +29,7 @@ public class EthTrackSvc extends Service {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
+		Log.d("EthTrackSvc", "::onStartCommand with intent " + intent.getAction());
 		handleCommand();
 
 		// We want this service to continue running until it is explicitly

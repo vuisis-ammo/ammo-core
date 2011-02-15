@@ -15,7 +15,6 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -144,6 +143,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 			// TODO: Need a way to disable physical link service.
 			if (this.tbPhysicalLink.isChecked()) {
 				// Launch the ethernet service.
+				logger.debug("Launching ethernet service");
 				Intent intent = new Intent("edu.vu.isis.ammo.core.ethtracksvc.LAUNCH");
 				this.sendBroadcast(intent);
 			}
