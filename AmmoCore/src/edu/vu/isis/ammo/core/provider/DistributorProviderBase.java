@@ -2615,7 +2615,7 @@ static public class SubscriptionWrapper {
       @Override
       public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
          SQLiteDatabase db = openHelper.getWritableDatabase();
-         Uri notifUri = uri;
+         Uri notifyUri = uri;
          int count;
          switch (uriMatcher.match(uri)) {
                case DELIVERY_MECHANISM_SET:
@@ -2627,7 +2627,7 @@ static public class SubscriptionWrapper {
                case DELIVERY_MECHANISM_ID:
                   logger.debug("DELIVERY_MECHANISM_ID");
                   //  notify on the base URI - without the ID ?
-         //         notifUri = DeliveryMechanismTableSchemaBase.CONTENT_URI; 
+         //         notifyUri = DeliveryMechanismTableSchemaBase.CONTENT_URI; 
                   String delivery_mechanismID = uri.getPathSegments().get(1);
                   count = db.update(Tables.DELIVERY_MECHANISM_TBL, values, DeliveryMechanismTableSchemaBase._ID
                         + "="
@@ -2646,7 +2646,7 @@ static public class SubscriptionWrapper {
                case POSTAL_ID:
                   logger.debug("POSTAL_ID");
                   //  notify on the base URI - without the ID ?
-         //         notifUri = PostalTableSchemaBase.CONTENT_URI; 
+         //         notifyUri = PostalTableSchemaBase.CONTENT_URI; 
                   String postalID = uri.getPathSegments().get(1);
                   count = db.update(Tables.POSTAL_TBL, values, PostalTableSchemaBase._ID
                         + "="
@@ -2665,7 +2665,7 @@ static public class SubscriptionWrapper {
                case SERIALIZED_ID:
                   logger.debug("SERIALIZED_ID");
                   //  notify on the base URI - without the ID ?
-         //         notifUri = SerializedTableSchemaBase.CONTENT_URI; 
+                  notifyUri = SerializedTableSchemaBase.CONTENT_URI; 
                   String serializedID = uri.getPathSegments().get(1);
                   count = db.update(Tables.SERIALIZED_TBL, values, SerializedTableSchemaBase._ID
                         + "="
@@ -2684,7 +2684,7 @@ static public class SubscriptionWrapper {
                case RETRIVAL_ID:
                   logger.debug("RETRIVAL_ID");
                   //  notify on the base URI - without the ID ?
-         //         notifUri = RetrivalTableSchemaBase.CONTENT_URI; 
+                  notifyUri = RetrivalTableSchemaBase.CONTENT_URI; 
                   String retrivalID = uri.getPathSegments().get(1);
                   count = db.update(Tables.RETRIVAL_TBL, values, RetrivalTableSchemaBase._ID
                         + "="
@@ -2703,7 +2703,7 @@ static public class SubscriptionWrapper {
                case PUBLICATION_ID:
                   logger.debug("PUBLICATION_ID");
                   //  notify on the base URI - without the ID ?
-         //         notifUri = PublicationTableSchemaBase.CONTENT_URI; 
+                  notifyUri = PublicationTableSchemaBase.CONTENT_URI; 
                   String publicationID = uri.getPathSegments().get(1);
                   count = db.update(Tables.PUBLICATION_TBL, values, PublicationTableSchemaBase._ID
                         + "="
@@ -2722,7 +2722,7 @@ static public class SubscriptionWrapper {
                case SUBSCRIPTION_ID:
                   logger.debug("SUBSCRIPTION_ID");
                   //  notify on the base URI - without the ID ?
-         //         notifUri = SubscriptionTableSchemaBase.CONTENT_URI; 
+                  notifyUri = SubscriptionTableSchemaBase.CONTENT_URI; 
                   String subscriptionID = uri.getPathSegments().get(1);
                   count = db.update(Tables.SUBSCRIPTION_TBL, values, SubscriptionTableSchemaBase._ID
                         + "="
@@ -2737,7 +2737,7 @@ static public class SubscriptionWrapper {
             throw new IllegalArgumentException("Unknown URI " + uri);
          }
 
-         getContext().getContentResolver().notifyChange(notifUri, null);
+         getContext().getContentResolver().notifyChange(notifyUri, null);
          return count;   
       }
 
