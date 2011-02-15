@@ -148,7 +148,15 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 		if (key.equals(MainActivity.PHYSICAL_LINK_PREF_KEY)) {
-			this.updateConnectionStatus();
+			// This method is called on the thread that changed the preferences.
+			// This method needs to be called on the main thread so explicitly tell
+			// it to do so.
+			this.runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					updateConnectionStatus();					
+				}
+			});
 		}
 	}
 	
