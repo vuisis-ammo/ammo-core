@@ -83,6 +83,7 @@
 		<service android:name=".ethertracker.EthTrackSvc">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.startatboot.EthTrackSvc" />
+				<action android:name="edu.vu.isis.ammo.core.ethtracksvc.LAUNCH" />
 			</intent-filter>
 		</service>
 

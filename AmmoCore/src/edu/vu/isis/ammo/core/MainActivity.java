@@ -15,6 +15,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -130,13 +131,20 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	
 	@Override
 	public void onClick(View view) {
-		if (view.equals(this.tbPhysicalLink)) {
+		if (view.equals(this.tbWifi)) {
 			logger.debug("physical link button clicked");
-			if (this.tbPhysicalLink.isChecked()) {
+			if (this.tbWifi.isChecked()) {
 				Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
 				this.sendBroadcast(intent);
 			} else {
 				Intent intent = new Intent(INetworkBinder.ACTION_DISCONNECT);
+				this.sendBroadcast(intent);
+			}
+		} else if (view.equals(this.tbPhysicalLink)) {
+			// TODO: Need a way to disable physical link service.
+			if (this.tbPhysicalLink.isChecked()) {
+				// Launch the ethernet service.
+				Intent intent = new Intent("edu.vu.isis.ammo.core.ethtracksvc.LAUNCH");
 				this.sendBroadcast(intent);
 			}
 		}
@@ -208,8 +216,8 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	}
 	
 	public void setOnClickListeners() {
-	//	disconnectButton.setOnClickListener(this);
-		//reconnectButton.setOnClickListener(this);
+		tbPhysicalLink.setOnClickListener(this);
+		tbWifi.setOnClickListener(this);
 	}
 	
 	// ===========================================================
