@@ -80,7 +80,7 @@
 			</intent-filter>
 		</service>
 
-		<service android:name="EthTrackSvc">
+		<service android:name=".ethertracker.EthTrackSvc">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.startatboot.EthTrackSvc" />
 			</intent-filter>
@@ -112,7 +112,7 @@
             </intent-filter>
         </receiver>
 
-		<receiver android:name="EthrTrckrStartupReceiver">
+		<receiver android:name=".ethertracker.EthrTrckrStartupReceiver">
 			<intent-filter>
 				<action android:name="android.intent.action.BOOT_COMPLETED" />
 				<category android:name="android.intent.category.HOME" />
@@ -127,7 +127,7 @@
 
 	</application>
 
-	<uses-sdk android:minSdkVersion="7" />
+	<uses-sdk android:minSdkVersion="8" />
 
 	<uses-permission android:name="android.permission.INTERNET"></uses-permission>
 	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"></uses-permission>
