@@ -1780,6 +1780,11 @@ static public class SubscriptionWrapper {
             qb.setProjectionMap(deliveryMechanismProjectionMap);
             qb.appendWhere(DeliveryMechanismTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
             cursor = qb.query(db, null, null, null, null, null, null);
+            if (1 > cursor.getCount()) {
+               logger.info("no data of type DELIVERY_MECHANISM_ID"); 
+               cursor.close();
+               return null;
+            }
             paths = this.deliveryMechanismSerializer(cursor);
             cursor.close();
             try {
@@ -1846,6 +1851,11 @@ static public class SubscriptionWrapper {
             qb.setProjectionMap(postalProjectionMap);
             qb.appendWhere(PostalTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
             cursor = qb.query(db, null, null, null, null, null, null);
+            if (1 > cursor.getCount()) {
+               logger.info("no data of type POSTAL_ID"); 
+               cursor.close();
+               return null;
+            }
             paths = this.postalSerializer(cursor);
             cursor.close();
             try {
@@ -1912,6 +1922,11 @@ static public class SubscriptionWrapper {
             qb.setProjectionMap(serializedProjectionMap);
             qb.appendWhere(SerializedTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
             cursor = qb.query(db, null, null, null, null, null, null);
+            if (1 > cursor.getCount()) {
+               logger.info("no data of type SERIALIZED_ID"); 
+               cursor.close();
+               return null;
+            }
             paths = this.serializedSerializer(cursor);
             cursor.close();
             try {
@@ -1978,6 +1993,11 @@ static public class SubscriptionWrapper {
             qb.setProjectionMap(retrivalProjectionMap);
             qb.appendWhere(RetrivalTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
             cursor = qb.query(db, null, null, null, null, null, null);
+            if (1 > cursor.getCount()) {
+               logger.info("no data of type RETRIVAL_ID"); 
+               cursor.close();
+               return null;
+            }
             paths = this.retrivalSerializer(cursor);
             cursor.close();
             try {
@@ -2044,6 +2064,11 @@ static public class SubscriptionWrapper {
             qb.setProjectionMap(publicationProjectionMap);
             qb.appendWhere(PublicationTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
             cursor = qb.query(db, null, null, null, null, null, null);
+            if (1 > cursor.getCount()) {
+               logger.info("no data of type PUBLICATION_ID"); 
+               cursor.close();
+               return null;
+            }
             paths = this.publicationSerializer(cursor);
             cursor.close();
             try {
@@ -2110,6 +2135,11 @@ static public class SubscriptionWrapper {
             qb.setProjectionMap(subscriptionProjectionMap);
             qb.appendWhere(SubscriptionTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
             cursor = qb.query(db, null, null, null, null, null, null);
+            if (1 > cursor.getCount()) {
+               logger.info("no data of type SUBSCRIPTION_ID"); 
+               cursor.close();
+               return null;
+            }
             paths = this.subscriptionSerializer(cursor);
             cursor.close();
             try {
@@ -2627,7 +2657,7 @@ static public class SubscriptionWrapper {
                case DELIVERY_MECHANISM_ID:
                   logger.debug("DELIVERY_MECHANISM_ID");
                   //  notify on the base URI - without the ID ?
-         //         notifyUri = DeliveryMechanismTableSchemaBase.CONTENT_URI; 
+                  notifyUri = DeliveryMechanismTableSchemaBase.CONTENT_URI; 
                   String delivery_mechanismID = uri.getPathSegments().get(1);
                   count = db.update(Tables.DELIVERY_MECHANISM_TBL, values, DeliveryMechanismTableSchemaBase._ID
                         + "="
@@ -2646,7 +2676,7 @@ static public class SubscriptionWrapper {
                case POSTAL_ID:
                   logger.debug("POSTAL_ID");
                   //  notify on the base URI - without the ID ?
-         //         notifyUri = PostalTableSchemaBase.CONTENT_URI; 
+                  notifyUri = PostalTableSchemaBase.CONTENT_URI; 
                   String postalID = uri.getPathSegments().get(1);
                   count = db.update(Tables.POSTAL_TBL, values, PostalTableSchemaBase._ID
                         + "="
