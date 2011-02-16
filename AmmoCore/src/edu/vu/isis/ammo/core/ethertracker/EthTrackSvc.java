@@ -183,4 +183,7 @@ public class EthTrackSvc extends Service {
 		}
 	}
 
+	static {
+        System.loadLibrary("ethrmon");
+    }
 }

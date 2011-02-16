@@ -145,7 +145,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 				// Launch the ethernet service.
 				logger.debug("Launching ethernet service");
 				Intent intent = new Intent("edu.vu.isis.ammo.core.ethtracksvc.LAUNCH");
-				this.sendBroadcast(intent);
+				this.startService(intent);
 			}
 		}
 	}

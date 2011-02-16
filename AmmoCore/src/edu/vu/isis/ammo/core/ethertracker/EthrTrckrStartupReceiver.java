@@ -12,8 +12,4 @@ public class EthrTrckrStartupReceiver extends BroadcastReceiver {
 		svc.setAction("edu.vu.isis.ammo.startatboot.EthTrackSvc");
         context.startService(svc);
 	}
-	
-	static {
-        System.loadLibrary("ethrmon");
-    }
 }
