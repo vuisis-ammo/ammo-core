@@ -140,7 +140,7 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE \"" + Tables.SERIALIZED_TBL + "\" (" 
           + "\""+SerializedTableSchemaBase.URI + "\" TEXT, " 
           + "\""+SerializedTableSchemaBase.MIME_TYPE + "\" TEXT, " 
-          + "\""+SerializedTableSchemaBase.FILE + "\" TEXT, " 
+          + "\""+SerializedTableSchemaBase.DATA + "\" TEXT, " 
           + "\""+SerializedTableSchemaBase._ID + "\" INTEGER PRIMARY KEY AUTOINCREMENT, "
           + "\""+SerializedTableSchemaBase._DISPOSITION + "\" INTEGER );" ); 
         /** 
@@ -385,12 +385,12 @@ static public class SerializedWrapper {
        this.mimeType = val;
        return this;
      } 
-     private String file;
-     public String getFile() {
-       return this.file;
+     private String data;
+     public String getData() {
+       return this.data;
      }
-     public SerializedWrapper setFile(String val) {
-       this.file = val;
+     public SerializedWrapper setData(String val) {
+       this.data = val;
        return this;
      } 
      private int _disposition;
@@ -1041,7 +1041,7 @@ static public class SubscriptionWrapper {
      ContentValues cv = new ContentValues();
      cv.put(SerializedTableSchemaBase.URI, wrap.getUri()); 
      cv.put(SerializedTableSchemaBase.MIME_TYPE, wrap.getMimeType()); 
-     cv.put(SerializedTableSchemaBase.FILE, wrap.getFile()); 
+     cv.put(SerializedTableSchemaBase.DATA, wrap.getData()); 
      cv.put(SerializedTableSchemaBase._DISPOSITION, wrap.get_Disposition());
      return cv;   
   }
@@ -1072,7 +1072,7 @@ static public class SubscriptionWrapper {
            SerializedWrapper iw = new SerializedWrapper();
              iw.setUri(cursor.getString(cursor.getColumnIndex(SerializedTableSchemaBase.URI)));  
              iw.setMimeType(cursor.getString(cursor.getColumnIndex(SerializedTableSchemaBase.MIME_TYPE)));  
-             iw.setFile(cursor.getString(cursor.getColumnIndex(SerializedTableSchemaBase.FILE)));  
+             iw.setData(cursor.getString(cursor.getColumnIndex(SerializedTableSchemaBase.DATA)));  
              iw.set_Disposition(cursor.getInt(cursor.getColumnIndex(SerializedTableSchemaBase._DISPOSITION))); 
 
            Gson gson = new Gson();
@@ -1086,7 +1086,7 @@ static public class SubscriptionWrapper {
 
            // not a reference field name :uri uri uri\n 
            // not a reference field name :mime type mimeType mime_type\n 
-           // not a reference field name :file file file\n 
+           // not a reference field name :data data data\n 
            // SerializedTableSchemaBase._DISPOSITION;
 
            try {
@@ -2422,8 +2422,8 @@ static public class SubscriptionWrapper {
            if (!values.containsKey(SerializedTableSchemaBase.MIME_TYPE)) {
               values.put("\""+SerializedTableSchemaBase.MIME_TYPE+"\"", "application/vnd.ammo.distributor");
            } 
-           if (!values.containsKey(SerializedTableSchemaBase.FILE)) {
-              values.put("\""+SerializedTableSchemaBase.FILE+"\"", "");
+           if (!values.containsKey(SerializedTableSchemaBase.DATA)) {
+              values.put("\""+SerializedTableSchemaBase.DATA+"\"", "");
            } 
            if (!values.containsKey(SerializedTableSchemaBase._DISPOSITION)) {
               values.put("\""+SerializedTableSchemaBase._DISPOSITION+"\"", DistributorSchema._DISPOSITION_START);
@@ -2867,7 +2867,7 @@ static public class SubscriptionWrapper {
             columns.put(SerializedTableSchemaBase._ID, SerializedTableSchemaBase._ID);
                columns.put(SerializedTableSchemaBase.URI, "\""+SerializedTableSchemaBase.URI+"\""); 
                columns.put(SerializedTableSchemaBase.MIME_TYPE, "\""+SerializedTableSchemaBase.MIME_TYPE+"\""); 
-               columns.put(SerializedTableSchemaBase.FILE, "\""+SerializedTableSchemaBase.FILE+"\""); 
+               columns.put(SerializedTableSchemaBase.DATA, "\""+SerializedTableSchemaBase.DATA+"\""); 
                columns.put(SerializedTableSchemaBase._DISPOSITION, "\""+SerializedTableSchemaBase._DISPOSITION+"\"");
 
             serializedProjectionMap = columns;
