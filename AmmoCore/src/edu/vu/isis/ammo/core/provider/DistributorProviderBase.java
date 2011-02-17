@@ -1595,7 +1595,7 @@ static public class SubscriptionWrapper {
    // ===========================================================
    // Constants
    // ===========================================================
-   private final Logger logger = LoggerFactory.getLogger(DistributorProviderBase.class);
+   private final static Logger logger = LoggerFactory.getLogger(DistributorProviderBase.class);
 
    // ===========================================================
    // Fields
@@ -2940,6 +2940,9 @@ static public class SubscriptionWrapper {
    static {
        applDir = new File(Environment.getExternalStorageDirectory(), "Android/data/edu.vu.isis.ammo.core"); 
        applDir.mkdirs();
+       if (! applDir.mkdirs()) {
+         logger.error("cannot create files check permissions in manifest : " + applDir.toString());
+       }
 
        applCacheDir = new File(applDir, "cache/distributor"); 
        applCacheDir.mkdirs();
