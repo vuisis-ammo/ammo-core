@@ -51,7 +51,14 @@ public class EthTrackSvc extends Service {
 	 * state changes of the interface
 	 */
 	public void handleCommand() {
-		this.initEthernetNative();
+		
+		int ret = this.initEthernetNative();
+		
+		if (ret == -1)
+		{
+			Log.i (TAG, "Error in InitEthernet: create or socket bind error, Exiting ...");
+			return;
+		}
 
 		EtherStatReceiver stat = new EtherStatReceiver("ethersvc", this);
 		stat.start();
@@ -162,6 +169,12 @@ public class EthTrackSvc extends Service {
 			while (true) {
 
 				String res = waitForEvent();
+				
+				if (res.indexOf("Error") > 0)
+				{
+					Log.i (TAG, "Error in waitForEvent: Exiting Thread");
+					return;
+				}
 
 				// send the notification if the interface is
 				// up or down
