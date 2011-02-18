@@ -5,18 +5,22 @@ package edu.vu.isis.ammo.core;
 
 import java.util.Calendar;
 
-import edu.vu.isis.ammo.api.AmmoDispatcher;
-import edu.vu.isis.ammo.collector.provider.IncidentSchema.EventTableSchema;
 import android.app.Activity;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
-import android.net.Uri;
+import android.widget.AdapterView.OnItemSelectedListener;
+import edu.vu.isis.ammo.api.AmmoDispatcher;
+import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
 /**
  * This activity provides the operator a direct way of subscribing to content of interest.
@@ -25,7 +29,7 @@ import android.net.Uri;
  * @author phreed
  *
  */
-public class Subscribe extends Activity {
+public class Subscribe extends Activity implements OnClickListener {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -38,6 +42,7 @@ public class Subscribe extends Activity {
 	private Spinner interestSpinner;
 	private AmmoDispatcher ad = null;
 	private MyOnItemSelectedListener selectionListener = null;
+	private Button btnSubscribe;
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -56,22 +61,44 @@ public class Subscribe extends Activity {
 	    	
 	    interestSpinner.setOnItemSelectedListener(selectionListener);
 	    
-	    final Button button = (Button) findViewById(R.id.submit_content);
-        button.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-            	MyOnItemSelectedListener selectedItem = Subscribe.this.selectionListener;
-            	if (selectedItem.uri == null) {
-            		Toast.makeText(Subscribe.this, "subscribe to content", Toast.LENGTH_SHORT).show();
-            		return;
-            	}
-            	
-                // add item to subscription content provider
-            	Toast.makeText(Subscribe.this, "subscribe to content", Toast.LENGTH_SHORT).show();
-            	Subscribe.this.ad.pull(selectedItem.uri, selectedItem.mime, Calendar.MINUTE, 500, 10.0, ":event");
-            }
-        });
+	    btnSubscribe = (Button) findViewById(R.id.submit_content);
+        btnSubscribe.setOnClickListener(this);
 	}  
 	    
+	@Override
+	public void onClick(View v) {
+		if (v.equals(btnSubscribe)) {
+			Uri selectedUri = selectionListener.getLastSelectedUri();
+			String selectedMime = selectionListener.getMime();
+        	if (selectedUri == null) {
+        		Toast.makeText(Subscribe.this, "No content selected", Toast.LENGTH_SHORT).show();
+        		return;
+        	}
+        	
+            // Add item to subscription content provider.
+        	ContentResolver cr = this.getContentResolver();
+        	if (entryDoesNotExist(cr, selectedUri)) {
+        		ContentValues values = new ContentValues();
+            	values.put(SubscriptionTableSchema.URI, selectedUri.toString());
+            	values.put(SubscriptionTableSchema.MIME, selectedMime);
+            	cr.insert(SubscriptionTableSchema.CONTENT_URI, values);
+            	
+            	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();
+            	ad.pull(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");	
+        	}
+		}
+	}
+	
+	private boolean entryDoesNotExist(ContentResolver cr, Uri selectedUri) {
+		boolean returnVal = false;
+		String[] projection = {SubscriptionTableSchema.URI, SubscriptionTableSchema._ID};
+		String selection = SubscriptionTableSchema.URI + " LIKE \"%" + selectedUri.toString() + "%\"";
+		Cursor c = cr.query(SubscriptionTableSchema.CONTENT_URI, projection, selection, null, null);
+		returnVal = (c.getCount() > 0);
+		return returnVal;
+		
+	}
+	
 	private class MyOnItemSelectedListener implements OnItemSelectedListener {
 	    public Uri uri = null;
     	public String mime = null;
@@ -82,11 +109,19 @@ public class Subscribe extends Activity {
         	mime = MIME_OBJECT;
 	        Toast.makeText(parent.getContext(), 
 	    		  "The content uri is " + uri, 
-	    		  Toast.LENGTH_LONG).show();
+	    		  Toast.LENGTH_SHORT).show();
 	    }
 
 	    public void onNothingSelected(AdapterView parent) {
 	        uri = null;
+	    }
+	    
+	    public Uri getLastSelectedUri() {
+	    	return uri;
+	    }
+	    
+	    public String getMime() {
+	    	return mime;
 	    }
 	};
 

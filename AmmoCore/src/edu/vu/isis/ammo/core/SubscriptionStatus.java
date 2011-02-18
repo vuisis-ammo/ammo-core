@@ -3,16 +3,14 @@
  */
 package edu.vu.isis.ammo.core;
 
-import android.app.Activity;
+import android.app.ListActivity;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
-
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
 /**
@@ -22,7 +20,7 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
  * 
  * @author phreed
  */
-public class SubscriptionStatus extends Activity {
+public class SubscriptionStatus extends ListActivity {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -31,7 +29,6 @@ public class SubscriptionStatus extends Activity {
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	private ListView statusList;
 	
 	/**
 	 * 
@@ -57,22 +54,19 @@ public class SubscriptionStatus extends Activity {
 		super.onCreate(bun);
 		setContentView(R.layout.subscription_status_view);
 		
-		statusList = (ListView) findViewById(R.id.subscription_status_list);
+		//statusList = (ListView) findViewById(R.id.subscription_status_list);
 		final Cursor cursor = this.managedQuery(SubscriptionTableSchema.CONTENT_URI, null, null, null, null);
-		
-		final SimpleCursorAdapter adapter = new SimpleCursorAdapter(this,
+		final ListAdapter adapter = new SimpleCursorAdapter(this,
 				R.layout.subscription_status_item,
 				cursor, fromItemLayout, toItemLayout);
 		
-		statusList.setAdapter(adapter);
-		
-		statusList.setOnItemClickListener(new OnItemClickListener() {
-			@Override
-			public void onItemClick(AdapterView<?> parent, View view, int pos, long id) {
-				Toast.makeText(SubscriptionStatus.this, "no on click behavior available", Toast.LENGTH_SHORT).show();	
-			}
-		});
-
+		setListAdapter(adapter);
+	}
+	
+	@Override 
+	protected void onListItemClick(ListView l, View v, int position, long id) {
+		super.onListItemClick(l, v, position, id);
+		Toast.makeText(SubscriptionStatus.this, "no on click behavior available", Toast.LENGTH_SHORT).show();
 	}
 
 }
