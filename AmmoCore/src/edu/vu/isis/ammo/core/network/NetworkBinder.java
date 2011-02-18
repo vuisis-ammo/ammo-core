@@ -17,13 +17,13 @@ import android.os.Binder;
 
 public class NetworkBinder extends Binder implements INetworkBinder 
 {		
-	final NetworkProxyService nps;
+	final NetworkService nps;
 	
-	private NetworkBinder(NetworkProxyService nps) {
+	private NetworkBinder(NetworkService nps) {
 		this.nps = nps;
 	}
 	
-	static public NetworkBinder getInstance(NetworkProxyService nps) {
+	static public NetworkBinder getInstance(NetworkService nps) {
 		return new NetworkBinder(nps);
 	}
 	

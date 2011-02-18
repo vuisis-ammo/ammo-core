@@ -85,8 +85,8 @@ public class DistributorService extends Service implements IDistributorService {
     // ===========================================================
 
     private IDistributorService callback;
-    private ServiceConnection networkProxyServiceConnection;
-    private Intent networkProxyServiceIntent = new Intent(INetworkBinder.ACTION);
+    private ServiceConnection networkServiceConnection;
+    private Intent networkServiceIntent = new Intent(INetworkBinder.ACTION);
 
     private INetworkBinder network;
     private boolean isBoundNPS = false;
@@ -204,7 +204,7 @@ public class DistributorService extends Service implements IDistributorService {
 	logger.debug("service unbinding from network proxy service");
 	// Use our binding for notifying the NPS of teardown.
 	if (network != null) network.teardown();
-	this.unbindService(networkProxyServiceConnection);
+	this.unbindService(networkServiceConnection);
 	isBoundNPS = false;
     }
 
@@ -217,10 +217,10 @@ public class DistributorService extends Service implements IDistributorService {
 	public void onDestroy() {
 	logger.debug("service destroyed...");
 	if (isBoundNPS) {
-	    this.unbindService(networkProxyServiceConnection);
+	    this.unbindService(networkServiceConnection);
 	    isBoundNPS = false;
 	}
-	this.stopService(networkProxyServiceIntent);
+	this.stopService(networkServiceIntent);
 	tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
 	wifiReceiver.setInitialized(false);
 	this.getContentResolver().unregisterContentObserver(postalObserver);
@@ -648,7 +648,7 @@ public class DistributorService extends Service implements IDistributorService {
 	if (network != null) return isBoundNPS;
 		
 	// Create a service connection to the Network Proxy Service.
-	networkProxyServiceConnection = new ServiceConnection() {
+	networkServiceConnection = new ServiceConnection() {
 		public void onServiceConnected(ComponentName name, IBinder service) {
 		    logger.debug("Connected to NPS");
 		    isBoundNPS = true;
@@ -662,9 +662,9 @@ public class DistributorService extends Service implements IDistributorService {
 		}
 	    };
 
-	networkProxyServiceIntent = new Intent(INetworkBinder.ACTION);
-	isBoundNPS = this.bindService(networkProxyServiceIntent,
-				      networkProxyServiceConnection, BIND_AUTO_CREATE);
+	networkServiceIntent = new Intent(INetworkBinder.ACTION);
+	isBoundNPS = this.bindService(networkServiceIntent,
+				      networkServiceConnection, BIND_AUTO_CREATE);
 	return isBoundNPS;
     }
 
@@ -788,7 +788,7 @@ public class DistributorService extends Service implements IDistributorService {
     }
 	
     // ================================================
-    // Calls originating from NetworkProxyService
+    // Calls originating from NetworkService
     // ================================================
 
     /**

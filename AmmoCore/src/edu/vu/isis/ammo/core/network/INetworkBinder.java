@@ -5,12 +5,12 @@ import edu.vu.isis.ammo.core.distributor.IDistributorService;
 
 public interface INetworkBinder extends IBinder {
 
-	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.network.NetworkProxyService.PREPARE_FOR_STOP";
-	public static final String UPDATE_IP = "edu.vu.isis.ammo.core.network.NetworkProxyService.UPDATE_IP";
-	public static final String ACTION = "edu.vu.isis.ammo.core.network.NetworkProxyService.ACTION";
+	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP";
+	public static final String UPDATE_IP = "edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP";
+	public static final String ACTION = "edu.vu.isis.ammo.core.network.NetworkService.ACTION";
 	
-	public static final String ACTION_RECONNECT = "edu.vu.isis.ammo.core.network.NetworkProxyService.RUN_STATUS_BEGIN_ACTION";
-	public static final String ACTION_DISCONNECT = "edu.vu.isis.ammo.core.network.NetworkProxyService.RUN_STATUS_HALT_ACTION";
+	public static final String ACTION_RECONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_BEGIN_ACTION";
+	public static final String ACTION_DISCONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_HALT_ACTION";
 
 	public void teardown();
 	

@@ -45,13 +45,13 @@
 
 		<!-- ========== SERVICE SECTION ================= -->
 
-		<service android:enabled="true" android:name=".network.NetworkProxyService">
+		<service android:enabled="true" android:name=".network.NetworkService">
 			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.network.NetworkProxyService.ACTION" />
+				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.ACTION" />
 				<action
-					android:name="edu.vu.isis.ammo.core.network.NetworkProxyService.PREPARE_FOR_STOP" />
+					android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
 				<action
-					android:name="edu.vu.isis.ammo.core.network.NetworkProxyService.UPDATE_IP" />
+					android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP" />
 			</intent-filter>
 		</service>
 

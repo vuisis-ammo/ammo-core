@@ -60,13 +60,13 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  * @author Fred Eisele
  * 
  */
-public class NetworkProxyService extends Service 
+public class NetworkService extends Service 
 implements OnSharedPreferenceChangeListener
 {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger(NetworkProxyService.class);
+	private static final Logger logger = LoggerFactory.getLogger(NetworkService.class);
 
 	@SuppressWarnings("unused")
 	private static final String NULL_CHAR = "\0";
@@ -221,11 +221,11 @@ implements OnSharedPreferenceChangeListener
 		mReceiverRegistrar = new IRegisterReceiver() {
 			@Override
 			public Intent registerReceiver(final BroadcastReceiver aReceiver, final IntentFilter aFilter) {
-				return NetworkProxyService.this.registerReceiver(aReceiver, aFilter);
+				return NetworkService.this.registerReceiver(aReceiver, aFilter);
 			}
 			@Override
 			public void unregisterReceiver(final BroadcastReceiver aReceiver) {
-				NetworkProxyService.this.unregisterReceiver(aReceiver);
+				NetworkService.this.unregisterReceiver(aReceiver);
 			}
 		};
 
@@ -354,7 +354,7 @@ implements OnSharedPreferenceChangeListener
 		if (! isConnected()) {
 			tcpSocket = null;
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			Toast.makeText(NetworkProxyService.this,msg, Toast.LENGTH_SHORT).show();
+			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
@@ -365,7 +365,7 @@ implements OnSharedPreferenceChangeListener
 			connIntent.putExtra("operatorId", operatorId);
 			this.sendBroadcast(connIntent);
 			
-			Toast.makeText(NetworkProxyService.this,msg, Toast.LENGTH_SHORT).show();
+			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 		}
 
 		authenticateGatewayConnection();
@@ -393,7 +393,7 @@ implements OnSharedPreferenceChangeListener
 		}
 		if (udpSocket == null) {
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			Toast.makeText(NetworkProxyService.this,msg, Toast.LENGTH_SHORT).show();
+			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
@@ -689,7 +689,7 @@ implements OnSharedPreferenceChangeListener
 	 *
 	 */
 	static private class TcpReceiverThread extends Thread {
-		final private NetworkProxyService nps;
+		final private NetworkService nps;
 
 		private Socket mSocket = null;
 		volatile private int mState;
@@ -700,7 +700,7 @@ implements OnSharedPreferenceChangeListener
 		static private final int CHECKED = 3;  // indicating the bytes are being read
 		static private final int DELIVER = 4;  // indicating the message has been read
 		
-		private TcpReceiverThread(NetworkProxyService nps, Socket aSocket) {
+		private TcpReceiverThread(NetworkService nps, Socket aSocket) {
 			this.nps = nps;
 			this.mSocket = aSocket;
 			try {
@@ -710,7 +710,7 @@ implements OnSharedPreferenceChangeListener
 			}
 		}
 		
-		public static TcpReceiverThread getInstance(NetworkProxyService nps, Socket aSocket) {
+		public static TcpReceiverThread getInstance(NetworkService nps, Socket aSocket) {
 			return new TcpReceiverThread(nps,  aSocket);
 		}
 
@@ -787,7 +787,7 @@ implements OnSharedPreferenceChangeListener
 						try {
 						message = new byte[bytesToRead];
 						checksum = eis.readUInt();
-						Log.i("NetworkProxyService", Long.toHexString(checksum));
+						Log.i("NetworkService", Long.toHexString(checksum));
 						bytesRead = 0;
 						this.mState = CHECKED;
 						} catch (OutOfMemoryError ex) {
@@ -1008,11 +1008,11 @@ implements OnSharedPreferenceChangeListener
 			logger.info("onReceive: " + action);
 
 			if (INetworkBinder.ACTION_RECONNECT.equals(action)) {
-				NetworkProxyService.this.connectChannels(true);
+				NetworkService.this.connectChannels(true);
 				return;
 			}
 			if (INetworkBinder.ACTION_DISCONNECT.equals(action)) {
-				NetworkProxyService.this.disconnectChannels();
+				NetworkService.this.disconnectChannels();
 				return;
 			}
 			return;
