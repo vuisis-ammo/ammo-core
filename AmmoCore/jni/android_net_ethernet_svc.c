@@ -357,6 +357,15 @@ Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_waitForEvent(JNIEnv *env,
 		rbuf[4096 - left] = '\0';
 		//LOGI("poll state :%s, left:%d",rbuf, left);
 	}
+	else
+	{
+		__android_log_print(
+							ANDROID_LOG_INFO, 
+							LOG_TAG,
+							"Error in recvmsg .. exiting"
+							);
+							goto error;
+	}
 	if (ethstatmsg != 0)
 		return (*env)->NewStringUTF(env, ethstatmsg);
 	else
@@ -365,7 +374,7 @@ Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_waitForEvent(JNIEnv *env,
 error:
 	if(buff)
 		free(buff);
-	return (*env)->NewStringUTF(env, rbuf);
+	return (*env)->NewStringUTF(env, "Error");
 }
 
 
@@ -435,6 +444,12 @@ jint Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative(JNIE
 	nl_socket_msg = socket(AF_NETLINK,SOCK_RAW,NETLINK_ROUTE);
 	if (nl_socket_msg <= 0) {
 		//LOGE("Can not create netlink msg socket");
+
+     	__android_log_print(
+     						ANDROID_LOG_INFO, 
+     						LOG_TAG,
+							"Can not create netlink msg socket"
+							); 
 		goto error;
 	}
 
@@ -443,7 +458,11 @@ jint Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative(JNIE
 
 	if (bind(nl_socket_msg, (struct sockaddr *)(&addr_msg),
 				sizeof(struct sockaddr_nl))) {
-		//LOGE("Can not bind to netlink msg socket");
+     	__android_log_print(
+     						ANDROID_LOG_INFO, 
+     						LOG_TAG,
+							"Can not bind to netlink msg socket"
+							); 
 		goto error;
 	}
 	__android_log_print(ANDROID_LOG_INFO, LOG_TAG,
@@ -451,9 +470,11 @@ jint Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative(JNIE
 
 	nl_socket_poll = socket(AF_NETLINK,SOCK_RAW,NETLINK_ROUTE);
 	if (nl_socket_poll <= 0) {
-		//LOGE("Can not create netlink poll socket");
-		__android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-				"Can not create netlink poll socket"); 
+     	__android_log_print(
+     						ANDROID_LOG_INFO, 
+     						LOG_TAG,
+							"Can not create netlink poll socket"
+							); 
 		goto error;
 	}
 
@@ -463,7 +484,11 @@ jint Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative(JNIE
 	errno = 0;
 	if(bind(nl_socket_poll, (struct sockaddr *)(&addr_poll),
 				sizeof(struct sockaddr_nl))) {
-		//LOGE("Can not bind to netlink poll socket,%s",strerror(errno));
+     	__android_log_print(
+     						ANDROID_LOG_INFO, 
+     						LOG_TAG,
+							"Can not bind to netlink poll socket,%s",strerror(errno)
+							); 
 
 		goto error;
 	}
@@ -474,7 +499,7 @@ jint Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative(JNIE
 
 
 
-	return ret;
+	return 0;
 error:
 	//LOGE("%s exited with error",__FUNCTION__);
 	__android_log_print(ANDROID_LOG_INFO, LOG_TAG,

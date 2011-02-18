@@ -5,7 +5,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -44,8 +43,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SerializedTableSchema;
-import edu.vu.isis.ammo.core.provider.IAmmoSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrivalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
@@ -241,38 +238,6 @@ public class DistributorService extends Service implements IDistributorService {
     // IDistributorService implementation
     // ===========================================================
 
-    /**
-     *  Iterate over each row of the matrix cursor and send the serialized data.
-     *  A dispatch is only successful if all pieces of the incident 
-     *  report are transmitted successfully.
-     *   
-     * @param cursorWithSerializedData
-     * @param rowUri
-     * @param mimeType
-     * @return true or false depending on the return code.
-     * @throws NullPointerException
-     * @throws IOException
-     */
-    private boolean dispatchSerializedDataFromCursor(Cursor cursorWithSerializedData, String rowUri, String mimeType) throws NullPointerException, IOException {
-	boolean dispatchSuccessful = true;
-	for (boolean moreChildren = cursorWithSerializedData.moveToFirst(); 
-	     moreChildren;
-	     moreChildren = cursorWithSerializedData.moveToNext()) 
-	    {
-		String file = cursorWithSerializedData.getString(cursorWithSerializedData.getColumnIndex(SerializedTableSchema.FILE));
-		if (file.equals("")) {
-		    cursorWithSerializedData.close();
-		    continue;
-		}
-		byte[] data = this.getBytesFromFile(new File(file));
-		
-		// Send the message.
-			
-	    }
-		
-	return dispatchSuccessful;
-    }
-	
 	
     /**
      *  Make a specialized query on a specific URI to get back that row in serialized form
@@ -409,17 +374,35 @@ public class DistributorService extends Service implements IDistributorService {
 		{
 		    String rowUri = cur.getString(cur.getColumnIndex(PostalTableSchema.URI));
 		    String cpType = cur.getString(cur.getColumnIndex(PostalTableSchema.CP_TYPE));
-				
+		    	
 		    Log.d("DistributorService", "serializing: " + rowUri);
 		    Log.d("DistributorService", "rowUriType: " + cpType );
 				
 		    String mimeType = InternetMediaType.getInst(cpType).setType("application").toString();
 		    byte[] serialized;
-		    try {
-		    	serialized = this.queryUriForSerializedData(rowUri);
-		    } catch (IOException e1) {
-				logger.error("invalid row for serialization");
-				continue;
+		    
+		    int serialType = cur.getInt(cur.getColumnIndex(PostalTableSchema.SERIALIZE_TYPE));
+		    switch (serialType) {
+		    case PostalTableSchema.SERIALIZE_TYPE_DIRECT: 
+		    	int dataColumnIndex = cur.getColumnIndex(PostalTableSchema.DATA);
+		    	if (! cur.isNull(dataColumnIndex)) {
+			    	String data = cur.getString(dataColumnIndex);
+			    	serialized = data.getBytes();
+		    	} else {
+		    	    // TODO handle the case where data is null 
+		    		// that signifies there is a file containing the data
+		    		serialized = null;
+		    	}
+		    	break;
+		    case PostalTableSchema.SERIALIZE_TYPE_INDIRECT: 
+		    case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
+		    default:
+			    try {
+			    	serialized = this.queryUriForSerializedData(rowUri);
+			    } catch (IOException e1) {
+					logger.error("invalid row for serialization");
+					continue;
+			    }
 		    }
 		    if (serialized == null) {
 		    	logger.error("no serialized data produced");
