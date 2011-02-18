@@ -182,10 +182,8 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 			tvPhysicalLink.setTextColor(Color.rgb(66, 209, 66));
 			//tbPhysicalLink.setChecked(true);
 		} else {
-			tvPhysicalLink.setText("Connected");
-			tvPhysicalLink.setTextColor(Color.rgb(66, 209, 66));
-			//tvPhysicalLink.setText("Not Connected");
-			//tvPhysicalLink.setTextColor(Color.RED);
+			tvPhysicalLink.setText("Not Connected");
+			tvPhysicalLink.setTextColor(Color.RED);
 			//tbPhysicalLink.setChecked(false);
 		}
 		
