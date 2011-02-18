@@ -50,7 +50,6 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.DeliveryMechanismTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PostalTableSchemaBase;
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.SerializedTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.RetrivalTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PublicationTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.SubscriptionTableSchemaBase;
@@ -66,7 +65,6 @@ public abstract class DistributorProviderBase extends ContentProvider {
 public interface Tables {
       public static final String DELIVERY_MECHANISM_TBL = "delivery_mechanism";
          public static final String POSTAL_TBL = "postal";
-         public static final String SERIALIZED_TBL = "serialized";
          public static final String RETRIVAL_TBL = "retrival";
          public static final String PUBLICATION_TBL = "publication";
          public static final String SUBSCRIPTION_TBL = "subscription";
@@ -126,23 +124,16 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE \"" + Tables.POSTAL_TBL + "\" (" 
           + "\""+PostalTableSchemaBase.CP_TYPE + "\" TEXT, " 
           + "\""+PostalTableSchemaBase.URI + "\" TEXT, " 
+          + "\""+PostalTableSchemaBase.SERIALIZE_TYPE + "\" INTEGER, " 
           + "\""+PostalTableSchemaBase.DISPOSITION + "\" INTEGER, " 
           + "\""+PostalTableSchemaBase.EXPIRATION + "\" INTEGER, " 
           + "\""+PostalTableSchemaBase.UNIT + "\" TEXT, " 
           + "\""+PostalTableSchemaBase.VALUE + "\" INTEGER, " 
+          + "\""+PostalTableSchemaBase.DATA + "\" TEXT, " 
           + "\""+PostalTableSchemaBase.CREATED_DATE + "\" INTEGER, " 
           + "\""+PostalTableSchemaBase.MODIFIED_DATE + "\" INTEGER, " 
           + "\""+PostalTableSchemaBase._ID + "\" INTEGER PRIMARY KEY AUTOINCREMENT, "
           + "\""+PostalTableSchemaBase._DISPOSITION + "\" INTEGER );" ); 
-        /** 
-         * Table Name: serialized <P>
-         */
-        db.execSQL("CREATE TABLE \"" + Tables.SERIALIZED_TBL + "\" (" 
-          + "\""+SerializedTableSchemaBase.URI + "\" TEXT, " 
-          + "\""+SerializedTableSchemaBase.MIME_TYPE + "\" TEXT, " 
-          + "\""+SerializedTableSchemaBase.DATA + "\" TEXT, " 
-          + "\""+SerializedTableSchemaBase._ID + "\" INTEGER PRIMARY KEY AUTOINCREMENT, "
-          + "\""+SerializedTableSchemaBase._DISPOSITION + "\" INTEGER );" ); 
         /** 
          * Table Name: retrival <P>
          */
@@ -202,7 +193,6 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
             + newVersion + ", which will destroy all old data");
          db.execSQL("DROP TABLE IF EXISTS \"" + Tables.DELIVERY_MECHANISM_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.POSTAL_TBL + "\";");
-            db.execSQL("DROP TABLE IF EXISTS \"" + Tables.SERIALIZED_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.RETRIVAL_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.PUBLICATION_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.SUBSCRIPTION_TBL + "\";");
@@ -305,6 +295,14 @@ static public class PostalWrapper {
        this.uri = val;
        return this;
      } 
+     private int serializeType;
+     public int getSerializeType() {
+       return this.serializeType;
+     }
+     public PostalWrapper setSerializeType(int val) {
+       this.serializeType = val;
+       return this;
+     } 
      private int disposition;
      public int getDisposition() {
        return this.disposition;
@@ -337,6 +335,14 @@ static public class PostalWrapper {
        this.value = val;
        return this;
      } 
+     private String data;
+     public String getData() {
+       return this.data;
+     }
+     public PostalWrapper setData(String val) {
+       this.data = val;
+       return this;
+     } 
      private long createdDate;
      public long getCreatedDate() {
        return this.createdDate;
@@ -358,46 +364,6 @@ static public class PostalWrapper {
        return this._disposition;
      }
      public PostalWrapper set_Disposition(int val) {
-       this._disposition = val;
-       return this;
-     }
-} 
-/**
-* Table Name: serialized <P>
-*/
-static public class SerializedWrapper {
-   public SerializedWrapper() {
-     // logger.info("building SerializedWrapper");
-   }
-     private String uri;
-     public String getUri() {
-       return this.uri;
-     }
-     public SerializedWrapper setUri(String val) {
-       this.uri = val;
-       return this;
-     } 
-     private String mimeType;
-     public String getMimeType() {
-       return this.mimeType;
-     }
-     public SerializedWrapper setMimeType(String val) {
-       this.mimeType = val;
-       return this;
-     } 
-     private String data;
-     public String getData() {
-       return this.data;
-     }
-     public SerializedWrapper setData(String val) {
-       this.data = val;
-       return this;
-     } 
-     private int _disposition;
-     public int get_Disposition() {
-       return this._disposition;
-     }
-     public SerializedWrapper set_Disposition(int val) {
        this._disposition = val;
        return this;
      }
@@ -881,10 +847,12 @@ static public class SubscriptionWrapper {
      ContentValues cv = new ContentValues();
      cv.put(PostalTableSchemaBase.CP_TYPE, wrap.getCpType()); 
      cv.put(PostalTableSchemaBase.URI, wrap.getUri()); 
+     cv.put(PostalTableSchemaBase.SERIALIZE_TYPE, wrap.getSerializeType()); 
      cv.put(PostalTableSchemaBase.DISPOSITION, wrap.getDisposition()); 
      cv.put(PostalTableSchemaBase.EXPIRATION, wrap.getExpiration()); 
      cv.put(PostalTableSchemaBase.UNIT, wrap.getUnit()); 
      cv.put(PostalTableSchemaBase.VALUE, wrap.getValue()); 
+     cv.put(PostalTableSchemaBase.DATA, wrap.getData()); 
      cv.put(PostalTableSchemaBase.CREATED_DATE, wrap.getCreatedDate()); 
      cv.put(PostalTableSchemaBase.MODIFIED_DATE, wrap.getModifiedDate()); 
      cv.put(PostalTableSchemaBase._DISPOSITION, wrap.get_Disposition());
@@ -917,10 +885,12 @@ static public class SubscriptionWrapper {
            PostalWrapper iw = new PostalWrapper();
              iw.setCpType(cursor.getString(cursor.getColumnIndex(PostalTableSchemaBase.CP_TYPE)));  
              iw.setUri(cursor.getString(cursor.getColumnIndex(PostalTableSchemaBase.URI)));  
+             iw.setSerializeType(cursor.getInt(cursor.getColumnIndex(PostalTableSchemaBase.SERIALIZE_TYPE)));  
              iw.setDisposition(cursor.getInt(cursor.getColumnIndex(PostalTableSchemaBase.DISPOSITION)));  
              iw.setExpiration(cursor.getInt(cursor.getColumnIndex(PostalTableSchemaBase.EXPIRATION)));  
              iw.setUnit(cursor.getString(cursor.getColumnIndex(PostalTableSchemaBase.UNIT)));  
              iw.setValue(cursor.getInt(cursor.getColumnIndex(PostalTableSchemaBase.VALUE)));  
+             iw.setData(cursor.getString(cursor.getColumnIndex(PostalTableSchemaBase.DATA)));  
              iw.setCreatedDate(cursor.getLong(cursor.getColumnIndex(PostalTableSchemaBase.CREATED_DATE)));  
              iw.setModifiedDate(cursor.getLong(cursor.getColumnIndex(PostalTableSchemaBase.MODIFIED_DATE)));  
              iw.set_Disposition(cursor.getInt(cursor.getColumnIndex(PostalTableSchemaBase._DISPOSITION))); 
@@ -936,10 +906,12 @@ static public class SubscriptionWrapper {
 
            // not a reference field name :cp type cpType cp_type\n 
            // not a reference field name :uri uri uri\n 
+           // not a reference field name :serialize type serializeType serialize_type\n 
            // not a reference field name :disposition disposition disposition\n 
            // not a reference field name :expiration expiration expiration\n 
            // not a reference field name :unit unit unit\n 
            // not a reference field name :value value value\n 
+           // not a reference field name :data data data\n 
            // not a reference field name :created date createdDate created_date\n 
            // not a reference field name :modified date modifiedDate modified_date\n 
            // PostalTableSchemaBase._DISPOSITION;
@@ -948,151 +920,6 @@ static public class SubscriptionWrapper {
               if (!dirPostal.exists() ) dirPostal.mkdirs();
               
               File outfile = new File(dirPostal, Integer.toHexString((int) System.currentTimeMillis())); 
-              BufferedOutputStream bufferedOutput = new BufferedOutputStream(new FileOutputStream(outfile), 8192);
-              bufferedOutput.write(baos.toByteArray());
-              bufferedOutput.flush();
-              bufferedOutput.close();
-           
-              paths.add(outfile.getCanonicalPath());
-           } catch (FileNotFoundException e) {
-              e.printStackTrace();
-           } catch (IOException e) {
-              e.printStackTrace();
-           }
-      }
-      return paths;
-   } 
-  static private File dirSerialized = 
-           new File(Environment.getExternalStorageDirectory(),
-                    "ammo_cp_serialized_cache");
-
-  public long serializedDeserializer(File file) {
-     logger.debug("::serializeddeserializer");
-     InputStream ins;
-     try {
-        ins = new FileInputStream(file);
-     } catch (FileNotFoundException e1) {
-        return -1;
-     }
-     BufferedInputStream bufferedInput = new BufferedInputStream(ins);
-     byte[] buffer = new byte[1024];
-     StringBuffer strbuf = new StringBuffer();
-     try {
-       int bytesRead = 0;
-       while ((bytesRead = bufferedInput.read(buffer)) != -1) {
-         strbuf.append( new String(buffer, 0, bytesRead));
-       }
-       bufferedInput.close();
-     } catch (IOException e) {
-       logger.error("could not read serialized file");
-       return -1;
-     }
-     String json = strbuf.toString();
-     Gson gson = new Gson();
-     SerializedWrapper wrap = null;
-     try {
-         wrap = gson.fromJson(json, SerializedWrapper.class);
-     } catch (JsonParseException ex) {
-          ex.getMessage();
-          ex.printStackTrace();
-          return -1;
-     } catch (java.lang.RuntimeException ex) {
-          ex.getMessage();
-          ex.printStackTrace();
-          return -1;
-     }
-     if (wrap == null) return -1;
-    
-     SQLiteDatabase db = openHelper.getReadableDatabase();
-     
-     ContentValues cv = serializedComposeValues(wrap);
-     String whereClause = serializedSelectKeyClause(wrap);
-     
-     if (whereClause != null) {
-         // Switch on the path in the uri for what we want to query.
-         Cursor updateCursor = db.query(Tables.SERIALIZED_TBL, serializedProjectionKey, whereClause, null, null, null, null);
-         long rowId = -1;
-         for (boolean more = updateCursor.moveToFirst(); more;)
-         {
-            rowId = updateCursor.getLong(updateCursor.getColumnIndex(SerializedTableSchemaBase._ID));  
-         
-            db.update(Tables.SERIALIZED_TBL, cv, 
-               "\""+SerializedTableSchemaBase._ID+"\" = '"+ Long.toString(rowId)+"'",
-               null); 
-            break;
-         }
-         updateCursor.close();
-         if (rowId > 0) {
-             getContext().getContentResolver().notifyChange(SerializedTableSchemaBase.CONTENT_URI, null); 
-             return rowId;
-         }
-     }
-     long rowId = db.insert(Tables.SERIALIZED_TBL, 
-         SerializedTableSchemaBase.URI,
-         cv);
-     getContext().getContentResolver().notifyChange(SerializedTableSchemaBase.CONTENT_URI, null); 
-     return rowId;
-   }
-  /**
-   * This method is provided with the express purpose of being overridden and extended.
-   * @param wrap
-   */
-  protected ContentValues serializedComposeValues(SerializedWrapper wrap) {
-     ContentValues cv = new ContentValues();
-     cv.put(SerializedTableSchemaBase.URI, wrap.getUri()); 
-     cv.put(SerializedTableSchemaBase.MIME_TYPE, wrap.getMimeType()); 
-     cv.put(SerializedTableSchemaBase.DATA, wrap.getData()); 
-     cv.put(SerializedTableSchemaBase._DISPOSITION, wrap.get_Disposition());
-     return cv;   
-  }
-  
-  /**
-   * This method is provided with the express purpose of being overridden and extended.
-   *
-   *    StringBuilder sb = new StringBuilder();
-   *    sb.append("\""+SerializedTableSchemaBase.FUNCTION_CODE+"\" = '"+ wrap.getFunctionCode()+"'"); 
-   *    return sb.toString();   
-   *
-   * @param wrap
-   */
-  protected String serializedSelectKeyClause(SerializedWrapper wrap) {
-      return null;
-  }
-
-  //@Override 
-  public ArrayList<String> serializedSerializer(Cursor cursor) {
-      logger.debug( "::serializer");
-      ArrayList<String> paths = new ArrayList<String>();      
-      if (1 > cursor.getCount()) return paths;
-
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      EndianOutputStream eos = new EndianOutputStream(baos);
-      
-      for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
-           SerializedWrapper iw = new SerializedWrapper();
-             iw.setUri(cursor.getString(cursor.getColumnIndex(SerializedTableSchemaBase.URI)));  
-             iw.setMimeType(cursor.getString(cursor.getColumnIndex(SerializedTableSchemaBase.MIME_TYPE)));  
-             iw.setData(cursor.getString(cursor.getColumnIndex(SerializedTableSchemaBase.DATA)));  
-             iw.set_Disposition(cursor.getInt(cursor.getColumnIndex(SerializedTableSchemaBase._DISPOSITION))); 
-
-           Gson gson = new Gson();
-
-           try {
-              eos.writeBytes(gson.toJson(iw));
-              eos.writeByte(0);
-           } catch (IOException ex) {
-              ex.printStackTrace();
-           }
-
-           // not a reference field name :uri uri uri\n 
-           // not a reference field name :mime type mimeType mime_type\n 
-           // not a reference field name :data data data\n 
-           // SerializedTableSchemaBase._DISPOSITION;
-
-           try {
-              if (!dirSerialized.exists() ) dirSerialized.mkdirs();
-              
-              File outfile = new File(dirSerialized, Integer.toHexString((int) System.currentTimeMillis())); 
               BufferedOutputStream bufferedOutput = new BufferedOutputStream(new FileOutputStream(outfile), 8192);
               bufferedOutput.write(baos.toByteArray());
               bufferedOutput.flush();
@@ -1607,9 +1434,6 @@ static public class SubscriptionWrapper {
       protected static String[] postalProjectionKey;
       protected static HashMap<String, String> postalProjectionMap;
       
-      protected static String[] serializedProjectionKey;
-      protected static HashMap<String, String> serializedProjectionMap;
-      
       protected static String[] retrivalProjectionKey;
       protected static HashMap<String, String> retrivalProjectionMap;
       
@@ -1629,21 +1453,17 @@ static public class SubscriptionWrapper {
       protected static final int POSTAL_SET = 21;
       protected static final int POSTAL_ID = 22;
       
-      protected static final int SERIALIZED_BLOB = 30;
-      protected static final int SERIALIZED_SET = 31;
-      protected static final int SERIALIZED_ID = 32;
+      protected static final int RETRIVAL_BLOB = 30;
+      protected static final int RETRIVAL_SET = 31;
+      protected static final int RETRIVAL_ID = 32;
       
-      protected static final int RETRIVAL_BLOB = 40;
-      protected static final int RETRIVAL_SET = 41;
-      protected static final int RETRIVAL_ID = 42;
+      protected static final int PUBLICATION_BLOB = 40;
+      protected static final int PUBLICATION_SET = 41;
+      protected static final int PUBLICATION_ID = 42;
       
-      protected static final int PUBLICATION_BLOB = 50;
-      protected static final int PUBLICATION_SET = 51;
-      protected static final int PUBLICATION_ID = 52;
-      
-      protected static final int SUBSCRIPTION_BLOB = 60;
-      protected static final int SUBSCRIPTION_SET = 61;
-      protected static final int SUBSCRIPTION_ID = 62;
+      protected static final int SUBSCRIPTION_BLOB = 50;
+      protected static final int SUBSCRIPTION_SET = 51;
+      protected static final int SUBSCRIPTION_ID = 52;
       
    
    /** Uri matcher */
@@ -1670,10 +1490,6 @@ static public class SubscriptionWrapper {
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL+"/#/_serial", POSTAL_ID);
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL+"/_serial", POSTAL_SET);
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL+"/#/*", POSTAL_BLOB);
-            
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.SERIALIZED_TBL+"/#/_serial", SERIALIZED_ID);
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.SERIALIZED_TBL+"/_serial", SERIALIZED_SET);
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.SERIALIZED_TBL+"/#/*", SERIALIZED_BLOB);
             
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL+"/#/_serial", RETRIVAL_ID);
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL+"/_serial", RETRIVAL_SET);
@@ -1857,77 +1673,6 @@ static public class SubscriptionWrapper {
                return null;
             }
             paths = this.postalSerializer(cursor);
-            cursor.close();
-            try {
-               return ParcelFileDescriptor.open(new File(paths.get(0)), imode);
-            } catch (FileNotFoundException e) {
-               e.printStackTrace();
-            }
-            break;    
-
-         case SERIALIZED_BLOB:
-            if (pseg.size() < 3)
-                return null;
-
-            try {
-                File filePath = blobFile("serialized", pseg.get(1), pseg.get(2));
-                return ParcelFileDescriptor.open(filePath, imode);
-            } catch (FileNotFoundException ex) {
-                ex.printStackTrace();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-            break;
-
-         case SERIALIZED_SET:
-            try {
-               final File tempFile = tempFilePath("serialized");
-               final ParcelFileDescriptor pfd = ParcelFileDescriptor.open(
-                     tempFile, ParcelFileDescriptor.MODE_READ_WRITE);
-               final FileObserver observer = new FileObserver(tempFile.getCanonicalPath()) {
-                  @Override
-                  public void onEvent(int event, String path) {
-                     switch (event) {
-                     case FileObserver.CLOSE_WRITE:
-                        this.stopWatching();
-                        try {
-                          pfd.close();
-                          serializedDeserializer(tempFile);
-                        } catch (IOException e) {
-                        }
-                        tempFile.delete();
-                        observerSet.remove(this);
-                        return;
-                     default:
-                        logger.info("unknown file disposition: "+event);
-                     }
-                  }
-               };
-               observer.startWatching();
-               observerSet.add(observer);
-               return pfd;
-             } catch (FileNotFoundException e1) {
-                e1.printStackTrace();
-             } catch (IOException e1) {
-                e1.printStackTrace();
-             }
-             break;
-
-         case SERIALIZED_ID:
-            qb = new SQLiteQueryBuilder();
-            db = openHelper.getReadableDatabase();
-                    
-            // Switch on the path in the uri for what we want to query.
-            qb.setTables(Tables.SERIALIZED_TBL);
-            qb.setProjectionMap(serializedProjectionMap);
-            qb.appendWhere(SerializedTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
-            cursor = qb.query(db, null, null, null, null, null, null);
-            if (1 > cursor.getCount()) {
-               logger.info("no data of type SERIALIZED_ID"); 
-               cursor.close();
-               return null;
-            }
-            paths = this.serializedSerializer(cursor);
             cursor.close();
             try {
                return ParcelFileDescriptor.open(new File(paths.get(0)), imode);
@@ -2208,21 +1953,6 @@ static public class SubscriptionWrapper {
                   break;
 
                
-               case SERIALIZED_SET:
-                  tableName = Tables.SERIALIZED_TBL;
-                  projectionMap = serializedProjectionMap;
-                  orderBy = (! TextUtils.isEmpty(sortOrder)) ? sortOrder
-                             : SerializedTableSchemaBase.DEFAULT_SORT_ORDER;
-                  break;
-               
-               case SERIALIZED_ID:
-                  tableName = Tables.SERIALIZED_TBL;
-                  projectionMap = serializedProjectionMap;
-                  qb.appendWhere(SerializedTableSchemaBase._ID + "="
-                        + uri.getPathSegments().get(1));
-                  break;
-
-               
                case RETRIVAL_SET:
                   tableName = Tables.RETRIVAL_TBL;
                   projectionMap = retrivalProjectionMap;
@@ -2309,13 +2039,6 @@ static public class SubscriptionWrapper {
                   tableUri = PostalTableSchemaBase.CONTENT_URI;
                   break;
                
-               case SERIALIZED_SET:
-                  values = this.initializeSerializedDefaults(values);
-                  insertTable = Tables.SERIALIZED_TBL;
-                  nullColumnHack = SerializedTableSchemaBase.URI;
-                  tableUri = SerializedTableSchemaBase.CONTENT_URI;
-                  break;
-               
                case RETRIVAL_SET:
                   values = this.initializeRetrivalDefaults(values);
                   insertTable = Tables.RETRIVAL_TBL;
@@ -2388,6 +2111,9 @@ static public class SubscriptionWrapper {
            if (!values.containsKey(PostalTableSchemaBase.URI)) {
               values.put("\""+PostalTableSchemaBase.URI+"\"", "unknown");
            } 
+           if (!values.containsKey(PostalTableSchemaBase.SERIALIZE_TYPE)) {
+              values.put("\""+PostalTableSchemaBase.SERIALIZE_TYPE+"\"", PostalTableSchemaBase.SERIALIZE_TYPE_INDIRECT);
+           } 
            if (!values.containsKey(PostalTableSchemaBase.DISPOSITION)) {
               values.put("\""+PostalTableSchemaBase.DISPOSITION+"\"", PostalTableSchemaBase.DISPOSITION_PENDING);
            } 
@@ -2400,6 +2126,9 @@ static public class SubscriptionWrapper {
            if (!values.containsKey(PostalTableSchemaBase.VALUE)) {
               values.put("\""+PostalTableSchemaBase.VALUE+"\"", -1);
            } 
+           if (!values.containsKey(PostalTableSchemaBase.DATA)) {
+              values.put("\""+PostalTableSchemaBase.DATA+"\"", "");
+           } 
            if (!values.containsKey(PostalTableSchemaBase.CREATED_DATE)) {
               values.put("\""+PostalTableSchemaBase.CREATED_DATE+"\"", now);
            } 
@@ -2408,25 +2137,6 @@ static public class SubscriptionWrapper {
            } 
            if (!values.containsKey(PostalTableSchemaBase._DISPOSITION)) {
               values.put("\""+PostalTableSchemaBase._DISPOSITION+"\"", DistributorSchema._DISPOSITION_START);
-           }
-         return values;
-      }
-      
-      /** Insert method helper */
-      protected ContentValues initializeSerializedDefaults(ContentValues values) {
-         Long now = Long.valueOf(System.currentTimeMillis());
-         
-           if (!values.containsKey(SerializedTableSchemaBase.URI)) {
-              values.put("\""+SerializedTableSchemaBase.URI+"\"", "unknown");
-           } 
-           if (!values.containsKey(SerializedTableSchemaBase.MIME_TYPE)) {
-              values.put("\""+SerializedTableSchemaBase.MIME_TYPE+"\"", "application/vnd.ammo.distributor");
-           } 
-           if (!values.containsKey(SerializedTableSchemaBase.DATA)) {
-              values.put("\""+SerializedTableSchemaBase.DATA+"\"", "");
-           } 
-           if (!values.containsKey(SerializedTableSchemaBase._DISPOSITION)) {
-              values.put("\""+SerializedTableSchemaBase._DISPOSITION+"\"", DistributorSchema._DISPOSITION_START);
            }
          return values;
       }
@@ -2573,21 +2283,6 @@ static public class SubscriptionWrapper {
                               selectionArgs);
                   break;
                
-               case SERIALIZED_SET:
-                  count = db.delete(Tables.SERIALIZED_TBL, selection, selectionArgs);
-                  break;
-
-               case SERIALIZED_ID:
-                  String serializedID = uri.getPathSegments().get(1);
-                  count = db.delete(Tables.SERIALIZED_TBL,
-                        SerializedTableSchemaBase._ID
-                              + "="
-                              + serializedID
-                              + (TextUtils.isEmpty(selection) ? "" 
-                                     : (" AND (" + selection + ')')),
-                              selectionArgs);
-                  break;
-               
                case RETRIVAL_SET:
                   count = db.delete(Tables.RETRIVAL_TBL, selection, selectionArgs);
                   break;
@@ -2686,25 +2381,6 @@ static public class SubscriptionWrapper {
                         selectionArgs);
                   break;
                
-               case SERIALIZED_SET:
-                  logger.debug("SERIALIZED_SET");
-                  count = db.update(Tables.SERIALIZED_TBL, values, selection,
-                        selectionArgs);
-                  break;
-
-               case SERIALIZED_ID:
-                  logger.debug("SERIALIZED_ID");
-                  //  notify on the base URI - without the ID ?
-                  notifyUri = SerializedTableSchemaBase.CONTENT_URI; 
-                  String serializedID = uri.getPathSegments().get(1);
-                  count = db.update(Tables.SERIALIZED_TBL, values, SerializedTableSchemaBase._ID
-                        + "="
-                        + serializedID
-                        + (TextUtils.isEmpty(selection) ? "" 
-                                     : (" AND (" + selection + ')')),
-                        selectionArgs);
-                  break;
-               
                case RETRIVAL_SET:
                   logger.debug("RETRIVAL_SET");
                   count = db.update(Tables.RETRIVAL_TBL, values, selection,
@@ -2782,10 +2458,6 @@ static public class SubscriptionWrapper {
             case POSTAL_ID:
                return PostalTableSchemaBase.CONTENT_ITEM_TYPE;
             
-            case SERIALIZED_SET:
-            case SERIALIZED_ID:
-               return SerializedTableSchemaBase.CONTENT_ITEM_TYPE;
-            
             case RETRIVAL_SET:
             case RETRIVAL_ID:
                return RetrivalTableSchemaBase.CONTENT_ITEM_TYPE;
@@ -2814,9 +2486,6 @@ static public class SubscriptionWrapper {
             
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL, POSTAL_SET);
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL + "/#", POSTAL_ID);
-            
-            uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.SERIALIZED_TBL, SERIALIZED_SET);
-            uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.SERIALIZED_TBL + "/#", SERIALIZED_ID);
             
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL, RETRIVAL_SET);
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL + "/#", RETRIVAL_ID);
@@ -2850,27 +2519,17 @@ static public class SubscriptionWrapper {
             columns.put(PostalTableSchemaBase._ID, PostalTableSchemaBase._ID);
                columns.put(PostalTableSchemaBase.CP_TYPE, "\""+PostalTableSchemaBase.CP_TYPE+"\""); 
                columns.put(PostalTableSchemaBase.URI, "\""+PostalTableSchemaBase.URI+"\""); 
+               columns.put(PostalTableSchemaBase.SERIALIZE_TYPE, "\""+PostalTableSchemaBase.SERIALIZE_TYPE+"\""); 
                columns.put(PostalTableSchemaBase.DISPOSITION, "\""+PostalTableSchemaBase.DISPOSITION+"\""); 
                columns.put(PostalTableSchemaBase.EXPIRATION, "\""+PostalTableSchemaBase.EXPIRATION+"\""); 
                columns.put(PostalTableSchemaBase.UNIT, "\""+PostalTableSchemaBase.UNIT+"\""); 
                columns.put(PostalTableSchemaBase.VALUE, "\""+PostalTableSchemaBase.VALUE+"\""); 
+               columns.put(PostalTableSchemaBase.DATA, "\""+PostalTableSchemaBase.DATA+"\""); 
                columns.put(PostalTableSchemaBase.CREATED_DATE, "\""+PostalTableSchemaBase.CREATED_DATE+"\""); 
                columns.put(PostalTableSchemaBase.MODIFIED_DATE, "\""+PostalTableSchemaBase.MODIFIED_DATE+"\""); 
                columns.put(PostalTableSchemaBase._DISPOSITION, "\""+PostalTableSchemaBase._DISPOSITION+"\"");
 
             postalProjectionMap = columns;
-            
-            serializedProjectionKey = new String[1];
-            serializedProjectionKey[0] = SerializedTableSchemaBase._ID;
-
-            columns = new HashMap<String, String>();
-            columns.put(SerializedTableSchemaBase._ID, SerializedTableSchemaBase._ID);
-               columns.put(SerializedTableSchemaBase.URI, "\""+SerializedTableSchemaBase.URI+"\""); 
-               columns.put(SerializedTableSchemaBase.MIME_TYPE, "\""+SerializedTableSchemaBase.MIME_TYPE+"\""); 
-               columns.put(SerializedTableSchemaBase.DATA, "\""+SerializedTableSchemaBase.DATA+"\""); 
-               columns.put(SerializedTableSchemaBase._DISPOSITION, "\""+SerializedTableSchemaBase._DISPOSITION+"\"");
-
-            serializedProjectionMap = columns;
             
             retrivalProjectionKey = new String[1];
             retrivalProjectionKey[0] = RetrivalTableSchemaBase._ID;
