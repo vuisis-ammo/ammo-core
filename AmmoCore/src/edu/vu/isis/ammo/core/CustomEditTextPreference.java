@@ -17,7 +17,7 @@ public class CustomEditTextPreference extends EditTextPreference {
 	// ===========================================================
 	public static final Logger logger = LoggerFactory.getLogger(CustomEditTextPreference.class);
 	public static enum Type {
-		IP, PORT, DEVICE_ID, OPERATOR_ID, OPERATOR_KEY
+		IP, PORT, SOCKET_TIMEOUT, DEVICE_ID, OPERATOR_ID, OPERATOR_KEY
 	};
 	
 	// ===========================================================
@@ -73,6 +73,13 @@ public class CustomEditTextPreference extends EditTextPreference {
 			case PORT:
 				if (!this.validatePort(uncheckedText)) {
 					Toast.makeText(context, "Invalid port, please try again", Toast.LENGTH_SHORT).show();
+					checkedText = this.getText();
+				}
+				break;
+				
+			case SOCKET_TIMEOUT:
+				if (!this.validateTimeout(uncheckedText)) {
+					Toast.makeText(context, "Invalid timeout value", Toast.LENGTH_SHORT).show();
 					checkedText = this.getText();
 				}
 				break;
@@ -133,6 +140,25 @@ public class CustomEditTextPreference extends EditTextPreference {
 			logger.debug("Invalid port number");
 			return false;
 		}
+	}
+	
+	/**
+	 * Convert the timeout parameter to a string and make sure it is non-negative.
+	 * @param timeout
+	 * @return
+	 */
+	public boolean validateTimeout(String timeout) {
+		boolean returnValue = false;
+		try {
+			Integer intValue = Integer.valueOf(timeout);
+			if (intValue > 0) {
+				returnValue = true;
+			}
+		} catch (NumberFormatException e) {
+			logger.debug("::validateTimeout - NumberFormatException");
+		}
+		
+		return returnValue;
 	}
 	
 	@Override 

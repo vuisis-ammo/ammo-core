@@ -85,18 +85,17 @@ public class Subscribe extends Activity implements OnClickListener {
             	
             	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();
             	ad.pull(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");	
+        	} else {
+        		Toast.makeText(Subscribe.this, "Already subscribed to this content", Toast.LENGTH_SHORT).show();
         	}
 		}
 	}
 	
 	private boolean entryDoesNotExist(ContentResolver cr, Uri selectedUri) {
-		boolean returnVal = false;
 		String[] projection = {SubscriptionTableSchema.URI, SubscriptionTableSchema._ID};
 		String selection = SubscriptionTableSchema.URI + " LIKE \"%" + selectedUri.toString() + "%\"";
 		Cursor c = cr.query(SubscriptionTableSchema.CONTENT_URI, projection, selection, null, null);
-		returnVal = (c.getCount() > 0);
-		return returnVal;
-		
+		return (c.getCount() == 0);
 	}
 	
 	private class MyOnItemSelectedListener implements OnItemSelectedListener {

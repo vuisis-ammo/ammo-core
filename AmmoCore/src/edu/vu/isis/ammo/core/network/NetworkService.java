@@ -704,7 +704,10 @@ implements OnSharedPreferenceChangeListener
 			this.nps = nps;
 			this.mSocket = aSocket;
 			try {
-				this.mSocket.setSoTimeout(TCP_SOCKET_TIMEOUT_VALUE);
+				// Get socket timeout from prefs.
+				SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(nps);
+				Integer timeout = Integer.valueOf(prefs.getString(CorePreferences.PREF_SOCKET_TIMEOUT, "3000"));
+				this.mSocket.setSoTimeout(timeout.intValue());
 			} catch (SocketException ex) {
 				return;
 			}

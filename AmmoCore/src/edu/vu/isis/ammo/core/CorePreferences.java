@@ -20,6 +20,7 @@ public class CorePreferences extends PreferenceActivity {
 
 	public static final String PREF_IP_ADDR = "CORE_IP_ADDRESS";
 	public static final String PREF_IP_PORT = "CORE_IP_PORT";
+	public static final String PREF_SOCKET_TIMEOUT = "CORE_SOCKET_TIMEOUT";
 	public static final String PREF_IS_JOURNAL = "CORE_IS_JOURNALED";
 	
 	public static final String PREF_DEVICE_ID = "CORE_DEVICE_ID";
@@ -31,6 +32,7 @@ public class CorePreferences extends PreferenceActivity {
 	// ===========================================================
 	private CustomEditTextPreference mIPAddr;
 	private CustomEditTextPreference mPort;
+	private CustomEditTextPreference mSocketTimeout;
 	private CustomCheckBoxPreference prefChannelJournal;
 	
 	private CustomEditTextPreference mDeviceId;
@@ -54,6 +56,10 @@ public class CorePreferences extends PreferenceActivity {
 		mPort = (CustomEditTextPreference) findPreference(PREF_IP_PORT);
 		mPort.setSummaryPrefix(res.getString(R.string.port_label));
 		mPort.setType(CustomEditTextPreference.Type.PORT);
+		
+		mSocketTimeout = (CustomEditTextPreference)findPreference(PREF_SOCKET_TIMEOUT);
+		mSocketTimeout.setSummaryPrefix(res.getString(R.string.socket_timeout_label));
+		mSocketTimeout.setType(CustomEditTextPreference.Type.SOCKET_TIMEOUT);
 		
 		prefChannelJournal = (CustomCheckBoxPreference) findPreference(PREF_IS_JOURNAL);
 		prefChannelJournal.setSummaryPrefix(res.getString(R.string.channel_journal_label));
@@ -82,8 +88,8 @@ public class CorePreferences extends PreferenceActivity {
 		// of its EditText field.
 		if (mIPAddr != null) mIPAddr.refreshSummaryField();
 		if (mPort != null) mPort.refreshSummaryField();
+		if (mSocketTimeout != null) mSocketTimeout.refreshSummaryField();
 		if (prefChannelJournal != null) prefChannelJournal.refreshSummaryField();
-		
 		if (mDeviceId != null) mDeviceId.refreshSummaryField();
 		if (mOperatorId != null) mOperatorId.refreshSummaryField();
 		if (mOperatorKey != null) mOperatorKey.refreshSummaryField();
