@@ -9,6 +9,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -72,7 +73,6 @@ implements OnSharedPreferenceChangeListener
 	private static final String NULL_CHAR = "\0";
 	@SuppressWarnings("unused")
 	private static final int UDP_BUFFER_SIZE = 4096;
-	private static final int TCP_SOCKET_TIMEOUT_VALUE = 5 * 1000; // milliseconds.
 	
 	public static enum NPSReturnCode {
 		NO_CONNECTION, SOCKET_EXCEPTION, UNKNOWN, BAD_MESSAGE, OK
@@ -106,12 +106,12 @@ implements OnSharedPreferenceChangeListener
 	private NetworkBinder networkBinder;
 	private IDistributorService distributor;
 	private String gatewayHostname =  "129.59.129.25"; // Loopback to localhost from android.
+	private boolean gatewayConnectionStale = true;
 	private InetAddress gatewayIpAddr;
 	public int gatewayPort = 33289;
 	
 	// TCP Fields
-	private Socket tcpSocket = null;
-	private TcpReceiverThread tcpReceiverThread = null;
+	private AmmoTcpSocket tcpSocket = new AmmoTcpSocket();
 	
 	// UDP Fields
 	public DatagramSocket udpSocket = null;
@@ -255,30 +255,21 @@ implements OnSharedPreferenceChangeListener
 		super.onDestroy();
 	}	
 
+	/** 
+	 * Reset the local copies of the shared preference.
+	 * Also indicate that the gateway connections are stale 
+	 * will need to be refreshed.
+	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-        
+		gatewayConnectionStale = true;
 		// handle network connection group
 		if (key.equals(CorePreferences.PREF_IP_ADDR)) {
-			/**
-			 * change the server name.
-			 * if active then reset it to the new address.
-			 */
 			gatewayHostname = prefs.getString(CorePreferences.PREF_IP_ADDR, gatewayHostname);
-			try {
-				gatewayIpAddr = InetAddress.getByName(gatewayHostname);				
-			} catch (UnknownHostException e) {
-				e.printStackTrace();
-			}
-			
 			this.connectChannels(true);
 			return;
 		}
 		if (key.equals(CorePreferences.PREF_IP_PORT)) {
-			/**
-			 * change the gatewayPort number.
-			 * if active then reset it to the new address.
-			 */
 			gatewayPort = Integer.valueOf(prefs.getString(CorePreferences.PREF_IP_PORT, String.valueOf(gatewayPort)));
 			connectChannels(true);
 			return;
@@ -310,6 +301,10 @@ implements OnSharedPreferenceChangeListener
 			this.authenticateGatewayConnection();
 			return;
 		}
+		if (key.equals(CorePreferences.PREF_SOCKET_TIMEOUT)) {
+			Integer timeout = Integer.valueOf(prefs.getString(CorePreferences.PREF_SOCKET_TIMEOUT, "3000"));
+			this.tcpSocket.setSocketTimeout(timeout.intValue());
+		}
 		return;
 	}
 	
@@ -336,34 +331,20 @@ implements OnSharedPreferenceChangeListener
 	 */
 	private boolean connectTcpChannel(boolean reconnect) {
 		if (reconnect) {
-			if (this.tcpSocket != null) {
-				// this.tcpSocket.close(); // let the tcpReceiverThread close the socket
-				this.tcpSocket = null;
-			}
-			if (this.tcpReceiverThread != null) {
-				this.tcpReceiverThread.close();
-				this.tcpReceiverThread = null;
-			}
+			this.tcpSocket.setStale();
 		}		
-		if (isConnected()) return true;
+		if (this.tcpSocket.isConnected()) return true;
 		
-		try {
-			//tcpSocket = new Socket(gatewayIpAddr, gatewayPort);
-			tcpSocket = new Socket();
-			InetSocketAddress sockAddr = new InetSocketAddress(gatewayIpAddr, gatewayPort);
-			tcpSocket.connect(sockAddr, 500);
-		} catch (IOException e) {
-			tcpSocket = null;
-		}
-		if (! isConnected()) {
-			tcpSocket = null;
+		tcpSocket.reconnect();
+		
+		if (! tcpSocket.isConnected()) {
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			// Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
 		else {
-			String msg = "Connected to "+gatewayHostname+" on port "+gatewayPort;
+			String msg = "connected to "+gatewayHostname+" on port "+gatewayPort;
 			// TBD SKN: broadcast ammo connected to apps ...
 			Intent connIntent = new Intent(ICoreService.AMMO_CONNECTED);
 			connIntent.putExtra("operatorId", operatorId);
@@ -373,8 +354,9 @@ implements OnSharedPreferenceChangeListener
 		}
 
 		authenticateGatewayConnection();
-		tcpReceiverThread = TcpReceiverThread.getInstance(this, tcpSocket);	
-		tcpReceiverThread.start();
+		
+		tcpSocket.setReceiverThread(TcpReceiverThread.getInstance(this, tcpSocket));	
+		tcpSocket.startReceiverThread();
 		return true;
 	}
 	
@@ -418,19 +400,9 @@ implements OnSharedPreferenceChangeListener
 	*  When tearing down, we should close the thread's socket from here
 	*  so if the socket is blocking, the thread can still exit.
 	*/
-   private boolean disconnectTcpChannel() {
-		if (tcpReceiverThread == null) return false;
-		if (!tcpReceiverThread.hasSocket()) return false;
-		
-		tcpReceiverThread.interrupt();
-		tcpReceiverThread.close();
-		tcpReceiverThread = null;
-	    return true;
-	}
+   private boolean disconnectTcpChannel() { return this.tcpSocket.disconnect(); }
    
-   private boolean disconnectUdpChannel() {
-	   return true;
-   }
+   private boolean disconnectUdpChannel() { return true; }
 	
 
 	// ===========================================================
@@ -444,12 +416,7 @@ implements OnSharedPreferenceChangeListener
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 		
 		gatewayHostname = prefs.getString(CorePreferences.PREF_IP_ADDR, gatewayHostname);
-		try {
-			gatewayIpAddr = InetAddress.getByName(gatewayHostname);
-		} catch (UnknownHostException e) {
-			gatewayIpAddr = null;
-			e.printStackTrace();
-		}
+		gatewayConnectionStale = true;
 		gatewayPort = Integer.valueOf(prefs.getString(CorePreferences.PREF_IP_PORT, String.valueOf(gatewayPort)));
 		
 		journalingSwitch = prefs.getBoolean(CorePreferences.PREF_IS_JOURNAL, journalingSwitch);
@@ -692,10 +659,10 @@ implements OnSharedPreferenceChangeListener
 	 * The main method is run().
 	 *
 	 */
-	static private class TcpReceiverThread extends Thread {
+	public static class TcpReceiverThread extends Thread {
 		final private NetworkService nps;
 
-		private Socket mSocket = null;
+		private AmmoTcpSocket mSocket = null;
 		volatile private int mState;
 		
 		static private final int SHUTDOWN = 0; // the run is being stopped
@@ -704,40 +671,19 @@ implements OnSharedPreferenceChangeListener
 		static private final int CHECKED = 3;  // indicating the bytes are being read
 		static private final int DELIVER = 4;  // indicating the message has been read
 		
-		private TcpReceiverThread(NetworkService nps, Socket aSocket) {
+		private TcpReceiverThread(NetworkService nps, AmmoTcpSocket aSocket) {
 			this.nps = nps;
 			this.mSocket = aSocket;
-			try {
-				// Get socket timeout from prefs.
-				SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(nps);
-				Integer timeout = Integer.valueOf(prefs.getString(CorePreferences.PREF_SOCKET_TIMEOUT, "3000"));
-				this.mSocket.setSoTimeout(timeout.intValue());
-			} catch (SocketException ex) {
-				return;
-			}
 		}
-		
-		public static TcpReceiverThread getInstance(NetworkService nps, Socket aSocket) {
+		public static TcpReceiverThread getInstance(NetworkService nps, AmmoTcpSocket aSocket) {
 			return new TcpReceiverThread(nps,  aSocket);
 		}
-
 		public void close() {
 			this.mState = SHUTDOWN;
-			if (mSocket == null) return;
-			if (mSocket.isClosed()) return;
-			try {
-				mSocket.close();
-			} catch (IOException e) {
-				logger.warn("could not close socket");
-			}
+			mSocket.close();
 		}
+		public boolean hasSocket() { return this.mSocket.hasSocket(); }
 
-		public boolean hasSocket() {
-			if (mSocket == null) return false;
-			if (mSocket.isClosed()) return false;
-			return true;
-		}
-		
 		@Override
 		public void start() {
 			logger.debug("tcp receiver thread");
@@ -758,12 +704,8 @@ implements OnSharedPreferenceChangeListener
 		@Override
 		public void run() { 
 			Looper.prepare();
-			BufferedInputStream bis = null;
-			try {
-				bis = new BufferedInputStream(this.mSocket.getInputStream(), 1024);
-			} catch (IOException ex) {
-				return;
-			}
+			InputStream insock = this.mSocket.getInputStream();
+			BufferedInputStream bis = new BufferedInputStream(insock, 1024);
 			if (bis == null) return;
 
 			mState = START;
@@ -832,7 +774,8 @@ implements OnSharedPreferenceChangeListener
 			logger.debug("no longer listening, thread closed");
 			try { eis.close(); } catch (IOException e) {}
 			try { bis.close(); } catch (IOException e) {}
-			try { this.mSocket.close(); this.nps.tcpSocket = null; } catch (IOException e) {} 
+			this.mSocket.close(); 
+			this.nps.tcpSocket = null;
 		}
 	}
 	
@@ -946,6 +889,9 @@ implements OnSharedPreferenceChangeListener
 	 * @return
 	 */
 	public boolean isConnected() {
+		if (gatewayConnectionStale) {
+			return tcpSocket.isConnected();
+		}
 		if (tcpSocket == null) return false;
 		return tcpSocket.isConnected();
 	}

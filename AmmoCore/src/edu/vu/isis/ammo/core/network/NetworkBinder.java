@@ -17,10 +17,10 @@ import android.os.Binder;
 
 public class NetworkBinder extends Binder implements INetworkBinder 
 {		
-	final NetworkService nps;
+	final NetworkService netsvc;
 	
 	private NetworkBinder(NetworkService nps) {
-		this.nps = nps;
+		this.netsvc = nps;
 	}
 	
 	static public NetworkBinder getInstance(NetworkService nps) {
@@ -33,7 +33,7 @@ public class NetworkBinder extends Binder implements INetworkBinder
 	 */
 	@Override
 	public void teardown() {
-		nps.teardown();
+		netsvc.teardown();
 	}
 	
 	/**
@@ -60,7 +60,7 @@ public class NetworkBinder extends Binder implements INetworkBinder
 
 	@Override
 	public boolean isConnected() {
-		return nps.isConnected();
+		return netsvc.isConnected();
 	}
 	
 	/**
@@ -69,28 +69,28 @@ public class NetworkBinder extends Binder implements INetworkBinder
 	 */
 	@Override
 	public boolean authenticateGatewayConnection() {
-		return nps.authenticateGatewayConnection();
+		return netsvc.authenticateGatewayConnection();
 	}
 	
 	@Override
 	public boolean dispatchPushRequestToGateway(String uri, String mimeType, byte []data) {
-        return nps.dispatchPushRequestToGateway(uri, mimeType, data);
+        return netsvc.dispatchPushRequestToGateway(uri, mimeType, data);
 	}
 	
 	@Override
 	public boolean dispatchPullRequestToGateway(String subscriptionId, String mimeType, String selection) {
-		return nps.dispatchPullRequestToGateway(subscriptionId, mimeType, selection);
+		return netsvc.dispatchPullRequestToGateway(subscriptionId, mimeType, selection);
 	}
 	
 
 	@Override
 	public boolean dispatchSubscribeRequestToGateway(String mimeType, String selection) {
-		return nps.dispatchSubscribeRequestToGateway(mimeType, selection);
+		return netsvc.dispatchSubscribeRequestToGateway(mimeType, selection);
 	}
 	
 	@Override
 	public void setDistributorServiceCallback(IDistributorService callback) {
-		nps.setDistributorServiceCallback(callback);
+		netsvc.setDistributorServiceCallback(callback);
 	}
 
 	
