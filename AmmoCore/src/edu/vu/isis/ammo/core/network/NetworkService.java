@@ -266,11 +266,13 @@ implements OnSharedPreferenceChangeListener
 		// handle network connection group
 		if (key.equals(CorePreferences.PREF_IP_ADDR)) {
 			gatewayHostname = prefs.getString(CorePreferences.PREF_IP_ADDR, gatewayHostname);
+			this.tcpSocket.setHost(gatewayHostname);
 			this.connectChannels(true);
 			return;
 		}
 		if (key.equals(CorePreferences.PREF_IP_PORT)) {
 			gatewayPort = Integer.valueOf(prefs.getString(CorePreferences.PREF_IP_PORT, String.valueOf(gatewayPort)));
+			this.tcpSocket.setPort(gatewayPort);
 			connectChannels(true);
 			return;
 		}
@@ -343,16 +345,14 @@ implements OnSharedPreferenceChangeListener
 			logger.warn(msg);
 			return false;
 		}
-		else {
-			String msg = "connected to "+gatewayHostname+" on port "+gatewayPort;
-			// TBD SKN: broadcast ammo connected to apps ...
-			Intent connIntent = new Intent(ICoreService.AMMO_CONNECTED);
-			connIntent.putExtra("operatorId", operatorId);
-			this.sendBroadcast(connIntent);
-			
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
-		}
-
+		
+		String msg = "connected to "+gatewayHostname+" on port "+gatewayPort;
+		// TBD SKN: broadcast ammo connected to apps ...
+		Intent connIntent = new Intent(ICoreService.AMMO_CONNECTED);
+		connIntent.putExtra("operatorId", operatorId);
+		this.sendBroadcast(connIntent);
+		
+		// Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 		authenticateGatewayConnection();
 		
 		tcpSocket.setReceiverThread(TcpReceiverThread.getInstance(this, tcpSocket));	
@@ -949,7 +949,7 @@ implements OnSharedPreferenceChangeListener
 	public void setDistributorServiceCallback(IDistributorService callback) {
 		distributor = callback;
 		// there is now someplace to send the responses.
-		connectChannels(true);
+		// connectChannels(true);
 	}
 	
 	private class MyBroadcastReceiver extends BroadcastReceiver {

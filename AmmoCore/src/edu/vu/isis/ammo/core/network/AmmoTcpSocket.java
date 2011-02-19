@@ -32,6 +32,8 @@ public class AmmoTcpSocket {
 	private TcpReceiverThread receiverThread = null;
 	private int connectTimeout = 500;
 	private int socketTimeout = 5 * 1000; // milliseconds.
+	private static final String DEFAULT_HOST = "10.0.2.2";
+	private String gatewayName = null;
 	private InetAddress gatewayIpAddr = null;
 	private int gatewayPort = 32896;
 	
@@ -56,7 +58,17 @@ public class AmmoTcpSocket {
 		this.socketTimeout = value;
 	}
 	
+	public void setHost(String host) {
+		this.gatewayName = host;
+	}
+	public void setPort(int port) {
+		this.gatewayPort = port;
+	}
+	
 	public void reconnect() {
+		if (this.gatewayName == null) this.gatewayName = DEFAULT_HOST;
+		if (this.gatewayPort < 1) return;
+		
 		this.tcpSocket = new Socket();
 		InetSocketAddress sockAddr = new InetSocketAddress(gatewayIpAddr, gatewayPort);
 		try {
@@ -64,7 +76,7 @@ public class AmmoTcpSocket {
 		} catch (IOException e) {
 			tcpSocket = null;
 		}
-		
+		if (tcpSocket == null) return;
 		try {
 			this.tcpSocket.setSoTimeout(this.socketTimeout);
 		} catch (SocketException ex) {
