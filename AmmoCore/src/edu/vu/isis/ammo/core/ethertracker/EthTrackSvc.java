@@ -11,8 +11,10 @@ import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import edu.vu.isis.ammo.AmmoPrefKeys;
 import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.network.NetworkService;
 
 public class EthTrackSvc extends Service {
 
@@ -104,11 +106,15 @@ public class EthTrackSvc extends Service {
 	 * Writes a flag to the system preferences based on status of interface.
 	 * @param status - Status message relating to interface. Either "Up" or "Down"
 	 */
-	public void updateSharedPreferencesForInterfaceStatus(String status) {
-		boolean isUp = status.equals("Up");
+	public void updateSharedPreferencesForInterfaceStatus(String msg) {
+		NetworkService.ConnectionStatus status = NetworkService.ConnectionStatus.NO_CONNECTION;
+		if (msg.equals("Up")) {
+			status = NetworkService.ConnectionStatus.CONNECTED;
+		}
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		Editor editor = prefs.edit();
-		editor.putBoolean(MainActivity.PHYSICAL_LINK_PREF_KEY, isUp);
+		 
+		editor.putInt(AmmoPrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY, status.ordinal());
 		editor.commit();
 	}
 

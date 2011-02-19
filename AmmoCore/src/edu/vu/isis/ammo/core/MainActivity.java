@@ -9,22 +9,20 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.graphics.Color;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.Button;
-import android.widget.TextView;
-import android.widget.ToggleButton;
-import edu.vu.isis.ammo.core.network.INetworkBinder;
+import android.widget.CheckBox;
+import edu.vu.isis.ammo.AmmoPrefKeys;
+import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
@@ -40,8 +38,6 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
 public class MainActivity extends Activity implements OnClickListener, OnSharedPreferenceChangeListener {
 
 	public static final Logger logger = LoggerFactory.getLogger(MainActivity.class);
-	public static final String PHYSICAL_LINK_PREF_KEY = "edu.vu.isis.ammo.core.physical_link";
-	public static final String WIFI_LINK_PREF_KEY = "edu.vu.isis.ammo.core.wifi_link";
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
 	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
 	private static final int SUBSCRIPTION_MENU = Menu.NONE + 2;
@@ -50,9 +46,10 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	private TextView tvPhysicalLink, tvWifi;
-	private ToggleButton tbPhysicalLink, tbWifi;
+	private NetworkStatusTextView tvPhysicalLink, tvWifi;
+	private CheckBox cbPhysicalLink, cbWifi;
 	private WifiReceiver wifiReceiver;
+	private SharedPreferences prefs;
 	
 	/**
 	 * @Cateogry Lifecycle
@@ -64,15 +61,20 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 		this.setViewReferences();
 		this.setOnClickListeners();
 		this.registerReceivers();
-		this.updateConnectionStatus();
-				
+		prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		String deviceId = UniqueIdentifiers.device(this);
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
 		SharedPreferences.Editor prefEditor = prefs.edit();
 		prefEditor.putString(CorePreferences.PREF_DEVICE_ID, deviceId).commit();
 		
 		this.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
+	}
+	
+	@Override
+	public void onStart() {
+		super.onStart();
+		setWifiStatus();
+		this.updateConnectionStatus(prefs);
 	}
 
 	// Create a menu which contains a preferences button.
@@ -129,42 +131,33 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	
 	@Override
 	public void onClick(View view) {
-		if (view.equals(this.tbWifi)) {
-			logger.debug("physical link button clicked");
-			if (this.tbWifi.isChecked()) {
-				Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
-				this.sendBroadcast(intent);
-			} else {
-				Intent intent = new Intent(INetworkBinder.ACTION_DISCONNECT);
-				this.sendBroadcast(intent);
-			}
-		} else if (view.equals(this.tbPhysicalLink)) {
+		Editor editor = prefs.edit();
+		if (view.equals(this.cbWifi)) {
+			editor.putBoolean(AmmoPrefKeys.WIFI_SHOULD_USE_PREF_KEY, cbWifi.isChecked());
+		} else if (view.equals(this.cbPhysicalLink)) {
 			// TODO: Need a way to disable physical link service.
-			if (this.tbPhysicalLink.isChecked()) {
-				// Launch the ethernet service.
-				Log.d("MainActivity","Launching ethernet service");
-				Intent intent = new Intent("edu.vu.isis.ammo.core.ethtracksvc.LAUNCH");
-				this.startService(intent);
-			}
+			editor.putBoolean(AmmoPrefKeys.PHYSICAL_LINK_SHOULD_USE_PREF_KEY, cbPhysicalLink.isChecked());
 		}
+		editor.commit();
+		setWifiStatus();
+		updateConnectionStatus(prefs);
 	}
 	
 	/**
 	 * If the key relates to our physical link, update the UI.
+	 * Note: This method is called on the thread that changed the preferences.
+	 * To update the UI, explicity call the main thread.
 	 */
 	@Override
-	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-		if (key.equals(MainActivity.PHYSICAL_LINK_PREF_KEY)) {
-			// This method is called on the thread that changed the preferences.
-			// This method needs to be called on the main thread so explicitly tell
-			// it to do so.
+	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
+		if (key.equals(AmmoPrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY) || key.equals(AmmoPrefKeys.WIFI_PREF_STATUS_KEY)) {
 			this.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
-					updateConnectionStatus();					
+					updateConnectionStatus(prefs);					
 				}
 			});
-		}
+		} 
 	}
 	
 	// ===========================================================
@@ -172,51 +165,49 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	// ===========================================================
 	
 	/**
-	 * Check the system prefs for the physical link flag. Update the UI appropriately. 
+	 * Tell our text views to 
+	 * update since network status has changed.
 	 */
-	public void updateConnectionStatus() {
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		boolean isPhysicalLinkConnected = prefs.getBoolean(MainActivity.PHYSICAL_LINK_PREF_KEY, false);
-		if (isPhysicalLinkConnected) {
-			tvPhysicalLink.setText("Connected");
-			tvPhysicalLink.setTextColor(Color.rgb(66, 209, 66));
-			//tbPhysicalLink.setChecked(true);
-		} else {
-			tvPhysicalLink.setText("Not Connected");
-			tvPhysicalLink.setTextColor(Color.RED);
-			//tbPhysicalLink.setChecked(false);
-		}
-		
-		this.updateWifiConnectionStatus();
-	}
-	
-	private void updateWifiConnectionStatus() {
-		WifiManager manager = (WifiManager) this.getSystemService(Context.WIFI_SERVICE);
-		tbWifi.setChecked(manager.isWifiEnabled());
-		WifiInfo info = manager.getConnectionInfo();
-		String connectionText = "Not Connected";
-		int textColor = Color.RED;
-		if (info.getSSID() != null) {
-			connectionText = "Connected to " + info.getSSID();
-			textColor = Color.rgb(66, 209, 66);
-		} 
-		
-		tvWifi.setText(connectionText);
-		tvWifi.setTextColor(textColor);
+	public void updateConnectionStatus(SharedPreferences prefs) {
+		tvPhysicalLink.notifyNetworkStatusChanged(prefs, AmmoPrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY);
+		tvWifi.notifyNetworkStatusChanged(prefs, AmmoPrefKeys.WIFI_PREF_STATUS_KEY);
 	}
 	
 	public void setViewReferences() {
-		//this.disconnectButton = (Button) findViewById(R.id.disconnect_button);
-		//this.reconnectButton = (Button) findViewById(R.id.reconnect_button);
-		this.tvPhysicalLink = (TextView)findViewById(R.id.main_activity_physical_link_status);
-		this.tvWifi = (TextView)findViewById(R.id.main_activity_wifi_status);
-		this.tbPhysicalLink = (ToggleButton)findViewById(R.id.main_activity_physical_link_toggle);
-		this.tbWifi = (ToggleButton)findViewById(R.id.main_activity_wifi_toggle);
+		this.tvPhysicalLink = (NetworkStatusTextView)findViewById(R.id.main_activity_physical_link_status);
+		this.tvWifi = (NetworkStatusTextView)findViewById(R.id.main_activity_wifi_status);
+		this.cbPhysicalLink = (CheckBox)findViewById(R.id.main_activity_physical_link);
+		this.cbWifi = (CheckBox)findViewById(R.id.main_activity_wifi);
 	}
 	
 	public void setOnClickListeners() {
-		tbPhysicalLink.setOnClickListener(this);
-		tbWifi.setOnClickListener(this);
+		cbPhysicalLink.setOnClickListener(this);
+		cbWifi.setOnClickListener(this);
+	}
+	
+	/**
+	 * Each time we start this activity, we need to update the status message
+	 * for each connection since it may have changed since this activity was
+	 * last loaded.
+	 * 
+	 * TODO: Clean this up.
+	 */
+	public void setWifiStatus() {
+		WifiManager manager = (WifiManager)getSystemService(Context.WIFI_SERVICE);
+		WifiInfo info = manager.getConnectionInfo();
+		Editor editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
+		if (info.getSSID() == null && !cbWifi.isChecked()) {
+			editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NO_CONNECTION.ordinal());
+		} else if (info.getSSID() == null && cbWifi.isChecked()) {
+			editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NOT_AVAILABLE.ordinal());
+		} else if (info.getSSID() != null && !cbWifi.isChecked()) {
+			editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.AVAILABLE_NOT_CONNECTED.ordinal());
+		} else if (info.getSSID() != null && cbWifi.isChecked()) {
+			editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.CONNECTED.ordinal());
+		} 
+		
+		editor.commit();
+		
 	}
 	
 	// ===========================================================
@@ -231,7 +222,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	private class WifiReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			updateWifiConnectionStatus();
+			updateConnectionStatus(prefs);
 		}
 	}
 	

@@ -77,6 +77,10 @@ implements OnSharedPreferenceChangeListener
 	public static enum NPSReturnCode {
 		NO_CONNECTION, SOCKET_EXCEPTION, UNKNOWN, BAD_MESSAGE, OK
 	};
+	
+	public static enum ConnectionStatus {
+		NO_CONNECTION, CONNECTED, AVAILABLE_NOT_CONNECTED, NOT_AVAILABLE, PENDING
+	};
 
 	public static final String SIZE_KEY = "sizeByteArrayKey";
 	public static final String CHECKSUM_KEY = "checksumByteArrayKey";
