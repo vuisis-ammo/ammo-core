@@ -111,7 +111,7 @@ implements OnSharedPreferenceChangeListener
 	public int gatewayPort = 33289;
 	
 	// TCP Fields
-	private AmmoTcpSocket tcpSocket = new AmmoTcpSocket();
+	private AmmoTcpSocket tcpSocket = new AmmoTcpSocket(this);
 	
 	// UDP Fields
 	public DatagramSocket udpSocket = null;
@@ -354,8 +354,6 @@ implements OnSharedPreferenceChangeListener
 		
 		// Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 		authenticateGatewayConnection();
-		
-		tcpSocket.setReceiverThread(TcpReceiverThread.getInstance(this, tcpSocket));	
 		tcpSocket.startReceiverThread();
 		return true;
 	}
@@ -589,40 +587,15 @@ implements OnSharedPreferenceChangeListener
 	 */
 	private boolean sendGatewayRequest(Carrier carrier, int size, int checksum, byte[] message) 
 	{
-		if (! isConnected()) {
-			// we are not connected, try reconnecting once
-			boolean connected = this.connectChannels(false);
-			// still not connected, let's go away
-			if (!connected)
-				return false;
+		switch (carrier) {
+		case TCP:		
+			return this.tcpSocket.sendGatewayRequest(size, checksum, message);
+		// case UDP: dos = new DataOutputStream(udpSocket.get); break;
+		// case JOURNAL: dos = new DataOutputStream(udpSocket.get);
+		// break;
+		// default: dos = new DataOutputStream(udpSocket); break;
 		}
-		
-		DataOutputStream dos;
-		try {
-			switch (carrier) {
-			case TCP:		
-				dos = new DataOutputStream(tcpSocket.getOutputStream());
-                break;
-			// case UDP: dos = new DataOutputStream(udpSocket.get); break;
-			// case JOURNAL: dos = new DataOutputStream(udpSocket.get);
-			// break;
-			// default: dos = new DataOutputStream(udpSocket); break;
-			default: return false;
-			}
-			EndianOutputStream eos = new EndianOutputStream(dos);
-			eos.setOrder(ByteOrder.LITTLE_ENDIAN);
-
-			eos.writeInt(size);
-			eos.writeInt(checksum);
-			eos.write(message);
-		} catch (SocketException e) {
-			e.printStackTrace();
-			return false;
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			return false;
-		}
-		return true;
+		return false;
 	}
 	
 	// ===========================================================
@@ -654,130 +627,7 @@ implements OnSharedPreferenceChangeListener
 		}
 	}
 	
-	/**
-	 * A thread for receiving incoming messages on the tcp socket.
-	 * The main method is run().
-	 *
-	 */
-	public static class TcpReceiverThread extends Thread {
-		final private NetworkService nps;
-
-		private AmmoTcpSocket mSocket = null;
-		volatile private int mState;
-		
-		static private final int SHUTDOWN = 0; // the run is being stopped
-		static private final int START = 1;    // indicating the next thing is the size
-		static private final int SIZED = 2;    // indicating the next thing is a checksum
-		static private final int CHECKED = 3;  // indicating the bytes are being read
-		static private final int DELIVER = 4;  // indicating the message has been read
-		
-		private TcpReceiverThread(NetworkService nps, AmmoTcpSocket aSocket) {
-			this.nps = nps;
-			this.mSocket = aSocket;
-		}
-		public static TcpReceiverThread getInstance(NetworkService nps, AmmoTcpSocket aSocket) {
-			return new TcpReceiverThread(nps,  aSocket);
-		}
-		public void close() {
-			this.mState = SHUTDOWN;
-			mSocket.close();
-		}
-		public boolean hasSocket() { return this.mSocket.hasSocket(); }
-
-		@Override
-		public void start() {
-			logger.debug("tcp receiver thread");
-			super.start();
-		}
-
-		/**
-		 * Initiate a connection to the server and then wait for a response.
-		 * All responses are of the form:
-		 * size     : int32
-		 * checksum : int32
-		 * bytes[]  : <size>
-		 * This is done via a simple state machine.
-		 * If the checksum doesn't match the connection is dropped and restarted.
-		 * 
-		 * Once the message has been read it is passed off to...
-		 */
-		@Override
-		public void run() { 
-			Looper.prepare();
-			InputStream insock = this.mSocket.getInputStream();
-			BufferedInputStream bis = new BufferedInputStream(insock, 1024);
-			if (bis == null) return;
-
-			mState = START;
-
-			int bytesToRead = 0; // indicates how many bytes should be read
-			int bytesRead = 0;   // indicates how many bytes have been read
-			long checksum = 0;
-			EndianInputStream eis = new EndianInputStream(bis);
-			byte[] message = null;
-
-			boolean loop = true;
-			while (loop) {
-				try {
-					switch (mState) {
-					case SHUTDOWN:
-						loop = false;
-						break;
-					case START:
-						bytesToRead = eis.readInt();
-						
-						if (bytesToRead < 0) break; // bad read keep trying
-						if (bytesToRead > 100000) {
-							logger.warn("a message with "+bytesToRead);
-						}
-						this.mState = SIZED;
-						break;
-					case SIZED:
-						try {
-						message = new byte[bytesToRead];
-						checksum = eis.readUInt();
-						Log.i("NetworkService", Long.toHexString(checksum));
-						bytesRead = 0;
-						this.mState = CHECKED;
-						} catch (OutOfMemoryError ex) {
-							logger.error("OutOfMemory: Bad message size " + String.valueOf(bytesToRead));
-							loop = false;
-						}
-						break;
-					case CHECKED:
-						while (bytesRead < bytesToRead) {
-							int temp = eis.read(message, 0, bytesToRead - bytesRead);
-							if (temp >= 0) {
-								bytesRead += temp;
-							}
-						}
-						if (bytesRead < bytesToRead)
-							break;
-						this.mState = DELIVER;
-						break;
-					case DELIVER:
-						if (!this.nps.deliverGatewayResponse(message, checksum)) {
-							loop = false;
-						}
-						message = null;
-						this.mState = START;
-						break;
-					}
-				} catch (SocketTimeoutException ex) {
-					// if the message times out then it will need to be retransmitted.
-					if (this.mState != SHUTDOWN) this.mState = START;
-				} catch (IOException ex) {
-					this.mState = SHUTDOWN;
-					logger.warn(ex.getMessage());
-				}
-			}
-			logger.debug("no longer listening, thread closed");
-			try { eis.close(); } catch (IOException e) {}
-			try { bis.close(); } catch (IOException e) {}
-			this.mSocket.close(); 
-			this.nps.tcpSocket = null;
-		}
-	}
+	
 	
 	/**
 	 *  Processes and delivers a message from the gateway.
@@ -785,14 +635,13 @@ implements OnSharedPreferenceChangeListener
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	public boolean deliverGatewayResponse(byte[] message, long checksum) 
+	public boolean deliverGatewayResponse(byte[] message, CRC32 checksum) 
 	{
 		CRC32 crc32 = new CRC32();
 		crc32.update(message);
-		long crcsum = crc32.getValue();
-		if (crcsum != checksum) {
+		if (crc32.getValue() != checksum.getValue()) {
 			String msg = "you have received a bad message, the checksums did not match)"+ 
-			    Long.toHexString(crcsum) +":"+Long.toHexString(checksum);
+			crc32.toString() +":"+checksum.toString();
 			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			logger.warn(msg);
 			return false;

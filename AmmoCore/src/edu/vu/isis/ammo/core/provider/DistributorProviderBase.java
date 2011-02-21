@@ -24,6 +24,7 @@ import android.text.TextUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -43,8 +44,6 @@ import java.util.HashSet;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 
-
-import edu.vu.isis.ammo.util.EndianOutputStream;
 
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
@@ -723,7 +722,7 @@ static public class SubscriptionWrapper {
       if (1 > cursor.getCount()) return paths;
 
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      EndianOutputStream eos = new EndianOutputStream(baos);
+      DataOutputStream eos = new DataOutputStream(baos);
       
       for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
            DeliveryMechanismWrapper iw = new DeliveryMechanismWrapper();
@@ -879,7 +878,7 @@ static public class SubscriptionWrapper {
       if (1 > cursor.getCount()) return paths;
 
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      EndianOutputStream eos = new EndianOutputStream(baos);
+      DataOutputStream eos = new DataOutputStream(baos);
       
       for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
            PostalWrapper iw = new PostalWrapper();
@@ -1047,7 +1046,7 @@ static public class SubscriptionWrapper {
       if (1 > cursor.getCount()) return paths;
 
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      EndianOutputStream eos = new EndianOutputStream(baos);
+      DataOutputStream eos = new DataOutputStream(baos);
       
       for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
            RetrivalWrapper iw = new RetrivalWrapper();
@@ -1213,7 +1212,7 @@ static public class SubscriptionWrapper {
       if (1 > cursor.getCount()) return paths;
 
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      EndianOutputStream eos = new EndianOutputStream(baos);
+      DataOutputStream eos = new DataOutputStream(baos);
       
       for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
            PublicationWrapper iw = new PublicationWrapper();
@@ -1368,7 +1367,7 @@ static public class SubscriptionWrapper {
       if (1 > cursor.getCount()) return paths;
 
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      EndianOutputStream eos = new EndianOutputStream(baos);
+      DataOutputStream eos = new DataOutputStream(baos);
       
       for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
            SubscriptionWrapper iw = new SubscriptionWrapper();
