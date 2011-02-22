@@ -3,21 +3,13 @@
  */
 package edu.vu.isis.ammo.core.network;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-import java.nio.ByteOrder;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.CRC32;
@@ -34,21 +26,18 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Environment;
 import android.os.IBinder;
-import android.os.Looper;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.widget.Toast;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import edu.vu.isis.ammo.AmmoPrefKeys;
 import edu.vu.isis.ammo.core.CorePreferences;
 import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
-import edu.vu.isis.ammo.util.EndianInputStream;
-import edu.vu.isis.ammo.util.EndianOutputStream;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 
 /**
@@ -264,6 +253,12 @@ implements OnSharedPreferenceChangeListener
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 		gatewayConnectionStale = true;
 		// handle network connection group
+		if (key.equals(AmmoPrefKeys.PHYSICAL_LINK_SHOULD_USE_PREF_KEY)) {
+			boolean enable_intent = prefs.getBoolean(AmmoPrefKeys.PHYSICAL_LINK_SHOULD_USE_PREF_KEY, true);
+			if (enable_intent) this.tcpSocket.enable(); else this.tcpSocket.disable();
+			this.connectChannels(true);
+			return;
+		}
 		if (key.equals(CorePreferences.PREF_IP_ADDR)) {
 			gatewayHostname = prefs.getString(CorePreferences.PREF_IP_ADDR, gatewayHostname);
 			this.tcpSocket.setHost(gatewayHostname);

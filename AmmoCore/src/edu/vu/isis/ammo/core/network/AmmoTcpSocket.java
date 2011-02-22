@@ -12,6 +12,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.zip.CRC32;
@@ -35,7 +36,7 @@ public class AmmoTcpSocket {
 	private int connectTimeout = 500;
 	private int socketTimeout = 5 * 1000; // milliseconds.
 	private static final String DEFAULT_HOST = "10.0.2.2";
-	private String gatewayName = null;
+	private String gatewayHost = null;
 	private InetAddress gatewayIpAddr = null;
 	private int gatewayPort = 32896;
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
@@ -62,7 +63,7 @@ public class AmmoTcpSocket {
 		this.reconnect();
 		return true;
 	}
-	public boolean diable() {
+	public boolean disable() {
 		if (this.isEnabled == false) return false;
 		this.isEnabled = false;
 		return true;
@@ -78,9 +79,9 @@ public class AmmoTcpSocket {
 	}
 	
 	public boolean setHost(String host) {
-		if (gatewayName == host) return false;
+		if (gatewayHost == host) return false;
 		this.isStale = true;
-		this.gatewayName = host;
+		this.gatewayHost = host;
 		return true;
 	}
 	public boolean setPort(int port) {
@@ -104,14 +105,21 @@ public class AmmoTcpSocket {
 		 && !this.isEnabled) {
 			return false;
 		}
-		if (this.gatewayName == null) this.gatewayName = DEFAULT_HOST;
+		if (this.gatewayHost == null) this.gatewayHost = DEFAULT_HOST;
 		if (this.gatewayPort < 1) return false;
-		
+		InetAddress gatewayIpAddr = null;
+		try {
+			gatewayIpAddr = InetAddress.getByName(gatewayHost);
+		} catch (UnknownHostException e) {
+			logger.info("could not resolve host name");
+			return false;
+		}
 		this.tcpSocket = new Socket();
 		InetSocketAddress sockAddr = new InetSocketAddress(gatewayIpAddr, gatewayPort);
 		try {
 			tcpSocket.connect(sockAddr, this.connectTimeout);
 		} catch (IOException e) {
+			logger.warn("connection failed : " + e.getLocalizedMessage());
 			tcpSocket = null;
 		}
 		if (tcpSocket == null) return false;
@@ -121,6 +129,7 @@ public class AmmoTcpSocket {
 			return false;
 		}
 		this.receiverThread = new TcpReceiverThread(this);
+		this.isStale = false;
 		return true;
 	}
 	
