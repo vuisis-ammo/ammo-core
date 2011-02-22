@@ -14,7 +14,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.ByteString;
 
+import android.app.PendingIntent;
 import android.app.Service;
+import android.app.PendingIntent.CanceledException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.ContentResolver;
@@ -32,6 +34,7 @@ import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
@@ -234,6 +237,19 @@ public class DistributorService extends Service implements IDistributorService {
 	return null;
     }
 
+    private boolean sendPendingIntent(byte[] notice) {
+    	if (notice == null) return false;
+    	Parcel noticeParcel = Parcel.obtain();
+    	noticeParcel.unmarshall(notice, 0, notice.length);
+    	PendingIntent pi = PendingIntent.readPendingIntentOrNullFromParcel(noticeParcel);
+	    try {
+			pi.send();
+		} catch (CanceledException e) {
+			logger.error("could not process marshalled pending intent");
+			return false;
+		}
+		return true;
+    }
     // ===========================================================
     // IDistributorService implementation
     // ===========================================================
@@ -308,8 +324,8 @@ public class DistributorService extends Service implements IDistributorService {
 	/**
 	 * @todo : Fred, please check this - it was true, sandeep changed to false
 	 * we don't want to send reports that were already submitted and processed by Gateway
-	 * similarly pull query must also be made explicitly by applications based on what they want,
-	 * and we should not automatically reissue pull requests
+	 * similarly retrival query must also be made explicitly by applications based on what they want,
+	 * and we should not automatically reissue retrival requests
 	 */
 	callback.processRetrievalChange(false);
 	callback.processPostalChange(false);
@@ -355,9 +371,6 @@ public class DistributorService extends Service implements IDistributorService {
 		   : "") + ")";
 
 	    String[] selectionArgs = null;
-	    //			Cursor cur = cr.query(PostalTableSchema.CONTENT_URI, null,
-	    //					selectPending, selectionArgs, PostalTableSchema.PRIORITY_SORT_ORDER);
-			
 	    Cursor cur = cr.query(PostalTableSchema.CONTENT_URI, null,
 				  selectPending, selectionArgs, PostalTableSchema._ID + " ASC");
 
@@ -412,7 +425,11 @@ public class DistributorService extends Service implements IDistributorService {
 		    // Dispatch the message.
 		    boolean dispatchSuccessful = false;
 		    try {
-		    	dispatchSuccessful = network.dispatchPushRequestToGateway(rowUri.toString(), mimeType, serialized);					
+		    	dispatchSuccessful = network.dispatchPushRequestToGateway(rowUri.toString(), mimeType, serialized);
+		    	if (dispatchSuccessful) {
+		    		byte[] notice = cur.getBlob(cur.getColumnIndex(PostalTableSchema.NOTICE));
+		    		sendPendingIntent(notice);
+		    	}
 		    } catch (NullPointerException e) {
 		    	logger.debug("NullPointerException, sending to gateway failed");
 		    } 
@@ -423,8 +440,7 @@ public class DistributorService extends Service implements IDistributorService {
 			       (dispatchSuccessful) 
 			       ? PostalTableSchema.DISPOSITION_SENT
 			       : PostalTableSchema.DISPOSITION_PENDING);
-		    int numUpdated = cr.update(PostalTableSchema.getUri(cur),
-					       values, null, null);
+		    int numUpdated = cr.update(PostalTableSchema.getUri(cur), values, null, null);
 		    logger.debug(String.valueOf(numUpdated) + " rows updated to sent status");
 		}
 	    cur.close();
@@ -491,13 +507,13 @@ public class DistributorService extends Service implements IDistributorService {
 				
 		    //String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				
-		    boolean sent = network.dispatchPullRequestToGateway(rowUri.toString(), mime, selection );
+		    boolean sent = network.dispatchRetrivalRequestToGateway(rowUri.toString(), mime, selection );
 				
 		    if (!sent) {
-			++failedSendCount;
-			Toast.makeText(this, "Sending pull request to gateway failed.", Toast.LENGTH_SHORT).show();
+		    	++failedSendCount;
+		    	//Toast.makeText(this, "Sending retrival request to gateway failed.", Toast.LENGTH_SHORT).show();
 		    } else {
-			Toast.makeText(this, "Sending pull request to gateway succeeded.", Toast.LENGTH_LONG).show();
+		    	//Toast.makeText(this, "Sending retrival request to gateway succeeded.", Toast.LENGTH_LONG).show();
 		    }
 				
 		    ContentValues values = new ContentValues();
@@ -784,25 +800,52 @@ public class DistributorService extends Service implements IDistributorService {
 	
     /**
      * Update the content providers as appropriate.
-     * 
      * De-serialize into the proper content provider.
+     * 
      */
     @Override
-	public boolean dispatchPullResponse(PullResponse resp) {
-	    logger.debug("dispatching pull response : {} : {}",resp.getRequestUid(), resp.getUri());
-		String uriStr = resp.getRequestUid(); //resp.getUri(); --- why do we have uri in data message and pull response?
+	public boolean dispatchRetrivalResponse(PullResponse resp) {
+	    logger.debug("dispatching retrival response : {} : {}",resp.getRequestUid(), resp.getUri());
+		String uriStr = resp.getRequestUid(); //resp.getUri(); --- why do we have uri in data message and retrival response?
 		Uri uri = Uri.parse(uriStr);
 		ContentResolver cr = this.getContentResolver();
 		try {
-		    uri = Uri.withAppendedPath(uri, "_serial");
-		    OutputStream outstream = cr.openOutputStream(uri);
+		    Uri serialUri = Uri.withAppendedPath(uri, "_serial");
+		    OutputStream outstream = cr.openOutputStream(serialUri);
 		    if (outstream == null) {
-		    	logger.error("could not open output stream to content provider: "+uri);
+		    	logger.error("could not open output stream to content provider: "+serialUri);
 		    	return false;
 		    }
 		    ByteString data = resp.getData();
 		    if (data != null) outstream.write(data.toByteArray());
 		    outstream.close();
+		    
+		    // TODO: update the retrival request table
+		    // This mess is intended to update/delete the retrival request as it has been fullfulled.
+		    //
+//		    RetrivalTableSchema.URI
+//		    final String selectPending = 
+//				"\""+RetrivalTableSchema.CONTENT_ITEM_TYPE + "\" = "+
+//				" '" +  + "'" +
+//				(repost ? (", '" + RetrivalTableSchema.DISPOSITION_SENT + "'" +
+//					   ", '" + RetrivalTableSchema.DISPOSITION_FAIL+"'") : "") +
+//				")";
+//				
+//			    String[] selectionArgs = null;
+//					
+//			    Cursor pendingCursor = cr.query(RetrivalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
+//			    if (pendingCursor.getCount() < 1) {
+//				pendingCursor.close();
+//		    Cursor pendingCursor = cr.query(RetrivalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
+//		    Cursor cursor = cr.query(uri, null, null, null, null);
+//		    byte[] notice = cursor.getBlob(cursor.getColumnIndex(RetrivalTableSchema.NOTICE));
+//		   
+//		    catch (CanceledException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//		    // cr.delete(, where, selectionArgs)
+		    
 		} catch (FileNotFoundException e) {
 		    String msg = "could not connect to content provider";
 		    logger.warn(msg);
@@ -812,7 +855,7 @@ public class DistributorService extends Service implements IDistributorService {
 		    String msg = "could not write to the content provider";
 		    logger.warn(msg);
 		    e.printStackTrace();
-		}
+		} 
 		return true;
     }
 	
@@ -835,9 +878,9 @@ public class DistributorService extends Service implements IDistributorService {
 					"\""+SubscriptionTableSchema.MIME+"\" = '"+mime+"'",
 					null, null);
 	    if (!subCursor.moveToFirst()) {
-		logger.info("no matching subscription");
-		subCursor.close();
-		return false;
+			logger.info("no matching subscription");
+			subCursor.close();
+			return false;
 	    }
 	    tableUriStr = subCursor.getString(subCursor.getColumnIndex(SubscriptionTableSchema.URI));	
 	    subCursor.close();
@@ -845,8 +888,8 @@ public class DistributorService extends Service implements IDistributorService {
 	    Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr), "_serial");
 	    OutputStream outstream = cr.openOutputStream(tableUri);
 	    if (outstream == null) {
-		logger.error("the content provider "+tableUri.toString()+" is not available");
-		return false;
+			logger.error("the content provider "+tableUri.toString()+" is not available");
+			return false;
 	    }
 	    outstream.write(resp.getData().toByteArray());
 	    outstream.flush();
