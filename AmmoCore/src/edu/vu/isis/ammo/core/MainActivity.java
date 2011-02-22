@@ -68,6 +68,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 		prefEditor.putString(CorePreferences.PREF_DEVICE_ID, deviceId).commit();
 		
 		this.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
+		this.startService(new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH"));
 	}
 	
 	@Override

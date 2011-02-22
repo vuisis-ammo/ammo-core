@@ -1,5 +1,6 @@
 package edu.vu.isis.ammo.core;
 
+import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
@@ -78,6 +79,12 @@ public class CorePreferences extends PreferenceActivity {
 		mOperatorKey.setType(CustomEditTextPreference.Type.OPERATOR_KEY);
 		
 		this.setupViews();
+	}
+	
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		this.startService(new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH"));
 	}
 	
 	// ===========================================================
