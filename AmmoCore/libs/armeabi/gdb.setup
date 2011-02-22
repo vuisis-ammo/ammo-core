@@ -1,2 +1,0 @@
-set solib-search-path /home/nilabja/code/Android/AmmoCore/obj/local/armeabi
-directory /home/nilabja/tools/android_ndk/platforms/android-8/arch-arm/usr/include /home/nilabja/code/Android/AmmoCore/jni /home/nilabja/tools/android_ndk/sources/cxx-stl/system
