@@ -8,9 +8,11 @@ import java.util.Calendar;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.AdapterView;
@@ -19,7 +21,10 @@ import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
 import android.widget.AdapterView.OnItemSelectedListener;
+import edu.vu.isis.ammo.AmmoPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatcher;
+import edu.vu.isis.ammo.collector.provider.IncidentSchema;
+import edu.vu.isis.ammo.collector.provider.IncidentSchema.EventTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
 /**
@@ -43,6 +48,7 @@ public class Subscribe extends Activity implements OnClickListener {
 	private AmmoDispatcher ad = null;
 	private MyOnItemSelectedListener selectionListener = null;
 	private Button btnSubscribe;
+	private String uid;
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -63,6 +69,9 @@ public class Subscribe extends Activity implements OnClickListener {
 	    
 	    btnSubscribe = (Button) findViewById(R.id.submit_content);
         btnSubscribe.setOnClickListener(this);
+        
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        this.uid = prefs.getString(AmmoPrefKeys.PREF_OPERATOR_ID, "foo");
 	}  
 	    
 	@Override
@@ -81,10 +90,11 @@ public class Subscribe extends Activity implements OnClickListener {
         		ContentValues values = new ContentValues();
             	values.put(SubscriptionTableSchema.URI, selectedUri.toString());
             	values.put(SubscriptionTableSchema.MIME, selectedMime);
+            	values.put(SubscriptionTableSchema.DISPOSITION, SubscriptionTableSchema.DISPOSITION_PENDING);
             	cr.insert(SubscriptionTableSchema.CONTENT_URI, values);
             	
             	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();
-            	ad.pull(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");	
+            	ad.subscribe(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");	
         	} else {
         		Toast.makeText(Subscribe.this, "Already subscribed to this content", Toast.LENGTH_SHORT).show();
         	}
@@ -93,7 +103,7 @@ public class Subscribe extends Activity implements OnClickListener {
 	
 	private boolean entryDoesNotExist(ContentResolver cr, Uri selectedUri) {
 		String[] projection = {SubscriptionTableSchema.URI, SubscriptionTableSchema._ID};
-		String selection = SubscriptionTableSchema.URI + " LIKE \"%" + selectedUri.toString() + "%\"";
+		String selection = SubscriptionTableSchema.URI + " LIKE \"" + selectedUri.toString() + "\"";
 		Cursor c = cr.query(SubscriptionTableSchema.CONTENT_URI, projection, selection, null, null);
 		return (c.getCount() == 0);
 	}
@@ -105,7 +115,12 @@ public class Subscribe extends Activity implements OnClickListener {
     	
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
         	uri = Uri.parse(parent.getItemAtPosition(pos).toString());
-        	mime = MIME_OBJECT;
+        	
+        	if (uri.equals(IncidentSchema.EventTableSchema.CONTENT_URI)) {
+        		mime = EventTableSchema.CONTENT_TOPIC + "_" + uid;
+        	} else {
+        		mime = MIME_OBJECT + "_" + uid;
+        	}
 	        Toast.makeText(parent.getContext(), 
 	    		  "The content uri is " + uri, 
 	    		  Toast.LENGTH_SHORT).show();
