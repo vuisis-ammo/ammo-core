@@ -19,12 +19,12 @@ public class NetworkBinder extends Binder implements INetworkBinder
 {		
 	final NetworkService netsvc;
 	
-	private NetworkBinder(NetworkService nps) {
-		this.netsvc = nps;
+	private NetworkBinder(NetworkService netsvc) {
+		this.netsvc = netsvc;
 	}
 	
-	static public NetworkBinder getInstance(NetworkService nps) {
-		return new NetworkBinder(nps);
+	static public NetworkBinder getInstance(NetworkService netsvc) {
+		return new NetworkBinder(netsvc);
 	}
 	
 	/**
@@ -78,10 +78,9 @@ public class NetworkBinder extends Binder implements INetworkBinder
 	}
 	
 	@Override
-	public boolean dispatchPullRequestToGateway(String subscriptionId, String mimeType, String selection) {
-		return netsvc.dispatchPullRequestToGateway(subscriptionId, mimeType, selection);
+	public boolean dispatchRetrivalRequestToGateway(String subscriptionId, String mimeType, String selection) {
+		return netsvc.dispatchRetrivalRequestToGateway(subscriptionId, mimeType, selection);
 	}
-	
 
 	@Override
 	public boolean dispatchSubscribeRequestToGateway(String mimeType, String selection) {
@@ -92,6 +91,5 @@ public class NetworkBinder extends Binder implements INetworkBinder
 	public void setDistributorServiceCallback(IDistributorService callback) {
 		netsvc.setDistributorServiceCallback(callback);
 	}
-
 	
 }

@@ -15,7 +15,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.ByteString;
 
+import android.app.PendingIntent;
 import android.app.Service;
+import android.app.PendingIntent.CanceledException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.ContentResolver;
@@ -33,6 +35,7 @@ import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
@@ -146,19 +149,17 @@ public class DistributorService extends Service implements IDistributorService {
 
         // Initialize our receivers/listeners.
         /*
-         * wifiReceiver = new WifiReceiver(); cellPhoneListener = new
-         * CellPhoneListener(this); tm = (TelephonyManager) this
-         * .getSystemService(Context.TELEPHONY_SERVICE);
-         * tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_DATA_ACTIVITY
-         * | PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+         wifiReceiver = new WifiReceiver();
+         cellPhoneListener = new CellPhoneListener(this);
+         tm = (TelephonyManager) this .getSystemService(Context.TELEPHONY_SERVICE);
+         tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_DATA_ACTIVITY | PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
          */
-
+		
         // Listen for changes to resource availability
         this.mReadyResourceReceiver = new MyBroadcastReceiver();
         this.mReceiverRegistrar = new IRegisterReceiver() {
             @Override
-            public Intent registerReceiver(final BroadcastReceiver aReceiver,
-                    final IntentFilter aFilter) {
+            public Intent registerReceiver(final BroadcastReceiver aReceiver, final IntentFilter aFilter) {
                 return DistributorService.this.registerReceiver(aReceiver,
                         aFilter);
             }
@@ -181,7 +182,7 @@ public class DistributorService extends Service implements IDistributorService {
         mediaFilter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
         mediaFilter.addDataScheme("file");
         mReceiverRegistrar.registerReceiver(mReadyResourceReceiver, mediaFilter);
-
+		
         mReadyResourceReceiver.checkResourceStatus(this);
     }
 
@@ -209,7 +210,7 @@ public class DistributorService extends Service implements IDistributorService {
         if (!isBoundNPS) {
             return;
         }
-
+		
         logger.debug("service unbinding from network proxy service");
         // Use our binding for notifying the NPS of teardown.
         if (network != null) {
@@ -240,13 +241,32 @@ public class DistributorService extends Service implements IDistributorService {
         this.getContentResolver().unregisterContentObserver(enrollmentObserver);
         this.getContentResolver().unregisterContentObserver(subscriptionObserver);
         this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
-
+		
         super.onDestroy();
     }
 
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    private boolean sendPendingIntent(byte[] notice) {
+        if (notice == null) {
+            return false;
+        }
+        Parcel noticeParcel = Parcel.obtain();
+
+        noticeParcel.unmarshall(notice, 0, notice.length);
+        PendingIntent pi = PendingIntent.readPendingIntentOrNullFromParcel(
+                noticeParcel);
+
+        try {
+            pi.send();
+        } catch (CanceledException e) {
+            logger.error("could not process marshalled pending intent");
+            return false;
+        }
+        return true;
     }
 
     // ===========================================================
@@ -272,29 +292,26 @@ public class DistributorService extends Service implements IDistributorService {
 
         try {
             try {
-                // instream =
-                // this.getContentResolver().openInputStream(serialUri);
+                // instream = this.getContentResolver().openInputStream(serialUri);
                 AssetFileDescriptor afd = this.getContentResolver().openAssetFileDescriptor(
                         serialUri, "r");
                 // afd.createInputStream();
-
+        		
                 ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
 
                 instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-
             } catch (IOException e) {
                 throw new FileNotFoundException("Unable to create stream");
             }
             // if (instream)
             bis = new BufferedInputStream(instream);
-
+            
             for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
                 bout.write(buffer, 0, bytesRead);
             }
             bis.close();
             // String bs = bout.toString();
-            // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0,
-            // 256));
+            // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
             byte[] ba = bout.toByteArray();
 
             bout.close();
@@ -320,8 +337,8 @@ public class DistributorService extends Service implements IDistributorService {
     }
 
     /**
-     * When the connection to the gateway is established the connection must be
-     * re-authenticated and the request for data must be reposted.
+     * When the connection to the gateway is established the connection
+     * must be re-authenticated and the request for data must be reposted.
      */
     public void repostToGateway() {
         if (network == null) {
@@ -418,7 +435,7 @@ public class DistributorService extends Service implements IDistributorService {
                         cur.getColumnIndex(PostalTableSchema.SERIALIZE_TYPE));
 
                 switch (serialType) {
-                case PostalTableSchema.SERIALIZE_TYPE_DIRECT:
+                case PostalTableSchema.SERIALIZE_TYPE_DIRECT: 
                     int dataColumnIndex = cur.getColumnIndex(
                             PostalTableSchema.DATA);
 
@@ -427,13 +444,13 @@ public class DistributorService extends Service implements IDistributorService {
 
                         serialized = data.getBytes();
                     } else {
-                        // TODO handle the case where data is null
+                        // TODO handle the case where data is null 
                         // that signifies there is a file containing the data
                         serialized = null;
                     }
                     break;
 
-                case PostalTableSchema.SERIALIZE_TYPE_INDIRECT:
+                case PostalTableSchema.SERIALIZE_TYPE_INDIRECT: 
                 case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
                 default:
                     try {
@@ -454,16 +471,22 @@ public class DistributorService extends Service implements IDistributorService {
                 try {
                     dispatchSuccessful = network.dispatchPushRequestToGateway(
                             rowUri.toString(), mimeType, serialized);
+                    if (dispatchSuccessful) {
+                        byte[] notice = cur.getBlob(
+                                cur.getColumnIndex(PostalTableSchema.NOTICE));
+
+                        sendPendingIntent(notice);
+                    }
                 } catch (NullPointerException e) {
                     logger.debug(
                             "NullPointerException, sending to gateway failed");
-                }
+                } 
 
                 // Update distributor status if message dispatch successful.
                 ContentValues values = new ContentValues();
 
                 values.put(PostalTableSchema.DISPOSITION,
-                        (dispatchSuccessful)
+                        (dispatchSuccessful) 
                         ? PostalTableSchema.DISPOSITION_SENT
                         : PostalTableSchema.DISPOSITION_PENDING);
                 int numUpdated = cr.update(PostalTableSchema.getUri(cur), values,
@@ -507,9 +530,8 @@ public class DistributorService extends Service implements IDistributorService {
                     + ", '" + RetrivalTableSchema.DISPOSITION_FAIL + "'")
                     : "")
                     + ")";
-
+		
             String[] selectionArgs = null;
-
             Cursor pendingCursor = cr.query(RetrivalTableSchema.CONTENT_URI,
                     null, selectPending, selectionArgs, order);
 
@@ -517,57 +539,50 @@ public class DistributorService extends Service implements IDistributorService {
                 pendingCursor.close();
                 break; // no more items
             }
-
+			
             int failedSendCount = 0;
 
             for (boolean areMoreItems = pendingCursor.moveToFirst(); areMoreItems; areMoreItems = pendingCursor.moveToNext()) {
                 // For each item in the cursor, ask the content provider to
                 // serialize it, then pass it off to the NPS.
-
+				
                 String uri = pendingCursor.getString(
                         pendingCursor.getColumnIndex(RetrivalTableSchema.URI));
                 String mime = pendingCursor.getString(
                         pendingCursor.getColumnIndex(RetrivalTableSchema.MIME));
-                // String disposition =
-                // pendingCursor.getString(pendingCursor.getColumnIndex(RetrivalTableSchema.DISPOSITION));
+
+                // String disposition = pendingCursor.getString(pendingCursor.getColumnIndex(RetrivalTableSchema.DISPOSITION));
                 String selection = pendingCursor.getString(
                         pendingCursor.getColumnIndex(
                                 RetrivalTableSchema.SELECTION));
-                // int expiration =
-                // pendingCursor.getInt(pendingCursor.getColumnIndex(RetrivalTableSchema.EXPIRATION));
-                // long createdDate =
-                // pendingCursor.getLong(pendingCursor.getColumnIndex(RetrivalTableSchema.CREATED_DATE));
-
-                // Make a query on the row we want to serialize.
-
+                // int expiration = pendingCursor.getInt(pendingCursor.getColumnIndex(RetrivalTableSchema.EXPIRATION));
+                // long createdDate = pendingCursor.getLong(pendingCursor.getColumnIndex(RetrivalTableSchema.CREATED_DATE));
+				
+                // Make a query on the row we want to serialize. 
+				
                 // Passing the serial
-                // field in the projection tells the content provider to
-                // serialize
-                // the row queried and return a matrix cursor with the
-                // serialized data
+                // field in the projection tells the content provider to serialize
+                // the row queried and return a matrix cursor with the serialized data
                 // information.
                 Uri rowUri = Uri.parse(uri);
-
-                // String mimeType =
-                // InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
-
-                boolean sent = network.dispatchPullRequestToGateway(
+				
+                // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
+				
+                boolean sent = network.dispatchRetrivalRequestToGateway(
                         rowUri.toString(), mime, selection);
-
+				
                 if (!sent) {
                     ++failedSendCount;
-                    Toast.makeText(this, "Sending pull request to gateway failed.", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(this, "Sending pull request to gateway succeeded.", Toast.LENGTH_LONG).show();
+                    // Toast.makeText(this, "Sending retrival request to gateway failed.", Toast.LENGTH_SHORT).show();
+                } else {// Toast.makeText(this, "Sending retrival request to gateway succeeded.", Toast.LENGTH_LONG).show();
                 }
-
+				
                 ContentValues values = new ContentValues();
 
                 values.put(RetrivalTableSchema.DISPOSITION,
                         sent
-                        ? RetrivalTableSchema.DISPOSITION_SENT
+                        ? RetrivalTableSchema.DISPOSITION_SENT 
                         : RetrivalTableSchema.DISPOSITION_FAIL);
-
                 int numUpdated = cr.update(
                         RetrivalTableSchema.getUri(pendingCursor), values, null,
                         null);
@@ -601,7 +616,6 @@ public class DistributorService extends Service implements IDistributorService {
 
         // Additional items may be added to the table while the current set are
         // being processed
-
         for (; true; repost = false) {
             String[] selectionArgs = null;
             final String selectPending = "\""
@@ -613,7 +627,7 @@ public class DistributorService extends Service implements IDistributorService {
                             + SubscriptionTableSchema.DISPOSITION_FAIL + "'")
                             : "")
                             + ")";
-
+		
             Cursor pendingCursor = cr.query(SubscriptionTableSchema.CONTENT_URI,
                     null, selectPending, selectionArgs, order);
 
@@ -621,56 +635,50 @@ public class DistributorService extends Service implements IDistributorService {
                 pendingCursor.close();
                 break;
             }
-
+			
             int failedSendCount = 0;
 
             for (boolean areMoreItems = pendingCursor.moveToFirst(); areMoreItems; areMoreItems = pendingCursor.moveToNext()) {
                 // For each item in the cursor, ask the content provider to
                 // serialize it, then pass it off to the NPS.
-
+				
                 String mime = pendingCursor.getString(
                         pendingCursor.getColumnIndex(
                                 SubscriptionTableSchema.MIME));
-                // String disposition =
-                // pendingCursor.getString(pendingCursor.getColumnIndex(SubscriptionTableSchema.DISPOSITION));
+                // String disposition = pendingCursor.getString(pendingCursor.getColumnIndex(SubscriptionTableSchema.DISPOSITION));
                 String selection = pendingCursor.getString(
                         pendingCursor.getColumnIndex(
                                 SubscriptionTableSchema.SELECTION));
-                // int expiration =
-                // pendingCursor.getInt(pendingCursor.getColumnIndex(SubscriptionTableSchema.EXPIRATION));
-                // long createdDate =
-                // pendingCursor.getLong(pendingCursor.getColumnIndex(SubscriptionTableSchema.CREATED_DATE));
-
-                // Make a query on the row we want to serialize.
-
+                // int expiration = pendingCursor.getInt(pendingCursor.getColumnIndex(SubscriptionTableSchema.EXPIRATION));
+                // long createdDate = pendingCursor.getLong(pendingCursor.getColumnIndex(SubscriptionTableSchema.CREATED_DATE));
+				
+                // Make a query on the row we want to serialize. 
+				
                 // Passing the serial
-                // field in the projection tells the content provider to
-                // serialize
-                // the row queried and return a matrix cursor with the
-                // serialized data
+                // field in the projection tells the content provider to serialize
+                // the row queried and return a matrix cursor with the serialized data
                 // information.
                 // Uri rowUri = Uri.parse(uri);
-
-                // String mimeType =
-                // InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
-
+				
+                // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
+				
                 boolean sent = network.dispatchSubscribeRequestToGateway(mime,
                         selection);
-
+				
                 if (!sent) {
                     ++failedSendCount;
                     Toast.makeText(this, "subscription to " + mime + " failed", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(this, "subscription to " + mime + " sent", Toast.LENGTH_SHORT).show();
                 }
-
+				
                 ContentValues values = new ContentValues();
 
                 values.put(SubscriptionTableSchema.DISPOSITION,
-                        (failedSendCount < 1)
-                        ? SubscriptionTableSchema.DISPOSITION_SENT
+                        (failedSendCount < 1) 
+                        ? SubscriptionTableSchema.DISPOSITION_SENT 
                         : SubscriptionTableSchema.DISPOSITION_FAIL);
-
+					
                 int numUpdated = cr.update(
                         SubscriptionTableSchema.getUri(pendingCursor), values,
                         null, null);
@@ -688,13 +696,13 @@ public class DistributorService extends Service implements IDistributorService {
 
         // Get the size of the file
         long length = file.length();
-
+    
         if (length > Integer.MAX_VALUE) {// File is too large
         }
 
         // Create the byte array to hold the data
         byte[] bytes = new byte[(int) length];
-
+    
         // Read in the bytes
         int offset = 0;
         int numRead = 0;
@@ -717,7 +725,7 @@ public class DistributorService extends Service implements IDistributorService {
     }
 
     // ===========================================================
-    // Network Proxy Service Calls
+    // Network Service Calls
     // ===========================================================
     private boolean bindToNetworkService() {
         if (isBoundNPS) {
@@ -726,8 +734,7 @@ public class DistributorService extends Service implements IDistributorService {
         if (network != null) {
             return isBoundNPS;
         }
-
-        // Create a service connection to the Network Proxy Service.
+        // Create a service connection to the Network Service.
         networkServiceConnection = new ServiceConnection() {
             public void onServiceConnected(ComponentName name, IBinder service) {
                 logger.debug("Connected to NPS");
@@ -757,8 +764,7 @@ public class DistributorService extends Service implements IDistributorService {
         @SuppressWarnings("unused")
         private IDistributorService callback;
 
-        public DeliveryMechanismObserver(Handler handler,
-                IDistributorService aCallback) {
+        public DeliveryMechanismObserver(Handler handler, IDistributorService aCallback) {
             super(handler);
             callback = aCallback;
         }
@@ -789,7 +795,6 @@ public class DistributorService extends Service implements IDistributorService {
         }
     }
 
-
     private class RetrivalObserver extends ContentObserver {
 
         /** Fields */
@@ -807,14 +812,12 @@ public class DistributorService extends Service implements IDistributorService {
         }
     }
 
-
     private class SubscriptionObserver extends ContentObserver {
 
         /** Fields */
         private IDistributorService callback;
 
-        public SubscriptionObserver(Handler handler,
-                IDistributorService aCallback) {
+        public SubscriptionObserver(Handler handler, IDistributorService aCallback) {
             super(handler);
             callback = aCallback;
         }
@@ -847,35 +850,32 @@ public class DistributorService extends Service implements IDistributorService {
             // it may be that there were items which need to be delivered.
             DistributorService.this.repostToGateway();
         }
-
+		
         public void checkResourceStatus(final Context aContext) { //
-            {
+            { 
                 final WifiManager wm = (WifiManager) aContext.getSystemService(
                         Context.WIFI_SERVICE);
-                final int wifiState = wm.getWifiState(); // TODO check for
+                final int wifiState = wm.getWifiState(); // TODO check for permission or catch error
 
-                // permission or
-                // catch error
                 if (DEBUGMODE) {
                     logger.debug("wifi state=" + wifiState);
                 }
 
                 final TelephonyManager tm = (TelephonyManager) aContext.getSystemService(
                         Context.TELEPHONY_SERVICE);
-                final int dataState = tm.getDataState(); // TODO check for
+                final int dataState = tm.getDataState(); // TODO check for permission or catch error
 
-                // permission or
-                // catch error
                 if (DEBUGMODE) {
                     logger.debug("telephone data state=" + dataState);
                 }
-
+			
                 mNetworkConnected = wifiState == WifiManager.WIFI_STATE_ENABLED
                         || dataState == TelephonyManager.DATA_CONNECTED;
                 if (DEBUGMODE) {
                     logger.debug("mConnected=" + mNetworkConnected);
                 }
-            } {
+            } 
+            {
                 final String state = Environment.getExternalStorageState();
 
                 logger.info("sdcard state: " + state);
@@ -895,33 +895,31 @@ public class DistributorService extends Service implements IDistributorService {
      * Typically just an acknowledgment.
      */
     @Override
-    public boolean dispatchPushResponse(PushAcknowledgement resp) {
+    public boolean dispatchPushResponse(PushAcknowledgement resp) {		
         return true;
     }
 
     /**
      * Update the content providers as appropriate.
-     * 
      * De-serialize into the proper content provider.
+     * 
      */
     @Override
-    public boolean dispatchPullResponse(PullResponse resp) {
-        logger.debug("dispatching pull response : {} : {}", resp.getRequestUid(),
-                resp.getUri());
-        String uriStr = resp.getRequestUid(); // resp.getUri(); --- why do we
-        // have uri in data message and
-        // pull response?
+    public boolean dispatchRetrivalResponse(PullResponse resp) {
+        logger.debug("dispatching retrival response : {} : {}",
+                resp.getRequestUid(), resp.getUri());
+        String uriStr = resp.getRequestUid(); // resp.getUri(); --- why do we have uri in data message and retrival response?
         Uri uri = Uri.parse(uriStr);
         ContentResolver cr = this.getContentResolver();
 
         try {
-            uri = Uri.withAppendedPath(uri, "_serial");
-            OutputStream outstream = cr.openOutputStream(uri);
+            Uri serialUri = Uri.withAppendedPath(uri, "_serial");
+            OutputStream outstream = cr.openOutputStream(serialUri);
 
             if (outstream == null) {
                 logger.error(
                         "could not open output stream to content provider: "
-                                + uri);
+                                + serialUri);
                 return false;
             }
             ByteString data = resp.getData();
@@ -930,6 +928,32 @@ public class DistributorService extends Service implements IDistributorService {
                 outstream.write(data.toByteArray());
             }
             outstream.close();
+		    
+            // TODO: update the retrival request table
+            // This mess is intended to update/delete the retrival request as it has been fullfulled.
+            //
+            // RetrivalTableSchema.URI
+            // final String selectPending = 
+            // "\""+RetrivalTableSchema.CONTENT_ITEM_TYPE + "\" = "+
+            // " '" +  + "'" +
+            // (repost ? (", '" + RetrivalTableSchema.DISPOSITION_SENT + "'" +
+            // ", '" + RetrivalTableSchema.DISPOSITION_FAIL+"'") : "") +
+            // ")";
+            //
+            // String[] selectionArgs = null;
+            //
+            // Cursor pendingCursor = cr.query(RetrivalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
+            // if (pendingCursor.getCount() < 1) {
+            // pendingCursor.close();
+            // Cursor pendingCursor = cr.query(RetrivalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
+            // Cursor cursor = cr.query(uri, null, null, null, null);
+            // byte[] notice = cursor.getBlob(cursor.getColumnIndex(RetrivalTableSchema.NOTICE));
+            //
+            // catch (CanceledException e) {
+            // // TODO Auto-generated catch block
+            // e.printStackTrace();
+            // }
+            // // cr.delete(, where, selectionArgs)
         } catch (FileNotFoundException e) {
             String msg = "could not connect to content provider";
 
@@ -988,7 +1012,6 @@ public class DistributorService extends Service implements IDistributorService {
             outstream.flush();
             outstream.close();
             return true;
-
         } catch (IllegalArgumentException ex) {
             String msg = "could not serialize to content provider: "
                     + tableUriStr;

@@ -153,7 +153,7 @@ implements OnSharedPreferenceChangeListener
 	/**
 	 * The journal used when direct communication with the 
 	 * ammo android gateway plugin is not immediately available.
-	 * The jounal is a file containing the PushRequests (not PullRequest's or *Response's).
+	 * The jounal is a file containing the PushRequests (not RetrivalRequest's or *Response's).
 	 */
 	public void setupJournal() {
 		if (!journalingSwitch) return;
@@ -505,7 +505,7 @@ implements OnSharedPreferenceChangeListener
 	 * @param data
 	 * @return
 	 */
-	private AmmoMessages.MessageWrapper.Builder buildPullRequest(String uuid, String mimeType, String query) 
+	private AmmoMessages.MessageWrapper.Builder buildRetrivalRequest(String uuid, String mimeType, String query) 
 	{
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
@@ -530,7 +530,7 @@ implements OnSharedPreferenceChangeListener
 	}	
 	
 	/**
-	 * Get response to PullRequest, PullResponse, from the gateway.
+	 * Get response to RetrivalRequest, PullResponse, from the gateway.
 	 * 
 	 * @param mw
 	 * @return
@@ -540,7 +540,7 @@ implements OnSharedPreferenceChangeListener
 		if (! mw.hasPullResponse()) return false;
 		final AmmoMessages.PullResponse pullResp = mw.getPullResponse();
 		
-		return distributor.dispatchPullResponse(pullResp);
+		return distributor.dispatchRetrivalResponse(pullResp);
 	}
 	
 	private AmmoMessages.MessageWrapper.Builder buildSubscribeRequest(String mimeType, String query) 
@@ -766,11 +766,11 @@ implements OnSharedPreferenceChangeListener
 		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
-	public boolean dispatchPullRequestToGateway(String subscriptionId, String mimeType, String selection) {
+	public boolean dispatchRetrivalRequestToGateway(String subscriptionId, String mimeType, String selection) {
 		if (! isConnected()) return false; 
 		
 		/** Message Building */
-		AmmoMessages.MessageWrapper.Builder mwb = buildPullRequest(subscriptionId, mimeType, selection);
+		AmmoMessages.MessageWrapper.Builder mwb = buildRetrivalRequest(subscriptionId, mimeType, selection);
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
