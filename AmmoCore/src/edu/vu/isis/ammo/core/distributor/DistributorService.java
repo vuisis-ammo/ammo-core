@@ -195,7 +195,7 @@ public class DistributorService extends Service implements IDistributorService {
         // If we get this intent, unbind from all services so the service can be stopped.
         if (intent == null) {
             callback = this;
-            this.bindToNetworkProxyService();
+            this.bindToNetworkService();
             return START_STICKY;
         }
         if (intent.getAction().equals(DistributorService.PREPARE_FOR_STOP)) {
@@ -203,7 +203,7 @@ public class DistributorService extends Service implements IDistributorService {
             return START_NOT_STICKY;
         } 		
         callback = this;
-        this.bindToNetworkProxyService();
+        this.bindToNetworkService();
         return START_STICKY;
     }
 
@@ -387,7 +387,7 @@ public class DistributorService extends Service implements IDistributorService {
     @Override
     public void processPostalChange(boolean repost) {
         logger.debug("::processSubscriptionChange()");
-        if (!bindToNetworkProxyService()) {
+        if (!bindToNetworkService()) {
             return;
         }
 
@@ -511,7 +511,7 @@ public class DistributorService extends Service implements IDistributorService {
     @Override
     public void processRetrievalChange(boolean repost) {
         logger.debug("::processRetrievalChange()");
-        if (!bindToNetworkProxyService()) {
+        if (!bindToNetworkService()) {
             return;
         }
 		
@@ -607,7 +607,7 @@ public class DistributorService extends Service implements IDistributorService {
     @Override
     public void processSubscriptionChange(boolean repost) {
         logger.debug("::processSubscriptionChange()");
-        if (!bindToNetworkProxyService()) {
+        if (!bindToNetworkService()) {
             return;
         }
 		
@@ -727,7 +727,7 @@ public class DistributorService extends Service implements IDistributorService {
     // ===========================================================
     // Network Proxy Service Calls
     // ===========================================================
-    private boolean bindToNetworkProxyService() {
+    private boolean bindToNetworkService() {
         if (isBoundNPS) {
             return true;
         }
