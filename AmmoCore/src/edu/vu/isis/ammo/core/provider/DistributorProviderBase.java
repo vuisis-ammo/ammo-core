@@ -124,6 +124,7 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE \"" + Tables.POSTAL_TBL + "\" (" 
           + "\""+PostalTableSchemaBase.CP_TYPE + "\" TEXT, " 
           + "\""+PostalTableSchemaBase.URI + "\" TEXT, " 
+          + "\""+PostalTableSchemaBase.NOTICE + "\" BLOB, " 
           + "\""+PostalTableSchemaBase.SERIALIZE_TYPE + "\" INTEGER, " 
           + "\""+PostalTableSchemaBase.DISPOSITION + "\" INTEGER, " 
           + "\""+PostalTableSchemaBase.EXPIRATION + "\" INTEGER, " 
@@ -139,6 +140,7 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
          */
         db.execSQL("CREATE TABLE \"" + Tables.RETRIVAL_TBL + "\" (" 
           + "\""+RetrivalTableSchemaBase.DISPOSITION + "\" INTEGER, " 
+          + "\""+RetrivalTableSchemaBase.NOTICE + "\" BLOB, " 
           + "\""+RetrivalTableSchemaBase.URI + "\" TEXT, " 
           + "\""+RetrivalTableSchemaBase.MIME + "\" TEXT, " 
           + "\""+RetrivalTableSchemaBase.PROJECTION + "\" TEXT, " 
@@ -173,6 +175,7 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
           + "\""+SubscriptionTableSchemaBase.MIME + "\" TEXT, " 
           + "\""+SubscriptionTableSchemaBase.SELECTION + "\" TEXT, " 
           + "\""+SubscriptionTableSchemaBase.EXPIRATION + "\" INTEGER, " 
+          + "\""+SubscriptionTableSchemaBase.NOTICE + "\" BLOB, " 
           + "\""+SubscriptionTableSchemaBase.CREATED_DATE + "\" INTEGER, " 
           + "\""+SubscriptionTableSchemaBase.MODIFIED_DATE + "\" INTEGER, " 
           + "\""+SubscriptionTableSchemaBase._ID + "\" INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -295,6 +298,14 @@ static public class PostalWrapper {
        this.uri = val;
        return this;
      } 
+     private byte[] notice;
+     public byte[] getNotice() {
+       return this.notice;
+     }
+     public PostalWrapper setNotice(byte[] val) {
+       this.notice = val;
+       return this;
+     } 
      private int serializeType;
      public int getSerializeType() {
        return this.serializeType;
@@ -381,6 +392,14 @@ static public class RetrivalWrapper {
      }
      public RetrivalWrapper setDisposition(int val) {
        this.disposition = val;
+       return this;
+     } 
+     private byte[] notice;
+     public byte[] getNotice() {
+       return this.notice;
+     }
+     public RetrivalWrapper setNotice(byte[] val) {
+       this.notice = val;
        return this;
      } 
      private String uri;
@@ -589,6 +608,14 @@ static public class SubscriptionWrapper {
      }
      public SubscriptionWrapper setExpiration(int val) {
        this.expiration = val;
+       return this;
+     } 
+     private byte[] notice;
+     public byte[] getNotice() {
+       return this.notice;
+     }
+     public SubscriptionWrapper setNotice(byte[] val) {
+       this.notice = val;
        return this;
      } 
      private long createdDate;
@@ -847,6 +874,7 @@ static public class SubscriptionWrapper {
      ContentValues cv = new ContentValues();
      cv.put(PostalTableSchemaBase.CP_TYPE, wrap.getCpType()); 
      cv.put(PostalTableSchemaBase.URI, wrap.getUri()); 
+     cv.put(PostalTableSchemaBase.NOTICE, wrap.getNotice()); 
      cv.put(PostalTableSchemaBase.SERIALIZE_TYPE, wrap.getSerializeType()); 
      cv.put(PostalTableSchemaBase.DISPOSITION, wrap.getDisposition()); 
      cv.put(PostalTableSchemaBase.EXPIRATION, wrap.getExpiration()); 
@@ -885,6 +913,7 @@ static public class SubscriptionWrapper {
            PostalWrapper iw = new PostalWrapper();
              iw.setCpType(cursor.getString(cursor.getColumnIndex(PostalTableSchemaBase.CP_TYPE)));  
              iw.setUri(cursor.getString(cursor.getColumnIndex(PostalTableSchemaBase.URI)));  
+             iw.setNotice(cursor.getBlob(cursor.getColumnIndex(PostalTableSchemaBase.NOTICE)));  
              iw.setSerializeType(cursor.getInt(cursor.getColumnIndex(PostalTableSchemaBase.SERIALIZE_TYPE)));  
              iw.setDisposition(cursor.getInt(cursor.getColumnIndex(PostalTableSchemaBase.DISPOSITION)));  
              iw.setExpiration(cursor.getInt(cursor.getColumnIndex(PostalTableSchemaBase.EXPIRATION)));  
@@ -906,6 +935,7 @@ static public class SubscriptionWrapper {
 
            // not a reference field name :cp type cpType cp_type\n 
            // not a reference field name :uri uri uri\n 
+           // not a reference field name :notice notice notice\n 
            // not a reference field name :serialize type serializeType serialize_type\n 
            // not a reference field name :disposition disposition disposition\n 
            // not a reference field name :expiration expiration expiration\n 
@@ -1012,6 +1042,7 @@ static public class SubscriptionWrapper {
   protected ContentValues retrivalComposeValues(RetrivalWrapper wrap) {
      ContentValues cv = new ContentValues();
      cv.put(RetrivalTableSchemaBase.DISPOSITION, wrap.getDisposition()); 
+     cv.put(RetrivalTableSchemaBase.NOTICE, wrap.getNotice()); 
      cv.put(RetrivalTableSchemaBase.URI, wrap.getUri()); 
      cv.put(RetrivalTableSchemaBase.MIME, wrap.getMime()); 
      cv.put(RetrivalTableSchemaBase.PROJECTION, wrap.getProjection()); 
@@ -1052,6 +1083,7 @@ static public class SubscriptionWrapper {
       for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
            RetrivalWrapper iw = new RetrivalWrapper();
              iw.setDisposition(cursor.getInt(cursor.getColumnIndex(RetrivalTableSchemaBase.DISPOSITION)));  
+             iw.setNotice(cursor.getBlob(cursor.getColumnIndex(RetrivalTableSchemaBase.NOTICE)));  
              iw.setUri(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.URI)));  
              iw.setMime(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.MIME)));  
              iw.setProjection(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.PROJECTION)));  
@@ -1075,6 +1107,7 @@ static public class SubscriptionWrapper {
            }
 
            // not a reference field name :disposition disposition disposition\n 
+           // not a reference field name :notice notice notice\n 
            // not a reference field name :uri uri uri\n 
            // not a reference field name :mime mime mime\n 
            // not a reference field name :projection projection projection\n 
@@ -1342,6 +1375,7 @@ static public class SubscriptionWrapper {
      cv.put(SubscriptionTableSchemaBase.MIME, wrap.getMime()); 
      cv.put(SubscriptionTableSchemaBase.SELECTION, wrap.getSelection()); 
      cv.put(SubscriptionTableSchemaBase.EXPIRATION, wrap.getExpiration()); 
+     cv.put(SubscriptionTableSchemaBase.NOTICE, wrap.getNotice()); 
      cv.put(SubscriptionTableSchemaBase.CREATED_DATE, wrap.getCreatedDate()); 
      cv.put(SubscriptionTableSchemaBase.MODIFIED_DATE, wrap.getModifiedDate()); 
      cv.put(SubscriptionTableSchemaBase._DISPOSITION, wrap.get_Disposition());
@@ -1377,6 +1411,7 @@ static public class SubscriptionWrapper {
              iw.setMime(cursor.getString(cursor.getColumnIndex(SubscriptionTableSchemaBase.MIME)));  
              iw.setSelection(cursor.getString(cursor.getColumnIndex(SubscriptionTableSchemaBase.SELECTION)));  
              iw.setExpiration(cursor.getInt(cursor.getColumnIndex(SubscriptionTableSchemaBase.EXPIRATION)));  
+             iw.setNotice(cursor.getBlob(cursor.getColumnIndex(SubscriptionTableSchemaBase.NOTICE)));  
              iw.setCreatedDate(cursor.getLong(cursor.getColumnIndex(SubscriptionTableSchemaBase.CREATED_DATE)));  
              iw.setModifiedDate(cursor.getLong(cursor.getColumnIndex(SubscriptionTableSchemaBase.MODIFIED_DATE)));  
              iw.set_Disposition(cursor.getInt(cursor.getColumnIndex(SubscriptionTableSchemaBase._DISPOSITION))); 
@@ -1395,6 +1430,7 @@ static public class SubscriptionWrapper {
            // not a reference field name :mime mime mime\n 
            // not a reference field name :selection selection selection\n 
            // not a reference field name :expiration expiration expiration\n 
+           // not a reference field name :notice notice notice\n 
            // not a reference field name :created date createdDate created_date\n 
            // not a reference field name :modified date modifiedDate modified_date\n 
            // SubscriptionTableSchemaBase._DISPOSITION;
@@ -2111,6 +2147,9 @@ static public class SubscriptionWrapper {
            if (!values.containsKey(PostalTableSchemaBase.URI)) {
               values.put("\""+PostalTableSchemaBase.URI+"\"", "unknown");
            } 
+           if (!values.containsKey(PostalTableSchemaBase.NOTICE)) {
+              values.put("\""+PostalTableSchemaBase.NOTICE+"\"", "");
+           } 
            if (!values.containsKey(PostalTableSchemaBase.SERIALIZE_TYPE)) {
               values.put("\""+PostalTableSchemaBase.SERIALIZE_TYPE+"\"", PostalTableSchemaBase.SERIALIZE_TYPE_INDIRECT);
            } 
@@ -2147,6 +2186,9 @@ static public class SubscriptionWrapper {
          
            if (!values.containsKey(RetrivalTableSchemaBase.DISPOSITION)) {
               values.put("\""+RetrivalTableSchemaBase.DISPOSITION+"\"", RetrivalTableSchemaBase.DISPOSITION_PENDING);
+           } 
+           if (!values.containsKey(RetrivalTableSchemaBase.NOTICE)) {
+              values.put("\""+RetrivalTableSchemaBase.NOTICE+"\"", "");
            } 
            if (!values.containsKey(RetrivalTableSchemaBase.URI)) {
               values.put("\""+RetrivalTableSchemaBase.URI+"\"", "unknown");
@@ -2233,6 +2275,9 @@ static public class SubscriptionWrapper {
            } 
            if (!values.containsKey(SubscriptionTableSchemaBase.EXPIRATION)) {
               values.put("\""+SubscriptionTableSchemaBase.EXPIRATION+"\"", now);
+           } 
+           if (!values.containsKey(SubscriptionTableSchemaBase.NOTICE)) {
+              values.put("\""+SubscriptionTableSchemaBase.NOTICE+"\"", "");
            } 
            if (!values.containsKey(SubscriptionTableSchemaBase.CREATED_DATE)) {
               values.put("\""+SubscriptionTableSchemaBase.CREATED_DATE+"\"", now);
@@ -2519,6 +2564,7 @@ static public class SubscriptionWrapper {
             columns.put(PostalTableSchemaBase._ID, PostalTableSchemaBase._ID);
                columns.put(PostalTableSchemaBase.CP_TYPE, "\""+PostalTableSchemaBase.CP_TYPE+"\""); 
                columns.put(PostalTableSchemaBase.URI, "\""+PostalTableSchemaBase.URI+"\""); 
+               columns.put(PostalTableSchemaBase.NOTICE, "\""+PostalTableSchemaBase.NOTICE+"\""); 
                columns.put(PostalTableSchemaBase.SERIALIZE_TYPE, "\""+PostalTableSchemaBase.SERIALIZE_TYPE+"\""); 
                columns.put(PostalTableSchemaBase.DISPOSITION, "\""+PostalTableSchemaBase.DISPOSITION+"\""); 
                columns.put(PostalTableSchemaBase.EXPIRATION, "\""+PostalTableSchemaBase.EXPIRATION+"\""); 
@@ -2537,6 +2583,7 @@ static public class SubscriptionWrapper {
             columns = new HashMap<String, String>();
             columns.put(RetrivalTableSchemaBase._ID, RetrivalTableSchemaBase._ID);
                columns.put(RetrivalTableSchemaBase.DISPOSITION, "\""+RetrivalTableSchemaBase.DISPOSITION+"\""); 
+               columns.put(RetrivalTableSchemaBase.NOTICE, "\""+RetrivalTableSchemaBase.NOTICE+"\""); 
                columns.put(RetrivalTableSchemaBase.URI, "\""+RetrivalTableSchemaBase.URI+"\""); 
                columns.put(RetrivalTableSchemaBase.MIME, "\""+RetrivalTableSchemaBase.MIME+"\""); 
                columns.put(RetrivalTableSchemaBase.PROJECTION, "\""+RetrivalTableSchemaBase.PROJECTION+"\""); 
@@ -2577,6 +2624,7 @@ static public class SubscriptionWrapper {
                columns.put(SubscriptionTableSchemaBase.MIME, "\""+SubscriptionTableSchemaBase.MIME+"\""); 
                columns.put(SubscriptionTableSchemaBase.SELECTION, "\""+SubscriptionTableSchemaBase.SELECTION+"\""); 
                columns.put(SubscriptionTableSchemaBase.EXPIRATION, "\""+SubscriptionTableSchemaBase.EXPIRATION+"\""); 
+               columns.put(SubscriptionTableSchemaBase.NOTICE, "\""+SubscriptionTableSchemaBase.NOTICE+"\""); 
                columns.put(SubscriptionTableSchemaBase.CREATED_DATE, "\""+SubscriptionTableSchemaBase.CREATED_DATE+"\""); 
                columns.put(SubscriptionTableSchemaBase.MODIFIED_DATE, "\""+SubscriptionTableSchemaBase.MODIFIED_DATE+"\""); 
                columns.put(SubscriptionTableSchemaBase._DISPOSITION, "\""+SubscriptionTableSchemaBase._DISPOSITION+"\"");
