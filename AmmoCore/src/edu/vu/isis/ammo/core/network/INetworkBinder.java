@@ -40,7 +40,7 @@ public interface INetworkBinder extends IBinder {
 	 * 
 	 * @return was the request posted successfully
 	 */
-	public boolean dispatchRetrivalRequestToGateway(String requestId, String mimeType, String selection);
+	public boolean dispatchRetrievalRequestToGateway(String requestId, String mimeType, String selection);
 	
 	/**
 	 * Subscribe with the gateway for a data stream.
