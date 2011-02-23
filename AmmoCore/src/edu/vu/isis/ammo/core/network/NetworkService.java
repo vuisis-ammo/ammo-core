@@ -42,6 +42,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.core.CorePreferences;
+import edu.vu.isis.ammo.AmmoPrefKeys;
 import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -164,7 +165,7 @@ implements OnSharedPreferenceChangeListener
 	/**
 	 * The journal used when direct communication with the 
 	 * ammo android gateway plugin is not immediately available.
-	 * The jounal is a file containing the PushRequests (not RetrivalRequest's or *Response's).
+	 * The jounal is a file containing the PushRequests (not RetrievalRequest's or *Response's).
 	 */
 	public void setupJournal() {
 		if (!journalingSwitch) return;
@@ -310,6 +311,19 @@ implements OnSharedPreferenceChangeListener
 			this.authenticateGatewayConnection();
 			return;
 		}
+
+		// handle network connectivity group
+		if (key.equals(AmmoPrefKeys.WIFI_PREF_STATUS_KEY)) {
+			/**
+			 * change the gatewayPort number.
+			 * if active then reset it to the new address.
+			 */
+		    ConnectionStatus connStatus = ConnectionStatus.values()[ prefs.getInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, ConnectionStatus.NO_CONNECTION.ordinal()) ];
+		    if (connStatus == ConnectionStatus.CONNECTED )
+			connectChannels(true);
+		    return;
+		}
+
 		return;
 	}
 	
@@ -358,7 +372,7 @@ implements OnSharedPreferenceChangeListener
 		if (! isConnected()) {
 			tcpSocket = null;
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			//Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
@@ -369,7 +383,7 @@ implements OnSharedPreferenceChangeListener
 			connIntent.putExtra("operatorId", operatorId);
 			this.sendBroadcast(connIntent);
 			
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			//Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 		}
 
 		authenticateGatewayConnection();
@@ -397,7 +411,7 @@ implements OnSharedPreferenceChangeListener
 		}
 		if (udpSocket == null) {
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			// Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
@@ -545,7 +559,7 @@ implements OnSharedPreferenceChangeListener
 	 * @param data
 	 * @return
 	 */
-	private AmmoMessages.MessageWrapper.Builder buildRetrivalRequest(String uuid, String mimeType, String query) 
+	private AmmoMessages.MessageWrapper.Builder buildRetrievalRequest(String uuid, String mimeType, String query) 
 	{
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
@@ -570,7 +584,7 @@ implements OnSharedPreferenceChangeListener
 	}	
 	
 	/**
-	 * Get response to RetrivalRequest, PullResponse, from the gateway.
+	 * Get response to RetrievalRequest, PullResponse, from the gateway.
 	 * 
 	 * @param mw
 	 * @return
@@ -580,7 +594,7 @@ implements OnSharedPreferenceChangeListener
 		if (! mw.hasPullResponse()) return false;
 		final AmmoMessages.PullResponse pullResp = mw.getPullResponse();
 		
-		return distributor.dispatchRetrivalResponse(pullResp);
+		return distributor.dispatchRetrievalResponse(pullResp);
 	}
 	
 	private AmmoMessages.MessageWrapper.Builder buildSubscribeRequest(String mimeType, String query) 
@@ -850,7 +864,7 @@ implements OnSharedPreferenceChangeListener
 		if (crcsum != checksum) {
 			String msg = "you have received a bad message, the checksums did not match)"+ 
 			    Long.toHexString(crcsum) +":"+Long.toHexString(checksum);
-			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+			// Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			logger.warn(msg);
 			return false;
 		}
@@ -976,11 +990,11 @@ implements OnSharedPreferenceChangeListener
 		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
-	public boolean dispatchRetrivalRequestToGateway(String subscriptionId, String mimeType, String selection) {
+	public boolean dispatchRetrievalRequestToGateway(String subscriptionId, String mimeType, String selection) {
 		if (! isConnected()) return false; 
 		
 		/** Message Building */
-		AmmoMessages.MessageWrapper.Builder mwb = buildRetrivalRequest(subscriptionId, mimeType, selection);
+		AmmoMessages.MessageWrapper.Builder mwb = buildRetrievalRequest(subscriptionId, mimeType, selection);
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 

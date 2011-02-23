@@ -13,6 +13,7 @@ import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.net.wifi.SupplicantState;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.ContextMenu;
@@ -50,6 +51,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	private CheckBox cbPhysicalLink, cbWifi;
 	private WifiReceiver wifiReceiver;
 	private SharedPreferences prefs;
+
 	
 	/**
 	 * @Cateogry Lifecycle
@@ -141,9 +143,11 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 		}
 		editor.commit();
 		setWifiStatus();
-		updateConnectionStatus(prefs);
+		// updateConnectionStatus(prefs);
 	}
 	
+		
+
 	/**
 	 * If the key relates to our physical link, update the UI.
 	 * Note: This method is called on the thread that changed the preferences.
@@ -194,21 +198,27 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	 * TODO: Clean this up.
 	 */
 	public void setWifiStatus() {
-		WifiManager manager = (WifiManager)getSystemService(Context.WIFI_SERVICE);
-		WifiInfo info = manager.getConnectionInfo();
-		Editor editor = PreferenceManager.getDefaultSharedPreferences(this).edit();
-		if (info.getSSID() == null && !cbWifi.isChecked()) {
-			editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NO_CONNECTION.ordinal());
-		} else if (info.getSSID() == null && cbWifi.isChecked()) {
-			editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NOT_AVAILABLE.ordinal());
-		} else if (info.getSSID() != null && !cbWifi.isChecked()) {
-			editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.AVAILABLE_NOT_CONNECTED.ordinal());
-		} else if (info.getSSID() != null && cbWifi.isChecked()) {
-			editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.CONNECTED.ordinal());
-		} 
+	    Thread t = new Thread() {
+		    public void run() {
+			WifiManager manager = (WifiManager)getSystemService(Context.WIFI_SERVICE);
+			WifiInfo info = manager.getConnectionInfo();
+			logger.debug( "WifiInfo: " +  info.toString() );
+			boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
+			Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
+			if (!wifiConn && !cbWifi.isChecked()) {  // info.getSSID() == null
+			    editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NO_CONNECTION.ordinal());
+			} else if (!wifiConn && cbWifi.isChecked()) { // info.getSSID() == null
+			    editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NOT_AVAILABLE.ordinal());
+			} else if (wifiConn && !cbWifi.isChecked()) { // info.getSSID() != null
+			    editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.AVAILABLE_NOT_CONNECTED.ordinal());
+			} else if (wifiConn && cbWifi.isChecked()) { // info.getSSID() != null
+			    editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.CONNECTED.ordinal());
+			} 
 		
-		editor.commit();
-		
+			editor.commit();
+		    }
+		};
+	    t.start();
 	}
 	
 	// ===========================================================
@@ -223,7 +233,8 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	private class WifiReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			updateConnectionStatus(prefs);
+		    // updateConnectionStatus(prefs);
+		    setWifiStatus();
 		}
 	}
 	
