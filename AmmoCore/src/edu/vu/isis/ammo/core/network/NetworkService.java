@@ -314,8 +314,7 @@ implements OnSharedPreferenceChangeListener
 		
 		boolean tcp = connectTcpChannel(reconnect);
         //boolean udp = connectUdpChannel();
-        if (tcp)
-        	distributor.repostToGateway();
+        if (tcp) distributor.repostToGateway();
 		return tcp; //&& udp;
 	}
 	
@@ -342,7 +341,9 @@ implements OnSharedPreferenceChangeListener
 		}
 		
 		String msg = "connected to "+gatewayHostname+" on port "+gatewayPort;
-		// TBD SKN: broadcast ammo connected to apps ...
+		//SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+		//SharedPreferences.Editor ped = prefs.edit();
+		//ped.putBoolean(arg0, arg1);
 		Intent connIntent = new Intent(ICoreService.AMMO_CONNECTED);
 		connIntent.putExtra("operatorId", operatorId);
 		this.sendBroadcast(connIntent);
@@ -372,7 +373,7 @@ implements OnSharedPreferenceChangeListener
 		}
 		if (udpSocket == null) {
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			//Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}

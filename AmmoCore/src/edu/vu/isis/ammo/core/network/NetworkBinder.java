@@ -79,7 +79,7 @@ public class NetworkBinder extends Binder implements INetworkBinder
 	
 	@Override
 	public boolean dispatchRetrievalRequestToGateway(String subscriptionId, String mimeType, String selection) {
-		return nps.dispatchRetrievalRequestToGateway(subscriptionId, mimeType, selection);
+		return netsvc.dispatchRetrievalRequestToGateway(subscriptionId, mimeType, selection);
 	}
 
 	@Override

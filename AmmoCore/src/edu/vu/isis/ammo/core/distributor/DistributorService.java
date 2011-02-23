@@ -353,7 +353,7 @@ public class DistributorService extends Service implements IDistributorService {
             return;
         }
         callback.processSubscriptionChange(true);
-        callback.processRetrivalChange(true);
+        callback.processRetrievalChange(true);
         callback.processPostalChange(false);
     }
 

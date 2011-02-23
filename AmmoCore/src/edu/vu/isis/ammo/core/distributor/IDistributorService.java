@@ -21,7 +21,7 @@ public interface IDistributorService {
 	/** Content Observer callbacks */
 	public void repostToGateway();
 	public void processPostalChange(boolean repost);
-	public void processRetrivalChange(boolean repost);
+	public void processRetrievalChange(boolean repost);
 	public void processSubscriptionChange(boolean repost);
 	public void processPublicationChange(boolean repost);
 	

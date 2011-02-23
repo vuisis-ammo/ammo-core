@@ -155,7 +155,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 			this.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
-					updateConnectionStatus(prefs);					
+					updateConnectionStatus(prefs);
 				}
 			});
 		} 
