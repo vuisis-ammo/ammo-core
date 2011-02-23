@@ -508,7 +508,7 @@ public class DistributorService extends Service implements IDistributorService {
     @Override
     public void processRetrievalChange(boolean repost) {
         logger.debug("::processRetrievalChange()");
-        if (!bindToNetworkProxyService()) {
+        if (!bindToNetworkService()) {
             return;
         }
 
