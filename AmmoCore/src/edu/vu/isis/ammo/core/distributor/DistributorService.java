@@ -337,27 +337,23 @@ public class DistributorService extends Service implements IDistributorService {
     }
 
     /**
-     * When the connection to the gateway is established the connection
-     * must be re-authenticated and the request for data must be reposted.
+     * This method is called when the connection to the gateway is reestablished.
+     * Some requests must be resubmitted.
+     * 
+     * Subscription and retrival requests can be sent mutiple times.
+     * The postal requests should only be sent once.
+     *
      */
     public void repostToGateway() {
         if (network == null) {
             return;
         }
         if (!network.isConnected()) {
-            Toast.makeText(this, "establishing network connection failed.", Toast.LENGTH_SHORT).show();
+        	logger.warn("establishing network connection failed.");
             return;
         }
         callback.processSubscriptionChange(true);
-
-        /**
-         * TODO : Fred, please check this - it was true, sandeep changed to
-         *       false we don't want to send reports that were already submitted
-         *       and processed by Gateway similarly pull query must also be made
-         *       explicitly by applications based on what they want, and we
-         *       should not automatically reissue pull requests
-         */
-        callback.processRetrievalChange(false);
+        callback.processRetrivalChange(true);
         callback.processPostalChange(false);
     }
 
@@ -510,7 +506,7 @@ public class DistributorService extends Service implements IDistributorService {
      * are expired.
      */
     @Override
-    public void processRetrievalChange(boolean repost) {
+    public void processRetrivalChange(boolean repost) {
         logger.debug("::processRetrivalChange()");
         if (!bindToNetworkService()) {
             return;
@@ -808,7 +804,7 @@ public class DistributorService extends Service implements IDistributorService {
         @Override
         public void onChange(boolean selfChange) {
             logger.debug("RetrivalObserver::onChange");
-            callback.processRetrievalChange(false);
+            callback.processRetrivalChange(false);
         }
     }
 

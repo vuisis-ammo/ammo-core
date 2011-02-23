@@ -332,7 +332,7 @@ implements OnSharedPreferenceChangeListener
 		}		
 		if (this.tcpSocket.isConnected()) return true;
 		
-		tcpSocket.reconnect();
+		tcpSocket.tryConnect();
 		
 		if (! tcpSocket.isConnected()) {
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
@@ -585,7 +585,8 @@ implements OnSharedPreferenceChangeListener
 		switch (carrier) {
 		case TCP:		
 			return this.tcpSocket.sendGatewayRequest(size, checksum, message);
-		// case UDP: dos = new DataOutputStream(udpSocket.get); break;
+		//case UDP:		
+		//	return this.udpSocket.sendGatewayRequest(size, checksum, message);
 		// case JOURNAL: dos = new DataOutputStream(udpSocket.get);
 		// break;
 		// default: dos = new DataOutputStream(udpSocket); break;

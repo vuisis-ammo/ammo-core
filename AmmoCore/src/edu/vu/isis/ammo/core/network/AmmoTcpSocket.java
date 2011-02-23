@@ -37,7 +37,6 @@ public class AmmoTcpSocket {
 	private int socketTimeout = 5 * 1000; // milliseconds.
 	private static final String DEFAULT_HOST = "10.0.2.2";
 	private String gatewayHost = null;
-	private InetAddress gatewayIpAddr = null;
 	private int gatewayPort = 32896;
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private NetworkService driver = null;
@@ -60,7 +59,7 @@ public class AmmoTcpSocket {
 	public boolean enable() {
 		if (this.isEnabled == true) return false;
 		this.isEnabled = true;
-		this.reconnect();
+		this.tryConnect();
 		return true;
 	}
 	public boolean disable() {
@@ -99,12 +98,13 @@ public class AmmoTcpSocket {
 	 * 
 	 * @return
 	 */
-	public boolean reconnect() {
-		if (!this.isStale 
-		 && this.isConnected()
-		 && !this.isEnabled) {
-			return false;
-		}
+	public boolean tryConnect() {
+		if (!this.isEnabled) return false;
+		if (this.isStale) return reconnect();
+		if (!this.isConnected()) return reconnect();
+		return false;
+	}
+	private boolean reconnect() {
 		if (this.gatewayHost == null) this.gatewayHost = DEFAULT_HOST;
 		if (this.gatewayPort < 1) return false;
 		InetAddress gatewayIpAddr = null;
@@ -188,7 +188,7 @@ public class AmmoTcpSocket {
 	 */
 	public boolean sendGatewayRequest(int size, int checksum, byte[] message) 
 	{
-		if (! this.reconnect()) return false;
+		if (! this.tryConnect()) return false;
 		
 		DataOutputStream dos;
 		try {
