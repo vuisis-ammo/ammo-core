@@ -51,7 +51,7 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.DeliveryMechanismTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PostalTableSchemaBase;
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.RetrivalTableSchemaBase;
+import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.RetrievalTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PublicationTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.SubscriptionTableSchemaBase;
 
@@ -66,7 +66,7 @@ public abstract class DistributorProviderBase extends ContentProvider {
 public interface Tables {
       public static final String DELIVERY_MECHANISM_TBL = "delivery_mechanism";
          public static final String POSTAL_TBL = "postal";
-         public static final String RETRIVAL_TBL = "retrival";
+         public static final String RETRIEVAL_TBL = "retrieval";
          public static final String PUBLICATION_TBL = "publication";
          public static final String SUBSCRIPTION_TBL = "subscription";
       
@@ -137,24 +137,24 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
           + "\""+PostalTableSchemaBase._ID + "\" INTEGER PRIMARY KEY AUTOINCREMENT, "
           + "\""+PostalTableSchemaBase._DISPOSITION + "\" INTEGER );" ); 
         /** 
-         * Table Name: retrival <P>
+         * Table Name: retrieval <P>
          */
-        db.execSQL("CREATE TABLE \"" + Tables.RETRIVAL_TBL + "\" (" 
-          + "\""+RetrivalTableSchemaBase.DISPOSITION + "\" INTEGER, " 
-          + "\""+RetrivalTableSchemaBase.NOTICE + "\" BLOB, " 
-          + "\""+RetrivalTableSchemaBase.URI + "\" TEXT, " 
-          + "\""+RetrivalTableSchemaBase.MIME + "\" TEXT, " 
-          + "\""+RetrivalTableSchemaBase.PROJECTION + "\" TEXT, " 
-          + "\""+RetrivalTableSchemaBase.SELECTION + "\" TEXT, " 
-          + "\""+RetrivalTableSchemaBase.ARGS + "\" TEXT, " 
-          + "\""+RetrivalTableSchemaBase.ORDERING + "\" TEXT, " 
-          + "\""+RetrivalTableSchemaBase.CONTINUITY + "\" INTEGER, " 
-          + "\""+RetrivalTableSchemaBase.CONTINUITY_VALUE + "\" INTEGER, " 
-          + "\""+RetrivalTableSchemaBase.EXPIRATION + "\" INTEGER, " 
-          + "\""+RetrivalTableSchemaBase.CREATED_DATE + "\" INTEGER, " 
-          + "\""+RetrivalTableSchemaBase.MODIFIED_DATE + "\" INTEGER, " 
-          + "\""+RetrivalTableSchemaBase._ID + "\" INTEGER PRIMARY KEY AUTOINCREMENT, "
-          + "\""+RetrivalTableSchemaBase._DISPOSITION + "\" INTEGER );" ); 
+        db.execSQL("CREATE TABLE \"" + Tables.RETRIEVAL_TBL + "\" (" 
+          + "\""+RetrievalTableSchemaBase.DISPOSITION + "\" INTEGER, " 
+          + "\""+RetrievalTableSchemaBase.NOTICE + "\" BLOB, " 
+          + "\""+RetrievalTableSchemaBase.URI + "\" TEXT, " 
+          + "\""+RetrievalTableSchemaBase.MIME + "\" TEXT, " 
+          + "\""+RetrievalTableSchemaBase.PROJECTION + "\" TEXT, " 
+          + "\""+RetrievalTableSchemaBase.SELECTION + "\" TEXT, " 
+          + "\""+RetrievalTableSchemaBase.ARGS + "\" TEXT, " 
+          + "\""+RetrievalTableSchemaBase.ORDERING + "\" TEXT, " 
+          + "\""+RetrievalTableSchemaBase.CONTINUITY + "\" INTEGER, " 
+          + "\""+RetrievalTableSchemaBase.CONTINUITY_VALUE + "\" INTEGER, " 
+          + "\""+RetrievalTableSchemaBase.EXPIRATION + "\" INTEGER, " 
+          + "\""+RetrievalTableSchemaBase.CREATED_DATE + "\" INTEGER, " 
+          + "\""+RetrievalTableSchemaBase.MODIFIED_DATE + "\" INTEGER, " 
+          + "\""+RetrievalTableSchemaBase._ID + "\" INTEGER PRIMARY KEY AUTOINCREMENT, "
+          + "\""+RetrievalTableSchemaBase._DISPOSITION + "\" INTEGER );" ); 
         /** 
          * Table Name: publication <P>
          */
@@ -197,7 +197,7 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
             + newVersion + ", which will destroy all old data");
          db.execSQL("DROP TABLE IF EXISTS \"" + Tables.DELIVERY_MECHANISM_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.POSTAL_TBL + "\";");
-            db.execSQL("DROP TABLE IF EXISTS \"" + Tables.RETRIVAL_TBL + "\";");
+            db.execSQL("DROP TABLE IF EXISTS \"" + Tables.RETRIEVAL_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.PUBLICATION_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.SUBSCRIPTION_TBL + "\";");
       
@@ -381,17 +381,17 @@ static public class PostalWrapper {
      }
 } 
 /**
-* Table Name: retrival <P>
+* Table Name: retrieval <P>
 */
-static public class RetrivalWrapper {
-   public RetrivalWrapper() {
-     // logger.info("building RetrivalWrapper");
+static public class RetrievalWrapper {
+   public RetrievalWrapper() {
+     // logger.info("building RetrievalWrapper");
    }
      private int disposition;
      public int getDisposition() {
        return this.disposition;
      }
-     public RetrivalWrapper setDisposition(int val) {
+     public RetrievalWrapper setDisposition(int val) {
        this.disposition = val;
        return this;
      } 
@@ -399,7 +399,7 @@ static public class RetrivalWrapper {
      public byte[] getNotice() {
        return this.notice;
      }
-     public RetrivalWrapper setNotice(byte[] val) {
+     public RetrievalWrapper setNotice(byte[] val) {
        this.notice = val;
        return this;
      } 
@@ -407,7 +407,7 @@ static public class RetrivalWrapper {
      public String getUri() {
        return this.uri;
      }
-     public RetrivalWrapper setUri(String val) {
+     public RetrievalWrapper setUri(String val) {
        this.uri = val;
        return this;
      } 
@@ -415,7 +415,7 @@ static public class RetrivalWrapper {
      public String getMime() {
        return this.mime;
      }
-     public RetrivalWrapper setMime(String val) {
+     public RetrievalWrapper setMime(String val) {
        this.mime = val;
        return this;
      } 
@@ -423,7 +423,7 @@ static public class RetrivalWrapper {
      public String getProjection() {
        return this.projection;
      }
-     public RetrivalWrapper setProjection(String val) {
+     public RetrievalWrapper setProjection(String val) {
        this.projection = val;
        return this;
      } 
@@ -431,7 +431,7 @@ static public class RetrivalWrapper {
      public String getSelection() {
        return this.selection;
      }
-     public RetrivalWrapper setSelection(String val) {
+     public RetrievalWrapper setSelection(String val) {
        this.selection = val;
        return this;
      } 
@@ -439,7 +439,7 @@ static public class RetrivalWrapper {
      public String getArgs() {
        return this.args;
      }
-     public RetrivalWrapper setArgs(String val) {
+     public RetrievalWrapper setArgs(String val) {
        this.args = val;
        return this;
      } 
@@ -447,7 +447,7 @@ static public class RetrivalWrapper {
      public String getOrdering() {
        return this.ordering;
      }
-     public RetrivalWrapper setOrdering(String val) {
+     public RetrievalWrapper setOrdering(String val) {
        this.ordering = val;
        return this;
      } 
@@ -455,7 +455,7 @@ static public class RetrivalWrapper {
      public int getContinuity() {
        return this.continuity;
      }
-     public RetrivalWrapper setContinuity(int val) {
+     public RetrievalWrapper setContinuity(int val) {
        this.continuity = val;
        return this;
      } 
@@ -463,7 +463,7 @@ static public class RetrivalWrapper {
      public int getContinuity_value() {
        return this.continuity_value;
      }
-     public RetrivalWrapper setContinuity_value(int val) {
+     public RetrievalWrapper setContinuity_value(int val) {
        this.continuity_value = val;
        return this;
      } 
@@ -471,7 +471,7 @@ static public class RetrivalWrapper {
      public int getExpiration() {
        return this.expiration;
      }
-     public RetrivalWrapper setExpiration(int val) {
+     public RetrievalWrapper setExpiration(int val) {
        this.expiration = val;
        return this;
      } 
@@ -479,7 +479,7 @@ static public class RetrivalWrapper {
      public long getCreatedDate() {
        return this.createdDate;
      }
-     public RetrivalWrapper setCreatedDate(long val) {
+     public RetrievalWrapper setCreatedDate(long val) {
        this.createdDate = val;
        return this;
      } 
@@ -487,7 +487,7 @@ static public class RetrivalWrapper {
      public long getModifiedDate() {
        return this.modifiedDate;
      }
-     public RetrivalWrapper setModifiedDate(long val) {
+     public RetrievalWrapper setModifiedDate(long val) {
        this.modifiedDate = val;
        return this;
      } 
@@ -495,7 +495,7 @@ static public class RetrivalWrapper {
      public int get_Disposition() {
        return this._disposition;
      }
-     public RetrivalWrapper set_Disposition(int val) {
+     public RetrievalWrapper set_Disposition(int val) {
        this._disposition = val;
        return this;
      }
@@ -965,12 +965,12 @@ static public class SubscriptionWrapper {
       }
       return paths;
    } 
-  static private File dirRetrival = 
+  static private File dirRetrieval = 
            new File(Environment.getExternalStorageDirectory(),
-                    "ammo_cp_retrival_cache");
+                    "ammo_cp_retrieval_cache");
 
-  public long retrivalDeserializer(File file) {
-     logger.debug("::retrivaldeserializer");
+  public long retrievalDeserializer(File file) {
+     logger.debug("::retrievaldeserializer");
      InputStream ins;
      try {
         ins = new FileInputStream(file);
@@ -992,9 +992,9 @@ static public class SubscriptionWrapper {
      }
      String json = strbuf.toString();
      Gson gson = new Gson();
-     RetrivalWrapper wrap = null;
+     RetrievalWrapper wrap = null;
      try {
-         wrap = gson.fromJson(json, RetrivalWrapper.class);
+         wrap = gson.fromJson(json, RetrievalWrapper.class);
      } catch (JsonParseException ex) {
           ex.getMessage();
           ex.printStackTrace();
@@ -1008,54 +1008,54 @@ static public class SubscriptionWrapper {
     
      SQLiteDatabase db = openHelper.getReadableDatabase();
      
-     ContentValues cv = retrivalComposeValues(wrap);
-     String whereClause = retrivalSelectKeyClause(wrap);
+     ContentValues cv = retrievalComposeValues(wrap);
+     String whereClause = retrievalSelectKeyClause(wrap);
      
      if (whereClause != null) {
          // Switch on the path in the uri for what we want to query.
-         Cursor updateCursor = db.query(Tables.RETRIVAL_TBL, retrivalProjectionKey, whereClause, null, null, null, null);
+         Cursor updateCursor = db.query(Tables.RETRIEVAL_TBL, retrievalProjectionKey, whereClause, null, null, null, null);
          long rowId = -1;
          for (boolean more = updateCursor.moveToFirst(); more;)
          {
-            rowId = updateCursor.getLong(updateCursor.getColumnIndex(RetrivalTableSchemaBase._ID));  
+            rowId = updateCursor.getLong(updateCursor.getColumnIndex(RetrievalTableSchemaBase._ID));  
          
-            db.update(Tables.RETRIVAL_TBL, cv, 
-               "\""+RetrivalTableSchemaBase._ID+"\" = '"+ Long.toString(rowId)+"'",
+            db.update(Tables.RETRIEVAL_TBL, cv, 
+               "\""+RetrievalTableSchemaBase._ID+"\" = '"+ Long.toString(rowId)+"'",
                null); 
             break;
          }
          updateCursor.close();
          if (rowId > 0) {
-             getContext().getContentResolver().notifyChange(RetrivalTableSchemaBase.CONTENT_URI, null); 
+             getContext().getContentResolver().notifyChange(RetrievalTableSchemaBase.CONTENT_URI, null); 
              return rowId;
          }
      }
-     long rowId = db.insert(Tables.RETRIVAL_TBL, 
-         RetrivalTableSchemaBase.DISPOSITION,
+     long rowId = db.insert(Tables.RETRIEVAL_TBL, 
+         RetrievalTableSchemaBase.DISPOSITION,
          cv);
-     getContext().getContentResolver().notifyChange(RetrivalTableSchemaBase.CONTENT_URI, null); 
+     getContext().getContentResolver().notifyChange(RetrievalTableSchemaBase.CONTENT_URI, null); 
      return rowId;
    }
   /**
    * This method is provided with the express purpose of being overridden and extended.
    * @param wrap
    */
-  protected ContentValues retrivalComposeValues(RetrivalWrapper wrap) {
+  protected ContentValues retrievalComposeValues(RetrievalWrapper wrap) {
      ContentValues cv = new ContentValues();
-     cv.put(RetrivalTableSchemaBase.DISPOSITION, wrap.getDisposition()); 
-     cv.put(RetrivalTableSchemaBase.NOTICE, wrap.getNotice()); 
-     cv.put(RetrivalTableSchemaBase.URI, wrap.getUri()); 
-     cv.put(RetrivalTableSchemaBase.MIME, wrap.getMime()); 
-     cv.put(RetrivalTableSchemaBase.PROJECTION, wrap.getProjection()); 
-     cv.put(RetrivalTableSchemaBase.SELECTION, wrap.getSelection()); 
-     cv.put(RetrivalTableSchemaBase.ARGS, wrap.getArgs()); 
-     cv.put(RetrivalTableSchemaBase.ORDERING, wrap.getOrdering()); 
-     cv.put(RetrivalTableSchemaBase.CONTINUITY, wrap.getContinuity()); 
-     cv.put(RetrivalTableSchemaBase.CONTINUITY_VALUE, wrap.getContinuity_value()); 
-     cv.put(RetrivalTableSchemaBase.EXPIRATION, wrap.getExpiration()); 
-     cv.put(RetrivalTableSchemaBase.CREATED_DATE, wrap.getCreatedDate()); 
-     cv.put(RetrivalTableSchemaBase.MODIFIED_DATE, wrap.getModifiedDate()); 
-     cv.put(RetrivalTableSchemaBase._DISPOSITION, wrap.get_Disposition());
+     cv.put(RetrievalTableSchemaBase.DISPOSITION, wrap.getDisposition()); 
+     cv.put(RetrievalTableSchemaBase.NOTICE, wrap.getNotice()); 
+     cv.put(RetrievalTableSchemaBase.URI, wrap.getUri()); 
+     cv.put(RetrievalTableSchemaBase.MIME, wrap.getMime()); 
+     cv.put(RetrievalTableSchemaBase.PROJECTION, wrap.getProjection()); 
+     cv.put(RetrievalTableSchemaBase.SELECTION, wrap.getSelection()); 
+     cv.put(RetrievalTableSchemaBase.ARGS, wrap.getArgs()); 
+     cv.put(RetrievalTableSchemaBase.ORDERING, wrap.getOrdering()); 
+     cv.put(RetrievalTableSchemaBase.CONTINUITY, wrap.getContinuity()); 
+     cv.put(RetrievalTableSchemaBase.CONTINUITY_VALUE, wrap.getContinuity_value()); 
+     cv.put(RetrievalTableSchemaBase.EXPIRATION, wrap.getExpiration()); 
+     cv.put(RetrievalTableSchemaBase.CREATED_DATE, wrap.getCreatedDate()); 
+     cv.put(RetrievalTableSchemaBase.MODIFIED_DATE, wrap.getModifiedDate()); 
+     cv.put(RetrievalTableSchemaBase._DISPOSITION, wrap.get_Disposition());
      return cv;   
   }
   
@@ -1063,17 +1063,17 @@ static public class SubscriptionWrapper {
    * This method is provided with the express purpose of being overridden and extended.
    *
    *    StringBuilder sb = new StringBuilder();
-   *    sb.append("\""+RetrivalTableSchemaBase.FUNCTION_CODE+"\" = '"+ wrap.getFunctionCode()+"'"); 
+   *    sb.append("\""+RetrievalTableSchemaBase.FUNCTION_CODE+"\" = '"+ wrap.getFunctionCode()+"'"); 
    *    return sb.toString();   
    *
    * @param wrap
    */
-  protected String retrivalSelectKeyClause(RetrivalWrapper wrap) {
+  protected String retrievalSelectKeyClause(RetrievalWrapper wrap) {
       return null;
   }
 
   //@Override 
-  public ArrayList<String> retrivalSerializer(Cursor cursor) {
+  public ArrayList<String> retrievalSerializer(Cursor cursor) {
       logger.debug( "::serializer");
       ArrayList<String> paths = new ArrayList<String>();      
       if (1 > cursor.getCount()) return paths;
@@ -1082,21 +1082,21 @@ static public class SubscriptionWrapper {
       DataOutputStream eos = new DataOutputStream(baos);
       
       for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
-           RetrivalWrapper iw = new RetrivalWrapper();
-             iw.setDisposition(cursor.getInt(cursor.getColumnIndex(RetrivalTableSchemaBase.DISPOSITION)));  
-             iw.setNotice(cursor.getBlob(cursor.getColumnIndex(RetrivalTableSchemaBase.NOTICE)));  
-             iw.setUri(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.URI)));  
-             iw.setMime(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.MIME)));  
-             iw.setProjection(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.PROJECTION)));  
-             iw.setSelection(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.SELECTION)));  
-             iw.setArgs(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.ARGS)));  
-             iw.setOrdering(cursor.getString(cursor.getColumnIndex(RetrivalTableSchemaBase.ORDERING)));  
-             iw.setContinuity(cursor.getInt(cursor.getColumnIndex(RetrivalTableSchemaBase.CONTINUITY)));  
-             iw.setContinuity_value(cursor.getInt(cursor.getColumnIndex(RetrivalTableSchemaBase.CONTINUITY_VALUE)));  
-             iw.setExpiration(cursor.getInt(cursor.getColumnIndex(RetrivalTableSchemaBase.EXPIRATION)));  
-             iw.setCreatedDate(cursor.getLong(cursor.getColumnIndex(RetrivalTableSchemaBase.CREATED_DATE)));  
-             iw.setModifiedDate(cursor.getLong(cursor.getColumnIndex(RetrivalTableSchemaBase.MODIFIED_DATE)));  
-             iw.set_Disposition(cursor.getInt(cursor.getColumnIndex(RetrivalTableSchemaBase._DISPOSITION))); 
+           RetrievalWrapper iw = new RetrievalWrapper();
+             iw.setDisposition(cursor.getInt(cursor.getColumnIndex(RetrievalTableSchemaBase.DISPOSITION)));  
+             iw.setNotice(cursor.getBlob(cursor.getColumnIndex(RetrievalTableSchemaBase.NOTICE)));  
+             iw.setUri(cursor.getString(cursor.getColumnIndex(RetrievalTableSchemaBase.URI)));  
+             iw.setMime(cursor.getString(cursor.getColumnIndex(RetrievalTableSchemaBase.MIME)));  
+             iw.setProjection(cursor.getString(cursor.getColumnIndex(RetrievalTableSchemaBase.PROJECTION)));  
+             iw.setSelection(cursor.getString(cursor.getColumnIndex(RetrievalTableSchemaBase.SELECTION)));  
+             iw.setArgs(cursor.getString(cursor.getColumnIndex(RetrievalTableSchemaBase.ARGS)));  
+             iw.setOrdering(cursor.getString(cursor.getColumnIndex(RetrievalTableSchemaBase.ORDERING)));  
+             iw.setContinuity(cursor.getInt(cursor.getColumnIndex(RetrievalTableSchemaBase.CONTINUITY)));  
+             iw.setContinuity_value(cursor.getInt(cursor.getColumnIndex(RetrievalTableSchemaBase.CONTINUITY_VALUE)));  
+             iw.setExpiration(cursor.getInt(cursor.getColumnIndex(RetrievalTableSchemaBase.EXPIRATION)));  
+             iw.setCreatedDate(cursor.getLong(cursor.getColumnIndex(RetrievalTableSchemaBase.CREATED_DATE)));  
+             iw.setModifiedDate(cursor.getLong(cursor.getColumnIndex(RetrievalTableSchemaBase.MODIFIED_DATE)));  
+             iw.set_Disposition(cursor.getInt(cursor.getColumnIndex(RetrievalTableSchemaBase._DISPOSITION))); 
 
            Gson gson = new Gson();
 
@@ -1120,12 +1120,12 @@ static public class SubscriptionWrapper {
            // not a reference field name :expiration expiration expiration\n 
            // not a reference field name :created date createdDate created_date\n 
            // not a reference field name :modified date modifiedDate modified_date\n 
-           // RetrivalTableSchemaBase._DISPOSITION;
+           // RetrievalTableSchemaBase._DISPOSITION;
 
            try {
-              if (!dirRetrival.exists() ) dirRetrival.mkdirs();
+              if (!dirRetrieval.exists() ) dirRetrieval.mkdirs();
               
-              File outfile = new File(dirRetrival, Integer.toHexString((int) System.currentTimeMillis())); 
+              File outfile = new File(dirRetrieval, Integer.toHexString((int) System.currentTimeMillis())); 
               BufferedOutputStream bufferedOutput = new BufferedOutputStream(new FileOutputStream(outfile), 8192);
               bufferedOutput.write(baos.toByteArray());
               bufferedOutput.flush();
@@ -1471,8 +1471,8 @@ static public class SubscriptionWrapper {
       protected static String[] postalProjectionKey;
       protected static HashMap<String, String> postalProjectionMap;
       
-      protected static String[] retrivalProjectionKey;
-      protected static HashMap<String, String> retrivalProjectionMap;
+      protected static String[] retrievalProjectionKey;
+      protected static HashMap<String, String> retrievalProjectionMap;
       
       protected static String[] publicationProjectionKey;
       protected static HashMap<String, String> publicationProjectionMap;
@@ -1490,9 +1490,9 @@ static public class SubscriptionWrapper {
       protected static final int POSTAL_SET = 21;
       protected static final int POSTAL_ID = 22;
       
-      protected static final int RETRIVAL_BLOB = 30;
-      protected static final int RETRIVAL_SET = 31;
-      protected static final int RETRIVAL_ID = 32;
+      protected static final int RETRIEVAL_BLOB = 30;
+      protected static final int RETRIEVAL_SET = 31;
+      protected static final int RETRIEVAL_ID = 32;
       
       protected static final int PUBLICATION_BLOB = 40;
       protected static final int PUBLICATION_SET = 41;
@@ -1528,9 +1528,9 @@ static public class SubscriptionWrapper {
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL+"/_serial", POSTAL_SET);
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL+"/#/*", POSTAL_BLOB);
             
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL+"/#/_serial", RETRIVAL_ID);
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL+"/_serial", RETRIVAL_SET);
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL+"/#/*", RETRIVAL_BLOB);
+            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIEVAL_TBL+"/#/_serial", RETRIEVAL_ID);
+            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIEVAL_TBL+"/_serial", RETRIEVAL_SET);
+            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIEVAL_TBL+"/#/*", RETRIEVAL_BLOB);
             
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.PUBLICATION_TBL+"/#/_serial", PUBLICATION_ID);
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.PUBLICATION_TBL+"/_serial", PUBLICATION_SET);
@@ -1718,12 +1718,12 @@ static public class SubscriptionWrapper {
             }
             break;    
 
-         case RETRIVAL_BLOB:
+         case RETRIEVAL_BLOB:
             if (pseg.size() < 3)
                 return null;
 
             try {
-                File filePath = blobFile("retrival", pseg.get(1), pseg.get(2));
+                File filePath = blobFile("retrieval", pseg.get(1), pseg.get(2));
                 return ParcelFileDescriptor.open(filePath, imode);
             } catch (FileNotFoundException ex) {
                 ex.printStackTrace();
@@ -1732,9 +1732,9 @@ static public class SubscriptionWrapper {
             }
             break;
 
-         case RETRIVAL_SET:
+         case RETRIEVAL_SET:
             try {
-               final File tempFile = tempFilePath("retrival");
+               final File tempFile = tempFilePath("retrieval");
                final ParcelFileDescriptor pfd = ParcelFileDescriptor.open(
                      tempFile, ParcelFileDescriptor.MODE_READ_WRITE);
                final FileObserver observer = new FileObserver(tempFile.getCanonicalPath()) {
@@ -1745,7 +1745,7 @@ static public class SubscriptionWrapper {
                         this.stopWatching();
                         try {
                           pfd.close();
-                          retrivalDeserializer(tempFile);
+                          retrievalDeserializer(tempFile);
                         } catch (IOException e) {
                         }
                         tempFile.delete();
@@ -1766,21 +1766,21 @@ static public class SubscriptionWrapper {
              }
              break;
 
-         case RETRIVAL_ID:
+         case RETRIEVAL_ID:
             qb = new SQLiteQueryBuilder();
             db = openHelper.getReadableDatabase();
                     
             // Switch on the path in the uri for what we want to query.
-            qb.setTables(Tables.RETRIVAL_TBL);
-            qb.setProjectionMap(retrivalProjectionMap);
-            qb.appendWhere(RetrivalTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
+            qb.setTables(Tables.RETRIEVAL_TBL);
+            qb.setProjectionMap(retrievalProjectionMap);
+            qb.appendWhere(RetrievalTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
             cursor = qb.query(db, null, null, null, null, null, null);
             if (1 > cursor.getCount()) {
-               logger.info("no data of type RETRIVAL_ID"); 
+               logger.info("no data of type RETRIEVAL_ID"); 
                cursor.close();
                return null;
             }
-            paths = this.retrivalSerializer(cursor);
+            paths = this.retrievalSerializer(cursor);
             cursor.close();
             try {
                return ParcelFileDescriptor.open(new File(paths.get(0)), imode);
@@ -1990,17 +1990,17 @@ static public class SubscriptionWrapper {
                   break;
 
                
-               case RETRIVAL_SET:
-                  tableName = Tables.RETRIVAL_TBL;
-                  projectionMap = retrivalProjectionMap;
+               case RETRIEVAL_SET:
+                  tableName = Tables.RETRIEVAL_TBL;
+                  projectionMap = retrievalProjectionMap;
                   orderBy = (! TextUtils.isEmpty(sortOrder)) ? sortOrder
-                             : RetrivalTableSchemaBase.DEFAULT_SORT_ORDER;
+                             : RetrievalTableSchemaBase.DEFAULT_SORT_ORDER;
                   break;
                
-               case RETRIVAL_ID:
-                  tableName = Tables.RETRIVAL_TBL;
-                  projectionMap = retrivalProjectionMap;
-                  qb.appendWhere(RetrivalTableSchemaBase._ID + "="
+               case RETRIEVAL_ID:
+                  tableName = Tables.RETRIEVAL_TBL;
+                  projectionMap = retrievalProjectionMap;
+                  qb.appendWhere(RetrievalTableSchemaBase._ID + "="
                         + uri.getPathSegments().get(1));
                   break;
 
@@ -2076,11 +2076,11 @@ static public class SubscriptionWrapper {
                   tableUri = PostalTableSchemaBase.CONTENT_URI;
                   break;
                
-               case RETRIVAL_SET:
-                  values = this.initializeRetrivalDefaults(values);
-                  insertTable = Tables.RETRIVAL_TBL;
-                  nullColumnHack = RetrivalTableSchemaBase.DISPOSITION;
-                  tableUri = RetrivalTableSchemaBase.CONTENT_URI;
+               case RETRIEVAL_SET:
+                  values = this.initializeRetrievalDefaults(values);
+                  insertTable = Tables.RETRIEVAL_TBL;
+                  nullColumnHack = RetrievalTableSchemaBase.DISPOSITION;
+                  tableUri = RetrievalTableSchemaBase.CONTENT_URI;
                   break;
                
                case PUBLICATION_SET:
@@ -2182,50 +2182,50 @@ static public class SubscriptionWrapper {
       }
       
       /** Insert method helper */
-      protected ContentValues initializeRetrivalDefaults(ContentValues values) {
+      protected ContentValues initializeRetrievalDefaults(ContentValues values) {
          Long now = Long.valueOf(System.currentTimeMillis());
          
-           if (!values.containsKey(RetrivalTableSchemaBase.DISPOSITION)) {
-              values.put("\""+RetrivalTableSchemaBase.DISPOSITION+"\"", RetrivalTableSchemaBase.DISPOSITION_PENDING);
+           if (!values.containsKey(RetrievalTableSchemaBase.DISPOSITION)) {
+              values.put("\""+RetrievalTableSchemaBase.DISPOSITION+"\"", RetrievalTableSchemaBase.DISPOSITION_PENDING);
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.NOTICE)) {
-              values.put("\""+RetrivalTableSchemaBase.NOTICE+"\"", "");
+           if (!values.containsKey(RetrievalTableSchemaBase.NOTICE)) {
+              values.put("\""+RetrievalTableSchemaBase.NOTICE+"\"", "");
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.URI)) {
-              values.put("\""+RetrivalTableSchemaBase.URI+"\"", "unknown");
+           if (!values.containsKey(RetrievalTableSchemaBase.URI)) {
+              values.put("\""+RetrievalTableSchemaBase.URI+"\"", "unknown");
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.MIME)) {
-              values.put("\""+RetrivalTableSchemaBase.MIME+"\"", "unknown");
+           if (!values.containsKey(RetrievalTableSchemaBase.MIME)) {
+              values.put("\""+RetrievalTableSchemaBase.MIME+"\"", "unknown");
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.PROJECTION)) {
-              values.put("\""+RetrivalTableSchemaBase.PROJECTION+"\"", "");
+           if (!values.containsKey(RetrievalTableSchemaBase.PROJECTION)) {
+              values.put("\""+RetrievalTableSchemaBase.PROJECTION+"\"", "");
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.SELECTION)) {
-              values.put("\""+RetrivalTableSchemaBase.SELECTION+"\"", "");
+           if (!values.containsKey(RetrievalTableSchemaBase.SELECTION)) {
+              values.put("\""+RetrievalTableSchemaBase.SELECTION+"\"", "");
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.ARGS)) {
-              values.put("\""+RetrivalTableSchemaBase.ARGS+"\"", "");
+           if (!values.containsKey(RetrievalTableSchemaBase.ARGS)) {
+              values.put("\""+RetrievalTableSchemaBase.ARGS+"\"", "");
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.ORDERING)) {
-              values.put("\""+RetrivalTableSchemaBase.ORDERING+"\"", "");
+           if (!values.containsKey(RetrievalTableSchemaBase.ORDERING)) {
+              values.put("\""+RetrievalTableSchemaBase.ORDERING+"\"", "");
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.CONTINUITY)) {
-              values.put("\""+RetrivalTableSchemaBase.CONTINUITY+"\"", RetrivalTableSchemaBase.CONTINUITY_ONCE);
+           if (!values.containsKey(RetrievalTableSchemaBase.CONTINUITY)) {
+              values.put("\""+RetrievalTableSchemaBase.CONTINUITY+"\"", RetrievalTableSchemaBase.CONTINUITY_ONCE);
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.CONTINUITY_VALUE)) {
-              values.put("\""+RetrivalTableSchemaBase.CONTINUITY_VALUE+"\"", now);
+           if (!values.containsKey(RetrievalTableSchemaBase.CONTINUITY_VALUE)) {
+              values.put("\""+RetrievalTableSchemaBase.CONTINUITY_VALUE+"\"", now);
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.EXPIRATION)) {
-              values.put("\""+RetrivalTableSchemaBase.EXPIRATION+"\"", now);
+           if (!values.containsKey(RetrievalTableSchemaBase.EXPIRATION)) {
+              values.put("\""+RetrievalTableSchemaBase.EXPIRATION+"\"", now);
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.CREATED_DATE)) {
-              values.put("\""+RetrivalTableSchemaBase.CREATED_DATE+"\"", now);
+           if (!values.containsKey(RetrievalTableSchemaBase.CREATED_DATE)) {
+              values.put("\""+RetrievalTableSchemaBase.CREATED_DATE+"\"", now);
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase.MODIFIED_DATE)) {
-              values.put("\""+RetrivalTableSchemaBase.MODIFIED_DATE+"\"", now);
+           if (!values.containsKey(RetrievalTableSchemaBase.MODIFIED_DATE)) {
+              values.put("\""+RetrievalTableSchemaBase.MODIFIED_DATE+"\"", now);
            } 
-           if (!values.containsKey(RetrivalTableSchemaBase._DISPOSITION)) {
-              values.put("\""+RetrivalTableSchemaBase._DISPOSITION+"\"", DistributorSchema._DISPOSITION_START);
+           if (!values.containsKey(RetrievalTableSchemaBase._DISPOSITION)) {
+              values.put("\""+RetrievalTableSchemaBase._DISPOSITION+"\"", DistributorSchema._DISPOSITION_START);
            }
          return values;
       }
@@ -2329,16 +2329,16 @@ static public class SubscriptionWrapper {
                               selectionArgs);
                   break;
                
-               case RETRIVAL_SET:
-                  count = db.delete(Tables.RETRIVAL_TBL, selection, selectionArgs);
+               case RETRIEVAL_SET:
+                  count = db.delete(Tables.RETRIEVAL_TBL, selection, selectionArgs);
                   break;
 
-               case RETRIVAL_ID:
-                  String retrivalID = uri.getPathSegments().get(1);
-                  count = db.delete(Tables.RETRIVAL_TBL,
-                        RetrivalTableSchemaBase._ID
+               case RETRIEVAL_ID:
+                  String retrievalID = uri.getPathSegments().get(1);
+                  count = db.delete(Tables.RETRIEVAL_TBL,
+                        RetrievalTableSchemaBase._ID
                               + "="
-                              + retrivalID
+                              + retrievalID
                               + (TextUtils.isEmpty(selection) ? "" 
                                      : (" AND (" + selection + ')')),
                               selectionArgs);
@@ -2427,20 +2427,20 @@ static public class SubscriptionWrapper {
                         selectionArgs);
                   break;
                
-               case RETRIVAL_SET:
-                  logger.debug("RETRIVAL_SET");
-                  count = db.update(Tables.RETRIVAL_TBL, values, selection,
+               case RETRIEVAL_SET:
+                  logger.debug("RETRIEVAL_SET");
+                  count = db.update(Tables.RETRIEVAL_TBL, values, selection,
                         selectionArgs);
                   break;
 
-               case RETRIVAL_ID:
-                  logger.debug("RETRIVAL_ID");
+               case RETRIEVAL_ID:
+                  logger.debug("RETRIEVAL_ID");
                   //  notify on the base URI - without the ID ?
-                  notifyUri = RetrivalTableSchemaBase.CONTENT_URI; 
-                  String retrivalID = uri.getPathSegments().get(1);
-                  count = db.update(Tables.RETRIVAL_TBL, values, RetrivalTableSchemaBase._ID
+                  notifyUri = RetrievalTableSchemaBase.CONTENT_URI; 
+                  String retrievalID = uri.getPathSegments().get(1);
+                  count = db.update(Tables.RETRIEVAL_TBL, values, RetrievalTableSchemaBase._ID
                         + "="
-                        + retrivalID
+                        + retrievalID
                         + (TextUtils.isEmpty(selection) ? "" 
                                      : (" AND (" + selection + ')')),
                         selectionArgs);
@@ -2504,9 +2504,9 @@ static public class SubscriptionWrapper {
             case POSTAL_ID:
                return PostalTableSchemaBase.CONTENT_ITEM_TYPE;
             
-            case RETRIVAL_SET:
-            case RETRIVAL_ID:
-               return RetrivalTableSchemaBase.CONTENT_ITEM_TYPE;
+            case RETRIEVAL_SET:
+            case RETRIEVAL_ID:
+               return RetrievalTableSchemaBase.CONTENT_ITEM_TYPE;
             
             case PUBLICATION_SET:
             case PUBLICATION_ID:
@@ -2533,8 +2533,8 @@ static public class SubscriptionWrapper {
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL, POSTAL_SET);
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL + "/#", POSTAL_ID);
             
-            uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL, RETRIVAL_SET);
-            uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIVAL_TBL + "/#", RETRIVAL_ID);
+            uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIEVAL_TBL, RETRIEVAL_SET);
+            uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.RETRIEVAL_TBL + "/#", RETRIEVAL_ID);
             
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.PUBLICATION_TBL, PUBLICATION_SET);
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.PUBLICATION_TBL + "/#", PUBLICATION_ID);
@@ -2578,27 +2578,27 @@ static public class SubscriptionWrapper {
 
             postalProjectionMap = columns;
             
-            retrivalProjectionKey = new String[1];
-            retrivalProjectionKey[0] = RetrivalTableSchemaBase._ID;
+            retrievalProjectionKey = new String[1];
+            retrievalProjectionKey[0] = RetrievalTableSchemaBase._ID;
 
             columns = new HashMap<String, String>();
-            columns.put(RetrivalTableSchemaBase._ID, RetrivalTableSchemaBase._ID);
-               columns.put(RetrivalTableSchemaBase.DISPOSITION, "\""+RetrivalTableSchemaBase.DISPOSITION+"\""); 
-               columns.put(RetrivalTableSchemaBase.NOTICE, "\""+RetrivalTableSchemaBase.NOTICE+"\""); 
-               columns.put(RetrivalTableSchemaBase.URI, "\""+RetrivalTableSchemaBase.URI+"\""); 
-               columns.put(RetrivalTableSchemaBase.MIME, "\""+RetrivalTableSchemaBase.MIME+"\""); 
-               columns.put(RetrivalTableSchemaBase.PROJECTION, "\""+RetrivalTableSchemaBase.PROJECTION+"\""); 
-               columns.put(RetrivalTableSchemaBase.SELECTION, "\""+RetrivalTableSchemaBase.SELECTION+"\""); 
-               columns.put(RetrivalTableSchemaBase.ARGS, "\""+RetrivalTableSchemaBase.ARGS+"\""); 
-               columns.put(RetrivalTableSchemaBase.ORDERING, "\""+RetrivalTableSchemaBase.ORDERING+"\""); 
-               columns.put(RetrivalTableSchemaBase.CONTINUITY, "\""+RetrivalTableSchemaBase.CONTINUITY+"\""); 
-               columns.put(RetrivalTableSchemaBase.CONTINUITY_VALUE, "\""+RetrivalTableSchemaBase.CONTINUITY_VALUE+"\""); 
-               columns.put(RetrivalTableSchemaBase.EXPIRATION, "\""+RetrivalTableSchemaBase.EXPIRATION+"\""); 
-               columns.put(RetrivalTableSchemaBase.CREATED_DATE, "\""+RetrivalTableSchemaBase.CREATED_DATE+"\""); 
-               columns.put(RetrivalTableSchemaBase.MODIFIED_DATE, "\""+RetrivalTableSchemaBase.MODIFIED_DATE+"\""); 
-               columns.put(RetrivalTableSchemaBase._DISPOSITION, "\""+RetrivalTableSchemaBase._DISPOSITION+"\"");
+            columns.put(RetrievalTableSchemaBase._ID, RetrievalTableSchemaBase._ID);
+               columns.put(RetrievalTableSchemaBase.DISPOSITION, "\""+RetrievalTableSchemaBase.DISPOSITION+"\""); 
+               columns.put(RetrievalTableSchemaBase.NOTICE, "\""+RetrievalTableSchemaBase.NOTICE+"\""); 
+               columns.put(RetrievalTableSchemaBase.URI, "\""+RetrievalTableSchemaBase.URI+"\""); 
+               columns.put(RetrievalTableSchemaBase.MIME, "\""+RetrievalTableSchemaBase.MIME+"\""); 
+               columns.put(RetrievalTableSchemaBase.PROJECTION, "\""+RetrievalTableSchemaBase.PROJECTION+"\""); 
+               columns.put(RetrievalTableSchemaBase.SELECTION, "\""+RetrievalTableSchemaBase.SELECTION+"\""); 
+               columns.put(RetrievalTableSchemaBase.ARGS, "\""+RetrievalTableSchemaBase.ARGS+"\""); 
+               columns.put(RetrievalTableSchemaBase.ORDERING, "\""+RetrievalTableSchemaBase.ORDERING+"\""); 
+               columns.put(RetrievalTableSchemaBase.CONTINUITY, "\""+RetrievalTableSchemaBase.CONTINUITY+"\""); 
+               columns.put(RetrievalTableSchemaBase.CONTINUITY_VALUE, "\""+RetrievalTableSchemaBase.CONTINUITY_VALUE+"\""); 
+               columns.put(RetrievalTableSchemaBase.EXPIRATION, "\""+RetrievalTableSchemaBase.EXPIRATION+"\""); 
+               columns.put(RetrievalTableSchemaBase.CREATED_DATE, "\""+RetrievalTableSchemaBase.CREATED_DATE+"\""); 
+               columns.put(RetrievalTableSchemaBase.MODIFIED_DATE, "\""+RetrievalTableSchemaBase.MODIFIED_DATE+"\""); 
+               columns.put(RetrievalTableSchemaBase._DISPOSITION, "\""+RetrievalTableSchemaBase._DISPOSITION+"\"");
 
-            retrivalProjectionMap = columns;
+            retrievalProjectionMap = columns;
             
             publicationProjectionKey = new String[1];
             publicationProjectionKey[0] = PublicationTableSchemaBase._ID;

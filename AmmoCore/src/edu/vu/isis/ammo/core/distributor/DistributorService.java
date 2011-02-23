@@ -46,7 +46,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrivalTableSchema;
+import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
@@ -97,7 +97,7 @@ public class DistributorService extends Service implements IDistributorService {
 
     private DeliveryMechanismObserver deliveryMechanismObserver;
     private PostalObserver postalObserver;
-    private RetrivalObserver enrollmentObserver;
+    private RetrievalObserver enrollmentObserver;
     private SubscriptionObserver subscriptionObserver;
 
     private TelephonyManager tm;
@@ -139,9 +139,9 @@ public class DistributorService extends Service implements IDistributorService {
                 DeliveryMechanismTableSchema.CONTENT_URI, false,
                 deliveryMechanismObserver);
 
-        enrollmentObserver = new RetrivalObserver(new Handler(), callback);
+        enrollmentObserver = new RetrievalObserver(new Handler(), callback);
         this.getContentResolver().registerContentObserver(
-                RetrivalTableSchema.CONTENT_URI, false, enrollmentObserver);
+                RetrievalTableSchema.CONTENT_URI, false, enrollmentObserver);
 
         subscriptionObserver = new SubscriptionObserver(new Handler(), callback);
         this.getContentResolver().registerContentObserver(
@@ -506,29 +506,27 @@ public class DistributorService extends Service implements IDistributorService {
      * are expired.
      */
     @Override
-    public void processRetrivalChange(boolean repost) {
-        logger.debug("::processRetrivalChange()");
-        if (!bindToNetworkService()) {
+    public void processRetrievalChange(boolean repost) {
+        logger.debug("::processRetrievalChange()");
+        if (!bindToNetworkProxyService()) {
             return;
         }
 
         ContentResolver cr = this.getContentResolver();
-        String order = RetrivalTableSchema.PRIORITY_SORT_ORDER;
-
-        // Additional items may be added to the table while the current set are
-        // being processed
+        String order = RetrievalTableSchema.PRIORITY_SORT_ORDER;
+        // Additional items may be added to the table while the current set are being processed
         for (; true; repost = false) {
-            final String selectPending = "\"" + RetrivalTableSchema.DISPOSITION
-                    + "\" IN (" + " '" + RetrivalTableSchema.DISPOSITION_PENDING
+            final String selectPending = "\"" + RetrievalTableSchema.DISPOSITION
+                    + "\" IN (" + " '" + RetrievalTableSchema.DISPOSITION_PENDING
                     + "'"
                     + (repost
-                    ? (", '" + RetrivalTableSchema.DISPOSITION_SENT + "'"
-                    + ", '" + RetrivalTableSchema.DISPOSITION_FAIL + "'")
+                    ? (", '" + RetrievalTableSchema.DISPOSITION_SENT + "'"
+                    + ", '" + RetrievalTableSchema.DISPOSITION_FAIL + "'")
                     : "")
                     + ")";
 		
             String[] selectionArgs = null;
-            Cursor pendingCursor = cr.query(RetrivalTableSchema.CONTENT_URI,
+            Cursor pendingCursor = cr.query(RetrievalTableSchema.CONTENT_URI,
                     null, selectPending, selectionArgs, order);
 
             if (pendingCursor.getCount() < 1) {
@@ -543,16 +541,15 @@ public class DistributorService extends Service implements IDistributorService {
                 // serialize it, then pass it off to the NPS.
 				
                 String uri = pendingCursor.getString(
-                        pendingCursor.getColumnIndex(RetrivalTableSchema.URI));
+                        pendingCursor.getColumnIndex(RetrievalTableSchema.URI));
                 String mime = pendingCursor.getString(
-                        pendingCursor.getColumnIndex(RetrivalTableSchema.MIME));
-
-                // String disposition = pendingCursor.getString(pendingCursor.getColumnIndex(RetrivalTableSchema.DISPOSITION));
+                        pendingCursor.getColumnIndex(RetrievalTableSchema.MIME));
+                // String disposition = pendingCursor.getString(pendingCursor.getColumnIndex(RetrievalTableSchema.DISPOSITION));
                 String selection = pendingCursor.getString(
                         pendingCursor.getColumnIndex(
-                                RetrivalTableSchema.SELECTION));
-                // int expiration = pendingCursor.getInt(pendingCursor.getColumnIndex(RetrivalTableSchema.EXPIRATION));
-                // long createdDate = pendingCursor.getLong(pendingCursor.getColumnIndex(RetrivalTableSchema.CREATED_DATE));
+                                RetrievalTableSchema.SELECTION));
+                // int expiration = pendingCursor.getInt(pendingCursor.getColumnIndex(RetrievalTableSchema.EXPIRATION));
+                // long createdDate = pendingCursor.getLong(pendingCursor.getColumnIndex(RetrievalTableSchema.CREATED_DATE));
 				
                 // Make a query on the row we want to serialize. 
 				
@@ -564,23 +561,24 @@ public class DistributorService extends Service implements IDistributorService {
 				
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				
-                boolean sent = network.dispatchRetrivalRequestToGateway(
+                boolean sent = network.dispatchRetrievalRequestToGateway(
                         rowUri.toString(), mime, selection);
 				
                 if (!sent) {
                     ++failedSendCount;
-                    // Toast.makeText(this, "Sending retrival request to gateway failed.", Toast.LENGTH_SHORT).show();
-                } else {// Toast.makeText(this, "Sending retrival request to gateway succeeded.", Toast.LENGTH_LONG).show();
+                    // Toast.makeText(this, "Sending retrieval request to gateway failed.", Toast.LENGTH_SHORT).show();
+                } else {// Toast.makeText(this, "Sending retrieval request to gateway succeeded.", Toast.LENGTH_LONG).show();
                 }
 				
                 ContentValues values = new ContentValues();
 
-                values.put(RetrivalTableSchema.DISPOSITION,
+                values.put(RetrievalTableSchema.DISPOSITION,
                         sent
-                        ? RetrivalTableSchema.DISPOSITION_SENT 
-                        : RetrivalTableSchema.DISPOSITION_FAIL);
+                        ? RetrievalTableSchema.DISPOSITION_SENT 
+                        : RetrievalTableSchema.DISPOSITION_FAIL);
+					
                 int numUpdated = cr.update(
-                        RetrivalTableSchema.getUri(pendingCursor), values, null,
+                        RetrievalTableSchema.getUri(pendingCursor), values, null,
                         null);
 
                 logger.debug(
@@ -791,20 +789,20 @@ public class DistributorService extends Service implements IDistributorService {
         }
     }
 
-    private class RetrivalObserver extends ContentObserver {
+    private class RetrievalObserver extends ContentObserver {
 
         /** Fields */
         private IDistributorService callback;
 
-        public RetrivalObserver(Handler handler, IDistributorService aCallback) {
+        public RetrievalObserver(Handler handler, IDistributorService aCallback) {
             super(handler);
             callback = aCallback;
         }
 
         @Override
         public void onChange(boolean selfChange) {
-            logger.debug("RetrivalObserver::onChange");
-            callback.processRetrivalChange(false);
+            logger.debug("RetrievalObserver::onChange");
+            callback.processRetrievalChange(false);
         }
     }
 
@@ -901,10 +899,10 @@ public class DistributorService extends Service implements IDistributorService {
      * 
      */
     @Override
-    public boolean dispatchRetrivalResponse(PullResponse resp) {
-        logger.debug("dispatching retrival response : {} : {}",
+    public boolean dispatchRetrievalResponse(PullResponse resp) {
+        logger.debug("dispatching retrieval response : {} : {}",
                 resp.getRequestUid(), resp.getUri());
-        String uriStr = resp.getRequestUid(); // resp.getUri(); --- why do we have uri in data message and retrival response?
+        String uriStr = resp.getRequestUid(); // resp.getUri(); --- why do we have uri in data message and retrieval response?
         Uri uri = Uri.parse(uriStr);
         ContentResolver cr = this.getContentResolver();
 
@@ -925,25 +923,25 @@ public class DistributorService extends Service implements IDistributorService {
             }
             outstream.close();
 		    
-            // TODO: update the retrival request table
-            // This mess is intended to update/delete the retrival request as it has been fullfulled.
+            // TODO: update the retrieval request table
+            // This mess is intended to update/delete the retrieval request as it has been fullfulled.
             //
-            // RetrivalTableSchema.URI
+            // RetrievalTableSchema.URI
             // final String selectPending = 
-            // "\""+RetrivalTableSchema.CONTENT_ITEM_TYPE + "\" = "+
+            // "\""+RetrievalTableSchema.CONTENT_ITEM_TYPE + "\" = "+
             // " '" +  + "'" +
-            // (repost ? (", '" + RetrivalTableSchema.DISPOSITION_SENT + "'" +
-            // ", '" + RetrivalTableSchema.DISPOSITION_FAIL+"'") : "") +
+            // (repost ? (", '" + RetrievalTableSchema.DISPOSITION_SENT + "'" +
+            // ", '" + RetrievalTableSchema.DISPOSITION_FAIL+"'") : "") +
             // ")";
             //
             // String[] selectionArgs = null;
             //
-            // Cursor pendingCursor = cr.query(RetrivalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
+            // Cursor pendingCursor = cr.query(RetrievalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
             // if (pendingCursor.getCount() < 1) {
             // pendingCursor.close();
-            // Cursor pendingCursor = cr.query(RetrivalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
+            // Cursor pendingCursor = cr.query(RetrievalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
             // Cursor cursor = cr.query(uri, null, null, null, null);
-            // byte[] notice = cursor.getBlob(cursor.getColumnIndex(RetrivalTableSchema.NOTICE));
+            // byte[] notice = cursor.getBlob(cursor.getColumnIndex(RetrievalTableSchema.NOTICE));
             //
             // catch (CanceledException e) {
             // // TODO Auto-generated catch block
