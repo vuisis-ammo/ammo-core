@@ -42,6 +42,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.core.CorePreferences;
+import edu.vu.isis.ammo.AmmoPrefKeys;
 import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -310,6 +311,19 @@ implements OnSharedPreferenceChangeListener
 			this.authenticateGatewayConnection();
 			return;
 		}
+
+		// handle network connectivity group
+		if (key.equals(AmmoPrefKeys.WIFI_PREF_STATUS_KEY)) {
+			/**
+			 * change the gatewayPort number.
+			 * if active then reset it to the new address.
+			 */
+		    ConnectionStatus connStatus = ConnectionStatus.values()[ prefs.getInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, ConnectionStatus.NO_CONNECTION.ordinal()) ];
+		    if (connStatus == ConnectionStatus.CONNECTED )
+			connectChannels(true);
+		    return;
+		}
+
 		return;
 	}
 	
