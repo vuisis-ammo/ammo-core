@@ -358,7 +358,7 @@ implements OnSharedPreferenceChangeListener
 		if (! isConnected()) {
 			tcpSocket = null;
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			//Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
@@ -369,7 +369,7 @@ implements OnSharedPreferenceChangeListener
 			connIntent.putExtra("operatorId", operatorId);
 			this.sendBroadcast(connIntent);
 			
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			//Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 		}
 
 		authenticateGatewayConnection();
@@ -397,7 +397,7 @@ implements OnSharedPreferenceChangeListener
 		}
 		if (udpSocket == null) {
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			// Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
@@ -850,7 +850,7 @@ implements OnSharedPreferenceChangeListener
 		if (crcsum != checksum) {
 			String msg = "you have received a bad message, the checksums did not match)"+ 
 			    Long.toHexString(crcsum) +":"+Long.toHexString(checksum);
-			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+			// Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			logger.warn(msg);
 			return false;
 		}

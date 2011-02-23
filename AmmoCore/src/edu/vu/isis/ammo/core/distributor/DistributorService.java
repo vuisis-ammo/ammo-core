@@ -347,7 +347,7 @@ public class DistributorService extends Service implements IDistributorService {
             return;
         }
         if (!network.isConnected()) {
-            Toast.makeText(this, "establishing network connection failed.", Toast.LENGTH_SHORT).show();
+            // Toast.makeText(this, "establishing network connection failed.", Toast.LENGTH_SHORT).show();
             return;
         }
         callback.processSubscriptionChange(true);
@@ -667,9 +667,9 @@ public class DistributorService extends Service implements IDistributorService {
 				
                 if (!sent) {
                     ++failedSendCount;
-                    Toast.makeText(this, "subscription to " + mime + " failed", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, "subscription to " + mime + " failed", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(this, "subscription to " + mime + " sent", Toast.LENGTH_SHORT).show();
+                    // Toast.makeText(this, "subscription to " + mime + " sent", Toast.LENGTH_SHORT).show();
                 }
 				
                 ContentValues values = new ContentValues();
