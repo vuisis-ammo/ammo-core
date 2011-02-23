@@ -28,7 +28,7 @@ public interface IDistributorService {
 	/** Network Proxy Service callbacks */
 	public void finishTeardown();
 	public boolean dispatchPushResponse(PushAcknowledgement resp);
-	public boolean dispatchRetrivalResponse(PullResponse resp);
+	public boolean dispatchRetrievalResponse(PullResponse resp);
 	public boolean dispatchSubscribeResponse(DataMessage resp);
 	/**
 	 * There is no response to a publish unless there is a subscription?
