@@ -11,9 +11,9 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
+import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
-import android.net.wifi.SupplicantState;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.ContextMenu;
@@ -21,8 +21,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.Button;
 import android.widget.CheckBox;
 import edu.vu.isis.ammo.AmmoPrefKeys;
+import edu.vu.isis.ammo.core.network.INetworkBinder;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -48,6 +50,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	// Fields
 	// ===========================================================
 	private NetworkStatusTextView tvPhysicalLink, tvWifi;
+	private Button btnConnect;
 	private CheckBox cbPhysicalLink, cbWifi;
 	private WifiReceiver wifiReceiver;
 	private SharedPreferences prefs;
@@ -70,7 +73,6 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 		prefEditor.putString(CorePreferences.PREF_DEVICE_ID, deviceId).commit();
 		
 		this.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
-		this.startService(new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH"));
 	}
 	
 	@Override
@@ -140,6 +142,10 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 		} else if (view.equals(this.cbPhysicalLink)) {
 			// TODO: Need a way to disable physical link service.
 			editor.putBoolean(AmmoPrefKeys.PHYSICAL_LINK_SHOULD_USE_PREF_KEY, cbPhysicalLink.isChecked());
+		} else if (view.equals(this.btnConnect)) {
+			// Tell the network service to disconnect and reconnect.
+			Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
+			this.sendBroadcast(intent);
 		}
 		editor.commit();
 		setWifiStatus();
@@ -183,11 +189,13 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 		this.tvWifi = (NetworkStatusTextView)findViewById(R.id.main_activity_wifi_status);
 		this.cbPhysicalLink = (CheckBox)findViewById(R.id.main_activity_physical_link);
 		this.cbWifi = (CheckBox)findViewById(R.id.main_activity_wifi);
+		this.btnConnect = (Button)findViewById(R.id.main_activity_connect_button);
 	}
 	
 	public void setOnClickListeners() {
 		cbPhysicalLink.setOnClickListener(this);
 		cbWifi.setOnClickListener(this);
+		btnConnect.setOnClickListener(this);
 	}
 	
 	/**
