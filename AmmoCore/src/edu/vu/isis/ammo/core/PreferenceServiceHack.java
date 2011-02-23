@@ -13,6 +13,16 @@ import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 
+/**
+ * This service is a quick hack I wrote to access the AmmoCore UID preference
+ * from other applications. I didn't realize SharedPreferences are limited in 
+ * scope at the application level.
+ * 
+ * When this service is started, it writes the current userId in core prefs
+ * to a txt file which can be read by other applications.
+ * @author Demetri Miller
+ *
+ */
 public class PreferenceServiceHack extends Service {
 
 
