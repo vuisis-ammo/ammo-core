@@ -321,7 +321,7 @@ implements OnSharedPreferenceChangeListener
 			 */
 		    ConnectionStatus connStatus = ConnectionStatus.values()[ prefs.getInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, ConnectionStatus.NO_CONNECTION.ordinal()) ];
 		    if (connStatus == ConnectionStatus.CONNECTED )
-			connectChannels(true);
+			connectChannels(false);
 		    return;
 		}
 
@@ -335,15 +335,15 @@ implements OnSharedPreferenceChangeListener
 	 */
 	private boolean connectChannels(boolean reconnect) {
 		
-		boolean tcp = connectTcpChannel(reconnect);
+	    boolean tcp = connectTcpChannel(reconnect);
 		
-        //boolean udp = connectUdpChannel();
-        if (tcp)
+	    //boolean udp = connectUdpChannel();
+	    if (tcp)
         	distributor.repostToGateway();
-        else 
-			PreferenceManager.getDefaultSharedPreferences(this).edit().putBoolean(MainActivity.NETWORK_CONNECTED_PREF, false).commit();
+	    else 
+		PreferenceManager.getDefaultSharedPreferences(this).edit().putBoolean(MainActivity.NETWORK_CONNECTED_PREF, false).commit();
 
-		return tcp; //&& udp;
+	    return tcp; //&& udp;
 	}
 	
 	/**
@@ -745,6 +745,7 @@ implements OnSharedPreferenceChangeListener
 		}
 
 		public void close() {
+		    logger.trace("close called");
 			this.mState = SHUTDOWN;
 			if (mSocket == null) return;
 			if (mSocket.isClosed()) return;
@@ -802,6 +803,7 @@ implements OnSharedPreferenceChangeListener
 				try {
 					switch (mState) {
 					case SHUTDOWN:
+					    logger.warn("Socket shutdown  - closing thread ...");
 						loop = false;
 						break;
 					case START:
@@ -838,6 +840,7 @@ implements OnSharedPreferenceChangeListener
 						break;
 					case DELIVER:
 						if (!this.nps.deliverGatewayResponse(message, checksum)) {
+						    logger.warn("Deliver Gateway Response failed  - closing socket ...");
 							loop = false;
 						}
 						message = null;
@@ -848,8 +851,8 @@ implements OnSharedPreferenceChangeListener
 					// if the message times out then it will need to be retransmitted.
 					if (this.mState != SHUTDOWN) this.mState = START;
 				} catch (IOException ex) {
+					logger.warn("IOException caught - shutting down " + ex.getMessage());
 					this.mState = SHUTDOWN;
-					logger.warn(ex.getMessage());
 				}
 			}
 			logger.debug("no longer listening, thread closed");
