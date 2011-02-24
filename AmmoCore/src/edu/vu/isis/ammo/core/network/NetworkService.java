@@ -32,7 +32,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.PrefKeys;
-import edu.vu.isis.ammo.core.CorePreferences;
 import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;

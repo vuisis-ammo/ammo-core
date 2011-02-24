@@ -68,8 +68,8 @@ public class NetworkStatusTextView extends TextView {
 			textColor = Color.argb(255, 66, 209, 66); // Green
 			text = "Connected";
 		} else if (isAvailable) {
-				textColor = Color.argb(255, 255, 161, 66); // Orange
-				text = "Available";
+			textColor = Color.argb(255, 255, 161, 66); // Orange
+			text = "Available";
 		} else if (isStale) {
 			textColor = Color.argb(255, 212, 81, 0); // Dark orange 
 			text = "Connecting...";
