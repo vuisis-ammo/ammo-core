@@ -17,7 +17,8 @@ public class CustomEditTextPreference extends EditTextPreference {
 	// ===========================================================
 	public static final Logger logger = LoggerFactory.getLogger(CustomEditTextPreference.class);
 	public static enum Type {
-		IP, PORT, SOCKET_TIMEOUT, DEVICE_ID, OPERATOR_ID, OPERATOR_KEY
+		IP, PORT, SOCKET_TIMEOUT, DEVICE_ID, OPERATOR_ID, OPERATOR_KEY,
+		LOG_LEVEL
 	};
 	
 	// ===========================================================
@@ -93,6 +94,9 @@ public class CustomEditTextPreference extends EditTextPreference {
 				break;
 				
 			case OPERATOR_KEY:
+				// checkedText = this.getText();
+				
+			case LOG_LEVEL:
 				// checkedText = this.getText();
 				
 			default:

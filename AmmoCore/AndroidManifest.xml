@@ -8,37 +8,45 @@
 
 		<!-- ========== ACTIVITY SECTION ================= -->
 
-		<activity android:name="MainActivity">
+		<activity android:name=".MainActivity">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />
 				<category android:name="android.intent.category.LAUNCHER" />
 			</intent-filter>
 		</activity>
 
-		<activity android:name="CorePreferences">
+		<activity android:name=".CorePreferences">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.core.CorePreferences.LAUNCH" />
 				<category android:name="android.intent.category.DEFAULT" />
 			</intent-filter>
 		</activity>
 
-		<activity android:name="DeliveryStatus">
+		<activity android:name=".DeliveryStatus">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.core.DeliveryStatus.LAUNCH" />
 				<category android:name="android.intent.category.DEFAULT" />
 			</intent-filter>
 		</activity>
 
-		<activity android:name="SubscriptionStatus">
+		<activity android:name=".SubscriptionStatus">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.core.SubscriptionStatus.LAUNCH" />
 				<category android:name="android.intent.category.DEFAULT" />
 			</intent-filter>
 		</activity>
 
-		<activity android:name="Subscribe">
+		<activity android:name=".Subscribe">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.core.Subscribe.LAUNCH" />
+				<category android:name="android.intent.category.DEFAULT" />
+			</intent-filter>
+		</activity>
+
+
+		<activity android:name=".LoggingPreferences">
+			<intent-filter>
+				<action android:name="edu.vu.isis.ammo.core.LoggingPreferences.LAUNCH" />
 				<category android:name="android.intent.category.DEFAULT" />
 			</intent-filter>
 		</activity>
@@ -68,12 +76,6 @@
 			</intent-filter>
 		</service>
 		
-		<service android:enabled="true" android:name=".PreferenceServiceHack" android:exported="true">
-		  <intent-filter>
-		      <action android:name="edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH" />
-		  </intent-filter>
-		</service>
-
 		<!--
 			TBD SKN - should we add android.intent.BOOT_COMPLETED here, so the
 			core starts after boot

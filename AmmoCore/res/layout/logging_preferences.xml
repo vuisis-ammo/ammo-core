@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+	android:key="second_preferencescreen">
+	
+	<PreferenceCategory android:title="Logging Category">
+		<edu.vu.isis.ammo.core.CustomEditTextPreference
+			android:key="CORE_LOG_LEVEL" 
+			android:name="level" 
+			android:title="level"
+			android:summary="the logging level of the gateway" 
+			android:defaultValue="trace"/>
+
+	</PreferenceCategory>
+
+</PreferenceScreen>

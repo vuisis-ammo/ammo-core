@@ -34,6 +34,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.AmmoPrefKeys;
 import edu.vu.isis.ammo.core.CorePreferences;
+import edu.vu.isis.ammo.AmmoPrefKeys;
 import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -298,9 +299,22 @@ implements OnSharedPreferenceChangeListener
 			this.authenticateGatewayConnection();
 			return;
 		}
+
 		if (key.equals(CorePreferences.PREF_SOCKET_TIMEOUT)) {
 			Integer timeout = Integer.valueOf(prefs.getString(CorePreferences.PREF_SOCKET_TIMEOUT, "3000"));
 			this.tcpSocket.setSocketTimeout(timeout.intValue());
+		}
+
+		// handle network connectivity group
+		if (key.equals(AmmoPrefKeys.WIFI_PREF_STATUS_KEY)) {
+			/**
+			 * change the gatewayPort number.
+			 * if active then reset it to the new address.
+			 */
+		    ConnectionStatus connStatus = ConnectionStatus.values()[ prefs.getInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, ConnectionStatus.NO_CONNECTION.ordinal()) ];
+		    if (connStatus == ConnectionStatus.CONNECTED )
+			connectChannels(true);
+		    return;
 		}
 		return;
 	}
@@ -373,7 +387,7 @@ implements OnSharedPreferenceChangeListener
 		}
 		if (udpSocket == null) {
 			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			//Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
+			// Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
@@ -639,7 +653,7 @@ implements OnSharedPreferenceChangeListener
 		if (crc32.getValue() != checksum.getValue()) {
 			String msg = "you have received a bad message, the checksums did not match)"+ 
 			crc32.toString() +":"+checksum.toString();
-			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+			// Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			logger.warn(msg);
 			return false;
 		}

@@ -9,4 +9,6 @@
 <string name="operator_id_label">Operator ID: </string>
 <string name="operator_key_label">Operator Pass Key: </string>
 <string name="socket_timeout_label">Current Network Timeout:</string>
+
+<string name="log_level_label">Logging Level:</string>
 </resources>
