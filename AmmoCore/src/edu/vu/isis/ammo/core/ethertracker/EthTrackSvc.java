@@ -107,9 +107,9 @@ public class EthTrackSvc extends Service {
 	 * @param status - Status message relating to interface. Either "Up" or "Down"
 	 */
 	public void updateSharedPreferencesForInterfaceStatus(String msg) {
-		NetworkService.ConnectionStatus status = NetworkService.ConnectionStatus.NO_CONNECTION;
+		PrefKeys.ConnectionStatus status = PrefKeys.ConnectionStatus.NO_CONNECTION;
 		if (msg.equals("Up")) {
-			status = NetworkService.ConnectionStatus.CONNECTED;
+			status = PrefKeys.ConnectionStatus.CONNECTED;
 		}
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		Editor editor = prefs.edit();

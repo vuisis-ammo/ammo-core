@@ -1,6 +1,7 @@
 package edu.vu.isis.ammo.core;
 
 import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.PrefKeys;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -54,7 +55,7 @@ public class NetworkStatusTextView extends TextView {
 	 * are only concerned with this field for display reasons
 	 */
 	public void notifyNetworkStatusChanged(SharedPreferences prefs, String statusKey) {
-		NetworkService.ConnectionStatus status = NetworkService.ConnectionStatus.values()[prefs.getInt(statusKey, 0)];
+		PrefKeys.ConnectionStatus status = PrefKeys.ConnectionStatus.values()[prefs.getInt(statusKey, 0)];
 		int textColor = Color.WHITE;
 		String text = "<undefined>";
 		switch (status) {

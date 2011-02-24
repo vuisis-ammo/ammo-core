@@ -226,13 +226,13 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 			boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
 			Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
 			if (!wifiConn && !cbWifi.isChecked()) {  // info.getSSID() == null
-			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NO_CONNECTION.ordinal());
+			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.NO_CONNECTION.ordinal());
 			} else if (!wifiConn && cbWifi.isChecked()) { // info.getSSID() == null
-			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NOT_AVAILABLE.ordinal());
+			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.NOT_AVAILABLE.ordinal());
 			} else if (wifiConn && !cbWifi.isChecked()) { // info.getSSID() != null
-			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.AVAILABLE_NOT_CONNECTED.ordinal());
+			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.AVAILABLE_NOT_CONNECTED.ordinal());
 			} else if (wifiConn && cbWifi.isChecked()) { // info.getSSID() != null
-			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.CONNECTED.ordinal());
+			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.CONNECTED.ordinal());
 			} 
 		
 			editor.commit();

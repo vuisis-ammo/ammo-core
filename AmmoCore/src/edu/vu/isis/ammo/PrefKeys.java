@@ -34,4 +34,10 @@ public final class PrefKeys {
 	public static final String WIFI_PREF_IS_AVAILABLE = "edu.vu.isis.ammo.core.wifi_link.IS_AVAILABLE";  
 	public static final String WIFI_PREF_IS_STALE = "edu.vu.isis.ammo.core.wifi_link.IS_STALE";
 	
+// The connection status defines those values stored with the *_PREF_STATUS_KEY above
+	public static enum ConnectionStatus {
+		NO_CONNECTION, CONNECTED, AVAILABLE_NOT_CONNECTED, NOT_AVAILABLE, PENDING
+	};
+
+	
 }

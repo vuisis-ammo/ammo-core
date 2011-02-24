@@ -65,10 +65,6 @@ implements OnSharedPreferenceChangeListener
 		NO_CONNECTION, SOCKET_EXCEPTION, UNKNOWN, BAD_MESSAGE, OK
 	};
 	
-	public static enum ConnectionStatus {
-		NO_CONNECTION, CONNECTED, AVAILABLE_NOT_CONNECTED, NOT_AVAILABLE, PENDING
-	};
-
 	public static final String SIZE_KEY = "sizeByteArrayKey";
 	public static final String CHECKSUM_KEY = "checksumByteArrayKey";
 	
@@ -308,8 +304,9 @@ implements OnSharedPreferenceChangeListener
 			 * change the gatewayPort number.
 			 * if active then reset it to the new address.
 			 */
-		    ConnectionStatus connStatus = ConnectionStatus.values()[ prefs.getInt(PrefKeys.WIFI_PREF_STATUS_KEY, ConnectionStatus.NO_CONNECTION.ordinal()) ];
-		    if (connStatus == ConnectionStatus.CONNECTED )
+		    PrefKeys.ConnectionStatus connStatus = PrefKeys.ConnectionStatus.values()
+		    [ prefs.getInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.NO_CONNECTION.ordinal()) ];
+		    if (connStatus == PrefKeys.ConnectionStatus.CONNECTED )
 			connectChannels(true);
 		    return;
 		}
