@@ -132,11 +132,11 @@ public class CustomEditTextPreference extends EditTextPreference {
 			int portAsInt = Integer.valueOf(port);
 			if (portAsInt < 1) return false;
 			if (portAsInt < 1024) {
-				Toast.makeText(context, context.getResources().getString(R.string.well_known_port), Toast.LENGTH_LONG).show();
+				logger.debug(context.getResources().getString(R.string.well_known_port));
 				return false;
 			}
 			if (portAsInt < 49151) {
-				Toast.makeText(context, context.getResources().getString(R.string.reserved_port), Toast.LENGTH_LONG).show();
+				logger.debug(context.getResources().getString(R.string.reserved_port));
 				return true;
 			}
 			return true;

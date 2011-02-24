@@ -32,6 +32,8 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.PrefKeys;
+import edu.vu.isis.ammo.core.CorePreferences;
+import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -323,8 +325,10 @@ implements OnSharedPreferenceChangeListener
 	private boolean connectChannels(boolean reconnect) {
 		
 		boolean tcp = connectTcpChannel(reconnect);
+		
         //boolean udp = connectUdpChannel();
         if (tcp) distributor.repostToGateway();
+        // else PreferenceManager.getDefaultSharedPreferences(this).edit().putBoolean(MainActivity.NETWORK_CONNECTED_PREF, false).commit();
 		return tcp; //&& udp;
 	}
 	
@@ -461,7 +465,11 @@ implements OnSharedPreferenceChangeListener
 	private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
 		if (mw == null) return false;
 		if (! mw.hasAuthenticationResult()) return false;
-		if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) return false;
+		if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
+			return false;
+		} else {
+			PreferenceManager.getDefaultSharedPreferences(this).edit().putBoolean(MainActivity.NETWORK_CONNECTED_PREF, true).commit();
+		}
 		
 		sessionId = mw.getSessionUuid();
 

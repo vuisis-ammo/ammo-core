@@ -24,6 +24,7 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.CheckBox;
 import edu.vu.isis.ammo.PrefKeys;
+import android.widget.TextView;
 import edu.vu.isis.ammo.core.network.INetworkBinder;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
@@ -48,10 +49,13 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	private static final int SUBSCRIBE_MENU = Menu.NONE + 3;
 	private static final int LOGGING_MENU = Menu.NONE + 4;
 	
+	public static final String NETWORK_CONNECTED_PREF = "network_connected_pref_key";
+	
 	// ===========================================================
 	// Fields
 	// ===========================================================
 	private NetworkStatusTextView tvPhysicalLink, tvWifi;
+	private TextView tvConnectionStatus;
 	private Button btnConnect;
 	private CheckBox cbPhysicalLink, cbWifi;
 	private WifiReceiver wifiReceiver;
@@ -196,11 +200,20 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	public void updateConnectionStatus(SharedPreferences prefs) {
 		tvPhysicalLink.notifyNetworkStatusChanged(prefs, PrefKeys.PHYSICAL_LINK_PREF);
 		tvWifi.notifyNetworkStatusChanged(prefs, PrefKeys.WIFI_PREF);
+		
+// TODO: is the following a hack or should it remain
+		boolean isConnected = prefs.getBoolean(NETWORK_CONNECTED_PREF, false);
+		if (isConnected) {
+			tvConnectionStatus.setText("Gateway connected");
+		} else {
+			tvConnectionStatus.setText("Gateway not connected");
+		}
 	}
 	
 	public void setViewReferences() {
 		this.tvPhysicalLink = (NetworkStatusTextView)findViewById(R.id.main_activity_physical_link_status);
 		this.tvWifi = (NetworkStatusTextView)findViewById(R.id.main_activity_wifi_status);
+		this.tvConnectionStatus = (TextView)findViewById(R.id.main_activity_connection_status);
 		this.cbPhysicalLink = (CheckBox)findViewById(R.id.main_activity_physical_link);
 		this.cbWifi = (CheckBox)findViewById(R.id.main_activity_wifi);
 		this.btnConnect = (Button)findViewById(R.id.main_activity_connect_button);
