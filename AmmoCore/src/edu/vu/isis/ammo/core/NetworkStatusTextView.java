@@ -57,10 +57,10 @@ public class NetworkStatusTextView extends TextView {
 	public void notifyNetworkStatusChanged(SharedPreferences prefs, String statusKey) {
 		// A connection can only have one status at a time so we can short circuit 
 		// the if-else.
-		boolean isConnected = prefs.getBoolean(statusKey + PrefKeys.CONN_IS_CONNECTED, false);
-		boolean shouldUse = prefs.getBoolean(statusKey + PrefKeys.CONN_SHOULD_USE, false);
-		boolean isAvailable = prefs.getBoolean(statusKey + PrefKeys.CONN_IS_AVAILABLE, false);
-		boolean isStale = prefs.getBoolean(statusKey + PrefKeys.CONN_IS_STALE, false);
+		boolean isConnected = prefs.getBoolean(statusKey + PrefKeys.NET_IS_ACTIVE, false);
+		boolean shouldUse = prefs.getBoolean(statusKey + PrefKeys.NET_SHOULD_USE, false);
+		boolean isAvailable = prefs.getBoolean(statusKey + PrefKeys.NET_IS_AVAILABLE, false);
+		boolean isStale = prefs.getBoolean(statusKey + PrefKeys.NET_IS_STALE, false);
 		
 		int textColor = Color.WHITE;
 		String text = "<undefined>";

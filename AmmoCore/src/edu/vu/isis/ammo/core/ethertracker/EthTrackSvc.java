@@ -111,7 +111,7 @@ public class EthTrackSvc extends Service {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		Editor editor = prefs.edit();
 		 
-		editor.putBoolean(PrefKeys.PHYSICAL_LINK_PREF_IS_CONNECTED, status);
+		editor.putBoolean(PrefKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, status);
 		editor.commit();
 	}
 

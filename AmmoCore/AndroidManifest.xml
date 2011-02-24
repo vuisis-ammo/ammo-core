@@ -109,9 +109,13 @@
 			</intent-filter>
 		</receiver>
 
-		<receiver android:name=".receiver.AmmoLoginReceiver">
+		<receiver android:name="receiver.StartUpReceiver">
 			<intent-filter>
 				<action android:name="mil.darpa.transapp.authentication.HELLO" />
+			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED" />
+				<category android:name="android.intent.category.HOME" />
 			</intent-filter>
 		</receiver>
 

@@ -48,9 +48,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	private static final int SUBSCRIPTION_MENU = Menu.NONE + 2;
 	private static final int SUBSCRIBE_MENU = Menu.NONE + 3;
 	private static final int LOGGING_MENU = Menu.NONE + 4;
-	
-	public static final String NETWORK_CONNECTED_PREF = "network_connected_pref_key";
-	
+		
 	// ===========================================================
 	// Fields
 	// ===========================================================
@@ -149,18 +147,16 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	public void onClick(View view) {
 		Editor editor = prefs.edit();
 		if (view.equals(this.cbWifi)) {
-			editor.putBoolean(PrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());
+			editor.putBoolean(PrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
 		} else if (view.equals(this.cbPhysicalLink)) {
 			// TODO: Need a way to disable physical link service.
-			editor.putBoolean(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, cbPhysicalLink.isChecked());
+			editor.putBoolean(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, this.cbPhysicalLink.isChecked());
 		} else if (view.equals(this.btnConnect)) {
 			// Tell the network service to disconnect and reconnect.
-			Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
-			this.sendBroadcast(intent);
+			editor.putBoolean(PrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
 		}
 		editor.commit();
 		setWifiStatus();
-		// updateConnectionStatus(prefs);
 	}
 	
 		
@@ -203,7 +199,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		
 		// TODO: is the following a hack or should it remain
 		// RESPONSE: The following is a hack. We'll trash it as soon as new functionality is supported.
-		boolean isConnected = prefs.getBoolean(NETWORK_CONNECTED_PREF, false);
+		boolean isConnected = prefs.getBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
 		if (isConnected) {
 			tvConnectionStatus.setText("Gateway connected");
 		} else {

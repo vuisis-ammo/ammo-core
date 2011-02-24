@@ -271,24 +271,21 @@ implements OnSharedPreferenceChangeListener
 		}
 
 		// handle network connectivity group
-		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
-			shouldUse(prefs);
-		}	
-		if (key.equals(PrefKeys.WIFI_PREF_SHOULD_USE)) {
-			shouldUse(prefs);
+//		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
+//			shouldUse(prefs);
+//		}	
+//		if (key.equals(PrefKeys.WIFI_PREF_SHOULD_USE)) {
+//			shouldUse(prefs);
+//		}
+		if (key.equals(PrefKeys.NET_CONN_PREF_SHOULD_USE)) {
+			boolean enable_intent = prefs.getBoolean(PrefKeys.NET_CONN_PREF_SHOULD_USE, false);
+			if (enable_intent) {
+				 this.tcpSocket.enable();
+			} else {
+				this.tcpSocket.disable();
+			}
+			this.connectChannels(true);
 		}
-		return;
-	}
-	
-	private void shouldUse(SharedPreferences prefs) {
-		boolean enable_intent_phys = prefs.getBoolean(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, false);
-		boolean enable_intent_wifi = prefs.getBoolean(PrefKeys.WIFI_PREF_SHOULD_USE, false);
-		if (! enable_intent_phys && ! enable_intent_wifi) {
-			this.tcpSocket.disable();
-			return;
-		}
-		this.tcpSocket.enable();
-		this.connectChannels(true);
 		return;
 	}
 	
@@ -298,13 +295,16 @@ implements OnSharedPreferenceChangeListener
 	 * @return
 	 */
 	private boolean connectChannels(boolean reconnect) {
-		
 		boolean tcp = connectTcpChannel(reconnect);
+        if (tcp) {
+        	distributor.repostToGateway();
+        }
+        PreferenceManager.getDefaultSharedPreferences(this)
+        	.edit()
+        	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
+        	.commit();
 		
-        //boolean udp = connectUdpChannel();
-        if (tcp) distributor.repostToGateway();
-        // else PreferenceManager.getDefaultSharedPreferences(this).edit().putBoolean(MainActivity.NETWORK_CONNECTED_PREF, false).commit();
-		return tcp; //&& udp;
+        return tcp; //&& udp;
 	}
 	
 	/**
@@ -409,7 +409,11 @@ implements OnSharedPreferenceChangeListener
 		if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
 			return false;
 		} else {
-			PreferenceManager.getDefaultSharedPreferences(this).edit().putBoolean(MainActivity.NETWORK_CONNECTED_PREF, true).commit();
+			PreferenceManager
+				.getDefaultSharedPreferences(this)
+				.edit()
+				.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+				.commit();
 		}
 		
 		sessionId = mw.getSessionUuid();
