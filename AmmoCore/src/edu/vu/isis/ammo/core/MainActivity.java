@@ -39,13 +39,16 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  * @author phreed
  *
  */
-public class MainActivity extends Activity implements OnClickListener, OnSharedPreferenceChangeListener {
+public class MainActivity extends Activity 
+implements OnClickListener, OnSharedPreferenceChangeListener 
+{
 
 	public static final Logger logger = LoggerFactory.getLogger(MainActivity.class);
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
 	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
 	private static final int SUBSCRIPTION_MENU = Menu.NONE + 2;
 	private static final int SUBSCRIBE_MENU = Menu.NONE + 3;
+	private static final int LOGGING_MENU = Menu.NONE + 4;
 	
 	public static final String NETWORK_CONNECTED_PREF = "network_connected_pref_key";
 	
@@ -100,6 +103,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 		menu.add(Menu.NONE, DELIVERY_STATUS_MENU, Menu.NONE, getResources().getString(R.string.delivery_status_label));
 		menu.add(Menu.NONE, SUBSCRIPTION_MENU, Menu.NONE, getResources().getString(R.string.subscription_label));
 		menu.add(Menu.NONE, SUBSCRIBE_MENU, Menu.NONE, getResources().getString(R.string.subscribe_label));
+		menu.add(Menu.NONE, LOGGING_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
 		return true;
 	}
 	
@@ -126,6 +130,10 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 			return true;
 		case SUBSCRIBE_MENU:
 			intent.setAction(Subscribe.LAUNCH);
+			this.startActivity(intent);
+			return true;
+		case LOGGING_MENU:
+			intent.setAction(LoggingPreferences.LAUNCH);
 			this.startActivity(intent);
 			return true;
 		}
@@ -172,6 +180,11 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 					updateConnectionStatus(prefs);					
 				}
 			});
+			return;
+		} 
+		if (key.equals(LoggingPreferences.PREF_LOG_LEVEL)) {
+			logger.debug("attempting to disable logging");
+			return;
 		} 
 	}
 	
