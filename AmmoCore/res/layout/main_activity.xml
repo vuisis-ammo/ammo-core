@@ -59,5 +59,8 @@
 					android:layout_gravity="center" />
 			</TableRow>
 		</TableLayout>
+		
+		<Button android:id="@+id/main_activity_connect_button" android:layout_width="wrap_content"
+		android:layout_height="wrap_content" android:text="I'm not implemented" android:layout_gravity="center"/>
 	</LinearLayout>
 </ScrollView>

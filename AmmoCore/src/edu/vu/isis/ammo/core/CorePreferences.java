@@ -84,7 +84,6 @@ public class CorePreferences extends PreferenceActivity {
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		this.startService(new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH"));
 	}
 	
 	// ===========================================================
