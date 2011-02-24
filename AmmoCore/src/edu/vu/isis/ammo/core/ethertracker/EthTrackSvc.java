@@ -11,7 +11,7 @@ import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import edu.vu.isis.ammo.AmmoPrefKeys;
+import edu.vu.isis.ammo.PrefKeys;
 import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.network.NetworkService;
@@ -114,7 +114,7 @@ public class EthTrackSvc extends Service {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		Editor editor = prefs.edit();
 		 
-		editor.putInt(AmmoPrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY, status.ordinal());
+		editor.putInt(PrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY, status.ordinal());
 		editor.commit();
 	}
 

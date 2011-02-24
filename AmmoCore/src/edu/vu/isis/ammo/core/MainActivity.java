@@ -23,7 +23,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.CheckBox;
-import edu.vu.isis.ammo.AmmoPrefKeys;
+import edu.vu.isis.ammo.PrefKeys;
 import edu.vu.isis.ammo.core.network.INetworkBinder;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
@@ -41,7 +41,6 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
 public class MainActivity extends Activity 
 implements OnClickListener, OnSharedPreferenceChangeListener 
 {
-
 	public static final Logger logger = LoggerFactory.getLogger(MainActivity.class);
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
 	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
@@ -73,7 +72,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		String deviceId = UniqueIdentifiers.device(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
 		SharedPreferences.Editor prefEditor = prefs.edit();
-		prefEditor.putString(CorePreferences.PREF_DEVICE_ID, deviceId).commit();
+		prefEditor.putString(PrefKeys.PREF_DEVICE_ID, deviceId).commit();
 		
 		this.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
 	}
@@ -146,10 +145,10 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	public void onClick(View view) {
 		Editor editor = prefs.edit();
 		if (view.equals(this.cbWifi)) {
-			editor.putBoolean(AmmoPrefKeys.WIFI_SHOULD_USE_PREF_KEY, cbWifi.isChecked());
+			editor.putBoolean(PrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());
 		} else if (view.equals(this.cbPhysicalLink)) {
 			// TODO: Need a way to disable physical link service.
-			editor.putBoolean(AmmoPrefKeys.PHYSICAL_LINK_SHOULD_USE_PREF_KEY, cbPhysicalLink.isChecked());
+			editor.putBoolean(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, cbPhysicalLink.isChecked());
 		} else if (view.equals(this.btnConnect)) {
 			// Tell the network service to disconnect and reconnect.
 			Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
@@ -169,7 +168,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 */
 	@Override
 	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
-		if (key.equals(AmmoPrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY) || key.equals(AmmoPrefKeys.WIFI_PREF_STATUS_KEY)) {
+		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY) || key.equals(PrefKeys.WIFI_PREF_STATUS_KEY)) {
 			this.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
@@ -193,8 +192,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 * update since network status has changed.
 	 */
 	public void updateConnectionStatus(SharedPreferences prefs) {
-		tvPhysicalLink.notifyNetworkStatusChanged(prefs, AmmoPrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY);
-		tvWifi.notifyNetworkStatusChanged(prefs, AmmoPrefKeys.WIFI_PREF_STATUS_KEY);
+		tvPhysicalLink.notifyNetworkStatusChanged(prefs, PrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY);
+		tvWifi.notifyNetworkStatusChanged(prefs, PrefKeys.WIFI_PREF_STATUS_KEY);
 	}
 	
 	public void setViewReferences() {
@@ -227,13 +226,13 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 			boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
 			Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
 			if (!wifiConn && !cbWifi.isChecked()) {  // info.getSSID() == null
-			    editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NO_CONNECTION.ordinal());
+			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NO_CONNECTION.ordinal());
 			} else if (!wifiConn && cbWifi.isChecked()) { // info.getSSID() == null
-			    editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NOT_AVAILABLE.ordinal());
+			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.NOT_AVAILABLE.ordinal());
 			} else if (wifiConn && !cbWifi.isChecked()) { // info.getSSID() != null
-			    editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.AVAILABLE_NOT_CONNECTED.ordinal());
+			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.AVAILABLE_NOT_CONNECTED.ordinal());
 			} else if (wifiConn && cbWifi.isChecked()) { // info.getSSID() != null
-			    editor.putInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.CONNECTED.ordinal());
+			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, NetworkService.ConnectionStatus.CONNECTED.ordinal());
 			} 
 		
 			editor.commit();

@@ -3,6 +3,7 @@ package edu.vu.isis.ammo.core;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
+import edu.vu.isis.ammo.PrefKeys;
 
 /**
  * View and change the core application preferences.
@@ -18,15 +19,6 @@ public class CorePreferences extends PreferenceActivity {
 	// ===========================================================
     public static final String LAUNCH = "edu.vu.isis.ammo.core.CorePreferences.LAUNCH";
 
-	public static final String PREF_IP_ADDR = "CORE_IP_ADDRESS";
-	public static final String PREF_IP_PORT = "CORE_IP_PORT";
-	public static final String PREF_SOCKET_TIMEOUT = "CORE_SOCKET_TIMEOUT";
-	public static final String PREF_IS_JOURNAL = "CORE_IS_JOURNALED";
-	
-	public static final String PREF_DEVICE_ID = "CORE_DEVICE_ID";
-	public static final String PREF_OPERATOR_ID = "CORE_OPERATOR_ID";
-	public static final String PREF_OPERATOR_KEY = "CORE_OPERATOR_KEY";
-	
 	// ===========================================================
 	// Fields
 	// ===========================================================
@@ -49,31 +41,31 @@ public class CorePreferences extends PreferenceActivity {
 		
 		Resources res = this.getResources();
 	
-		mIPAddr = (CustomEditTextPreference) findPreference(PREF_IP_ADDR);
+		mIPAddr = (CustomEditTextPreference) findPreference(PrefKeys.PREF_IP_ADDR);
 		mIPAddr.setSummaryPrefix(res.getString(R.string.ipaddr_label));
 		mIPAddr.setType(CustomEditTextPreference.Type.IP);
 		
-		mPort = (CustomEditTextPreference) findPreference(PREF_IP_PORT);
+		mPort = (CustomEditTextPreference) findPreference(PrefKeys.PREF_IP_PORT);
 		mPort.setSummaryPrefix(res.getString(R.string.port_label));
 		mPort.setType(CustomEditTextPreference.Type.PORT);
 		
-		mSocketTimeout = (CustomEditTextPreference)findPreference(PREF_SOCKET_TIMEOUT);
+		mSocketTimeout = (CustomEditTextPreference)findPreference(PrefKeys.PREF_SOCKET_TIMEOUT);
 		mSocketTimeout.setSummaryPrefix(res.getString(R.string.socket_timeout_label));
 		mSocketTimeout.setType(CustomEditTextPreference.Type.SOCKET_TIMEOUT);
 		
-		prefChannelJournal = (CustomCheckBoxPreference) findPreference(PREF_IS_JOURNAL);
+		prefChannelJournal = (CustomCheckBoxPreference) findPreference(PrefKeys.PREF_IS_JOURNAL);
 		prefChannelJournal.setSummaryPrefix(res.getString(R.string.channel_journal_label));
 		prefChannelJournal.setType(CustomCheckBoxPreference.Type.JOURNAL);
 		
-		mDeviceId = (CustomEditTextPreference) findPreference(PREF_DEVICE_ID);
+		mDeviceId = (CustomEditTextPreference) findPreference(PrefKeys.PREF_DEVICE_ID);
 		mDeviceId.setSummaryPrefix(res.getString(R.string.device_id_label));
 		mDeviceId.setType(CustomEditTextPreference.Type.DEVICE_ID);
 		
-		mOperatorId = (CustomEditTextPreference) findPreference(PREF_OPERATOR_ID);
+		mOperatorId = (CustomEditTextPreference) findPreference(PrefKeys.PREF_OPERATOR_ID);
 		mOperatorId.setSummaryPrefix(res.getString(R.string.operator_id_label));
 		mOperatorId.setType(CustomEditTextPreference.Type.OPERATOR_ID);
 		
-		mOperatorKey = (CustomEditTextPreference) findPreference(PREF_OPERATOR_KEY);
+		mOperatorKey = (CustomEditTextPreference) findPreference(PrefKeys.PREF_OPERATOR_KEY);
 		mOperatorKey.setSummaryPrefix(res.getString(R.string.operator_key_label));
 		mOperatorKey.setType(CustomEditTextPreference.Type.OPERATOR_KEY);
 		

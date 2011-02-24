@@ -27,14 +27,11 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.widget.Toast;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import edu.vu.isis.ammo.AmmoPrefKeys;
-import edu.vu.isis.ammo.core.CorePreferences;
-import edu.vu.isis.ammo.AmmoPrefKeys;
+import edu.vu.isis.ammo.PrefKeys;
 import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -254,37 +251,37 @@ implements OnSharedPreferenceChangeListener
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 		gatewayConnectionStale = true;
 		// handle network connection group
-		if (key.equals(AmmoPrefKeys.PHYSICAL_LINK_SHOULD_USE_PREF_KEY)) {
-			boolean enable_intent = prefs.getBoolean(AmmoPrefKeys.PHYSICAL_LINK_SHOULD_USE_PREF_KEY, true);
+		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
+			boolean enable_intent = prefs.getBoolean(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, true);
 			if (enable_intent) this.tcpSocket.enable(); else this.tcpSocket.disable();
 			this.connectChannels(true);
 			return;
 		}
-		if (key.equals(CorePreferences.PREF_IP_ADDR)) {
-			gatewayHostname = prefs.getString(CorePreferences.PREF_IP_ADDR, gatewayHostname);
+		if (key.equals(PrefKeys.PREF_IP_ADDR)) {
+			gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, gatewayHostname);
 			this.tcpSocket.setHost(gatewayHostname);
 			this.connectChannels(true);
 			return;
 		}
-		if (key.equals(CorePreferences.PREF_IP_PORT)) {
-			gatewayPort = Integer.valueOf(prefs.getString(CorePreferences.PREF_IP_PORT, String.valueOf(gatewayPort)));
+		if (key.equals(PrefKeys.PREF_IP_PORT)) {
+			gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(gatewayPort)));
 			this.tcpSocket.setPort(gatewayPort);
 			connectChannels(true);
 			return;
 		}
-		if (key.equals(CorePreferences.PREF_IS_JOURNAL)) {
-			journalingSwitch = prefs.getBoolean(CorePreferences.PREF_IS_JOURNAL, journalingSwitch);
+		if (key.equals(PrefKeys.PREF_IS_JOURNAL)) {
+			journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 			return;
 		}
 		
 		// handle network authentication group
-		if (key.equals(CorePreferences.PREF_DEVICE_ID)) {
-			deviceId = prefs.getString(CorePreferences.PREF_DEVICE_ID, deviceId);
+		if (key.equals(PrefKeys.PREF_DEVICE_ID)) {
+			deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
 			this.authenticateGatewayConnection();
 			return;
 		}
-		if (key.equals(CorePreferences.PREF_OPERATOR_ID)) {
-			operatorId = prefs.getString(CorePreferences.PREF_OPERATOR_ID, operatorId);
+		if (key.equals(PrefKeys.PREF_OPERATOR_ID)) {
+			operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
 			this.authenticateGatewayConnection();
 			
 			// TBD SKN: broadcast login id change to apps ...
@@ -294,24 +291,24 @@ implements OnSharedPreferenceChangeListener
 			
 			return;
 		}
-		if (key.equals(CorePreferences.PREF_OPERATOR_KEY)) {
-			operatorKey = prefs.getString(CorePreferences.PREF_OPERATOR_KEY, operatorKey);
+		if (key.equals(PrefKeys.PREF_OPERATOR_KEY)) {
+			operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
 			this.authenticateGatewayConnection();
 			return;
 		}
 
-		if (key.equals(CorePreferences.PREF_SOCKET_TIMEOUT)) {
-			Integer timeout = Integer.valueOf(prefs.getString(CorePreferences.PREF_SOCKET_TIMEOUT, "3000"));
+		if (key.equals(PrefKeys.PREF_SOCKET_TIMEOUT)) {
+			Integer timeout = Integer.valueOf(prefs.getString(PrefKeys.PREF_SOCKET_TIMEOUT, "3000"));
 			this.tcpSocket.setSocketTimeout(timeout.intValue());
 		}
 
 		// handle network connectivity group
-		if (key.equals(AmmoPrefKeys.WIFI_PREF_STATUS_KEY)) {
+		if (key.equals(PrefKeys.WIFI_PREF_STATUS_KEY)) {
 			/**
 			 * change the gatewayPort number.
 			 * if active then reset it to the new address.
 			 */
-		    ConnectionStatus connStatus = ConnectionStatus.values()[ prefs.getInt(AmmoPrefKeys.WIFI_PREF_STATUS_KEY, ConnectionStatus.NO_CONNECTION.ordinal()) ];
+		    ConnectionStatus connStatus = ConnectionStatus.values()[ prefs.getInt(PrefKeys.WIFI_PREF_STATUS_KEY, ConnectionStatus.NO_CONNECTION.ordinal()) ];
 		    if (connStatus == ConnectionStatus.CONNECTED )
 			connectChannels(true);
 		    return;
@@ -423,15 +420,15 @@ implements OnSharedPreferenceChangeListener
 	private void acquirePreferences() {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 		
-		gatewayHostname = prefs.getString(CorePreferences.PREF_IP_ADDR, gatewayHostname);
+		gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, gatewayHostname);
 		gatewayConnectionStale = true;
-		gatewayPort = Integer.valueOf(prefs.getString(CorePreferences.PREF_IP_PORT, String.valueOf(gatewayPort)));
+		gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(gatewayPort)));
 		
-		journalingSwitch = prefs.getBoolean(CorePreferences.PREF_IS_JOURNAL, journalingSwitch);
+		journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 		
-		deviceId = prefs.getString(CorePreferences.PREF_DEVICE_ID, deviceId);
-		operatorId = prefs.getString(CorePreferences.PREF_OPERATOR_ID, operatorId);
-		operatorKey = prefs.getString(CorePreferences.PREF_OPERATOR_KEY, operatorKey);
+		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
+		operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
 	}
 	
 	// ===========================================================

@@ -6,6 +6,7 @@ package edu.vu.isis.ammo.core;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.PrefKeys;
 import edu.vu.isis.ammo.core.distributor.DistributorService;
 import android.app.Service;
 import android.content.ComponentName;
@@ -81,7 +82,7 @@ public class CoreService extends Service implements ICoreService {
 		// get operator id
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 		String operatorId = "foo";
-		operatorId = prefs.getString(CorePreferences.PREF_OPERATOR_ID, operatorId);
+		operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
 		
 		// broadcast start intent to apps ...
 		Intent readyIntent = new Intent(ICoreService.AMMO_READY);
