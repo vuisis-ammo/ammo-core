@@ -9,7 +9,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Enumeration;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.CRC32;
@@ -32,8 +34,8 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.PrefKeys;
-import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.ICoreService;
+import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -56,6 +58,9 @@ implements OnSharedPreferenceChangeListener
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger(NetworkService.class);
+	
+	private static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
+	private static final int DEFAULT_GATEWAY_PORT = 32869;
 
 	@SuppressWarnings("unused")
 	private static final String NULL_CHAR = "\0";
@@ -89,16 +94,9 @@ implements OnSharedPreferenceChangeListener
 	
 	private NetworkBinder networkBinder;
 	private IDistributorService distributor;
-	private String gatewayHostname =  "129.59.129.25"; // Loopback to localhost from android.
-	private boolean gatewayConnectionStale = true;
-	private InetAddress gatewayIpAddr;
-	public int gatewayPort = 33289;
 	
 	// TCP Fields
 	private AmmoTcpSocket tcpSocket = new AmmoTcpSocket(this);
-	
-	// UDP Fields
-	public DatagramSocket udpSocket = null;
 	
 	// SDCARD Fields
 	private boolean journalingSwitch = true;
@@ -121,30 +119,10 @@ implements OnSharedPreferenceChangeListener
 	@Override
 	public IBinder onBind(Intent arg0) {
 		logger.debug("NPS onBind called");
-		this.setupNetworkConnection();
         networkBinder = NetworkBinder.getInstance(this);
 		return networkBinder;
 	}
 
-	/**
-	 * The network connection is used to communicate directly with the ammo android gateway plugin.
-	 */
-	public void setupNetworkConnection() {
-		try {
-			gatewayIpAddr = InetAddress.getByName(gatewayHostname);
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
-//		try {
-//			if (udpSocket == null) {
-//				logger.debug("Binding udpSocket to port");
-//				udpSocket = new DatagramSocket(gatewayPort);
-//			}
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-	}
-	
 	/**
 	 * The journal used when direct communication with the 
 	 * ammo android gateway plugin is not immediately available.
@@ -221,15 +199,14 @@ implements OnSharedPreferenceChangeListener
 		networkFilter.addAction(INetworkBinder.ACTION_RECONNECT);
 		networkFilter.addAction(INetworkBinder.ACTION_DISCONNECT);
 		this.mReceiverRegistrar.registerReceiver(this.myReceiver, networkFilter);
-
 	}
 
 	@Override
 	public void onDestroy() {
-		udpSocket.close();
+		this.tcpSocket.close();
 		// this.myReceiver.
 	    try {
-			journal.close();
+			this.journal.close();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -246,17 +223,16 @@ implements OnSharedPreferenceChangeListener
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-		gatewayConnectionStale = true;
 		// handle network connection group
 		
 		if (key.equals(PrefKeys.PREF_IP_ADDR)) {
-			gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, gatewayHostname);
+			String gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
 			this.tcpSocket.setHost(gatewayHostname);
 			this.connectChannels(true);
 			return;
 		}
 		if (key.equals(PrefKeys.PREF_IP_PORT)) {
-			gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(gatewayPort)));
+			int gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
 			this.tcpSocket.setPort(gatewayPort);
 			connectChannels(true);
 			return;
@@ -347,13 +323,13 @@ implements OnSharedPreferenceChangeListener
 		tcpSocket.tryConnect();
 		
 		if (! tcpSocket.isConnected()) {
-			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
+			String msg = "could not connect to "+tcpSocket.toString();
 			// Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 			logger.warn(msg);
 			return false;
 		}
 		
-		String msg = "connected to "+gatewayHostname+" on port "+gatewayPort;
+		//String msg = "connected to "+tcpSocket.toString();
 		//SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 		//SharedPreferences.Editor ped = prefs.edit();
 		//ped.putBoolean(arg0, arg1);
@@ -368,37 +344,8 @@ implements OnSharedPreferenceChangeListener
 	}
 	
 	/**
-	 * Connect the tcp socket for sending and receiving.
-	 * For sending nothing special need be done outside of creating the socket.
-	 * The receiving of messages needs a thread.
-	 * 
-	 * @return
-	 */
-	private boolean connectUdpChannel() {
-		if (udpSocket != null) {
-			if (udpSocket.isConnected()) return true;
-		}
-		
-		try {
-			udpSocket = new DatagramSocket(gatewayPort);
-		} catch (IOException e) {
-			udpSocket = null;
-		}
-		if (udpSocket == null) {
-			String msg = "could not connect to "+gatewayHostname+" on port "+gatewayPort;
-			// Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
-			logger.warn(msg);
-			return false;
-		}
-		authenticateGatewayConnection();
-		// udpReceiverThread = UdpReceiverThread.getInstance(this, distributor, udpSocket);
-		return true;
-	}
-	
-	/**
 	 * Connect all channels indiscriminately.
-	 */
-	
+	 */	
 	private boolean disconnectChannels() {
 		return (disconnectTcpChannel() &&
 				disconnectUdpChannel());
@@ -421,11 +368,6 @@ implements OnSharedPreferenceChangeListener
 	 */
 	private void acquirePreferences() {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-		
-		gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, gatewayHostname);
-		gatewayConnectionStale = true;
-		gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(gatewayPort)));
-		
 		journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 		
 		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
@@ -603,11 +545,6 @@ implements OnSharedPreferenceChangeListener
 		switch (carrier) {
 		case TCP:		
 			return this.tcpSocket.sendGatewayRequest(size, checksum, message);
-		//case UDP:		
-		//	return this.udpSocket.sendGatewayRequest(size, checksum, message);
-		// case JOURNAL: dos = new DataOutputStream(udpSocket.get);
-		// break;
-		// default: dos = new DataOutputStream(udpSocket); break;
 		}
 		return false;
 	}
@@ -639,9 +576,7 @@ implements OnSharedPreferenceChangeListener
 			crc32.update(data);
 			return new MsgHeader(data.length, (int)crc32.getValue());
 		}
-	}
-	
-	
+	}	
 	
 	/**
 	 *  Processes and delivers a message from the gateway.
@@ -752,7 +687,7 @@ implements OnSharedPreferenceChangeListener
 	 * @return
 	 */
 	public boolean isConnected() {
-		if (gatewayConnectionStale) {
+		if (tcpSocket.isStale()) {
 			return tcpSocket.isConnected();
 		}
 		if (tcpSocket == null) return false;
@@ -833,6 +768,27 @@ implements OnSharedPreferenceChangeListener
 			}
 			return;
 		}
+	}
+	
+	/**
+	 * A routine to get the local ip address
+	 * @return
+	 */
+	private String getLocalIpAddress() {
+		try {
+			for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+				NetworkInterface intf = en.nextElement();
+				for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+					InetAddress inetAddress = enumIpAddr.nextElement();
+					if (!inetAddress.isLoopbackAddress()) { 
+						return inetAddress.getHostAddress().toString(); 
+					}
+				}
+			}
+		} catch (SocketException ex) {
+			logger.error( ex.toString());
+		}
+		return null;
 	}
 	
 }

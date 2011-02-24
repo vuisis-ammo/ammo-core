@@ -55,16 +55,19 @@ public class AmmoTcpSocket {
 			this.receiverThread = null;
 		}
 	}
+	public boolean isStale() { return this.isStale; }
 	
 	public boolean enable() {
 		if (this.isEnabled == true) return false;
 		this.isEnabled = true;
+		this.setStale();
 		this.tryConnect();
 		return true;
 	}
 	public boolean disable() {
 		if (this.isEnabled == false) return false;
 		this.isEnabled = false;
+		this.setStale();
 		return true;
 	}
 	
@@ -79,15 +82,19 @@ public class AmmoTcpSocket {
 	
 	public boolean setHost(String host) {
 		if (gatewayHost == host) return false;
-		this.isStale = true;
+		this.setStale();
 		this.gatewayHost = host;
 		return true;
 	}
 	public boolean setPort(int port) {
 		if (gatewayPort == port) return false;
-		this.isStale = true;
+		this.setStale();
 		this.gatewayPort = port;
 		return true;
+	}
+	
+	public String toString() {
+		return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
 	}
 	
 	/**
