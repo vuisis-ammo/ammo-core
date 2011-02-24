@@ -1,12 +1,11 @@
 package edu.vu.isis.ammo.core;
 
-import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.PrefKeys;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.util.AttributeSet;
 import android.widget.TextView;
+import edu.vu.isis.ammo.PrefKeys;
 
 /**
  * TextView subclass used to format text based on the status of network
@@ -56,6 +55,8 @@ public class NetworkStatusTextView extends TextView {
 	 */
 	
 	public void notifyNetworkStatusChanged(SharedPreferences prefs, String statusKey) {
+		// A connection can only have one status at a time so we can short circuit 
+		// the if-else.
 		boolean isConnected = prefs.getBoolean(statusKey + PrefKeys.CONN_IS_CONNECTED, false);
 		boolean shouldUse = prefs.getBoolean(statusKey + PrefKeys.CONN_SHOULD_USE, false);
 		boolean isAvailable = prefs.getBoolean(statusKey + PrefKeys.CONN_IS_AVAILABLE, false);
@@ -63,26 +64,18 @@ public class NetworkStatusTextView extends TextView {
 		
 		int textColor = Color.WHITE;
 		String text = "<undefined>";
-		if (! isConnected) {
-			if (isAvailable) {
-				textColor = Color.argb(255, 255, 161, 66);
-				text = "Available, but not connected";
-			} else {
-				text="Not Connected";
-				textColor = Color.RED;
-			}
-		} else {
-			if (isAvailable) {
-				text="Connection Not Available";
-				textColor = Color.RED;
-			} else {
-				textColor = Color.argb(255, 66, 209, 66);
-				text = "Connected";
-			}
-		}
-		if (isStale) {
-			textColor = Color.argb(255, 255, 161, 66);
+		if (isConnected) {
+			textColor = Color.argb(255, 66, 209, 66); // Green
+			text = "Connected";
+		} else if (isAvailable) {
+				textColor = Color.argb(255, 255, 161, 66); // Orange
+				text = "Available";
+		} else if (isStale) {
+			textColor = Color.argb(255, 212, 81, 0); // Dark orange 
 			text = "Connecting...";
+		} else {	// Default to not available
+			textColor = Color.RED; 
+			text = "Not available";
 		}
 
 		this.setText(text);

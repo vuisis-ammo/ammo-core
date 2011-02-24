@@ -201,7 +201,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		tvPhysicalLink.notifyNetworkStatusChanged(prefs, PrefKeys.PHYSICAL_LINK_PREF);
 		tvWifi.notifyNetworkStatusChanged(prefs, PrefKeys.WIFI_PREF);
 		
-// TODO: is the following a hack or should it remain
+		// TODO: is the following a hack or should it remain
+		// RESPONSE: The following is a hack. We'll trash it as soon as new functionality is supported.
 		boolean isConnected = prefs.getBoolean(NETWORK_CONNECTED_PREF, false);
 		if (isConnected) {
 			tvConnectionStatus.setText("Gateway connected");
