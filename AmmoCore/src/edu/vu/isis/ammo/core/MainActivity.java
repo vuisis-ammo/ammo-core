@@ -43,6 +43,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
 	private static final int SUBSCRIPTION_MENU = Menu.NONE + 2;
 	private static final int SUBSCRIBE_MENU = Menu.NONE + 3;
+	private static final int LOGGING_MENU = Menu.NONE + 4;
 	
 	// ===========================================================
 	// Fields
@@ -94,6 +95,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 		menu.add(Menu.NONE, DELIVERY_STATUS_MENU, Menu.NONE, getResources().getString(R.string.delivery_status_label));
 		menu.add(Menu.NONE, SUBSCRIPTION_MENU, Menu.NONE, getResources().getString(R.string.subscription_label));
 		menu.add(Menu.NONE, SUBSCRIBE_MENU, Menu.NONE, getResources().getString(R.string.subscribe_label));
+		menu.add(Menu.NONE, LOGGING_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
 		return true;
 	}
 	
@@ -120,6 +122,10 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 			return true;
 		case SUBSCRIBE_MENU:
 			intent.setAction(Subscribe.LAUNCH);
+			this.startActivity(intent);
+			return true;
+		case LOGGING_MENU:
+			intent.setAction(LoggingPrefs.LAUNCH);
 			this.startActivity(intent);
 			return true;
 		}
