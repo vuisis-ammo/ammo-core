@@ -662,7 +662,10 @@ public class DistributorService extends Service implements IDistributorService {
 				
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				logger.debug("Subscribe request with mime: " + mime + " and selection: " + selection);
-                boolean sent = network.dispatchSubscribeRequestToGateway(mime,
+                if (network == null) {
+                	continue;
+                }
+				boolean sent = network.dispatchSubscribeRequestToGateway(mime,
                         selection);
 				
                 if (!sent) {

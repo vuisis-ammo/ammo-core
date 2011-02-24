@@ -156,7 +156,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 			editor.putBoolean(AmmoPrefKeys.PHYSICAL_LINK_SHOULD_USE_PREF_KEY, cbPhysicalLink.isChecked());
 		} else if (view.equals(this.btnConnect)) {
 			// Tell the network service to disconnect and reconnect.
+			Intent disconnectIntent = new Intent(INetworkBinder.ACTION_DISCONNECT);
 			Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
+			this.sendBroadcast(disconnectIntent);
 			this.sendBroadcast(intent);
 		}
 		editor.commit();
