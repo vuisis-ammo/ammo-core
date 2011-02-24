@@ -247,12 +247,7 @@ implements OnSharedPreferenceChangeListener
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 		gatewayConnectionStale = true;
 		// handle network connection group
-		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
-			boolean enable_intent = prefs.getBoolean(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, true);
-			if (enable_intent) this.tcpSocket.enable(); else this.tcpSocket.disable();
-			this.connectChannels(true);
-			return;
-		}
+		
 		if (key.equals(PrefKeys.PREF_IP_ADDR)) {
 			gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, gatewayHostname);
 			this.tcpSocket.setHost(gatewayHostname);
@@ -299,17 +294,24 @@ implements OnSharedPreferenceChangeListener
 		}
 
 		// handle network connectivity group
-		if (key.equals(PrefKeys.WIFI_PREF_STATUS_KEY)) {
-			/**
-			 * change the gatewayPort number.
-			 * if active then reset it to the new address.
-			 */
-		    PrefKeys.ConnectionStatus connStatus = PrefKeys.ConnectionStatus.values()
-		    [ prefs.getInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.NO_CONNECTION.ordinal()) ];
-		    if (connStatus == PrefKeys.ConnectionStatus.CONNECTED )
-			connectChannels(true);
-		    return;
+		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
+			shouldUse(prefs);
+		}	
+		if (key.equals(PrefKeys.WIFI_PREF_SHOULD_USE)) {
+			shouldUse(prefs);
 		}
+		return;
+	}
+	
+	private void shouldUse(SharedPreferences prefs) {
+		boolean enable_intent_phys = prefs.getBoolean(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, false);
+		boolean enable_intent_wifi = prefs.getBoolean(PrefKeys.WIFI_PREF_SHOULD_USE, false);
+		if (! enable_intent_phys && ! enable_intent_wifi) {
+			this.tcpSocket.disable();
+			return;
+		}
+		this.tcpSocket.enable();
+		this.connectChannels(true);
 		return;
 	}
 	

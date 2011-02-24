@@ -168,7 +168,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 */
 	@Override
 	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
-		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY) || key.equals(PrefKeys.WIFI_PREF_STATUS_KEY)) {
+		if (key.startsWith(PrefKeys.PHYSICAL_LINK_PREF) 
+		 || key.startsWith(PrefKeys.WIFI_PREF))
+		{
 			this.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
@@ -192,8 +194,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 * update since network status has changed.
 	 */
 	public void updateConnectionStatus(SharedPreferences prefs) {
-		tvPhysicalLink.notifyNetworkStatusChanged(prefs, PrefKeys.PHYSICAL_LINK_PREF_STATUS_KEY);
-		tvWifi.notifyNetworkStatusChanged(prefs, PrefKeys.WIFI_PREF_STATUS_KEY);
+		tvPhysicalLink.notifyNetworkStatusChanged(prefs, PrefKeys.PHYSICAL_LINK_PREF);
+		tvWifi.notifyNetworkStatusChanged(prefs, PrefKeys.WIFI_PREF);
 	}
 	
 	public void setViewReferences() {
@@ -225,16 +227,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 			logger.debug( "WifiInfo: " +  info.toString() );
 			boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
 			Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
-			if (!wifiConn && !cbWifi.isChecked()) {  // info.getSSID() == null
-			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.NO_CONNECTION.ordinal());
-			} else if (!wifiConn && cbWifi.isChecked()) { // info.getSSID() == null
-			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.NOT_AVAILABLE.ordinal());
-			} else if (wifiConn && !cbWifi.isChecked()) { // info.getSSID() != null
-			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.AVAILABLE_NOT_CONNECTED.ordinal());
-			} else if (wifiConn && cbWifi.isChecked()) { // info.getSSID() != null
-			    editor.putInt(PrefKeys.WIFI_PREF_STATUS_KEY, PrefKeys.ConnectionStatus.CONNECTED.ordinal());
-			} 
-		
+			// editor.putBoolean(PrefKeys.WIFI_PREF_IS_CONNECTED, wifiConn);
+			editor.putBoolean(PrefKeys.WIFI_PREF_IS_AVAILABLE, wifiConn);
+			// editor.putBoolean(PrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());		
 			editor.commit();
 		    }
 		};

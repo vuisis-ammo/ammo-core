@@ -54,33 +54,35 @@ public class NetworkStatusTextView extends TextView {
 	 * @param isUsingConnection - True if the user wants to use this connection. We 
 	 * are only concerned with this field for display reasons
 	 */
+	
 	public void notifyNetworkStatusChanged(SharedPreferences prefs, String statusKey) {
-		PrefKeys.ConnectionStatus status = PrefKeys.ConnectionStatus.values()[prefs.getInt(statusKey, 0)];
+		boolean isConnected = prefs.getBoolean(statusKey + PrefKeys.CONN_IS_CONNECTED, false);
+		boolean shouldUse = prefs.getBoolean(statusKey + PrefKeys.CONN_SHOULD_USE, false);
+		boolean isAvailable = prefs.getBoolean(statusKey + PrefKeys.CONN_IS_AVAILABLE, false);
+		boolean isStale = prefs.getBoolean(statusKey + PrefKeys.CONN_IS_STALE, false);
+		
 		int textColor = Color.WHITE;
 		String text = "<undefined>";
-		switch (status) {
-		case NO_CONNECTION:
-			text="Not Connected";
-			textColor = Color.RED;
-			break;
-		case NOT_AVAILABLE:
-			text="Connection Not Available";
-			textColor = Color.RED;
-			break;
-		case CONNECTED:
-			textColor = Color.argb(255, 66, 209, 66);
-			text = "Connected";
-			break;
-		case AVAILABLE_NOT_CONNECTED:
-			textColor = Color.argb(255, 255, 161, 66);
-			text = "Available, but not connected";
-			break;
-		case PENDING:
+		if (! isConnected) {
+			if (isAvailable) {
+				textColor = Color.argb(255, 255, 161, 66);
+				text = "Available, but not connected";
+			} else {
+				text="Not Connected";
+				textColor = Color.RED;
+			}
+		} else {
+			if (isAvailable) {
+				text="Connection Not Available";
+				textColor = Color.RED;
+			} else {
+				textColor = Color.argb(255, 66, 209, 66);
+				text = "Connected";
+			}
+		}
+		if (isStale) {
 			textColor = Color.argb(255, 255, 161, 66);
 			text = "Connecting...";
-			break;
-		default:
-			// do nothing;
 		}
 
 		this.setText(text);
