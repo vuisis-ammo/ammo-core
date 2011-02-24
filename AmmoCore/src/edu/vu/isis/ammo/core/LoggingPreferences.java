@@ -12,7 +12,7 @@ import android.preference.PreferenceActivity;
  * @author phreed
  *
  */
-public class LoggingPrefs extends PreferenceActivity {
+public class LoggingPreferences extends PreferenceActivity {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -31,7 +31,7 @@ public class LoggingPrefs extends PreferenceActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		this.addPreferencesFromResource(R.layout.core_preferences);
+		this.addPreferencesFromResource(R.layout.logging_preferences);
 		
 		Resources res = this.getResources();
 	

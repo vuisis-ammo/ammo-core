@@ -38,7 +38,9 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  * @author phreed
  *
  */
-public class MainActivity extends Activity implements OnClickListener, OnSharedPreferenceChangeListener {
+public class MainActivity extends Activity 
+implements OnClickListener, OnSharedPreferenceChangeListener 
+{
 
 	public static final Logger logger = LoggerFactory.getLogger(MainActivity.class);
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
@@ -127,7 +129,7 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 			this.startActivity(intent);
 			return true;
 		case LOGGING_MENU:
-			intent.setAction(LoggingPrefs.LAUNCH);
+			intent.setAction(LoggingPreferences.LAUNCH);
 			this.startActivity(intent);
 			return true;
 		}
@@ -174,6 +176,11 @@ public class MainActivity extends Activity implements OnClickListener, OnSharedP
 					updateConnectionStatus(prefs);					
 				}
 			});
+			return;
+		} 
+		if (key.equals(LoggingPreferences.PREF_LOG_LEVEL)) {
+			logger.debug("attempting to disable logging");
+			return;
 		} 
 	}
 	
