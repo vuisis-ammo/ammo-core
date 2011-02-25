@@ -23,10 +23,8 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.CheckBox;
-import edu.vu.isis.ammo.PrefKeys;
 import android.widget.TextView;
-import edu.vu.isis.ammo.core.network.INetworkBinder;
-import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.PrefKeys;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
@@ -159,24 +157,23 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		setWifiStatus();
 	}
 	
-		
-
 	/**
 	 * If the key relates to our physical link, update the UI.
 	 * Note: This method is called on the thread that changed the preferences.
-	 * To update the UI, explicity call the main thread.
+	 * To update the UI, explicitly call the main thread.
 	 */
 	@Override
 	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
-		if (key.startsWith(PrefKeys.PHYSICAL_LINK_PREF) 
-		 || key.startsWith(PrefKeys.WIFI_PREF))
-		{
-			this.runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					updateConnectionStatus(prefs);
-				}
-			});
+		if (key.startsWith(PrefKeys.PHYSICAL_LINK_PREF)) {
+			updateConnectionStatusThread(prefs);
+			return;
+		}
+		if (key.startsWith(PrefKeys.WIFI_PREF)) {
+			updateConnectionStatusThread(prefs);
+			return;
+		} 
+		if (key.startsWith(PrefKeys.NET_CONN_PREF)) {
+			updateConnectionStatusThread(prefs);
 			return;
 		} 
 		if (key.equals(LoggingPreferences.PREF_LOG_LEVEL)) {
@@ -193,6 +190,16 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 * Tell our text views to 
 	 * update since network status has changed.
 	 */
+	public void updateConnectionStatusThread(final SharedPreferences prefs) {
+		this.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				updateConnectionStatus(prefs);
+			}
+		});
+		return;
+	}
+	
 	public void updateConnectionStatus(SharedPreferences prefs) {
 		tvPhysicalLink.notifyNetworkStatusChanged(prefs, PrefKeys.PHYSICAL_LINK_PREF);
 		tvWifi.notifyNetworkStatusChanged(prefs, PrefKeys.WIFI_PREF);

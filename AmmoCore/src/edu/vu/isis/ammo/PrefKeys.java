@@ -30,7 +30,7 @@ public final class PrefKeys {
 	
 	public static final String PHYSICAL_LINK_PREF = "edu.vu.isis.ammo.core.physical_link.";
 	public static final String WIFI_PREF = "edu.vu.isis.ammo.core.wifi_link.";
-	public static final String CONN_PREF = "edu.vu.isis.ammo.core.connect.";
+	public static final String NET_CONN_PREF = "edu.vu.isis.ammo.core.connect.";
 	
 	public static final String PHYSICAL_LINK_PREF_IS_ACTIVE = PHYSICAL_LINK_PREF + NET_IS_ACTIVE;
 	public static final String PHYSICAL_LINK_PREF_SHOULD_USE = PHYSICAL_LINK_PREF + NET_SHOULD_USE;
@@ -40,8 +40,8 @@ public final class PrefKeys {
 	public static final String WIFI_PREF_SHOULD_USE = WIFI_PREF + NET_SHOULD_USE;
 	public static final String WIFI_PREF_IS_AVAILABLE = WIFI_PREF + NET_IS_AVAILABLE;
 	
-	public static final String NET_CONN_PREF_IS_STALE = CONN_PREF + NET_IS_STALE;
-	public static final String NET_CONN_PREF_SHOULD_USE = CONN_PREF + NET_SHOULD_USE;
-	public static final String NET_CONN_PREF_IS_ACTIVE = CONN_PREF + NET_IS_ACTIVE;
+	public static final String NET_CONN_PREF_IS_STALE = NET_CONN_PREF + NET_IS_STALE;
+	public static final String NET_CONN_PREF_SHOULD_USE = NET_CONN_PREF + NET_SHOULD_USE;
+	public static final String NET_CONN_PREF_IS_ACTIVE = NET_CONN_PREF + NET_IS_ACTIVE;
 
 }

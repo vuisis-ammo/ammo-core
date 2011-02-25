@@ -159,14 +159,6 @@ implements OnSharedPreferenceChangeListener
 		}
 
         logger.debug("NPS Started");
-//		if (udpSocket == null) {
-//			try {
-//				logger.debug("Binding socket to port");
-//				udpSocket = new DatagramSocket(gatewayPort);
-//			} catch (SocketException e) {
-//				e.printStackTrace();
-//			}
-//		}
 		return START_STICKY;
 	}
 
@@ -216,6 +208,34 @@ implements OnSharedPreferenceChangeListener
 		super.onDestroy();
 	}	
 
+	// ===========================================================
+	// Networking
+	// ===========================================================
+	
+	/**
+	 * Read the system preferences for the network connection information.
+	 */
+	private void acquirePreferences() {
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+		journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
+		
+		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
+		operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		
+		String gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		this.tcpSocket.setHost(gatewayHostname);
+		
+		int gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
+		this.tcpSocket.setPort(gatewayPort);
+		
+		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		this.authenticateGatewayConnection();
+		
+		this.connectChannels(true);
+		this.authenticateGatewayConnection();
+	}
+	
 	/** 
 	 * Reset the local copies of the shared preference.
 	 * Also indicate that the gateway connections are stale 
@@ -296,15 +316,15 @@ implements OnSharedPreferenceChangeListener
 	 */
 	private boolean connectChannels(boolean reconnect) {
 		boolean tcp = connectTcpChannel(reconnect);
-        if (tcp) {
-        	distributor.repostToGateway();
+		SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+        boolean tcp_isActive = pref.getBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
+        if (tcp_isActive != tcp) {
+        	pref.edit()
+		    	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, tcp)
+		    	.commit();
         }
-        PreferenceManager.getDefaultSharedPreferences(this)
-        	.edit()
-        	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
-        	.commit();
-		
-        return tcp; //&& udp;
+        if (tcp) distributor.repostToGateway();
+        return tcp;
 	}
 	
 	/**
@@ -357,23 +377,6 @@ implements OnSharedPreferenceChangeListener
    private boolean disconnectTcpChannel() { return this.tcpSocket.disconnect(); }
    
    private boolean disconnectUdpChannel() { return true; }
-	
-
-	// ===========================================================
-	// Networking
-	// ===========================================================
-	
-	/**
-	 * Read the system preferences for the network connection information.
-	 */
-	private void acquirePreferences() {
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-		journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
-		
-		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
-		operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
-		operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
-	}
 	
 	// ===========================================================
 	// Protocol Buffers Methods
