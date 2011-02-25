@@ -370,8 +370,11 @@ implements OnSharedPreferenceChangeListener
 			//tcpSocket = new Socket(gatewayIpAddr, gatewayPort);
 			tcpSocket = new Socket();
 			InetSocketAddress sockAddr = new InetSocketAddress(gatewayIpAddr, gatewayPort);
-			tcpSocket.connect(sockAddr, 500);
+			SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+			Integer timeout = Integer.valueOf(prefs.getString(CorePreferences.PREF_SOCKET_TIMEOUT, "3000"));
+			tcpSocket.connect(sockAddr, timeout.intValue() );
 		} catch (IOException e) {
+		    logger.debug("IO exception in socket connect ..." + e.getMessage() );
 			tcpSocket = null;
 		}
 		if (! isConnected()) {
@@ -384,6 +387,7 @@ implements OnSharedPreferenceChangeListener
 		else {
 			String msg = "Connected to "+gatewayHostname+" on port "+gatewayPort;
 			// TBD SKN: broadcast ammo connected to apps ...
+			logger.debug(msg);
 			Intent connIntent = new Intent(ICoreService.AMMO_CONNECTED);
 			connIntent.putExtra("operatorId", operatorId);
 			this.sendBroadcast(connIntent);
@@ -858,7 +862,7 @@ implements OnSharedPreferenceChangeListener
 			logger.debug("no longer listening, thread closed");
 			try { eis.close(); } catch (IOException e) {}
 			try { bis.close(); } catch (IOException e) {}
-			try { this.mSocket.close(); this.nps.tcpSocket = null; } catch (IOException e) {} 
+			try { this.mSocket.close(); /* this.nps.tcpSocket = null; */ } catch (IOException e) {} 
 		}
 	}
 	
@@ -973,7 +977,7 @@ implements OnSharedPreferenceChangeListener
 	 */
 	public boolean isConnected() {
 		if (tcpSocket == null) return false;
-		return tcpSocket.isConnected();
+		return (!tcpSocket.isClosed()) && tcpSocket.isConnected() ;
 	}
 	
 	public boolean authenticateGatewayConnection() {
@@ -1010,8 +1014,7 @@ implements OnSharedPreferenceChangeListener
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
-		return true;
+		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
 	public boolean dispatchSubscribeRequestToGateway(String mimeType, String selection) {
@@ -1022,14 +1025,13 @@ implements OnSharedPreferenceChangeListener
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
-		return true;
+		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
 	public void setDistributorServiceCallback(IDistributorService callback) {
 		distributor = callback;
 		// there is now someplace to send the responses.
-		connectChannels(true);
+		connectChannels(false); // was true - why should we reconnect if a distributor call back changes
 	}
 	
 	private class MyBroadcastReceiver extends BroadcastReceiver {
