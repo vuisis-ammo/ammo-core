@@ -31,7 +31,7 @@ public class EthTrackSvc extends Service {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		Log.d("EthTrackSvc", "::onStartCommand with intent " + intent.getAction());
+		Log.d("EthTrackSvc", "::onStartCommand with intent ");//+ intent.getAction());
 		handleCommand();
 
 		// We want this service to continue running until it is explicitly
