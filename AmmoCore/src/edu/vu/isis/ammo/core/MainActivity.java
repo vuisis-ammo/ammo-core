@@ -161,7 +161,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 			// Tell the network service to disconnect and reconnect.
 			Intent disconnectIntent = new Intent(INetworkBinder.ACTION_DISCONNECT);
 			Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
-			this.sendBroadcast(disconnectIntent);
+			//this.sendBroadcast(disconnectIntent);
 			this.sendBroadcast(intent);
 		}
 		editor.commit();

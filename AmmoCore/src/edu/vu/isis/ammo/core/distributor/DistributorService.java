@@ -613,7 +613,9 @@ public class DistributorService extends Service implements IDistributorService {
 		
         ContentResolver cr = this.getContentResolver();
         String order = SubscriptionTableSchema.PRIORITY_SORT_ORDER;
-		
+        if (network == null) {
+        	return;
+        }
         // Additional items may be added to the table while the current set are being processed
 		
         for (; true; repost = false) {
@@ -662,9 +664,7 @@ public class DistributorService extends Service implements IDistributorService {
 				
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				logger.debug("Subscribe request with mime: " + mime + " and selection: " + selection);
-                if (network == null) {
-                	continue;
-                }
+                
 				boolean sent = network.dispatchSubscribeRequestToGateway(mime,
                         selection);
 				

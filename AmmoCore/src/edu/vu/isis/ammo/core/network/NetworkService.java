@@ -334,6 +334,7 @@ implements OnSharedPreferenceChangeListener
 	 * @return
 	 */
 	private boolean connectChannels(boolean reconnect) {
+		logger.trace("connectChannels: " + reconnect);
 		
 	    boolean tcp = connectTcpChannel(reconnect);
 		
@@ -395,9 +396,9 @@ implements OnSharedPreferenceChangeListener
 			//Toast.makeText(NetworkService.this,msg, Toast.LENGTH_SHORT).show();
 		}
 
-		authenticateGatewayConnection();
 		tcpReceiverThread = TcpReceiverThread.getInstance(this, tcpSocket);	
 		tcpReceiverThread.start();
+		authenticateGatewayConnection();
 		return true;
 	}
 	
@@ -723,7 +724,7 @@ implements OnSharedPreferenceChangeListener
 		final private NetworkService nps;
 
 		private Socket mSocket = null;
-		volatile private int mState;
+		private int mState;
 		
 		static private final int SHUTDOWN = 0; // the run is being stopped
 		static private final int START = 1;    // indicating the next thing is the size
@@ -734,6 +735,7 @@ implements OnSharedPreferenceChangeListener
 		private TcpReceiverThread(NetworkService nps, Socket aSocket) {
 			this.nps = nps;
 			this.mSocket = aSocket;
+			this.mState = START;
 			try {
 				// Get socket timeout from prefs.
 				SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(nps);
@@ -749,8 +751,9 @@ implements OnSharedPreferenceChangeListener
 		}
 
 		public void close() {
-		    logger.trace("close called");
+		    logger.trace(this.getId() + "close called");
 			this.mState = SHUTDOWN;
+			logger.trace(this.getId() + "state set to SHUTDOWN");
 			if (mSocket == null) return;
 			if (mSocket.isClosed()) return;
 			try {
@@ -785,7 +788,8 @@ implements OnSharedPreferenceChangeListener
 		 */
 		@Override
 		public void run() { 
-			Looper.prepare();
+			//Looper.prepare();
+			logger.trace(this.getId() + "TcpReceiverThread:run");
 			BufferedInputStream bis = null;
 			try {
 				bis = new BufferedInputStream(this.mSocket.getInputStream(), 1024);
@@ -807,7 +811,7 @@ implements OnSharedPreferenceChangeListener
 				try {
 					switch (mState) {
 					case SHUTDOWN:
-					    logger.warn("Socket shutdown  - closing thread ...");
+					    logger.warn(this.getId() + " Socket shutdown  - closing thread ...");
 						loop = false;
 						break;
 					case START:
@@ -859,7 +863,7 @@ implements OnSharedPreferenceChangeListener
 					this.mState = SHUTDOWN;
 				}
 			}
-			logger.debug("no longer listening, thread closed");
+			logger.debug(this.getId() + " no longer listening, thread closed");
 			try { eis.close(); } catch (IOException e) {}
 			try { bis.close(); } catch (IOException e) {}
 			try { this.mSocket.close(); /* this.nps.tcpSocket = null; */ } catch (IOException e) {} 
