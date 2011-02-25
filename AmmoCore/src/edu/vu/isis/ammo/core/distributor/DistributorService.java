@@ -490,9 +490,9 @@ public class DistributorService extends Service implements IDistributorService {
                 int numUpdated = cr.update(PostalTableSchema.getUri(cur), values,
                         null, null);
 
-                logger.debug(
-                        String.valueOf(numUpdated)
-                                + " rows updated to sent status");
+                logger.debug("Postal: " + 
+                        String.valueOf(numUpdated) + " rows updated to "
+                        + (dispatchSuccessful ? "sent" : "pending") + " status");
             }
             cur.close();
         }
@@ -683,9 +683,9 @@ public class DistributorService extends Service implements IDistributorService {
                         SubscriptionTableSchema.getUri(pendingCursor), values,
                         null, null);
 
-                logger.debug(
-                        String.valueOf(numUpdated)
-                                + " rows updated to sent status");
+                logger.debug( "Subscription: " + 
+                        String.valueOf(numUpdated) + " rows updated to "
+                        + (sent ? "sent" : "pending") + " status");
             }
             pendingCursor.close();
         }
