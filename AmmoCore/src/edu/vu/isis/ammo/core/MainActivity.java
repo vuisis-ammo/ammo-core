@@ -80,6 +80,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		prefEditor.putString(CorePreferences.PREF_DEVICE_ID, deviceId).commit();
 		
 		this.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
+		
+		Intent i = new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH");
+		this.startService(i);
 	}
 	
 	@Override
