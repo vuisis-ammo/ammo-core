@@ -1,11 +1,11 @@
 package edu.vu.isis.ammo.core;
 
+import edu.vu.isis.ammo.INetPrefKeys;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.util.AttributeSet;
 import android.widget.TextView;
-import edu.vu.isis.ammo.PrefKeys;
 
 /**
  * TextView subclass used to format text based on the status of network
@@ -57,10 +57,10 @@ public class NetworkStatusTextView extends TextView {
 	public void notifyNetworkStatusChanged(SharedPreferences prefs, String statusKey) {
 		// A connection can only have one status at a time so we can short circuit 
 		// the if-else.
-		boolean isConnected = prefs.getBoolean(statusKey + PrefKeys.NET_IS_ACTIVE, false);
-		boolean shouldUse = prefs.getBoolean(statusKey + PrefKeys.NET_SHOULD_USE, false);
-		boolean isAvailable = prefs.getBoolean(statusKey + PrefKeys.NET_IS_AVAILABLE, false);
-		boolean isStale = prefs.getBoolean(statusKey + PrefKeys.NET_IS_STALE, false);
+		boolean isConnected = prefs.getBoolean(statusKey + INetPrefKeys.NET_IS_ACTIVE, false);
+		boolean shouldUse = prefs.getBoolean(statusKey + INetPrefKeys.NET_SHOULD_USE, false);
+		boolean isAvailable = prefs.getBoolean(statusKey + INetPrefKeys.NET_IS_AVAILABLE, false);
+		boolean isStale = prefs.getBoolean(statusKey + INetPrefKeys.NET_IS_STALE, false);
 		
 		int textColor = Color.WHITE;
 		String text = "<undefined>";

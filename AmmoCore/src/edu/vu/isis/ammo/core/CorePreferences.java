@@ -1,10 +1,10 @@
 package edu.vu.isis.ammo.core;
 
+import edu.vu.isis.ammo.INetPrefKeys;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
-import edu.vu.isis.ammo.PrefKeys;
 
 /**
  * View and change the core application preferences.
@@ -42,31 +42,31 @@ public class CorePreferences extends PreferenceActivity {
 		
 		Resources res = this.getResources();
 	
-		mIPAddr = (CustomEditTextPreference) findPreference(PrefKeys.PREF_IP_ADDR);
+		mIPAddr = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_IP_ADDR);
 		mIPAddr.setSummaryPrefix(res.getString(R.string.ipaddr_label));
 		mIPAddr.setType(CustomEditTextPreference.Type.IP);
 		
-		mPort = (CustomEditTextPreference) findPreference(PrefKeys.PREF_IP_PORT);
+		mPort = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_IP_PORT);
 		mPort.setSummaryPrefix(res.getString(R.string.port_label));
 		mPort.setType(CustomEditTextPreference.Type.PORT);
 		
-		mSocketTimeout = (CustomEditTextPreference)findPreference(PrefKeys.PREF_SOCKET_TIMEOUT);
+		mSocketTimeout = (CustomEditTextPreference)findPreference(INetPrefKeys.PREF_SOCKET_TIMEOUT);
 		mSocketTimeout.setSummaryPrefix(res.getString(R.string.socket_timeout_label));
 		mSocketTimeout.setType(CustomEditTextPreference.Type.SOCKET_TIMEOUT);
 		
-		prefChannelJournal = (CustomCheckBoxPreference) findPreference(PrefKeys.PREF_IS_JOURNAL);
+		prefChannelJournal = (CustomCheckBoxPreference) findPreference(INetPrefKeys.PREF_IS_JOURNAL);
 		prefChannelJournal.setSummaryPrefix(res.getString(R.string.channel_journal_label));
 		prefChannelJournal.setType(CustomCheckBoxPreference.Type.JOURNAL);
 		
-		mDeviceId = (CustomEditTextPreference) findPreference(PrefKeys.PREF_DEVICE_ID);
+		mDeviceId = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_DEVICE_ID);
 		mDeviceId.setSummaryPrefix(res.getString(R.string.device_id_label));
 		mDeviceId.setType(CustomEditTextPreference.Type.DEVICE_ID);
 		
-		mOperatorId = (CustomEditTextPreference) findPreference(PrefKeys.PREF_OPERATOR_ID);
+		mOperatorId = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_OPERATOR_ID);
 		mOperatorId.setSummaryPrefix(res.getString(R.string.operator_id_label));
 		mOperatorId.setType(CustomEditTextPreference.Type.OPERATOR_ID);
 		
-		mOperatorKey = (CustomEditTextPreference) findPreference(PrefKeys.PREF_OPERATOR_KEY);
+		mOperatorKey = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_OPERATOR_KEY);
 		mOperatorKey.setSummaryPrefix(res.getString(R.string.operator_key_label));
 		mOperatorKey.setType(CustomEditTextPreference.Type.OPERATOR_KEY);
 		

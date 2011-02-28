@@ -33,7 +33,8 @@ import android.preference.PreferenceManager;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import edu.vu.isis.ammo.PrefKeys;
+import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.core.ICoreService;
 import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
@@ -225,31 +226,31 @@ implements OnSharedPreferenceChangeListener
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 		// handle network connection group
 		
-		if (key.equals(PrefKeys.PREF_IP_ADDR)) {
-			String gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		if (key.equals(INetPrefKeys.PREF_IP_ADDR)) {
+			String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
 			this.tcpSocket.setHost(gatewayHostname);
 			this.connectChannels(true);
 			return;
 		}
-		if (key.equals(PrefKeys.PREF_IP_PORT)) {
-			int gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
+		if (key.equals(INetPrefKeys.PREF_IP_PORT)) {
+			int gatewayPort = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
 			this.tcpSocket.setPort(gatewayPort);
 			connectChannels(true);
 			return;
 		}
-		if (key.equals(PrefKeys.PREF_IS_JOURNAL)) {
-			journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
+		if (key.equals(INetPrefKeys.PREF_IS_JOURNAL)) {
+			journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 			return;
 		}
 		
 		// handle network authentication group
-		if (key.equals(PrefKeys.PREF_DEVICE_ID)) {
-			deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		if (key.equals(INetPrefKeys.PREF_DEVICE_ID)) {
+			deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
 			this.authenticateGatewayConnection();
 			return;
 		}
-		if (key.equals(PrefKeys.PREF_OPERATOR_ID)) {
-			operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
+		if (key.equals(IPrefKeys.PREF_OPERATOR_ID)) {
+			operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
 			this.authenticateGatewayConnection();
 			
 			// TBD SKN: broadcast login id change to apps ...
@@ -259,26 +260,26 @@ implements OnSharedPreferenceChangeListener
 			
 			return;
 		}
-		if (key.equals(PrefKeys.PREF_OPERATOR_KEY)) {
-			operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		if (key.equals(INetPrefKeys.PREF_OPERATOR_KEY)) {
+			operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
 			this.authenticateGatewayConnection();
 			return;
 		}
 
-		if (key.equals(PrefKeys.PREF_SOCKET_TIMEOUT)) {
-			Integer timeout = Integer.valueOf(prefs.getString(PrefKeys.PREF_SOCKET_TIMEOUT, "3000"));
+		if (key.equals(INetPrefKeys.PREF_SOCKET_TIMEOUT)) {
+			Integer timeout = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_SOCKET_TIMEOUT, "3000"));
 			this.tcpSocket.setSocketTimeout(timeout.intValue());
 		}
 
 		// handle network connectivity group
-//		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
+//		if (key.equals(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
 //			shouldUse(prefs);
 //		}	
-//		if (key.equals(PrefKeys.WIFI_PREF_SHOULD_USE)) {
+//		if (key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE)) {
 //			shouldUse(prefs);
 //		}
-		if (key.equals(PrefKeys.NET_CONN_PREF_SHOULD_USE)) {
-			boolean enable_intent = prefs.getBoolean(PrefKeys.NET_CONN_PREF_SHOULD_USE, false);
+		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
+			boolean enable_intent = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, false);
 			if (enable_intent) {
 				 this.tcpSocket.enable();
 			} else {
@@ -304,7 +305,7 @@ implements OnSharedPreferenceChangeListener
             }
             PreferenceManager.getDefaultSharedPreferences(this)
         	.edit()
-        	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
+        	.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
         	.commit();
 		
             return tcp; //&& udp;
@@ -371,11 +372,11 @@ implements OnSharedPreferenceChangeListener
 	 */
 	private void acquirePreferences() {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-		journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
+		journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 		
-		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
-		operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
-		operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
+		operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
+		operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
 	}
 	
 	// ===========================================================
@@ -415,7 +416,7 @@ implements OnSharedPreferenceChangeListener
 			PreferenceManager
 				.getDefaultSharedPreferences(this)
 				.edit()
-				.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+				.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
 				.commit();
 		}
 		
@@ -698,7 +699,7 @@ implements OnSharedPreferenceChangeListener
 			return tcpSocket.isConnected();
 		}
 		if (tcpSocket == null) return false;
-		return (!tcpSocket.isClosed()) && tcpSocket.isConnected() ;
+		return tcpSocket.isConnected();
 	}
 	
 	public boolean authenticateGatewayConnection() {

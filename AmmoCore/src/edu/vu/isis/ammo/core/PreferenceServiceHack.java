@@ -5,7 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-import edu.vu.isis.ammo.AmmoPrefKeys;
+import edu.vu.isis.ammo.IPrefKeys;
 import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -24,7 +24,7 @@ public class PreferenceServiceHack extends Service {
 	@Override
 	public int onStartCommand (Intent intent, int flags, int startId) {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String uid = prefs.getString(AmmoPrefKeys.PREF_OPERATOR_ID, "");
+		String uid = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, "");
 		File sdcard = Environment.getExternalStorageDirectory();
 		File dir = new File(sdcard.toString() + "/" + "uid.txt");
 		try {

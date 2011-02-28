@@ -5,7 +5,7 @@ package edu.vu.isis.ammo;
  * @author Demetri Miller
  *
  */
-public final class PrefKeys {
+public interface INetPrefKeys extends edu.vu.isis.ammo.IPrefKeys {
 	// ====================================
 	// Ammo Core
 	// ====================================	
@@ -19,7 +19,6 @@ public final class PrefKeys {
 	public static final String PREF_IS_JOURNAL = "CORE_IS_JOURNALED";
 	
 	public static final String PREF_DEVICE_ID = "CORE_DEVICE_ID";
-	public static final String PREF_OPERATOR_ID = "CORE_OPERATOR_ID";
 	public static final String PREF_OPERATOR_KEY = "CORE_OPERATOR_KEY";
 	
 // keys for managing network connections
