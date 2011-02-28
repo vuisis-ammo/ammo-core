@@ -610,6 +610,9 @@ public class DistributorService extends Service implements IDistributorService {
 
         // Additional items may be added to the table while the current set are
         // being processed
+        if (network == null) {
+        	return;
+        }
         for (; true; repost = false) {
             String[] selectionArgs = null;
             final String selectPending = "\""
@@ -656,7 +659,8 @@ public class DistributorService extends Service implements IDistributorService {
 				
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				logger.debug("Subscribe request with mime: " + mime + " and selection: " + selection);
-                boolean sent = network.dispatchSubscribeRequestToGateway(mime,
+                
+				boolean sent = network.dispatchSubscribeRequestToGateway(mime,
                         selection);
 				
                 if (!sent) {

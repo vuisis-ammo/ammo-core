@@ -82,6 +82,12 @@
 			</intent-filter>
 		</service>
 		
+		<service android:enabled="true" android:name=".PreferenceServiceHack" android:exported="true">
+          <intent-filter>
+              <action android:name="edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH" />
+          </intent-filter>
+        </service>
+		
 		<!--
 			should android:persistent be used?
 		-->

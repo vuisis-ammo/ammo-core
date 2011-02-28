@@ -321,16 +321,22 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @return
 	 */
 	private boolean connectChannels(boolean reconnect) {
-		boolean tcp = connectTcpChannel(reconnect);
-		SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        boolean tcp_isActive = pref.getBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
-        if (tcp_isActive != tcp) {
-        	pref.edit()
-		    	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, tcp)
-		    	.commit();
-        }
-        if (tcp) distributor.repostToGateway();
-        return tcp;
+            logger.trace("connectChannels: " + reconnect);
+	    boolean tcp = connectTcpChannel(reconnect);
+	    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+            boolean tcp_isActive = pref.getBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
+            if (tcp_isActive != tcp) {
+              	pref.edit()
+	       	    	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, tcp)
+	       	    	.commit();
+            }
+            if (tcp) distributor.repostToGateway();
+            // PreferenceManager.getDefaultSharedPreferences(this)
+        // 	.edit()
+        // 	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
+        // 	.commit();
+		
+             return tcp; //&& udp;
 	}
 	
 	/**
