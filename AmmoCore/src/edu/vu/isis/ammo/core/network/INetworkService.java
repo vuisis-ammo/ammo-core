@@ -1,10 +1,14 @@
+/**
+ * Defines the methods and intent actions to be used by client classes.
+ * These can be done via a binder if necessary.
+ */
 package edu.vu.isis.ammo.core.network;
 
-import android.os.IBinder;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 
-public interface INetworkBinder extends IBinder {
+public interface INetworkService {
 
+	// Intent action constants
 	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP";
 	public static final String UPDATE_IP = "edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP";
 	public static final String ACTION = "edu.vu.isis.ammo.core.network.NetworkService.ACTION";

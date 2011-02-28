@@ -7,7 +7,6 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -36,7 +35,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.core.ICoreService;
-import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -53,13 +51,15 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  * 
  */
 public class NetworkService extends Service 
-implements OnSharedPreferenceChangeListener
+implements OnSharedPreferenceChangeListener, INetworkService
 {
 	// ===========================================================
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger(NetworkService.class);
-	
+
+
+	// Local constants
 	private static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
 	private static final int DEFAULT_GATEWAY_PORT = 32869;
 
@@ -93,7 +93,7 @@ implements OnSharedPreferenceChangeListener
 	public boolean getNetworkingSwitch() { return networkingSwitch; }
 	public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
 	
-	private NetworkBinder networkBinder;
+	// private NetworkBinder networkBinder;
 	private IDistributorService distributor;
 	
 	// TCP Fields
@@ -117,11 +117,17 @@ implements OnSharedPreferenceChangeListener
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
+	
+	/**
+     * Class for clients to access.  
+     * This service always runs in the same process as its clients.
+     * So no inter-*process* communication is needed.
+     */
 	@Override
 	public IBinder onBind(Intent arg0) {
-		logger.debug("NPS onBind called");
-        networkBinder = NetworkBinder.getInstance(this);
-		return networkBinder;
+		logger.error("no IPC expected or accomodated");
+        //networkBinder = NetworkBinder.getInstance(this);
+		return null; // networkBinder;
 	}
 
 	/**
@@ -152,7 +158,7 @@ implements OnSharedPreferenceChangeListener
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) 
 	{
-		if (intent.getAction().equals(INetworkBinder.PREPARE_FOR_STOP)) {
+		if (intent.getAction().equals(NetworkService.PREPARE_FOR_STOP)) {
 			logger.debug("Preparing to stop NPS");
 			this.teardown();
 			this.stopSelf();
@@ -160,14 +166,6 @@ implements OnSharedPreferenceChangeListener
 		}
 
         logger.debug("NPS Started");
-//		if (udpSocket == null) {
-//			try {
-//				logger.debug("Binding socket to port");
-//				udpSocket = new DatagramSocket(gatewayPort);
-//			} catch (SocketException e) {
-//				e.printStackTrace();
-//			}
-//		}
 		return START_STICKY;
 	}
 
@@ -217,6 +215,34 @@ implements OnSharedPreferenceChangeListener
 		super.onDestroy();
 	}	
 
+	// ===========================================================
+	// Networking
+	// ===========================================================
+	
+	/**
+	 * Read the system preferences for the network connection information.
+	 */
+	private void acquirePreferences() {
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+		journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
+		
+		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
+		operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		
+		String gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		this.tcpSocket.setHost(gatewayHostname);
+		
+		int gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
+		this.tcpSocket.setPort(gatewayPort);
+		
+		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		this.authenticateGatewayConnection();
+		
+		this.connectChannels(true);
+		this.authenticateGatewayConnection();
+	}
+	
 	/** 
 	 * Reset the local copies of the shared preference.
 	 * Also indicate that the gateway connections are stale 
@@ -297,18 +323,20 @@ implements OnSharedPreferenceChangeListener
 	 */
 	private boolean connectChannels(boolean reconnect) {
             logger.trace("connectChannels: " + reconnect);
-            boolean tcp = connectTcpChannel(reconnect);
-		
-	    //boolean udp = connectUdpChannel();
-            if (tcp) {
-        	distributor.repostToGateway();
+	    boolean tcp = connectTcpChannel(reconnect);
+	    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+            boolean tcp_isActive = pref.getBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
+            if (tcp_isActive != tcp) {
+              	pref.edit()
+	       	    	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, tcp)
+	       	    	.commit();
             }
             PreferenceManager.getDefaultSharedPreferences(this)
         	.edit()
         	.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
         	.commit();
 		
-            return tcp; //&& udp;
+             return tcp; //&& udp;
 	}
 	
 	/**
@@ -362,6 +390,7 @@ implements OnSharedPreferenceChangeListener
    
    private boolean disconnectUdpChannel() { return true; }
 	
+<<<<<<< HEAD
 
 	// ===========================================================
 	// Networking
@@ -379,6 +408,8 @@ implements OnSharedPreferenceChangeListener
 		operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
 	}
 	
+=======
+>>>>>>> d12d02b34bb09d09622e191eca7390f0a4ceafd4
 	// ===========================================================
 	// Protocol Buffers Methods
 	// ===========================================================
@@ -699,7 +730,11 @@ implements OnSharedPreferenceChangeListener
 			return tcpSocket.isConnected();
 		}
 		if (tcpSocket == null) return false;
+<<<<<<< HEAD
 		return tcpSocket.isConnected();
+=======
+		return tcpSocket.isConnected() ;
+>>>>>>> d12d02b34bb09d09622e191eca7390f0a4ceafd4
 	}
 	
 	public boolean authenticateGatewayConnection() {
