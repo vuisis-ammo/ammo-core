@@ -1,17 +1,21 @@
 package edu.vu.isis.ammo.core.receiver;
 
-import edu.vu.isis.ammo.core.ICoreService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
+import edu.vu.isis.ammo.core.distributor.DistributorService;
 
 public class StartUpReceiver extends BroadcastReceiver {
 
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final String TAG = "AmmoLoginReceiver";
+	public static final Logger logger = LoggerFactory.getLogger(StartUpReceiver.class);
+	
+	public static final String RESET = "edu.vu.isis.ammo.action.RESET";
 	
 	// ===========================================================
 	// Fields
@@ -23,7 +27,8 @@ public class StartUpReceiver extends BroadcastReceiver {
 
 	@Override
 	public void onReceive(Context context, Intent intent) {
-		Log.d(TAG, "::onReceive");
-		context.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
+		logger.debug("::onReceive");
+		context.startService(DistributorService.LAUNCH);
+		// context.startService(NetworkService.LAUNCH);
 	}
 }

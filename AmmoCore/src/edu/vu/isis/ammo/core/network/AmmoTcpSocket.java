@@ -40,32 +40,44 @@ public class AmmoTcpSocket {
 	private int gatewayPort = 32896;
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private NetworkService driver = null;
+	private final Object syncObj;
 	
 	public AmmoTcpSocket(NetworkService driver) {
 		super();
+		this.syncObj = this;
 		this.isStale = true;
 		this.driver = driver;
 	}
 	
 	public void setStale() {
+	synchronized (this) {
 		this.isStale = true;
 		
 		if (this.receiverThread != null) {
-			this.receiverThread.close();
-			this.receiverThread = null;
+			synchronized (this.syncObj) {
+				this.receiverThread.close();
+				this.receiverThread = null;
+			}
 		}
+	}
 	}
 	public boolean isStale() { return this.isStale; }
 	
+	/** 
+	 * Was the status changed as a result of enabling the connection.
+	 * @return
+	 */
 	public boolean enable() {
-		if (this.isEnabled == true) return false;
+		if (this.isEnabled == true) 
+			return false;
 		this.isEnabled = true;
 		this.setStale();
-		this.tryConnect();
+		this.tryConnect(false);
 		return true;
 	}
 	public boolean disable() {
-		if (this.isEnabled == false) return false;
+		if (this.isEnabled == false) 
+			return false;
 		this.isEnabled = false;
 		this.setStale();
 		return true;
@@ -102,14 +114,18 @@ public class AmmoTcpSocket {
 	 * 1) the connection has been lost 
 	 * 2) the connection has been marked stale
 	 * 3) the connection is enabled.
+	 * 4) an explicit reconnection was requested
 	 * 
 	 * @return
 	 */
-	public boolean tryConnect() {
-		if (!this.isEnabled) return false;
-		if (this.isStale) return reconnect();
-		if (!this.isConnected()) return reconnect();
-		return false;
+	public boolean tryConnect(boolean reconnect) {
+		synchronized(this.syncObj) {
+			if (reconnect) return reconnect();
+			if (!this.isEnabled) return false;
+			if (this.isStale) return reconnect();
+			if (!this.isConnected()) return reconnect();
+			return false;
+		}
 	}
 	private boolean reconnect() {
 		if (this.gatewayHost == null) this.gatewayHost = DEFAULT_HOST;
@@ -158,15 +174,17 @@ public class AmmoTcpSocket {
 	 *         false may simply indicate that the socket was already closed.
 	 */
 	public boolean close() {
-		if (this.tcpSocket == null) return false;
-		if (this.tcpSocket.isClosed()) return false;
-		try {
-			this.tcpSocket.close();
-			return true;
-		} catch (IOException e) {
-			logger.warn("could not close socket");
+		synchronized (this.syncObj) {
+			if (this.tcpSocket == null) return false;
+			if (this.tcpSocket.isClosed()) return false;
+			try {
+				this.tcpSocket.close();
+				return true;
+			} catch (IOException e) {
+				logger.warn("could not close socket");
+			}
+			return false;
 		}
-		return false;
 	}
 	
 	public boolean hasSocket() {
@@ -176,13 +194,15 @@ public class AmmoTcpSocket {
 	}
 	
     public boolean disconnect() {
-		if (this.receiverThread == null) return false;
-		if (!this.receiverThread.hasSocket()) return false;
-		
-		this.receiverThread.interrupt();
-		this.receiverThread.close();
-		this.receiverThread = null;
-	    return true;
+    	synchronized (this.syncObj) {
+			if (this.receiverThread == null) return false;
+			if (!this.receiverThread.hasSocket()) return false;
+			
+			this.receiverThread.interrupt();
+			this.receiverThread.close();
+			this.receiverThread = null;
+		    return true;
+    	}
     }
 
 	/** 
@@ -195,26 +215,27 @@ public class AmmoTcpSocket {
 	 */
 	public boolean sendGatewayRequest(int size, int checksum, byte[] message) 
 	{
-		if (! this.tryConnect()) return false;
-		
-		DataOutputStream dos;
-		try {
+		synchronized (this.syncObj) {
+			if (! this.tryConnect(false)) return false;
 			
-			dos = new DataOutputStream(tcpSocket.getOutputStream());
-			ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE + Integer.SIZE);
-			// ByteOrder order = buf.order();
-			buf.order(this.endian);
-			buf.putInt(size).putInt(checksum);
-			dos.write(buf.array());
-			dos.write(message);
-		} catch (SocketException e) {
-			e.printStackTrace();
-			return false;
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			return false;
+			DataOutputStream dos;
+			try {		
+				dos = new DataOutputStream(tcpSocket.getOutputStream());
+				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE + Integer.SIZE);
+				// ByteOrder order = buf.order();
+				buf.order(this.endian);
+				buf.putInt(size).putInt(checksum);
+				dos.write(buf.array());
+				dos.write(message);
+			} catch (SocketException e) {
+				e.printStackTrace();
+				return false;
+			} catch (IOException ex) {
+				ex.printStackTrace();
+				return false;
+			}
+			return true;
 		}
-		return true;
 	}
 	
 	/**
@@ -229,10 +250,11 @@ public class AmmoTcpSocket {
 		volatile private int mState;
 		
 		static private final int SHUTDOWN = 0; // the run is being stopped
-		static private final int START = 1;    // indicating the next thing is the size
-		static private final int SIZED = 2;    // indicating the next thing is a checksum
-		static private final int CHECKED = 3;  // indicating the bytes are being read
-		static private final int DELIVER = 4;  // indicating the message has been read
+		static private final int START    = 1; // indicating the next thing is the size
+		static private final int STARTED  = 2; // indicating there is a message
+		static private final int SIZED    = 3; // indicating the next thing is a checksum
+		static private final int CHECKED  = 4; // indicating the bytes are being read
+		static private final int DELIVER  = 5; // indicating the message has been read
 		
 		private TcpReceiverThread(AmmoTcpSocket aSocket) {
 			this.driver = aSocket.driver;
@@ -286,58 +308,65 @@ public class AmmoTcpSocket {
 			byte[] checksumBuffer = new byte[Integer.SIZE];
 			
 			boolean loop = true;
-			while (loop) {
+			while (loop) {			
 				try {
 					switch (mState) {
-					case SHUTDOWN:
-						loop = false;
-						break;
-					case START:  // look for the size
-						{
+						case START:  // look for the size
 							bis.read(byteToReadBuffer);
-							ByteBuffer bbuf = ByteBuffer.wrap(byteToReadBuffer);
-							bbuf.order(this.parent.endian);
-							bytesToRead = bbuf.getInt();
-							
-							if (bytesToRead < 0) break; // bad read keep trying
-							if (bytesToRead > 100000) {
-								logger.warn("a message with "+bytesToRead);
-							}
-							this.mState = SIZED;
-						}
-						break;
-					case SIZED: // look for the checksum
-						{
-							bis.read(checksumBuffer);
-							checksum = new CRC32();
-							checksum.update(checksumBuffer);
-							message = new byte[bytesToRead];
-						
-							logger.info(checksumBuffer.toString(), checksum.toString());
-							bytesRead = 0;
-							this.mState = CHECKED;
-						} 
-						break;
-					case CHECKED: // read the message
-						{
-							while (bytesRead < bytesToRead) {
-								int temp = bis.read(message, 0, bytesToRead - bytesRead);
-								if (temp >= 0) {
-									bytesRead += temp;
-								}
-							}
-							if (bytesRead < bytesToRead)
-								break;
-							this.mState = DELIVER;
-						}
-						break;
-					case DELIVER: // deliver the message to the gateway
-						if (!this.driver.deliverGatewayResponse(message, checksum)) {
+							this.mState = STARTED;
+							break;
+					}
+					synchronized (this.parent.syncObj) { 
+						switch (mState) {
+						case SHUTDOWN:
 							loop = false;
+							break;
+						case STARTED:  // look for the size
+							{
+								ByteBuffer bbuf = ByteBuffer.wrap(byteToReadBuffer);
+								bbuf.order(this.parent.endian);
+								bytesToRead = bbuf.getInt();
+								
+								if (bytesToRead < 0) break; // bad read keep trying
+								if (bytesToRead > 100000) {
+									logger.warn("a message with "+bytesToRead);
+								}
+								this.mState = SIZED;
+							}
+							break;
+						case SIZED: // look for the checksum
+							{
+								bis.read(checksumBuffer);
+								checksum = new CRC32();
+								checksum.update(checksumBuffer);
+								message = new byte[bytesToRead];
+							
+								logger.info(checksumBuffer.toString(), checksum.toString());
+								bytesRead = 0;
+								this.mState = CHECKED;
+							} 
+							break;
+						case CHECKED: // read the message
+							{
+								while (bytesRead < bytesToRead) {
+									int temp = bis.read(message, 0, bytesToRead - bytesRead);
+									if (temp >= 0) {
+										bytesRead += temp;
+									}
+								}
+								if (bytesRead < bytesToRead)
+									break;
+								this.mState = DELIVER;
+							}
+							break;
+						case DELIVER: // deliver the message to the gateway
+							if (!this.driver.deliverGatewayResponse(message, checksum)) {
+								loop = false;
+							}
+							message = null;
+							this.mState = START;
+							break;
 						}
-						message = null;
-						this.mState = START;
-						break;
 					}
 				} catch (SocketTimeoutException ex) {
 					// if the message times out then it will need to be retransmitted.

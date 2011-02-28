@@ -25,8 +25,8 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.network.INetworkBinder;
 import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
@@ -48,6 +48,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	private static final int SUBSCRIPTION_MENU = Menu.NONE + 2;
 	private static final int SUBSCRIBE_MENU = Menu.NONE + 3;
 	private static final int LOGGING_MENU = Menu.NONE + 4;
+	private static final int SERVICE_MENU = Menu.NONE + 5;
 		
 	// ===========================================================
 	// Fields
@@ -75,9 +76,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		prefs.registerOnSharedPreferenceChangeListener(this);
 		SharedPreferences.Editor prefEditor = prefs.edit();
 		prefEditor.putString(INetPrefKeys.PREF_DEVICE_ID, deviceId).commit();
-		
-		this.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
-		
+	
 		Intent i = new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH");
 		this.startService(i);
 	}
@@ -104,6 +103,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		menu.add(Menu.NONE, SUBSCRIPTION_MENU, Menu.NONE, getResources().getString(R.string.subscription_label));
 		menu.add(Menu.NONE, SUBSCRIBE_MENU, Menu.NONE, getResources().getString(R.string.subscribe_label));
 		menu.add(Menu.NONE, LOGGING_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
+		menu.add(Menu.NONE, SERVICE_MENU, Menu.NONE, getResources().getString(R.string.service_label));
 		return true;
 	}
 	
@@ -135,6 +135,10 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		case LOGGING_MENU:
 			intent.setAction(LoggingPreferences.LAUNCH);
 			this.startActivity(intent);
+			return true;
+		case SERVICE_MENU:
+			intent.setAction(StartUpReceiver.RESET);
+			this.sendBroadcast(intent);
 			return true;
 		}
 		return false;
@@ -173,15 +177,15 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 */
 	@Override
 	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
-		if (key.startsWith(PrefKeys.PHYSICAL_LINK_PREF)) {
+		if (key.startsWith(INetPrefKeys.PHYSICAL_LINK_PREF)) {
 			updateConnectionStatusThread(prefs);
 			return;
 		}
-		if (key.startsWith(PrefKeys.WIFI_PREF)) {
+		if (key.startsWith(INetPrefKeys.WIFI_PREF)) {
 			updateConnectionStatusThread(prefs);
 			return;
 		} 
-		if (key.startsWith(PrefKeys.NET_CONN_PREF)) {
+		if (key.startsWith(INetPrefKeys.NET_CONN_PREF)) {
 			updateConnectionStatusThread(prefs);
 			return;
 		} 

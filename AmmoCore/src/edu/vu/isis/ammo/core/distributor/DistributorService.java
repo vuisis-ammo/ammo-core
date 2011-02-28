@@ -13,8 +13,6 @@ import java.io.OutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.protobuf.ByteString;
-
 import android.app.PendingIntent;
 import android.app.Service;
 import android.app.PendingIntent.CanceledException;
@@ -39,12 +37,13 @@ import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-import android.widget.Toast;
-import edu.vu.isis.ammo.core.network.INetworkBinder;
+
+import com.google.protobuf.ByteString;
+
+import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
@@ -73,9 +72,10 @@ public class DistributorService extends Service implements IDistributorService {
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger(
-            DistributorService.class);
+    private static final Logger logger = LoggerFactory.getLogger(DistributorService.class);
     private static final boolean DEBUGMODE = true;
+    
+    public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH");
 
     @SuppressWarnings("unused")
     private static final int FILE_READ_SIZE = 1024;
@@ -88,14 +88,13 @@ public class DistributorService extends Service implements IDistributorService {
 
     private IDistributorService callback;
     private ServiceConnection networkServiceConnection;
-    private Intent networkServiceIntent = new Intent(INetworkBinder.ACTION);
+    private Intent networkServiceIntent = new Intent(INetworkService.ACTION);
 
-    private INetworkBinder network;
-    private boolean isBoundNPS = false;
+    private INetworkService network;
+    private boolean isNetworkServiceBound = false;
     @SuppressWarnings("unused")
     private boolean onCreateCalled = false;
 
-    private DeliveryMechanismObserver deliveryMechanismObserver;
     private PostalObserver postalObserver;
     private RetrievalObserver enrollmentObserver;
     private SubscriptionObserver subscriptionObserver;
@@ -107,8 +106,6 @@ public class DistributorService extends Service implements IDistributorService {
     private MyBroadcastReceiver mReadyResourceReceiver = null;
     private boolean mNetworkConnected = false;
     private boolean mSdCardAvailable = false;
-
-    private long dispatchToastTimestamp = System.currentTimeMillis();
 
     // ===========================================================
     // LifeCycle
@@ -123,21 +120,12 @@ public class DistributorService extends Service implements IDistributorService {
         this.onCreateCalled = true;
         logger.debug("service created...");
 
-        // Set our callback.
-        callback = this;
-
         // Set this service to observe certain Content Providers.
         // Initialize our content observer.
 
         postalObserver = new PostalObserver(new Handler(), callback);
         this.getContentResolver().registerContentObserver(
                 PostalTableSchema.CONTENT_URI, false, postalObserver);
-
-        deliveryMechanismObserver = new DeliveryMechanismObserver(new Handler(),
-                callback);
-        this.getContentResolver().registerContentObserver(
-                DeliveryMechanismTableSchema.CONTENT_URI, false,
-                deliveryMechanismObserver);
 
         enrollmentObserver = new RetrievalObserver(new Handler(), callback);
         this.getContentResolver().registerContentObserver(
@@ -191,8 +179,8 @@ public class DistributorService extends Service implements IDistributorService {
         logger.debug("service started...");
         // If we get this intent, unbind from all services 
         // so the service can be stopped.
+        callback = this;
         if (intent == null) {
-            callback = this;
             this.bindToNetworkService();
             return START_STICKY;
         }
@@ -200,14 +188,13 @@ public class DistributorService extends Service implements IDistributorService {
             this.teardownService();
             return START_NOT_STICKY;
         }
-        callback = this;
         this.bindToNetworkService();
         return START_STICKY;
     }
 
     public void teardownService() {
         logger.debug("service torn down...");
-        if (!isBoundNPS) {
+        if (!isNetworkServiceBound) {
             return;
         }
 		
@@ -217,7 +204,7 @@ public class DistributorService extends Service implements IDistributorService {
             network.teardown();
         }
         this.unbindService(networkServiceConnection);
-        isBoundNPS = false;
+        isNetworkServiceBound = false;
     }
 
     public void finishTeardown() {
@@ -228,16 +215,14 @@ public class DistributorService extends Service implements IDistributorService {
     @Override
     public void onDestroy() {
         logger.debug("service destroyed...");
-        if (isBoundNPS) {
+        if (isNetworkServiceBound) {
             this.unbindService(networkServiceConnection);
-            isBoundNPS = false;
+            isNetworkServiceBound = false;
         }
         this.stopService(networkServiceIntent);
         tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
         wifiReceiver.setInitialized(false);
         this.getContentResolver().unregisterContentObserver(postalObserver);
-        this.getContentResolver().unregisterContentObserver(
-                deliveryMechanismObserver);
         this.getContentResolver().unregisterContentObserver(enrollmentObserver);
         this.getContentResolver().unregisterContentObserver(subscriptionObserver);
         this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
@@ -293,8 +278,8 @@ public class DistributorService extends Service implements IDistributorService {
         try {
             try {
                 // instream = this.getContentResolver().openInputStream(serialUri);
-                AssetFileDescriptor afd = this.getContentResolver().openAssetFileDescriptor(
-                        serialUri, "r");
+                AssetFileDescriptor afd = this.getContentResolver()
+                	.openAssetFileDescriptor(serialUri, "r");
                 // afd.createInputStream();
         		
                 ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
@@ -340,18 +325,14 @@ public class DistributorService extends Service implements IDistributorService {
      * This method is called when the connection to the gateway is reestablished.
      * Some requests must be resubmitted.
      * 
-     * Subscription and retrival requests can be sent mutiple times.
+     * Subscription and retrieval requests can be sent multiple times.
      * The postal requests should only be sent once.
      *
      */
-    public void repostToGateway() {
-        if (network == null) {
-            return;
-        }
-        if (!network.isConnected()) {
-        	logger.warn("establishing network connection failed.");
-            return;
-        }
+    public void repostToNetworkService() {
+        //if (this.network == null) {
+        //    return;
+        //}
         callback.processSubscriptionChange(true);
         callback.processRetrievalChange(true);
         callback.processPostalChange(false);
@@ -380,10 +361,10 @@ public class DistributorService extends Service implements IDistributorService {
      */
     @Override
     public void processPostalChange(boolean repost) {
-        logger.debug("::processSubscriptionChange()");
-        if (!bindToNetworkService()) {
-            return;
-        }
+        logger.debug("::processPostalChange()");
+        bindToNetworkService();
+        if (! this.isNetworkServiceBound) return;
+        if (! this.network.isConnected()) return;
 
         ContentResolver cr = this.getContentResolver();
 
@@ -465,7 +446,7 @@ public class DistributorService extends Service implements IDistributorService {
                 boolean dispatchSuccessful = false;
 
                 try {
-                    dispatchSuccessful = network.dispatchPushRequestToGateway(
+                    dispatchSuccessful = this.network.dispatchPushRequestToGateway(
                             rowUri.toString(), mimeType, serialized);
                     if (dispatchSuccessful) {
                         byte[] notice = cur.getBlob(
@@ -508,9 +489,9 @@ public class DistributorService extends Service implements IDistributorService {
     @Override
     public void processRetrievalChange(boolean repost) {
         logger.debug("::processRetrievalChange()");
-        if (!bindToNetworkService()) {
-            return;
-        }
+        bindToNetworkService();
+        if (! this.isNetworkServiceBound) return;
+        if (! this.network.isConnected()) return;
 
         ContentResolver cr = this.getContentResolver();
         String order = RetrievalTableSchema.PRIORITY_SORT_ORDER;
@@ -561,7 +542,7 @@ public class DistributorService extends Service implements IDistributorService {
 				
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				
-                boolean sent = network.dispatchRetrievalRequestToGateway(
+                boolean sent = this.network.dispatchRetrievalRequestToGateway(
                         rowUri.toString(), mime, selection);
 				
                 if (!sent) {
@@ -601,9 +582,10 @@ public class DistributorService extends Service implements IDistributorService {
     @Override
     public void processSubscriptionChange(boolean repost) {
         logger.debug("::processSubscriptionChange()");
-        if (!bindToNetworkService()) {
-            return;
-        }
+        bindToNetworkService();
+        if (! this.isNetworkServiceBound) return;
+        logger.debug("is bound: " + isNetworkServiceBound );
+        if (! this.network.isConnected()) return;
 
         ContentResolver cr = this.getContentResolver();
         String order = SubscriptionTableSchema.PRIORITY_SORT_ORDER;
@@ -660,7 +642,7 @@ public class DistributorService extends Service implements IDistributorService {
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				logger.debug("Subscribe request with mime: " + mime + " and selection: " + selection);
                 
-				boolean sent = network.dispatchSubscribeRequestToGateway(mime,
+				boolean sent = this.network.dispatchSubscribeRequestToGateway(mime,
                         selection);
 				
                 if (!sent) {
@@ -726,53 +708,34 @@ public class DistributorService extends Service implements IDistributorService {
     // Network Service Calls
     // ===========================================================
     private boolean bindToNetworkService() {
-        if (isBoundNPS) {
-            return true;
-        }
+        if (isNetworkServiceBound) return true;
+        
         if (network != null) {
-            return isBoundNPS;
+            return isNetworkServiceBound;
         }
         // Create a service connection to the Network Service.
         networkServiceConnection = new ServiceConnection() {
             public void onServiceConnected(ComponentName name, IBinder service) {
                 logger.debug("Connected to NPS");
-                isBoundNPS = true;
-                network = (INetworkBinder) service;
+                isNetworkServiceBound = true;
+                network = (INetworkService) service;
                 network.setDistributorServiceCallback(callback);
             }
 
             public void onServiceDisconnected(ComponentName name) {
                 logger.debug("Disconnected NPS");
-                isBoundNPS = false;
+                isNetworkServiceBound = false;
             }
         };
 
-        networkServiceIntent = new Intent(INetworkBinder.ACTION);
-        isBoundNPS = this.bindService(networkServiceIntent,
+        networkServiceIntent = new Intent(INetworkService.ACTION);
+        return this.bindService(networkServiceIntent,
                 networkServiceConnection, BIND_AUTO_CREATE);
-        return isBoundNPS;
     }
 
     // ===========================================================
     // Content Observer Nested Classes
     // ===========================================================
-    private class DeliveryMechanismObserver extends ContentObserver {
-
-        /** Fields */
-        @SuppressWarnings("unused")
-        private IDistributorService callback;
-
-        public DeliveryMechanismObserver(Handler handler, IDistributorService aCallback) {
-            super(handler);
-            callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.debug("DeliveryMechanismObserver::onChange");
-        }
-    }
-
 
     private class PostalObserver extends ContentObserver {
 
@@ -781,7 +744,7 @@ public class DistributorService extends Service implements IDistributorService {
 
         public PostalObserver(Handler handler, IDistributorService aCallback) {
             super(handler);
-            callback = aCallback;
+            this.callback = aCallback;
         }
 
         @Override
@@ -789,7 +752,7 @@ public class DistributorService extends Service implements IDistributorService {
             logger.debug(
                     "PostalObserver::onChange - selfChange = "
                             + String.valueOf(selfChange));
-            callback.processPostalChange(false);
+            this.callback.processPostalChange(false);
         }
     }
 
@@ -800,13 +763,13 @@ public class DistributorService extends Service implements IDistributorService {
 
         public RetrievalObserver(Handler handler, IDistributorService aCallback) {
             super(handler);
-            callback = aCallback;
+            this.callback = aCallback;
         }
 
         @Override
         public void onChange(boolean selfChange) {
             logger.debug("RetrievalObserver::onChange");
-            callback.processRetrievalChange(false);
+            this.callback.processRetrievalChange(false);
         }
     }
 
@@ -817,13 +780,13 @@ public class DistributorService extends Service implements IDistributorService {
 
         public SubscriptionObserver(Handler handler, IDistributorService aCallback) {
             super(handler);
-            callback = aCallback;
+            this.callback = aCallback;
         }
 
         @Override
         public void onChange(boolean selfChange) {
             logger.debug("SubscriptionObserver::onChange");
-            callback.processSubscriptionChange(false);
+            this.callback.processSubscriptionChange(false);
         }
     }
 
@@ -846,7 +809,7 @@ public class DistributorService extends Service implements IDistributorService {
             if (Intent.ACTION_MEDIA_MOUNTED.equals(action)) {// find serialized directory
             }
             // it may be that there were items which need to be delivered.
-            DistributorService.this.repostToGateway();
+            DistributorService.this.repostToNetworkService();
         }
 		
         public void checkResourceStatus(final Context aContext) { //

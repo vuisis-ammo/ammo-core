@@ -5,8 +5,8 @@
 
 	<application android:icon="@drawable/appl_icon"
 		android:label="@string/app_name" 
-		android:debuggable="true"
-		android:process=":foreground">
+		android:debuggable="true">
+		
 
 		<!-- ========== ACTIVITY SECTION ================= -->
 
@@ -53,103 +53,75 @@
 			</intent-filter>
 		</activity>
 
-		<!-- ========== SERVICE SECTION ================= -->
+    <!-- ========== RECIEVER SECTION ================= -->
 
+        <receiver android:name=".receiver.WifiReceiver">
+            <intent-filter>
+                <action android:name="android.net.wifi.supplicant.CONNECTION_CHANGE" />
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".receiver.USBReceiver">
+            <intent-filter>
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".receiver.StartUpReceiver">
+            <intent-filter>
+                <action android:name="edu.vu.isis.ammo.action.RESET" />
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".ethertracker.EthrTrckrStartupReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <category android:name="android.intent.category.HOME" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 
+         Services are started by the .receiver.StartUpReceiver
+         should android:persistent be used?
+        -->
 		<service android:enabled="true" 
-			android:name=".network.NetworkService"
-			android:process=":background">
+			android:name=".network.NetworkService">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.ACTION" />
-				<action
-					android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
-				<action
-					android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP" />
+				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
+				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP" />
 			</intent-filter>
 		</service>
 
 		<service android:enabled="true" 
 		    android:name=".distributor.DistributorService"
-			android:exported="true"
-			android:process=":background">
+			android:exported="true">
 			<intent-filter>
-				<action
-					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH" />
+				<action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH" />
 				<action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.BIND" />
-				<action
-					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP" />
-				<action
-					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
+				<action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP" />
+				<action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
 			</intent-filter>
 		</service>
 		
-		<service android:enabled="true" android:name=".PreferenceServiceHack" android:exported="true">
+		<service android:enabled="true" 
+		  android:name=".PreferenceServiceHack" 
+		  android:exported="true">
           <intent-filter>
               <action android:name="edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH" />
           </intent-filter>
         </service>
-		
-		<!--
-			should android:persistent be used?
-		-->
-		<service android:enabled="true" 
-			android:name=".CoreService"
-			android:process=":background">
-			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.CoreService.LAUNCH" />
-				<action android:name="edu.vu.isis.ammo.core.CoreService.BIND" />
-				<action android:name="edu.vu.isis.ammo.core.CoreService.PREPARE_FOR_STOP" />
-			</intent-filter>
-		</service>
 
-		<service android:name=".ethertracker.EthTrackSvc"
-			android:process=":background">
+		<service android:name=".ethertracker.EthTrackSvc">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.startatboot.EthTrackSvc" />
 				<action android:name="edu.vu.isis.ammo.core.ethtracksvc.LAUNCH" />
 			</intent-filter>
 		</service>
 
-		<!-- ========== RECIEVER SECTION ================= -->
-
-		<receiver android:name=".receiver.WifiReceiver"
-			android:process=":background">
-			<intent-filter>
-				<action android:name="android.net.wifi.supplicant.CONNECTION_CHANGE" />
-			</intent-filter>
-
-		</receiver>
-
-		<receiver android:name=".receiver.USBReceiver"
-			android:process=":background">
-			<intent-filter>
-			</intent-filter>
-		</receiver>
-
-		<receiver android:name="receiver.StartUpReceiver"
-			android:process=":background">
-			<intent-filter>
-				<action android:name="mil.darpa.transapp.authentication.HELLO" />
-			</intent-filter>
-			<intent-filter>
-				<action android:name="android.intent.action.BOOT_COMPLETED" />
-				<category android:name="android.intent.category.HOME" />
-			</intent-filter>
-		</receiver>
-
-		<receiver android:name=".ethertracker.EthrTrckrStartupReceiver"
-			android:process=":background">
-			<intent-filter>
-				<action android:name="android.intent.action.BOOT_COMPLETED" />
-				<category android:name="android.intent.category.HOME" />
-			</intent-filter>
-		</receiver>
-
-
 		<!-- ========== PROVIDER SECTION ================= -->
 
 		<provider android:name=".provider.DistributorProvider"
-			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"
-			android:process=":background" />
+			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
 
 	</application>
 

@@ -19,7 +19,7 @@ public interface IDistributorService {
 	public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED";
    
 	/** Content Observer callbacks */
-	public void repostToGateway();
+	public void repostToNetworkService();
 	public void processPostalChange(boolean repost);
 	public void processRetrievalChange(boolean repost);
 	public void processSubscriptionChange(boolean repost);
