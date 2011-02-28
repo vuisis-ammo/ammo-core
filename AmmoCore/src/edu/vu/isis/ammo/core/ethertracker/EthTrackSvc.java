@@ -11,7 +11,7 @@ import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import edu.vu.isis.ammo.PrefKeys;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.network.NetworkService;
@@ -31,7 +31,7 @@ public class EthTrackSvc extends Service {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		Log.d("EthTrackSvc", "::onStartCommand with intent " + intent.getAction());
+		Log.d("EthTrackSvc", "::onStartCommand with intent ");//+ intent.getAction());
 		handleCommand();
 
 		// We want this service to continue running until it is explicitly
@@ -111,7 +111,7 @@ public class EthTrackSvc extends Service {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		Editor editor = prefs.edit();
 		 
-		editor.putBoolean(PrefKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, status);
+		editor.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, status);
 		editor.commit();
 	}
 

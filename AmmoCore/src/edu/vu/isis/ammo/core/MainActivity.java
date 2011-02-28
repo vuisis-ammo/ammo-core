@@ -23,8 +23,8 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.CheckBox;
-import edu.vu.isis.ammo.PrefKeys;
 import android.widget.TextView;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.network.INetworkBinder;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
@@ -74,9 +74,12 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		String deviceId = UniqueIdentifiers.device(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
 		SharedPreferences.Editor prefEditor = prefs.edit();
-		prefEditor.putString(PrefKeys.PREF_DEVICE_ID, deviceId).commit();
+		prefEditor.putString(INetPrefKeys.PREF_DEVICE_ID, deviceId).commit();
 		
 		this.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
+		
+		Intent i = new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH");
+		this.startService(i);
 	}
 	
 	@Override
@@ -147,36 +150,39 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	public void onClick(View view) {
 		Editor editor = prefs.edit();
 		if (view.equals(this.cbWifi)) {
-			editor.putBoolean(PrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
+			editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
 		} else if (view.equals(this.cbPhysicalLink)) {
 			// TODO: Need a way to disable physical link service.
-			editor.putBoolean(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, this.cbPhysicalLink.isChecked());
+			editor.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, this.cbPhysicalLink.isChecked());
 		} else if (view.equals(this.btnConnect)) {
 			// Tell the network service to disconnect and reconnect.
-			editor.putBoolean(PrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
+			editor.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
+			// Intent disconnectIntent = new Intent(INetworkBinder.ACTION_DISCONNECT);
+			// Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
+			//this.sendBroadcast(disconnectIntent);
+			// this.sendBroadcast(intent);
 		}
 		editor.commit();
 		setWifiStatus();
 	}
 	
-		
-
 	/**
 	 * If the key relates to our physical link, update the UI.
 	 * Note: This method is called on the thread that changed the preferences.
-	 * To update the UI, explicity call the main thread.
+	 * To update the UI, explicitly call the main thread.
 	 */
 	@Override
 	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
-		if (key.startsWith(PrefKeys.PHYSICAL_LINK_PREF) 
-		 || key.startsWith(PrefKeys.WIFI_PREF))
-		{
-			this.runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					updateConnectionStatus(prefs);
-				}
-			});
+		if (key.startsWith(PrefKeys.PHYSICAL_LINK_PREF)) {
+			updateConnectionStatusThread(prefs);
+			return;
+		}
+		if (key.startsWith(PrefKeys.WIFI_PREF)) {
+			updateConnectionStatusThread(prefs);
+			return;
+		} 
+		if (key.startsWith(PrefKeys.NET_CONN_PREF)) {
+			updateConnectionStatusThread(prefs);
 			return;
 		} 
 		if (key.equals(LoggingPreferences.PREF_LOG_LEVEL)) {
@@ -193,13 +199,23 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 * Tell our text views to 
 	 * update since network status has changed.
 	 */
+	public void updateConnectionStatusThread(final SharedPreferences prefs) {
+		this.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				updateConnectionStatus(prefs);
+			}
+		});
+		return;
+	}
+	
 	public void updateConnectionStatus(SharedPreferences prefs) {
-		tvPhysicalLink.notifyNetworkStatusChanged(prefs, PrefKeys.PHYSICAL_LINK_PREF);
-		tvWifi.notifyNetworkStatusChanged(prefs, PrefKeys.WIFI_PREF);
+		tvPhysicalLink.notifyNetworkStatusChanged(prefs, INetPrefKeys.PHYSICAL_LINK_PREF);
+		tvWifi.notifyNetworkStatusChanged(prefs, INetPrefKeys.WIFI_PREF);
 		
 		// TODO: is the following a hack or should it remain
 		// RESPONSE: The following is a hack. We'll trash it as soon as new functionality is supported.
-		boolean isConnected = prefs.getBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
+		boolean isConnected = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
 		if (isConnected) {
 			tvConnectionStatus.setText("Gateway connected");
 		} else {
@@ -237,9 +253,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 			logger.debug( "WifiInfo: " +  info.toString() );
 			boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
 			Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
-			// editor.putBoolean(PrefKeys.WIFI_PREF_IS_CONNECTED, wifiConn);
-			editor.putBoolean(PrefKeys.WIFI_PREF_IS_AVAILABLE, wifiConn);
-			// editor.putBoolean(PrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());		
+			// editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_CONNECTED, wifiConn);
+			editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_AVAILABLE, wifiConn);
+			// editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());		
 			editor.commit();
 		    }
 		};

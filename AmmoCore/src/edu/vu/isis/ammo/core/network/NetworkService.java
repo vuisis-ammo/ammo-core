@@ -7,7 +7,6 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -33,9 +32,9 @@ import android.preference.PreferenceManager;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import edu.vu.isis.ammo.PrefKeys;
+import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.core.ICoreService;
-import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -52,13 +51,15 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  * 
  */
 public class NetworkService extends Service 
-implements OnSharedPreferenceChangeListener
+implements OnSharedPreferenceChangeListener, INetworkService
 {
 	// ===========================================================
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger(NetworkService.class);
-	
+
+
+	// Local constants
 	private static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
 	private static final int DEFAULT_GATEWAY_PORT = 32869;
 
@@ -92,7 +93,7 @@ implements OnSharedPreferenceChangeListener
 	public boolean getNetworkingSwitch() { return networkingSwitch; }
 	public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
 	
-	private NetworkBinder networkBinder;
+	// private NetworkBinder networkBinder;
 	private IDistributorService distributor;
 	
 	// TCP Fields
@@ -116,11 +117,17 @@ implements OnSharedPreferenceChangeListener
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
+	
+	/**
+     * Class for clients to access.  
+     * This service always runs in the same process as its clients.
+     * So no inter-*process* communication is needed.
+     */
 	@Override
 	public IBinder onBind(Intent arg0) {
-		logger.debug("NPS onBind called");
-        networkBinder = NetworkBinder.getInstance(this);
-		return networkBinder;
+		logger.error("no IPC expected or accomodated");
+        //networkBinder = NetworkBinder.getInstance(this);
+		return null; // networkBinder;
 	}
 
 	/**
@@ -151,7 +158,7 @@ implements OnSharedPreferenceChangeListener
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) 
 	{
-		if (intent.getAction().equals(INetworkBinder.PREPARE_FOR_STOP)) {
+		if (intent.getAction().equals(NetworkService.PREPARE_FOR_STOP)) {
 			logger.debug("Preparing to stop NPS");
 			this.teardown();
 			this.stopSelf();
@@ -159,14 +166,6 @@ implements OnSharedPreferenceChangeListener
 		}
 
         logger.debug("NPS Started");
-//		if (udpSocket == null) {
-//			try {
-//				logger.debug("Binding socket to port");
-//				udpSocket = new DatagramSocket(gatewayPort);
-//			} catch (SocketException e) {
-//				e.printStackTrace();
-//			}
-//		}
 		return START_STICKY;
 	}
 
@@ -216,6 +215,34 @@ implements OnSharedPreferenceChangeListener
 		super.onDestroy();
 	}	
 
+	// ===========================================================
+	// Networking
+	// ===========================================================
+	
+	/**
+	 * Read the system preferences for the network connection information.
+	 */
+	private void acquirePreferences() {
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+		journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
+		
+		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
+		operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		
+		String gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		this.tcpSocket.setHost(gatewayHostname);
+		
+		int gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
+		this.tcpSocket.setPort(gatewayPort);
+		
+		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		this.authenticateGatewayConnection();
+		
+		this.connectChannels(true);
+		this.authenticateGatewayConnection();
+	}
+	
 	/** 
 	 * Reset the local copies of the shared preference.
 	 * Also indicate that the gateway connections are stale 
@@ -225,31 +252,31 @@ implements OnSharedPreferenceChangeListener
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 		// handle network connection group
 		
-		if (key.equals(PrefKeys.PREF_IP_ADDR)) {
-			String gatewayHostname = prefs.getString(PrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		if (key.equals(INetPrefKeys.PREF_IP_ADDR)) {
+			String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
 			this.tcpSocket.setHost(gatewayHostname);
 			this.connectChannels(true);
 			return;
 		}
-		if (key.equals(PrefKeys.PREF_IP_PORT)) {
-			int gatewayPort = Integer.valueOf(prefs.getString(PrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
+		if (key.equals(INetPrefKeys.PREF_IP_PORT)) {
+			int gatewayPort = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
 			this.tcpSocket.setPort(gatewayPort);
 			connectChannels(true);
 			return;
 		}
-		if (key.equals(PrefKeys.PREF_IS_JOURNAL)) {
-			journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
+		if (key.equals(INetPrefKeys.PREF_IS_JOURNAL)) {
+			journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 			return;
 		}
 		
 		// handle network authentication group
-		if (key.equals(PrefKeys.PREF_DEVICE_ID)) {
-			deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
+		if (key.equals(INetPrefKeys.PREF_DEVICE_ID)) {
+			deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
 			this.authenticateGatewayConnection();
 			return;
 		}
-		if (key.equals(PrefKeys.PREF_OPERATOR_ID)) {
-			operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
+		if (key.equals(IPrefKeys.PREF_OPERATOR_ID)) {
+			operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
 			this.authenticateGatewayConnection();
 			
 			// TBD SKN: broadcast login id change to apps ...
@@ -259,26 +286,26 @@ implements OnSharedPreferenceChangeListener
 			
 			return;
 		}
-		if (key.equals(PrefKeys.PREF_OPERATOR_KEY)) {
-			operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		if (key.equals(INetPrefKeys.PREF_OPERATOR_KEY)) {
+			operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
 			this.authenticateGatewayConnection();
 			return;
 		}
 
-		if (key.equals(PrefKeys.PREF_SOCKET_TIMEOUT)) {
-			Integer timeout = Integer.valueOf(prefs.getString(PrefKeys.PREF_SOCKET_TIMEOUT, "3000"));
+		if (key.equals(INetPrefKeys.PREF_SOCKET_TIMEOUT)) {
+			Integer timeout = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_SOCKET_TIMEOUT, "3000"));
 			this.tcpSocket.setSocketTimeout(timeout.intValue());
 		}
 
 		// handle network connectivity group
-//		if (key.equals(PrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
+//		if (key.equals(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
 //			shouldUse(prefs);
 //		}	
-//		if (key.equals(PrefKeys.WIFI_PREF_SHOULD_USE)) {
+//		if (key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE)) {
 //			shouldUse(prefs);
 //		}
-		if (key.equals(PrefKeys.NET_CONN_PREF_SHOULD_USE)) {
-			boolean enable_intent = prefs.getBoolean(PrefKeys.NET_CONN_PREF_SHOULD_USE, false);
+		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
+			boolean enable_intent = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, false);
 			if (enable_intent) {
 				 this.tcpSocket.enable();
 			} else {
@@ -295,16 +322,21 @@ implements OnSharedPreferenceChangeListener
 	 * @return
 	 */
 	private boolean connectChannels(boolean reconnect) {
-		boolean tcp = connectTcpChannel(reconnect);
-        if (tcp) {
-        	distributor.repostToGateway();
-        }
-        PreferenceManager.getDefaultSharedPreferences(this)
+            logger.trace("connectChannels: " + reconnect);
+	    boolean tcp = connectTcpChannel(reconnect);
+	    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
+            boolean tcp_isActive = pref.getBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
+            if (tcp_isActive != tcp) {
+              	pref.edit()
+	       	    	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, tcp)
+	       	    	.commit();
+            }
+            PreferenceManager.getDefaultSharedPreferences(this)
         	.edit()
-        	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
+        	.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
         	.commit();
 		
-        return tcp; //&& udp;
+             return tcp; //&& udp;
 	}
 	
 	/**
@@ -358,6 +390,7 @@ implements OnSharedPreferenceChangeListener
    
    private boolean disconnectUdpChannel() { return true; }
 	
+<<<<<<< HEAD
 
 	// ===========================================================
 	// Networking
@@ -368,13 +401,15 @@ implements OnSharedPreferenceChangeListener
 	 */
 	private void acquirePreferences() {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-		journalingSwitch = prefs.getBoolean(PrefKeys.PREF_IS_JOURNAL, journalingSwitch);
+		journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 		
-		deviceId = prefs.getString(PrefKeys.PREF_DEVICE_ID, deviceId);
-		operatorId = prefs.getString(PrefKeys.PREF_OPERATOR_ID, operatorId);
-		operatorKey = prefs.getString(PrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
+		operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
+		operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
 	}
 	
+=======
+>>>>>>> d12d02b34bb09d09622e191eca7390f0a4ceafd4
 	// ===========================================================
 	// Protocol Buffers Methods
 	// ===========================================================
@@ -412,7 +447,7 @@ implements OnSharedPreferenceChangeListener
 			PreferenceManager
 				.getDefaultSharedPreferences(this)
 				.edit()
-				.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+				.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
 				.commit();
 		}
 		
@@ -580,7 +615,7 @@ implements OnSharedPreferenceChangeListener
 			crc32.update(data);
 			return new MsgHeader(data.length, (int)crc32.getValue());
 		}
-	}	
+	}
 	
 	/**
 	 *  Processes and delivers a message from the gateway.
@@ -695,7 +730,11 @@ implements OnSharedPreferenceChangeListener
 			return tcpSocket.isConnected();
 		}
 		if (tcpSocket == null) return false;
+<<<<<<< HEAD
 		return tcpSocket.isConnected();
+=======
+		return tcpSocket.isConnected() ;
+>>>>>>> d12d02b34bb09d09622e191eca7390f0a4ceafd4
 	}
 	
 	public boolean authenticateGatewayConnection() {
@@ -732,8 +771,7 @@ implements OnSharedPreferenceChangeListener
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
-		return true;
+		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
 	public boolean dispatchSubscribeRequestToGateway(String mimeType, String selection) {
@@ -744,14 +782,13 @@ implements OnSharedPreferenceChangeListener
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
-		return true;
+		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
 	public void setDistributorServiceCallback(IDistributorService callback) {
 		distributor = callback;
 		// there is now someplace to send the responses.
-		// connectChannels(true);
+		connectChannels(false); // was true - why should we reconnect if a distributor call back changes
 	}
 	
 	private class MyBroadcastReceiver extends BroadcastReceiver {

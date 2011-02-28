@@ -488,9 +488,9 @@ public class DistributorService extends Service implements IDistributorService {
                 int numUpdated = cr.update(PostalTableSchema.getUri(cur), values,
                         null, null);
 
-                logger.debug(
-                        String.valueOf(numUpdated)
-                                + " rows updated to sent status");
+                logger.debug("Postal: " + 
+                        String.valueOf(numUpdated) + " rows updated to "
+                        + (dispatchSuccessful ? "sent" : "pending") + " status");
             }
             cur.close();
         }
@@ -610,6 +610,9 @@ public class DistributorService extends Service implements IDistributorService {
 
         // Additional items may be added to the table while the current set are
         // being processed
+        if (network == null) {
+        	return;
+        }
         for (; true; repost = false) {
             String[] selectionArgs = null;
             final String selectPending = "\""
@@ -656,7 +659,8 @@ public class DistributorService extends Service implements IDistributorService {
 				
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				logger.debug("Subscribe request with mime: " + mime + " and selection: " + selection);
-                boolean sent = network.dispatchSubscribeRequestToGateway(mime,
+                
+				boolean sent = network.dispatchSubscribeRequestToGateway(mime,
                         selection);
 				
                 if (!sent) {
@@ -677,9 +681,9 @@ public class DistributorService extends Service implements IDistributorService {
                         SubscriptionTableSchema.getUri(pendingCursor), values,
                         null, null);
 
-                logger.debug(
-                        String.valueOf(numUpdated)
-                                + " rows updated to sent status");
+                logger.debug( "Subscription: " + 
+                        String.valueOf(numUpdated) + " rows updated to "
+                        + (sent ? "sent" : "pending") + " status");
             }
             pendingCursor.close();
         }

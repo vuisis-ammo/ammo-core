@@ -21,7 +21,7 @@ import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
 import android.widget.AdapterView.OnItemSelectedListener;
-import edu.vu.isis.ammo.PrefKeys;
+import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatcher;
 import edu.vu.isis.ammo.collector.provider.IncidentSchema;
 import edu.vu.isis.ammo.collector.provider.IncidentSchema.EventTableSchema;
@@ -71,7 +71,7 @@ public class Subscribe extends Activity implements OnClickListener {
         btnSubscribe.setOnClickListener(this);
         
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        this.uid = prefs.getString(PrefKeys.PREF_OPERATOR_ID, "foo");
+        this.uid = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, "foo");
 	}  
 	    
 	@Override
