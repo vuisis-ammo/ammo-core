@@ -77,6 +77,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		prefEditor.putString(PrefKeys.PREF_DEVICE_ID, deviceId).commit();
 		
 		this.startService(ICoreService.CORE_APPLICATION_LAUNCH_SERVICE_INTENT);
+		
+		Intent i = new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH");
+		this.startService(i);
 	}
 	
 	@Override
@@ -154,6 +157,10 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		} else if (view.equals(this.btnConnect)) {
 			// Tell the network service to disconnect and reconnect.
 			editor.putBoolean(PrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
+			// Intent disconnectIntent = new Intent(INetworkBinder.ACTION_DISCONNECT);
+			// Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
+			//this.sendBroadcast(disconnectIntent);
+			// this.sendBroadcast(intent);
 		}
 		editor.commit();
 		setWifiStatus();

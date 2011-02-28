@@ -295,16 +295,19 @@ implements OnSharedPreferenceChangeListener
 	 * @return
 	 */
 	private boolean connectChannels(boolean reconnect) {
-		boolean tcp = connectTcpChannel(reconnect);
-        if (tcp) {
+            logger.trace("connectChannels: " + reconnect);
+            boolean tcp = connectTcpChannel(reconnect);
+		
+	    //boolean udp = connectUdpChannel();
+            if (tcp) {
         	distributor.repostToGateway();
-        }
-        PreferenceManager.getDefaultSharedPreferences(this)
+            }
+            PreferenceManager.getDefaultSharedPreferences(this)
         	.edit()
         	.putBoolean(PrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
         	.commit();
 		
-        return tcp; //&& udp;
+            return tcp; //&& udp;
 	}
 	
 	/**
@@ -580,7 +583,7 @@ implements OnSharedPreferenceChangeListener
 			crc32.update(data);
 			return new MsgHeader(data.length, (int)crc32.getValue());
 		}
-	}	
+	}
 	
 	/**
 	 *  Processes and delivers a message from the gateway.
@@ -695,7 +698,7 @@ implements OnSharedPreferenceChangeListener
 			return tcpSocket.isConnected();
 		}
 		if (tcpSocket == null) return false;
-		return tcpSocket.isConnected();
+		return (!tcpSocket.isClosed()) && tcpSocket.isConnected() ;
 	}
 	
 	public boolean authenticateGatewayConnection() {
@@ -732,8 +735,7 @@ implements OnSharedPreferenceChangeListener
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
-		return true;
+		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
 	public boolean dispatchSubscribeRequestToGateway(String mimeType, String selection) {
@@ -744,14 +746,13 @@ implements OnSharedPreferenceChangeListener
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
-		return true;
+		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
 	public void setDistributorServiceCallback(IDistributorService callback) {
 		distributor = callback;
 		// there is now someplace to send the responses.
-		// connectChannels(true);
+		connectChannels(false); // was true - why should we reconnect if a distributor call back changes
 	}
 	
 	private class MyBroadcastReceiver extends BroadcastReceiver {

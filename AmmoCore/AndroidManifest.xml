@@ -76,6 +76,12 @@
 			</intent-filter>
 		</service>
 		
+		<service android:enabled="true" android:name=".PreferenceServiceHack" android:exported="true">
+          <intent-filter>
+              <action android:name="edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH" />
+          </intent-filter>
+        </service>
+		
 		<!--
 			TBD SKN - should we add android.intent.BOOT_COMPLETED here, so the
 			core starts after boot
