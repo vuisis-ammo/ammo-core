@@ -7,7 +7,6 @@ import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -35,7 +34,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.PrefKeys;
 import edu.vu.isis.ammo.core.ICoreService;
-import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -52,13 +50,15 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  * 
  */
 public class NetworkService extends Service 
-implements OnSharedPreferenceChangeListener
+implements OnSharedPreferenceChangeListener, INetworkService
 {
 	// ===========================================================
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger(NetworkService.class);
-	
+
+
+	// Local constants
 	private static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
 	private static final int DEFAULT_GATEWAY_PORT = 32869;
 
@@ -92,7 +92,7 @@ implements OnSharedPreferenceChangeListener
 	public boolean getNetworkingSwitch() { return networkingSwitch; }
 	public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
 	
-	private NetworkBinder networkBinder;
+	// private NetworkBinder networkBinder;
 	private IDistributorService distributor;
 	
 	// TCP Fields
@@ -116,11 +116,17 @@ implements OnSharedPreferenceChangeListener
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
+	
+	/**
+     * Class for clients to access.  
+     * This service always runs in the same process as its clients.
+     * So no inter-*process* communication is needed.
+     */
 	@Override
 	public IBinder onBind(Intent arg0) {
-		logger.debug("NPS onBind called");
-        networkBinder = NetworkBinder.getInstance(this);
-		return networkBinder;
+		logger.error("no IPC expected or accomodated");
+        //networkBinder = NetworkBinder.getInstance(this);
+		return null; // networkBinder;
 	}
 
 	/**
@@ -151,7 +157,7 @@ implements OnSharedPreferenceChangeListener
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) 
 	{
-		if (intent.getAction().equals(INetworkBinder.PREPARE_FOR_STOP)) {
+		if (intent.getAction().equals(NetworkService.PREPARE_FOR_STOP)) {
 			logger.debug("Preparing to stop NPS");
 			this.teardown();
 			this.stopSelf();
@@ -583,7 +589,7 @@ implements OnSharedPreferenceChangeListener
 			crc32.update(data);
 			return new MsgHeader(data.length, (int)crc32.getValue());
 		}
-	}	
+	}
 	
 	/**
 	 *  Processes and delivers a message from the gateway.
@@ -698,7 +704,7 @@ implements OnSharedPreferenceChangeListener
 			return tcpSocket.isConnected();
 		}
 		if (tcpSocket == null) return false;
-		return tcpSocket.isConnected();
+		return tcpSocket.isConnected() ;
 	}
 	
 	public boolean authenticateGatewayConnection() {
@@ -735,8 +741,7 @@ implements OnSharedPreferenceChangeListener
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
-		return true;
+		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
 	public boolean dispatchSubscribeRequestToGateway(String mimeType, String selection) {
@@ -747,14 +752,13 @@ implements OnSharedPreferenceChangeListener
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
-		return true;
+		return sendGatewayRequest(Carrier.TCP, msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
 	public void setDistributorServiceCallback(IDistributorService callback) {
 		distributor = callback;
 		// there is now someplace to send the responses.
-		// connectChannels(true);
+		connectChannels(false); // was true - why should we reconnect if a distributor call back changes
 	}
 	
 	private class MyBroadcastReceiver extends BroadcastReceiver {

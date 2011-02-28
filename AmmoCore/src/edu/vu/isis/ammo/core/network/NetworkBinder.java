@@ -15,7 +15,7 @@ import android.os.Binder;
  *
  */
 
-public class NetworkBinder extends Binder implements INetworkBinder 
+public class NetworkBinder extends Binder implements INetworkService, android.os.IBinder
 {		
 	final NetworkService netsvc;
 	
