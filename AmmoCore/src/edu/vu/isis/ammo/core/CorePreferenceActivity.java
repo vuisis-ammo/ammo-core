@@ -14,11 +14,11 @@ import android.preference.PreferenceActivity;
  * @author phreed
  *
  */
-public class CorePreferences extends PreferenceActivity {
+public class CorePreferenceActivity extends PreferenceActivity {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-    public static final String LAUNCH = "edu.vu.isis.ammo.core.CorePreferences.LAUNCH";
+    public static final String LAUNCH = "edu.vu.isis.ammo.core.Preference.LAUNCH";
 
 	// ===========================================================
 	// Fields
@@ -76,7 +76,7 @@ public class CorePreferences extends PreferenceActivity {
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		Intent i = new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH");
+		Intent i = new Intent("edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH");
 		this.startService(i);
 	}
 	

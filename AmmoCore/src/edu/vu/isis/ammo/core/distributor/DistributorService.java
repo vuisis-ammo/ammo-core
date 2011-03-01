@@ -30,6 +30,7 @@ import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
+import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
@@ -81,6 +82,7 @@ public class DistributorService extends Service implements IDistributorService {
     private static final int FILE_READ_SIZE = 1024;
     public static final String SERIALIZED_STRING_KEY = "serializedString";
     public static final String SERIALIZED_BYTE_ARRAY_KEY = "serializedByteArray";
+    private final Object syncObj = this;
 
     // ===========================================================
     // Fields
@@ -202,11 +204,17 @@ public class DistributorService extends Service implements IDistributorService {
     	if (isNetworkServiceBound) return START_STICKY;
     	if (networkServiceBinder != null) return START_STICKY;
     	
-    	networkServiceIntent = new Intent(INetworkService.ACTION); // implicit
-    	// networkServiceIntent = new Intent(DistributorService.this, NetworkService.class); // explicit
-        this.bindService(networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE);
+    	Thread networkThread = new Thread(null, doNetworkServiceThread, "NetworkThread");
+    	networkThread.start();
         return START_STICKY;
     }
+    private Runnable doNetworkServiceThread = new Runnable() {
+    	public void run() {
+    		networkServiceIntent = new Intent(INetworkService.ACTION); // implicit
+        	// networkServiceIntent = new Intent(DistributorService.this, NetworkService.class); // explicit
+            DistributorService.this.bindService(networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE);
+    	}
+    };
 
     public void teardownService() {
         logger.trace("::teardownService");
@@ -251,7 +259,8 @@ public class DistributorService extends Service implements IDistributorService {
         return null;
     }
 
-    private boolean sendPendingIntent(byte[] notice) {
+    @SuppressWarnings("unused")
+	private boolean sendPendingIntent(byte[] notice) {
         if (notice == null) {
             return false;
         }
@@ -283,53 +292,54 @@ public class DistributorService extends Service implements IDistributorService {
      * @throws IOException
      */
     private byte[] queryUriForSerializedData(String uri) throws IOException {
-        Uri rowUri = Uri.parse(uri);
-        Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
-
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        BufferedInputStream bis = null;
-        InputStream instream = null;
-
-        try {
-            try {
-                // instream = this.getContentResolver().openInputStream(serialUri);
-                AssetFileDescriptor afd = this.getContentResolver()
-                	.openAssetFileDescriptor(serialUri, "r");
-                // afd.createInputStream();
-        		
-                ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-                instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-            } catch (IOException e) {
-                throw new FileNotFoundException("Unable to create stream");
-            }
-            // if (instream)
-            bis = new BufferedInputStream(instream);
-            
-            for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-                bout.write(buffer, 0, bytesRead);
-            }
-            bis.close();
-            // String bs = bout.toString();
-            // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
-            byte[] ba = bout.toByteArray();
-
-            bout.close();
-            return ba;
-
-        } catch (FileNotFoundException ex) {
-            ex.printStackTrace();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-        if (bout != null) {
-            bout.close();
-        }
-        if (bis != null) {
-            bis.close();
-        }
-        return null;
+    	synchronized (this.syncObj) {
+	        Uri rowUri = Uri.parse(uri);
+	        Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
+	
+	        ByteArrayOutputStream bout = new ByteArrayOutputStream();
+	        byte[] buffer = new byte[1024];
+	        BufferedInputStream bis = null;
+	        InputStream instream = null;
+	
+	        try {
+	            try {
+	                // instream = this.getContentResolver().openInputStream(serialUri);
+	                AssetFileDescriptor afd = this.getContentResolver()
+	                	.openAssetFileDescriptor(serialUri, "r");
+	                // afd.createInputStream();
+	        		
+	                ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+	
+	                instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+	            } catch (IOException e) {
+	                throw new FileNotFoundException("Unable to create stream");
+	            }
+	            bis = new BufferedInputStream(instream);
+	            
+	            for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+	                bout.write(buffer, 0, bytesRead);
+	            }
+	            bis.close();
+	            // String bs = bout.toString();
+	            // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
+	            byte[] ba = bout.toByteArray();
+	
+	            bout.close();
+	            return ba;
+	
+	        } catch (FileNotFoundException ex) {
+	            ex.printStackTrace();
+	        } catch (IOException ex) {
+	            ex.printStackTrace();
+	        }
+	        if (bout != null) {
+	            bout.close();
+	        }
+	        if (bis != null) {
+	            bis.close();
+	        }
+	        return null;
+    	}
     }
 
     /**
@@ -340,15 +350,40 @@ public class DistributorService extends Service implements IDistributorService {
      * The postal requests should only be sent once.
      *
      */
+    ProcessChangeTask lastChangeTask = null;
+    
     public void repostToNetworkService() {
     	logger.trace("::repostToNetworkService()");
         if (this.networkServiceBinder == null) {
         	logger.warn("repost attempted when network service binding is null");
             return;
         }
-        callback.processSubscriptionChange(true);
-        callback.processRetrievalChange(true);
-        callback.processPostalChange(false);
+        if (lastChangeTask == null) {
+        	this.lastChangeTask = new ProcessChangeTask();
+            this.lastChangeTask.execute((Void[]) null);
+            return;
+        }
+        if (! lastChangeTask.getStatus().equals(AsyncTask.Status.FINISHED)) return;
+        this.lastChangeTask = new ProcessChangeTask();
+        this.lastChangeTask.execute((Void[]) null);
+    }
+    
+    private class ProcessChangeTask extends AsyncTask<Void, DistributorService, Void> {
+    	@Override
+    	protected Void doInBackground(Void... params) {
+    		callback.processSubscriptionChange(true);
+            callback.processRetrievalChange(true);
+            callback.processPostalChange(false);
+    		return null;
+    	}
+    	@Override
+    	protected void onProgressUpdate(DistributorService... values) {
+    		super.onProgressUpdate(values);
+    	}
+    	@Override
+    	protected void onPostExecute(Void result) {
+    		super.onPostExecute(result);
+    	}
     }
 
     /**
@@ -463,7 +498,7 @@ public class DistributorService extends Service implements IDistributorService {
                 	}
                     if (dispatchSuccessful) {
                         byte[] notice = cur.getBlob(cur.getColumnIndex(PostalTableSchema.NOTICE));
-                        sendPendingIntent(notice);
+                        // sendPendingIntent(notice);
                     }
                 } catch (NullPointerException e) {
                     logger.warn("NullPointerException, sending to gateway failed");

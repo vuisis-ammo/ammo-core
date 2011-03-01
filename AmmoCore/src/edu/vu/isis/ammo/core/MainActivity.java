@@ -79,7 +79,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		SharedPreferences.Editor prefEditor = prefs.edit();
 		prefEditor.putString(INetPrefKeys.PREF_DEVICE_ID, deviceId).commit();
 	
-		Intent intent = new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH");
+		Intent intent = new Intent("edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH");
 		this.startService(intent);
 		
 		intent.setAction(StartUpReceiver.RESET);
@@ -131,7 +131,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		Intent intent = new Intent();
 		switch (item.getItemId()) {
 		case PREFERENCES_MENU:
-			intent.setAction(CorePreferences.LAUNCH);
+			intent.setAction(CorePreferenceActivity.LAUNCH);
 			this.startActivity(intent);
 			return true;
 		case DELIVERY_STATUS_MENU:

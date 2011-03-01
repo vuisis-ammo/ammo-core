@@ -17,9 +17,9 @@
 			</intent-filter>
 		</activity>
 
-		<activity android:name=".CorePreferences">
+		<activity android:name="CorePreferenceActivity">
 			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.CorePreferences.LAUNCH" />
+				<action android:name="edu.vu.isis.ammo.core.Preference.LAUNCH" />
 				<category android:name="android.intent.category.DEFAULT" />
 			</intent-filter>
 		</activity>
@@ -104,10 +104,10 @@
 		</service>
 		
 		<service android:enabled="true" 
-		  android:name=".PreferenceServiceHack" 
+		  android:name=".CorePreferenceService" 
 		  android:exported="true">
           <intent-filter>
-              <action android:name="edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH" />
+              <action android:name="edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH" />
           </intent-filter>
         </service>
 
