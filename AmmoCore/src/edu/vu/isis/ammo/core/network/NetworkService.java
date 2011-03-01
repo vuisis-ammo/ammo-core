@@ -34,6 +34,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -233,7 +234,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 		
 		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-		operatorId = prefs.getString(INetPrefKeys.PREF_OPERATOR_ID, operatorId);
+		operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
 		operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
 		
 		String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
@@ -281,8 +282,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 			this.authenticate();
 			return;
 		}
-		if (key.equals(INetPrefKeys.PREF_OPERATOR_ID)) {
-			operatorId = prefs.getString(INetPrefKeys.PREF_OPERATOR_ID, operatorId);
+		if (key.equals(IPrefKeys.PREF_OPERATOR_ID)) {
+			operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
 			this.authenticate();
 			
 			// TBD SKN: broadcast login id change to apps ...

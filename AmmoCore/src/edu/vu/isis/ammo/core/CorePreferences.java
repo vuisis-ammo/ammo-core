@@ -1,10 +1,11 @@
 package edu.vu.isis.ammo.core;
 
-import edu.vu.isis.ammo.INetPrefKeys;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
+import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.IPrefKeys;
 
 /**
  * View and change the core application preferences.
@@ -62,7 +63,7 @@ public class CorePreferences extends PreferenceActivity {
 		mDeviceId.setSummaryPrefix(res.getString(R.string.device_id_label));
 		mDeviceId.setType(CustomEditTextPreference.Type.DEVICE_ID);
 		
-		mOperatorId = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_OPERATOR_ID);
+		mOperatorId = (CustomEditTextPreference) findPreference(IPrefKeys.PREF_OPERATOR_ID);
 		mOperatorId.setSummaryPrefix(res.getString(R.string.operator_id_label));
 		mOperatorId.setType(CustomEditTextPreference.Type.OPERATOR_ID);
 		
@@ -74,10 +75,10 @@ public class CorePreferences extends PreferenceActivity {
 	}
 	
 	@Override
-	public void onDestroy() {
-		super.onDestroy();
-		Intent i = new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH");
-		this.startService(i);
+	public void onStop() {
+		super.onStop();
+		Intent i = new Intent(IPrefKeys.AMMO_PREF_UPDATE);
+		this.sendBroadcast(i);
 	}
 	
 	// ===========================================================

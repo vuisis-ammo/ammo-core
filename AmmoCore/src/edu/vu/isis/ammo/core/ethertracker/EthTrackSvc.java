@@ -12,9 +12,7 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.MainActivity;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.network.NetworkService;
 
 public class EthTrackSvc extends Service {
 

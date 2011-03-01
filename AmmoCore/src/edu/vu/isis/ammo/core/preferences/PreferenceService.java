@@ -5,6 +5,9 @@ import android.content.Intent;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
+import android.util.Log;
+import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.IPrefKeys;
 
 public class PreferenceService extends Service {
 	 @Override
@@ -21,12 +24,13 @@ public class PreferenceService extends Service {
 		
 		@Override
 		public String getOperatorId() throws RemoteException {
-			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString("CORE_OPERATOR_ID", "");
+			Log.d("PreferenceService", "::getOperatorId()");
+			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString(IPrefKeys.PREF_OPERATOR_ID, "");
 		}
 		
 		@Override
 		public String getDeviceId() throws RemoteException {
-			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString("CORE_DEVICE_ID", "");
+			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString(INetPrefKeys.PREF_DEVICE_ID, "");
 		}
 	};
 

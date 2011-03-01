@@ -25,7 +25,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -77,8 +77,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		SharedPreferences.Editor prefEditor = prefs.edit();
 		prefEditor.putString(INetPrefKeys.PREF_DEVICE_ID, deviceId).commit();
 	
-		Intent i = new Intent("edu.vu.isis.ammo.core.PreferenceServiceHack.LAUNCH");
-		this.startService(i);
+		Intent i = new Intent(IPrefKeys.AMMO_PREF_UPDATE);
+		i.putExtra("operatorId", prefs.getString(IPrefKeys.PREF_OPERATOR_ID, "foo"));
+		this.sendBroadcast(i);
 	}
 	
 	@Override

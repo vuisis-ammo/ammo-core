@@ -1,11 +1,11 @@
 package edu.vu.isis.ammo.core;
 
-import edu.vu.isis.ammo.INetPrefKeys;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.util.AttributeSet;
 import android.widget.TextView;
+import edu.vu.isis.ammo.INetPrefKeys;
 
 /**
  * TextView subclass used to format text based on the status of network

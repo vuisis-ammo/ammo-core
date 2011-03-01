@@ -103,6 +103,15 @@
 			</intent-filter>
 		</service>
 		
+		<service android:enabled="true"
+		android:name=".preferences.PreferenceService"
+		android:exported="true">
+		  <intent-filter>
+		      <action android:name="edu.vu.isis.ammo.core.preferences.PreferenceService.BIND" />
+		  </intent-filter>
+		
+		</service>
+		
 		<service android:enabled="true" 
 		  android:name=".PreferenceServiceHack" 
 		  android:exported="true">
