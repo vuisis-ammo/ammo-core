@@ -23,7 +23,7 @@ public interface INetworkService {
 	 * Used to acquire the session id by which subsequent communication will be
 	 * tracked.
 	 */
-	public boolean authenticateGatewayConnection();
+	public boolean authenticate();
 
 	/**
 	 * Posting a data item to the gateway for distribution.
@@ -33,7 +33,7 @@ public interface INetworkService {
 	 * @param data
 	 * @return
 	 */
-	public boolean dispatchPushRequestToGateway(String uri, String mimeType, byte []data);
+	public boolean dispatchPushRequest(String uri, String mimeType, byte []data);
 	
 	/**
 	 * Enrolling with the gateway for a data stream.
@@ -44,7 +44,7 @@ public interface INetworkService {
 	 * 
 	 * @return was the request posted successfully
 	 */
-	public boolean dispatchRetrievalRequestToGateway(String requestId, String mimeType, String selection);
+	public boolean dispatchRetrievalRequest(String requestId, String mimeType, String selection);
 	
 	/**
 	 * Subscribe with the gateway for a data stream.
@@ -54,7 +54,7 @@ public interface INetworkService {
 	 * 
 	 * @return was the request posted successfully
 	 */
-	public boolean dispatchSubscribeRequestToGateway(String mimeType, String selection);
+	public boolean dispatchSubscribeRequest(String mimeType, String selection);
 	
 	/**
 	 * Pass control to the distributor service to handle the message.

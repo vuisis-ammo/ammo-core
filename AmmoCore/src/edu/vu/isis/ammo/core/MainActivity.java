@@ -161,10 +161,6 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		} else if (view.equals(this.btnConnect)) {
 			// Tell the network service to disconnect and reconnect.
 			editor.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
-			// Intent disconnectIntent = new Intent(INetworkBinder.ACTION_DISCONNECT);
-			// Intent intent = new Intent(INetworkBinder.ACTION_RECONNECT);
-			//this.sendBroadcast(disconnectIntent);
-			// this.sendBroadcast(intent);
 		}
 		editor.commit();
 		setWifiStatus();

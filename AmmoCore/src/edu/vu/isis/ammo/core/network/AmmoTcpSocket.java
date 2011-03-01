@@ -319,6 +319,7 @@ public class AmmoTcpSocket {
 					synchronized (this.parent.syncObj) { 
 						switch (mState) {
 						case SHUTDOWN:
+							logger.debug("shutdown receiver thread");
 							loop = false;
 							break;
 						case STARTED:  // look for the size

@@ -39,6 +39,9 @@ public class LoggingPreferences extends PreferenceActivity {
 		level.setSummaryPrefix(res.getString(R.string.log_level_label));
 		level.setType(CustomEditTextPreference.Type.LOG_LEVEL);
 		
+		// System.setProperty(prop, value);
+		// export ANDROID_LOG_TAGS="ActivityManager:I MyApp:D *:S"
+			
 		this.setupViews();
 	}
 	

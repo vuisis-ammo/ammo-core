@@ -25,6 +25,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
+import android.os.Binder;
 import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
@@ -55,7 +56,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger(NetworkService.class);
-
 
 	// Local constants
 	private static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
@@ -91,7 +91,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	public boolean getNetworkingSwitch() { return networkingSwitch; }
 	public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
 	
-	private NetworkBinder networkBinder;
 	private IDistributorService distributor;
 	
 	// TCP Fields
@@ -109,12 +108,31 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private BufferedOutputStream journal = null;
 	
 	private MyBroadcastReceiver myReceiver = null;
-	private IRegisterReceiver mReceiverRegistrar = null;
+	private IRegisterReceiver mReceiverRegistrar = new IRegisterReceiver() {
+		@Override
+		public Intent registerReceiver(final BroadcastReceiver aReceiver, final IntentFilter aFilter) {
+			return NetworkService.this.registerReceiver(aReceiver, aFilter);
+		}
+		@Override
+		public void unregisterReceiver(final BroadcastReceiver aReceiver) {
+			NetworkService.this.unregisterReceiver(aReceiver);
+		}
+	};
+
 
 	
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
+	
+	private final IBinder binder = new MyBinder();
+	
+	public class MyBinder extends Binder {
+		NetworkService getService() {
+			logger.trace("MyBinder::getService");
+			return NetworkService.this;
+		}
+	}
 	
 	/**
      * Class for clients to access.  
@@ -123,9 +141,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
      */
 	@Override
 	public IBinder onBind(Intent arg0) {
-		logger.error("no IPC expected or accomodated");
-        networkBinder = NetworkBinder.getInstance(this);
-		return networkBinder;
+		logger.trace("MyBinder::onBind");
+		return binder;
 	}
 
 	/**
@@ -134,6 +151,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * The journal is a file containing the PushRequests (not RetrievalRequest's or *Response's).
 	 */
 	public void setupJournal() {
+		logger.trace("::setupJournal");
 		if (!journalingSwitch) return;
 		if (journal != null) return;
 		try {
@@ -156,14 +174,14 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) 
 	{
+		logger.trace("::onStartCommand");
 		if (intent.getAction().equals(NetworkService.PREPARE_FOR_STOP)) {
 			logger.debug("Preparing to stop NPS");
 			this.teardown();
 			this.stopSelf();
 			return START_NOT_STICKY;
 		}
-
-        logger.debug("NPS Started");
+        logger.debug("started");
 		return START_STICKY;
 	}
 
@@ -174,24 +192,14 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		logger.debug("Network Proxy service created...");
+		logger.trace("onCreate");
 		
 		this.acquirePreferences();
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
 		
 		this.myReceiver = new MyBroadcastReceiver();
-		mReceiverRegistrar = new IRegisterReceiver() {
-			@Override
-			public Intent registerReceiver(final BroadcastReceiver aReceiver, final IntentFilter aFilter) {
-				return NetworkService.this.registerReceiver(aReceiver, aFilter);
-			}
-			@Override
-			public void unregisterReceiver(final BroadcastReceiver aReceiver) {
-				NetworkService.this.unregisterReceiver(aReceiver);
-			}
-		};
-
+		
 		final IntentFilter networkFilter = new IntentFilter();
 		networkFilter.addAction(INetworkService.ACTION_RECONNECT);
 		networkFilter.addAction(INetworkService.ACTION_DISCONNECT);
@@ -235,10 +243,10 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		this.tcpSocket.setPort(gatewayPort);
 		
 		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-		this.authenticateGatewayConnection();
+		this.authenticate();
 		
 		this.connectChannels(true);
-		this.authenticateGatewayConnection();
+		this.authenticate();
 	}
 	
 	/** 
@@ -270,12 +278,12 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		// handle network authentication group
 		if (key.equals(INetPrefKeys.PREF_DEVICE_ID)) {
 			deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-			this.authenticateGatewayConnection();
+			this.authenticate();
 			return;
 		}
 		if (key.equals(INetPrefKeys.PREF_OPERATOR_ID)) {
 			operatorId = prefs.getString(INetPrefKeys.PREF_OPERATOR_ID, operatorId);
-			this.authenticateGatewayConnection();
+			this.authenticate();
 			
 			// TBD SKN: broadcast login id change to apps ...
 			Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
@@ -286,7 +294,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		}
 		if (key.equals(INetPrefKeys.PREF_OPERATOR_KEY)) {
 			operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
-			this.authenticateGatewayConnection();
+			this.authenticate();
 			return;
 		}
 
@@ -337,7 +345,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
         	.edit()
         	.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
         	.commit();
-        authenticateGatewayConnection();
+        authenticate();
 		tcpSocket.startReceiverThread();
 		
 		// A hack to let clients know what the operator id is
@@ -630,7 +638,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	
 	
 	// ===============================================================
-	// BINDING CALLS (NetworkBinder)
+	// BINDING CALLS (NetworkServiceBinder)
 	// 
 	// These may be called internally but they are intended to be 
 	// called by the distributor service.
@@ -675,7 +683,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		return tcpSocket.isConnected();
 	}
 	
-	public boolean authenticateGatewayConnection() {
+	public boolean authenticate() {
 		if (! isConnected()) return false;
 		
 		/** Message Building */
@@ -686,7 +694,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
-	public boolean dispatchPushRequestToGateway(String uri, String mimeType, byte []data) {
+	public boolean dispatchPushRequest(String uri, String mimeType, byte []data) {
 		if (! isConnected() && ! isJournaling()) return false;
 		
 		Long now = System.currentTimeMillis();
@@ -701,7 +709,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
-	public boolean dispatchRetrievalRequestToGateway(String subscriptionId, String mimeType, String selection) {
+	public boolean dispatchRetrievalRequest(String subscriptionId, String mimeType, String selection) {
 		if (! isConnected()) return false; 
 		
 		/** Message Building */
@@ -712,7 +720,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
-	public boolean dispatchSubscribeRequestToGateway(String mimeType, String selection) {
+	public boolean dispatchSubscribeRequest(String mimeType, String selection) {
 		if (! isConnected()) return false; 
 		
 		/** Message Building */
