@@ -35,7 +35,10 @@ public class PreferenceServiceHack extends Service {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return startId;
+		//return startId; // commented this out as a temp. workaround to stop the 
+		//ActivityManger crash. Once this is changed to using a aidl, it will be 
+		// a permanent fix
+		return START_NOT_STICKY;
 	}
 
 	@Override
