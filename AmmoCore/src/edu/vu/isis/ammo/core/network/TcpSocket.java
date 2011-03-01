@@ -26,8 +26,8 @@ import android.os.Looper;
  * @author phreed
  *
  */
-public class AmmoTcpSocket {
-	private static final Logger logger = LoggerFactory.getLogger(AmmoTcpSocket.class);
+public class TcpSocket {
+	private static final Logger logger = LoggerFactory.getLogger(TcpSocket.class);
 	
 	private boolean isEnabled = true;
 	private boolean isStale = true;
@@ -42,32 +42,38 @@ public class AmmoTcpSocket {
 	private NetworkService driver = null;
 	private final Object syncObj;
 	
-	public AmmoTcpSocket(NetworkService driver) {
+	public TcpSocket(NetworkService driver) {
 		super();
+		logger.trace("::<constructor>");
 		this.syncObj = this;
 		this.isStale = true;
 		this.driver = driver;
 	}
 	
 	public void setStale() {
-	synchronized (this) {
-		this.isStale = true;
-		
-		if (this.receiverThread != null) {
-			synchronized (this.syncObj) {
-				this.receiverThread.close();
-				this.receiverThread = null;
+		synchronized (this) {
+			logger.trace("::setStale {}", this.isStale);
+			this.isStale = true;
+			
+			if (this.receiverThread != null) {
+				synchronized (this.syncObj) {
+					this.receiverThread.close();
+					this.receiverThread = null;
+				}
 			}
 		}
 	}
+	public boolean isStale() {
+		logger.trace("::isStale {}", this.isStale);
+		return this.isStale;
 	}
-	public boolean isStale() { return this.isStale; }
 	
 	/** 
 	 * Was the status changed as a result of enabling the connection.
 	 * @return
 	 */
 	public boolean enable() {
+		logger.trace("::enable");
 		if (this.isEnabled == true) 
 			return false;
 		this.isEnabled = true;
@@ -76,6 +82,7 @@ public class AmmoTcpSocket {
 		return true;
 	}
 	public boolean disable() {
+		logger.trace("::disable");
 		if (this.isEnabled == false) 
 			return false;
 		this.isEnabled = false;
@@ -84,21 +91,25 @@ public class AmmoTcpSocket {
 	}
 	
 	public boolean setConnectTimeout(int value) {
+		logger.trace("::setConnectTimeout {}", value);
 		this.connectTimeout = value;
 		return true;
 	}
 	public boolean setSocketTimeout(int value) {
+		logger.trace("::setSocketTimeout {}", value);
 		this.socketTimeout = value;
 		return true;
 	}
 	
 	public boolean setHost(String host) {
+		logger.trace("::setHost {}", host);
 		if (gatewayHost == host) return false;
 		this.setStale();
 		this.gatewayHost = host;
 		return true;
 	}
 	public boolean setPort(int port) {
+		logger.trace("::setPort {}", port);
 		if (gatewayPort == port) return false;
 		this.setStale();
 		this.gatewayPort = port;
@@ -120,6 +131,8 @@ public class AmmoTcpSocket {
 	 */
 	public boolean tryConnect(boolean reconnect) {
 		synchronized(this.syncObj) {
+			logger.trace("::tryConnect");
+			
 			if (reconnect) return reconnect();
 			if (!this.isEnabled) return false;
 			if (this.isStale) return reconnect();
@@ -128,6 +141,8 @@ public class AmmoTcpSocket {
 		}
 	}
 	private boolean reconnect() {
+		logger.trace("::reconnect");
+		
 		if (this.gatewayHost == null) this.gatewayHost = DEFAULT_HOST;
 		if (this.gatewayPort < 1) return false;
 		InetAddress gatewayIpAddr = null;
@@ -157,13 +172,20 @@ public class AmmoTcpSocket {
 	}
 	
 	public boolean isConnected() {
+		logger.trace("::isConnected");
 		if (tcpSocket == null) return false;
 		if (tcpSocket.isClosed()) return false;
 		return tcpSocket.isConnected();
 	}
 	
+	/**
+	 * returns true if the thread was successfully started.
+	 * returns false if the thread was already running.
+	 */
 	public boolean startReceiverThread() {
+		logger.trace("::startReceiverThread");
 		if (this.receiverThread == null) return false;
+		if (this.receiverThread.isAlive()) return false;
 		this.receiverThread.start();
 		return true;
 	}
@@ -175,6 +197,7 @@ public class AmmoTcpSocket {
 	 */
 	public boolean close() {
 		synchronized (this.syncObj) {
+			logger.trace("::close");
 			if (this.tcpSocket == null) return false;
 			if (this.tcpSocket.isClosed()) return false;
 			try {
@@ -188,6 +211,7 @@ public class AmmoTcpSocket {
 	}
 	
 	public boolean hasSocket() {
+		logger.trace("::hasSocket");
 		if (this.tcpSocket == null) return false;
 		if (this.tcpSocket.isClosed()) return false;
 		return true;
@@ -195,6 +219,7 @@ public class AmmoTcpSocket {
 	
     public boolean disconnect() {
     	synchronized (this.syncObj) {
+    		logger.trace("::disconnect");
 			if (this.receiverThread == null) return false;
 			if (!this.receiverThread.hasSocket()) return false;
 			
@@ -216,6 +241,7 @@ public class AmmoTcpSocket {
 	public boolean sendGatewayRequest(int size, int checksum, byte[] message) 
 	{
 		synchronized (this.syncObj) {
+			logger.trace("::sendGatewayRequest");
 			if (! this.tryConnect(false)) return false;
 			
 			DataOutputStream dos;
@@ -246,7 +272,7 @@ public class AmmoTcpSocket {
 	public class TcpReceiverThread extends Thread {
 		final private NetworkService driver;
 
-		private AmmoTcpSocket parent = null;
+		private TcpSocket parent = null;
 		volatile private int mState;
 		
 		static private final int SHUTDOWN = 0; // the run is being stopped
@@ -256,12 +282,14 @@ public class AmmoTcpSocket {
 		static private final int CHECKED  = 4; // indicating the bytes are being read
 		static private final int DELIVER  = 5; // indicating the message has been read
 		
-		private TcpReceiverThread(AmmoTcpSocket aSocket) {
+		private TcpReceiverThread(TcpSocket aSocket) {
+			logger.trace("::<constructor>");
 			this.driver = aSocket.driver;
 			this.parent = aSocket;
 		}
 
 		public void close() {
+			logger.trace("::close");
 			this.mState = SHUTDOWN;
 			parent.close();
 		}
@@ -269,8 +297,8 @@ public class AmmoTcpSocket {
 
 		@Override
 		public void start() {
-			logger.debug("tcp receiver thread");
 			super.start();
+			logger.trace("::start");
 		}
 
 		/**
@@ -286,6 +314,7 @@ public class AmmoTcpSocket {
 		 */
 		@Override
 		public void run() { 
+			logger.trace("::run");
 			Looper.prepare();
 			InputStream insock;
 			try {
@@ -317,6 +346,7 @@ public class AmmoTcpSocket {
 							break;
 					}
 					synchronized (this.parent.syncObj) { 
+						logger.debug("read loop");
 						switch (mState) {
 						case SHUTDOWN:
 							logger.debug("shutdown receiver thread");

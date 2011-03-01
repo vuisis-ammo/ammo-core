@@ -41,6 +41,7 @@ import android.telephony.TelephonyManager;
 import com.google.protobuf.ByteString;
 
 import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -95,7 +96,7 @@ public class DistributorService extends Service implements IDistributorService {
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.trace("::onServiceConnected - Network Service");
             isNetworkServiceBound = true;
-            networkServiceBinder = (INetworkService) service;
+            networkServiceBinder = ((NetworkService.MyBinder) service).getService();
             networkServiceBinder.setDistributorServiceCallback(callback);
         }
 
@@ -454,9 +455,12 @@ public class DistributorService extends Service implements IDistributorService {
                 // Dispatch the message.
                 boolean dispatchSuccessful = false;
                 try {
-                    dispatchSuccessful = 
+                	if (! this.networkServiceBinder.isConnected()) {
+                		logger.debug("no network connection");
+                	} else {
+                		dispatchSuccessful = 
                     	this.networkServiceBinder.dispatchPushRequest(rowUri.toString(), mimeType, serialized);
-                
+                	}
                     if (dispatchSuccessful) {
                         byte[] notice = cur.getBlob(cur.getColumnIndex(PostalTableSchema.NOTICE));
                         sendPendingIntent(notice);
@@ -546,16 +550,14 @@ public class DistributorService extends Service implements IDistributorService {
                 Uri rowUri = Uri.parse(uri);
 				
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
-				
-                boolean sent = this.networkServiceBinder.dispatchRetrievalRequest(
+                boolean sent = false;
+				if (! this.networkServiceBinder.isConnected()) {
+					++failedSendCount;
+				} else {
+                    sent = this.networkServiceBinder.dispatchRetrievalRequest(
                         rowUri.toString(), mime, selection);
-				
-                if (!sent) {
-                    ++failedSendCount;
-                    // Toast.makeText(this, "Sending retrieval request to gateway failed.", Toast.LENGTH_SHORT).show();
-                } else {// Toast.makeText(this, "Sending retrieval request to gateway succeeded.", Toast.LENGTH_LONG).show();
-                }
-				
+                    if (!sent) ++failedSendCount;
+				}
                 ContentValues values = new ContentValues();
 
                 values.put(RetrievalTableSchema.DISPOSITION,
@@ -645,16 +647,13 @@ public class DistributorService extends Service implements IDistributorService {
                 // String mimeType = InternetMediaType.getInst(cr.getType(rowUri)).setType("application").toString();
 				logger.debug("Subscribe request with mime: " + mime + " and selection: " + selection);
                 
-				boolean sent = this.networkServiceBinder.dispatchSubscribeRequest(mime,
-                        selection);
-				
-                if (!sent) {
-                    ++failedSendCount;
-                    // Toast.makeText(this, "subscription to " + mime + " failed", Toast.LENGTH_SHORT).show();
-                } else {
-                    // Toast.makeText(this, "subscription to " + mime + " sent", Toast.LENGTH_SHORT).show();
-                }
-				
+				boolean sent = false;
+				if (! this.networkServiceBinder.isConnected()) {
+					++failedSendCount;
+				} else {
+					sent = this.networkServiceBinder.dispatchSubscribeRequest(mime, selection);
+                    if (!sent) ++failedSendCount;
+				}
                 ContentValues values = new ContentValues();
 
                 values.put(SubscriptionTableSchema.DISPOSITION,

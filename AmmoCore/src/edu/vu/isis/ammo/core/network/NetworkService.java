@@ -94,7 +94,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private IDistributorService distributor;
 	
 	// TCP Fields
-	private AmmoTcpSocket tcpSocket = new AmmoTcpSocket(this);
+	private TcpSocket tcpSocket = new TcpSocket(this);
 	
 	// SDCARD Fields
 	private boolean journalingSwitch = true;
@@ -118,8 +118,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 			NetworkService.this.unregisterReceiver(aReceiver);
 		}
 	};
-
-
 	
 	// ===========================================================
 	// Lifecycle
@@ -128,7 +126,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private final IBinder binder = new MyBinder();
 	
 	public class MyBinder extends Binder {
-		NetworkService getService() {
+		public NetworkService getService() {
 			logger.trace("MyBinder::getService");
 			return NetworkService.this;
 		}
@@ -208,6 +206,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 
 	@Override
 	public void onDestroy() {
+		logger.trace("::onDestroy");
 		this.tcpSocket.close();
 		// this.myReceiver.
 	    try {
@@ -216,7 +215,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		logger.debug("Network Proxy service destroyed...");
 		this.mReceiverRegistrar.unregisterReceiver(this.myReceiver);
 		super.onDestroy();
 	}	
@@ -229,6 +227,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * Read the system preferences for the network connection information.
 	 */
 	private void acquirePreferences() {
+		logger.trace("::acquirePreferences");
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 		journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 		
@@ -243,10 +242,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		this.tcpSocket.setPort(gatewayPort);
 		
 		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-		this.authenticate();
-		
 		this.connectChannels(true);
-		this.authenticate();
+		if (this.isConnected()) this.authenticate();
 	}
 	
 	/** 
@@ -256,7 +253,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-		// handle network connection group
+		logger.trace("::onSharedPreferenceChanged");
 		
 		if (key.equals(INetPrefKeys.PREF_IP_ADDR)) {
 			String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
@@ -278,23 +275,22 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		// handle network authentication group
 		if (key.equals(INetPrefKeys.PREF_DEVICE_ID)) {
 			deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-			this.authenticate();
+			if (this.isConnected()) this.authenticate();
 			return;
 		}
 		if (key.equals(INetPrefKeys.PREF_OPERATOR_ID)) {
 			operatorId = prefs.getString(INetPrefKeys.PREF_OPERATOR_ID, operatorId);
-			this.authenticate();
+			if (this.isConnected()) this.authenticate();
 			
 			// TBD SKN: broadcast login id change to apps ...
 			Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
 			loginIntent.putExtra("operatorId", operatorId);
 			this.sendBroadcast(loginIntent);
-			
 			return;
 		}
 		if (key.equals(INetPrefKeys.PREF_OPERATOR_KEY)) {
 			operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
-			this.authenticate();
+			if (this.isConnected()) this.authenticate();
 			return;
 		}
 
@@ -329,7 +325,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @return
 	 */
 	private boolean connectChannels(boolean reconnect) {
-        logger.trace("connectChannels: " + reconnect);
+        logger.trace("connectChannels: {}", reconnect);
 	    this.tcpSocket.tryConnect(reconnect);
 	    boolean isTcpConnected = this.tcpSocket.isConnected();
 	    
@@ -345,7 +341,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
         	.edit()
         	.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
         	.commit();
-        authenticate();
+        if (this.isConnected()) this.authenticate();
 		tcpSocket.startReceiverThread();
 		
 		// A hack to let clients know what the operator id is
@@ -360,6 +356,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * Disconnect all channels indiscriminately.
 	 */	
 	private boolean disconnectChannels() {
+		logger.trace("::disconnectChannels");
 		boolean didTcpDisconnect = this.tcpSocket.disconnect();
 		return didTcpDisconnect;
 	}
@@ -373,6 +370,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * They are primarily concerned with obtaining the sessionId.
 	 */
 	private AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
+		logger.trace("::buildAuthenticationRequest");
+		
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
 		mw.setSessionUuid(sessionId);
@@ -393,18 +392,18 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @return
 	 */
 	private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
+		logger.trace("::receiveAuthenticationResponse");
+		
 		if (mw == null) return false;
 		if (! mw.hasAuthenticationResult()) return false;
 		if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
 			return false;
-		} else {
-			PreferenceManager
-				.getDefaultSharedPreferences(this)
-				.edit()
-				.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
-				.commit();
-		}
-		
+		} 
+		PreferenceManager
+			.getDefaultSharedPreferences(this)
+			.edit()
+			.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+			.commit();
 		sessionId = mw.getSessionUuid();
 
 		// the distributor doesn't need to know about authentication results.
@@ -422,6 +421,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	private AmmoMessages.MessageWrapper.Builder buildPushRequest(String uri, String mimeType, byte[] data) 
 	{
+		logger.trace("::buildPushRequest");
+		
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
 		mw.setSessionUuid(sessionId);
@@ -443,6 +444,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @return
 	 */
 	private boolean receivePushResponse(AmmoMessages.MessageWrapper mw) {
+		logger.trace("::receivePushResponse");
+		
 		if (mw == null) return false;
 		if (! mw.hasPushAcknowledgement()) return false;
 		PushAcknowledgement pushResp = mw.getPushAcknowledgement();
@@ -460,6 +463,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	private AmmoMessages.MessageWrapper.Builder buildRetrievalRequest(String uuid, String mimeType, String query) 
 	{
+		logger.trace("::buildRetrievalRequest");
+		
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
 		mw.setSessionUuid(sessionId);
@@ -489,6 +494,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @return
 	 */
 	private boolean receivePullResponse(AmmoMessages.MessageWrapper mw) {
+		logger.trace("::receivePullResponse");
+		
 		if (mw == null) return false;
 		if (! mw.hasPullResponse()) return false;
 		final AmmoMessages.PullResponse pullResp = mw.getPullResponse();
@@ -498,6 +505,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	
 	private AmmoMessages.MessageWrapper.Builder buildSubscribeRequest(String mimeType, String query) 
 	{
+		logger.trace("::buildSubscribeRequest");
+		
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
 		mw.setSessionUuid(sessionId);
@@ -513,6 +522,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	}	
 	
 	private boolean receiveSubscribeResponse(AmmoMessages.MessageWrapper mw) {
+		logger.trace("::receiveSubscribeResponse");
+		
 		if (mw == null) return false;
 		if (! mw.hasDataMessage()) return false;
 		final AmmoMessages.DataMessage subscribeResp = mw.getDataMessage();
@@ -535,6 +546,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	private boolean sendGatewayRequest(int size, int checksum, byte[] message) 
 	{
+		logger.trace("::sendGatewayRequest");
 		return this.tcpSocket.sendGatewayRequest(size, checksum, message);
 	}
 	
@@ -575,6 +587,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	public boolean deliverGatewayResponse(byte[] message, CRC32 checksum) 
 	{
+		logger.trace("::deliverGatewayResponse");
+		
 		CRC32 crc32 = new CRC32();
 		crc32.update(message);
 		if (crc32.getValue() != checksum.getValue()) {
@@ -622,6 +636,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	public void writeMessageToJournal(MsgHeader MsgHeader, byte[] messageByteArray) {
 		if (! isJournaling()) return;
+		logger.trace("::writeMessageToJournal");
 		setupJournal();
 		try {
 			journal.write(MsgHeader.size);
@@ -649,25 +664,25 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * service is being intentionally shut down.
 	 */
 	public void teardown() {
-
-			try {
-				journal.close();
-			} catch (IOException ex) {
-				ex.printStackTrace();
+		logger.trace("::teardown");
+		try {
+			journal.close();
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+		
+		logger.debug("Tearing down NPS");
+		disconnectChannels();
+		
+		Timer t = new Timer();
+		t.schedule(new TimerTask() {
+			// Stop this service
+			@Override
+			public void run() {
+				distributor.finishTeardown();
+				stopSelf();
 			}
-			
-			logger.debug("Tearing down NPS");
-			disconnectChannels();
-			
-			Timer t = new Timer();
-			t.schedule(new TimerTask() {
-				// Stop this service
-				@Override
-				public void run() {
-					distributor.finishTeardown();
-					stopSelf();
-				}
-			}, 1000);
+		}, 1000);
 	}
 	
 	/**
@@ -676,6 +691,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @return
 	 */
 	public boolean isConnected() {
+		logger.trace("::isConnected");
 		if (tcpSocket.isStale()) {
 			return tcpSocket.isConnected();
 		}
@@ -683,8 +699,12 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		return tcpSocket.isConnected();
 	}
 	
+	/**
+	 * For the following methods there is an expectation that 
+	 * the connection has been pre-verified.
+	 */
 	public boolean authenticate() {
-		if (! isConnected()) return false;
+		logger.trace("::authenticate");
 		
 		/** Message Building */
 		AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
@@ -695,12 +715,12 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	}
 	
 	public boolean dispatchPushRequest(String uri, String mimeType, byte []data) {
-		if (! isConnected() && ! isJournaling()) return false;
+		logger.trace("::dispatchPushRequest");
 		
 		Long now = System.currentTimeMillis();
-		logger.debug(String.format("Building MessageWrapper: data size %d @ time %d", data.length, now));
+		logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
 		AmmoMessages.MessageWrapper.Builder mwb = buildPushRequest(uri, mimeType, data);
-		logger.debug(String.format("Finished wrap build @ time %d...difference of %d ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now));
+		logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
 		byte[] protocByteBuf = mwb.build().toByteArray();
 
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
@@ -710,7 +730,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	}
 	
 	public boolean dispatchRetrievalRequest(String subscriptionId, String mimeType, String selection) {
-		if (! isConnected()) return false; 
+		logger.trace("::dispatchRetrievalRequest");
 		
 		/** Message Building */
 		AmmoMessages.MessageWrapper.Builder mwb = buildRetrievalRequest(subscriptionId, mimeType, selection);
@@ -721,7 +741,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	}
 	
 	public boolean dispatchSubscribeRequest(String mimeType, String selection) {
-		if (! isConnected()) return false; 
+		logger.trace("::dispatchSubscribeRequest");
 		
 		/** Message Building */
 		AmmoMessages.MessageWrapper.Builder mwb = buildSubscribeRequest(mimeType, selection);
@@ -732,16 +752,18 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	}
 	
 	public void setDistributorServiceCallback(IDistributorService callback) {
+		logger.trace("::setDistributorServiceCallback");
+		
 		distributor = callback;
 		// there is now someplace to send the responses.
 		connectChannels(false); // was true - why should we reconnect if a distributor call back changes
 	}
 	
 	private class MyBroadcastReceiver extends BroadcastReceiver {
-
 		@Override
 		public void onReceive(final Context aContext, final Intent aIntent) {
-
+			logger.trace("MyBroadcastReceiver::onReceive");
+			
 			final String action = aIntent.getAction();
 			logger.info("onReceive: " + action);
 
@@ -759,9 +781,13 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	
 	/**
 	 * A routine to get the local ip address
+	 * TODO use this someplace
+	 * 
 	 * @return
 	 */
+	@SuppressWarnings("unused")
 	private String getLocalIpAddress() {
+		logger.trace("::getLocalIpAddress");
 		try {
 			for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
 				NetworkInterface intf = en.nextElement();
