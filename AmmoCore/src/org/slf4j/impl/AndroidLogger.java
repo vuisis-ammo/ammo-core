@@ -82,6 +82,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#trace(java.lang.String) */
 	public void trace(final String msg)
 	{
+		if (!Log.isLoggable(name, Log.VERBOSE)) return;
 		if (!opTraceEnabled) return;
 		Log.v(name, msg);
 	}
@@ -89,6 +90,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#trace(java.lang.String, java.lang.Object) */
 	public void trace(final String format, final Object param1)
 	{
+		if (!Log.isLoggable(name, Log.VERBOSE)) return;
 		if (!opTraceEnabled) return;
 		Log.v(name, format(format, param1, null));
 	}
@@ -96,6 +98,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#trace(java.lang.String, java.lang.Object, java.lang.Object) */
 	public void trace(final String format, final Object param1, final Object param2)
 	{
+		if (!Log.isLoggable(name, Log.VERBOSE)) return;
 		if (!opTraceEnabled) return;
 		Log.v(name, format(format, param1, param2));
 	}
@@ -103,6 +106,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#trace(java.lang.String, java.lang.Object[]) */
 	public void trace(final String format, final Object[] argArray)
 	{
+		if (!Log.isLoggable(name, Log.VERBOSE)) return;
 		if (!opTraceEnabled) return;
 		Log.v(name, format(format, argArray));
 	}
@@ -110,6 +114,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#trace(java.lang.String, java.lang.Throwable) */
 	public void trace(final String msg, final Throwable t)
 	{
+		if (!Log.isLoggable(name, Log.VERBOSE)) return;
 		if (!opTraceEnabled) return;
 		Log.v(name, msg, t);
 	}
@@ -123,6 +128,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#debug(java.lang.String) */
 	public void debug(final String msg)
 	{
+		if (!Log.isLoggable(name, Log.DEBUG)) return;
 		if (!opDebugEnabled) return;
 		Log.d(name, msg);
 	}
@@ -130,6 +136,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#debug(java.lang.String, java.lang.Object) */
 	public void debug(final String format, final Object arg1)
 	{
+		if (!Log.isLoggable(name, Log.DEBUG)) return;
 		if (!opDebugEnabled) return;
 		Log.d(name, format(format, arg1, null));
 	}
@@ -137,6 +144,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#debug(java.lang.String, java.lang.Object, java.lang.Object) */
 	public void debug(final String format, final Object param1, final Object param2)
 	{
+		if (!Log.isLoggable(name, Log.DEBUG)) return;
 		if (!opDebugEnabled) return;
 		Log.d(name, format(format, param1, param2));
 	}
@@ -144,6 +152,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#debug(java.lang.String, java.lang.Object[]) */
 	public void debug(final String format, final Object[] argArray)
 	{
+		if (!Log.isLoggable(name, Log.DEBUG)) return;
 		if (!opDebugEnabled) return;
 		Log.d(name, format(format, argArray));
 	}
@@ -151,6 +160,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#debug(java.lang.String, java.lang.Throwable) */
 	public void debug(final String msg, final Throwable t)
 	{
+		if (!Log.isLoggable(name, Log.DEBUG)) return;
 		if (!opDebugEnabled) return;
 		Log.d(name, msg, t);
 	}
@@ -164,6 +174,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#info(java.lang.String) */
 	public void info(final String msg)
 	{
+		if (!Log.isLoggable(name, Log.INFO)) return;
 		if (!opInfoEnabled) return;
 		Log.i(name, msg);
 	}
@@ -171,6 +182,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#info(java.lang.String, java.lang.Object) */
 	public void info(final String format, final Object arg)
 	{
+		if (!Log.isLoggable(name, Log.INFO)) return;
 		if (!opInfoEnabled) return;
 		Log.i(name, format(format, arg, null));
 	}
@@ -178,6 +190,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#info(java.lang.String, java.lang.Object, java.lang.Object) */
 	public void info(final String format, final Object arg1, final Object arg2)
 	{
+		if (!Log.isLoggable(name, Log.INFO)) return;
 		if (!opInfoEnabled) return;
 		Log.i(name, format(format, arg1, arg2));
 	}
@@ -185,6 +198,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#info(java.lang.String, java.lang.Object[]) */
 	public void info(final String format, final Object[] argArray)
 	{
+		if (!Log.isLoggable(name, Log.INFO)) return;
 		if (!opInfoEnabled) return;
 		Log.i(name, format(format, argArray));
 	}
@@ -192,6 +206,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#info(java.lang.String, java.lang.Throwable) */
 	public void info(final String msg, final Throwable t)
 	{
+		if (!Log.isLoggable(name, Log.INFO)) return;
 		if (!opInfoEnabled) return;
 		Log.i(name, msg, t);
 	}
@@ -205,6 +220,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#warn(java.lang.String) */
 	public void warn(final String msg)
 	{
+		if (!Log.isLoggable(name, Log.WARN)) return;
 		if (!opWarnEnabled) return;
 		Log.w(name, msg);
 	}
@@ -212,6 +228,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#warn(java.lang.String, java.lang.Object) */
 	public void warn(final String format, final Object arg)
 	{
+		if (!Log.isLoggable(name, Log.WARN)) return;
 		if (!opWarnEnabled) return;
 		Log.w(name, format(format, arg, null));
 	}
@@ -219,6 +236,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#warn(java.lang.String, java.lang.Object, java.lang.Object) */
 	public void warn(final String format, final Object arg1, final Object arg2)
 	{
+		if (!Log.isLoggable(name, Log.WARN)) return;
 		if (!opWarnEnabled) return;
 		Log.w(name, format(format, arg1, arg2));
 	}
@@ -226,6 +244,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#warn(java.lang.String, java.lang.Object[]) */
 	public void warn(final String format, final Object[] argArray)
 	{
+		if (!Log.isLoggable(name, Log.WARN)) return;
 		if (!opWarnEnabled) return;
 		Log.w(name, format(format, argArray));
 	}
@@ -233,6 +252,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#warn(java.lang.String, java.lang.Throwable) */
 	public void warn(final String msg, final Throwable t)
 	{
+		if (!Log.isLoggable(name, Log.WARN)) return;
 		if (!opWarnEnabled) return;
 		Log.w(name, msg, t);
 	}
@@ -246,6 +266,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#error(java.lang.String) */
 	public void error(final String msg)
 	{
+		if (!Log.isLoggable(name, Log.ERROR)) return;
 		if (!opErrorEnabled) return;
 		Log.e(name, msg);
 	}
@@ -253,6 +274,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#error(java.lang.String, java.lang.Object) */
 	public void error(final String format, final Object arg)
 	{
+		if (!Log.isLoggable(name, Log.ERROR)) return;
 		if (!opErrorEnabled) return;
 		Log.e(name, format(format, arg, null));
 	}
@@ -260,6 +282,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#error(java.lang.String, java.lang.Object, java.lang.Object) */
 	public void error(final String format, final Object arg1, final Object arg2)
 	{
+		if (!Log.isLoggable(name, Log.ERROR)) return;
 		if (!opErrorEnabled) return;
 		Log.e(name, format(format, arg1, arg2));
 	}
@@ -267,6 +290,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#error(java.lang.String, java.lang.Object[]) */
 	public void error(final String format, final Object[] argArray)
 	{
+		if (!Log.isLoggable(name, Log.ERROR)) return;
 		if (!opErrorEnabled) return;
 		Log.e(name, format(format, argArray));
 	}
@@ -274,6 +298,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	/* @see org.slf4j.Logger#error(java.lang.String, java.lang.Throwable) */
 	public void error(final String msg, final Throwable t)
 	{
+		if (!Log.isLoggable(name, Log.ERROR)) return;
 		if (!opErrorEnabled) return;
 		Log.e(name, msg, t);
 	}

@@ -43,6 +43,7 @@ public class MainActivity extends Activity
 implements OnClickListener, OnSharedPreferenceChangeListener 
 {
 	public static final Logger logger = LoggerFactory.getLogger(MainActivity.class);
+	
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
 	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
 	private static final int SUBSCRIPTION_MENU = Menu.NONE + 2;
@@ -67,6 +68,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		logger.trace("::onCreate");
+		
 		setContentView(R.layout.main_activity);
 		this.setViewReferences();
 		this.setOnClickListeners();
@@ -80,11 +83,19 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		Intent i = new Intent(IPrefKeys.AMMO_PREF_UPDATE);
 		i.putExtra("operatorId", prefs.getString(IPrefKeys.PREF_OPERATOR_ID, "foo"));
 		this.sendBroadcast(i);
+		
+		Intent intent = new Intent("edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH");
+		this.startService(intent);
+		
+		intent.setAction(StartUpReceiver.RESET);
+		this.sendBroadcast(intent);
 	}
 	
 	@Override
 	public void onStart() {
 		super.onStart();
+		logger.trace("::onStart");
+		
 		setWifiStatus();
 		this.updateConnectionStatus(prefs);
 	}
@@ -92,13 +103,17 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	// Create a menu which contains a preferences button.
 	@Override
 	public void onCreateContextMenu(ContextMenu menu, View v,
-			ContextMenu.ContextMenuInfo menuInfo) {
+			ContextMenu.ContextMenuInfo menuInfo) 
+	{
 			super.onCreateContextMenu(menu, v, menuInfo);
+			logger.trace("::onCreateContextMenu");
 	}
 	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
+		logger.trace("::onCreateOptionsMenu");
+		
 		menu.add(Menu.NONE, PREFERENCES_MENU, Menu.NONE, getResources().getString(R.string.pref_label));
 		menu.add(Menu.NONE, DELIVERY_STATUS_MENU, Menu.NONE, getResources().getString(R.string.delivery_status_label));
 		menu.add(Menu.NONE, SUBSCRIPTION_MENU, Menu.NONE, getResources().getString(R.string.subscription_label));
@@ -110,15 +125,18 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	
 	@Override 
 	public boolean onPrepareOptionsMenu(Menu menu) {
+		logger.trace("::onPrepareOptionsMenu");
 		return true;
 	}
 	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
+		logger.trace("::onOptionsItemSelected");
+		
 		Intent intent = new Intent();
 		switch (item.getItemId()) {
 		case PREFERENCES_MENU:
-			intent.setAction(CorePreferences.LAUNCH);
+			intent.setAction(CorePreferenceActivity.LAUNCH);
 			this.startActivity(intent);
 			return true;
 		case DELIVERY_STATUS_MENU:
@@ -148,11 +166,14 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+		logger.trace("::onDestroy");
 		this.unregisterReceiver(this.wifiReceiver);
 	}
 	
 	@Override
 	public void onClick(View view) {
+		logger.trace("::onClick");
+		
 		Editor editor = prefs.edit();
 		if (view.equals(this.cbWifi)) {
 			editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
@@ -174,6 +195,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 */
 	@Override
 	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
+		logger.trace("::onSharedPreferenceChanged");
+		
 		if (key.startsWith(INetPrefKeys.PHYSICAL_LINK_PREF)) {
 			updateConnectionStatusThread(prefs);
 			return;
@@ -201,6 +224,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 * update since network status has changed.
 	 */
 	public void updateConnectionStatusThread(final SharedPreferences prefs) {
+		logger.trace("::updateConnectionStatusThread");
+		
 		this.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
@@ -211,6 +236,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	}
 	
 	public void updateConnectionStatus(SharedPreferences prefs) {
+		logger.trace("::updateConnectionStatus");
+		
 		tvPhysicalLink.notifyNetworkStatusChanged(prefs, INetPrefKeys.PHYSICAL_LINK_PREF);
 		tvWifi.notifyNetworkStatusChanged(prefs, INetPrefKeys.WIFI_PREF);
 		
@@ -225,6 +252,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	}
 	
 	public void setViewReferences() {
+		logger.trace("::setViewReferences");
+		
 		this.tvPhysicalLink = (NetworkStatusTextView)findViewById(R.id.main_activity_physical_link_status);
 		this.tvWifi = (NetworkStatusTextView)findViewById(R.id.main_activity_wifi_status);
 		this.tvConnectionStatus = (TextView)findViewById(R.id.main_activity_connection_status);
@@ -234,6 +263,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	}
 	
 	public void setOnClickListeners() {
+		logger.trace("::setOnClickListeners");
+		
 		cbPhysicalLink.setOnClickListener(this);
 		cbWifi.setOnClickListener(this);
 		btnConnect.setOnClickListener(this);
@@ -247,17 +278,21 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 * TODO: Clean this up.
 	 */
 	public void setWifiStatus() {
+		logger.trace("::setWifiStatus");
+		
 	    Thread t = new Thread() {
 		    public void run() {
-			WifiManager manager = (WifiManager)getSystemService(Context.WIFI_SERVICE);
-			WifiInfo info = manager.getConnectionInfo();
-			logger.debug( "WifiInfo: " +  info.toString() );
-			boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
-			Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
-			// editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_CONNECTED, wifiConn);
-			editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_AVAILABLE, wifiConn);
-			// editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());		
-			editor.commit();
+		    	logger.trace("WifiThread::run");
+		    	
+				WifiManager manager = (WifiManager)getSystemService(Context.WIFI_SERVICE);
+				WifiInfo info = manager.getConnectionInfo();
+				logger.debug( "WifiInfo: " +  info.toString() );
+				boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
+				Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
+				// editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_CONNECTED, wifiConn);
+				editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_AVAILABLE, wifiConn);
+				// editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());		
+				editor.commit();
 		    }
 		};
 	    t.start();
@@ -267,6 +302,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	// Broadcast Receivers
 	// ===========================================================
 	public void registerReceivers() {
+		logger.trace("::registerReceivers");
+		
 		this.wifiReceiver = new WifiReceiver();
 		IntentFilter wifiFilter = new IntentFilter(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
 		this.registerReceiver(this.wifiReceiver, wifiFilter);
@@ -275,6 +312,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	private class WifiReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(Context context, Intent intent) {
+			logger.trace("WifiReceiver::onReceive");
 		    // updateConnectionStatus(prefs);
 		    setWifiStatus();
 		}

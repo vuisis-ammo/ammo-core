@@ -15,11 +15,11 @@ import edu.vu.isis.ammo.IPrefKeys;
  * @author phreed
  *
  */
-public class CorePreferences extends PreferenceActivity {
+public class CorePreferenceActivity extends PreferenceActivity {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-    public static final String LAUNCH = "edu.vu.isis.ammo.core.CorePreferences.LAUNCH";
+    public static final String LAUNCH = "edu.vu.isis.ammo.core.Preference.LAUNCH";
 
 	// ===========================================================
 	// Fields

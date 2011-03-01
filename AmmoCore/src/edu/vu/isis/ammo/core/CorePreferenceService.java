@@ -13,7 +13,7 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.IPrefKeys;
 
-public class PreferenceServiceHack extends Service {
+public class CorePreferenceService extends Service {
 
 
 	@Override
@@ -35,7 +35,7 @@ public class PreferenceServiceHack extends Service {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return startId;
+		return Service.START_NOT_STICKY;
 	}
 
 	@Override
