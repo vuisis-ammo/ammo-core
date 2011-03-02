@@ -73,7 +73,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		setContentView(R.layout.main_activity);
 		this.setViewReferences();
 		this.setOnClickListeners();
+		this.initializeCheckboxes();
 		this.registerReceivers();
+		
 		prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		String deviceId = UniqueIdentifiers.device(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
@@ -260,6 +262,14 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		this.cbPhysicalLink = (CheckBox)findViewById(R.id.main_activity_physical_link);
 		this.cbWifi = (CheckBox)findViewById(R.id.main_activity_wifi);
 		this.btnConnect = (Button)findViewById(R.id.main_activity_connect_button);
+	}
+	
+	public void initializeCheckboxes() {
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+		boolean physLinkEnabled = prefs.getBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, false);
+		boolean wifiEnabled = prefs.getBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, false);
+		cbPhysicalLink.setChecked(physLinkEnabled);
+		cbWifi.setChecked(wifiEnabled);
 	}
 	
 	public void setOnClickListeners() {

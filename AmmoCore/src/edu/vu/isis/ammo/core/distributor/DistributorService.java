@@ -137,15 +137,15 @@ public class DistributorService extends Service implements IDistributorService {
         // Set this service to observe certain Content Providers.
         // Initialize our content observer.
 
-        postalObserver = new PostalObserver(new Handler(), callback);
+        postalObserver = new PostalObserver(new Handler(), this);
         this.getContentResolver().registerContentObserver(
                 PostalTableSchema.CONTENT_URI, false, postalObserver);
 
-        enrollmentObserver = new RetrievalObserver(new Handler(), callback);
+        enrollmentObserver = new RetrievalObserver(new Handler(), this);
         this.getContentResolver().registerContentObserver(
                 RetrievalTableSchema.CONTENT_URI, false, enrollmentObserver);
 
-        subscriptionObserver = new SubscriptionObserver(new Handler(), callback);
+        subscriptionObserver = new SubscriptionObserver(new Handler(), this);
         this.getContentResolver().registerContentObserver(
                 SubscriptionTableSchema.CONTENT_URI, false, subscriptionObserver);
 

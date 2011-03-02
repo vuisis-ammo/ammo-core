@@ -25,7 +25,7 @@ public class PreferenceService extends Service {
 		@Override
 		public String getOperatorId() throws RemoteException {
 			Log.d("PreferenceService", "::getOperatorId()");
-			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString(IPrefKeys.PREF_OPERATOR_ID, "");
+			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString(IPrefKeys.PREF_OPERATOR_ID, "foo");
 		}
 		
 		@Override
