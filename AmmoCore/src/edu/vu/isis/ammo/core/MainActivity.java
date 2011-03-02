@@ -246,9 +246,6 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		tvPhysicalLink.notifyNetworkStatusChanged(prefs, INetPrefKeys.PHYSICAL_LINK_PREF);
 		tvWifi.notifyNetworkStatusChanged(prefs, INetPrefKeys.WIFI_PREF);
 		
-		// TODO: is the following a hack or should it remain
-		// RESPONSE: The following is a hack. We'll trash it as soon as new functionality is supported.
-		logger.info("updating network pref : {}", INetPrefKeys.NET_CONN_PREF_IS_ACTIVE);
 		boolean isConnected = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
 		if (isConnected) {
 			tvConnectionStatus.setText("Gateway connected");
@@ -294,7 +291,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	public void setWifiStatus() {
 		logger.trace("::setWifiStatus");
 		
-	    Thread t = new Thread() {
+	    Thread wifiThread = new Thread() {
 		    public void run() {
 		    	logger.trace("WifiThread::run");
 		    	
@@ -309,7 +306,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 				editor.commit();
 		    }
 		};
-	    t.start();
+		wifiThread.start();
 	}
 	
 	// ===========================================================

@@ -95,7 +95,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private IDistributorService distributor;
 	
 	// TCP Fields
-	private TcpSocket tcpSocket = new TcpSocket(this);
+	private TcpSocket tcpSocket = TcpSocket.getInstance(this);
 	
 	// SDCARD Fields
 	private boolean journalingSwitch = true;
@@ -194,6 +194,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		logger.trace("onCreate");
 		
 		this.acquirePreferences();
+		this.tcpSocket.enable(); // no point in enabling the socket until the preferences have been read
+		
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
 		
@@ -328,7 +330,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private boolean connectChannels(boolean reconnect) {
         logger.trace("connectChannels: {}", reconnect);
 	    this.tcpSocket.tryConnect(reconnect);
-	    boolean isTcpConnected = this.tcpSocket.isConnected();
+	    boolean isTcpConnected = this.tcpSocket.checkConnection();
 	    
 	    // using preferences to communicate the status of the connection
 	    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
@@ -339,7 +341,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
        	    	.commit();
         }
         if (this.isConnected()) this.authenticate();
-		tcpSocket.startReceiverThread();
 		
 		// A hack to let clients know what the operator id is
 		Intent connIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
@@ -541,10 +542,10 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @param checksum
 	 * @param message
 	 */
-	private boolean sendGatewayRequest(int size, int checksum, byte[] message) 
+	private boolean sendGatewayRequest(int size, CRC32 checksum, byte[] message) 
 	{
 		logger.trace("::sendGatewayRequest");
-		return this.tcpSocket.sendGatewayRequest(size, checksum, message);
+		return this.tcpSocket.sendRequest(size, checksum, message);
 	}
 	
 	// ===========================================================
@@ -562,9 +563,9 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	static public class MsgHeader {
 		public final int size;
-		public final int checksum;
+		public final CRC32 checksum;
 	
-		private MsgHeader(int size, int crc32) {
+		private MsgHeader(int size, CRC32 crc32) {
 			this.size = size;
 			this.checksum = crc32;
 		}
@@ -572,7 +573,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		static public MsgHeader getInstance(byte[] data, boolean isLittleEndian) {
 			CRC32 crc32 = new CRC32();
 			crc32.update(data);
-			return new MsgHeader(data.length, (int)crc32.getValue());
+			return new MsgHeader(data.length, crc32);
 		}
 	}
 	
@@ -631,13 +632,19 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @param MsgHeader
 	 * @param messageByteArray
 	 */
-	public void writeMessageToJournal(MsgHeader MsgHeader, byte[] messageByteArray) {
+	public void writeMessageToJournal(MsgHeader header, byte[] messageByteArray) {
 		if (! isJournaling()) return;
 		logger.trace("::writeMessageToJournal");
 		setupJournal();
 		try {
-			journal.write(MsgHeader.size);
-			journal.write(MsgHeader.checksum);
+			journal.write(header.size);
+			long cvalue = header.checksum.getValue();
+			byte[] checksum = new byte[] {
+		                (byte)(cvalue >>> 24),
+		                (byte)(cvalue >>> 16),
+		                (byte)(cvalue >>> 8),
+		                (byte)cvalue};
+			journal.write(checksum);
 			journal.write(messageByteArray);
 			journal.flush();
 		} catch (IOException ex) {
@@ -690,10 +697,10 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	public boolean isConnected() {
 		logger.trace("::isConnected");
 		if (tcpSocket.isStale()) {
-			return tcpSocket.isConnected();
+			return tcpSocket.checkConnection();
 		}
 		if (tcpSocket == null) return false;
-		return tcpSocket.isConnected();
+		return tcpSocket.checkConnection();
 	}
 	
 	/**
