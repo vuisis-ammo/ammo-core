@@ -203,19 +203,12 @@ public class DistributorService extends Service implements IDistributorService {
         
     	if (isNetworkServiceBound) return START_STICKY;
     	if (networkServiceBinder != null) return START_STICKY;
-    	
-    	Thread networkThread = new Thread(null, doNetworkServiceThread, "NetworkThread");
-    	networkThread.start();
+    	networkServiceIntent = new Intent(INetworkService.ACTION); // implicit
+    	// networkServiceIntent = new Intent(DistributorService.this, NetworkService.class); // explicit
+        DistributorService.this.bindService(networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE);
         return START_STICKY;
     }
-    private Runnable doNetworkServiceThread = new Runnable() {
-    	public void run() {
-    		networkServiceIntent = new Intent(INetworkService.ACTION); // implicit
-        	// networkServiceIntent = new Intent(DistributorService.this, NetworkService.class); // explicit
-            DistributorService.this.bindService(networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE);
-    	}
-    };
-
+   
     public void teardownService() {
         logger.trace("::teardownService");
         if (!isNetworkServiceBound) {
@@ -350,7 +343,7 @@ public class DistributorService extends Service implements IDistributorService {
      * The postal requests should only be sent once.
      *
      */
-    ProcessChangeTask lastChangeTask = null;
+    private ProcessChangeTask lastChangeTask = null;
     
     public void repostToNetworkService() {
     	logger.trace("::repostToNetworkService()");
@@ -374,6 +367,7 @@ public class DistributorService extends Service implements IDistributorService {
     		callback.processSubscriptionChange(true);
             callback.processRetrievalChange(true);
             callback.processPostalChange(false);
+            // this.publishProgress(values);
     		return null;
     	}
     	@Override

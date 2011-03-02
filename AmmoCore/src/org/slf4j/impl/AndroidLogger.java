@@ -60,7 +60,7 @@ public class AndroidLogger extends MarkerIgnoringBase
 	
 	public static boolean opTraceEnabled = true;
 	public static boolean opDebugEnabled = true;
-	public static boolean opInfoEnabled = false;
+	public static boolean opInfoEnabled = true;
 	public static boolean opWarnEnabled = true;
 	public static boolean opErrorEnabled = true;
 

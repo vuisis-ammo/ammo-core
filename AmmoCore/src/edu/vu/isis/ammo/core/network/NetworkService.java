@@ -140,7 +140,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
      */
 	@Override
 	public IBinder onBind(Intent arg0) {
-		logger.trace("MyBinder::onBind");
+		logger.trace("MyBinder::onBind {}", Thread.currentThread().toString());
 		return binder;
 	}
 
@@ -338,10 +338,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
        	    	.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, isTcpConnected)
        	    	.commit();
         }
-        PreferenceManager.getDefaultSharedPreferences(this)
-        	.edit()
-        	.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false)
-        	.commit();
         if (this.isConnected()) this.authenticate();
 		tcpSocket.startReceiverThread();
 		

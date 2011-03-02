@@ -46,8 +46,8 @@ public class AndroidLoggerFactory implements ILoggerFactory
 	private final Map<String, AndroidLogger> loggerMap;
 
 	static final int TAG_MAX_LENGTH = 23; // tag names cannot be longer on Android platform
-                                         // see also android/system/core/include/cutils/property.h
-                                         // and android/frameworks/base/core/jni/android_util_Log.cpp
+                                          // see also android/system/core/include/cutils/property.h
+                                          // and android/frameworks/base/core/jni/android_util_Log.cpp
 
 	public AndroidLoggerFactory()
 	{
@@ -66,9 +66,13 @@ public class AndroidLoggerFactory implements ILoggerFactory
 			slogger = loggerMap.get(actualName);
 			if (slogger != null) return slogger;
 			
-			if (!actualName.equals(name)) Log.i(AndroidLoggerFactory.class.getSimpleName(),
+			if (!actualName.equals(name)) {
+				Log.i(AndroidLoggerFactory.class.getSimpleName(),
 				"Logger name '" + name + "' exceeds maximum length of " + TAG_MAX_LENGTH +
 				" characters, using '" + actualName + "' instead.");
+			} else {
+				Log.i(AndroidLoggerFactory.class.getSimpleName(),"logger name "+actualName);
+			}
 
 			slogger = new AndroidLogger(actualName);
 			loggerMap.put(actualName, slogger);

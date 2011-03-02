@@ -198,7 +198,9 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	@Override
 	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
 		logger.trace("::onSharedPreferenceChanged");
-		
+		if (key.endsWith(INetPrefKeys.PREF_DEVICE_ID)) {
+			return;
+		}
 		if (key.startsWith(INetPrefKeys.PHYSICAL_LINK_PREF)) {
 			updateConnectionStatusThread(prefs);
 			return;
@@ -215,6 +217,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 			logger.debug("attempting to disable logging");
 			return;
 		} 
+		
 	}
 	
 	// ===========================================================
@@ -245,6 +248,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		
 		// TODO: is the following a hack or should it remain
 		// RESPONSE: The following is a hack. We'll trash it as soon as new functionality is supported.
+		logger.info("updating network pref : {}", INetPrefKeys.NET_CONN_PREF_IS_ACTIVE);
 		boolean isConnected = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
 		if (isConnected) {
 			tvConnectionStatus.setText("Gateway connected");
