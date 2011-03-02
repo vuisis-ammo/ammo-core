@@ -54,14 +54,16 @@
 
 
     <target name="-pre-build">
-        <echo>Generating protocol buffers</echo>
+        <echo>Building ethertracker library</echo>
+        <exec executable="ndk-build" dir="." 
+              searchpath="true"/>
 
+        <echo>Generating protocol buffers</echo>
         <exec executable="protoc" taskname="pb">
             <arg value="--proto_path=src"/>
             <arg value="--java_out=gen"/>
             <arg value="src/edu/vu/isis/ammo/core/pb/AmmoMessages.proto"/>
         </exec>
-
     </target>
 
 <!--
