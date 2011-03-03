@@ -9,12 +9,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.zip.CRC32;
@@ -22,6 +24,7 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.os.AsyncTask;
 import android.os.Looper;
 
 /**
@@ -33,42 +36,47 @@ import android.os.Looper;
  * @author phreed
  *
  */
-public class TcpSocket {
-	private static final Logger logger = LoggerFactory.getLogger(TcpSocket.class);
+public class TcpChannel {
+	private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
+	
+	private BlockingQueue<GwMessage> sendQueue = new LinkedBlockingQueue<GwMessage>(20);
 	
 	private boolean isEnabled = false;
 	private boolean isStale = true;
-	private Socket tcpSocket = null;
-	private TcpReceiverThread receiverThread;
-	private TcpSenderThread senderThread;
+	
+	private Socket socket = null;
+	private ConnectorTask connectorTask;
+	private ReceiverThread receiverThread;
+	private SenderThread senderThread;
+	
 	private int connectTimeout = 500;
 	private int socketTimeout = 5 * 1000; // milliseconds.
 	private static final String DEFAULT_HOST = "10.0.2.2";
 	private String gatewayHost = null;
 	private int gatewayPort = 32896;
+	
+	private static Boolean isConnected = false;  // condition variable
+	
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private NetworkService driver = null;
 	private final Object syncObj;
-	private static Boolean isConnected = false;  // condition variable
-	
-	private BlockingQueue<GwMessage> sendQueue = new LinkedBlockingQueue<GwMessage>(20);
-	
-	private TcpSocket(NetworkService driver) {
+		
+	private TcpChannel(NetworkService driver) {
 		super();
 		logger.trace("::<constructor>");
 		this.syncObj = this;
 		this.isStale = true;
 		this.driver = driver;
-		TcpSocket.isConnected = false;
+		TcpChannel.isConnected = false;
 	}
 	
-	public static TcpSocket getInstance(NetworkService driver) {
+	public static TcpChannel getInstance(NetworkService driver) {
 		logger.trace("::getInstance");
-		synchronized (TcpSocket.isConnected) {
-			TcpSocket instance = new TcpSocket(driver);
+		synchronized (TcpChannel.isConnected) {
+			TcpChannel instance = new TcpChannel(driver);
 			
-			instance.senderThread = instance.new TcpSenderThread(instance);
-			instance.receiverThread = instance.new TcpReceiverThread(instance);
+			instance.senderThread = instance.new SenderThread(instance);
+			instance.receiverThread = instance.new ReceiverThread(instance);
 			return instance;
 		}
 	}
@@ -89,6 +97,7 @@ public class TcpSocket {
 	 * Was the status changed as a result of enabling the connection.
 	 * @return
 	 */
+	public boolean isEnabled() { return this.isEnabled(); }
 	public boolean enable() {
 		logger.trace("::enable");
 		if (this.isEnabled == true) 
@@ -146,68 +155,84 @@ public class TcpSocket {
 	 * 
 	 * @return
 	 */
-	public void tryConnect(boolean reconnect) {
+	public boolean tryConnect(boolean reconnect) {
 		logger.trace("::tryConnect");
-		synchronized (TcpSocket.isConnected) {
-			if (reconnect) { new TcpConnectorThread(this).start(); return; }
-			if (!this.isEnabled) return;
-			if (this.isStale) { new TcpConnectorThread(this).start(); return; }
-			if (!this.checkConnection()) { new TcpConnectorThread(this).start(); return; }
+		synchronized (TcpChannel.isConnected) {
+			if (reconnect) return connect_aux(reconnect);
+			if (!this.isEnabled) return true;
+			if (this.isStale) return connect_aux(reconnect);
+			if (!this.checkConnection()) return connect_aux(reconnect);
 		}
+		return false;
 	}
-	
-	public class TcpConnectorThread extends Thread {
-		private TcpSocket parent;
-		
-		private TcpConnectorThread(TcpSocket aSocket) {
-			logger.trace("::<constructor>");
-			this.parent = aSocket;
+	private boolean connect_aux(boolean reconnect) {
+		if (this.connectorTask == null) {
+			this.connectorTask = new ConnectorTask();
+			this.connectorTask.execute(this);
+			return true;
 		}
-		public void run() {
-			logger.trace("::reconnect");
-			
+		if (! connectorTask.getStatus().equals(AsyncTask.Status.FINISHED)) 
+			return false;
+		this.connectorTask = new ConnectorTask();
+		this.connectorTask.execute(this);
+		return true;
+	}
+
+	private class ConnectorTask extends AsyncTask<TcpChannel, Void, TcpChannel> {
+	    /** The system calls this to perform work in a worker thread and
+	      * delivers it the parameters given to AsyncTask.execute() */
+	    protected TcpChannel doInBackground(TcpChannel... parentSet) {
+	    	logger.trace("::reconnect");
+	    	if (parentSet.length < 1) return null;
+	    	
+			TcpChannel parent = parentSet[0];
 			if (parent.gatewayHost == null) parent.gatewayHost = DEFAULT_HOST;
-			if (parent.gatewayPort < 1) return;
+			if (parent.gatewayPort < 1) return parent;
 			InetAddress gatewayIpAddr = null;
 			try {
 				gatewayIpAddr = InetAddress.getByName(parent.gatewayHost);
 			} catch (UnknownHostException e) {
 				logger.info("could not resolve host name");
-				return;
+				return parent;
 			}
-			parent.tcpSocket = new Socket();
+			parent.socket = new Socket();
 			InetSocketAddress sockAddr = new InetSocketAddress(gatewayIpAddr, parent.gatewayPort);
 			try {
-				parent.tcpSocket.connect(sockAddr, parent.connectTimeout);
+				parent.socket.connect(sockAddr, parent.connectTimeout);
 			} catch (IOException ex) {
 				logger.warn("connection failed : " + ex.getLocalizedMessage());
-				parent.tcpSocket = null;
+				parent.socket = null;
 			}
-			if (parent.tcpSocket == null) return;
+			if (parent.socket == null) return parent;
 			try {
-				parent.tcpSocket.setSoTimeout(parent.socketTimeout);
+				parent.socket.setSoTimeout(parent.socketTimeout);
 			} catch (SocketException ex) {
-				return;
+				return parent;
 			}
-			
-			parent.isStale = false;
-			synchronized (TcpSocket.isConnected) {
-				TcpSocket.isConnected = true;
+			return parent;
+	    }
+	    
+	    /** The system calls this to perform work in the UI thread and delivers
+	      * the result from doInBackground() */
+	    protected void onPostExecute(TcpChannel parent) {
+	    	parent.isStale = false;
+			synchronized (TcpChannel.isConnected) {
+				TcpChannel.isConnected = true;
 				try {
-					TcpSocket.isConnected.notifyAll();
+					TcpChannel.isConnected.notifyAll();
 				} catch (IllegalMonitorStateException ex) {
 					logger.warn("connection made notification but no one is waiting");
 				}
 			}
-		}
+	    }
 	}
 	
 	public boolean checkConnection() {
 		logger.trace("::isConnected");
-		if (!TcpSocket.isConnected) return false;
-		if (this.tcpSocket == null) return false;
-		if (this.tcpSocket.isClosed()) return false;
-		return this.tcpSocket.isConnected();
+		if (!TcpChannel.isConnected) return false;
+		if (this.socket == null) return false;
+		if (this.socket.isClosed()) return false;
+		return this.socket.isConnected();
 	}
 	
 	/**
@@ -218,10 +243,10 @@ public class TcpSocket {
 	public boolean close() {
 		synchronized (this.syncObj) {
 			logger.trace("::close");
-			if (this.tcpSocket == null) return false;
-			if (this.tcpSocket.isClosed()) return false;
+			if (this.socket == null) return false;
+			if (this.socket.isClosed()) return false;
 			try {
-				this.tcpSocket.close();
+				this.socket.close();
 				return true;
 			} catch (IOException e) {
 				logger.warn("could not close socket");
@@ -232,8 +257,8 @@ public class TcpSocket {
 	
 	public boolean hasSocket() {
 		logger.trace("::hasSocket");
-		if (this.tcpSocket == null) return false;
-		if (this.tcpSocket.isClosed()) return false;
+		if (this.socket == null) return false;
+		if (this.socket.isClosed()) return false;
 		return true;
 	}
 	
@@ -258,7 +283,7 @@ public class TcpSocket {
 	{
 		synchronized (this.syncObj) {
 			logger.trace("::sendGatewayRequest");
-			if (! TcpSocket.isConnected) {
+			if (! TcpChannel.isConnected) {
 				this.tryConnect(false);
 				return false;
 			}
@@ -281,15 +306,15 @@ public class TcpSocket {
 	}
 	
 	/**
-	 * A thread for receiving incoming messages on the tcp socket.
+	 * A thread for receiving incoming messages on the socket.
 	 * The main method is run().
 	 *
 	 */
-	public class TcpSenderThread extends Thread {
-		private TcpSocket parent;
+	public class SenderThread extends Thread {
+		private TcpChannel parent;
 		private final BlockingQueue<GwMessage> queue;
 		
-		private TcpSenderThread(TcpSocket parent) {
+		private SenderThread(TcpChannel parent) {
 			logger.trace("::<constructor>");
 			this.parent = parent;
 			this.queue = parent.sendQueue;
@@ -311,16 +336,16 @@ public class TcpSocket {
 			logger.trace("::run");
 			DataOutputStream dos;
 			try {		
-				dos = new DataOutputStream(tcpSocket.getOutputStream());
+				dos = new DataOutputStream(socket.getOutputStream());
 				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE + Integer.SIZE);
 				// ByteOrder order = buf.order();
 				buf.order(parent.endian);
 				
 				while (true) {
-					synchronized(TcpSocket.isConnected) {
-						while (!TcpSocket.isConnected) {
+					synchronized(TcpChannel.isConnected) {
+						while (!TcpChannel.isConnected) {
 							try {
-								TcpSocket.isConnected.wait();
+								TcpChannel.isConnected.wait();
 							} catch (InterruptedException ex) {
 								logger.warn("thread interupted {}",ex.getLocalizedMessage());
 								return; // looks like the thread is being shut down.
@@ -349,14 +374,14 @@ public class TcpSocket {
 		}
 	}
 	/**
-	 * A thread for receiving incoming messages on the tcp socket.
+	 * A thread for receiving incoming messages on the socket.
 	 * The main method is run().
 	 *
 	 */
-	public class TcpReceiverThread extends Thread {
+	public class ReceiverThread extends Thread {
 		final private NetworkService driver;
 
-		private TcpSocket parent = null;
+		private TcpChannel parent = null;
 		volatile private int mState;
 		
 		static private final int SHUTDOWN = 0; // the run is being stopped
@@ -366,7 +391,7 @@ public class TcpSocket {
 		static private final int CHECKED  = 4; // indicating the bytes are being read
 		static private final int DELIVER  = 5; // indicating the message has been read
 		
-		private TcpReceiverThread(TcpSocket aSocket) {
+		private ReceiverThread(TcpChannel aSocket) {
 			logger.trace("::<constructor>");
 			this.driver = aSocket.driver;
 			this.parent = aSocket;
@@ -402,7 +427,7 @@ public class TcpSocket {
 			Looper.prepare();
 			InputStream insock;
 			try {
-				insock = this.parent.tcpSocket.getInputStream();
+				insock = this.parent.socket.getInputStream();
 			} catch (IOException ex) {
 				logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
 				return;
@@ -421,10 +446,10 @@ public class TcpSocket {
 			byte[] checksumBuffer = new byte[Integer.SIZE];
 			
 			while (true) {	
-				synchronized(TcpSocket.isConnected) {
-					while (!TcpSocket.isConnected) {
+				synchronized(TcpChannel.isConnected) {
+					while (!TcpChannel.isConnected) {
 						try {
-							TcpSocket.isConnected.wait();
+							TcpChannel.isConnected.wait();
 						} catch (InterruptedException ex) {
 							logger.warn("thread interupted {}",ex.getLocalizedMessage());
 							shutdown(bis); // looks like the thread is being shut down.
@@ -506,4 +531,29 @@ public class TcpSocket {
 		}
 	}
 	
+	// ********** UTILITY METHODS ****************
+	
+	/**
+	 * A routine to get the local ip address
+	 * TODO use this someplace
+	 * 
+	 * @return
+	 */
+	public String getLocalIpAddress() {
+		logger.trace("::getLocalIpAddress");
+		try {
+			for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+				NetworkInterface intf = en.nextElement();
+				for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+					InetAddress inetAddress = enumIpAddr.nextElement();
+					if (!inetAddress.isLoopbackAddress()) { 
+						return inetAddress.getHostAddress().toString(); 
+					}
+				}
+			}
+		} catch (SocketException ex) {
+			logger.error( ex.toString());
+		}
+		return null;
+	}
 }

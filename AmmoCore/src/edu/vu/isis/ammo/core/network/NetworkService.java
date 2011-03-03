@@ -84,6 +84,9 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private String operatorId = "0004";
 	private String operatorKey = "37";
 	
+	// journalingSwitch 
+	private boolean journalingSwitch = false;
+	
 	// for providing networking support
 	// should this be using IPv6?
 	private boolean networkingSwitch = true;
@@ -94,19 +97,9 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	
 	private IDistributorService distributor;
 	
-	// TCP Fields
-	private TcpSocket tcpSocket = TcpSocket.getInstance(this);
-	
-	// SDCARD Fields
-	private boolean journalingSwitch = true;
-	public boolean isJournaling() { return journalingSwitch; }
-	public void setJournalSwitch(boolean value) { journalingSwitch = value; }
-	public boolean getJournalSwitch() { return journalingSwitch; }
-	public boolean toggleJournalSwitch() { return journalingSwitch = journalingSwitch ? false : true; }
-	
-	public static final File journalDir = new File(Environment.getExternalStorageDirectory(), "ammo_core");
-	public File journalFile = new File(journalDir, "network_proxy_service.journal");
-	private BufferedOutputStream journal = null;
+	// Channels
+	private TcpChannel tcpChannel = TcpChannel.getInstance(this);
+	private JournalChannel journalChannel = JournalChannel.getInstance(this);
 	
 	private MyBroadcastReceiver myReceiver = null;
 	private IRegisterReceiver mReceiverRegistrar = new IRegisterReceiver() {
@@ -145,24 +138,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	}
 
 	/**
-	 * The journal used when direct communication with the 
-	 * ammo android gateway plugin is not immediately available.
-	 * The journal is a file containing the PushRequests (not RetrievalRequest's or *Response's).
-	 */
-	public void setupJournal() {
-		logger.trace("::setupJournal");
-		if (!journalingSwitch) return;
-		if (journal != null) return;
-		try {
-			if (! journalDir.exists()) { journalDir.mkdirs(); }
-			FileOutputStream fos = new FileOutputStream(journalFile.getCanonicalPath(), true);
-			journal = new BufferedOutputStream(fos);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
-	/**
 	 * In order for the service to be shutdown cleanly the 'serviceStart()' 
 	 * method may be used to prepare_for_stop, it will be stopped shortly
 	 * and it needs to have some things done before that happens.
@@ -194,7 +169,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		logger.trace("onCreate");
 		
 		this.acquirePreferences();
-		this.tcpSocket.enable(); // no point in enabling the socket until the preferences have been read
+		this.tcpChannel.enable(); // no point in enabling the socket until the preferences have been read
 		
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
@@ -210,14 +185,9 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	@Override
 	public void onDestroy() {
 		logger.trace("::onDestroy");
-		this.tcpSocket.close();
-		// this.myReceiver.
-	    try {
-			this.journal.close();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		this.tcpChannel.close();
+		this.journalChannel.close();
+		
 		this.mReceiverRegistrar.unregisterReceiver(this.myReceiver);
 		super.onDestroy();
 	}	
@@ -232,17 +202,18 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private void acquirePreferences() {
 		logger.trace("::acquirePreferences");
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
-		journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, journalingSwitch);
 		
-		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-		operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
-		operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		this.journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, this.journalingSwitch);
+		
+		this.deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, this.deviceId);
+		this.operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, this.operatorId);
+		this.operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, this.operatorKey);
 		
 		String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
-		this.tcpSocket.setHost(gatewayHostname);
+		this.tcpChannel.setHost(gatewayHostname);
 		
 		int gatewayPort = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
-		this.tcpSocket.setPort(gatewayPort);
+		this.tcpChannel.setPort(gatewayPort);
 		
 		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
 		this.connectChannels(true);
@@ -260,18 +231,21 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		
 		if (key.equals(INetPrefKeys.PREF_IP_ADDR)) {
 			String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
-			this.tcpSocket.setHost(gatewayHostname);
+			this.tcpChannel.setHost(gatewayHostname);
 			this.connectChannels(true);
 			return;
 		}
 		if (key.equals(INetPrefKeys.PREF_IP_PORT)) {
 			int gatewayPort = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
-			this.tcpSocket.setPort(gatewayPort);
+			this.tcpChannel.setPort(gatewayPort);
 			connectChannels(true);
 			return;
 		}
 		if (key.equals(INetPrefKeys.PREF_IS_JOURNAL)) {
-			journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, journalingSwitch);
+			this.journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, this.journalingSwitch);
+			if (this.journalingSwitch) 
+				 this.journalChannel.enable();
+			else this.journalChannel.disable();
 			return;
 		}
 		
@@ -299,7 +273,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 
 		if (key.equals(INetPrefKeys.PREF_SOCKET_TIMEOUT)) {
 			Integer timeout = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_SOCKET_TIMEOUT, "3000"));
-			this.tcpSocket.setSocketTimeout(timeout.intValue());
+			this.tcpChannel.setSocketTimeout(timeout.intValue());
 		}
 
 		// handle network connectivity group
@@ -312,9 +286,9 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
 			boolean enable_intent = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, false);
 			if (enable_intent) {
-				 this.tcpSocket.enable();
+				 this.tcpChannel.enable();
 			} else {
-				this.tcpSocket.disable();
+				this.tcpChannel.disable();
 			}
 			this.connectChannels(true);
 		}
@@ -329,8 +303,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	private boolean connectChannels(boolean reconnect) {
         logger.trace("connectChannels: {}", reconnect);
-	    this.tcpSocket.tryConnect(reconnect);
-	    boolean isTcpConnected = this.tcpSocket.checkConnection();
+	    this.tcpChannel.tryConnect(reconnect);
+	    boolean isTcpConnected = this.tcpChannel.checkConnection();
 	    
 	    // using preferences to communicate the status of the connection
 	    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
@@ -347,7 +321,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		connIntent.putExtra("operatorId", operatorId);
 		this.sendBroadcast(connIntent);
 		
-        return isTcpConnected; //&& udp;
+        return isTcpConnected; //&& udp; && journal?
 	}
 	
 	/**
@@ -355,7 +329,11 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */	
 	private boolean disconnectChannels() {
 		logger.trace("::disconnectChannels");
-		boolean didTcpDisconnect = this.tcpSocket.disconnect();
+		boolean didTcpDisconnect = this.tcpChannel.disconnect();
+		
+		@SuppressWarnings("unused")
+		boolean didJournalDisconnect = this.journalChannel.disconnect();
+		
 		return didTcpDisconnect;
 	}
 
@@ -545,7 +523,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private boolean sendGatewayRequest(int size, CRC32 checksum, byte[] message) 
 	{
 		logger.trace("::sendGatewayRequest");
-		return this.tcpSocket.sendRequest(size, checksum, message);
+		return this.tcpChannel.sendRequest(size, checksum, message);
 	}
 	
 	// ===========================================================
@@ -626,36 +604,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		return true;
 	}
 	
-	/**
-	 * Write the size, checksum, and byte array to the journal.
-	 * 
-	 * @param MsgHeader
-	 * @param messageByteArray
-	 */
-	public void writeMessageToJournal(MsgHeader header, byte[] messageByteArray) {
-		if (! isJournaling()) return;
-		logger.trace("::writeMessageToJournal");
-		setupJournal();
-		try {
-			journal.write(header.size);
-			long cvalue = header.checksum.getValue();
-			byte[] checksum = new byte[] {
-		                (byte)(cvalue >>> 24),
-		                (byte)(cvalue >>> 16),
-		                (byte)(cvalue >>> 8),
-		                (byte)cvalue};
-			journal.write(checksum);
-			journal.write(messageByteArray);
-			journal.flush();
-		} catch (IOException ex) {
-			// TODO Auto-generated catch block
-			ex.printStackTrace();
-		} catch (NullPointerException ex) {
-			ex.printStackTrace();
-	    } 
-	}
-	
-	
 	// ===============================================================
 	// BINDING CALLS (NetworkServiceBinder)
 	// 
@@ -669,12 +617,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	public void teardown() {
 		logger.trace("::teardown");
-		try {
-			journal.close();
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		}
-		
 		logger.debug("Tearing down NPS");
 		disconnectChannels();
 		
@@ -696,11 +638,11 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	public boolean isConnected() {
 		logger.trace("::isConnected");
-		if (tcpSocket.isStale()) {
-			return tcpSocket.checkConnection();
+		if (tcpChannel.isStale()) {
+			return tcpChannel.checkConnection();
 		}
-		if (tcpSocket == null) return false;
-		return tcpSocket.checkConnection();
+		if (tcpChannel == null) return false;
+		return tcpChannel.checkConnection();
 	}
 	
 	/**
@@ -728,8 +670,8 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		byte[] protocByteBuf = mwb.build().toByteArray();
 
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
-		this.writeMessageToJournal(msgHeader, protocByteBuf);
-
+		this.journalChannel.sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
+		
 		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
 	}
 	
@@ -781,31 +723,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 			}
 			return;
 		}
-	}
-	
-	/**
-	 * A routine to get the local ip address
-	 * TODO use this someplace
-	 * 
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private String getLocalIpAddress() {
-		logger.trace("::getLocalIpAddress");
-		try {
-			for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
-				NetworkInterface intf = en.nextElement();
-				for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
-					InetAddress inetAddress = enumIpAddr.nextElement();
-					if (!inetAddress.isLoopbackAddress()) { 
-						return inetAddress.getHostAddress().toString(); 
-					}
-				}
-			}
-		} catch (SocketException ex) {
-			logger.error( ex.toString());
-		}
-		return null;
 	}
 	
 }
