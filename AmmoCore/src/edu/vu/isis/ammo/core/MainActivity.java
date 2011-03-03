@@ -83,7 +83,7 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 		SharedPreferences.Editor prefEditor = prefs.edit();
 		prefEditor.putString(INetPrefKeys.PREF_DEVICE_ID, deviceId).commit();
 
-		
+		AmmoPreference ap = AmmoPreference.getInstance(getApplicationContext());
 		Intent i = new Intent(IPrefKeys.AMMO_PREF_UPDATE);
 		i.putExtra("operatorId", prefs.getString(IPrefKeys.PREF_OPERATOR_ID, "foo"));
 		this.sendBroadcast(i);

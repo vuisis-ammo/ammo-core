@@ -65,12 +65,15 @@ public class PreferenceProvider extends ContentProvider {
 	public boolean onCreate() {
 		Context context = getContext();
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-		Editor editor = prefs.edit();
-		editor.putString(IPrefKeys.PREF_OPERATOR_ID, "foo");
-		editor.putBoolean(INetPrefKeys.NET_IS_ACTIVE, false);
-		editor.putBoolean(INetPrefKeys.NET_IS_AVAILABLE, false);
-		editor.putString(INetPrefKeys.PREF_OPERATOR_KEY, "bar");
-		editor.commit();
+		if (prefs.getBoolean("prefsCreated", false)) {
+			Editor editor = prefs.edit();
+			editor.putString(IPrefKeys.PREF_OPERATOR_ID, "foo");
+			editor.putBoolean(INetPrefKeys.NET_IS_ACTIVE, false);
+			editor.putBoolean(INetPrefKeys.NET_IS_AVAILABLE, false);
+			editor.putString(INetPrefKeys.PREF_OPERATOR_KEY, "bar");
+			editor.putBoolean("prefsCreated", true);
+			editor.commit();	
+		}
 		return true;
 	}
 
