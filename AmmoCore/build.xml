@@ -54,14 +54,31 @@
 
 
     <target name="-pre-build">
-        <echo>Generating protocol buffers</echo>
+        <echo>Building ethertracker library</echo>
+        <exec executable="ndk-build" dir="." 
+              searchpath="true"/>
 
+        <echo>Generating protocol buffers</echo>
         <exec executable="protoc" taskname="pb">
             <arg value="--proto_path=src"/>
             <arg value="--java_out=gen"/>
             <arg value="src/edu/vu/isis/ammo/core/pb/AmmoMessages.proto"/>
         </exec>
+    </target>
 
+    <target name="realclean" depends="clean">
+        <echo>Cleaning ndk-build generated files...</echo>
+        <exec executable="ndk-build" dir="." 
+              searchpath="true">
+           <arg line="clean"/>
+        </exec>
+
+        <!-- ndk-build clean isn't currently removing the dirs -->
+        <!-- in addition, go ahead and remove the gen dir from AmmoGen -->
+        <echo>Removing obj, gen, and libs dirs</echo>
+        <delete dir="libs"/>
+        <delete dir="obj"/>
+        <delete dir="gen"/>
     </target>
 
 <!--

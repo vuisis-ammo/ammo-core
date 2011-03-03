@@ -35,6 +35,9 @@ public class CorePreferenceService extends Service {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		//return startId; // commented this out as a temp. workaround to stop the 
+		//ActivityManger crash. Once this is changed to using a aidl, it will be 
+		// a permanent fix
 		return Service.START_NOT_STICKY;
 	}
 
