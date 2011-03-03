@@ -225,11 +225,11 @@ implements OnSharedPreferenceChangeListener
 		
 		this.myReceiver = new MyBroadcastReceiver();
 		mReceiverRegistrar = new IRegisterReceiver() {
-			@Override
+			// @Override
 			public Intent registerReceiver(final BroadcastReceiver aReceiver, final IntentFilter aFilter) {
 				return NetworkService.this.registerReceiver(aReceiver, aFilter);
 			}
-			@Override
+			//			@Override
 			public void unregisterReceiver(final BroadcastReceiver aReceiver) {
 				NetworkService.this.unregisterReceiver(aReceiver);
 			}
@@ -257,7 +257,7 @@ implements OnSharedPreferenceChangeListener
 		super.onDestroy();
 	}	
 
-	@Override
+    //@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
         
 		// handle network connection group
@@ -676,6 +676,7 @@ implements OnSharedPreferenceChangeListener
 			eos.writeInt(size);
 			eos.writeInt(checksum);
 			eos.write(message);
+			eos.flush();
 		} catch (SocketException e) {
 			e.printStackTrace();
 			return false;
