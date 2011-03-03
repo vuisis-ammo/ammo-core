@@ -251,7 +251,8 @@ public final class LoggerFactory {
    * @return logger
    */
   public static Logger getLogger(Class clazz) {
-    return getLogger(clazz.getName());
+    return getLogger(clazz.getSimpleName());
+    // return getLogger(clazz.getName());
   }
 
   /**
