@@ -77,8 +77,6 @@ public class CorePreferenceActivity extends PreferenceActivity {
 	@Override
 	public void onStop() {
 		super.onStop();
-		Intent i = new Intent(IPrefKeys.AMMO_PREF_UPDATE);
-		this.sendBroadcast(i);
 	}
 	
 	// ===========================================================

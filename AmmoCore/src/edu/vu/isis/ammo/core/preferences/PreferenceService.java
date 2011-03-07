@@ -9,6 +9,11 @@ import android.util.Log;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 
+/**
+ * Leave this class in the project so we have an AIDL example for future reference.
+ * @author Demetri Miller
+ *
+ */
 public class PreferenceService extends Service {
 	 @Override
 	    public void onCreate() {
