@@ -25,6 +25,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.TextView;
 import edu.vu.isis.ammo.AmmoPreferenceChangedReceiver;
+import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
 import edu.vu.isis.ammo.IAmmoPreferenceChangedListener;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
@@ -177,14 +178,18 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	public void onClick(View view) {
 		logger.trace("::onClick");
 		
-		if (view.equals(this.cbWifi)) {
-			ap.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
-		} else if (view.equals(this.cbPhysicalLink)) {
-			// TODO: Need a way to disable physical link service.
-			ap.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, this.cbPhysicalLink.isChecked());
-		} else if (view.equals(this.btnConnect)) {
-			// Tell the network service to disconnect and reconnect.
-			ap.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
+		try {
+			if (view.equals(this.cbWifi)) {
+				ap.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
+			} else if (view.equals(this.cbPhysicalLink)) {
+				// TODO: Need a way to disable physical link service.
+				ap.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, this.cbPhysicalLink.isChecked());
+			} else if (view.equals(this.btnConnect)) {
+				// Tell the network service to disconnect and reconnect.
+				ap.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
+			}
+		} catch (AmmoPreferenceReadOnlyAccess ex) {
+			ex.printStackTrace();
 		}
 		setWifiStatus();
 	}
