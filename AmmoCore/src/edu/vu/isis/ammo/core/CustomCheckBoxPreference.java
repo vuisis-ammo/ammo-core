@@ -1,14 +1,11 @@
 package edu.vu.isis.ammo.core;
 
-import java.util.regex.Pattern;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import android.preference.CheckBoxPreference;
 import android.util.AttributeSet;
-import android.widget.Toast;
 
 public class CustomCheckBoxPreference extends CheckBoxPreference {
 

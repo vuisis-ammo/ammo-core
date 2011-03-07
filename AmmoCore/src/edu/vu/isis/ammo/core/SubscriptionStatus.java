@@ -3,9 +3,14 @@
  */
 package edu.vu.isis.ammo.core;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.app.ListActivity;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListAdapter;
 import android.widget.ListView;
@@ -25,10 +30,13 @@ public class SubscriptionStatus extends ListActivity {
 	// Constants
 	// ===========================================================
 	public static final String LAUNCH = "edu.vu.isis.ammo.core.SubscriptionStatus.LAUNCH";
+	public static final int MENU_PURGE_SUBSCRIPTIONS = Menu.FIRST;
 	
 	// ===========================================================
 	// Fields
 	// ===========================================================
+	Logger logger = LoggerFactory.getLogger(SubscriptionStatus.class);
+	
 	
 	/**
 	 * 
@@ -61,6 +69,25 @@ public class SubscriptionStatus extends ListActivity {
 				cursor, fromItemLayout, toItemLayout);
 		
 		setListAdapter(adapter);
+	}
+	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		super.onCreateOptionsMenu(menu);
+		logger.trace("::onCreateOptionsMenu");
+		menu.add(Menu.NONE, MENU_PURGE_SUBSCRIPTIONS, Menu.NONE, "Purge Subscriptions");
+		return true;
+	}
+	
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		logger.trace("::onOptionsItemSelected");
+		switch(item.getItemId()) {
+		case MENU_PURGE_SUBSCRIPTIONS:
+			int count = getContentResolver().delete(SubscriptionTableSchema.CONTENT_URI, SubscriptionTableSchema._ID + ">" + String.valueOf(-1), null);
+			logger.debug("Deleted " + count + "subscriptions");
+		}
+		return true;
 	}
 	
 	@Override 
