@@ -28,11 +28,9 @@ import edu.vu.isis.ammo.AmmoPreferenceChangedReceiver;
 import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
 import edu.vu.isis.ammo.IAmmoPreferenceChangedListener;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoPreference;
 import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
-import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
  * The principle activity for the ammo core application.
