@@ -5,8 +5,6 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
-
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -17,6 +15,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.util.Log;
 import android.widget.Toast;
+import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
 
 /**
  * WifiReceiver is a broadcast receiver which receives intents from the system

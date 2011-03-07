@@ -1,6 +1,5 @@
 package edu.vu.isis.ammo.core.receiver;
 
-import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -8,6 +7,7 @@ import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
 
 /**
  * CellPhoneListener is a PhoneStateListener which manages the 3G radio on the
