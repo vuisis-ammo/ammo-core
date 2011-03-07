@@ -10,12 +10,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -24,9 +24,12 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.TextView;
+import edu.vu.isis.ammo.AmmoPreferenceChangedReceiver;
+import edu.vu.isis.ammo.IAmmoPreferenceChangedListener;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoPreference;
+import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -41,7 +44,7 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  *
  */
 public class MainActivity extends Activity 
-implements OnClickListener, OnSharedPreferenceChangeListener 
+implements OnClickListener, IAmmoPreferenceChangedListener
 {
 	public static final Logger logger = LoggerFactory.getLogger(MainActivity.class);
 	
@@ -60,7 +63,8 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	private Button btnConnect;
 	private CheckBox cbPhysicalLink, cbWifi;
 	private WifiReceiver wifiReceiver;
-	private SharedPreferences prefs;
+	private AmmoPreferenceChangedReceiver receiver;
+	private AmmoPreference ap;
 
 	
 	/**
@@ -70,23 +74,12 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		logger.trace("::onCreate");
-		
 		setContentView(R.layout.main_activity);
+		ap = AmmoPreference.getInstance(this);
 		this.setViewReferences();
 		this.setOnClickListeners();
 		this.initializeCheckboxes();
 		this.registerReceivers();
-		
-		prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String deviceId = UniqueIdentifiers.device(this);
-		prefs.registerOnSharedPreferenceChangeListener(this);
-		SharedPreferences.Editor prefEditor = prefs.edit();
-		prefEditor.putString(INetPrefKeys.PREF_DEVICE_ID, deviceId).commit();
-
-		AmmoPreference ap = AmmoPreference.getInstance(getApplicationContext());
-		Intent i = new Intent(IPrefKeys.AMMO_PREF_UPDATE);
-		i.putExtra("operatorId", prefs.getString(IPrefKeys.PREF_OPERATOR_ID, "foo"));
-		this.sendBroadcast(i);
 		
 		Intent intent = new Intent("edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH");
 		this.startService(intent);
@@ -99,9 +92,15 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	public void onStart() {
 		super.onStart();
 		logger.trace("::onStart");
-		
+		this.initializeAmmoPreferenceChangedReceiver();
 		setWifiStatus();
-		this.updateConnectionStatus(prefs);
+		this.updateConnectionStatus(ap);
+	}
+	
+	@Override
+	public void onStop() {
+		this.uninitializeAmmoPreferenceChangedReceiver();
+		super.onStop();
 	}
 
 	// Create a menu which contains a preferences button.
@@ -178,50 +177,55 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	public void onClick(View view) {
 		logger.trace("::onClick");
 		
-		Editor editor = prefs.edit();
 		if (view.equals(this.cbWifi)) {
-			editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
+			ap.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
 		} else if (view.equals(this.cbPhysicalLink)) {
 			// TODO: Need a way to disable physical link service.
-			editor.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, this.cbPhysicalLink.isChecked());
+			ap.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, this.cbPhysicalLink.isChecked());
 		} else if (view.equals(this.btnConnect)) {
 			// Tell the network service to disconnect and reconnect.
-			editor.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
+			ap.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
 		}
-		editor.commit();
 		setWifiStatus();
 	}
 	
-	/**
-	 * If the key relates to our physical link, update the UI.
-	 * Note: This method is called on the thread that changed the preferences.
-	 * To update the UI, explicitly call the main thread.
-	 */
 	@Override
-	public void onSharedPreferenceChanged(final SharedPreferences prefs, final String key) {
-		logger.trace("::onSharedPreferenceChanged");
+	public void onAmmoPreferenceChanged(Context context, Intent intent) {
+		Log.d("::onAmmoPreferenceChanged", "ammo pref changed");
+		// Get the key and value of the preference changed.
+		
+		AmmoPreference ap = AmmoPreference.getInstance(this);
+		String key = intent.getStringExtra(PreferenceSchema.AMMO_INTENT_KEY_PREF_CHANGED_KEY);
 		if (key.endsWith(INetPrefKeys.PREF_DEVICE_ID)) {
 			return;
 		}
 		if (key.startsWith(INetPrefKeys.PHYSICAL_LINK_PREF)) {
-			updateConnectionStatusThread(prefs);
+			updateConnectionStatusThread(ap);
 			return;
 		}
 		if (key.startsWith(INetPrefKeys.WIFI_PREF)) {
-			updateConnectionStatusThread(prefs);
+			updateConnectionStatusThread(ap);
 			return;
 		} 
 		if (key.startsWith(INetPrefKeys.NET_CONN_PREF)) {
-			updateConnectionStatusThread(prefs);
+			updateConnectionStatusThread(ap);
 			return;
 		} 
 		if (key.equals(LoggingPreferences.PREF_LOG_LEVEL)) {
 			logger.debug("attempting to disable logging");
 			return;
 		} 
-		
 	}
 	
+	
+	public void initializeAmmoPreferenceChangedReceiver() {
+		receiver = new AmmoPreferenceChangedReceiver(this);
+		this.registerReceiver(receiver, PreferenceSchema.AMMO_PREF_CHANGED_INTENT_FILTER);
+	}
+	
+	public void uninitializeAmmoPreferenceChangedReceiver() {
+		this.unregisterReceiver(receiver);
+	}
 	// ===========================================================
 	// UI Management
 	// ===========================================================
@@ -230,25 +234,25 @@ implements OnClickListener, OnSharedPreferenceChangeListener
 	 * Tell our text views to 
 	 * update since network status has changed.
 	 */
-	public void updateConnectionStatusThread(final SharedPreferences prefs) {
+	public void updateConnectionStatusThread(final AmmoPreference ap) {
 		logger.trace("::updateConnectionStatusThread");
 		
 		this.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				updateConnectionStatus(prefs);
+				updateConnectionStatus(ap);
 			}
 		});
 		return;
 	}
 	
-	public void updateConnectionStatus(SharedPreferences prefs) {
+	public void updateConnectionStatus(AmmoPreference ap) {
 		logger.trace("::updateConnectionStatus");
 		
-		tvPhysicalLink.notifyNetworkStatusChanged(prefs, INetPrefKeys.PHYSICAL_LINK_PREF);
-		tvWifi.notifyNetworkStatusChanged(prefs, INetPrefKeys.WIFI_PREF);
+		tvPhysicalLink.notifyNetworkStatusChanged(ap, INetPrefKeys.PHYSICAL_LINK_PREF);
+		tvWifi.notifyNetworkStatusChanged(ap, INetPrefKeys.WIFI_PREF);
 		
-		boolean isConnected = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
+		boolean isConnected = ap.getBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
 		if (isConnected) {
 			tvConnectionStatus.setText("Gateway connected");
 		} else {

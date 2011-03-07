@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.database.Cursor;
@@ -13,7 +14,7 @@ import android.database.MatrixCursor;
 import android.net.Uri;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 public class PreferenceProvider extends ContentProvider {
 	
@@ -60,17 +61,19 @@ public class PreferenceProvider extends ContentProvider {
 		return null;
 	}
 
-	// Pre-populate preferences with default values.
+	// Pre-populate preferences with default values if this is the first time
+	// the content provider has been created.
 	@Override
 	public boolean onCreate() {
 		Context context = getContext();
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
 		if (prefs.getBoolean("prefsCreated", false)) {
 			Editor editor = prefs.edit();
-			editor.putString(IPrefKeys.PREF_OPERATOR_ID, "foo");
+			String deviceId = UniqueIdentifiers.device(context);
+			editor.putString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
+			editor.putString(INetPrefKeys.PREF_OPERATOR_ID, "foo");
 			editor.putBoolean(INetPrefKeys.NET_IS_ACTIVE, false);
 			editor.putBoolean(INetPrefKeys.NET_IS_AVAILABLE, false);
-			editor.putString(INetPrefKeys.PREF_OPERATOR_KEY, "bar");
 			editor.putBoolean("prefsCreated", true);
 			editor.commit();	
 		}
@@ -119,6 +122,8 @@ public class PreferenceProvider extends ContentProvider {
 	public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
 		Editor editor = PreferenceManager.getDefaultSharedPreferences(getContext()).edit();
 		String key = selectionArgs[0];
+		boolean shouldBroadcast = true;
+		int updateCount = 1;
 		if (selection.equals(PreferenceSchema.AMMO_PREF_TYPE_STRING)) {
 			this.putString(key, values.getAsString(key), editor);
 		} else if (selection.equals(PreferenceSchema.AMMO_PREF_TYPE_BOOLEAN)) {
@@ -130,10 +135,17 @@ public class PreferenceProvider extends ContentProvider {
 		} else if (selection.equals(PreferenceSchema.AMMO_PREF_TYPE_LONG)) {
 			this.putLong(key, values.getAsLong(key), editor);
 		} else {
-			// do nothing.
+			shouldBroadcast = false;
+			updateCount = 0;
 		}
 		
-		return 1;
+		if (shouldBroadcast) {
+			Intent i = new Intent(PreferenceSchema.AMMO_PREF_CHANGED_ACTION);
+			i.putExtra(PreferenceSchema.AMMO_INTENT_KEY_PREF_CHANGED_KEY, key);
+			getContext().sendBroadcast(i);	
+		}
+		
+		return updateCount;
 	}
 
 	// =================================

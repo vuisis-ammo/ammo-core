@@ -1,11 +1,11 @@
 package edu.vu.isis.ammo.core;
 
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.util.AttributeSet;
 import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.api.AmmoPreference;
 
 /**
  * TextView subclass used to format text based on the status of network
@@ -16,10 +16,6 @@ import edu.vu.isis.ammo.INetPrefKeys;
  */
 public class NetworkStatusTextView extends TextView {
 
-	/**
-	 * @category Fields
-	 */
-	private Context mContext;
 
 	/**
 	 * @category Constructors
@@ -37,7 +33,6 @@ public class NetworkStatusTextView extends TextView {
 
 	public NetworkStatusTextView(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		mContext = context;
 	}
 
 	public NetworkStatusTextView(Context context) {
@@ -54,11 +49,10 @@ public class NetworkStatusTextView extends TextView {
 	 * are only concerned with this field for display reasons
 	 */
 	
-	public void notifyNetworkStatusChanged(SharedPreferences prefs, String statusKey) {
+	public void notifyNetworkStatusChanged(AmmoPreference prefs, String statusKey) {
 		// A connection can only have one status at a time so we can short circuit 
 		// the if-else.
 		boolean isConnected = prefs.getBoolean(statusKey + INetPrefKeys.NET_IS_ACTIVE, false);
-		boolean shouldUse = prefs.getBoolean(statusKey + INetPrefKeys.NET_SHOULD_USE, false);
 		boolean isAvailable = prefs.getBoolean(statusKey + INetPrefKeys.NET_IS_AVAILABLE, false);
 		boolean isStale = prefs.getBoolean(statusKey + INetPrefKeys.NET_IS_STALE, false);
 		
