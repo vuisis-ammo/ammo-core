@@ -13,10 +13,6 @@
 			android:text="Ammo Core" android:gravity="center" />
 			
 		<TextView android:layout_width="fill_parent"
-            android:layout_height="wrap_content" android:textSize="5dip"
-            android:text="@string/ammo_version" android:gravity="center" />
-			
-		<TextView android:layout_width="fill_parent"
 			android:layout_height="wrap_content" android:gravity="center"
 			android:text="Tap the menu button to adjust server settings"
 			android:textSize="16dip" />
