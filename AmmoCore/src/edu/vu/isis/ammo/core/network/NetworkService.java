@@ -42,7 +42,8 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  * 
  */
 public class NetworkService extends Service 
-implements OnSharedPreferenceChangeListener, INetworkService
+implements OnSharedPreferenceChangeListener, INetworkService, 
+	INetworkService.OnConnectHandler, INetworkService.OnSendMessageHandler, INetworkService.OnReceiveMessageHandler
 {
 	// ===========================================================
 	// Constants
@@ -67,6 +68,10 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	
 	public enum Carrier { UDP , TCP }
 
+	// Interfaqces
+	public interface OnSend {
+		
+	}
 	// ===========================================================
 	// Fields
 	// ===========================================================
@@ -176,7 +181,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	@Override
 	public void onDestroy() {
 		logger.trace("::onDestroy");
-		this.tcpChannel.close();
+		this.tcpChannel.disable();
 		this.journalChannel.close();
 		
 		this.mReceiverRegistrar.unregisterReceiver(this.myReceiver);
@@ -207,8 +212,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		this.tcpChannel.setPort(gatewayPort);
 		
 		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-		this.connectChannels(true);
-		if (this.isConnected()) this.authenticate();
 	}
 	
 	/** 
@@ -223,13 +226,11 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		if (key.equals(INetPrefKeys.PREF_IP_ADDR)) {
 			String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
 			this.tcpChannel.setHost(gatewayHostname);
-			this.connectChannels(true);
 			return;
 		}
 		if (key.equals(INetPrefKeys.PREF_IP_PORT)) {
 			int gatewayPort = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
 			this.tcpChannel.setPort(gatewayPort);
-			connectChannels(true);
 			return;
 		}
 		if (key.equals(INetPrefKeys.PREF_IS_JOURNAL)) {
@@ -275,58 +276,15 @@ implements OnSharedPreferenceChangeListener, INetworkService
 //			shouldUse(prefs);
 //		}
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
-			boolean enable_intent = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, false);
-			if (enable_intent) {
-				 this.tcpChannel.enable();
-			} else {
-				this.tcpChannel.disable();
-			}
+//			boolean enable_intent = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, false);
+//			if (enable_intent) {
+//				 this.tcpChannel.enable();
+//			} else {
+//				this.tcpChannel.disable();
+//			}
 			this.tcpChannel.setStale();
-			this.connectChannels(true);
 		}
 		return;
-	}
-	
-	/**
-	 * Connect all channels indiscriminately.
-	 * Set the shared preference indicating the state of the connection.
-	 * 
-	 * @return
-	 */
-	private boolean connectChannels(boolean reconnect) {
-        logger.trace("connectChannels: {}", reconnect);
-	    this.tcpChannel.tryConnect(reconnect);
-	    boolean isTcpConnected = this.tcpChannel.isConnected();
-	    
-	    // using preferences to communicate the status of the connection
-	    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
-        boolean tcp_isActive = pref.getBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
-        if (tcp_isActive != isTcpConnected) {
-          	pref.edit()
-       	    	.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, isTcpConnected)
-       	    	.commit();
-        }
-        if (this.isConnected()) this.authenticate();
-		
-		// A hack to let clients know what the operator id is
-		Intent connIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
-		connIntent.putExtra("operatorId", operatorId);
-		this.sendBroadcast(connIntent);
-		
-        return isTcpConnected; //&& udp; && journal?
-	}
-	
-	/**
-	 * Disconnect all channels indiscriminately.
-	 */	
-	private boolean disconnectChannels() {
-		logger.trace("::disconnectChannels");
-		boolean didTcpDisconnect = this.tcpChannel.disconnect();
-		
-		@SuppressWarnings("unused")
-		boolean didJournalDisconnect = this.journalChannel.disconnect();
-		
-		return didTcpDisconnect;
 	}
 
 	// ===========================================================
@@ -512,10 +470,10 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 * @param checksum
 	 * @param message
 	 */
-	private boolean sendGatewayRequest(int size, CRC32 checksum, byte[] message) 
+	private boolean sendGatewayRequest(int size, CRC32 checksum, byte[] message, OnSendMessageHandler handler) 
 	{
 		logger.trace("::sendGatewayRequest");
-		return this.tcpChannel.sendRequest(size, checksum, message);
+		return this.tcpChannel.sendRequest(size, checksum, message, handler);
 	}
 	
 	// ===========================================================
@@ -548,12 +506,12 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	}
 	
 	/**
-	 *  Processes and delivers a message from the gateway.
+	 *  Processes and delivers messages received from the gateway.
 	 *  
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	public boolean deliverGatewayResponse(byte[] message, CRC32 checksum) 
+	public boolean deliver(byte[] message, CRC32 checksum) 
 	{
 		logger.trace("::deliverGatewayResponse");
 		
@@ -610,7 +568,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	public void teardown() {
 		logger.trace("::teardown");
 		logger.debug("Tearing down NPS");
-		disconnectChannels();
+		this.tcpChannel.disable();
 		
 		Timer t = new Timer();
 		t.schedule(new TimerTask() {
@@ -630,10 +588,6 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	 */
 	public boolean isConnected() {
 		logger.trace("::isConnected");
-		if (tcpChannel.isStale()) {
-			return tcpChannel.isConnected();
-		}
-		if (tcpChannel == null) return false;
 		return tcpChannel.isConnected();
 	}
 	
@@ -649,10 +603,10 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 		
-		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
+		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, null);
 	}
 	
-	public boolean dispatchPushRequest(String uri, String mimeType, byte []data) {
+	public boolean dispatchPushRequest(String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
 		logger.trace("::dispatchPushRequest");
 		
 		Long now = System.currentTimeMillis();
@@ -662,12 +616,13 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		byte[] protocByteBuf = mwb.build().toByteArray();
 
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
-		this.journalChannel.sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
+		// this.journalChannel.sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
 		
-		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
+		boolean rc = sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
+		return rc;
 	}
 	
-	public boolean dispatchRetrievalRequest(String subscriptionId, String mimeType, String selection) {
+	public boolean dispatchRetrievalRequest(String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
 		logger.trace("::dispatchRetrievalRequest");
 		
 		/** Message Building */
@@ -675,10 +630,10 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
+		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
 	}
 	
-	public boolean dispatchSubscribeRequest(String mimeType, String selection) {
+	public boolean dispatchSubscribeRequest(String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
 		logger.trace("::dispatchSubscribeRequest");
 		
 		/** Message Building */
@@ -686,17 +641,23 @@ implements OnSharedPreferenceChangeListener, INetworkService
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf);
+		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
 	}
 	
 	public void setDistributorServiceCallback(IDistributorService callback) {
 		logger.trace("::setDistributorServiceCallback");
 		
 		distributor = callback;
-		// there is now someplace to send the responses.
-		connectChannels(false); // was true - why should we reconnect if a distributor call back changes
+		// there is now someplace to send the received messages.
+		//connectChannels(false); // was true - why should we reconnect if a distributor call back changes
 	}
 	
+	/**
+	 * This should handle the link state behavior.
+	 * Move to TcpChannel?
+	 * 
+	 *
+	 */
 	private class MyBroadcastReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(final Context aContext, final Intent aIntent) {
@@ -706,15 +667,24 @@ implements OnSharedPreferenceChangeListener, INetworkService
 			logger.info("onReceive: " + action);
 
 			if (INetworkService.ACTION_RECONNECT.equals(action)) {
-				NetworkService.this.connectChannels(true);
+				//NetworkService.this.connectChannels(true);
 				return;
 			}
 			if (INetworkService.ACTION_DISCONNECT.equals(action)) {
-				NetworkService.this.disconnectChannels();
+				//NetworkService.this.disconnectChannels();
 				return;
 			}
 			return;
 		}
+	}
+
+	/**
+	 * A routine to let the distributor know that the message was sent or discarded.
+	 */
+	@Override
+	public boolean acknowledge(boolean status) {
+		// TODO Auto-generated method stub
+		return false;
 	}
 	
 }
