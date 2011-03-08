@@ -64,14 +64,14 @@ public class TcpChannel {
 		
 	private TcpChannel(NetworkService driver) {
 		super();
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">TcpChannel::<constructor>");
+		logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
 		this.syncObj = this;
 		this.isStale = true;
 		this.driver = driver;
 	}
 	
 	public static TcpChannel getInstance(NetworkService driver) {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::getInstance");
+		logger.trace("Thread <{}>::getInstance", Thread.currentThread().getId());
 		TcpChannel instance = new TcpChannel(driver);
 		synchronized (instance.syncObj) {
 			
@@ -86,13 +86,13 @@ public class TcpChannel {
 	
 	public void setStale() {
 		synchronized (this) {
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">::setStale {}", this.isStale);
+			logger.trace("Thread <{}>::setStale {}", Thread.currentThread().getId(), this.isStale);
 			this.isStale = true;
 			this.tryConnect(true);
 		}
 	}
 	public boolean isStale() {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::isStale {}", this.isStale);
+		logger.trace("Thread <{}>::isStale {}", Thread.currentThread().getId(), this.isStale);
 		return this.isStale;
 	}
 	
@@ -102,7 +102,7 @@ public class TcpChannel {
 	 */
 	public boolean isEnabled() { return this.isEnabled(); }
 	public boolean enable() {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::enable");
+		logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
 		if (this.isEnabled == true) 
 			return false;
 		this.isEnabled = true;
@@ -111,7 +111,7 @@ public class TcpChannel {
 		return true;
 	}
 	public boolean disable() {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::disable");
+		logger.trace("Thread <{}>::disable", Thread.currentThread().getId());
 		if (this.isEnabled == false) 
 			return false;
 		this.isEnabled = false;
@@ -120,25 +120,25 @@ public class TcpChannel {
 	}
 	
 	public boolean setConnectTimeout(int value) {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::setConnectTimeout {}", value);
+		logger.trace("Thread <{}>::setConnectTimeout {}", Thread.currentThread().getId(), value);
 		this.connectTimeout = value;
 		return true;
 	}
 	public boolean setSocketTimeout(int value) {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::setSocketTimeout {}", value);
+		logger.trace("Thread <{}>::setSocketTimeout {}", Thread.currentThread().getId(), value);
 		this.socketTimeout = value;
 		return true;
 	}
 	
 	public boolean setHost(String host) {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::setHost {}", host);
+		logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
 		if (gatewayHost == host) return false;
 		this.setStale();
 		this.gatewayHost = host;
 		return true;
 	}
 	public boolean setPort(int port) {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::setPort {}", port);
+		logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
 		if (gatewayPort == port) return false;
 		this.setStale();
 		this.gatewayPort = port;
@@ -159,7 +159,7 @@ public class TcpChannel {
 	 * @return
 	 */
 	public boolean tryConnect(boolean reconnect) {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::tryConnect");
+		logger.trace("Thread <{}>::tryConnect", Thread.currentThread().getId());
 		synchronized (this.syncObj) {
 			if (reconnect) return connect_aux(reconnect);
 			if (!this.isEnabled) return true;
@@ -190,7 +190,7 @@ public class TcpChannel {
 	    /** The system calls this to perform work in a worker thread and
 	      * delivers it the parameters given to AsyncTask.execute() */
 	    protected TcpChannel doInBackground(TcpChannel... parentSet) {
-	    	logger.trace("Thread <" + Thread.currentThread().getId() + ">::reconnect");
+	    	logger.trace("Thread <{}>::reconnect", Thread.currentThread().getId());
 	    	if (parentSet.length < 1) return null;
 	    	
 			TcpChannel parent = parentSet[0];
@@ -236,7 +236,8 @@ public class TcpChannel {
 				try {
 					parent.connectionLock.notifyAll();
 				} catch (IllegalMonitorStateException ex) {
-					logger.warn("Thread <" + Thread.currentThread().getId() + "> connection made notification but no one is waiting");
+					logger.warn("Thread <{}> connection made notification but no one is waiting",
+							Thread.currentThread().getId());
 				}
 
 				// FRED? trigger  authentication
@@ -246,7 +247,7 @@ public class TcpChannel {
 	}
 	
 	public boolean isConnected() {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::isConnected");
+		logger.trace("Thread <{}>::isConnected", Thread.currentThread().getId());
 		if (this.socket == null) return false;
 		if (this.socket.isClosed()) return false;
 		return this.socket.isConnected();
@@ -259,7 +260,7 @@ public class TcpChannel {
 	 */
 	public boolean close() {
 		synchronized (this.syncObj) {
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">::close");
+			logger.trace("Thread <{}>::close", Thread.currentThread().getId());
 			if (this.socket == null) return false;
 			if (this.socket.isClosed()) return false;
 			try {
@@ -274,7 +275,7 @@ public class TcpChannel {
 	
     public boolean disconnect() {
     	synchronized (this.syncObj) {
-    		logger.trace("Thread <" + Thread.currentThread().getId() + ">::disconnect");
+    		logger.trace("Thread <{}>::disconnect", Thread.currentThread().getId());
 			this.senderThread.interrupt();
 			this.receiverThread.interrupt();
 		    return true;
@@ -292,7 +293,7 @@ public class TcpChannel {
 	public boolean sendRequest(int size, CRC32 checksum, byte[] payload) 
 	{
 		synchronized (this.syncObj) {
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">::sendGatewayRequest");
+			logger.trace("Thread <{}>::sendGatewayRequest", Thread.currentThread().getId());
 			if (! this.isConnected()) {
 				this.tryConnect(false);
 				return false;
@@ -325,7 +326,7 @@ public class TcpChannel {
 		private final BlockingQueue<GwMessage> queue;
 		
 		private SenderThread(TcpChannel parent) {
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">SenderThread::<constructor>");
+			logger.trace("Thread <{}>SenderThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.queue = parent.sendQueue;
 		}
@@ -343,13 +344,11 @@ public class TcpChannel {
 		 */
 		@Override
 		public void run() { 
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">SenderThread::run");
+			logger.trace("Thread <>SenderThread::run", Thread.currentThread().getId());
 			DataOutputStream dos;
 			try {			
-			    //ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE + Integer.SIZE);
-			    ByteBuffer buf = ByteBuffer.allocate(8); // we need 8 bytes 
-				logger.trace("::Integer.SIZE = " + Integer.SIZE);
-				// ByteOrder order = buf.order();
+				// one integer for size & four bytes for checksum
+			    ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE/Byte.SIZE + 4);
 				buf.order(parent.endian);
 				
 				while (true) {
@@ -357,7 +356,8 @@ public class TcpChannel {
 						synchronized(parent.connectionLock) {
 							while (! parent.isConnected()) {
 								try {
-								    logger.trace("Thread <" + Thread.currentThread().getId() + ">SenderThread::connectionLock.wait");
+								    logger.trace("Thread <{}>SenderThread::connectionLock.wait",
+								    		Thread.currentThread().getId());
 								    parent.connectionLock.wait();
 								} catch (InterruptedException ex) {
 									logger.warn("thread interupted {}",ex.getLocalizedMessage());
@@ -367,6 +367,7 @@ public class TcpChannel {
 							dos = new DataOutputStream(parent.socket.getOutputStream());
 						}
 						GwMessage msg = queue.take();
+						buf.rewind();
 						buf.putInt(msg.size);
 						long cvalue = msg.checksum.getValue();
 						byte[] checksum = new byte[] {
@@ -411,13 +412,13 @@ public class TcpChannel {
 		static private final int DELIVER  = 5; // indicating the message has been read
 		
 		private ReceiverThread(TcpChannel aSocket) {
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">ReceiverThread::<constructor>");
+			logger.trace("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
 			this.driver = aSocket.driver;
 			this.parent = aSocket;
 		}
 
 		public void close() {
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">::close");
+			logger.trace("Thread <{}>::close", Thread.currentThread().getId());
 			this.mState = SHUTDOWN;
 			parent.close();
 		}
@@ -425,7 +426,7 @@ public class TcpChannel {
 		@Override
 		public void start() {
 			super.start();
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">::start");
+			logger.trace("Thread <{}>::start", Thread.currentThread().getId());
 		}
 
 		/**
@@ -441,7 +442,7 @@ public class TcpChannel {
 		 */
 		@Override
 		public void run() { 
-			logger.trace("Thread <" + Thread.currentThread().getId() + ">ReceiverThread::run");
+			logger.trace("Thread <{}>ReceiverThread::run", Thread.currentThread().getId());
 			Looper.prepare();
 			
 			mState = START;
@@ -459,7 +460,7 @@ public class TcpChannel {
 				synchronized(parent.connectionLock) {
 					while (! parent.isConnected()) {
 						try {
-						    logger.trace("Thread <" + Thread.currentThread().getId() + ">ReceiverThread::connectionLock.wait");
+						    logger.trace("Thread <{}>ReceiverThread::connectionLock.wait", Thread.currentThread().getId());
 						    parent.connectionLock.wait();
 						} catch (InterruptedException ex) {
 							logger.warn("thread interupted {}",ex.getLocalizedMessage());
@@ -562,7 +563,7 @@ public class TcpChannel {
 	 * @return
 	 */
 	public String getLocalIpAddress() {
-		logger.trace("Thread <" + Thread.currentThread().getId() + ">::getLocalIpAddress");
+		logger.trace("Thread <{}>::getLocalIpAddress", Thread.currentThread().getId());
 		try {
 			for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
 				NetworkInterface intf = en.nextElement();
