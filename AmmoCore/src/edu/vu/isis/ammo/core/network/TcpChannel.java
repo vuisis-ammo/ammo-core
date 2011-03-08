@@ -76,7 +76,10 @@ public class TcpChannel {
 			TcpChannel instance = new TcpChannel(driver);
 			
 			instance.senderThread = instance.new SenderThread(instance);
+			instance.senderThread.start();
+			
 			instance.receiverThread = instance.new ReceiverThread(instance);
+			instance.receiverThread.start();
 			return instance;
 		}
 	}
@@ -335,41 +338,45 @@ public class TcpChannel {
 		public void run() { 
 			logger.trace("::run");
 			DataOutputStream dos;
-			try {		
-				dos = new DataOutputStream(socket.getOutputStream());
+			try {			
 				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE + Integer.SIZE);
 				// ByteOrder order = buf.order();
 				buf.order(parent.endian);
 				
 				while (true) {
-					synchronized(TcpChannel.isConnected) {
-						while (!TcpChannel.isConnected) {
-							try {
-								TcpChannel.isConnected.wait();
-							} catch (InterruptedException ex) {
-								logger.warn("thread interupted {}",ex.getLocalizedMessage());
-								return; // looks like the thread is being shut down.
+					try {
+						synchronized(TcpChannel.isConnected) {
+							while (!TcpChannel.isConnected) {
+								try {
+									TcpChannel.isConnected.wait();
+								} catch (InterruptedException ex) {
+									logger.warn("thread interupted {}",ex.getLocalizedMessage());
+									return ; // looks like the thread is being shut down.
+								}
 							}
+							dos = new DataOutputStream(parent.socket.getOutputStream());
 						}
+						GwMessage msg = queue.take();
+						buf.putInt(msg.size);
+						long cvalue = msg.checksum.getValue();
+						byte[] checksum = new byte[] {
+					                (byte)(cvalue >>> 24),
+					                (byte)(cvalue >>> 16),
+					                (byte)(cvalue >>> 8),
+					                (byte)cvalue};
+						buf.put(checksum, 0, 4);
+						dos.write(buf.array());
+						dos.write(msg.payload);
+						dos.flush();
+					} catch (SocketException ex) {
+						logger.warn("socket disconnected while writing messages");
 					}
-					GwMessage msg = queue.take();
-					buf.putInt(msg.size);
-					long cvalue = msg.checksum.getValue();
-					byte[] checksum = new byte[] {
-				                (byte)(cvalue >>> 24),
-				                (byte)(cvalue >>> 16),
-				                (byte)(cvalue >>> 8),
-				                (byte)cvalue};
-					buf.put(checksum, 0, 4);
-					dos.write(buf.array());
-					dos.write(msg.payload);
 				}
-			} catch (SocketException ex) {
-				ex.printStackTrace();
 			} catch (IOException ex) {
-				ex.printStackTrace();
+				logger.warn("io exception writing messages");
 			} catch (InterruptedException ex) {
 				logger.warn("interupted writing messages");
+				return;
 			}
 		}
 	}
@@ -425,16 +432,7 @@ public class TcpChannel {
 		public void run() { 
 			logger.trace("::run");
 			Looper.prepare();
-			InputStream insock;
-			try {
-				insock = this.parent.socket.getInputStream();
-			} catch (IOException ex) {
-				logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
-				return;
-			}
-			BufferedInputStream bis = new BufferedInputStream(insock, 1024);
-			if (bis == null) return;
-
+			
 			mState = START;
 
 			int bytesToRead = 0; // indicates how many bytes should be read
@@ -444,6 +442,7 @@ public class TcpChannel {
 			byte[] message = null;
 			byte[] byteToReadBuffer = new byte[Integer.SIZE];
 			byte[] checksumBuffer = new byte[Integer.SIZE];
+			BufferedInputStream bis = null;
 			
 			while (true) {	
 				synchronized(TcpChannel.isConnected) {
@@ -456,6 +455,17 @@ public class TcpChannel {
 							return;
 						}
 					}
+					InputStream insock;
+					try {
+						insock = this.parent.socket.getInputStream();
+						bis = new BufferedInputStream(insock, 1024);
+					} catch (IOException ex) {
+						logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
+						return;
+					}
+					
+					if (bis == null) return;
+
 				}
 				try {
 					switch (mState) {

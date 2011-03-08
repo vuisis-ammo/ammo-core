@@ -281,6 +281,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 			} else {
 				this.tcpChannel.disable();
 			}
+			this.tcpChannel.setStale();
 			this.connectChannels(true);
 		}
 		return;
