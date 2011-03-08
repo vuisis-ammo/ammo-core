@@ -296,7 +296,7 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	private boolean connectChannels(boolean reconnect) {
         logger.trace("connectChannels: {}", reconnect);
 	    this.tcpChannel.tryConnect(reconnect);
-	    boolean isTcpConnected = this.tcpChannel.checkConnection();
+	    boolean isTcpConnected = this.tcpChannel.isConnected();
 	    
 	    // using preferences to communicate the status of the connection
 	    SharedPreferences pref = PreferenceManager.getDefaultSharedPreferences(this);
@@ -631,10 +631,10 @@ implements OnSharedPreferenceChangeListener, INetworkService
 	public boolean isConnected() {
 		logger.trace("::isConnected");
 		if (tcpChannel.isStale()) {
-			return tcpChannel.checkConnection();
+			return tcpChannel.isConnected();
 		}
 		if (tcpChannel == null) return false;
-		return tcpChannel.checkConnection();
+		return tcpChannel.isConnected();
 	}
 	
 	/**

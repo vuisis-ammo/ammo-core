@@ -55,7 +55,7 @@ public class TcpChannel {
 	private String gatewayHost = null;
 	private int gatewayPort = 32896;
 	
-	private static Boolean isConnected = false;  // condition variable
+	private Boolean connectionLock = true;  // condition variable
 	
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private NetworkService driver = null;
@@ -67,13 +67,12 @@ public class TcpChannel {
 		this.syncObj = this;
 		this.isStale = true;
 		this.driver = driver;
-		TcpChannel.isConnected = false;
 	}
 	
 	public static TcpChannel getInstance(NetworkService driver) {
 		logger.trace("::getInstance");
-		synchronized (TcpChannel.isConnected) {
-			TcpChannel instance = new TcpChannel(driver);
+		TcpChannel instance = new TcpChannel(driver);
+		synchronized (instance.syncObj) {
 			
 			instance.senderThread = instance.new SenderThread(instance);
 			instance.senderThread.start();
@@ -160,11 +159,11 @@ public class TcpChannel {
 	 */
 	public boolean tryConnect(boolean reconnect) {
 		logger.trace("::tryConnect");
-		synchronized (TcpChannel.isConnected) {
+		synchronized (this.syncObj) {
 			if (reconnect) return connect_aux(reconnect);
 			if (!this.isEnabled) return true;
 			if (this.isStale) return connect_aux(reconnect);
-			if (!this.checkConnection()) return connect_aux(reconnect);
+			if (!this.isConnected()) return connect_aux(reconnect);
 		}
 		return false;
 	}
@@ -218,21 +217,24 @@ public class TcpChannel {
 	    /** The system calls this to perform work in the UI thread and delivers
 	      * the result from doInBackground() */
 	    protected void onPostExecute(TcpChannel parent) {
-	    	parent.isStale = false;
-			synchronized (TcpChannel.isConnected) {
-				TcpChannel.isConnected = true;
+	    	synchronized (parent.syncObj) { 
+		    	parent.isStale = false;
+				
+				if (parent.socket == null) return;
+				if (parent.socket.isClosed()) return;
+				// if (parent.socket.isConnected()) return;
+				
 				try {
-					TcpChannel.isConnected.notifyAll();
+					parent.connectionLock.notifyAll();
 				} catch (IllegalMonitorStateException ex) {
 					logger.warn("connection made notification but no one is waiting");
 				}
-			}
+	    	}
 	    }
 	}
 	
-	public boolean checkConnection() {
+	public boolean isConnected() {
 		logger.trace("::isConnected");
-		if (!TcpChannel.isConnected) return false;
 		if (this.socket == null) return false;
 		if (this.socket.isClosed()) return false;
 		return this.socket.isConnected();
@@ -258,13 +260,6 @@ public class TcpChannel {
 		}
 	}
 	
-	public boolean hasSocket() {
-		logger.trace("::hasSocket");
-		if (this.socket == null) return false;
-		if (this.socket.isClosed()) return false;
-		return true;
-	}
-	
     public boolean disconnect() {
     	synchronized (this.syncObj) {
     		logger.trace("::disconnect");
@@ -286,7 +281,7 @@ public class TcpChannel {
 	{
 		synchronized (this.syncObj) {
 			logger.trace("::sendGatewayRequest");
-			if (! TcpChannel.isConnected) {
+			if (! this.isConnected()) {
 				this.tryConnect(false);
 				return false;
 			}
@@ -345,10 +340,10 @@ public class TcpChannel {
 				
 				while (true) {
 					try {
-						synchronized(TcpChannel.isConnected) {
-							while (!TcpChannel.isConnected) {
+						synchronized(parent.connectionLock) {
+							while (! parent.isConnected()) {
 								try {
-									TcpChannel.isConnected.wait();
+									parent.connectionLock.wait();
 								} catch (InterruptedException ex) {
 									logger.warn("thread interupted {}",ex.getLocalizedMessage());
 									return ; // looks like the thread is being shut down.
@@ -364,6 +359,7 @@ public class TcpChannel {
 					                (byte)(cvalue >>> 16),
 					                (byte)(cvalue >>> 8),
 					                (byte)cvalue};
+						logger.debug("checksum [{}]", checksum);
 						buf.put(checksum, 0, 4);
 						dos.write(buf.array());
 						dos.write(msg.payload);
@@ -409,8 +405,7 @@ public class TcpChannel {
 			this.mState = SHUTDOWN;
 			parent.close();
 		}
-		public boolean hasSocket() { return this.parent.hasSocket(); }
-
+		
 		@Override
 		public void start() {
 			super.start();
@@ -445,10 +440,10 @@ public class TcpChannel {
 			BufferedInputStream bis = null;
 			
 			while (true) {	
-				synchronized(TcpChannel.isConnected) {
-					while (!TcpChannel.isConnected) {
+				synchronized(parent.connectionLock) {
+					while (! parent.isConnected()) {
 						try {
-							TcpChannel.isConnected.wait();
+							parent.connectionLock.wait();
 						} catch (InterruptedException ex) {
 							logger.warn("thread interupted {}",ex.getLocalizedMessage());
 							shutdown(bis); // looks like the thread is being shut down.
