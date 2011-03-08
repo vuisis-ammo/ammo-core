@@ -20,7 +20,6 @@ import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.zip.CRC32;
-import java.lang.Thread;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -161,34 +160,36 @@ public class TcpChannel {
 	public boolean tryConnect(boolean reconnect) {
 		logger.trace("Thread <{}>::tryConnect", Thread.currentThread().getId());
 		synchronized (this.syncObj) {
-			if (reconnect) return connect_aux(reconnect);
+			if (reconnect) return connect_aux();
 			if (!this.isEnabled) return true;
-			if (this.isStale) return connect_aux(reconnect);
-			if (!this.isConnected()) return connect_aux(reconnect);
+			if (this.isStale) return connect_aux();
+			if (!this.isConnected()) return connect_aux();
 		}
 		return false;
 	}
-	private boolean connect_aux(boolean reconnect) {
+	private boolean connect_aux() {
 	    /* Comment for Fred:
 	       why is the connectorTask being created twice? - first if the conntask == null, and then again later ...
 	       and is the reconnect flag being used at all - or if you come here then it means that you are going to reconnect always?
 	       Suggest modification below ... commented original code and updated
 	    */
 	    if (this.connectorTask == null) {
-		this.connectorTask = new ConnectorTask();
-		this.connectorTask.execute(this);
-		return true;
+			this.connectorTask = new ConnectorTask();
+			this.connectorTask.execute(this);
+			return true;
 	    }
 	    if (! connectorTask.getStatus().equals(AsyncTask.Status.FINISHED)) 
-		return false;
+	    	return false;
 	    this.connectorTask = new ConnectorTask();
 	    this.connectorTask.execute(this);
 	    return true;
 	}
 
 	private class ConnectorTask extends AsyncTask<TcpChannel, Void, TcpChannel> {
-	    /** The system calls this to perform work in a worker thread and
-	      * delivers it the parameters given to AsyncTask.execute() */
+	    /** 
+	     * The system calls this to perform work in a worker thread and
+	     * delivers it the parameters given to AsyncTask.execute() 
+	     */
 	    protected TcpChannel doInBackground(TcpChannel... parentSet) {
 	    	logger.trace("Thread <{}>::reconnect", Thread.currentThread().getId());
 	    	if (parentSet.length < 1) return null;
@@ -221,10 +222,11 @@ public class TcpChannel {
 			return parent;
 	    }
 	    
-	    /** The system calls this to perform work in the UI thread and delivers
-	      * the result from doInBackground() */
+	    /** 
+	     * The system calls this to perform work in the UI thread and delivers
+	     * the result from doInBackground() 
+	     */
 	    protected void onPostExecute(TcpChannel parent) {
-	    	/* synchronized (parent.syncObj) { */
 	    	synchronized (parent.connectionLock) { 
 		    	parent.isStale = false;
 				
