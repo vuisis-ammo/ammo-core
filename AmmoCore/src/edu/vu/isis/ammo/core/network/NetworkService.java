@@ -249,7 +249,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		}
 		if (key.equals(IPrefKeys.PREF_OPERATOR_ID)) {
 			operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
-			this.authenticate();
+			if (this.isConnected()) this.authenticate(); // TBD SKN: this should really do a setStale rathen than just authenticate
 			
 			// TBD SKN: broadcast login id change to apps ...
 			Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
