@@ -177,7 +177,6 @@ public class TcpChannel {
 			static private final int CONNECTED     = 0; // the socket is good an active
 			static private final int CONNECTING    = 1; // trying to connect
 			static private final int DISCONNECTED  = 2; // the socket is disconnected
-			static private final int DISABLED      = 3; // the connection intentionally disabled
 			static private final int STALE         = 4; // indicating there is a message
 			static private final int LINK_WAIT     = 5; // indicating the underlying link is down 
 			
@@ -288,7 +287,7 @@ public class TcpChannel {
 				break;
 
 				case State.CONNECTED:
-					handler.authenticate();
+					handler.auth();
 				default: {
 					try {
 						synchronized (this.state) {
@@ -472,11 +471,11 @@ public class TcpChannel {
 
 						} catch (SocketException ex) {
 							logger.warn("socket disconnected while writing a message");
-							if (msg.handler != null) this.handler.acknowledge(false);
+							if (msg.handler != null) this.handler.ack(false);
 							parent.connectorThread.failure(version);
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
-							if (msg.handler != null) this.handler.acknowledge(false);
+							if (msg.handler != null) this.handler.ack(false);
 							parent.connectorThread.failure(version);
 						} 
 						state = SENDING;
@@ -509,21 +508,21 @@ public class TcpChannel {
 							dos.flush();
 						} catch (SocketException ex) {
 							logger.warn("socket disconnected while writing a message");
-							if (msg.handler != null) this.handler.acknowledge(false);
+							if (msg.handler != null) this.handler.ack(false);
 							parent.connectorThread.failure(version);
 							state = TAKING;
 							break;
 
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
-							if (msg.handler != null) this.handler.acknowledge(false);
+							if (msg.handler != null) this.handler.ack(false);
 							parent.connectorThread.failure(version);
 							state = TAKING;
 							break;
 						} 
 
 						// legitimately sent to gateway.
-						if (msg.handler != null) this.handler.acknowledge(true);
+						if (msg.handler != null) this.handler.ack(true);
 						state = TAKING;
 						break;
 					}

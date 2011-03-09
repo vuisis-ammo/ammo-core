@@ -1,13 +1,13 @@
 package edu.vu.isis.ammo.core.receiver;
 
-import android.content.ContentResolver;
-import android.content.ContentValues;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.Context;
 import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
 
 /**
  * CellPhoneListener is a PhoneStateListener which manages the 3G radio on the
@@ -25,7 +25,7 @@ public class CellPhoneListener extends PhoneStateListener {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final String TAG = "CellPhoneListener";
+        private static final Logger logger = LoggerFactory.getLogger(CellPhoneListener.class);
 	
 	// ===========================================================
 	// Fields
@@ -46,7 +46,7 @@ public class CellPhoneListener extends PhoneStateListener {
 
 	@Override
 	public void onDataConnectionStateChanged(int state) {
-		Log.d(TAG, "::onDataConnectionStateChanged()");
+		logger.debug("::onDataConnectionStateChanged()");
 		switch (state) {
 		case TelephonyManager.DATA_DISCONNECTED:
 			this.updateCellularRowInTable("down", "byte", 0, 0);
@@ -64,19 +64,19 @@ public class CellPhoneListener extends PhoneStateListener {
 	// Assuming device operates over CDMA.
 	@Override 
 	public void onSignalStrengthsChanged (SignalStrength signalStrength) {
-		Log.d(TAG, "::onSignalStrengthsChanged()");
+		logger.debug("::onSignalStrengthsChanged()");
 		int dBmRSSI = signalStrength.getCdmaDbm();
 		this.updateCellularRowInTable("up", "byte", dBmRSSI, dBmRSSI);
 	}
 	
 	// Update the delivery mechanism table's 3g row.
 	private void updateCellularRowInTable(String status, String unit, int costUp, int costDown) {
-		ContentResolver cr = context.getContentResolver();
-		ContentValues values = new ContentValues();
-		values.put(DeliveryMechanismTableSchema.STATUS, status);
-		values.put(DeliveryMechanismTableSchema.UNIT, unit);
-		values.put(DeliveryMechanismTableSchema.COST_UP, costUp);
-		values.put(DeliveryMechanismTableSchema.COST_DOWN, costDown);
-		cr.update(DeliveryMechanismTableSchema.CONTENT_URI, values, DeliveryMechanismTableSchema.CONN_TYPE + " == " + "\"" + DeliveryMechanismTableSchema.CONN_TYPE_WIFI + "\"", null);
+//		ContentResolver cr = context.getContentResolver();
+//		ContentValues values = new ContentValues();
+//		values.put(DeliveryMechanismTableSchema.STATUS, status);
+//		values.put(DeliveryMechanismTableSchema.UNIT, unit);
+//		values.put(DeliveryMechanismTableSchema.COST_UP, costUp);
+//		values.put(DeliveryMechanismTableSchema.COST_DOWN, costDown);
+//		cr.update(DeliveryMechanismTableSchema.CONTENT_URI, values, DeliveryMechanismTableSchema.CONN_TYPE + " == " + "\"" + DeliveryMechanismTableSchema.CONN_TYPE_WIFI + "\"", null);
 	}
 }

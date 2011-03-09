@@ -244,12 +244,12 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		// handle network authentication group
 		if (key.equals(INetPrefKeys.PREF_DEVICE_ID)) {
 			deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-			if (this.isConnected()) this.authenticate();
+			if (this.isConnected()) this.auth();
 			return;
 		}
 		if (key.equals(IPrefKeys.PREF_OPERATOR_ID)) {
 			operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
-			if (this.isConnected()) this.authenticate(); // TBD SKN: this should really do a setStale rathen than just authenticate
+			if (this.isConnected()) this.auth(); // TBD SKN: this should really do a setStale rathen than just authenticate
 			
 			// TBD SKN: broadcast login id change to apps ...
 			Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
@@ -259,7 +259,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		}
 		if (key.equals(INetPrefKeys.PREF_OPERATOR_KEY)) {
 			operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
-			if (this.isConnected()) this.authenticate();
+			if (this.isConnected()) this.auth();
 			return;
 		}
 
@@ -465,7 +465,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * @param checksum
 	 * @param message
 	 */
-	private boolean sendGatewayRequest(int size, CRC32 checksum, byte[] message, OnSendMessageHandler handler) 
+	private boolean sendRequest(int size, CRC32 checksum, byte[] message, OnSendMessageHandler handler) 
 	{
 		logger.trace("::sendGatewayRequest");
 		return this.tcpChannel.sendRequest(size, checksum, message, handler);
@@ -590,7 +590,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * For the following methods there is an expectation that 
 	 * the connection has been pre-verified.
 	 */
-	public boolean authenticate() {
+	public boolean auth() {
 		logger.trace("::authenticate");
 		
 		/** Message Building */
@@ -598,13 +598,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 		
-		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, null);
-//            new OnSendMessageHandler() {
-//			@Override
-//			public boolean acknowledge(boolean status) {
-//				return true;
-//			}
-//		});
+		return sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this); 
 	}
 	
 	public boolean dispatchPushRequest(String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
@@ -619,7 +613,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 		// this.journalChannel.sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
 		
-		boolean rc = sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
+		boolean rc = sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
 		return rc;
 	}
 	
@@ -631,7 +625,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
+		return sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
 	}
 	
 	public boolean dispatchSubscribeRequest(String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
@@ -642,7 +636,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 
-		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
+		return sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
 	}
 	
 	public void setDistributorServiceCallback(IDistributorService callback) {
@@ -655,8 +649,8 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	
 	/**
 	 * This should handle the link state behavior.
-	 * Move to TcpChannel?
-	 * 
+	 * This is really the main job of the Network service;
+	 * matching up links with channels.
 	 *
 	 */
 	private class MyBroadcastReceiver extends BroadcastReceiver {
@@ -683,8 +677,8 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * A routine to let the distributor know that the message was sent or discarded.
 	 */
 	@Override
-	public boolean acknowledge(boolean status) {
-		// TODO Auto-generated method stub
+	public boolean ack(boolean status) {
+		logger.debug("message sent");
 		return false;
 	}
 	

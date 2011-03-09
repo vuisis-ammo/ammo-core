@@ -5,9 +5,10 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.BroadcastReceiver;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.net.wifi.ScanResult;
@@ -15,7 +16,6 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.util.Log;
 import android.widget.Toast;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSchema;
 
 /**
  * WifiReceiver is a broadcast receiver which receives intents from the system
@@ -36,10 +36,11 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema.DeliveryMechanismTableSc
  */
 
 public class WifiReceiver extends BroadcastReceiver {
+private static final Logger logger = LoggerFactory.getLogger(WifiReceiver.class);
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final String TAG = "WifiReceiver";
+
 	@SuppressWarnings("unused")
 	private static final int RSSI_TIMER_DELAY = 30*1000; // in milliseconds.
 	@SuppressWarnings("unused")
@@ -79,7 +80,7 @@ public class WifiReceiver extends BroadcastReceiver {
 			return;
 		}
 		
-		Log.d(TAG, "::onReceive with intent " + intent.getAction());
+		logger.debug("::onReceive with intent {}", intent.getAction());
 		
 		recvContext = context;
 		recvIntent = intent;
@@ -102,7 +103,7 @@ public class WifiReceiver extends BroadcastReceiver {
 			break;
 		
 		default:
-			Log.d(TAG, "::onReceive: intent not found");
+			logger.debug("::onReceive: intent not found");
 			return;
 		}
 	}
@@ -116,7 +117,7 @@ public class WifiReceiver extends BroadcastReceiver {
 	// Check whether we have connected or disconnected from an access point.
 	// If we have disconnected, begin scanning for new access points.
 	private void wifiSupplicationConnectionChanged() {
-//		Log.d(TAG, "::wifiSupplicationConnectionChanged");
+//		logger.debug("::wifiSupplicationConnectionChanged");
 		Toast.makeText(recvContext, "wifiSupplicationConnectionChanged", Toast.LENGTH_LONG);
 
 		boolean connected = recvIntent.getExtras().getBoolean(WifiManager.EXTRA_SUPPLICANT_CONNECTED);
@@ -140,7 +141,7 @@ public class WifiReceiver extends BroadcastReceiver {
 	
 	// Update the DeliveryMechanism table.
 	private void wifiRSSIChanged() {
-		//Log.d(TAG, "::wifiRSSIChanged");
+		//logger.debug("::wifiRSSIChanged");
 		WifiInfo info = wifiManager.getConnectionInfo();
 		int linkSpeed = info.getLinkSpeed();
 		// TODO: Calculate costUp/costDown
@@ -153,7 +154,7 @@ public class WifiReceiver extends BroadcastReceiver {
 	// Determine if we are connected to the most desirable access point, if not,
 	// change connection.
 	private void wifiScanResultsAvailable() {
-//		Log.d(TAG, "::wifiScanResultsAvailable");
+//		logger.debug("::wifiScanResultsAvailable");
 		List<ScanResult> scanResults = wifiManager.getScanResults();
 		
 		if (!scanResults.isEmpty()) {
@@ -179,18 +180,18 @@ public class WifiReceiver extends BroadcastReceiver {
 	
 	// Update the delivery mechanism table's wifi row.
 	private void updateWifiRowInTable(String status, String unit, int costUp, int costDown) {
-		ContentResolver cr = recvContext.getContentResolver();
-		ContentValues values = new ContentValues();
-		values.put(DeliveryMechanismTableSchema.STATUS, status);
-		values.put(DeliveryMechanismTableSchema.UNIT, unit);
-		values.put(DeliveryMechanismTableSchema.COST_UP, costUp);
-		values.put(DeliveryMechanismTableSchema.COST_DOWN, costDown);
-		cr.update(DeliveryMechanismTableSchema.CONTENT_URI, values, DeliveryMechanismTableSchema.CONN_TYPE + " == " + "\"" + DeliveryMechanismTableSchema.CONN_TYPE_WIFI + "\"", null);
+//		ContentResolver cr = recvContext.getContentResolver();
+//		ContentValues values = new ContentValues();
+//		values.put(DeliveryMechanismTableSchema.STATUS, status);
+//		values.put(DeliveryMechanismTableSchema.UNIT, unit);
+//		values.put(DeliveryMechanismTableSchema.COST_UP, costUp);
+//		values.put(DeliveryMechanismTableSchema.COST_DOWN, costDown);
+//		cr.update(DeliveryMechanismTableSchema.CONTENT_URI, values, DeliveryMechanismTableSchema.CONN_TYPE + " == " + "\"" + DeliveryMechanismTableSchema.CONN_TYPE_WIFI + "\"", null);
 	}
 	
 	@SuppressWarnings("unused")
 	private void scheduleWifiScan(int delay) {
-		Log.d(TAG, "::scheduleWifiScan");
+		logger.debug("::scheduleWifiScan");
 		Timer t = new Timer();
 		t.schedule(new TimerTask() {
 			@Override

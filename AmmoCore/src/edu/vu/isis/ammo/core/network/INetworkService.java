@@ -20,10 +20,10 @@ public interface INetworkService {
 
 	// Callback interfaces
 	public static interface OnConnectHandler {
-		public boolean authenticate();
+		public boolean auth();
 	}
 	public static interface OnSendMessageHandler {
-		public boolean acknowledge(boolean status);
+		public boolean ack(boolean status);
 	}
 	public static interface OnReceiveMessageHandler {
 		public boolean deliver(byte[] message, long checksum);
@@ -37,7 +37,7 @@ public interface INetworkService {
 	 * Used to acquire the session id by which subsequent communication will be
 	 * tracked.
 	 */
-	public boolean authenticate();
+	public boolean auth();
 
 	/**
 	 * Posting a data item to the gateway for distribution.
