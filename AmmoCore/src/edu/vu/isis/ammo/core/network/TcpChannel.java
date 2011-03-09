@@ -380,7 +380,10 @@ public class TcpChannel {
 		public final byte[] payload;
 		public final INetworkService.OnSendMessageHandler handler;
 		public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) {
-			this.size = size; this.checksum = checksum; this.payload = payload; this.handler = handler;
+			this.size = size; 
+			this.checksum = checksum; 
+			this.payload = payload; 
+			this.handler = handler;
 		}
 	}
 
@@ -471,11 +474,11 @@ public class TcpChannel {
 
 						} catch (SocketException ex) {
 							logger.warn("socket disconnected while writing a message");
-							if (msg.handler != null) this.handler.ack(false);
+							if (msg.handler != null) msg.handler.ack(false);
 							parent.connectorThread.failure(version);
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
-							if (msg.handler != null) this.handler.ack(false);
+							if (msg.handler != null) msg.handler.ack(false);
 							parent.connectorThread.failure(version);
 						} 
 						state = SENDING;
@@ -508,21 +511,21 @@ public class TcpChannel {
 							dos.flush();
 						} catch (SocketException ex) {
 							logger.warn("socket disconnected while writing a message");
-							if (msg.handler != null) this.handler.ack(false);
+							if (msg.handler != null) msg.handler.ack(false);
 							parent.connectorThread.failure(version);
 							state = TAKING;
 							break;
 
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
-							if (msg.handler != null) this.handler.ack(false);
+							if (msg.handler != null) msg.handler.ack(false);
 							parent.connectorThread.failure(version);
 							state = TAKING;
 							break;
 						} 
 
 						// legitimately sent to gateway.
-						if (msg.handler != null) this.handler.ack(true);
+						if (msg.handler != null) msg.handler.ack(true);
 						state = TAKING;
 						break;
 					}
