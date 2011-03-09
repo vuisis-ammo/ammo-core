@@ -26,7 +26,7 @@ public interface INetworkService {
 		public boolean acknowledge(boolean status);
 	}
 	public static interface OnReceiveMessageHandler {
-		public boolean deliver(byte[] message, CRC32 checksum);
+		public boolean deliver(byte[] message, long checksum);
 	}
 	
 	// methods

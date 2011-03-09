@@ -276,13 +276,8 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 //			shouldUse(prefs);
 //		}
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
-//			boolean enable_intent = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, false);
-//			if (enable_intent) {
-//				 this.tcpChannel.enable();
-//			} else {
-//				this.tcpChannel.disable();
-//			}
-			this.tcpChannel.setStale();
+			logger.warn("explicit opererator reset on channel");
+			this.tcpChannel.reset();
 		}
 		return;
 	}
@@ -511,15 +506,15 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	public boolean deliver(byte[] message, CRC32 checksum) 
+	public boolean deliver(byte[] message, long checksum) 
 	{
 		logger.trace("::deliverGatewayResponse");
 		
 		CRC32 crc32 = new CRC32();
 		crc32.update(message);
-		if (crc32.getValue() != checksum.getValue()) {
+		if (crc32.getValue() != checksum) {
 			String msg = "you have received a bad message, the checksums did not match)"+ 
-			crc32.toString() +":"+checksum.toString();
+			Long.toHexString(crc32.getValue()) +":"+ Long.toHexString(checksum);
 			// Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			logger.warn(msg);
 			return false;
@@ -604,6 +599,12 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 		
 		return sendGatewayRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, null);
+//            new OnSendMessageHandler() {
+//			@Override
+//			public boolean acknowledge(boolean status) {
+//				return true;
+//			}
+//		});
 	}
 	
 	public boolean dispatchPushRequest(String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
