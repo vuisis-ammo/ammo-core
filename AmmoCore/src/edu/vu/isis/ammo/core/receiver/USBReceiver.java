@@ -1,5 +1,8 @@
 package edu.vu.isis.ammo.core.receiver;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -21,7 +24,7 @@ public class USBReceiver extends BroadcastReceiver {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final String TAG = "USBReceiver";
+private static final Logger logger = LoggerFactory.getLogger(USBReceiver.class);
 	
 	// ===========================================================
 	// Fields
@@ -33,6 +36,6 @@ public class USBReceiver extends BroadcastReceiver {
 
 	@Override
 	public void onReceive(Context context, Intent intent) {
-		Log.d(TAG, "::onReceive");
+		logger.debug("::onReceive");
 	}
 }

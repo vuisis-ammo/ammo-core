@@ -1,50 +1,57 @@
 // THIS IS GENERATED CODE, MAKE SURE ANY CHANGES MADE HERE ARE PROPAGATED INTO THE GENERATOR TEMPLATES
 package edu.vu.isis.ammo.core.provider;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import android.content.BroadcastReceiver;
 import android.content.ContentProvider;
 import android.content.ContentUris;
 import android.content.ContentValues;
-import android.content.Context;
 import android.content.IntentFilter;
 import android.content.UriMatcher;
-import android.database.Cursor;
+import android.content.Context;
+
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
+import android.database.Cursor;
+
 import android.net.Uri;
 import android.os.Environment;
 import android.os.FileObserver;
 import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.DataOutputStream;
+import java.io.InputStream;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.HashSet;
+
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
 
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.DeliveryMechanismTableSchemaBase;
+
+import edu.vu.isis.ammo.core.provider.DistributorSchema;
+
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PostalTableSchemaBase;
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PublicationTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.RetrievalTableSchemaBase;
+import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PublicationTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.SubscriptionTableSchemaBase;
 
 
@@ -56,8 +63,7 @@ public abstract class DistributorProviderBase extends ContentProvider {
 
 // Table definitions 
 public interface Tables {
-      public static final String DELIVERY_MECHANISM_TBL = "delivery_mechanism";
-         public static final String POSTAL_TBL = "postal";
+      public static final String POSTAL_TBL = "postal";
          public static final String RETRIEVAL_TBL = "retrieval";
          public static final String PUBLICATION_TBL = "publication";
          public static final String SUBSCRIPTION_TBL = "subscription";
@@ -100,17 +106,6 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
       logger.info( "Bootstrapping database");
       try {
 
-        /** 
-         * Table Name: delivery mechanism <P>
-         */
-        db.execSQL("CREATE TABLE \"" + Tables.DELIVERY_MECHANISM_TBL + "\" (" 
-          + "\""+DeliveryMechanismTableSchemaBase.CONN_TYPE + "\" INTEGER, " 
-          + "\""+DeliveryMechanismTableSchemaBase.STATUS + "\" TEXT, " 
-          + "\""+DeliveryMechanismTableSchemaBase.UNIT + "\" TEXT, " 
-          + "\""+DeliveryMechanismTableSchemaBase.COST_UP + "\" INTEGER, " 
-          + "\""+DeliveryMechanismTableSchemaBase.COST_DOWN + "\" INTEGER, " 
-          + "\""+DeliveryMechanismTableSchemaBase._ID + "\" INTEGER PRIMARY KEY AUTOINCREMENT, "
-          + "\""+DeliveryMechanismTableSchemaBase._DISPOSITION + "\" INTEGER );" ); 
         /** 
          * Table Name: postal <P>
          */
@@ -187,8 +182,7 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
       logger.warn( "Upgrading database from version " + oldVersion + " to "
             + newVersion + ", which will destroy all old data");
-         db.execSQL("DROP TABLE IF EXISTS \"" + Tables.DELIVERY_MECHANISM_TBL + "\";");
-            db.execSQL("DROP TABLE IF EXISTS \"" + Tables.POSTAL_TBL + "\";");
+         db.execSQL("DROP TABLE IF EXISTS \"" + Tables.POSTAL_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.RETRIEVAL_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.PUBLICATION_TBL + "\";");
             db.execSQL("DROP TABLE IF EXISTS \"" + Tables.SUBSCRIPTION_TBL + "\";");
@@ -212,62 +206,6 @@ protected class DistributorDatabaseHelper extends SQLiteOpenHelper {
    protected void createTriggers(SQLiteDatabase db) { }
 }
 
-/**
-* Table Name: delivery mechanism <P>
-*/
-static public class DeliveryMechanismWrapper {
-   public DeliveryMechanismWrapper() {
-     // logger.info("building DeliveryMechanismWrapper");
-   }
-     private int connType;
-     public int getConnType() {
-       return this.connType;
-     }
-     public DeliveryMechanismWrapper setConnType(int val) {
-       this.connType = val;
-       return this;
-     } 
-     private String status;
-     public String getStatus() {
-       return this.status;
-     }
-     public DeliveryMechanismWrapper setStatus(String val) {
-       this.status = val;
-       return this;
-     } 
-     private String unit;
-     public String getUnit() {
-       return this.unit;
-     }
-     public DeliveryMechanismWrapper setUnit(String val) {
-       this.unit = val;
-       return this;
-     } 
-     private int costUp;
-     public int getCostUp() {
-       return this.costUp;
-     }
-     public DeliveryMechanismWrapper setCostUp(int val) {
-       this.costUp = val;
-       return this;
-     } 
-     private int costDown;
-     public int getCostDown() {
-       return this.costDown;
-     }
-     public DeliveryMechanismWrapper setCostDown(int val) {
-       this.costDown = val;
-       return this;
-     } 
-     private int _disposition;
-     public int get_Disposition() {
-       return this._disposition;
-     }
-     public DeliveryMechanismWrapper set_Disposition(int val) {
-       this._disposition = val;
-       return this;
-     }
-} 
 /**
 * Table Name: postal <P>
 */
@@ -637,157 +575,6 @@ static public class SubscriptionWrapper {
      }
 } 
 
-  static private File dirDeliveryMechanism = 
-           new File(Environment.getExternalStorageDirectory(),
-                    "ammo_cp_delivery_mechanism_cache");
-
-  public long deliveryMechanismDeserializer(File file) {
-     logger.debug("::deliveryMechanismdeserializer");
-     InputStream ins;
-     try {
-        ins = new FileInputStream(file);
-     } catch (FileNotFoundException e1) {
-        return -1;
-     }
-     BufferedInputStream bufferedInput = new BufferedInputStream(ins);
-     byte[] buffer = new byte[1024];
-     StringBuffer strbuf = new StringBuffer();
-     try {
-       int bytesRead = 0;
-       while ((bytesRead = bufferedInput.read(buffer)) != -1) {
-         strbuf.append( new String(buffer, 0, bytesRead));
-       }
-       bufferedInput.close();
-     } catch (IOException e) {
-       logger.error("could not read serialized file");
-       return -1;
-     }
-     String json = strbuf.toString();
-     Gson gson = new Gson();
-     DeliveryMechanismWrapper wrap = null;
-     try {
-         wrap = gson.fromJson(json, DeliveryMechanismWrapper.class);
-     } catch (JsonParseException ex) {
-          ex.getMessage();
-          ex.printStackTrace();
-          return -1;
-     } catch (java.lang.RuntimeException ex) {
-          ex.getMessage();
-          ex.printStackTrace();
-          return -1;
-     }
-     if (wrap == null) return -1;
-    
-     SQLiteDatabase db = openHelper.getReadableDatabase();
-     
-     ContentValues cv = deliveryMechanismComposeValues(wrap);
-     String whereClause = deliveryMechanismSelectKeyClause(wrap);
-     
-     if (whereClause != null) {
-         // Switch on the path in the uri for what we want to query.
-         Cursor updateCursor = db.query(Tables.DELIVERY_MECHANISM_TBL, deliveryMechanismProjectionKey, whereClause, null, null, null, null);
-         long rowId = -1;
-         for (boolean more = updateCursor.moveToFirst(); more;)
-         {
-            rowId = updateCursor.getLong(updateCursor.getColumnIndex(DeliveryMechanismTableSchemaBase._ID));  
-         
-            db.update(Tables.DELIVERY_MECHANISM_TBL, cv, 
-               "\""+DeliveryMechanismTableSchemaBase._ID+"\" = '"+ Long.toString(rowId)+"'",
-               null); 
-            break;
-         }
-         updateCursor.close();
-         if (rowId > 0) {
-             getContext().getContentResolver().notifyChange(DeliveryMechanismTableSchemaBase.CONTENT_URI, null); 
-             return rowId;
-         }
-     }
-     long rowId = db.insert(Tables.DELIVERY_MECHANISM_TBL, 
-         DeliveryMechanismTableSchemaBase.CONN_TYPE,
-         cv);
-     getContext().getContentResolver().notifyChange(DeliveryMechanismTableSchemaBase.CONTENT_URI, null); 
-     return rowId;
-   }
-  /**
-   * This method is provided with the express purpose of being overridden and extended.
-   * @param wrap
-   */
-  protected ContentValues deliveryMechanismComposeValues(DeliveryMechanismWrapper wrap) {
-     ContentValues cv = new ContentValues();
-     cv.put(DeliveryMechanismTableSchemaBase.CONN_TYPE, wrap.getConnType()); 
-     cv.put(DeliveryMechanismTableSchemaBase.STATUS, wrap.getStatus()); 
-     cv.put(DeliveryMechanismTableSchemaBase.UNIT, wrap.getUnit()); 
-     cv.put(DeliveryMechanismTableSchemaBase.COST_UP, wrap.getCostUp()); 
-     cv.put(DeliveryMechanismTableSchemaBase.COST_DOWN, wrap.getCostDown()); 
-     cv.put(DeliveryMechanismTableSchemaBase._DISPOSITION, wrap.get_Disposition());
-     return cv;   
-  }
-  
-  /**
-   * This method is provided with the express purpose of being overridden and extended.
-   *
-   *    StringBuilder sb = new StringBuilder();
-   *    sb.append("\""+DeliveryMechanismTableSchemaBase.FUNCTION_CODE+"\" = '"+ wrap.getFunctionCode()+"'"); 
-   *    return sb.toString();   
-   *
-   * @param wrap
-   */
-  protected String deliveryMechanismSelectKeyClause(DeliveryMechanismWrapper wrap) {
-      return null;
-  }
-
-  //@Override 
-  public ArrayList<String> deliveryMechanismSerializer(Cursor cursor) {
-      logger.debug( "::serializer");
-      ArrayList<String> paths = new ArrayList<String>();      
-      if (1 > cursor.getCount()) return paths;
-
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      DataOutputStream eos = new DataOutputStream(baos);
-      
-      for (boolean more = cursor.moveToFirst(); more; more = cursor.moveToNext()) {
-           DeliveryMechanismWrapper iw = new DeliveryMechanismWrapper();
-             iw.setConnType(cursor.getInt(cursor.getColumnIndex(DeliveryMechanismTableSchemaBase.CONN_TYPE)));  
-             iw.setStatus(cursor.getString(cursor.getColumnIndex(DeliveryMechanismTableSchemaBase.STATUS)));  
-             iw.setUnit(cursor.getString(cursor.getColumnIndex(DeliveryMechanismTableSchemaBase.UNIT)));  
-             iw.setCostUp(cursor.getInt(cursor.getColumnIndex(DeliveryMechanismTableSchemaBase.COST_UP)));  
-             iw.setCostDown(cursor.getInt(cursor.getColumnIndex(DeliveryMechanismTableSchemaBase.COST_DOWN)));  
-             iw.set_Disposition(cursor.getInt(cursor.getColumnIndex(DeliveryMechanismTableSchemaBase._DISPOSITION))); 
-
-           Gson gson = new Gson();
-
-           try {
-              eos.writeBytes(gson.toJson(iw));
-              eos.writeByte(0);
-           } catch (IOException ex) {
-              ex.printStackTrace();
-           }
-
-           // not a reference field name :conn type connType conn_type\n 
-           // not a reference field name :status status status\n 
-           // not a reference field name :unit unit unit\n 
-           // not a reference field name :cost up costUp cost_up\n 
-           // not a reference field name :cost down costDown cost_down\n 
-           // DeliveryMechanismTableSchemaBase._DISPOSITION;
-
-           try {
-              if (!dirDeliveryMechanism.exists() ) dirDeliveryMechanism.mkdirs();
-              
-              File outfile = new File(dirDeliveryMechanism, Integer.toHexString((int) System.currentTimeMillis())); 
-              BufferedOutputStream bufferedOutput = new BufferedOutputStream(new FileOutputStream(outfile), 8192);
-              bufferedOutput.write(baos.toByteArray());
-              bufferedOutput.flush();
-              bufferedOutput.close();
-           
-              paths.add(outfile.getCanonicalPath());
-           } catch (FileNotFoundException e) {
-              e.printStackTrace();
-           } catch (IOException e) {
-              e.printStackTrace();
-           }
-      }
-      return paths;
-   } 
   static private File dirPostal = 
            new File(Environment.getExternalStorageDirectory(),
                     "ammo_cp_postal_cache");
@@ -1457,9 +1244,6 @@ static public class SubscriptionWrapper {
    // Fields
    // ===========================================================
    /** Projection Maps */
-      protected static String[] deliveryMechanismProjectionKey;
-      protected static HashMap<String, String> deliveryMechanismProjectionMap;
-      
       protected static String[] postalProjectionKey;
       protected static HashMap<String, String> postalProjectionMap;
       
@@ -1474,25 +1258,21 @@ static public class SubscriptionWrapper {
       
    
    /** Uri Matcher tags */
-      protected static final int DELIVERY_MECHANISM_BLOB = 10;
-      protected static final int DELIVERY_MECHANISM_SET = 11;
-      protected static final int DELIVERY_MECHANISM_ID = 12;
+      protected static final int POSTAL_BLOB = 10;
+      protected static final int POSTAL_SET = 11;
+      protected static final int POSTAL_ID = 12;
       
-      protected static final int POSTAL_BLOB = 20;
-      protected static final int POSTAL_SET = 21;
-      protected static final int POSTAL_ID = 22;
+      protected static final int RETRIEVAL_BLOB = 20;
+      protected static final int RETRIEVAL_SET = 21;
+      protected static final int RETRIEVAL_ID = 22;
       
-      protected static final int RETRIEVAL_BLOB = 30;
-      protected static final int RETRIEVAL_SET = 31;
-      protected static final int RETRIEVAL_ID = 32;
+      protected static final int PUBLICATION_BLOB = 30;
+      protected static final int PUBLICATION_SET = 31;
+      protected static final int PUBLICATION_ID = 32;
       
-      protected static final int PUBLICATION_BLOB = 40;
-      protected static final int PUBLICATION_SET = 41;
-      protected static final int PUBLICATION_ID = 42;
-      
-      protected static final int SUBSCRIPTION_BLOB = 50;
-      protected static final int SUBSCRIPTION_SET = 51;
-      protected static final int SUBSCRIPTION_ID = 52;
+      protected static final int SUBSCRIPTION_BLOB = 40;
+      protected static final int SUBSCRIPTION_SET = 41;
+      protected static final int SUBSCRIPTION_ID = 42;
       
    
    /** Uri matcher */
@@ -1512,10 +1292,6 @@ static public class SubscriptionWrapper {
     private static final UriMatcher blobUriMatcher;
     static {
       blobUriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.DELIVERY_MECHANISM_TBL+"/#/_serial", DELIVERY_MECHANISM_ID);
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.DELIVERY_MECHANISM_TBL+"/_serial", DELIVERY_MECHANISM_SET);
-            blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.DELIVERY_MECHANISM_TBL+"/#/*", DELIVERY_MECHANISM_BLOB);
-            
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL+"/#/_serial", POSTAL_ID);
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL+"/_serial", POSTAL_SET);
             blobUriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL+"/#/*", POSTAL_BLOB);
@@ -1567,77 +1343,6 @@ static public class SubscriptionWrapper {
         
         int match = blobUriMatcher.match(uri);
         switch (match) {
-
-         case DELIVERY_MECHANISM_BLOB:
-            if (pseg.size() < 3)
-                return null;
-
-            try {
-                File filePath = blobFile("delivery_mechanism", pseg.get(1), pseg.get(2));
-                return ParcelFileDescriptor.open(filePath, imode);
-            } catch (FileNotFoundException ex) {
-                ex.printStackTrace();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-            break;
-
-         case DELIVERY_MECHANISM_SET:
-            try {
-               final File tempFile = tempFilePath("delivery_mechanism");
-               final ParcelFileDescriptor pfd = ParcelFileDescriptor.open(
-                     tempFile, ParcelFileDescriptor.MODE_READ_WRITE);
-               final FileObserver observer = new FileObserver(tempFile.getCanonicalPath()) {
-                  @Override
-                  public void onEvent(int event, String path) {
-                     switch (event) {
-                     case FileObserver.CLOSE_WRITE:
-                        this.stopWatching();
-                        try {
-                          pfd.close();
-                          deliveryMechanismDeserializer(tempFile);
-                        } catch (IOException e) {
-                        }
-                        tempFile.delete();
-                        observerSet.remove(this);
-                        return;
-                     default:
-                        logger.info("unknown file disposition: "+event);
-                     }
-                  }
-               };
-               observer.startWatching();
-               observerSet.add(observer);
-               return pfd;
-             } catch (FileNotFoundException e1) {
-                e1.printStackTrace();
-             } catch (IOException e1) {
-                e1.printStackTrace();
-             }
-             break;
-
-         case DELIVERY_MECHANISM_ID:
-            qb = new SQLiteQueryBuilder();
-            db = openHelper.getReadableDatabase();
-                    
-            // Switch on the path in the uri for what we want to query.
-            qb.setTables(Tables.DELIVERY_MECHANISM_TBL);
-            qb.setProjectionMap(deliveryMechanismProjectionMap);
-            qb.appendWhere(DeliveryMechanismTableSchemaBase._ID + " = " + uri.getPathSegments().get(1));
-            cursor = qb.query(db, null, null, null, null, null, null);
-            if (1 > cursor.getCount()) {
-               logger.info("no data of type DELIVERY_MECHANISM_ID"); 
-               cursor.close();
-               return null;
-            }
-            paths = this.deliveryMechanismSerializer(cursor);
-            cursor.close();
-            try {
-               return ParcelFileDescriptor.open(new File(paths.get(0)), imode);
-            } catch (FileNotFoundException e) {
-               e.printStackTrace();
-            }
-            break;    
 
          case POSTAL_BLOB:
             if (pseg.size() < 3)
@@ -1952,21 +1657,6 @@ static public class SubscriptionWrapper {
          String orderBy = null;
 
          switch (uriMatcher.match(uri)) {
-               case DELIVERY_MECHANISM_SET:
-                  tableName = Tables.DELIVERY_MECHANISM_TBL;
-                  projectionMap = deliveryMechanismProjectionMap;
-                  orderBy = (! TextUtils.isEmpty(sortOrder)) ? sortOrder
-                             : DeliveryMechanismTableSchemaBase.DEFAULT_SORT_ORDER;
-                  break;
-               
-               case DELIVERY_MECHANISM_ID:
-                  tableName = Tables.DELIVERY_MECHANISM_TBL;
-                  projectionMap = deliveryMechanismProjectionMap;
-                  qb.appendWhere(DeliveryMechanismTableSchemaBase._ID + "="
-                        + uri.getPathSegments().get(1));
-                  break;
-
-               
                case POSTAL_SET:
                   tableName = Tables.POSTAL_TBL;
                   projectionMap = postalProjectionMap;
@@ -2054,13 +1744,6 @@ static public class SubscriptionWrapper {
          
          /** Validate the requested uri and do default initialization. */
          switch (uriMatcher.match(uri)) {
-               case DELIVERY_MECHANISM_SET:
-                  values = this.initializeDeliveryMechanismDefaults(values);
-                  insertTable = Tables.DELIVERY_MECHANISM_TBL;
-                  nullColumnHack = DeliveryMechanismTableSchemaBase.CONN_TYPE;
-                  tableUri = DeliveryMechanismTableSchemaBase.CONTENT_URI;
-                  break;
-               
                case POSTAL_SET:
                   values = this.initializePostalDefaults(values);
                   insertTable = Tables.POSTAL_TBL;
@@ -2105,31 +1788,6 @@ static public class SubscriptionWrapper {
          return playerURI;
       }
 
-      /** Insert method helper */
-      protected ContentValues initializeDeliveryMechanismDefaults(ContentValues values) {
-         Long now = Long.valueOf(System.currentTimeMillis());
-         
-           if (!values.containsKey(DeliveryMechanismTableSchemaBase.CONN_TYPE)) {
-              values.put("\""+DeliveryMechanismTableSchemaBase.CONN_TYPE+"\"", DeliveryMechanismTableSchemaBase.CONN_TYPE_UNKNOWN);
-           } 
-           if (!values.containsKey(DeliveryMechanismTableSchemaBase.STATUS)) {
-              values.put("\""+DeliveryMechanismTableSchemaBase.STATUS+"\"", "unknown");
-           } 
-           if (!values.containsKey(DeliveryMechanismTableSchemaBase.UNIT)) {
-              values.put("\""+DeliveryMechanismTableSchemaBase.UNIT+"\"", "unknown");
-           } 
-           if (!values.containsKey(DeliveryMechanismTableSchemaBase.COST_UP)) {
-              values.put("\""+DeliveryMechanismTableSchemaBase.COST_UP+"\"", -1);
-           } 
-           if (!values.containsKey(DeliveryMechanismTableSchemaBase.COST_DOWN)) {
-              values.put("\""+DeliveryMechanismTableSchemaBase.COST_DOWN+"\"", -1);
-           } 
-           if (!values.containsKey(DeliveryMechanismTableSchemaBase._DISPOSITION)) {
-              values.put("\""+DeliveryMechanismTableSchemaBase._DISPOSITION+"\"", DistributorSchema._DISPOSITION_START);
-           }
-         return values;
-      }
-      
       /** Insert method helper */
       protected ContentValues initializePostalDefaults(ContentValues values) {
          Long now = Long.valueOf(System.currentTimeMillis());
@@ -2291,21 +1949,6 @@ static public class SubscriptionWrapper {
          SQLiteDatabase db = openHelper.getWritableDatabase();
          int count;
          switch (uriMatcher.match(uri)) {
-               case DELIVERY_MECHANISM_SET:
-                  count = db.delete(Tables.DELIVERY_MECHANISM_TBL, selection, selectionArgs);
-                  break;
-
-               case DELIVERY_MECHANISM_ID:
-                  String delivery_mechanismID = uri.getPathSegments().get(1);
-                  count = db.delete(Tables.DELIVERY_MECHANISM_TBL,
-                        DeliveryMechanismTableSchemaBase._ID
-                              + "="
-                              + delivery_mechanismID
-                              + (TextUtils.isEmpty(selection) ? "" 
-                                     : (" AND (" + selection + ')')),
-                              selectionArgs);
-                  break;
-               
                case POSTAL_SET:
                   count = db.delete(Tables.POSTAL_TBL, selection, selectionArgs);
                   break;
@@ -2381,25 +2024,6 @@ static public class SubscriptionWrapper {
          Uri notifyUri = uri;
          int count;
          switch (uriMatcher.match(uri)) {
-               case DELIVERY_MECHANISM_SET:
-                  logger.debug("DELIVERY_MECHANISM_SET");
-                  count = db.update(Tables.DELIVERY_MECHANISM_TBL, values, selection,
-                        selectionArgs);
-                  break;
-
-               case DELIVERY_MECHANISM_ID:
-                  logger.debug("DELIVERY_MECHANISM_ID");
-                  //  notify on the base URI - without the ID ?
-                  notifyUri = DeliveryMechanismTableSchemaBase.CONTENT_URI; 
-                  String delivery_mechanismID = uri.getPathSegments().get(1);
-                  count = db.update(Tables.DELIVERY_MECHANISM_TBL, values, DeliveryMechanismTableSchemaBase._ID
-                        + "="
-                        + delivery_mechanismID
-                        + (TextUtils.isEmpty(selection) ? "" 
-                                     : (" AND (" + selection + ')')),
-                        selectionArgs);
-                  break;
-               
                case POSTAL_SET:
                   logger.debug("POSTAL_SET");
                   count = db.update(Tables.POSTAL_TBL, values, selection,
@@ -2488,10 +2112,6 @@ static public class SubscriptionWrapper {
    @Override
    public String getType(Uri uri) {
       switch (uriMatcher.match(uri)) {
-            case DELIVERY_MECHANISM_SET:
-            case DELIVERY_MECHANISM_ID:
-               return DeliveryMechanismTableSchemaBase.CONTENT_ITEM_TYPE;
-            
             case POSTAL_SET:
             case POSTAL_ID:
                return PostalTableSchemaBase.CONTENT_ITEM_TYPE;
@@ -2519,9 +2139,6 @@ static public class SubscriptionWrapper {
    // ===========================================================
    static {
       uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
-            uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.DELIVERY_MECHANISM_TBL, DELIVERY_MECHANISM_SET);
-            uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.DELIVERY_MECHANISM_TBL + "/#", DELIVERY_MECHANISM_ID);
-            
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL, POSTAL_SET);
             uriMatcher.addURI(DistributorSchemaBase.AUTHORITY, Tables.POSTAL_TBL + "/#", POSTAL_ID);
             
@@ -2536,20 +2153,6 @@ static public class SubscriptionWrapper {
             
       
       HashMap<String, String> columns;
-            deliveryMechanismProjectionKey = new String[1];
-            deliveryMechanismProjectionKey[0] = DeliveryMechanismTableSchemaBase._ID;
-
-            columns = new HashMap<String, String>();
-            columns.put(DeliveryMechanismTableSchemaBase._ID, DeliveryMechanismTableSchemaBase._ID);
-               columns.put(DeliveryMechanismTableSchemaBase.CONN_TYPE, "\""+DeliveryMechanismTableSchemaBase.CONN_TYPE+"\""); 
-               columns.put(DeliveryMechanismTableSchemaBase.STATUS, "\""+DeliveryMechanismTableSchemaBase.STATUS+"\""); 
-               columns.put(DeliveryMechanismTableSchemaBase.UNIT, "\""+DeliveryMechanismTableSchemaBase.UNIT+"\""); 
-               columns.put(DeliveryMechanismTableSchemaBase.COST_UP, "\""+DeliveryMechanismTableSchemaBase.COST_UP+"\""); 
-               columns.put(DeliveryMechanismTableSchemaBase.COST_DOWN, "\""+DeliveryMechanismTableSchemaBase.COST_DOWN+"\""); 
-               columns.put(DeliveryMechanismTableSchemaBase._DISPOSITION, "\""+DeliveryMechanismTableSchemaBase._DISPOSITION+"\"");
-
-            deliveryMechanismProjectionMap = columns;
-            
             postalProjectionKey = new String[1];
             postalProjectionKey[0] = PostalTableSchemaBase._ID;
 

@@ -1,5 +1,8 @@
 package edu.vu.isis.ammo.core.ethertracker;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -10,13 +13,12 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.R;
 
 public class EthTrackSvc extends Service {
 
-	private static final String TAG = "EthTrackSvc";
+	private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
 
 	@Override
 	public void onCreate() {
@@ -29,7 +31,7 @@ public class EthTrackSvc extends Service {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		Log.d("EthTrackSvc", "::onStartCommand with intent ");//+ intent.getAction());
+		logger.debug("::onStartCommand with intent {}", intent.getAction());
 		handleCommand();
 
 		// We want this service to continue running until it is explicitly
@@ -56,7 +58,7 @@ public class EthTrackSvc extends Service {
 		
 		if (ret == -1)
 		{
-			Log.i (TAG, "Error in InitEthernet: create or socket bind error, Exiting ...");
+			logger.info("Error in InitEthernet: create or socket bind error, Exiting ...");
 			return;
 		}
 
@@ -173,7 +175,7 @@ public class EthTrackSvc extends Service {
 				
 				if (res.indexOf("Error") > 0)
 				{
-					Log.i (TAG, "Error in waitForEvent: Exiting Thread");
+					logger.info("Error in waitForEvent: Exiting Thread");
 					return;
 				}
 
@@ -193,7 +195,7 @@ public class EthTrackSvc extends Service {
 				} catch (InterruptedException e) {
 				}
 			}
-			// Log.i (TAG, "Thread Done");
+			// logger.info("Thread Done");
 		}
 	}
 

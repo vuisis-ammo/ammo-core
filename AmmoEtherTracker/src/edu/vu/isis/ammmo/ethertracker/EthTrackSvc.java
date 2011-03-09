@@ -7,11 +7,10 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
-import android.util.Log;
 
 public class EthTrackSvc extends Service {
 	
-	private static final String TAG = "EthTrackSvc";
+private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
 
 	 @Override	
 	public void onCreate() {
@@ -169,7 +168,7 @@ public class EthTrackSvc extends Service {
                 	sleep((int)(Math.random() * 1000));
     	    } catch (InterruptedException e) {}
     	}
-    	//Log.i (TAG, "Thread Done");
+    	// logger.info("Thread Done");
         }
     }
 	
