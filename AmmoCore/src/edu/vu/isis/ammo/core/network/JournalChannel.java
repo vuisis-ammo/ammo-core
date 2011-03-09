@@ -46,7 +46,6 @@ public class JournalChannel {
 	
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	@SuppressWarnings("unused")
-	private NetworkService driver = null;
 	private final Object syncObj;
 	private static Boolean isConnected = false;  // condition variable
 	
@@ -64,7 +63,6 @@ public class JournalChannel {
 		this.syncObj = this;
 		this.isStale = true;
 		this.isEnabled = false;
-		this.driver = driver;
 		JournalChannel.isConnected = false;
 	}
 	
@@ -242,7 +240,7 @@ public class JournalChannel {
 	 * @param message
 	 * @return
 	 */
-	public boolean sendRequest(int size, CRC32 checksum, byte[] payload) 
+	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, NetworkService.OnSend handler) 
 	{
 		synchronized (this.syncObj) {
 			logger.trace("::sendGatewayRequest");

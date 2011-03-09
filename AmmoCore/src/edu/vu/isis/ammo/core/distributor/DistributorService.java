@@ -43,6 +43,7 @@ import com.google.protobuf.ByteString;
 
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.network.INetworkService.OnSendMessageHandler;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -487,8 +488,10 @@ public class DistributorService extends Service implements IDistributorService {
                 	if (! this.networkServiceBinder.isConnected()) {
                 		logger.debug("no network connection");
                 	} else {
+                		// FIXME make a real handler
                 		dispatchSuccessful = 
-                    	this.networkServiceBinder.dispatchPushRequest(rowUri.toString(), mimeType, serialized);
+                    	this.networkServiceBinder.dispatchPushRequest(rowUri.toString(), mimeType, serialized, 
+                    			(INetworkService.OnSendMessageHandler)null);
                 	}
                     if (dispatchSuccessful) {
                         byte[] notice = cur.getBlob(cur.getColumnIndex(PostalTableSchema.NOTICE));
@@ -583,8 +586,9 @@ public class DistributorService extends Service implements IDistributorService {
 				if (! this.networkServiceBinder.isConnected()) {
 					++failedSendCount;
 				} else {
+					// FIXME make a real handler
                     sent = this.networkServiceBinder.dispatchRetrievalRequest(
-                        rowUri.toString(), mime, selection);
+                        rowUri.toString(), mime, selection, (OnSendMessageHandler) null);
                     if (!sent) ++failedSendCount;
 				}
                 ContentValues values = new ContentValues();
@@ -680,7 +684,9 @@ public class DistributorService extends Service implements IDistributorService {
 				if (! this.networkServiceBinder.isConnected()) {
 					++failedSendCount;
 				} else {
-					sent = this.networkServiceBinder.dispatchSubscribeRequest(mime, selection);
+					// FIXME make a real handler
+					sent = this.networkServiceBinder.dispatchSubscribeRequest(mime, selection, 
+							(OnSendMessageHandler) null);
                     if (!sent) ++failedSendCount;
 				}
                 ContentValues values = new ContentValues();

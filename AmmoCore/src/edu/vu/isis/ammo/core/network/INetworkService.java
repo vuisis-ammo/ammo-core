@@ -4,6 +4,8 @@
  */
 package edu.vu.isis.ammo.core.network;
 
+import java.util.zip.CRC32;
+
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 
 public interface INetworkService {
@@ -16,6 +18,18 @@ public interface INetworkService {
 	public static final String ACTION_RECONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_BEGIN_ACTION";
 	public static final String ACTION_DISCONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_HALT_ACTION";
 
+	// Callback interfaces
+	public static interface OnConnectHandler {
+		public boolean authenticate();
+	}
+	public static interface OnSendMessageHandler {
+		public boolean acknowledge(boolean status);
+	}
+	public static interface OnReceiveMessageHandler {
+		public boolean deliver(byte[] message, CRC32 checksum);
+	}
+	
+	// methods
 	public void teardown();
 	
 	public boolean isConnected();
@@ -33,7 +47,7 @@ public interface INetworkService {
 	 * @param data
 	 * @return
 	 */
-	public boolean dispatchPushRequest(String uri, String mimeType, byte []data);
+	public boolean dispatchPushRequest(String uri, String mimeType, byte []data, OnSendMessageHandler handler);
 	
 	/**
 	 * Enrolling with the gateway for a data stream.
@@ -44,7 +58,7 @@ public interface INetworkService {
 	 * 
 	 * @return was the request posted successfully
 	 */
-	public boolean dispatchRetrievalRequest(String requestId, String mimeType, String selection);
+	public boolean dispatchRetrievalRequest(String requestId, String mimeType, String selection, OnSendMessageHandler handler);
 	
 	/**
 	 * Subscribe with the gateway for a data stream.
@@ -54,7 +68,7 @@ public interface INetworkService {
 	 * 
 	 * @return was the request posted successfully
 	 */
-	public boolean dispatchSubscribeRequest(String mimeType, String selection);
+	public boolean dispatchSubscribeRequest(String mimeType, String selection, OnSendMessageHandler handler);
 	
 	/**
 	 * Pass control to the distributor service to handle the message.
