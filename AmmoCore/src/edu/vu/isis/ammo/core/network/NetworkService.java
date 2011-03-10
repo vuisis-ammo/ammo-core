@@ -608,7 +608,10 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 		
-		return sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this); 
+		this.distributor.repostToNetworkService2();
+		
+		sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this); 
+		return true;
 	}
 	
 	public boolean dispatchPushRequest(String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {

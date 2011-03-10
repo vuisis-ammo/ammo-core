@@ -4,8 +4,6 @@
  */
 package edu.vu.isis.ammo.core.network;
 
-import java.util.zip.CRC32;
-
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 
 public interface INetworkService {

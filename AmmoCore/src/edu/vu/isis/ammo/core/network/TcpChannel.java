@@ -624,7 +624,7 @@ public class TcpChannel {
 		@Override
 		public void run() { 
 			logger.trace("Thread <{}>ReceiverThread::run", Thread.currentThread().getId());
-			Looper.prepare();
+			//Looper.prepare();
 
 			state = WAIT_CONNECT;
 
