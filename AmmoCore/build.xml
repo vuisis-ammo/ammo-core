@@ -59,6 +59,7 @@
               searchpath="true"/>
 
         <echo>Generating protocol buffers</echo>
+        <mkdir dir="gen"/>
         <exec executable="protoc" taskname="pb">
             <arg value="--proto_path=src"/>
             <arg value="--java_out=gen"/>
