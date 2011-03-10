@@ -667,6 +667,7 @@ public class TcpChannel {
 						bis.read(byteToReadBuffer);
 					} catch (SocketTimeoutException ex) {
 						// the following checks the heart-stamp 
+						// TODO no pace-maker messages are sent, this could be added if needed.
 						long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
 						if (parent.FLATLINE < elapsedTime) {
 							logger.warn("heart timeout : {}", elapsedTime);
