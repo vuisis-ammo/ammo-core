@@ -889,42 +889,27 @@ public class DistributorService extends Service implements IDistributorService {
 			}
 			outstream.close();
 
-			// TODO: update the retrieval request table
-			// This mess is intended to update/delete the retrieval request as it has been fullfulled.
-			//
-			// RetrievalTableSchema.URI
-			// final String selectPending = 
-			// "\""+RetrievalTableSchema.CONTENT_ITEM_TYPE + "\" = "+
-			// " '" +  + "'" +
-			// (repost ? (", '" + RetrievalTableSchema.DISPOSITION_SENT + "'" +
-			// ", '" + RetrievalTableSchema.DISPOSITION_FAIL+"'") : "") +
-			// ")";
-			//
-			// String[] selectionArgs = null;
-			//
-			// Cursor pendingCursor = cr.query(RetrievalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
-			// if (pendingCursor.getCount() < 1) {
-			// pendingCursor.close();
-			// Cursor pendingCursor = cr.query(RetrievalTableSchema.CONTENT_URI, null, selectPending, selectionArgs, order);
-			// Cursor cursor = cr.query(uri, null, null, null, null);
-			// byte[] notice = cursor.getBlob(cursor.getColumnIndex(RetrievalTableSchema.NOTICE));
-			//
-			// catch (CanceledException e) {
-			// // TODO Auto-generated catch block
-			// e.printStackTrace();
-			// }
-			// // cr.delete(, where, selectionArgs)
-		} catch (FileNotFoundException e) {
-			String msg = "could not connect to content provider";
+			// This update/delete the retrieval request as it has been fulfilled.
+			
+			String selection = "\"" + RetrievalTableSchema.URI +"\" = '" + uri +"'";
+			Cursor cursor = cr.query(RetrievalTableSchema.CONTENT_URI, null, selection, null, null);
+			if (!cursor.moveToFirst()) {
+				logger.info("no matching retrieval: {}", selection);
+				cursor.close();
+				return false;
+			}
+			final Uri retrieveUri = RetrievalTableSchema.getUri(cursor);
+			ContentValues values = new ContentValues();
+			values.put(RetrievalTableSchema.DISPOSITION, RetrievalTableSchema.DISPOSITION_SATISFIED);
 
-			logger.warn(msg);
-			e.printStackTrace();
+			@SuppressWarnings("unused")
+			int numUpdated = cr.update(retrieveUri, values,null, null);
+			
+		} catch (FileNotFoundException e) {
+			logger.warn("could not connect to content provider");
 			return false;
 		} catch (IOException e) {
-			String msg = "could not write to the content provider";
-
-			logger.warn(msg);
-			e.printStackTrace();
+			logger.warn("could not write to the content provider");
 		}
 		return true;
 	}
