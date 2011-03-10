@@ -253,12 +253,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		}
 		if (key.equals(IPrefKeys.PREF_OPERATOR_ID)) {
 			operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
-			if (this.isConnected()) this.auth(); // TBD SKN: this should really do a setStale rathen than just authenticate
-			
-			// TBD SKN: broadcast login id change to apps ...
-			Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-			loginIntent.putExtra("operatorId", operatorId);
-			this.sendBroadcast(loginIntent);
+			if (this.isConnected()) this.auth(); // TBD SKN: this should really do a setStale rather than just authenticate
 			return;
 		}
 		if (key.equals(INetPrefKeys.PREF_OPERATOR_KEY)) {
@@ -683,7 +678,11 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	@Override
 	public boolean ack(boolean status) {
-		logger.debug("message sent");
+		logger.debug("authentication complete inform applications : ");
+		// broadcast login event to apps ...
+		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		loginIntent.putExtra("operatorId", operatorId);
+		this.sendBroadcast(loginIntent);
 		return false;
 	}
 	
