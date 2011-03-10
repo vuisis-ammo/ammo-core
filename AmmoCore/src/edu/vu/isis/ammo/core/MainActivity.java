@@ -276,8 +276,8 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	
 	public void initializeCheckboxes() {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		boolean physLinkEnabled = prefs.getBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, false);
-		boolean wifiEnabled = prefs.getBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, false);
+		boolean physLinkEnabled = prefs.getBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, true);
+		boolean wifiEnabled = prefs.getBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, true);
 		cbPhysicalLink.setChecked(physLinkEnabled);
 		cbWifi.setChecked(wifiEnabled);
 	}
