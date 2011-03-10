@@ -68,13 +68,12 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	
 	public enum Carrier { UDP , TCP }
 
-	// Interfaqces
-	public interface OnSend {
-		
-	}
+	// Interfaces
+	
 	// ===========================================================
 	// Fields
 	// ===========================================================
+	
 	private String sessionId = "";
 	private String deviceId = null;
 	private String operatorId = "0004";
@@ -164,8 +163,11 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		super.onCreate();
 		logger.trace("onCreate");
 		
+		// no point in enabling the socket until the preferences have been read
+		this.tcpChannel.disable();  // 
 		this.acquirePreferences();
-		this.tcpChannel.enable(); // no point in enabling the socket until the preferences have been read
+		if (this.networkingSwitch) 
+			this.tcpChannel.enable();   // 
 		
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
@@ -200,6 +202,8 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 		
 		this.journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, this.journalingSwitch);
+		
+		this.networkingSwitch = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 		
 		this.deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, this.deviceId);
 		this.operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, this.operatorId);
@@ -277,6 +281,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 //		}
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
 			logger.warn("explicit opererator reset on channel");
+			this.networkingSwitch = true;
 			this.tcpChannel.reset();
 		}
 		return;

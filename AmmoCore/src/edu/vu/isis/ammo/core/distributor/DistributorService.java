@@ -511,7 +511,7 @@ public class DistributorService extends Service implements IDistributorService {
 									int numUpdated = cr.update(postalUri, values, null, null);
 
 									logger.debug("Postal: {} rows updated to {}",
-											numUpdated, (status ? "sent" : "pending"));
+											numUpdated, (status ? "sent" : "failed"));
 
 									//	if (status) {
 									//		byte[] notice = cur.getBlob(cur.getColumnIndex(PostalTableSchema.NOTICE));
