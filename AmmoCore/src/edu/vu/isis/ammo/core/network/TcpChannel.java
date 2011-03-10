@@ -55,6 +55,8 @@ public class TcpChannel {
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private final Object syncObj;
 
+	private int FLATLINE = 20 * 60 * 1000; // 20 minutes in milliseconds
+
 	private TcpChannel(NetworkService driver) {
 		super();
 		logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
@@ -96,9 +98,9 @@ public class TcpChannel {
 				return false;
 			this.isEnabled = false;
 
-			this.connectorThread.stop();
-			this.senderThread.stop();
-			this.receiverThread.stop();
+//			this.connectorThread.stop();
+//			this.senderThread.stop();
+//			this.receiverThread.stop();
 		}
 		return true;
 	}
@@ -157,18 +159,31 @@ public class TcpChannel {
 
 		private static final String DEFAULT_HOST = "10.0.2.2";
 		private static final int DEFAULT_PORT = 32896;
-		private static final int GATEWAY_RETRY_TIME = 20000; // 20 seconds
+		private static final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
 
 		private TcpChannel parent;
 		private INetworkService.OnConnectHandler handler;
 		private final State state;
 
+		private long heartstamp;
+		public long getHeartStamp() {
+			synchronized (this.state) {
+				return this.heartstamp;
+			}
+		}
+		public void resetHeartStamp() {
+			synchronized (this.state) {
+				this.heartstamp = System.currentTimeMillis();
+			}
+		}
+		
 		private ConnectorThread(TcpChannel parent, INetworkService.OnConnectHandler handler) {
 			logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
-			this.handler = handler;
-
 			this.state = new State();
+			
+			this.handler = handler;
+			this.resetHeartStamp();
 		}
 		
 		private class State {
@@ -399,8 +414,9 @@ public class TcpChannel {
 		static private final int SENDING       = 2; // indicating the next thing is the size
 		static private final int TAKING        = 3; // indicating the next thing is the size
 
-
 		private final TcpChannel parent;
+		private ConnectorThread connector;
+		@SuppressWarnings("unused")
 		private final INetworkService.OnSendMessageHandler handler;
 
 		private final BlockingQueue<GwMessage> queue;
@@ -409,7 +425,12 @@ public class TcpChannel {
 			logger.trace("Thread <{}>SenderThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.handler = handler;
+			this.connector = parent.connectorThread;
 			this.queue = new LinkedBlockingQueue<GwMessage>(20);
+		}
+		
+		public void updateConnector(ConnectorThread connector) {
+			this.connector = connector;
 		}
 
 		public void putMsg(GwMessage msg) {
@@ -453,19 +474,19 @@ public class TcpChannel {
 							// keep the working socket so that if something goes wrong
 							// the socket can be checked to see if it has changed
 							// in the interim.			
-							synchronized (parent.connectorThread.state) {
-								while (! parent.connectorThread.isConnected()) {
+							synchronized (this.connector.state) {
+								while (! this.connector.isConnected()) {
 									try {
 										logger.trace("Thread <{}>SenderThread::value.wait",
 												Thread.currentThread().getId());
 
-										parent.connectorThread.state.wait();
+										this.connector.state.wait();
 									} catch (InterruptedException ex) {
 										logger.warn("thread interupted {}",ex.getLocalizedMessage());
 										return ; // looks like the thread is being shut down.
 									}
 								}
-								long newversion = parent.connectorThread.getVersion();
+								long newversion = this.connector.getVersion();
 								if (newversion != version) {
 									dos = new DataOutputStream(this.parent.socket.getOutputStream());
 									version = newversion;
@@ -475,11 +496,11 @@ public class TcpChannel {
 						} catch (SocketException ex) {
 							logger.warn("socket disconnected while writing a message");
 							if (msg.handler != null) msg.handler.ack(false);
-							parent.connectorThread.failure(version);
+							this.connector.failure(version);
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
 							if (msg.handler != null) msg.handler.ack(false);
-							parent.connectorThread.failure(version);
+							this.connector.failure(version);
 						} 
 						state = SENDING;
 						break;
@@ -512,20 +533,22 @@ public class TcpChannel {
 						} catch (SocketException ex) {
 							logger.warn("socket disconnected while writing a message");
 							if (msg.handler != null) msg.handler.ack(false);
-							parent.connectorThread.failure(version);
+							this.connector.failure(version);
 							state = TAKING;
 							break;
 
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
 							if (msg.handler != null) msg.handler.ack(false);
-							parent.connectorThread.failure(version);
+							this.connector.failure(version);
 							state = TAKING;
 							break;
 						} 
 
 						// legitimately sent to gateway.
 						if (msg.handler != null) msg.handler.ack(true);
+						this.connector.resetHeartStamp();
+						
 						state = TAKING;
 						break;
 					}
@@ -547,6 +570,8 @@ public class TcpChannel {
 		final private INetworkService.OnReceiveMessageHandler handler;
 
 		private TcpChannel parent = null;
+		private ConnectorThread connector = null;
+		
 		// private TcpChannel.ConnectorThread;
 		volatile private int state;
 
@@ -562,6 +587,11 @@ public class TcpChannel {
 			logger.trace("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.handler = handler;
+			this.connector = parent.connectorThread;
+		}
+		
+		public void updateConnector(ConnectorThread connector) {
+			this.connector = connector;
 		}
 
 		public void close() {
@@ -606,20 +636,20 @@ public class TcpChannel {
 			while (true) {
 				switch (state) {
 				case WAIT_CONNECT:  // look for the size
-					synchronized (parent.connectorThread.state) {
-						while (! parent.connectorThread.isConnected() ) {
+					synchronized (this.connector.state) {
+						while (! this.connector.isConnected() ) {
 							try {
 								logger.trace("Thread <{}>ReceiverThread::value.wait", 
 										Thread.currentThread().getId());
 
-								parent.connectorThread.state.wait();
+								this.connector.state.wait();
 							} catch (InterruptedException ex) {
 								logger.warn("thread interupted {}",ex.getLocalizedMessage());
 								shutdown(bis); // looks like the thread is being shut down.
 								return;
 							}
 						}
-						version = parent.connectorThread.getVersion();
+						version = this.connector.getVersion();
 					}
 
 					try {
@@ -627,7 +657,7 @@ public class TcpChannel {
 						bis = new BufferedInputStream(insock, 1024);
 					} catch (IOException ex) {
 						logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
-						parent.connectorThread.failure(version);
+						this.connector.failure(version);
 						continue;
 					}    
 					if (bis == null) continue;
@@ -636,11 +666,18 @@ public class TcpChannel {
 					try {
 						bis.read(byteToReadBuffer);
 					} catch (SocketTimeoutException ex) {
-						// logger.trace("timeout on socket");
+						// the following checks the heart-stamp 
+						long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
+						if (parent.FLATLINE < elapsedTime) {
+							logger.warn("heart timeout : {}", elapsedTime);
+							this.connector.failure(version);
+							this.state = WAIT_CONNECT;
+							break; 
+						}
 						continue;
 					} catch (IOException e) {
 						logger.error("read error  ...");
-						parent.connectorThread.failure(version);
+						this.connector.failure(version);
 						this.state = WAIT_CONNECT;
 						break; // read error - set our value back to wait for connect
 					}
@@ -670,7 +707,7 @@ public class TcpChannel {
 						continue;
 					} catch (IOException e) {
 						logger.trace("read error on socket");
-						parent.connectorThread.failure(version);
+						this.connector.failure(version);
 						this.state = WAIT_CONNECT;
 						break;
 					}
@@ -696,7 +733,7 @@ public class TcpChannel {
 						} catch (IOException ex) {
 							logger.trace("read error on socket");
 							this.state = WAIT_CONNECT;
-							parent.connectorThread.failure(version);
+							this.connector.failure(version);
 							break;
 						}
 					}
@@ -706,6 +743,7 @@ public class TcpChannel {
 					break;
 				case DELIVER: // deliver the message to the gateway
 					this.handler.deliver(message, checksum);
+					this.connector.resetHeartStamp();
 					message = null;
 					this.state = START;
 					break;
