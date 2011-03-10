@@ -73,7 +73,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		logger.trace("::onCreate");
-		setContentView(R.layout.main_activity);
+		this.setContentView(R.layout.main_activity);
 		ap = AmmoPreference.getInstance(this);
 		this.setViewReferences();
 		this.setOnClickListeners();
@@ -199,7 +199,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		
 		AmmoPreference ap = AmmoPreference.getInstance(this);
 		String key = intent.getStringExtra(PreferenceSchema.AMMO_INTENT_KEY_PREF_CHANGED_KEY);
-		if (key.endsWith(INetPrefKeys.PREF_DEVICE_ID)) {
+		if (key.endsWith(INetPrefKeys.CORE_DEVICE_ID)) {
 			return;
 		}
 		if (key.startsWith(INetPrefKeys.PHYSICAL_LINK_PREF)) {

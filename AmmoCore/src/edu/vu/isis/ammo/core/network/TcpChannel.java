@@ -55,7 +55,7 @@ public class TcpChannel {
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private final Object syncObj;
 
-	private int FLATLINE = 20 * 60 * 1000; // 20 minutes in milliseconds
+	private long flatLineTime;
 
 	private TcpChannel(NetworkService driver) {
 		super();
@@ -64,6 +64,7 @@ public class TcpChannel {
 		this.connectorThread = new ConnectorThread(this, driver);
 		this.senderThread = new SenderThread(this, driver);
 		this.receiverThread = new ReceiverThread(this, driver);
+		this.flatLineTime = 20 * 60 * 1000; // 20 minutes in milliseconds
 	}
 
 	public static TcpChannel getInstance(NetworkService driver) {
@@ -115,6 +116,10 @@ public class TcpChannel {
 		this.socketTimeout = value;
 		this.reset();
 		return true;
+	}
+	
+	public void setFlatLineTime(long flatLineTime) {
+		this.flatLineTime = flatLineTime;
 	}
 
 	public boolean setHost(String host) {
@@ -669,7 +674,7 @@ public class TcpChannel {
 						// the following checks the heart-stamp 
 						// TODO no pace-maker messages are sent, this could be added if needed.
 						long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
-						if (parent.FLATLINE < elapsedTime) {
+						if (parent.flatLineTime < elapsedTime) {
 							logger.warn("heart timeout : {}", elapsedTime);
 							this.connector.failure(version);
 							this.state = WAIT_CONNECT;
@@ -784,4 +789,5 @@ public class TcpChannel {
 		}
 		return null;
 	}
+
 }

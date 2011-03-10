@@ -22,14 +22,14 @@ public class PreferenceProvider extends ContentProvider {
 	// Constants
 	// =================================
 //	private static final String[] columnNames = {
-//		INetPrefKeys.PREF_IP_ADDR,
-//		INetPrefKeys.PREF_IP_PORT,
-//		INetPrefKeys.PREF_SOCKET_TIMEOUT,
+//		INetPrefKeys.CORE_IP_ADDR,
+//		INetPrefKeys.CORE_IP_PORT,
+//		INetPrefKeys.CORE_SOCKET_TIMEOUT,
 //		INetPrefKeys.PREF_TRANSMISSION_TIMEOUT,
-//		INetPrefKeys.PREF_IS_JOURNAL,
-//		INetPrefKeys.PREF_DEVICE_ID,
-//		INetPrefKeys.PREF_OPERATOR_KEY,
-//		INetPrefKeys.PREF_OPERATOR_ID,
+//		INetPrefKeys.CORE_IS_JOURNALED,
+//		INetPrefKeys.CORE_DEVICE_ID,
+//		INetPrefKeys.CORE_OPERATOR_KEY,
+//		INetPrefKeys.CORE_OPERATOR_ID,
 //		
 //
 //	};
@@ -70,8 +70,8 @@ public class PreferenceProvider extends ContentProvider {
 		if (prefs.getBoolean("prefsCreated", false)) {
 			Editor editor = prefs.edit();
 			String deviceId = UniqueIdentifiers.device(context);
-			editor.putString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
-			editor.putString(INetPrefKeys.PREF_OPERATOR_ID, "foo");
+			editor.putString(INetPrefKeys.CORE_DEVICE_ID, deviceId);
+			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, "foo");
 			editor.putBoolean(INetPrefKeys.NET_IS_ACTIVE, false);
 			editor.putBoolean(INetPrefKeys.NET_IS_AVAILABLE, false);
 			editor.putBoolean("prefsCreated", true);

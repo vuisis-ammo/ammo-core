@@ -7,12 +7,12 @@ import android.content.Context;
 import android.preference.CheckBoxPreference;
 import android.util.AttributeSet;
 
-public class CustomCheckBoxPreference extends CheckBoxPreference {
+public class MyCheckBoxPreference extends CheckBoxPreference {
 
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger(CustomCheckBoxPreference.class);
+	public static final Logger logger = LoggerFactory.getLogger(MyCheckBoxPreference.class);
 	
 	public static enum Type {
 		JOURNAL
@@ -27,22 +27,22 @@ public class CustomCheckBoxPreference extends CheckBoxPreference {
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
-	public CustomCheckBoxPreference(Context context, AttributeSet attrs, int defStyle) {
+	public MyCheckBoxPreference(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
 		this.context = context;
 	}
 
-	public CustomCheckBoxPreference(Context context, AttributeSet attrs) {
+	public MyCheckBoxPreference(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		this.context = context;	
 	}
 	
-	public CustomCheckBoxPreference(Context context) {
+	public MyCheckBoxPreference(Context context) {
 		super(context);
 		this.context = context;
 	}
 	
-	public CustomCheckBoxPreference(Context context, String aSummaryPrefix) {
+	public MyCheckBoxPreference(Context context, String aSummaryPrefix) {
 		super(context);
 		this.context = context;
 		summaryPrefix = aSummaryPrefix;

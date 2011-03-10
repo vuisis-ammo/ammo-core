@@ -23,7 +23,7 @@ public class LoggingPreferences extends PreferenceActivity {
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	private CustomEditTextPreference level;
+	private MyEditTextPreference level;
 	
 	// ===========================================================
 	// Lifecycle
@@ -35,9 +35,9 @@ public class LoggingPreferences extends PreferenceActivity {
 		
 		Resources res = this.getResources();
 	
-		level = (CustomEditTextPreference) findPreference(PREF_LOG_LEVEL);
+		level = (MyEditTextPreference) findPreference(PREF_LOG_LEVEL);
 		level.setSummaryPrefix(res.getString(R.string.log_level_label));
-		level.setType(CustomEditTextPreference.Type.LOG_LEVEL);
+		level.setType(MyEditTextPreference.Type.LOG_LEVEL);
 		
 		// System.setProperty(prop, value);
 		// export ANDROID_LOG_TAGS="ActivityManager:I MyApp:D *:S"
