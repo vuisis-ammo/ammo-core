@@ -369,7 +369,7 @@ public class DistributorService extends Service implements IDistributorService {
 			return;
 		}
 		callback.processSubscriptionChange(true);
-		callback.processRetrievalChange(true);
+		callback.processRetrievalChange(false);
 		callback.processPostalChange(false);
 	}
 
@@ -377,7 +377,7 @@ public class DistributorService extends Service implements IDistributorService {
 		@Override
 		protected Void doInBackground(Void... params) {
 			callback.processSubscriptionChange(true);
-			callback.processRetrievalChange(true);
+			callback.processRetrievalChange(false);
 			callback.processPostalChange(false);
 			// this.publishProgress(values);
 			return null;
@@ -437,10 +437,10 @@ public class DistributorService extends Service implements IDistributorService {
 			StringBuilder sb = new StringBuilder();
 			sb.append('"').append(PostalTableSchema.DISPOSITION).append('"');
 			sb.append("  IN ('").append(PostalTableSchema.DISPOSITION_PENDING).append("'");
+			sb.append(", '").append(PostalTableSchema.DISPOSITION_FAIL).append("'"); // TBD SKN: resend the failed ones
 			if (repost) { 
 				sb.append(", '").append(PostalTableSchema.DISPOSITION_SENT).append("'");
-				sb.append(", '").append(PostalTableSchema.DISPOSITION_FAIL).append("'");
-				sb.append(", '").append(PostalTableSchema.DISPOSITION_QUEUED).append("'");
+				// sb.append(", '").append(PostalTableSchema.DISPOSITION_QUEUED).append("'");
 			}
 			sb.append(")");
 
@@ -588,10 +588,10 @@ public class DistributorService extends Service implements IDistributorService {
 			StringBuilder sb = new StringBuilder();
 			sb.append('"').append(RetrievalTableSchema.DISPOSITION).append('"');
 			sb.append("  IN ('").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'");
+			sb.append(", '").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'"); // resend the FAILED one regardless of repost
 			if (repost) { 
 				sb.append(", '").append(RetrievalTableSchema.DISPOSITION_SENT).append("'");
-				sb.append(", '").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'");
-				sb.append(", '").append(RetrievalTableSchema.DISPOSITION_QUEUED).append("'");
+				// sb.append(", '").append(RetrievalTableSchema.DISPOSITION_QUEUED).append("'");
 			}
 			sb.append(")");
 
@@ -692,10 +692,10 @@ public class DistributorService extends Service implements IDistributorService {
 			
 			sb.append('"').append(SubscriptionTableSchema.DISPOSITION).append('"');
 			sb.append("  IN ('").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'");
+			sb.append(", '").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'"); // TBD SKN - resend failed messages always
 			if (repost) { 
 				sb.append(", '").append(SubscriptionTableSchema.DISPOSITION_SENT).append("'");
-				sb.append(", '").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'");
-				sb.append(", '").append(SubscriptionTableSchema.DISPOSITION_QUEUED).append("'");
+				// sb.append(", '").append(SubscriptionTableSchema.DISPOSITION_QUEUED).append("'");
 			}
 			sb.append(")");
 
@@ -718,7 +718,12 @@ public class DistributorService extends Service implements IDistributorService {
 				String selection = pendingCursor.getString(
 						pendingCursor.getColumnIndex(
 								SubscriptionTableSchema.SELECTION));
-				// int expiration = pendingCursor.getInt(pendingCursor.getColumnIndex(SubscriptionTableSchema.EXPIRATION));
+				int expiration = pendingCursor.getInt(pendingCursor.getColumnIndex(SubscriptionTableSchema.EXPIRATION));
+				
+				// skip subscriptions with expiration of 0 -- they have been unsubscribed
+				if (expiration == 0)
+				    continue;
+
 				// long createdDate = pendingCursor.getLong(pendingCursor.getColumnIndex(SubscriptionTableSchema.CREATED_DATE));
 
 				logger.debug("Subscribe request with mime: " + mime + " and selection: " + selection);
@@ -865,7 +870,9 @@ public class DistributorService extends Service implements IDistributorService {
 			if (Intent.ACTION_MEDIA_MOUNTED.equals(action)) {// find serialized directory
 			}
 			// it may be that there were items which need to be delivered.
-			DistributorService.this.repostToNetworkService();
+			//  TBD SKN - removed this ... we don't need to do a repost merely when our link state changes
+			//  the network (re)connection will trigger an explicit repost 
+			// DistributorService.this.repostToNetworkService();
 		}
 
 		public void checkResourceStatus(final Context aContext) { //
