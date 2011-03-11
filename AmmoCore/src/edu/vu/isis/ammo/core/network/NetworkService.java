@@ -230,7 +230,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-		logger.trace("::onSharedPreferenceChanged");
+		logger.trace("::onSharedPreferenceChanged {}", key);
 		
 		if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
 			String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);

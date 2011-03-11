@@ -230,6 +230,25 @@ public class TcpChannel {
 				this.notifyAll(); 
 				return true;
 			}
+			
+			public String toString ()
+			{
+				switch (value)
+				{
+				case CONNECTED:
+					return "CONNECTED";
+				case CONNECTING:
+					return "CONNECTING";
+				case DISCONNECTED:
+					return "DISCONNECTED";
+				case STALE:
+					return "STALE";
+				case LINK_WAIT:
+					return "LINK_WAIT";
+				default:
+					return "Undefined State";									
+				}
+			}
 		}
 		
 		public boolean isConnected() { 
@@ -243,6 +262,9 @@ public class TcpChannel {
 		 * reset forces the channel closed if open.
 		 */
 		public void reset() { 
+			logger.trace("Inside reset .. {} {}", this.state.version, this.state);
+			logger.trace("Receiver State .. {}", this.parent.receiverThread);
+			logger.trace("Inside reset .. {}", this.parent.senderThread);
 			this.state.failure(this.state.version);
 		}
 		
@@ -418,6 +440,23 @@ public class TcpChannel {
 		static private final int WAIT_CONNECT  = 1; // waiting for connection
 		static private final int SENDING       = 2; // indicating the next thing is the size
 		static private final int TAKING        = 3; // indicating the next thing is the size
+		
+		public String toString ()
+		{
+			switch (state)
+			{
+			case WAIT_CONNECT:
+				return "WAIT_CONNECT";
+			case SENDING:
+				return "SENDING";
+			case TAKING:
+				return "TAKING";
+			default:
+				return "Undefined State";									
+			}
+		}
+		
+		private int state;
 
 		private final TcpChannel parent;
 		private ConnectorThread connector;
@@ -461,7 +500,8 @@ public class TcpChannel {
 		public void run() { 
 			logger.trace("Thread <{}>SenderThread::run", Thread.currentThread().getId());
 
-			int state = TAKING;
+//			int state = TAKING;
+			state = TAKING;
 
 			DataOutputStream dos = null;
 			try {            
@@ -587,6 +627,29 @@ public class TcpChannel {
 		static private final int SIZED         = 4; // indicating the next thing is a checksum
 		static private final int CHECKED       = 5; // indicating the bytes are being read
 		static private final int DELIVER       = 6; // indicating the message has been read
+		
+		public String toString ()
+		{
+			switch (state)
+			{
+			case SHUTDOWN:
+				return "SHUTDOWN";
+			case START:
+				return "START";
+			case WAIT_CONNECT:
+				return "WAIT_CONNECT";
+			case STARTED:
+				return "STARTED";
+			case SIZED:
+				return "SIZED";
+			case CHECKED:
+				return "CHECKED";
+			case DELIVER:
+				return "DELIVER";
+			default:
+				return "Undefined State";									
+			}
+		}
 
 		private ReceiverThread(TcpChannel parent, INetworkService.OnReceiveMessageHandler handler ) {
 			logger.trace("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
