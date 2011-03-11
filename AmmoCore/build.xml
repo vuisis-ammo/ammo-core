@@ -82,6 +82,20 @@
         <delete dir="gen"/>
     </target>
 
+    <target name="dist" depends="release">
+        <exec executable="git" dir="." 
+              searchpath="true" 
+              outputproperty="version">
+          <arg value="describe" />
+          <arg value="--match" />
+          <arg value="release-*" />
+        </exec>
+
+        <move file="${out.dir}/${ant.project.name}-release.apk"
+              tofile="${out.dir}/${ant.project.name}-${version}.apk" />
+    </target>
+
+
 <!--
     <target name="-pre-build">
     </target>
