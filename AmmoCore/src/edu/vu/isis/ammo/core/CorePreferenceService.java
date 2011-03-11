@@ -24,7 +24,7 @@ public class CorePreferenceService extends Service {
 	@Override
 	public int onStartCommand (Intent intent, int flags, int startId) {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String uid = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, "");
+		String uid = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, "");
 		File sdcard = Environment.getExternalStorageDirectory();
 		File dir = new File(sdcard.toString() + "/" + "uid.txt");
 		try {

@@ -1,6 +1,5 @@
 package edu.vu.isis.ammo.core;
 
-import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
@@ -24,15 +23,19 @@ public class CorePreferenceActivity extends PreferenceActivity {
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	private CustomEditTextPreference mIPAddr;
-	private CustomEditTextPreference mPort;
-	private CustomEditTextPreference mSocketTimeout;
-	private CustomCheckBoxPreference prefChannelJournal;
+	private MyEditTextPreference mIPAddr;
 	
-	private CustomEditTextPreference mDeviceId;
-	private CustomEditTextPreference mOperatorId;
-	private CustomEditTextPreference mOperatorKey;
+	private MyEditIntegerPreference mPort;
+	private MyEditIntegerPreference mSocketTimeout;
 	
+	private MyCheckBoxPreference prefChannelJournal;
+	
+	private MyEditTextPreference mDeviceId;
+	private MyEditTextPreference mOperatorId;
+	private MyEditTextPreference mOperatorKey;
+	
+	private MyEditIntegerPreference flatLineTime;
+
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
@@ -43,33 +46,37 @@ public class CorePreferenceActivity extends PreferenceActivity {
 		
 		Resources res = this.getResources();
 	
-		mIPAddr = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_IP_ADDR);
+		mIPAddr = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_IP_ADDR);
 		mIPAddr.setSummaryPrefix(res.getString(R.string.ipaddr_label));
-		mIPAddr.setType(CustomEditTextPreference.Type.IP);
+		mIPAddr.setType(MyEditTextPreference.Type.IP);
 		
-		mPort = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_IP_PORT);
+		mPort = (MyEditIntegerPreference) findPreference(INetPrefKeys.CORE_IP_PORT);
 		mPort.setSummaryPrefix(res.getString(R.string.port_label));
-		mPort.setType(CustomEditTextPreference.Type.PORT);
+		mPort.setType(MyEditIntegerPreference.Type.PORT);
 		
-		mSocketTimeout = (CustomEditTextPreference)findPreference(INetPrefKeys.PREF_SOCKET_TIMEOUT);
+		mSocketTimeout = (MyEditIntegerPreference)findPreference(INetPrefKeys.CORE_SOCKET_TIMEOUT);
 		mSocketTimeout.setSummaryPrefix(res.getString(R.string.socket_timeout_label));
-		mSocketTimeout.setType(CustomEditTextPreference.Type.SOCKET_TIMEOUT);
+		mSocketTimeout.setType(MyEditIntegerPreference.Type.TIMEOUT);
 		
-		prefChannelJournal = (CustomCheckBoxPreference) findPreference(INetPrefKeys.PREF_IS_JOURNAL);
+		prefChannelJournal = (MyCheckBoxPreference) findPreference(INetPrefKeys.CORE_IS_JOURNALED);
 		prefChannelJournal.setSummaryPrefix(res.getString(R.string.channel_journal_label));
-		prefChannelJournal.setType(CustomCheckBoxPreference.Type.JOURNAL);
+		prefChannelJournal.setType(MyCheckBoxPreference.Type.JOURNAL);
 		
-		mDeviceId = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_DEVICE_ID);
+		mDeviceId = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_DEVICE_ID);
 		mDeviceId.setSummaryPrefix(res.getString(R.string.device_id_label));
-		mDeviceId.setType(CustomEditTextPreference.Type.DEVICE_ID);
+		mDeviceId.setType(MyEditTextPreference.Type.DEVICE_ID);
 		
-		mOperatorId = (CustomEditTextPreference) findPreference(IPrefKeys.PREF_OPERATOR_ID);
+		mOperatorId = (MyEditTextPreference) findPreference(IPrefKeys.CORE_OPERATOR_ID);
 		mOperatorId.setSummaryPrefix(res.getString(R.string.operator_id_label));
-		mOperatorId.setType(CustomEditTextPreference.Type.OPERATOR_ID);
+		mOperatorId.setType(MyEditTextPreference.Type.OPERATOR_ID);
 		
-		mOperatorKey = (CustomEditTextPreference) findPreference(INetPrefKeys.PREF_OPERATOR_KEY);
+		mOperatorKey = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_OPERATOR_KEY);
 		mOperatorKey.setSummaryPrefix(res.getString(R.string.operator_key_label));
-		mOperatorKey.setType(CustomEditTextPreference.Type.OPERATOR_KEY);
+		mOperatorKey.setType(MyEditTextPreference.Type.OPERATOR_KEY);
+		
+		flatLineTime = (MyEditIntegerPreference) findPreference(INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
+		flatLineTime.setSummaryPrefix(res.getString(R.string.net_conn_flat_line_label));
+		flatLineTime.setType(MyEditIntegerPreference.Type.TIMEOUT);
 		
 		this.setupViews();
 	}
@@ -92,6 +99,7 @@ public class CorePreferenceActivity extends PreferenceActivity {
 		if (mDeviceId != null) mDeviceId.refreshSummaryField();
 		if (mOperatorId != null) mOperatorId.refreshSummaryField();
 		if (mOperatorKey != null) mOperatorKey.refreshSummaryField();
+		if (flatLineTime != null) flatLineTime.refreshSummaryField();
 	}
 	
 	// ===========================================================

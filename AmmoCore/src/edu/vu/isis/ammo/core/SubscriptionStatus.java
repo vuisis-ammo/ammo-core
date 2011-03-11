@@ -53,19 +53,19 @@ public class SubscriptionStatus extends ListActivity {
 	};
 	
 	static private int[] toItemLayout = new int[] {
-			R.id.subscription_status_uri,
-			R.id.subscription_status_timestamp
+			R.id.distributor_table_view_item_uri,
+			R.id.distributor_table_view_item_timestamp
 	};
 	
 	@Override
 	public void onCreate(Bundle bun) {
 		super.onCreate(bun);
-		setContentView(R.layout.subscription_status_view);
+		setContentView(R.layout.distributor_table_viewer_activity);
 		
 		//statusList = (ListView) findViewById(R.id.subscription_status_list);
 		final Cursor cursor = this.managedQuery(SubscriptionTableSchema.CONTENT_URI, null, null, null, null);
 		final ListAdapter adapter = new SimpleCursorAdapter(this,
-				R.layout.subscription_status_item,
+				R.layout.distributor_table_view_item,
 				cursor, fromItemLayout, toItemLayout);
 		
 		setListAdapter(adapter);

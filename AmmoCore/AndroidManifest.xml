@@ -53,6 +53,20 @@
 			</intent-filter>
 		</activity>
 
+        <activity android:name=".distributor.DistributorTableViewer">
+            <intent-filter>
+                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorTableViewer.LAUNCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        
+                <activity android:name=".distributor.DistributorViewerSwitch">
+            <intent-filter>
+                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch.LAUNCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
     <!-- ========== RECIEVER SECTION ================= -->
 
         <receiver android:name=".receiver.WifiReceiver">

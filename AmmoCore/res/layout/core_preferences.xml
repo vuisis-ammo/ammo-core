@@ -3,28 +3,35 @@
 	android:key="first_preferencescreen">
 	
 	<PreferenceCategory android:title="Network Connection Category">
-		<edu.vu.isis.ammo.core.CustomEditTextPreference
+		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_IP_ADDRESS" 
 			android:name="IP Address" 
 			android:title="Plugin IP Address"
 			android:summary="The IP address of the gateway plugin" 
 			android:defaultValue="129.59.129.25"/>
 
-		<edu.vu.isis.ammo.core.CustomEditTextPreference
+		<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="CORE_IP_PORT" 
 			android:name="Port Number"
 			android:title="Plugin Port Number"
 			android:summary="The port number of the gateway plugin"
 			android:defaultValue="33289" />
 
-        <edu.vu.isis.ammo.core.CustomEditTextPreference
-            android:key="CORE_SOCKET_TIMEOUT"
-            android:name="Socket Timeout"
-            android:title="Network Timeout (milliseconds)"
-            android:summary="Time to wait for gateway response...in milliseconds."
-            android:defaultValue="3000" />
+  <edu.vu.isis.ammo.core.MyEditIntegerPreference
+   android:key="CORE_SOCKET_TIMEOUT"
+   android:name="Socket Timeout"
+   android:title="Network Timeout (milliseconds)"
+   android:summary="Time to wait for gateway response...in milliseconds."
+   android:defaultValue="3000" />
+   
+  <edu.vu.isis.ammo.core.MyEditIntegerPreference
+   android:key="AMMO_NET_CONN_FLAT_LINE_TIME"
+   android:name="Socket Flatline"
+   android:title="Connection Inactive (minutes)"
+   android:summary="Time channel has not seen activity...in minutes"
+   android:defaultValue="20" />
 
-		<edu.vu.isis.ammo.core.CustomCheckBoxPreference
+		<edu.vu.isis.ammo.core.MyCheckBoxPreference
 			android:key="CORE_IS_JOURNALED" 
 			android:title="@string/channel_journal"
 			android:summary="Is the network journal active?"
@@ -32,21 +39,21 @@
 	</PreferenceCategory>
 	
 	<PreferenceCategory android:title="Network Authentication Category">
-		<edu.vu.isis.ammo.core.CustomEditTextPreference
+		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_DEVICE_ID" 
 			android:name="Device Identifier" 
 			android:title="Device Identifier"
 			android:summary="The unique device identifier" 
 			android:defaultValue="foo"/>
 			
-		<edu.vu.isis.ammo.core.CustomEditTextPreference
+		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_OPERATOR_ID" 
 			android:name="Operator Identifier" 
 			android:title="Operator Identifier"
 			android:summary="The unique device identifier" 
 			android:defaultValue="foo"/>
 			
-		<edu.vu.isis.ammo.core.CustomEditTextPreference
+		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_OPERATOR_KEY" 
 			android:name="Operator Pass Key" 
 			android:title="Operator Pass Key"

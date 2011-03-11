@@ -10,15 +10,14 @@ import android.preference.EditTextPreference;
 import android.util.AttributeSet;
 import android.widget.Toast;
 
-public class CustomEditTextPreference extends EditTextPreference {
+public class MyEditIntegerPreference extends EditTextPreference {
 
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger(CustomEditTextPreference.class);
+	public static final Logger logger = LoggerFactory.getLogger(MyEditIntegerPreference.class);
 	public static enum Type {
-		IP, PORT, SOCKET_TIMEOUT, DEVICE_ID, OPERATOR_ID, OPERATOR_KEY,
-		LOG_LEVEL
+		PORT, TIMEOUT
 	};
 	
 	// ===========================================================
@@ -32,22 +31,22 @@ public class CustomEditTextPreference extends EditTextPreference {
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
-	public CustomEditTextPreference(Context context, AttributeSet attrs, int defStyle) {
+	public MyEditIntegerPreference(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
 		this.context = context;
 	}
 
-	public CustomEditTextPreference(Context context, AttributeSet attrs) {
+	public MyEditIntegerPreference(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		this.context = context;	
 	}
 	
-	public CustomEditTextPreference(Context context) {
+	public MyEditIntegerPreference(Context context) {
 		super(context);
 		this.context = context;
 	}
 	
-	public CustomEditTextPreference(Context context, String aSummaryPrefix) {
+	public MyEditIntegerPreference(Context context, String aSummaryPrefix) {
 		super(context);
 		this.context = context;
 		summaryPrefix = aSummaryPrefix;
@@ -56,52 +55,31 @@ public class CustomEditTextPreference extends EditTextPreference {
 	// ===========================================================
 	// IP/Port Input Management
 	// ===========================================================
-	@Override
 	public void setText(String uncheckedText) {
 		// We should do some bounds checking here based on type of ETP.
 		String checkedText = uncheckedText;
-		
-		if (mType != null) {
-			switch (mType) {
-			case IP:
-				if (!this.validateIP(uncheckedText)) {
-					Toast.makeText(context, "Invalid IP, please try again", Toast.LENGTH_SHORT).show();
-					checkedText = this.getText();
-				}
-				
-				break;
-				
-			case PORT:
-				if (!this.validatePort(uncheckedText)) {
-					Toast.makeText(context, "Invalid port, please try again", Toast.LENGTH_SHORT).show();
-					checkedText = this.getText();
-				}
-				break;
-				
-			case SOCKET_TIMEOUT:
-				if (!this.validateTimeout(uncheckedText)) {
-					Toast.makeText(context, "Invalid timeout value", Toast.LENGTH_SHORT).show();
-					checkedText = this.getText();
-				}
-				break;
-				
-			case DEVICE_ID:
-				// checkedText = this.getText();
-				break;
-				
-			case OPERATOR_ID:
-				// checkedText = this.getText();
-				break;
-				
-			case OPERATOR_KEY:
-				// checkedText = this.getText();
-				
-			case LOG_LEVEL:
-				// checkedText = this.getText();
-				
-			default:
-					// do nothing.
-			}	
+
+		if (mType == null) { 
+			super.setText(checkedText);
+			return;
+		}
+
+		switch (mType) {
+		case PORT:
+			if (!this.validatePort(uncheckedText)) {
+				Toast.makeText(context, "Invalid port, please try again", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			}
+			break;
+
+		case TIMEOUT:
+			if (!this.validateTimeout(uncheckedText)) {
+				Toast.makeText(context, "Invalid timeout value", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			}
+			break;
+		default:
+			// do nothing.
 		}
 		super.setText(checkedText);
 	}
