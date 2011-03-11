@@ -416,6 +416,7 @@ public class DistributorService extends Service implements IDistributorService {
 	private AtomicBoolean processPostalChangeGuard = new AtomicBoolean();
 	@Override
 	public void processPostalChange(boolean repost) {
+		logger.trace("::processPostalChange()");
 		// is another thread already running this process?
 		if (! processPostalChangeGuard.compareAndSet(false, true)) return;
 		processPostalChange_aux(repost);
@@ -423,7 +424,7 @@ public class DistributorService extends Service implements IDistributorService {
 	}
 		
 	private void processPostalChange_aux(boolean repost) {
-		logger.trace("::processPostalChange()");
+		logger.trace("::processPostalChangeAux()");
 		
 		if (! this.isNetworkServiceBound) return;
 		if (! this.networkServiceBinder.isConnected()) return;
@@ -566,7 +567,7 @@ public class DistributorService extends Service implements IDistributorService {
 	@Override
 	public void processRetrievalChange(boolean repost) {
 		// is another thread already running this process?
-		if (! processPostalChangeGuard.compareAndSet(false, true)) return;
+		if (! processRetrievalChangeGuard.compareAndSet(false, true)) return;
 		processRetrievalChange_aux(repost);
 		processRetrievalChangeGuard.set(false);
 	}
