@@ -669,7 +669,13 @@ public class TcpChannel {
 					
 				case START:
 					try {
-						bis.read(byteToReadBuffer);
+						int temp = bis.read(byteToReadBuffer);
+						if (temp < 0) {
+							logger.error("read error  ...");
+							this.connector.failure(version);
+							this.state = WAIT_CONNECT;
+							break; // read error - end of connection
+						}
 					} catch (SocketTimeoutException ex) {
 						// the following checks the heart-stamp 
 						// TODO no pace-maker messages are sent, this could be added if needed.
@@ -687,7 +693,6 @@ public class TcpChannel {
 						this.state = WAIT_CONNECT;
 						break; // read error - set our value back to wait for connect
 					}
-
 					this.state = STARTED;
 					break;
 
@@ -731,7 +736,7 @@ public class TcpChannel {
 				case CHECKED: // read the message
 					while (bytesRead < bytesToRead) {
 						try {
-							int temp = bis.read(message, 0, bytesToRead - bytesRead);
+							int temp = bis.read(message, bytesRead, bytesToRead - bytesRead);
 							bytesRead += (temp >= 0) ? temp : 0;
 						} catch (SocketTimeoutException ex) {
 							logger.trace("timeout on socket");
@@ -743,8 +748,11 @@ public class TcpChannel {
 							break;
 						}
 					}
-					if (bytesRead < bytesToRead)
+					if (bytesRead < bytesToRead) {
+						this.connector.failure(version);
+						this.state = WAIT_CONNECT;
 						break;
+					}
 					this.state = DELIVER;
 					break;
 				case DELIVER: // deliver the message to the gateway
