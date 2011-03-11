@@ -29,6 +29,7 @@ import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
 import edu.vu.isis.ammo.IAmmoPreferenceChangedListener;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoPreference;
+import edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch;
 import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 
@@ -50,7 +51,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
 	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
 	private static final int SUBSCRIPTION_MENU = Menu.NONE + 2;
-	private static final int SUBSCRIBE_MENU = Menu.NONE + 3;
+	private static final int VIEW_TABLES_MENU = Menu.NONE + 3;
 	private static final int LOGGING_MENU = Menu.NONE + 4;
 	private static final int SERVICE_MENU = Menu.NONE + 5;
 		
@@ -119,7 +120,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		menu.add(Menu.NONE, PREFERENCES_MENU, Menu.NONE, getResources().getString(R.string.pref_label));
 		menu.add(Menu.NONE, DELIVERY_STATUS_MENU, Menu.NONE, getResources().getString(R.string.delivery_status_label));
 		menu.add(Menu.NONE, SUBSCRIPTION_MENU, Menu.NONE, getResources().getString(R.string.subscription_label));
-		menu.add(Menu.NONE, SUBSCRIBE_MENU, Menu.NONE, getResources().getString(R.string.subscribe_label));
+		menu.add(Menu.NONE, VIEW_TABLES_MENU, Menu.NONE, getResources().getString(R.string.view_tables_label));
 		menu.add(Menu.NONE, LOGGING_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
 		menu.add(Menu.NONE, SERVICE_MENU, Menu.NONE, getResources().getString(R.string.service_label));
 		return true;
@@ -149,8 +150,8 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 			intent.setAction(SubscriptionStatus.LAUNCH);
 			this.startActivity(intent);
 			return true;
-		case SUBSCRIBE_MENU:
-			intent.setAction(Subscribe.LAUNCH);
+		case VIEW_TABLES_MENU:
+			intent.setAction(DistributorViewerSwitch.LAUNCH);
 			this.startActivity(intent);
 			return true;
 		case LOGGING_MENU:
