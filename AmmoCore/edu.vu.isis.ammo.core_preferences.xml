@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+<string name="CORE_SOCKET_TIMEOUT">3000</string>
+<boolean name="CORE_IS_JOURNALED" value="true" />
+<boolean name="AMMO_WIFI_LINK_IS_AVAILABLE" value="true" />
+<boolean name="AMMO_NET_CONN_IS_ACTIVE" value="true" />
+<boolean name="edu.vu.isis.ammo.core.physical_link.SHOULD_USE" value="true" />
+<boolean name="edu.vu.isis.ammo.core.connect.SHOULD_USE" value="true" />
+<string name="CORE_OPERATOR_KEY">bar</string>
+<string name="CORE_IP_ADDRESS">129.59.129.189</string>
+<string name="CORE_OPERATOR_ID">kyle.anderson</string>
+<string name="CORE_DEVICE_ID">kyle.anderson</string>
+<string name="CORE_IP_PORT">33289</string>
+</map>

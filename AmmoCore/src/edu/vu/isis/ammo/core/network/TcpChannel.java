@@ -767,7 +767,10 @@ public class TcpChannel {
 
 					if (bytesToRead < 0) break; // bad read keep trying
 					if (bytesToRead > 100000) {
-						logger.warn("a message with "+bytesToRead);
+					    logger.warn("message too large {} wrong size!!, we will be out of sync, disconnect ", bytesToRead);
+						this.connector.failure(version);
+						this.state = WAIT_CONNECT;
+						break;
 					}
 					this.state = SIZED;
 				}

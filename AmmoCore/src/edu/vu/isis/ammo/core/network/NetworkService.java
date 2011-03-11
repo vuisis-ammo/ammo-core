@@ -608,8 +608,6 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 		
-		this.distributor.repostToNetworkService2();
-		
 		sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this); 
 		return true;
 	}
@@ -691,12 +689,18 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	@Override
 	public boolean ack(boolean status) {
+	    if (status) {	// authentication succeeded
+		logger.debug("authentication complete, repost subscriptions and pending data : ");
+		this.distributor.repostToNetworkService2();
+
 		logger.debug("authentication complete inform applications : ");
 		// broadcast login event to apps ...
 		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
 		loginIntent.putExtra("operatorId", operatorId);
 		this.sendBroadcast(loginIntent);
-		return false;
+	    }
+
+	    return false;
 	}
 	
 }
