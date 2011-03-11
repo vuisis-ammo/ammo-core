@@ -55,7 +55,7 @@ public class TcpChannel {
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private final Object syncObj;
 
-	private int FLATLINE = 20 * 60 * 1000; // 20 minutes in milliseconds
+	private long flatLineTime;
 
 	private TcpChannel(NetworkService driver) {
 		super();
@@ -64,6 +64,7 @@ public class TcpChannel {
 		this.connectorThread = new ConnectorThread(this, driver);
 		this.senderThread = new SenderThread(this, driver);
 		this.receiverThread = new ReceiverThread(this, driver);
+		this.flatLineTime = 20 * 60 * 1000; // 20 minutes in milliseconds
 	}
 
 	public static TcpChannel getInstance(NetworkService driver) {
@@ -115,6 +116,10 @@ public class TcpChannel {
 		this.socketTimeout = value;
 		this.reset();
 		return true;
+	}
+	
+	public void setFlatLineTime(long flatLineTime) {
+		this.flatLineTime = flatLineTime;
 	}
 
 	public boolean setHost(String host) {
@@ -225,6 +230,25 @@ public class TcpChannel {
 				this.notifyAll(); 
 				return true;
 			}
+			
+			public String toString ()
+			{
+				switch (value)
+				{
+				case CONNECTED:
+					return "CONNECTED";
+				case CONNECTING:
+					return "CONNECTING";
+				case DISCONNECTED:
+					return "DISCONNECTED";
+				case STALE:
+					return "STALE";
+				case LINK_WAIT:
+					return "LINK_WAIT";
+				default:
+					return "Undefined State";									
+				}
+			}
 		}
 		
 		public boolean isConnected() { 
@@ -238,6 +262,9 @@ public class TcpChannel {
 		 * reset forces the channel closed if open.
 		 */
 		public void reset() { 
+			logger.trace("Inside reset .. {} {}", this.state.version, this.state);
+			logger.trace("Receiver State .. {}", this.parent.receiverThread);
+			logger.trace("Inside reset .. {}", this.parent.senderThread);
 			this.state.failure(this.state.version);
 		}
 		
@@ -413,6 +440,23 @@ public class TcpChannel {
 		static private final int WAIT_CONNECT  = 1; // waiting for connection
 		static private final int SENDING       = 2; // indicating the next thing is the size
 		static private final int TAKING        = 3; // indicating the next thing is the size
+		
+		public String toString ()
+		{
+			switch (state)
+			{
+			case WAIT_CONNECT:
+				return "WAIT_CONNECT";
+			case SENDING:
+				return "SENDING";
+			case TAKING:
+				return "TAKING";
+			default:
+				return "Undefined State";									
+			}
+		}
+		
+		private int state;
 
 		private final TcpChannel parent;
 		private ConnectorThread connector;
@@ -456,7 +500,8 @@ public class TcpChannel {
 		public void run() { 
 			logger.trace("Thread <{}>SenderThread::run", Thread.currentThread().getId());
 
-			int state = TAKING;
+//			int state = TAKING;
+			state = TAKING;
 
 			DataOutputStream dos = null;
 			try {            
@@ -582,6 +627,29 @@ public class TcpChannel {
 		static private final int SIZED         = 4; // indicating the next thing is a checksum
 		static private final int CHECKED       = 5; // indicating the bytes are being read
 		static private final int DELIVER       = 6; // indicating the message has been read
+		
+		public String toString ()
+		{
+			switch (state)
+			{
+			case SHUTDOWN:
+				return "SHUTDOWN";
+			case START:
+				return "START";
+			case WAIT_CONNECT:
+				return "WAIT_CONNECT";
+			case STARTED:
+				return "STARTED";
+			case SIZED:
+				return "SIZED";
+			case CHECKED:
+				return "CHECKED";
+			case DELIVER:
+				return "DELIVER";
+			default:
+				return "Undefined State";									
+			}
+		}
 
 		private ReceiverThread(TcpChannel parent, INetworkService.OnReceiveMessageHandler handler ) {
 			logger.trace("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
@@ -619,7 +687,7 @@ public class TcpChannel {
 		@Override
 		public void run() { 
 			logger.trace("Thread <{}>ReceiverThread::run", Thread.currentThread().getId());
-			Looper.prepare();
+			//Looper.prepare();
 
 			state = WAIT_CONNECT;
 
@@ -664,12 +732,18 @@ public class TcpChannel {
 					
 				case START:
 					try {
-						bis.read(byteToReadBuffer);
+						int temp = bis.read(byteToReadBuffer);
+						if (temp < 0) {
+							logger.error("read error  ...");
+							this.connector.failure(version);
+							this.state = WAIT_CONNECT;
+							break; // read error - end of connection
+						}
 					} catch (SocketTimeoutException ex) {
 						// the following checks the heart-stamp 
 						// TODO no pace-maker messages are sent, this could be added if needed.
 						long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
-						if (parent.FLATLINE < elapsedTime) {
+						if (parent.flatLineTime < elapsedTime) {
 							logger.warn("heart timeout : {}", elapsedTime);
 							this.connector.failure(version);
 							this.state = WAIT_CONNECT;
@@ -682,7 +756,6 @@ public class TcpChannel {
 						this.state = WAIT_CONNECT;
 						break; // read error - set our value back to wait for connect
 					}
-
 					this.state = STARTED;
 					break;
 
@@ -726,7 +799,7 @@ public class TcpChannel {
 				case CHECKED: // read the message
 					while (bytesRead < bytesToRead) {
 						try {
-							int temp = bis.read(message, 0, bytesToRead - bytesRead);
+							int temp = bis.read(message, bytesRead, bytesToRead - bytesRead);
 							bytesRead += (temp >= 0) ? temp : 0;
 						} catch (SocketTimeoutException ex) {
 							logger.trace("timeout on socket");
@@ -738,8 +811,11 @@ public class TcpChannel {
 							break;
 						}
 					}
-					if (bytesRead < bytesToRead)
+					if (bytesRead < bytesToRead) {
+						this.connector.failure(version);
+						this.state = WAIT_CONNECT;
 						break;
+					}
 					this.state = DELIVER;
 					break;
 				case DELIVER: // deliver the message to the gateway
@@ -784,4 +860,5 @@ public class TcpChannel {
 		}
 		return null;
 	}
+
 }

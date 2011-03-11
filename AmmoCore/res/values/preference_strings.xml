@@ -8,7 +8,9 @@
 <string name="device_id_label">Device ID: </string>
 <string name="operator_id_label">Operator ID: </string>
 <string name="operator_key_label">Operator Pass Key: </string>
+
 <string name="socket_timeout_label">Current Network Timeout:</string>
+<string name="net_conn_flat_line_label">Flat Line Timeout:</string>
 
 <string name="log_level_label">Logging Level:</string>
 </resources>

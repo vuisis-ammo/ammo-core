@@ -20,6 +20,8 @@ public interface IDistributorService {
    
 	/** Content Observer callbacks */
 	public void repostToNetworkService();
+	public void repostToNetworkService2(); // same as repostToNetworkService but not threaded
+	
 	public void processPostalChange(boolean repost);
 	public void processRetrievalChange(boolean repost);
 	public void processSubscriptionChange(boolean repost);
@@ -34,5 +36,6 @@ public interface IDistributorService {
 	 * There is no response to a publish unless there is a subscription?
 	 */
 	// public boolean dispatchPublishResponse(PushAcknowledgement resp);
+	
 	
 }

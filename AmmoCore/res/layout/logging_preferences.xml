@@ -3,7 +3,7 @@
 	android:key="second_preferencescreen">
 	
 	<PreferenceCategory android:title="Logging Category">
-		<edu.vu.isis.ammo.core.CustomEditTextPreference
+		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_LOG_LEVEL" 
 			android:name="level" 
 			android:title="level"

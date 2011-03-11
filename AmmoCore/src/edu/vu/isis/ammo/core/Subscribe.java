@@ -71,7 +71,7 @@ public class Subscribe extends Activity implements OnClickListener {
         btnSubscribe.setOnClickListener(this);
         
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        this.uid = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, "foo");
+        this.uid = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, "foo");
 	}  
 	    
 	@Override

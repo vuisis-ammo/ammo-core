@@ -53,6 +53,8 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	// Local constants
 	private static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
 	private static final int DEFAULT_GATEWAY_PORT = 32869;
+	private static final int DEFAULT_FLAT_LINE_TIME = 20; // 20 minutes
+	private static final int DEFAULT_SOCKET_TIMEOUT = 3; // 3 seconds 
 
 	@SuppressWarnings("unused")
 	private static final String NULL_CHAR = "\0";
@@ -201,21 +203,24 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		logger.trace("::acquirePreferences");
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 		
-		this.journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, this.journalingSwitch);
+		this.journalingSwitch = prefs.getBoolean(INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
 		
 		this.networkingSwitch = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 		
-		this.deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, this.deviceId);
-		this.operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, this.operatorId);
-		this.operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, this.operatorKey);
+		this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
+		this.operatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, this.operatorId);
+		this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
 		
-		String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
 		this.tcpChannel.setHost(gatewayHostname);
 		
-		int gatewayPort = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
+		String gatewayPortStr =prefs.getString(INetPrefKeys.CORE_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT));
+		int gatewayPort = Integer.valueOf(gatewayPortStr);
 		this.tcpChannel.setPort(gatewayPort);
 		
-		deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
+		String flatLineTimeStr = prefs.getString(INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String.valueOf(DEFAULT_FLAT_LINE_TIME));
+		long flatLineTime = Integer.valueOf(flatLineTimeStr);
+		this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert minutes into milliseconds
 	}
 	
 	/** 
@@ -225,20 +230,20 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-		logger.trace("::onSharedPreferenceChanged");
+		logger.trace("::onSharedPreferenceChanged {}", key);
 		
-		if (key.equals(INetPrefKeys.PREF_IP_ADDR)) {
-			String gatewayHostname = prefs.getString(INetPrefKeys.PREF_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
+			String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
 			this.tcpChannel.setHost(gatewayHostname);
 			return;
 		}
-		if (key.equals(INetPrefKeys.PREF_IP_PORT)) {
-			int gatewayPort = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
+		if (key.equals(INetPrefKeys.CORE_IP_PORT)) {
+			int gatewayPort = Integer.valueOf(prefs.getString(INetPrefKeys.CORE_IP_PORT, String.valueOf(DEFAULT_GATEWAY_PORT)));
 			this.tcpChannel.setPort(gatewayPort);
 			return;
 		}
-		if (key.equals(INetPrefKeys.PREF_IS_JOURNAL)) {
-			this.journalingSwitch = prefs.getBoolean(INetPrefKeys.PREF_IS_JOURNAL, this.journalingSwitch);
+		if (key.equals(INetPrefKeys.CORE_IS_JOURNALED)) {
+			this.journalingSwitch = prefs.getBoolean(INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
 			if (this.journalingSwitch) 
 				 this.journalChannel.enable();
 			else this.journalChannel.disable();
@@ -246,25 +251,25 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		}
 		
 		// handle network authentication group
-		if (key.equals(INetPrefKeys.PREF_DEVICE_ID)) {
-			deviceId = prefs.getString(INetPrefKeys.PREF_DEVICE_ID, deviceId);
+		if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
+			deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, deviceId);
 			if (this.isConnected()) this.auth();
 			return;
 		}
-		if (key.equals(IPrefKeys.PREF_OPERATOR_ID)) {
-			operatorId = prefs.getString(IPrefKeys.PREF_OPERATOR_ID, operatorId);
+		if (key.equals(IPrefKeys.CORE_OPERATOR_ID)) {
+			operatorId = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, operatorId);
 			if (this.isConnected()) this.auth(); // TBD SKN: this should really do a setStale rather than just authenticate
 			return;
 		}
-		if (key.equals(INetPrefKeys.PREF_OPERATOR_KEY)) {
-			operatorKey = prefs.getString(INetPrefKeys.PREF_OPERATOR_KEY, operatorKey);
+		if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
+			operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, operatorKey);
 			if (this.isConnected()) this.auth();
 			return;
 		}
 
-		if (key.equals(INetPrefKeys.PREF_SOCKET_TIMEOUT)) {
-			Integer timeout = Integer.valueOf(prefs.getString(INetPrefKeys.PREF_SOCKET_TIMEOUT, "3000"));
-			this.tcpChannel.setSocketTimeout(timeout.intValue());
+		if (key.equals(INetPrefKeys.CORE_SOCKET_TIMEOUT)) {
+			Integer timeout = Integer.valueOf(prefs.getString(INetPrefKeys.CORE_SOCKET_TIMEOUT, String.valueOf(DEFAULT_SOCKET_TIMEOUT)));
+			this.tcpChannel.setSocketTimeout(timeout.intValue() * 1000); // convert seconds into milliseconds
 		}
 
 		// handle network connectivity group
@@ -278,6 +283,11 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 			logger.warn("explicit opererator reset on channel");
 			this.networkingSwitch = true;
 			this.tcpChannel.reset();
+		}
+		
+		if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
+			long flatLineTime = Integer.valueOf(prefs.getString(INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String.valueOf(DEFAULT_FLAT_LINE_TIME)));
+			this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert from minutes to milliseconds
 		}
 		return;
 	}
@@ -598,7 +608,10 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		byte[] protocByteBuf = mwb.build().toByteArray();
 		MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
 		
-		return sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this); 
+		this.distributor.repostToNetworkService2();
+		
+		sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this); 
+		return true;
 	}
 	
 	public boolean dispatchPushRequest(String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
