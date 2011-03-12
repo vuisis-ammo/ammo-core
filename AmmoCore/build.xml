@@ -50,14 +50,16 @@
 <!-- extension targets. Uncomment the ones where you want to do custom work
      in between standard targets -->
 
+    <target name="-pre-build" depends="protobuf,-ndk-build"/>
 
-
-
-    <target name="-pre-build">
+    <target name="-ndk-build">
         <echo>Building ethertracker library</echo>
         <exec executable="ndk-build" dir="." 
               searchpath="true"/>
+    </target>
 
+    <target name="protobuf">
+        <echo>for running within eclipse, instead of bash script.</echo>
         <echo>Generating protocol buffers</echo>
         <mkdir dir="gen"/>
         <exec executable="protoc" taskname="pb">
