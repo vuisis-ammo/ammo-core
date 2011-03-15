@@ -7,6 +7,7 @@ import java.io.BufferedInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -212,7 +213,7 @@ public class TcpChannel {
 				this.attempt = Long.MIN_VALUE;
 			}
 			public synchronized void set(int state) {
-				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), state);
+				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
 				if (state == STALE) {
 					logger.error("set stale only from the special setStale method");
 					return;
@@ -249,16 +250,11 @@ public class TcpChannel {
 			{
 				switch (value)
 				{
-				case CONNECTED:
-					return "CONNECTED";
-				case CONNECTING:
-					return "CONNECTING";
-				case DISCONNECTED:
-					return "DISCONNECTED";
-				case STALE:
-					return "STALE";
-				case LINK_WAIT:
-					return "LINK_WAIT";
+				case CONNECTED:     return "CONNECTED";
+				case CONNECTING:    return "CONNECTING";
+				case DISCONNECTED:  return "DISCONNECTED";
+				case STALE:         return "STALE";
+				case LINK_WAIT:     return "LINK_WAIT";
 				default:
 					return "Undefined State";									
 				}
@@ -495,6 +491,15 @@ public class TcpChannel {
 			}
 		}
 
+		private void failOutStream(OutputStream os, long attempt) { 
+			if (os == null) return;
+			try {
+				os.close();
+			} catch (IOException ex) {
+				logger.warn("close failed {}", ex.getLocalizedMessage());
+			}
+			this.connector.failure(attempt);
+		}
 		/**
 		 * Initiate a connection to the server and then wait for a response.
 		 * All responses are of the form:
@@ -525,33 +530,31 @@ public class TcpChannel {
 					
 					switch (state) {
 					case WAIT_CONNECT:
+						synchronized (this.connector.state) {
+							while (! this.connector.isConnected()) {
+								try {
+									logger.trace("Thread <{}>SenderThread::value.wait",
+											Thread.currentThread().getId());
+
+									this.connector.state.wait();
+								} catch (InterruptedException ex) {
+									logger.warn("thread interupted {}",ex.getLocalizedMessage());
+									return ; // looks like the thread is being shut down.
+								}
+							}
+							attempt = this.connector.getAttempt();
+						}
 						try {
 							// if connected then proceed
 							// keep the working socket so that if something goes wrong
 							// the socket can be checked to see if it has changed
 							// in the interim.			
-							synchronized (this.connector.state) {
-								while (! this.connector.isConnected()) {
-									try {
-										logger.trace("Thread <{}>SenderThread::value.wait",
-												Thread.currentThread().getId());
-
-										this.connector.state.wait();
-									} catch (InterruptedException ex) {
-										logger.warn("thread interupted {}",ex.getLocalizedMessage());
-										return ; // looks like the thread is being shut down.
-									}
-								}
-								long new_attempt = this.connector.getAttempt();
-								if (new_attempt != attempt) {
-									dos = new DataOutputStream(this.parent.socket.getOutputStream());
-									attempt = new_attempt;
-								}
-							}
+							OutputStream os = this.parent.socket.getOutputStream();
+							dos = new DataOutputStream(os);
 						} catch (IOException ex) {
 							logger.warn("io exception acquiring socket for writing messages {}", ex.getLocalizedMessage());
 							if (msg.handler != null) msg.handler.ack(false);
-							this.connector.failure(attempt);
+							this.failOutStream(dos, attempt);
 							break;
 						} 
 						state = SENDING;
@@ -563,9 +566,6 @@ public class TcpChannel {
 						break;
 						
 					case SENDING:
-						
-						// refresh dos to current socket (current means attempt match)
-
 						buf.rewind();
 						buf.putInt(msg.size);
 						long cvalue = msg.checksum.getValue();
@@ -583,16 +583,16 @@ public class TcpChannel {
 							dos.write(msg.payload);
 							dos.flush();
 						} catch (SocketException ex) {
-							logger.warn("socket disconnected while writing a message {}", ex.getLocalizedMessage());
+							logger.warn("exception writing to a socket {}", ex.getLocalizedMessage());
 							if (msg.handler != null) msg.handler.ack(false);
-							this.connector.failure(attempt);
+							this.failOutStream(dos, attempt);
 							this.state = WAIT_CONNECT;
 							break;
 
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
 							if (msg.handler != null) msg.handler.ack(false);
-							this.connector.failure(attempt);
+							this.failOutStream(dos, attempt);
 							this.state = WAIT_CONNECT;
 							break;
 						} 
@@ -672,6 +672,15 @@ public class TcpChannel {
 			logger.trace("Thread <{}>::start", Thread.currentThread().getId());
 		}
 
+		private void failInStream(InputStream is, long attempt) { 
+			if (is == null) return;
+			try {
+				is.close();
+			} catch (IOException e) {
+				logger.warn("close failed {}", e.getLocalizedMessage());
+			}
+			this.connector.failure(attempt);
+		}
 		/**
 		 * Initiate a connection to the server and then wait for a response.
 		 * All responses are of the form:
@@ -732,10 +741,10 @@ public class TcpChannel {
 						bis = new BufferedInputStream(insock, 1024);
 					} catch (IOException ex) {
 						logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
-						this.connector.failure(attempt);
-						continue;
+						failInStream(bis, attempt);
+						break;
 					}    
-					if (bis == null) continue;
+					if (bis == null) break;
 					this.state = START;
 					break;
 				
@@ -744,8 +753,8 @@ public class TcpChannel {
 					try {
 						int temp = bis.read(byteToReadBuffer);
 						if (temp < 0) {
-							logger.error("read error  ...");
-							this.connector.failure(attempt);
+							logger.error("START: end of socket");
+							failInStream(bis, attempt);
 							this.state = WAIT_CONNECT;
 							break; // read error - end of connection
 						}
@@ -755,15 +764,15 @@ public class TcpChannel {
 						long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
 						if (parent.flatLineTime < elapsedTime) {
 							logger.warn("heart timeout : {}", elapsedTime);
-							this.connector.failure(attempt);
+							failInStream(bis, attempt);
 							this.state = WAIT_RECONNECT;  // essentially the same as WAIT_CONNECT 
 							break; 
 						}
 						this.state = RESTART;
-						continue;
-					} catch (IOException e) {
-						logger.error("read error  ...");
-						this.connector.failure(attempt);
+						break;
+					} catch (IOException ex) {
+						logger.error("START: read error {}", ex.getLocalizedMessage());
+						failInStream(bis, attempt);
 						this.state = WAIT_CONNECT;
 						break; // read error - set our value back to wait for connect
 					}
@@ -779,7 +788,7 @@ public class TcpChannel {
 					if (bytesToRead < 0) break; // bad read keep trying
 					if (bytesToRead > 100000) {
 					    logger.warn("message too large {} wrong size!!, we will be out of sync, disconnect ", bytesToRead);
-						this.connector.failure(attempt);
+					    failInStream(bis, attempt);
 						this.state = WAIT_CONNECT;
 						break;
 					}
@@ -794,8 +803,8 @@ public class TcpChannel {
 						logger.trace("timeout on socket");
 						continue;
 					} catch (IOException e) {
-						logger.trace("read error on socket");
-						this.connector.failure(attempt);
+						logger.trace("SIZED: read error");
+						failInStream(bis, attempt);
 						this.state = WAIT_CONNECT;
 						break;
 					}
@@ -805,7 +814,7 @@ public class TcpChannel {
 					
 					message = new byte[bytesToRead];
 
-					logger.info(checksumBuffer.toString(), checksum);
+					logger.info("checksum {} {}", checksumBuffer, checksum);
 					bytesRead = 0;
 					this.state = CHECKED;
 				} 
@@ -819,14 +828,14 @@ public class TcpChannel {
 							logger.trace("timeout on socket");
 							continue;
 						} catch (IOException ex) {
-							logger.trace("read error on socket");
+							logger.trace("CHECKED: read error");
 							this.state = WAIT_CONNECT;
-							this.connector.failure(attempt);
+							failInStream(bis, attempt);
 							break;
 						}
 					}
 					if (bytesRead < bytesToRead) {
-						this.connector.failure(attempt);
+						failInStream(bis, attempt);
 						this.state = WAIT_CONNECT;
 						break;
 					}
