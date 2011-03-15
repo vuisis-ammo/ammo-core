@@ -50,22 +50,15 @@
 <!-- extension targets. Uncomment the ones where you want to do custom work
      in between standard targets -->
 
+    <target name="-pre-build" depends="protobuf,-ndk-build"/>
 
-
-
-    <target name="-pre-build">
+    <target name="-ndk-build">
         <echo>Building ethertracker library</echo>
         <exec executable="ndk-build" dir="." 
               searchpath="true"/>
-
-        <echo>Generating protocol buffers</echo>
-        <mkdir dir="gen"/>
-        <exec executable="protoc" taskname="pb">
-            <arg value="--proto_path=src"/>
-            <arg value="--java_out=gen"/>
-            <arg value="src/edu/vu/isis/ammo/core/pb/AmmoMessages.proto"/>
-        </exec>
     </target>
+
+    <import file="build-protobuf.xml"/>
 
     <target name="realclean" depends="clean">
         <echo>Cleaning ndk-build generated files...</echo>
