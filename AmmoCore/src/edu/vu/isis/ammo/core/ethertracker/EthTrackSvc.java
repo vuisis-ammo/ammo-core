@@ -14,6 +14,7 @@ import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.R;
 
 public class EthTrackSvc extends Service {
@@ -41,7 +42,6 @@ public class EthTrackSvc extends Service {
 
 	@Override
 	public IBinder onBind(Intent intent) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
@@ -75,6 +75,7 @@ public class EthTrackSvc extends Service {
 	public int Notify(String msg) {
 		this.updateSharedPreferencesForInterfaceStatus(msg);
 		
+		// Start specific application respond on selection
 		String ns = Context.NOTIFICATION_SERVICE;
 		NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
 
@@ -98,6 +99,16 @@ public class EthTrackSvc extends Service {
 				contentIntent);
 
 		mNotificationManager.notify(HELLO_ID, notification);
+		
+		// Let applications respond immediately by receiving a broadcast intent.
+		
+		Intent broadcastIntent = new Intent(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
+		if (msg.indexOf("Up") > 0) {
+			broadcastIntent.putExtra("state",AmmoIntents.LINK_UP);
+		} else if (msg.indexOf("Down") > 0) {
+			broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
+		}
+		this.sendBroadcast(broadcastIntent);
 
 		return 0;
 	}
