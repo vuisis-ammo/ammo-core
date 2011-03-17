@@ -76,6 +76,7 @@ public class EthTrackSvc extends Service {
 		this.updateSharedPreferencesForInterfaceStatus(msg);
 		
 		// Start specific application respond on selection
+		
 		String ns = Context.NOTIFICATION_SERVICE;
 		NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
 
@@ -92,8 +93,8 @@ public class EthTrackSvc extends Service {
 
 		Intent notificationIntent = new Intent(this, EthTrackSvc.class);
 
-		PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-				notificationIntent, 0);
+		PendingIntent contentIntent = PendingIntent
+			.getActivity(this, 0, notificationIntent, 0);
 
 		notification.setLatestEventInfo(context, contentTitle, contentText,
 				contentIntent);

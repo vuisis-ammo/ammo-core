@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<TableLayout xmlns:android="http://schemas.android.com/apk/res/android"
+			android:layout_height="wrap_content" 
+			android:layout_width="fill_parent"
+			android:layout_marginTop="20dip" 
+			android:layout_marginBottom="10dip"
+			android:layout_gravity="center"
+			android:gravity="center">
+			
+			<TableRow 
+			  android:gravity="center" 
+			  android:layout_width="fill_parent"
+			  android:layout_marginBottom="18dip">
+				<TextView 
+				  android:id="@+id/gateway_name"
+				  android:layout_width="wrap_content"
+				  android:layout_height="wrap_content" 
+				  android:padding="3dip"
+				  android:textSize="16dip" 
+				  android:hint="Informal Name" />
+			</TableRow>
+			
+			<TableRow 
+     android:gravity="center" 
+     android:layout_width="fill_parent"
+     android:layout_marginBottom="18dip">
+    <TextView 
+      android:id="@+id/gateway_formal_name"
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content" 
+      android:padding="3dip"
+      android:textSize="16dip" 
+      android:hint="Formal Name (e.g. host:port)" />
+   </TableRow>
+			
+</TableLayout>
+		

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="package_name">edu.vu.isis.ammo.core</string>
+    <string name="app_name">Ammo</string>
+    
+    <color name="branding">#FF00CC00</color>
+</resources>

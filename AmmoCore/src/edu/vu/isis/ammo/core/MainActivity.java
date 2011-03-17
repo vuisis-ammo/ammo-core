@@ -1,5 +1,8 @@
 package edu.vu.isis.ammo.core;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,8 +24,10 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ListView;
 import android.widget.TextView;
 import edu.vu.isis.ammo.AmmoPreferenceChangedReceiver;
 import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
@@ -57,14 +62,16 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	private NetworkStatusTextView tvPhysicalLink, tvWifi;
+	private NetworkStatusTextView tvWired, tvWifi;
 	private TextView tvConnectionStatus;
 	private Button btnConnect;
-	private CheckBox cbPhysicalLink, cbWifi;
+	private CheckBox cbWired, cbWifi;
 	private WifiReceiver wifiReceiver;
 	private AmmoPreferenceChangedReceiver receiver;
 	private AmmoPreference ap;
 
+	private List<Gateway> model = new ArrayList<Gateway>();
+	private ArrayAdapter<Gateway> adapter = null;
 	
 	/**
 	 * @Cateogry Lifecycle
@@ -85,6 +92,16 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		
 		intent.setAction(StartUpReceiver.RESET);
 		this.sendBroadcast(intent);
+		
+		ListView list = (ListView)this.findViewById(R.id.gateway_list);
+		this.adapter = new ArrayAdapter<Gateway> ( this,
+				android.R.layout.simple_list_item_1,
+				model);
+		list.setAdapter(adapter);
+	}
+	
+	public void setGateway(Gateway gw) {
+		adapter.add(gw);
 	}
 	
 	@Override
@@ -94,6 +111,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		this.initializeAmmoPreferenceChangedReceiver();
 		setWifiStatus();
 		this.updateConnectionStatus(ap);
+		adapter.add(Gateway.getInstance());
 	}
 	
 	@Override
@@ -174,9 +192,8 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		try {
 			if (view.equals(this.cbWifi)) {
 				ap.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
-			} else if (view.equals(this.cbPhysicalLink)) {
-				// TODO: Need a way to disable physical link service.
-				ap.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, this.cbPhysicalLink.isChecked());
+			} else if (view.equals(this.cbWired)) {
+				ap.putBoolean(INetPrefKeys.WIRED_PREF_SHOULD_USE, this.cbWired.isChecked());
 			} else if (view.equals(this.btnConnect)) {
 				// Tell the network service to disconnect and reconnect.
 				ap.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
@@ -197,7 +214,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		if (key.endsWith(INetPrefKeys.CORE_DEVICE_ID)) {
 			return;
 		}
-		if (key.startsWith(INetPrefKeys.PHYSICAL_LINK_PREF)) {
+		if (key.startsWith(INetPrefKeys.WIRED_PREF)) {
 			updateConnectionStatusThread(ap);
 			return;
 		}
@@ -247,42 +264,42 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	public void updateConnectionStatus(AmmoPreference ap) {
 		logger.trace("::updateConnectionStatus");
 		
-		tvPhysicalLink.notifyNetworkStatusChanged(ap, INetPrefKeys.PHYSICAL_LINK_PREF);
-		tvWifi.notifyNetworkStatusChanged(ap, INetPrefKeys.WIFI_PREF);
+		//tvWired.notifyNetworkStatusChanged(ap, INetPrefKeys.WIRED_PREF);
+		//tvWifi.notifyNetworkStatusChanged(ap, INetPrefKeys.WIFI_PREF);
 		
 		boolean isConnected = ap.getBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
 		if (isConnected) {
-			tvConnectionStatus.setText("Gateway connected");
+			//tvConnectionStatus.setText("Gateway connected");
 		} else {
-			tvConnectionStatus.setText("Gateway not connected");
+			//tvConnectionStatus.setText("Gateway not connected");
 		}
 	}
 	
 	public void setViewReferences() {
 		logger.trace("::setViewReferences");
 		
-		this.tvPhysicalLink = (NetworkStatusTextView)findViewById(R.id.main_activity_physical_link_status);
-		this.tvWifi = (NetworkStatusTextView)findViewById(R.id.main_activity_wifi_status);
-		this.tvConnectionStatus = (TextView)findViewById(R.id.main_activity_connection_status);
-		this.cbPhysicalLink = (CheckBox)findViewById(R.id.main_activity_physical_link);
-		this.cbWifi = (CheckBox)findViewById(R.id.main_activity_wifi);
-		this.btnConnect = (Button)findViewById(R.id.main_activity_connect_button);
+		//this.tvWired = (NetworkStatusTextView)findViewById(R.id.main_activity_wired_status);
+		//this.tvWifi = (NetworkStatusTextView)findViewById(R.id.main_activity_wifi_status);
+		this.tvConnectionStatus = (TextView)findViewById(R.id.gateway_connection_status);
+		//this.cbWired = (CheckBox)findViewById(R.id.main_activity_wired);
+		//this.cbWifi = (CheckBox)findViewById(R.id.main_activity_wifi);
+		// this.btnConnect = (Button)findViewById(R.id.gateway_connect_button);
 	}
 	
 	public void initializeCheckboxes() {
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		boolean physLinkEnabled = prefs.getBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE, true);
-		boolean wifiEnabled = prefs.getBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, true);
-		cbPhysicalLink.setChecked(physLinkEnabled);
-		cbWifi.setChecked(wifiEnabled);
+		//boolean physLinkEnabled = prefs.getBoolean(INetPrefKeys.WIRED_PREF_SHOULD_USE, true);
+		//boolean wifiEnabled = prefs.getBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, true);
+		//cbWired.setChecked(physLinkEnabled);
+		//cbWifi.setChecked(wifiEnabled);
 	}
 	
 	public void setOnClickListeners() {
 		logger.trace("::setOnClickListeners");
 		
-		cbPhysicalLink.setOnClickListener(this);
-		cbWifi.setOnClickListener(this);
-		btnConnect.setOnClickListener(this);
+		//cbWired.setOnClickListener(this);
+		//cbWifi.setOnClickListener(this);
+		//btnConnect.setOnClickListener(this);
 	}
 	
 	/**

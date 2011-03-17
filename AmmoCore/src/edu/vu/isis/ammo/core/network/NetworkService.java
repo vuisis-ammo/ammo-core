@@ -273,7 +273,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		}
 
 		// handle network connectivity group
-//		if (key.equals(INetPrefKeys.PHYSICAL_LINK_PREF_SHOULD_USE)) {
+//		if (key.equals(INetPrefKeys.WIRED_PREF_SHOULD_USE)) {
 //			shouldUse(prefs);
 //		}	
 //		if (key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE)) {
