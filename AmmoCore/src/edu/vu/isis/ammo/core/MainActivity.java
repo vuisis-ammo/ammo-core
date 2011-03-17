@@ -71,7 +71,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	private AmmoPreference ap;
 
 	private List<Gateway> model = new ArrayList<Gateway>();
-	private ArrayAdapter<Gateway> adapter = null;
+	private GatewayAdapter adapter = null;
 	
 	/**
 	 * @Cateogry Lifecycle
@@ -94,9 +94,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		this.sendBroadcast(intent);
 		
 		ListView list = (ListView)this.findViewById(R.id.gateway_list);
-		this.adapter = new ArrayAdapter<Gateway> ( this,
-				android.R.layout.simple_list_item_1,
-				model);
+		this.adapter = new GatewayAdapter (this, model);
 		list.setAdapter(adapter);
 	}
 	
@@ -341,12 +339,23 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		this.registerReceiver(this.wifiReceiver, wifiFilter);
 	}
 	
+	// ===========================================================
+	// Inner Classes
+	// ===========================================================
 	private class WifiReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			logger.trace("WifiReceiver::onReceive");
 		    // updateConnectionStatus(prefs);
 		    setWifiStatus();
+		}
+	}
+	
+	private class GatewayAdapter extends ArrayAdapter<Gateway> {
+		GatewayAdapter(MainActivity parent, List<Gateway> model) {
+			super(parent,
+					android.R.layout.simple_list_item_1,
+					model);
 		}
 	}
 	
