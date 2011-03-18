@@ -651,10 +651,10 @@ public class TcpChannel {
 				}
 			} catch (InterruptedException ex) {
 				logger.warn("interupted writing messages");
-				this.state = INTERRUPTED;
+				this.actual = INTERRUPTED;
 			} catch (Exception ex) {
 				logger.warn("interupted writing messages");
-				this.state = EXCEPTION;
+				this.actual = EXCEPTION;
 			}
 			logger.warn("sender thread exiting ...");
 		}
@@ -912,7 +912,7 @@ public class TcpChannel {
 				}
 			} catch (Exception ex) {
 				logger.warn("interupted writing messages {}",ex.getLocalizedMessage());
-				this.state = EXCEPTION;
+				this.actual = EXCEPTION;
 				ex.printStackTrace();
 			}
 			logger.warn("sender thread exiting ...");

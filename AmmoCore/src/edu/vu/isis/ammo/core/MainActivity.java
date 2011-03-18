@@ -71,10 +71,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	private NetworkStatusTextView tvWired, tvWifi;
-	private TextView tvConnectionStatus;
-	private Button btnConnect;
-	private CheckBox cbWired, cbWifi;
+	
 	private WifiReceiver wifiReceiver;
 	private AmmoPreferenceChangedReceiver receiver;
 	private AmmoPreference ap;
@@ -91,20 +88,23 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		logger.trace("::onCreate");
 		this.setContentView(R.layout.main_activity);
 		ap = AmmoPreference.getInstance(this);
-		this.setViewReferences();
-		this.setOnClickListeners();
-		this.initializeCheckboxes();
-		this.registerReceivers();
 		
-		Intent intent = new Intent("edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH");
-		this.startService(intent);
-		
-		intent.setAction(StartUpReceiver.RESET);
-		this.sendBroadcast(intent);
-		
+		// set view references
 		ListView list = (ListView)this.findViewById(R.id.gateway_list);
 		this.adapter = new GatewayAdapter (this, model);
 		list.setAdapter(adapter);
+		
+		// set listeners
+		
+		// register receivers
+		
+		// start services
+		Intent intent = new Intent("edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH");
+		this.startService(intent);
+		
+		// let others know we are running
+		intent.setAction(StartUpReceiver.RESET);
+		this.sendBroadcast(intent);
 	}
 	
 	public void setGateway(Gateway gw) {
@@ -197,19 +197,19 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	public void onClick(View view) {
 		logger.trace("::onClick");
 		
-		try {
-			if (view.equals(this.cbWifi)) {
-				ap.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
-			} else if (view.equals(this.cbWired)) {
-				ap.putBoolean(INetPrefKeys.WIRED_PREF_SHOULD_USE, this.cbWired.isChecked());
-			} else if (view.equals(this.btnConnect)) {
-				// Tell the network service to disconnect and reconnect.
-				ap.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
-			}
-		} catch (AmmoPreferenceReadOnlyAccess ex) {
-			ex.printStackTrace();
-		}
-		setWifiStatus();
+//		try {
+//			if (view.equals(this.cbWifi)) {
+//				ap.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, this.cbWifi.isChecked());
+//			} else if (view.equals(this.cbWired)) {
+//				ap.putBoolean(INetPrefKeys.WIRED_PREF_SHOULD_USE, this.cbWired.isChecked());
+//			} else if (view.equals(this.btnConnect)) {
+//				// Tell the network service to disconnect and reconnect.
+//				ap.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.btnConnect.isPressed());
+//			}
+//		} catch (AmmoPreferenceReadOnlyAccess ex) {
+//			ex.printStackTrace();
+//		}
+//		setWifiStatus();
 	}
 	
 	@Override
@@ -281,33 +281,6 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		} else {
 			//tvConnectionStatus.setText("Gateway not connected");
 		}
-	}
-	
-	public void setViewReferences() {
-		logger.trace("::setViewReferences");
-		
-		//this.tvWired = (NetworkStatusTextView)findViewById(R.id.main_activity_wired_status);
-		//this.tvWifi = (NetworkStatusTextView)findViewById(R.id.main_activity_wifi_status);
-		this.tvConnectionStatus = (TextView)findViewById(R.id.gateway_connection_status);
-		//this.cbWired = (CheckBox)findViewById(R.id.main_activity_wired);
-		//this.cbWifi = (CheckBox)findViewById(R.id.main_activity_wifi);
-		// this.btnConnect = (Button)findViewById(R.id.gateway_connect_button);
-	}
-	
-	public void initializeCheckboxes() {
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		//boolean physLinkEnabled = prefs.getBoolean(INetPrefKeys.WIRED_PREF_SHOULD_USE, true);
-		//boolean wifiEnabled = prefs.getBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, true);
-		//cbWired.setChecked(physLinkEnabled);
-		//cbWifi.setChecked(wifiEnabled);
-	}
-	
-	public void setOnClickListeners() {
-		logger.trace("::setOnClickListeners");
-		
-		//cbWired.setOnClickListener(this);
-		//cbWifi.setOnClickListener(this);
-		//btnConnect.setOnClickListener(this);
 	}
 	
 	/**
