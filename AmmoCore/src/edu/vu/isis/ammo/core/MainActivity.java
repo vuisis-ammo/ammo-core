@@ -13,6 +13,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.graphics.Color;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -23,13 +24,18 @@ import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.View.OnClickListener;
+import android.view.View.OnFocusChangeListener;
+import android.view.View.OnTouchListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.AmmoPreferenceChangedReceiver;
@@ -112,7 +118,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		this.initializeAmmoPreferenceChangedReceiver();
 		setWifiStatus();
 		this.updateConnectionStatus(ap);
-		adapter.add(Gateway.getInstance());
+		this.setGateway(Gateway.getInstance());
 	}
 	
 	@Override
@@ -128,6 +134,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	{
 			super.onCreateContextMenu(menu, v, menuInfo);
 			logger.trace("::onCreateContextMenu");
+			
 	}
 	
 	@Override
@@ -216,15 +223,15 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 			return;
 		}
 		if (key.startsWith(INetPrefKeys.WIRED_PREF)) {
-			updateConnectionStatusThread(ap);
+			this.updateConnectionStatusThread(ap);
 			return;
 		}
 		if (key.startsWith(INetPrefKeys.WIFI_PREF)) {
-			updateConnectionStatusThread(ap);
+			this.updateConnectionStatusThread(ap);
 			return;
 		} 
 		if (key.startsWith(INetPrefKeys.NET_CONN_PREF)) {
-			updateConnectionStatusThread(ap);
+			this.updateConnectionStatusThread(ap);
 			return;
 		} 
 		if (key.equals(LoggingPreferences.PREF_LOG_LEVEL)) {
@@ -354,18 +361,23 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		}
 	}
 	
-	private class GatewayAdapter extends ArrayAdapter<Gateway> {
+	private class GatewayAdapter extends ArrayAdapter<Gateway> 
+	implements OnClickListener, OnFocusChangeListener, OnTouchListener, OnStatusChangeListener
+	{
 		GatewayAdapter(MainActivity parent, List<Gateway> model) {
 			super(parent,
 					android.R.layout.simple_list_item_1,
 					model);
 		}
-		
+		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
 			View row = convertView;
 			if (row == null) {
 				LayoutInflater inflater = getLayoutInflater();
 				row = inflater.inflate(R.layout.gateway_item, null);
+				row.setOnClickListener(this);
+				row.setOnFocusChangeListener(this);
+				row.setOnTouchListener(this);
 			}
 			Gateway gw = model.get(position);
 			((TextView)row.findViewById(R.id.gateway_name)).setText(gw.getName());
@@ -374,8 +386,57 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
 			// set button icon
 			icon.setChecked(gw.isEnabled());
+			gw.setOnStatusChangeListener(this, parent);
 			
 			return row;
+		}
+		@Override
+		public void onClick(View item) {
+			//item.setBackgroundColor(Color.GREEN);
+		}
+		@Override
+		public void onFocusChange(View item, boolean hasFocus) {
+			if (hasFocus) {
+			   item.setBackgroundColor(Color.RED);
+			} else {
+			   item.setBackgroundColor(Color.TRANSPARENT);
+			}
+		}
+		
+		 @Override
+         public boolean onTouch(View view, MotionEvent event) {
+             // Only perform this transform on image buttons for now.
+			 if (view.getClass() != RelativeLayout.class) return false;
+
+			 RelativeLayout item = (RelativeLayout) view;
+			 int action = event.getAction();
+
+			 switch (action) {
+			 case MotionEvent.ACTION_DOWN:
+			 case MotionEvent.ACTION_MOVE:
+				 item.setBackgroundResource(R.drawable.select_gradient);
+				 //item.setBackgroundColor(Color.GREEN);
+				 break;
+
+			 default:
+				 item.setBackgroundColor(Color.TRANSPARENT);
+			 }
+
+			 return false;
+         }
+		@Override
+		public boolean onStatusChange(View view, int status) {
+			View row = view;
+			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
+			switch (status) {
+			case Gateway.ACTIVE: 
+				icon.setBackgroundColor(R.color.active); 
+				break;
+			
+			
+			}
+			
+			return false;
 		}
 	}
 	

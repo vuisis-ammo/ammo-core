@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.core;
 
+import android.view.View;
+
 /**
  * The Ammo core is responsible for distributing 
  * typed messages to gateways over multiple links.
@@ -48,16 +50,18 @@ public class Gateway {
 	public void setFormal(String formal) { this.formal = formal; }
 	public String getFormal() { return this.formal; }
 	
-	public static int ACTIVE = 1;
-	public static int INACTIVE = 2; // means not available
-	public static int DISABLED = 3; // means the election is false
+	public static final int ACTIVE = 1;
+	public static final int INACTIVE = 2; // means not available
+	public static final int DISABLED = 3; // means the election is false
 	
 	// determines if any of the gateway's designated links
 	// are functioning.
 	public int hasLink() { return ACTIVE; }
 	
 	// determines if any of the gateway is connected
-	public int isConnected() { return INACTIVE; }
+	public int getConnected() { return INACTIVE; }
+	
+	public int getStatus() { return INACTIVE; }
 	
 	private Gateway(String name, String formal) {
 		this.name = name;
@@ -74,6 +78,11 @@ public class Gateway {
 		StringBuilder sb = new StringBuilder();
 		sb.append(this.name).append(" = ").append(this.formal).append(" ").append(this.election);
 		return sb.toString();
+	}
+	
+	public void setOnStatusChangeListener(OnStatusChangeListener listener, View view) {
+		// set up observers of shared preferences
+		listener.onStatusChange(view, this.getStatus());
 	}
 	
 }

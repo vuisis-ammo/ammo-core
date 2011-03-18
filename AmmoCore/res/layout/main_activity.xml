@@ -10,7 +10,7 @@
 		 android:layout_width="fill_parent"
 			android:layout_height="wrap_content" 
 			android:textSize="20dip"
-			android:text="AMMO Gateway" 
+			android:text="AMMO Gateway List" 
 			android:textColor="@color/branding"
 			android:gravity="center" />
 			
@@ -33,10 +33,21 @@
    android:gravity="center"
    android:text="Tap 'menu' for settings"
    android:textSize="16dip" />
+   
+  <ImageButton 
+   android:id="@+id/setting_button"
+   android:layout_alignParentTop="true"
+   android:layout_alignParentLeft="true"
+   android:src="@drawable/settings_button"
+   android:layout_below="@id/version_label"
+   android:layout_width="wrap_content"
+   android:layout_height="wrap_content" 
+   android:gravity="center"
+   android:textSize="16dip" />
 
 		 <ListView 
 		   android:id="@+id/gateway_list"
-		   android:layout_below="@id/version_label"
+		   android:layout_below="@id/setting_button"
 		   android:layout_above="@id/main_help"
 		   android:layout_width="fill_parent"
 		   android:layout_height="fill_parent"
