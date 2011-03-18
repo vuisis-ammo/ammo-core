@@ -118,7 +118,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		this.initializeAmmoPreferenceChangedReceiver();
 		setWifiStatus();
 		this.updateConnectionStatus(ap);
-		this.setGateway(Gateway.getInstance());
+		this.setGateway(Gateway.getInstance(this));
 	}
 	
 	@Override
@@ -362,7 +362,8 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	}
 	
 	private class GatewayAdapter extends ArrayAdapter<Gateway> 
-	implements OnClickListener, OnFocusChangeListener, OnTouchListener, OnStatusChangeListener
+	implements OnClickListener, OnFocusChangeListener, OnTouchListener, 
+		OnNameChangeListener, OnStatusChangeListener
 	{
 		GatewayAdapter(MainActivity parent, List<Gateway> model) {
 			super(parent,
@@ -425,17 +426,34 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 			 return false;
          }
 		@Override
-		public boolean onStatusChange(View view, int status) {
-			View row = view;
+		public boolean onStatusChange(View item, int status) {
+			View row = item;
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
 			switch (status) {
 			case Gateway.ACTIVE: 
 				icon.setBackgroundColor(R.color.active); 
 				break;
-			
-			
+			case Gateway.INACTIVE: 
+				icon.setBackgroundColor(R.color.inactive); 
+				break;
+			case Gateway.DISABLED: 
+				icon.setBackgroundColor(R.color.disabled); 
+				break;
+			default:
+				icon.setBackgroundColor(R.color.inactive); 
+				return false;
 			}
-			
+			return true;
+		}
+		
+		@Override
+		public boolean onNameChange(View item, String name) {
+			((TextView)item.findViewById(R.id.gateway_name)).setText(name);
+			return false;
+		}
+		@Override
+		public boolean onFormalChange(View item, String formal) {
+			((TextView)item.findViewById(R.id.gateway_formal)).setText(formal);
 			return false;
 		}
 	}

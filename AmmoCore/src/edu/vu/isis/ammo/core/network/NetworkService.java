@@ -51,10 +51,10 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	private static final Logger logger = LoggerFactory.getLogger(NetworkService.class);
 
 	// Local constants
-	private static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
-	private static final int DEFAULT_GATEWAY_PORT = 32869;
-	private static final int DEFAULT_FLAT_LINE_TIME = 20; // 20 minutes
-	private static final int DEFAULT_SOCKET_TIMEOUT = 3; // 3 seconds 
+	public static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
+	public static final int DEFAULT_GATEWAY_PORT = 32869;
+	public static final int DEFAULT_FLAT_LINE_TIME = 20; // 20 minutes
+	public static final int DEFAULT_SOCKET_TIMEOUT = 3; // 3 seconds 
 
 	@SuppressWarnings("unused")
 	private static final String NULL_CHAR = "\0";
