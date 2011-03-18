@@ -6,29 +6,34 @@
   android:layout_height="fill_parent" >
   
 		 <ToggleButton 
-		   android:id="@+id/status"
+		   android:id="@+id/gateway_status"
      android:layout_alignParentLeft="true" 
      android:layout_width="wrap_content"
-     android:text="ToggleButton" 
+     android:text="Status" 
+     android:textOn="ON" 
+     android:textOff="OFF" 
      android:layout_height="wrap_content" />
 				
 				 <TextView 
       android:id="@+id/gateway_name"
       android:layout_width="wrap_content"
       android:layout_height="wrap_content" 
+      android:layout_toRightOf="@id/gateway_status"
+      android:layout_alignParentTop="true" 
       android:padding="3dip"
       android:textSize="16dip" 
       android:hint="Name" />
       
     <TextView 
-      android:id="@+id/gateway_formal_name"
+      android:id="@+id/gateway_formal"
+      android:layout_toRightOf="@id/gateway_status"
+      android:layout_alignParentBottom="true" 
+      android:layout_below="@id/gateway_name" 
       android:layout_width="wrap_content"
       android:layout_height="wrap_content" 
       android:padding="3dip"
       android:textSize="16dip" 
       android:hint="Formal Name (e.g. host:port)" />
       
- 
-			
 </RelativeLayout>
 		

@@ -20,15 +20,18 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.ContextMenu;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.View.OnClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.ToggleButton;
 import edu.vu.isis.ammo.AmmoPreferenceChangedReceiver;
 import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
 import edu.vu.isis.ammo.IAmmoPreferenceChangedListener;
@@ -357,7 +360,23 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 					android.R.layout.simple_list_item_1,
 					model);
 		}
+		
+		public View getView(int position, View convertView, ViewGroup parent) {
+			View row = convertView;
+			if (row == null) {
+				LayoutInflater inflater = getLayoutInflater();
+				row = inflater.inflate(R.layout.gateway_item, null);
+			}
+			Gateway gw = model.get(position);
+			((TextView)row.findViewById(R.id.gateway_name)).setText(gw.getName());
+			((TextView)row.findViewById(R.id.gateway_formal)).setText(gw.getFormal());
+			
+			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
+			// set button icon
+			icon.setChecked(gw.isEnabled());
+			
+			return row;
+		}
 	}
-	
 	
 }
