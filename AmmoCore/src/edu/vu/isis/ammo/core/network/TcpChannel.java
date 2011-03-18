@@ -57,14 +57,18 @@ public class TcpChannel {
 	private final Object syncObj;
 
 	private long flatLineTime;
+	private NetworkService driver;
 
 	private TcpChannel(NetworkService driver) {
 		super();
 		logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
 		this.syncObj = this;
+		
+		this.driver = driver;
 		this.connectorThread = new ConnectorThread(this, driver);
 		this.senderThread = new SenderThread(this, driver);
 		this.receiverThread = new ReceiverThread(this, driver);
+		
 		this.flatLineTime = 20 * 60 * 1000; // 20 minutes in milliseconds
 	}
 
@@ -87,9 +91,9 @@ public class TcpChannel {
 				return false;
 			this.isEnabled = true;
 
-			this.connectorThread.start();
-			this.senderThread.start();
-			this.receiverThread.start();
+			if (! this.connectorThread.isAlive()) this.connectorThread.start();
+			if (! this.senderThread.isAlive()) this.senderThread.start();
+			if (! this.receiverThread.isAlive()) this.receiverThread.start();
 		}
 		return true;
 	}
@@ -147,13 +151,27 @@ public class TcpChannel {
 	 */
 	public void reset() { 
 		logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
-		logger.trace("connector: {} sender: {} receiver: {}",
+		logger.trace("connector: {}>{} sender: {}>{} receiver: {}>{}",
 				new String[] {
-				this.connectorThread.showState(), 
-				this.senderThread.showState(), 
-				this.receiverThread.showState()});
-		
-		this.connectorThread.reset();
+				this.connectorThread.showActual(), this.connectorThread.showState(), 
+				this.senderThread.showActual(),    this.senderThread.showState(), 
+				this.receiverThread.showActual(),  this.receiverThread.showState()});
+		synchronized (this.syncObj) {
+			if (! this.connectorThread.isAlive()) {
+				this.connectorThread = new ConnectorThread(this, this.driver);
+				this.connectorThread.start();
+			}
+			if (! this.senderThread.isAlive()) {
+				this.senderThread = new SenderThread(this, this.driver);
+				this.senderThread.start();
+			}
+			if (! this.receiverThread.isAlive()) {
+				this.receiverThread = new ReceiverThread(this, this.driver);
+				this.receiverThread.start();
+			}
+
+			this.connectorThread.reset();
+		}
 	}
 
 	/**
@@ -199,6 +217,7 @@ public class TcpChannel {
 		
 		private class State {
 			private int value;
+			private int actual;
 
 			static private final int CONNECTED     = 0; // the socket is good an active
 			static private final int CONNECTING    = 1; // trying to connect
@@ -247,9 +266,9 @@ public class TcpChannel {
 				return true;
 			}
 			
-			public String toString ()
+			public String showState (int state)
 			{
-				switch (value)
+				switch (state)
 				{
 				case CONNECTED:     return "CONNECTED";
 				case CONNECTING:    return "CONNECTING";
@@ -269,7 +288,8 @@ public class TcpChannel {
 		public long getAttempt() { 
 			return this.state.attempt; 
 		}
-		public String showState() { return this.state.toString(); }
+		public String showState() { return this.state.showState( this.state.value ); }
+		public String showActual() { return this.state.showState( this.state.actual ); }
 		
 		/**
 		 * reset forces the channel closed if open.
@@ -459,7 +479,9 @@ public class TcpChannel {
 		static private final int INTERRUPTED   = 4; // the run was canceled via an interrupt
 		static private final int EXCEPTION     = 5; // the run failed by some unhandled exception
 		
-		public String showState ()
+		public String showState() { return SenderThread.showState(this.state); }
+		public String showActual() { return SenderThread.showState(this.actual); }
+		static private String showState (int state)
 		{
 			switch (state)
 			{
@@ -473,7 +495,8 @@ public class TcpChannel {
 			}
 		}
 		
-		private int state;
+		volatile private int state;
+		volatile private int actual;
 
 		private final TcpChannel parent;
 		private ConnectorThread connector;
@@ -526,7 +549,7 @@ public class TcpChannel {
 		public void run() { 
 			logger.trace("Thread <{}>SenderThread::run", Thread.currentThread().getId());
 
-			state = TAKING;
+			this.state = TAKING;
 
 			DataOutputStream dos = null;
 			try {            
@@ -538,7 +561,7 @@ public class TcpChannel {
 
 				while (true) {
 					logger.debug("state: {}",this.showState());
-					
+					this.actual = this.state;
 					switch (state) {
 					case WAIT_CONNECT:
 						synchronized (this.connector.state) {
@@ -641,6 +664,7 @@ public class TcpChannel {
 		
 		// private TcpChannel.ConnectorThread;
 		volatile private int state;
+		volatile private int actual;
 
 		static private final int SHUTDOWN        = 0; // the run is being stopped
 		static private final int START           = 1; // indicating the next thing is the size
@@ -653,7 +677,9 @@ public class TcpChannel {
 		static private final int DELIVER         = 8; // indicating the message has been read
 		static private final int EXCEPTION       = 9; // the run failed by some unhandled exception
 		
-		public String showState ()
+		public String showState() { return ReceiverThread.showState(this.state); }
+		public String showActual() { return ReceiverThread.showState(this.actual); }
+		static private String showState (int state)
 		{
 			switch (state)
 			{
@@ -735,9 +761,12 @@ public class TcpChannel {
 						logger.debug("state: {}",this.showState());
 					}
 
+					this.actual = WAIT_CONNECT;
+					
 					switch (state) {
 					case WAIT_RECONNECT: 
 					case WAIT_CONNECT:  // look for the size
+						
 						synchronized (this.connector.state) {
 							while (! this.connector.isConnected() ) {
 								try {
