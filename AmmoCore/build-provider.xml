@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="ammo generator" default="provider">
+
+    <target name="provider">
+        <echo>for running within eclipse, instead of bash script.</echo>
+        <echo>Generating content provider source</echo>
+        <mkdir dir="gen"/>
+        <ant antfile="build.xml" dir="../AmmoGenerator/content_provider" target="promote"/>
+    </target>
+
+</project>

@@ -297,7 +297,7 @@ public class JournalChannel {
 			BufferedOutputStream dos;
 			try {		
 				dos = JournalChannel.this.ostream;
-				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE + Integer.SIZE);
+				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE/Byte.SIZE + Integer.SIZE/Byte.SIZE);
 				// ByteOrder order = buf.order();
 				buf.order(parent.endian);
 				
