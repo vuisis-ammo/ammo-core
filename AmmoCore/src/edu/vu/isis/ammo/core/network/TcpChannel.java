@@ -151,11 +151,12 @@ public class TcpChannel {
 	 */
 	public void reset() { 
 		logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
-		logger.trace("connector: {}>{} sender: {}>{} receiver: {}>{}",
+		logger.trace("connector: {} sender: {} receiver: {}",
 				new String[] {
-				this.connectorThread.showActual(), this.connectorThread.showState(), 
-				this.senderThread.showActual(),    this.senderThread.showState(), 
-				this.receiverThread.showActual(),  this.receiverThread.showState()});
+				this.connectorThread.showState(), 
+				this.senderThread.showState(), 
+				this.receiverThread.showState()});
+		
 		synchronized (this.syncObj) {
 			if (! this.connectorThread.isAlive()) {
 				this.connectorThread = new ConnectorThread(this, this.driver);
@@ -266,7 +267,13 @@ public class TcpChannel {
 				return true;
 			}
 			
-			public String showState (int state)
+			public String showState () {
+				if (this.value == this.actual)
+					return this.showStateAux(this.value);
+				else
+					return this.showStateAux(this.actual) + "->" + this.showStateAux(this.actual);
+			}
+			public String showStateAux (int state)
 			{
 				switch (state)
 				{
@@ -288,8 +295,7 @@ public class TcpChannel {
 		public long getAttempt() { 
 			return this.state.attempt; 
 		}
-		public String showState() { return this.state.showState( this.state.value ); }
-		public String showActual() { return this.state.showState( this.state.actual ); }
+		public String showState() { return this.state.showState( ); }
 		
 		/**
 		 * reset forces the channel closed if open.
@@ -479,9 +485,13 @@ public class TcpChannel {
 		static private final int INTERRUPTED   = 4; // the run was canceled via an interrupt
 		static private final int EXCEPTION     = 5; // the run failed by some unhandled exception
 		
-		public String showState() { return SenderThread.showState(this.state); }
-		public String showActual() { return SenderThread.showState(this.actual); }
-		static private String showState (int state)
+		public String showState () {
+			if (this.state == this.actual)
+				return this.showState(this.state);
+			else
+				return this.showState(this.actual) + "->" + this.showState(this.actual);
+		}
+		private String showState (int state)
 		{
 			switch (state)
 			{
@@ -677,9 +687,13 @@ public class TcpChannel {
 		static private final int DELIVER         = 8; // indicating the message has been read
 		static private final int EXCEPTION       = 9; // the run failed by some unhandled exception
 		
-		public String showState() { return ReceiverThread.showState(this.state); }
-		public String showActual() { return ReceiverThread.showState(this.actual); }
-		static private String showState (int state)
+		public String showState () {
+			if (this.state == this.actual)
+				return this.showState(this.state);
+			else
+				return this.showState(this.actual) + "->" + this.showState(this.actual);
+		}
+		private String showState (int state)
 		{
 			switch (state)
 			{
