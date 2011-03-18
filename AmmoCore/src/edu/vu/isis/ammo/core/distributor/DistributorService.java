@@ -952,6 +952,7 @@ public class DistributorService extends Service implements IDistributorService {
 				return false;
 			}
 			final Uri retrieveUri = RetrievalTableSchema.getUri(cursor);
+			cursor.close ();
 			ContentValues values = new ContentValues();
 			values.put(RetrievalTableSchema.DISPOSITION, RetrievalTableSchema.DISPOSITION_SATISFIED);
 
