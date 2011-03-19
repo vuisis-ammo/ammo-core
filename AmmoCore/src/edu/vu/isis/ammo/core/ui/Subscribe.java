@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.core.ui;
 
 import java.util.Calendar;
 
@@ -25,6 +25,10 @@ import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatcher;
 import edu.vu.isis.ammo.collector.provider.IncidentSchema;
 import edu.vu.isis.ammo.collector.provider.IncidentSchema.EventTableSchema;
+import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.R.array;
+import edu.vu.isis.ammo.core.R.id;
+import edu.vu.isis.ammo.core.R.layout;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
 /**

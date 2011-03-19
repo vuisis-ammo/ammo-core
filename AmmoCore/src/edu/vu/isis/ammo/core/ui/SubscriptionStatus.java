@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.core.ui;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +16,9 @@ import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
+import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.R.id;
+import edu.vu.isis.ammo.core.R.layout;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
 /**

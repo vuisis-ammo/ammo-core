@@ -11,49 +11,20 @@
 
 		<!-- ========== ACTIVITY SECTION ================= -->
 
-		<activity android:name=".MainActivity">
+		<activity android:name=".ui.GatewayActivity">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />
 				<category android:name="android.intent.category.LAUNCHER" />
 			</intent-filter>
 		</activity>
-
-		<activity android:name="CorePreferenceActivity">
-			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.Preference.LAUNCH" />
-				<category android:name="android.intent.category.DEFAULT" />
-			</intent-filter>
-		</activity>
-
-		<activity android:name=".DeliveryStatus">
-			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.DeliveryStatus.LAUNCH" />
-				<category android:name="android.intent.category.DEFAULT" />
-			</intent-filter>
-		</activity>
-
-		<activity android:name=".SubscriptionStatus">
-			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.SubscriptionStatus.LAUNCH" />
-				<category android:name="android.intent.category.DEFAULT" />
-			</intent-filter>
-		</activity>
-
-		<activity android:name=".Subscribe">
-			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.Subscribe.LAUNCH" />
-				<category android:name="android.intent.category.DEFAULT" />
-			</intent-filter>
-		</activity>
-
-
-		<activity android:name=".LoggingPreferences">
-			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.LoggingPreferences.LAUNCH" />
-				<category android:name="android.intent.category.DEFAULT" />
-			</intent-filter>
-		</activity>
-
+		
+		<activity android:name=".ui.LinkActivity"/>
+		<activity android:name=".ui.CorePreferenceActivity"/>
+		<activity android:name=".ui.DeliveryStatus"/>
+		<activity android:name=".ui.SubscriptionStatus"/>
+		<activity android:name=".ui.Subscribe"/>
+		<activity android:name=".ui.LoggingPreferences"/>
+		
         <activity android:name=".distributor.DistributorTableViewer">
             <intent-filter>
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorTableViewer.LAUNCH" />
@@ -61,7 +32,7 @@
             </intent-filter>
         </activity>
         
-                <activity android:name=".distributor.DistributorViewerSwitch">
+        <activity android:name=".distributor.DistributorViewerSwitch">
             <intent-filter>
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch.LAUNCH" />
                 <category android:name="android.intent.category.DEFAULT" />

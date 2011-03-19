@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.core.ui;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +9,8 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.preference.PreferenceManager;
 import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.core.OnNameChangeListener;
+import edu.vu.isis.ammo.core.OnStatusChangeListener;
 import edu.vu.isis.ammo.core.network.NetworkService;
 
 /**

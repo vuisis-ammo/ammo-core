@@ -24,10 +24,10 @@ import android.widget.AdapterView.AdapterContextMenuInfo;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.collector.provider.IncidentSchema.EventTableSchema;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.SubscriptionStatus;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.ui.SubscriptionStatus;
 
 public class DistributorTableViewer extends ListActivity implements
 		IAmmoActivitySetup {

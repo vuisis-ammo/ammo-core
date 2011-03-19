@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.core.ui;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +43,14 @@ import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
 import edu.vu.isis.ammo.IAmmoPreferenceChangedListener;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoPreference;
+import edu.vu.isis.ammo.core.OnNameChangeListener;
+import edu.vu.isis.ammo.core.OnStatusChangeListener;
+import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.R.color;
+import edu.vu.isis.ammo.core.R.drawable;
+import edu.vu.isis.ammo.core.R.id;
+import edu.vu.isis.ammo.core.R.layout;
+import edu.vu.isis.ammo.core.R.string;
 import edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch;
 import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
@@ -57,10 +65,10 @@ import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
  * @author phreed
  *
  */
-public class MainActivity extends Activity 
+public class LinkActivity extends Activity 
 implements OnClickListener, IAmmoPreferenceChangedListener
 {
-	public static final Logger logger = LoggerFactory.getLogger(MainActivity.class);
+	public static final Logger logger = LoggerFactory.getLogger(LinkActivity.class);
 	
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
 	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
@@ -79,6 +87,13 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	private List<Gateway> model = new ArrayList<Gateway>();
 	private GatewayAdapter adapter = null;
 	
+	// ===========================================================
+	// Views
+	// ===========================================================
+	
+	private ListView list;
+	private Button settingsButton;
+	
 	/**
 	 * @Cateogry Lifecycle
 	 */
@@ -90,9 +105,11 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 		ap = AmmoPreference.getInstance(this);
 		
 		// set view references
-		ListView list = (ListView)this.findViewById(R.id.gateway_list);
+		this.list = (ListView)this.findViewById(R.id.gateway_list);
 		this.adapter = new GatewayAdapter (this, model);
 		list.setAdapter(adapter);
+		
+		this.settingsButton = (Button)this.findViewById(R.id.settings_button);
 		
 		// set listeners
 		
@@ -196,6 +213,12 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	@Override
 	public void onClick(View view) {
 		logger.trace("::onClick");
+		
+		if (view.equals(this.settingsButton)) {
+			Intent settingIntent = new Intent();
+			settingIntent.setAction(CorePreferenceActivity.LAUNCH);
+			this.startActivity(settingIntent);
+		}
 		
 //		try {
 //			if (view.equals(this.cbWifi)) {
@@ -301,7 +324,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 				WifiInfo info = manager.getConnectionInfo();
 				logger.debug( "WifiInfo: " +  info.toString() );
 				boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
-				Editor editor = PreferenceManager.getDefaultSharedPreferences(MainActivity.this).edit();
+				Editor editor = PreferenceManager.getDefaultSharedPreferences(LinkActivity.this).edit();
 				// editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_CONNECTED, wifiConn);
 				editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_AVAILABLE, wifiConn);
 				// editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());		
@@ -338,7 +361,7 @@ implements OnClickListener, IAmmoPreferenceChangedListener
 	implements OnClickListener, OnFocusChangeListener, OnTouchListener, 
 		OnNameChangeListener, OnStatusChangeListener
 	{
-		GatewayAdapter(MainActivity parent, List<Gateway> model) {
+		GatewayAdapter(LinkActivity parent, List<Gateway> model) {
 			super(parent,
 					android.R.layout.simple_list_item_1,
 					model);
