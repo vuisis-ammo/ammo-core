@@ -96,11 +96,11 @@ public class GatewayActivity extends Activity
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		logger.trace("::onCreate");
-		this.setContentView(R.layout.main_activity);
+		this.setContentView(R.layout.gateway_activity);
 		
 		// set view references
 		this.list = (ListView)this.findViewById(R.id.gateway_list);
-		this.adapter = new GatewayAdapter (this, model);
+		this.adapter = new GatewayAdapter(this, model);
 		list.setAdapter(adapter);
 		
 		// set listeners
@@ -196,6 +196,14 @@ public class GatewayActivity extends Activity
 		this.startActivity(settingIntent);
 	}
 	
+	public void onNetlinkButtonClick(View view) {
+		logger.trace("::onClick");
+
+		Intent settingIntent = new Intent();
+		settingIntent.setClass(this, NetlinkActivity.class);
+		this.startActivity(settingIntent);
+	}
+	
 	// ===========================================================
 	// UI Management
 	// ===========================================================
@@ -280,7 +288,7 @@ public class GatewayActivity extends Activity
 				 logger.trace("::onClick");
 
 					Intent gatewayIntent = new Intent();
-					gatewayIntent.setClass(this.parent, LinkActivity.class);
+					gatewayIntent.setClass(this.parent, GatewayDetailActivity.class);
 					this.parent.startActivity(gatewayIntent);
 				 break;
 

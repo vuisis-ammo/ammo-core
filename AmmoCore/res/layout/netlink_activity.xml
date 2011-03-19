@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+   android:layout_width="fill_parent" 
+   android:layout_height="fill_parent"
+   android:background="@color/netlink_background">
+
+   <TextView android:id="@+id/netlink_label"
+      android:layout_alignParentTop="true" 
+      android:layout_width="fill_parent"
+      android:layout_height="wrap_content" 
+      android:textSize="20dip"
+      android:text="@string/netlink_title" 
+      android:textColor="@color/branding"
+      android:gravity="center" />
+
+   <TextView android:id="@+id/version_label"
+      android:layout_below="@id/netlink_label" 
+      android:layout_width="fill_parent"
+      android:layout_height="wrap_content"
+      android:gravity="center"
+      android:text="@string/ammo_version" 
+      android:textSize="8dip" />
+
+   <!--
+      remember widgets are created in the order presented the help text
+      needs to be added before the netlink_list
+   -->
+   
+   <TextView android:id="@+id/text_help"
+         android:layout_alignParentBottom="true" 
+         android:layout_centerInParent="true"
+         android:layout_width="wrap_content"
+         android:layout_height="wrap_content" 
+         android:gravity="center"
+         android:text="Tap 'menu' for settings" 
+         android:textSize="16dip" />
+   
+   <ImageButton android:id="@+id/settings_button"
+         android:layout_alignParentBottom="true" 
+         android:layout_alignParentRight="true"
+         android:src="@drawable/cog_32" 
+         android:layout_width="wrap_content" 
+         android:layout_height="wrap_content"
+         android:gravity="center" 
+         android:textSize="16dip" 
+         android:onClick="onSettingsButtonClick"/>
+               
+   <ImageButton android:id="@+id/gateway_button"
+         android:layout_alignParentBottom="true" 
+         android:layout_alignParentLeft="true"
+         android:src="@drawable/gateway_32" 
+         android:layout_width="wrap_content" 
+         android:layout_height="wrap_content"
+         android:gravity="center" 
+         android:textSize="16dip" 
+         android:onClick="onGatewayButtonClick"/>
+
+   <ListView android:id="@+id/netlink_list" 
+      android:layout_below="@id/version_label"
+      android:layout_above="@id/settings_button" 
+      android:layout_width="fill_parent"
+      android:layout_height="fill_parent" 
+      android:layout_weight="1" 
+      android:drawSelectorOnTop="false" />
+   
+
+</RelativeLayout>

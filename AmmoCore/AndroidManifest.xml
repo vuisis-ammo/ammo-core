@@ -17,8 +17,10 @@
 				<category android:name="android.intent.category.LAUNCHER" />
 			</intent-filter>
 		</activity>
+		<activity android:name=".ui.GatewayDetailActivity"/>
+		<activity android:name=".ui.NetlinkActivity"/>
+		<activity android:name=".ui.NetlinkDetailActivity"/>
 		
-		<activity android:name=".ui.LinkActivity"/>
 		<activity android:name=".ui.CorePreferenceActivity"/>
 		<activity android:name=".ui.DeliveryStatus"/>
 		<activity android:name=".ui.SubscriptionStatus"/>

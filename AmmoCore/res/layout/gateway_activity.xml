@@ -2,14 +2,15 @@
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="fill_parent" 
-	android:layout_height="fill_parent">
+	android:layout_height="fill_parent"
+	android:background="@color/gateway_background">
 
 	<TextView android:id="@+id/gateway_label"
 		android:layout_alignParentTop="true" 
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content" 
 		android:textSize="20dip"
-		android:text="AMMO Gateway List" 
+		android:text="@string/gateway_title" 
 		android:textColor="@color/branding"
 		android:gravity="center" />
 
@@ -44,22 +45,23 @@
 			android:gravity="center" 
 			android:textSize="16dip" 
 			android:onClick="onSettingsButtonClick"/>
+			
+	<ImageButton android:id="@+id/netlink_button"
+         android:layout_alignParentBottom="true" 
+         android:layout_alignParentLeft="true"
+         android:src="@drawable/netlink_32" 
+         android:layout_width="wrap_content" 
+         android:layout_height="wrap_content"
+         android:gravity="center" 
+         android:textSize="16dip" 
+         android:onClick="onNetlinkButtonClick"/>
 
 	<ListView android:id="@+id/gateway_list" 
 	   android:layout_below="@id/version_label"
 		android:layout_above="@id/settings_button" 
 		android:layout_width="fill_parent"
 		android:layout_height="fill_parent" 
-		android:background="@color/orange4"
 		android:layout_weight="1" 
 		android:drawSelectorOnTop="false" />
-	<!--
-		<ListView android:id="@+id/link_list"
-		android:layout_width="fill_parent" 
-		android:layout_height="fill_parent"
-		android:background="#000000" 
-		android:layout_weight="1"
-		android:drawSelectorOnTop="false"/>
-	-->
 
 </RelativeLayout>

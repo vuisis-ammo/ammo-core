@@ -13,4 +13,8 @@
 <string name="reconnect_button_label">Reconnect</string>
 
 <string name="view_tables_label">View Tables</string>
+
+<string name="netlink_title">AMMO NetLink List</string>
+<string name="gateway_title">AMMO Gateway List</string>
+
 </resources>
