@@ -58,15 +58,14 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	
 	// the formal name for this gateway, 
 	// in the case of a socket it is the "ip:<host ip>:<port>"
-	private String formal;
-	public void setFormal(String formal) { this.formal = formal; }
+	
 	private String host;
 	private int port;
 	public String getFormal() { 
-		
-		return this.formal; 
+		StringBuilder sb = new StringBuilder();
+		sb.append("ip:").append(this.host).append(":").append(this.port);
+		return sb.toString();
 	}
-	
 	
 	public static final int ACTIVE = 1;
 	public static final int INACTIVE = 2; // means not available
@@ -85,10 +84,11 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	private final SharedPreferences prefs;
 	Context context;
 	
-	private Gateway(Context context, String name, String formal) {
+	private Gateway(Context context, String name) {
 		this.context = context;
 		this.name = name;
-		this.formal = formal;
+		this.host = NetworkService.DEFAULT_GATEWAY_HOST;
+		this.port = NetworkService.DEFAULT_GATEWAY_PORT;
 		this.election = true;
 		this.status = INACTIVE;
 
@@ -98,12 +98,12 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	
 	public static Gateway getInstance(Context context) {
 		// initialize the gateway from the shared preferences
-		return new Gateway(context, "default", "ip:10.0.2.2:32869");
+		return new Gateway(context, "default");
 	}
 	
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(this.name).append(" = ").append(this.formal).append(" ").append(this.election);
+		sb.append(this.name).append(" = ").append(this.getFormal()).append(" ").append(this.election);
 		return sb.toString();
 	}
 
@@ -127,14 +127,16 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	 * When the status changes update the local variable and any user interface.
 	 */
 	@Override
-	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 		if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
+			if (this.nameView == null) return;
 			this.host = prefs.getString(INetPrefKeys.CORE_IP_ADDR, 
 					NetworkService.DEFAULT_GATEWAY_HOST);
 			this.nameListener.onFormalChange(this.nameView, this.getFormal());
 			return;
 		}
 		if (key.equals(INetPrefKeys.CORE_IP_PORT)) {
+			if (this.nameView == null) return;
 			this.port = Integer.valueOf(prefs.getString(INetPrefKeys.CORE_IP_PORT, 
 					String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
 			this.nameListener.onFormalChange(this.nameView, this.getFormal());

@@ -65,8 +65,7 @@ import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
  * @author phreed
  *
  */
-public class GatewayActivity extends Activity 
-implements OnClickListener
+public class GatewayActivity extends Activity
 {
 	public static final Logger logger = LoggerFactory.getLogger(GatewayActivity.class);
 	
@@ -80,15 +79,15 @@ implements OnClickListener
 	// Fields
 	// ===========================================================
 	
-	private List<Gateway> model = new ArrayList<Gateway>();
+	private final List<Gateway> model = new ArrayList<Gateway>();
 	private GatewayAdapter adapter = null;
+	
 	
 	// ===========================================================
 	// Views
 	// ===========================================================
 	
 	private ListView list;
-	private ImageButton settingsButton;
 	
 	/**
 	 * @Cateogry Lifecycle
@@ -104,8 +103,6 @@ implements OnClickListener
 		this.adapter = new GatewayAdapter (this, model);
 		list.setAdapter(adapter);
 		
-		this.settingsButton = (ImageButton)this.findViewById(R.id.settings_button);
-		
 		// set listeners
 		
 		// register receivers
@@ -117,6 +114,8 @@ implements OnClickListener
 		// let others know we are running
 		intent.setAction(StartUpReceiver.RESET);
 		this.sendBroadcast(intent);
+		
+		this.setGateway(Gateway.getInstance(this));
 	}
 	
 	public void setGateway(Gateway gw) {
@@ -127,7 +126,6 @@ implements OnClickListener
 	public void onStart() {
 		super.onStart();
 		logger.trace("::onStart");
-		this.setGateway(Gateway.getInstance(this));
 	}
 	
 	@Override
@@ -190,15 +188,12 @@ implements OnClickListener
 		logger.trace("::onDestroy");
 	}
 	
-	@Override
-	public void onClick(View view) {
+	public void onSettingsButtonClick(View view) {
 		logger.trace("::onClick");
-		
-		if (view.equals(this.settingsButton)) {
-			Intent settingIntent = new Intent();
-			settingIntent.setClass(this, CorePreferenceActivity.class);
-			this.startActivity(settingIntent);
-		}
+
+		Intent settingIntent = new Intent();
+		settingIntent.setClass(this, CorePreferenceActivity.class);
+		this.startActivity(settingIntent);
 	}
 	
 	// ===========================================================
@@ -240,13 +235,15 @@ implements OnClickListener
 	// ===========================================================
 	
 	private class GatewayAdapter extends ArrayAdapter<Gateway> 
-	implements OnClickListener, OnFocusChangeListener, OnTouchListener, 
+	implements OnTouchListener, 
 		OnNameChangeListener, OnStatusChangeListener
 	{
+		private final GatewayActivity parent;
 		GatewayAdapter(GatewayActivity parent, List<Gateway> model) {
 			super(parent,
 					android.R.layout.simple_list_item_1,
 					model);
+			this.parent = parent;
 		}
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
@@ -254,8 +251,6 @@ implements OnClickListener
 			if (row == null) {
 				LayoutInflater inflater = getLayoutInflater();
 				row = inflater.inflate(R.layout.gateway_item, null);
-				row.setOnClickListener(this);
-				row.setOnFocusChangeListener(this);
 				row.setOnTouchListener(this);
 			}
 			Gateway gw = model.get(position);
@@ -268,18 +263,6 @@ implements OnClickListener
 			gw.setOnStatusChangeListener(this, parent);
 			
 			return row;
-		}
-		@Override
-		public void onClick(View item) {
-			//item.setBackgroundColor(Color.GREEN);
-		}
-		@Override
-		public void onFocusChange(View item, boolean hasFocus) {
-			if (hasFocus) {
-			   item.setBackgroundColor(Color.RED);
-			} else {
-			   item.setBackgroundColor(Color.TRANSPARENT);
-			}
 		}
 		
 		 @Override
@@ -294,7 +277,11 @@ implements OnClickListener
 			 case MotionEvent.ACTION_DOWN:
 			 case MotionEvent.ACTION_MOVE:
 				 item.setBackgroundResource(R.drawable.select_gradient);
-				 //item.setBackgroundColor(Color.GREEN);
+				 logger.trace("::onClick");
+
+					Intent gatewayIntent = new Intent();
+					gatewayIntent.setClass(this.parent, LinkActivity.class);
+					this.parent.startActivity(gatewayIntent);
 				 break;
 
 			 default:

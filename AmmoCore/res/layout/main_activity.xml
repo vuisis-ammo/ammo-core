@@ -42,7 +42,8 @@
 			android:layout_width="wrap_content" 
 			android:layout_height="wrap_content"
 			android:gravity="center" 
-			android:textSize="16dip" />
+			android:textSize="16dip" 
+			android:onClick="onSettingsButtonClick"/>
 
 	<ListView android:id="@+id/gateway_list" 
 	   android:layout_below="@id/version_label"
