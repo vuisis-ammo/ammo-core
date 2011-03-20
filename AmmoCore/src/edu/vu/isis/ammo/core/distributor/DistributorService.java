@@ -203,8 +203,7 @@ public class DistributorService extends Service implements IDistributorService {
 
 		if (isNetworkServiceBound) return START_STICKY;
 		if (networkServiceBinder != null) return START_STICKY;
-		networkServiceIntent = new Intent(INetworkService.ACTION); // implicit
-		// networkServiceIntent = new Intent(DistributorService.this, NetworkService.class); // explicit
+		networkServiceIntent = new Intent(this, NetworkService.class); 
 		DistributorService.this.bindService(networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE);
 		return START_STICKY;
 	}

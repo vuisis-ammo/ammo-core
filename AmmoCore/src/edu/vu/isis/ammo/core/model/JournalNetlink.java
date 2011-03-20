@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.ammo.core.model;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,20 +10,29 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.core.MyCheckBoxPreference;
+import edu.vu.isis.ammo.core.R;
 
 
-public class WifiNetlink extends Netlink {
+public class JournalNetlink extends Netlink {
 	private WifiReceiver wifiReceiver;
-
-	private WifiNetlink(Context context, String type) {
+	
+	private JournalNetlink(Context context, String type) {
 		super(context, type);
 	}
 	
 	public static Netlink getInstance(Context context) {
 		// initialize the gateway from the shared preferences
-		return new Netlink(context, "Wifi Netlink");
+		return new Netlink(context, "Journal Netlink");
 	}
+	
+
+//	prefChannelJournal = (MyCheckBoxPreference) findPreference(INetPrefKeys.CORE_IS_JOURNALED);
+//	prefChannelJournal.setSummaryPrefix(res.getString(R.string.channel_journal_label));
+//	prefChannelJournal.setType(MyCheckBoxPreference.Type.JOURNAL);
+//	
 	/**
+	 * 
 	 * Each time we start this activity, we need to update the status message
 	 * for each connection since it may have changed since this activity was
 	 * last loaded.
@@ -37,11 +46,11 @@ public class WifiNetlink extends Netlink {
 		    public void run() {
 		    	logger.trace("WifiThread::run");
 		    	
-				WifiManager manager = (WifiManager)WifiNetlink.this.context.getSystemService(Context.WIFI_SERVICE);
+				WifiManager manager = (WifiManager)JournalNetlink.this.context.getSystemService(Context.WIFI_SERVICE);
 				WifiInfo info = manager.getConnectionInfo();
 				logger.debug( "WifiInfo: " +  info.toString() );
 				boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
-				Editor editor = PreferenceManager.getDefaultSharedPreferences(WifiNetlink.this.context).edit();
+				Editor editor = PreferenceManager.getDefaultSharedPreferences(JournalNetlink.this.context).edit();
 				// editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_CONNECTED, wifiConn);
 				editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_AVAILABLE, wifiConn);
 				// editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());		

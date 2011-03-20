@@ -36,7 +36,7 @@ import android.os.Looper;
  * @author phreed
  *
  */
-public class TcpChannel {
+public class TcpChannel implements INetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
 
 	private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
@@ -174,6 +174,9 @@ public class TcpChannel {
 			this.connectorThread.reset();
 		}
 	}
+	private void statusChange() {
+		driver.statusChange(this, this.connectorThread.state.value, this.senderThread.state, this.receiverThread.state);
+	}
 
 	/**
 	 * manages the connection.
@@ -219,13 +222,6 @@ public class TcpChannel {
 		private class State {
 			private int value;
 			private int actual;
-
-			static private final int CONNECTED     = 0; // the socket is good an active
-			static private final int CONNECTING    = 1; // trying to connect
-			static private final int DISCONNECTED  = 2; // the socket is disconnected
-			static private final int STALE         = 4; // indicating there is a message
-			static private final int LINK_WAIT     = 5; // indicating the underlying link is down 
-			static private final int EXCEPTION     = 6; // something really bad happened
 			
 			private long attempt; // used to uniquely name the connection
 			
@@ -269,23 +265,9 @@ public class TcpChannel {
 			
 			public String showState () {
 				if (this.value == this.actual)
-					return this.showStateAux(this.value);
+					return NetChannel.showState(this.value);
 				else
-					return this.showStateAux(this.actual) + "->" + this.showStateAux(this.actual);
-			}
-			public String showStateAux (int state)
-			{
-				switch (state)
-				{
-				case CONNECTED:     return "CONNECTED";
-				case CONNECTING:    return "CONNECTING";
-				case DISCONNECTED:  return "DISCONNECTED";
-				case STALE:         return "STALE";
-				case LINK_WAIT:     return "LINK_WAIT";
-				case EXCEPTION:     return "EXCEPTION";
-				default:
-					return "Undefined State";									
-				}
+					return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 			}
 		}
 		
@@ -331,29 +313,30 @@ public class TcpChannel {
 					logger.debug("state: {}",this.showState());
 
 					switch (this.state.get()) {
-					case State.STALE: 
+					case NetChannel.STALE: 
 						disconnect();
-						this.state.set(State.LINK_WAIT);
+						this.state.set(NetChannel.LINK_WAIT);
 						break;
 
-					case State.LINK_WAIT:
+					case NetChannel.LINK_WAIT:
 						if (isLinkUp()) {
-							this.state.set(State.DISCONNECTED);
+							this.state.set(NetChannel.DISCONNECTED);
 						} 
 						// on else wait for link to come up TODO triggered through broadcast receiver
 						break;
 
-					case State.DISCONNECTED:
+					case NetChannel.DISCONNECTED:
+						this.parent.statusChange();
 						if ( !this.connect() ) {
-							this.state.set(State.CONNECTING);
+							this.state.set(NetChannel.CONNECTING);
 						} else {
-							this.state.set(State.CONNECTED);
+							this.state.set(NetChannel.CONNECTED);
 						}
 						break;
 
-					case State.CONNECTING: // keep trying
+					case NetChannel.CONNECTING: // keep trying
 						if ( this.connect() ) {
-							this.state.set(State.CONNECTED);
+							this.state.set(NetChannel.CONNECTED);
 						} else {
 							try {
 								Thread.sleep(GATEWAY_RETRY_TIME);
@@ -365,9 +348,10 @@ public class TcpChannel {
 						}
 						break;
 
-					case State.CONNECTED:
+					case NetChannel.CONNECTED:
 						handler.auth();
 					default: {
+						this.parent.statusChange();
 						try {
 							synchronized (this.state) {
 								while (this.isConnected()) // this is IMPORTANT don't remove it.
@@ -375,20 +359,26 @@ public class TcpChannel {
 							}
 						} catch (InterruptedException ex) {
 							logger.info("connection intentionally disabled {}", this.state );
-							this.state.set(State.STALE);
+							this.state.set(NetChannel.STALE);
 							break MAINTAIN_CONNECTION;
 						}
+						this.parent.statusChange();
 					}
 					}
 				}
 
 			} catch (Exception ex) {
-				this.state.set(State.EXCEPTION); 
+				this.state.set(NetChannel.EXCEPTION); 
 			}
 			try {
+				if (this.parent.socket == null) {
+					logger.error("channel closing without active socket");
+					return;
+				}
 				this.parent.socket.close();
 			} catch (IOException ex) {
 				ex.printStackTrace();
+				logger.error("channel closing without proper socket");
 			}
 		}
 
@@ -479,30 +469,11 @@ public class TcpChannel {
 	public static class SenderThread extends Thread {
 		private static final Logger logger = LoggerFactory.getLogger(SenderThread.class);
 		
-		static private final int WAIT_CONNECT  = 1; // waiting for connection
-		static private final int SENDING       = 2; // indicating the next thing is the size
-		static private final int TAKING        = 3; // indicating the next thing is the size
-		static private final int INTERRUPTED   = 4; // the run was canceled via an interrupt
-		static private final int EXCEPTION     = 5; // the run failed by some unhandled exception
-		
 		public String showState () {
 			if (this.state == this.actual)
-				return this.showState(this.state);
+				return NetChannel.showState(this.state);
 			else
-				return this.showState(this.actual) + "->" + this.showState(this.actual);
-		}
-		private String showState (int state)
-		{
-			switch (state)
-			{
-			case WAIT_CONNECT:  return "WAIT_CONNECT";
-			case SENDING:       return "SENDING";
-			case TAKING:        return "TAKING";
-			case INTERRUPTED:   return "INTERRUPTED";
-			case EXCEPTION:     return "EXCEPTION";
-			default:
-				return "Undefined State";									
-			}
+				return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 		}
 		
 		volatile private int state;
@@ -571,7 +542,9 @@ public class TcpChannel {
 
 				while (true) {
 					logger.debug("state: {}",this.showState());
+					this.parent.statusChange();
 					this.actual = this.state;
+					
 					switch (state) {
 					case WAIT_CONNECT:
 						synchronized (this.connector.state) {
@@ -676,42 +649,13 @@ public class TcpChannel {
 		volatile private int state;
 		volatile private int actual;
 
-		static private final int SHUTDOWN        = 0; // the run is being stopped
-		static private final int START           = 1; // indicating the next thing is the size
-		static private final int RESTART         = 2; // indicating the next thing is the size
-		static private final int WAIT_CONNECT    = 3; // waiting for connection
-		static private final int WAIT_RECONNECT  = 4; // waiting for connection
-		static private final int STARTED         = 5; // indicating there is a message
-		static private final int SIZED           = 6; // indicating the next thing is a checksum
-		static private final int CHECKED         = 7; // indicating the bytes are being read
-		static private final int DELIVER         = 8; // indicating the message has been read
-		static private final int EXCEPTION       = 9; // the run failed by some unhandled exception
-		
 		public String showState () {
 			if (this.state == this.actual)
-				return this.showState(this.state);
+				return NetChannel.showState(this.state);
 			else
-				return this.showState(this.actual) + "->" + this.showState(this.actual);
+				return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 		}
-		private String showState (int state)
-		{
-			switch (state)
-			{
-			case SHUTDOWN:       return "SHUTDOWN";
-			case START:          return "START";
-			case RESTART:        return "RESTART";
-			case WAIT_CONNECT:   return "WAIT_CONNECT";
-			case WAIT_RECONNECT: return "WAIT_RECONNECT";
-			case STARTED:        return "STARTED";
-			case SIZED:          return "SIZED";
-			case CHECKED:        return "CHECKED";
-			case DELIVER:        return "DELIVER";
-			case EXCEPTION:      return "EXCEPTION";
-			default:
-				return "Undefined State "+String.valueOf(state);									
-			}
-		}
-
+		
 		private ReceiverThread(TcpChannel parent, INetworkService.OnReceiveMessageHandler handler ) {
 			logger.trace("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
@@ -768,6 +712,8 @@ public class TcpChannel {
 				long attempt = Long.MAX_VALUE;
 
 				while (true) {
+					this.parent.statusChange();
+					
 					switch (state) {
 					case WAIT_RECONNECT: break;
 					case RESTART: break;

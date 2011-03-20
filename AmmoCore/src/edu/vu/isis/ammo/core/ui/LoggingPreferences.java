@@ -17,7 +17,7 @@ import android.preference.PreferenceActivity;
  * @author phreed
  *
  */
-public class LoggingPreferences extends PreferenceActivity {
+public class LoggingPreferences extends PreferenceActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================

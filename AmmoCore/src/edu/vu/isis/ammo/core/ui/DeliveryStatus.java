@@ -3,7 +3,6 @@
  */
 package edu.vu.isis.ammo.core.ui;
 
-import android.app.Activity;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.view.View;
@@ -13,8 +12,6 @@ import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 import android.widget.AdapterView.OnItemClickListener;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.R.id;
-import edu.vu.isis.ammo.core.R.layout;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 
 /**
@@ -23,7 +20,7 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
  * 
  * @author phreed
  */
-public class DeliveryStatus extends Activity {
+public class DeliveryStatus extends ActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================

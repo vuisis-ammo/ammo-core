@@ -38,7 +38,7 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
  * @author phreed
  *
  */
-public class Subscribe extends Activity implements OnClickListener {
+public class Subscribe extends ActivityEx implements OnClickListener {
 	// ===========================================================
 	// Constants
 	// ===========================================================

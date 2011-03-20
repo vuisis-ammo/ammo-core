@@ -28,7 +28,7 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
  * 
  * @author phreed
  */
-public class SubscriptionStatus extends ListActivity {
+public class SubscriptionStatus extends ListActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================

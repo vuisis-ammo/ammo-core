@@ -52,6 +52,8 @@ import edu.vu.isis.ammo.core.R.id;
 import edu.vu.isis.ammo.core.R.layout;
 import edu.vu.isis.ammo.core.R.string;
 import edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch;
+import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 
@@ -65,7 +67,7 @@ import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
  * @author phreed
  *
  */
-public class GatewayActivity extends Activity
+public class GatewayActivity extends ActivityEx implements OnStatusChangeListener
 {
 	public static final Logger logger = LoggerFactory.getLogger(GatewayActivity.class);
 	
@@ -79,9 +81,8 @@ public class GatewayActivity extends Activity
 	// Fields
 	// ===========================================================
 	
-	private final List<Gateway> model = new ArrayList<Gateway>();
+	private List<Gateway> model = new ArrayList<Gateway>();
 	private GatewayAdapter adapter = null;
-	
 	
 	// ===========================================================
 	// Views
@@ -100,7 +101,7 @@ public class GatewayActivity extends Activity
 		
 		// set view references
 		this.list = (ListView)this.findViewById(R.id.gateway_list);
-		this.adapter = new GatewayAdapter(this, model);
+		this.adapter = new GatewayAdapter(this, this.model);
 		list.setAdapter(adapter);
 		
 		// set listeners
@@ -314,6 +315,19 @@ public class GatewayActivity extends Activity
 			}
 			return true;
 		}
+		@Override
+		public boolean onStatusChange(View view, int connStatus, int sendStatus, int recvStatus) {
+			if (connStatus == INetChannel.CONNECTED) {
+				this.onStatusChange(view, Gateway.ACTIVE);
+				return true;
+			}
+			if (connStatus == INetChannel.DISCONNECTED) {
+				this.onStatusChange(view, Gateway.INACTIVE);
+				return true;
+			}
+			this.onStatusChange(view, Gateway.DISABLED);
+			return false;
+		}
 		
 		@Override
 		public boolean onNameChange(View item, String name) {
@@ -327,6 +341,34 @@ public class GatewayActivity extends Activity
 			item.refreshDrawableState(); 
 			return false;
 		}
+		@Override
+		public boolean onStatusChange(String itemName, int connStatus, int sendStatus, int recvStatus) {
+			for (int ix=0; ix < this.parent.model.size(); ix++) {
+				Gateway item = this.parent.model.get(ix);
+				if (! item.getName().equalsIgnoreCase(itemName)) continue;
+				item.onStatusChanged(connStatus,  sendStatus,  recvStatus);
+				return true;
+			}
+			return false;
+		}
+	}
+
+	@Override
+	public boolean onStatusChange(View item, int status) {
+		this.adapter.onStatusChange(item, status);
+		return false;
+	}
+
+	@Override
+	public boolean onStatusChange(View item, int connStatus, int sendStatus, int recvStatus) {
+		this.adapter.onStatusChange(item, connStatus, sendStatus, recvStatus);
+		return false;
+	}
+
+	@Override
+	public boolean onStatusChange(String item, int connStatus, int sendStatus, int recvStatus) {
+		this.adapter.onStatusChange(item, connStatus, sendStatus, recvStatus);
+		return false;
 	}
 	
 }

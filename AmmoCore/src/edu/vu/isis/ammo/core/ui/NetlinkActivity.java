@@ -28,6 +28,10 @@ import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnStatusChangeListener;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.model.JournalNetlink;
+import edu.vu.isis.ammo.core.model.Netlink;
+import edu.vu.isis.ammo.core.model.WifiNetlink;
+import edu.vu.isis.ammo.core.model.WiredNetlink;
 
 /**
  * The principle activity for the ammo core application.
@@ -39,7 +43,7 @@ import edu.vu.isis.ammo.core.R;
  * @author phreed
  *
  */
-public class NetlinkActivity extends Activity {
+public class NetlinkActivity extends ActivityEx {
 	public static final Logger logger = LoggerFactory.getLogger(NetlinkActivity.class);
 	
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
@@ -242,6 +246,16 @@ public class NetlinkActivity extends Activity {
 				return false;
 			}
 			return true;
+		}
+		@Override
+		public boolean onStatusChange(View item, int connStatus,int sendStatus, int recvStatus) {
+			this.onStatusChange(item, connStatus);
+			return false;
+		}
+		@Override
+		public boolean onStatusChange(String itemName, int connStatus, int sendStatus, int recvStatus) {
+			// TODO Auto-generated method stub
+			return false;
 		}
 		
 	}

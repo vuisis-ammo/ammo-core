@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.ammo.core.model;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

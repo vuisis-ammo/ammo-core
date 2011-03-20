@@ -62,7 +62,7 @@ import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
  * @author phreed
  *
  */
-public class GatewayDetailActivity extends Activity
+public class GatewayDetailActivity extends ActivityEx
 {
 	public static final Logger logger = LoggerFactory.getLogger(GatewayDetailActivity.class);
 	

@@ -29,7 +29,7 @@ import android.os.Environment;
  * @author phreed
  *
  */
-public class JournalChannel {
+public class JournalChannel implements INetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(JournalChannel.class);
 	
 	private BlockingQueue<GwMessage> sendQueue = new LinkedBlockingQueue<GwMessage>(20);

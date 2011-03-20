@@ -4,6 +4,7 @@
 	android:versionName="1.0" android:sharedUserId="edu.vu.isis.ammo">
 
 	<application android:icon="@drawable/appl_icon"
+	   android:name="ApplicationEx"
 		android:label="@string/app_name" 
 		android:debuggable="true"
 		android:theme="@android:style/Theme.NoTitleBar">
@@ -120,8 +121,9 @@
 		<provider android:name=".provider.DistributorProvider"
 			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
 
-        <provider android:name=".provider.PreferenceProvider"
-            android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider"/>
+      <provider android:name=".provider.PreferenceProvider"
+         android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider"/>
+         
 	</application>
 
 	<uses-sdk android:minSdkVersion="8" />

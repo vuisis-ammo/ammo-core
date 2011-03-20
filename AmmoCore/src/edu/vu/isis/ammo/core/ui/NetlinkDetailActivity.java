@@ -15,7 +15,7 @@ import android.app.Activity;
  * @author phreed
  *
  */
-public class NetlinkDetailActivity extends Activity 
+public class NetlinkDetailActivity extends ActivityEx 
 {
 	public static final Logger logger = LoggerFactory.getLogger(NetlinkDetailActivity.class);
 	

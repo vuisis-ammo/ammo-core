@@ -3,6 +3,8 @@
  */
 package edu.vu.isis.ammo.core.network;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.CRC32;
@@ -27,6 +29,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
+import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -43,7 +46,8 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  */
 public class NetworkService extends Service 
 implements OnSharedPreferenceChangeListener, INetworkService, 
-	INetworkService.OnConnectHandler, INetworkService.OnSendMessageHandler, INetworkService.OnReceiveMessageHandler
+	INetworkService.OnConnectHandler, INetworkService.OnSendMessageHandler, 
+	INetworkService.OnReceiveMessageHandler, INetworkService.OnStatusChangeHandler
 {
 	// ===========================================================
 	// Constants
@@ -701,6 +705,22 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	    }
 
 	    return false;
+	}
+	
+	/**
+	 * Deal with the status of the connection changing.
+	 * Report the status to the application who acts as a broker.
+	 */
+	
+	@Override
+	public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
+		//this.callback.onStatusChanged(connStatus, sendStatus, recvStatus);
+		return false;
+	}
+	@Override
+	public void setGatewayStatusCallback(OnGatewayStatusChangeListener callback) {
+		// TODO Auto-generated method stub
+		
 	}
 	
 }

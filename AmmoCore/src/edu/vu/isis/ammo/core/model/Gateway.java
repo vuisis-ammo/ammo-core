@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.ammo.core.model;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +13,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.OnStatusChangeListener;
 import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.network.OnGatewayStatusChangeListener;
 
 /**
  * The Ammo core is responsible for distributing 
@@ -42,7 +43,7 @@ import edu.vu.isis.ammo.core.network.NetworkService;
  * 
  * @author phreed
  */
-public class Gateway implements OnSharedPreferenceChangeListener {
+public class Gateway implements OnSharedPreferenceChangeListener, OnGatewayStatusChangeListener {
 	public static final Logger logger = LoggerFactory.getLogger(Gateway.class);
 	// does the operator wish to use this gateway?
 	private boolean election; 
@@ -77,6 +78,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	public static final int ACTIVE = 1;
 	public static final int INACTIVE = 2; // means not available
 	public static final int DISABLED = 3; // means the election is false
+	
 	private int status;
 	
 	// determines if any of the gateway's designated links
@@ -94,14 +96,17 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	private Gateway(Context context, String name) {
 		this.context = context;
 		this.name = name;
-		this.host = NetworkService.DEFAULT_GATEWAY_HOST;
-		this.port = NetworkService.DEFAULT_GATEWAY_PORT;
-		this.election = true;
 		this.status = INACTIVE;
 
 		this.prefs = PreferenceManager.getDefaultSharedPreferences(this.context);
+		this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, NetworkService.DEFAULT_GATEWAY_HOST);
+		this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT, 
+				String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
+		this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
+		
 	    prefs.registerOnSharedPreferenceChangeListener(this);
 	}
+	
 	
 	public static Gateway getInstance(Context context) {
 		// initialize the gateway from the shared preferences
@@ -140,48 +145,31 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 		logger.trace("pref change: {}", key);
 		if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
 			if (this.nameView == null) return;
-			this.host = prefs.getString(INetPrefKeys.CORE_IP_ADDR, 
-					NetworkService.DEFAULT_GATEWAY_HOST);
+			this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, NetworkService.DEFAULT_GATEWAY_HOST);
 			this.nameListener.onFormalChange(this.nameView, this.getFormal());
 			return;
 		}
 		if (key.equals(INetPrefKeys.CORE_IP_PORT)) {
 			if (this.nameView == null) return;
-			this.port = Integer.valueOf(prefs.getString(INetPrefKeys.CORE_IP_PORT, 
+			this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT, 
 					String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
 			this.nameListener.onFormalChange(this.nameView, this.getFormal());
 			return;
 		}
-//		if (key.equals(INetPrefKeys.CORE_IS_JOURNALED)) {
-//			this.journalingSwitch = prefs.getBoolean(INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
-//			if (this.journalingSwitch)
-//				this.journalChannel.enable();
-//			else this.journalChannel.disable();
-//			return;
-//		}
-
-		// handle network connectivity group
-		if (key.equals(INetPrefKeys.WIRED_PREF_SHOULD_USE)) {
-		      //shouldUse(prefs);
-		}       
-		if (key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE)) {
-		      //shouldUse(prefs);
-		}
-		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
-			logger.warn("explicit opererator reset on channel");
-			this.statusListener.onStatusChange(this.statusView, this.status);
-			//this.networkingSwitch = true;
-			//this.tcpChannel.reset();
-		}
-
-		if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
-			long flatLineTime = Integer.valueOf(prefs.getString(INetPrefKeys.NET_CONN_FLAT_LINE_TIME, 
-					String.valueOf(NetworkService.DEFAULT_FLAT_LINE_TIME)));
-			//this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert from minutes to milliseconds
-		}
-
-
-		
 	}
 	
+	/**
+	 * When the network service detects changes in the gateway status he posts them here.
+	 * The post is a status vector.
+	 * In the current 
+	 */
+	@Override
+	public void onStatusChanged(int conn, int send, int recv) {
+		this.statusListener.onStatusChange(this.statusView, conn, send, recv);
+	}
+	
+	/**
+	 * Obtain a connection to the network service, passing a reference to self.
+	 * The network service will then make updates whenever the connection status changes.
+	 */
 }
