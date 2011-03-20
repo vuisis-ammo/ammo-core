@@ -84,11 +84,5 @@ public interface INetworkService {
 	 */
 	public void setDistributorServiceCallback(IDistributorService callback) ;
 	
-	/**
-	 * Update the status of the gateway connection.
-	 * 
-	 * @param callback
-	 */
-	public void setGatewayStatusCallback(OnGatewayStatusChangeListener callback) ;
 	
 }

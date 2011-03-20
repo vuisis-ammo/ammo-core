@@ -3,8 +3,6 @@
  */
 package edu.vu.isis.ammo.core.network;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.CRC32;
@@ -28,8 +26,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.core.ApplicationEx;
+import edu.vu.isis.ammo.core.ApplicationEx.GatewayState;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
-import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -119,6 +118,13 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	// ===========================================================
 	
 	private final IBinder binder = new MyBinder();
+
+	private ApplicationEx application;
+	private ApplicationEx getApplicationEx() {
+		if (this.application == null) 
+			this.application = (ApplicationEx)this.getApplication();
+		return this.application;
+	}
 	
 	public class MyBinder extends Binder {
 		public NetworkService getService() {
@@ -714,13 +720,8 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	
 	@Override
 	public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
-		//this.callback.onStatusChanged(connStatus, sendStatus, recvStatus);
+		this.getApplicationEx().setGatewayState(new GatewayState(connStatus, sendStatus, recvStatus));
 		return false;
-	}
-	@Override
-	public void setGatewayStatusCallback(OnGatewayStatusChangeListener callback) {
-		// TODO Auto-generated method stub
-		
 	}
 	
 }

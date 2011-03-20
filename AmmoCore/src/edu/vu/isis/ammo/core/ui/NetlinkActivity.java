@@ -233,18 +233,19 @@ public class NetlinkActivity extends ActivityEx {
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.netlink_status);
 			switch (status) {
 			case Netlink.ACTIVE: 
-				icon.setBackgroundColor(R.color.active); 
+				icon.setTextColor(R.color.status_active); 
 				break;
 			case Netlink.INACTIVE: 
-				icon.setBackgroundColor(R.color.inactive); 
+				icon.setTextColor(R.color.status_inactive); 
 				break;
 			case Netlink.DISABLED: 
-				icon.setBackgroundColor(R.color.disabled); 
+				icon.setTextColor(R.color.status_disabled); 
 				break;
 			default:
-				icon.setBackgroundColor(R.color.inactive); 
+				icon.setTextColor(R.color.status_inactive); 
 				return false;
 			}
+			item.refreshDrawableState(); 
 			return true;
 		}
 		@Override

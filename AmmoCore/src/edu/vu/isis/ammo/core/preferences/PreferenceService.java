@@ -8,6 +8,7 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
  * Leave this class in the project so we have an AIDL example for future reference.
@@ -35,7 +36,8 @@ public class PreferenceService extends Service {
 		
 		@Override
 		public String getDeviceId() throws RemoteException {
-			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString(INetPrefKeys.CORE_DEVICE_ID, "");
+			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString(INetPrefKeys.CORE_DEVICE_ID, 
+					UniqueIdentifiers.device(null));
 		}
 	};
 

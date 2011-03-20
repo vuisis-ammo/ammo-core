@@ -67,15 +67,26 @@ public class ApplicationEx  extends Application {
 		 return this.gatewayState; 
      }
 	 
-	 public void setGatewayState(GatewayState status) {
+	 /**
+	  * This is for more efficient inter task communication than intents.
+	  * The calling task may be on the ui thread or it may not, so runOnUiThread is needed.
+	  * 
+	  * @param status
+	  */
+	 public void setGatewayState(final GatewayState status) {
 		 this.gatewayState = status;
 		 if (this.currentActivity == null) return;
 		 if (!(this.currentActivity instanceof OnStatusChangeListener)) return;
-		 ((OnStatusChangeListener)this.currentActivity)
-		 	.onStatusChange("default", status.conn, status.send, status.recv);
+		 final OnStatusChangeListener scl = (OnStatusChangeListener)this.currentActivity;
+		 ((Activity)scl).runOnUiThread(new Runnable() {
+		    public void run() {
+		        scl.onStatusChange("default", status.conn, status.send, status.recv);
+		    }
+		 });	
 	 }
+	
 	 
-	 public class GatewayState {
+	 public static class GatewayState {
 		 int conn;
 		 int send;
 		 int recv;

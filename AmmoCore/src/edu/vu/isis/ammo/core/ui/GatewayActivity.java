@@ -13,6 +13,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
@@ -243,11 +244,13 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 		OnNameChangeListener, OnStatusChangeListener
 	{
 		private final GatewayActivity parent;
+		private final Resources res;
 		GatewayAdapter(GatewayActivity parent, List<Gateway> model) {
 			super(parent,
 					android.R.layout.simple_list_item_1,
 					model);
 			this.parent = parent;
+			this.res = this.parent.getResources();
 		}
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
@@ -299,20 +302,35 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 		public boolean onStatusChange(View item, int status) {
 			View row = item;
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
+			TextView text = (TextView)row.findViewById(R.id.gateway_status_text);
+			int color;
 			switch (status) {
-			case Gateway.ACTIVE: 
-				icon.setBackgroundColor(R.color.active); 
+			case Gateway.ACTIVE:
+				color = this.res.getColor(R.color.status_active);
+				icon.setBackgroundColor(color); 
+				text.setText(R.string.status_active);
+				text.setTextColor(color);
 				break;
 			case Gateway.INACTIVE: 
-				icon.setBackgroundColor(R.color.inactive); 
+				color = this.res.getColor(R.color.status_inactive);
+				icon.setBackgroundColor(color);
+				text.setText(R.string.status_inactive);
+				text.setTextColor(color);
 				break;
 			case Gateway.DISABLED: 
-				icon.setBackgroundColor(R.color.disabled); 
+				color = this.res.getColor(R.color.status_disabled);
+				icon.setBackgroundColor(color);
+				text.setText(R.string.status_disabled);
+				text.setTextColor(color);
 				break;
 			default:
-				icon.setBackgroundColor(R.color.inactive); 
+				color = this.res.getColor(R.color.status_disabled);
+				icon.setBackgroundColor(color); 
+				text.setText(R.string.status_disabled);
+				text.setTextColor(color);
 				return false;
 			}
+			item.refreshDrawableState(); 
 			return true;
 		}
 		@Override
