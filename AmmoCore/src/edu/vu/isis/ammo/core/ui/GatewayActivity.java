@@ -6,56 +6,29 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.app.Activity;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.SharedPreferences;
-import android.content.SharedPreferences.Editor;
 import android.content.res.Resources;
 import android.graphics.Color;
-import android.net.wifi.SupplicantState;
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.util.Log;
-import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.View.OnClickListener;
-import android.view.View.OnFocusChangeListener;
 import android.view.View.OnTouchListener;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.CheckBox;
-import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
-import edu.vu.isis.ammo.AmmoPreferenceChangedReceiver;
-import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
-import edu.vu.isis.ammo.IAmmoPreferenceChangedListener;
-import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.api.AmmoPreference;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
-import edu.vu.isis.ammo.core.OnStatusChangeListener;
+import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
+import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.R.color;
-import edu.vu.isis.ammo.core.R.drawable;
-import edu.vu.isis.ammo.core.R.id;
-import edu.vu.isis.ammo.core.R.layout;
-import edu.vu.isis.ammo.core.R.string;
 import edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.network.INetChannel;
-import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 
 /**
@@ -68,7 +41,7 @@ import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
  * @author phreed
  *
  */
-public class GatewayActivity extends ActivityEx implements OnStatusChangeListener
+public class GatewayActivity extends ActivityEx implements OnStatusChangeListenerByName
 {
 	public static final Logger logger = LoggerFactory.getLogger(GatewayActivity.class);
 	
@@ -240,8 +213,8 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	// ===========================================================
 	
 	private class GatewayAdapter extends ArrayAdapter<Gateway> 
-	implements OnTouchListener, 
-		OnNameChangeListener, OnStatusChangeListener
+	implements OnTouchListener, OnNameChangeListener, 
+	     OnStatusChangeListenerByView, OnStatusChangeListenerByName
 	{
 		private final GatewayActivity parent;
 		private final Resources res;
@@ -299,52 +272,33 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 			 return false;
          }
 		@Override
-		public boolean onStatusChange(View item, int status) {
+		public boolean onStatusChange(View item, int[] status) {
 			View row = item;
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
 			TextView text = (TextView)row.findViewById(R.id.gateway_status_text);
 			int color;
-			switch (status) {
-			case Gateway.ACTIVE:
+			switch (status[0]) {
+			case INetChannel.CONNECTED:
 				color = this.res.getColor(R.color.status_active);
-				icon.setBackgroundColor(color); 
+				icon.setTextColor(color); 
 				text.setText(R.string.status_active);
 				text.setTextColor(color);
 				break;
-			case Gateway.INACTIVE: 
+			case INetChannel.DISCONNECTED: 
 				color = this.res.getColor(R.color.status_inactive);
-				icon.setBackgroundColor(color);
+				icon.setTextColor(color);
 				text.setText(R.string.status_inactive);
-				text.setTextColor(color);
-				break;
-			case Gateway.DISABLED: 
-				color = this.res.getColor(R.color.status_disabled);
-				icon.setBackgroundColor(color);
-				text.setText(R.string.status_disabled);
 				text.setTextColor(color);
 				break;
 			default:
 				color = this.res.getColor(R.color.status_disabled);
-				icon.setBackgroundColor(color); 
+				icon.setTextColor(color); 
 				text.setText(R.string.status_disabled);
 				text.setTextColor(color);
 				return false;
 			}
 			item.refreshDrawableState(); 
 			return true;
-		}
-		@Override
-		public boolean onStatusChange(View view, int connStatus, int sendStatus, int recvStatus) {
-			if (connStatus == INetChannel.CONNECTED) {
-				this.onStatusChange(view, Gateway.ACTIVE);
-				return true;
-			}
-			if (connStatus == INetChannel.DISCONNECTED) {
-				this.onStatusChange(view, Gateway.INACTIVE);
-				return true;
-			}
-			this.onStatusChange(view, Gateway.DISABLED);
-			return false;
 		}
 		
 		@Override
@@ -360,11 +314,11 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 			return false;
 		}
 		@Override
-		public boolean onStatusChange(String itemName, int connStatus, int sendStatus, int recvStatus) {
+		public boolean onStatusChange(String itemName, int[] status) {
 			for (int ix=0; ix < this.parent.model.size(); ix++) {
 				Gateway item = this.parent.model.get(ix);
 				if (! item.getName().equalsIgnoreCase(itemName)) continue;
-				item.onStatusChanged(connStatus,  sendStatus,  recvStatus);
+				item.onStatusChanged(status[0],  status[1],  status[2]);
 				return true;
 			}
 			return false;
@@ -372,21 +326,9 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	}
 
 	@Override
-	public boolean onStatusChange(View item, int status) {
+	public boolean onStatusChange(String item, int[] status) {
 		this.adapter.onStatusChange(item, status);
-		return false;
-	}
-
-	@Override
-	public boolean onStatusChange(View item, int connStatus, int sendStatus, int recvStatus) {
-		this.adapter.onStatusChange(item, connStatus, sendStatus, recvStatus);
-		return false;
-	}
-
-	@Override
-	public boolean onStatusChange(String item, int connStatus, int sendStatus, int recvStatus) {
-		this.adapter.onStatusChange(item, connStatus, sendStatus, recvStatus);
-		return false;
+		return true;
 	}
 	
 }

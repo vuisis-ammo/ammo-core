@@ -76,11 +76,11 @@ public class ApplicationEx  extends Application {
 	 public void setGatewayState(final GatewayState status) {
 		 this.gatewayState = status;
 		 if (this.currentActivity == null) return;
-		 if (!(this.currentActivity instanceof OnStatusChangeListener)) return;
-		 final OnStatusChangeListener scl = (OnStatusChangeListener)this.currentActivity;
+		 if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;
+		 final OnStatusChangeListenerByName scl = (OnStatusChangeListenerByName)this.currentActivity;
 		 ((Activity)scl).runOnUiThread(new Runnable() {
 		    public void run() {
-		        scl.onStatusChange("default", status.conn, status.send, status.recv);
+		        scl.onStatusChange("default", new int[]{status.conn, status.send, status.recv});
 		    }
 		 });	
 	 }

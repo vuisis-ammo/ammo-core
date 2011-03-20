@@ -26,7 +26,7 @@ import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
-import edu.vu.isis.ammo.core.OnStatusChangeListener;
+import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.model.JournalNetlink;
 import edu.vu.isis.ammo.core.model.Netlink;
@@ -166,7 +166,7 @@ public class NetlinkActivity extends ActivityEx {
 	
 	private class LinksAdapter extends ArrayAdapter<Netlink> 
 	implements OnClickListener, OnFocusChangeListener, OnTouchListener, 
-		OnStatusChangeListener
+		OnStatusChangeListenerByView
 	{
 		LinksAdapter(NetlinkActivity parent, List<Netlink> model) {
 			super(parent,
@@ -228,10 +228,10 @@ public class NetlinkActivity extends ActivityEx {
 			 return false;
          }
 		@Override
-		public boolean onStatusChange(View item, int status) {
+		public boolean onStatusChange(View item, int[] status) {
 			View row = item;
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.netlink_status);
-			switch (status) {
+			switch (status[0]) {
 			case Netlink.ACTIVE: 
 				icon.setTextColor(R.color.status_active); 
 				break;
@@ -247,16 +247,6 @@ public class NetlinkActivity extends ActivityEx {
 			}
 			item.refreshDrawableState(); 
 			return true;
-		}
-		@Override
-		public boolean onStatusChange(View item, int connStatus,int sendStatus, int recvStatus) {
-			this.onStatusChange(item, connStatus);
-			return false;
-		}
-		@Override
-		public boolean onStatusChange(String itemName, int connStatus, int sendStatus, int recvStatus) {
-			// TODO Auto-generated method stub
-			return false;
 		}
 		
 	}

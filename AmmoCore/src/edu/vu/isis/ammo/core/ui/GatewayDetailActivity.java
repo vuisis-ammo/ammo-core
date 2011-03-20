@@ -44,7 +44,7 @@ import edu.vu.isis.ammo.IAmmoPreferenceChangedListener;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoPreference;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
-import edu.vu.isis.ammo.core.OnStatusChangeListener;
+import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.R.color;
 import edu.vu.isis.ammo.core.R.drawable;

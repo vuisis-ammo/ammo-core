@@ -11,9 +11,8 @@ import android.preference.PreferenceManager;
 import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
-import edu.vu.isis.ammo.core.OnStatusChangeListener;
+import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.network.OnGatewayStatusChangeListener;
 
 /**
  * The Ammo core is responsible for distributing 
@@ -43,7 +42,7 @@ import edu.vu.isis.ammo.core.network.OnGatewayStatusChangeListener;
  * 
  * @author phreed
  */
-public class Gateway implements OnSharedPreferenceChangeListener, OnGatewayStatusChangeListener {
+public class Gateway implements OnSharedPreferenceChangeListener {
 	public static final Logger logger = LoggerFactory.getLogger(Gateway.class);
 	// does the operator wish to use this gateway?
 	private boolean election; 
@@ -119,10 +118,10 @@ public class Gateway implements OnSharedPreferenceChangeListener, OnGatewayStatu
 		return sb.toString();
 	}
 
-	private OnStatusChangeListener statusListener;
+	private OnStatusChangeListenerByView statusListener;
 	private View statusView;
 	
-	public void setOnStatusChangeListener(OnStatusChangeListener listener, View view) {
+	public void setOnStatusChangeListener(OnStatusChangeListenerByView listener, View view) {
 		logger.trace("set on status change listener");
 		this.statusListener = listener;
 		this.statusView = view;
@@ -163,13 +162,8 @@ public class Gateway implements OnSharedPreferenceChangeListener, OnGatewayStatu
 	 * The post is a status vector.
 	 * In the current 
 	 */
-	@Override
 	public void onStatusChanged(int conn, int send, int recv) {
-		this.statusListener.onStatusChange(this.statusView, conn, send, recv);
+		this.statusListener.onStatusChange(this.statusView, new int[] { conn, send, recv} );
 	}
 	
-	/**
-	 * Obtain a connection to the network service, passing a reference to self.
-	 * The network service will then make updates whenever the connection status changes.
-	 */
 }

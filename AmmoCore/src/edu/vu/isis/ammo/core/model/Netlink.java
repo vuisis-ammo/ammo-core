@@ -9,7 +9,7 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.preference.PreferenceManager;
 import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.OnStatusChangeListener;
+import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.network.NetworkService;
 
 public class Netlink implements OnSharedPreferenceChangeListener {
@@ -72,10 +72,10 @@ public class Netlink implements OnSharedPreferenceChangeListener {
 		return sb.toString();
 	}
 
-	private OnStatusChangeListener statusListener;
+	private OnStatusChangeListenerByView statusListener;
 	private View statusView;
 	
-	public void setOnStatusChangeListener(OnStatusChangeListener listener, View view) {
+	public void setOnStatusChangeListener(OnStatusChangeListenerByView listener, View view) {
 		this.statusListener = listener;
 		this.statusView = view;
 	}
@@ -103,7 +103,7 @@ public class Netlink implements OnSharedPreferenceChangeListener {
 		}
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
 			logger.warn("explicit opererator reset on channel");
-			this.statusListener.onStatusChange(this.statusView, this.status);
+			// this.statusListener.onStatusChange(this.statusView, this.status);
 			//this.networkingSwitch = true;
 			//this.tcpChannel.reset();
 		}
