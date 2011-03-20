@@ -188,6 +188,11 @@ public class GatewayActivity extends Activity
 		logger.trace("::onDestroy");
 	}
 	
+
+	// ===========================================================
+	// UI Management
+	// ===========================================================
+	
 	public void onSettingsButtonClick(View view) {
 		logger.trace("::onClick");
 
@@ -204,39 +209,29 @@ public class GatewayActivity extends Activity
 		this.startActivity(settingIntent);
 	}
 	
-	// ===========================================================
-	// UI Management
-	// ===========================================================
-	
-	/**
-	 * Tell our text views to 
-	 * update since network status has changed.
-	 */
-	public void updateConnectionStatusThread(final AmmoPreference ap) {
-		logger.trace("::updateConnectionStatusThread");
-		
-		this.runOnUiThread(new Runnable() {
-			@Override
-			public void run() {
-				updateConnectionStatus(ap);
-			}
-		});
-		return;
-	}
-	
-	public void updateConnectionStatus(AmmoPreference ap) {
-		logger.trace("::updateConnectionStatus");
-		
-		//tvWired.notifyNetworkStatusChanged(ap, INetPrefKeys.WIRED_PREF);
-		//tvWifi.notifyNetworkStatusChanged(ap, INetPrefKeys.WIFI_PREF);
-		
-		boolean isConnected = ap.getBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, false);
-		if (isConnected) {
-			//tvConnectionStatus.setText("Gateway connected");
-		} else {
-			//tvConnectionStatus.setText("Gateway not connected");
-		}
-	}
+	public void onGatewayElectionToggle(View view) {
+        //reset all rows
+//        for (int ix=0; ix < this.list.getChildCount(); ix++) 
+//        {
+//        	View row = this.list.getChildAt(ix);
+//            row.setBackgroundColor(Color.BLUE);        
+//        }
+        
+        int position = this.list.getPositionForView(view);
+        Gateway gw = (Gateway) this.adapter.getItem(position);
+        
+        // get the button's row
+        RelativeLayout row = (RelativeLayout)view.getParent();
+        ToggleButton button = (ToggleButton)view;
+        
+        if (button.isChecked()) gw.enable(); else gw.enable();
+       
+        // button.setText("I've been clicked!");
+        //int color = Color.CYAN;
+        
+        //row.setBackgroundColor(color); 
+        row.refreshDrawableState();       
+    }
 
 	// ===========================================================
 	// Inner Classes
@@ -268,6 +263,7 @@ public class GatewayActivity extends Activity
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
 			// set button icon
 			icon.setChecked(gw.isEnabled());
+			gw.setOnNameChangeListener(this, parent);
 			gw.setOnStatusChangeListener(this, parent);
 			
 			return row;
@@ -322,11 +318,13 @@ public class GatewayActivity extends Activity
 		@Override
 		public boolean onNameChange(View item, String name) {
 			((TextView)item.findViewById(R.id.gateway_name)).setText(name);
+			item.refreshDrawableState(); 
 			return false;
 		}
 		@Override
 		public boolean onFormalChange(View item, String formal) {
 			((TextView)item.findViewById(R.id.gateway_formal)).setText(formal);
+			item.refreshDrawableState(); 
 			return false;
 		}
 	}

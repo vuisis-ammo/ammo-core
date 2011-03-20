@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.preference.PreferenceManager;
 import android.view.View;
@@ -46,9 +47,15 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	// does the operator wish to use this gateway?
 	private boolean election; 
 	
-	public void enable() { this.election = true; }
-	public void disable() { this.election = false; }
-	public void toggle() { this.election = !(this.election); }
+	private void setElection(boolean pred) { 
+		this.election = pred; 
+		Editor editor = this.prefs.edit();
+		editor.putBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, this.election);
+		editor.commit();
+	}
+	public void enable() { this.setElection(true); }
+	public void disable() { this.setElection(false); }
+	public void toggle() { this.setElection(!this.election); }
 	public boolean isEnabled() { return this.election; }
 	
 	// the user selected familiar name 
@@ -111,6 +118,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	private View statusView;
 	
 	public void setOnStatusChangeListener(OnStatusChangeListener listener, View view) {
+		logger.trace("set on status change listener");
 		this.statusListener = listener;
 		this.statusView = view;
 	}
@@ -119,6 +127,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	private View nameView;
 	
 	public void setOnNameChangeListener(OnNameChangeListener listener, View view) {
+		logger.trace("set on name change listener");
 		this.nameListener = listener;
 		this.nameView = view;
 	}
@@ -128,6 +137,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+		logger.trace("pref change: {}", key);
 		if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
 			if (this.nameView == null) return;
 			this.host = prefs.getString(INetPrefKeys.CORE_IP_ADDR, 
