@@ -4,31 +4,40 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.core.ui.ActivityEx;
 
 
 public class WifiNetlink extends Netlink {
 	private WifiReceiver wifiReceiver;
 
-	private WifiNetlink(Context context, String type) {
+	private WifiNetlink(ActivityEx context, String type) {
 		super(context, type);
 	}
 	
-	public static Netlink getInstance(Context context) {
+	public static Netlink getInstance(ActivityEx context) {
 		// initialize the gateway from the shared preferences
-		return new Netlink(context, "Wifi Netlink");
+		return new WifiNetlink(context, "Wired Netlink");
 	}
+	
+	@Override
+	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+		if (key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE)) {
+		      //shouldUse(prefs);
+		}
+	}
+	
 	/**
 	 * Each time we start this activity, we need to update the status message
 	 * for each connection since it may have changed since this activity was
 	 * last loaded.
 	 * 
-	 * TODO: Clean this up.
 	 */
 	public void setWifiStatus() {
 		logger.trace("::setWifiStatus");
@@ -51,7 +60,6 @@ public class WifiNetlink extends Netlink {
 		wifiThread.start();
 	}
 	
-	// =======
 	// ===========================================================
 	// UI Management
 	// ===========================================================
@@ -66,10 +74,7 @@ public class WifiNetlink extends Netlink {
 		this.registerReceiver(this.wifiReceiver, wifiFilter);
 	}
 	
-	private void registerReceiver(WifiReceiver wifiReceiver2,
-			IntentFilter wifiFilter) {
-		// TODO Auto-generated method stub
-		
+	private void registerReceiver(WifiReceiver wifiReceiver2, IntentFilter wifiFilter) {
 	}
 
 	// ===========================================================
@@ -79,9 +84,8 @@ public class WifiNetlink extends Netlink {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			logger.trace("WifiReceiver::onReceive");
-		    // updateConnectionStatus(prefs);
 		    setWifiStatus();
 		}
 	}
-	
+
 }

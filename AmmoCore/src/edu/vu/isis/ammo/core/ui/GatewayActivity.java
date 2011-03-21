@@ -317,7 +317,7 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 			for (int ix=0; ix < this.parent.model.size(); ix++) {
 				Gateway item = this.parent.model.get(ix);
 				if (! item.getName().equalsIgnoreCase(itemName)) continue;
-				item.onStatusChanged(status[0],  status[1],  status[2]);
+				item.onStatusChanged(status);
 				return true;
 			}
 			return false;

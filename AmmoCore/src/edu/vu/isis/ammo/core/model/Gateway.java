@@ -3,7 +3,6 @@ package edu.vu.isis.ammo.core.model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
@@ -76,21 +75,6 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 		return sb.toString();
 	}
 	
-	public static final int ACTIVE = 1;
-	public static final int INACTIVE = 2; // means not available
-	public static final int DISABLED = 3; // means the election is false
-	
-	private int status;
-	
-	// determines if any of the gateway's designated links
-	// are functioning.
-	public boolean hasLink() { return (this.status == ACTIVE); }
-	
-	// determines if any of the gateway is connected
-	public boolean isConnected() { return (this.status == ACTIVE); }
-	
-	public int getStatus() { return this.status; }
-	
 	private final SharedPreferences prefs;
 	private ActivityEx context;
 	private ApplicationEx application;
@@ -98,7 +82,6 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	private Gateway(ActivityEx context, String name) {
 		this.context = context;
 		this.name = name;
-		this.status = INACTIVE;
 
 		this.prefs = PreferenceManager.getDefaultSharedPreferences(this.context);
 		this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, NetworkService.DEFAULT_GATEWAY_HOST);
@@ -130,6 +113,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 		this.statusListener = listener;
 		this.statusView = view;
 
+		// initialize the status indicators
 		this.statusListener.onStatusChange(this.statusView, this.application.getGatewayState() );
 	}
 	
@@ -163,13 +147,8 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 		}
 	}
 	
-	/**
-	 * When the network service detects changes in the gateway status he posts them here.
-	 * The post is a status vector.
-	 * In the current 
-	 */
-	public void onStatusChanged(int conn, int send, int recv) {
-		this.statusListener.onStatusChange(this.statusView, new int[] { conn, send, recv} );
+	public void onStatusChanged(int[] status) {
+		this.statusListener.onStatusChange(this.statusView, status );
 	}
 	
 }

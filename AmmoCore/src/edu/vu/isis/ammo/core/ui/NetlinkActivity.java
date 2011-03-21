@@ -53,7 +53,7 @@ public class NetlinkActivity extends ActivityEx {
 	// ===========================================================
 	
 	private List<Netlink> model = new ArrayList<Netlink>();
-	private LinksAdapter adapter = null;
+	private NetlinkAdapter adapter = null;
 	
 	// ===========================================================
 	// Views
@@ -72,7 +72,7 @@ public class NetlinkActivity extends ActivityEx {
 		
 		// set view references
 		this.list = (ListView)this.findViewById(R.id.netlink_list);
-		this.adapter = new LinksAdapter(this, model);
+		this.adapter = new NetlinkAdapter(this, model);
 		list.setAdapter(adapter);
 		
 		// set listeners
@@ -164,11 +164,11 @@ public class NetlinkActivity extends ActivityEx {
 	// UI Management
 	// ===========================================================
 	
-	private class LinksAdapter extends ArrayAdapter<Netlink> 
+	private class NetlinkAdapter extends ArrayAdapter<Netlink> 
 	implements OnClickListener, OnFocusChangeListener, OnTouchListener, 
 		OnStatusChangeListenerByView
 	{
-		LinksAdapter(NetlinkActivity parent, List<Netlink> model) {
+		NetlinkAdapter(NetlinkActivity parent, List<Netlink> model) {
 			super(parent,
 					android.R.layout.simple_list_item_1,
 					model);
