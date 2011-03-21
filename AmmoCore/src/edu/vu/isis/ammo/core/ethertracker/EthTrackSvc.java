@@ -36,7 +36,9 @@ public class EthTrackSvc extends ServiceEx {
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		logger.debug("::onStartCommand with intent {}", intent.getAction());
 		handleCommand();
-
+		
+		this.application.setWiredState(WIRED_NETLINK_DOWN);
+		
 		// We want this service to continue running until it is explicitly
 		// stopped, so return sticky.
 		return START_STICKY;
@@ -114,7 +116,7 @@ public class EthTrackSvc extends ServiceEx {
 			this.application.setWiredState(WIRED_NETLINK_UP);
 		} else if (msg.indexOf("Down") > 0) {
 			broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
-			this.application.setWiredState(WIRED_NETLINK_UP);
+			this.application.setWiredState(WIRED_NETLINK_DOWN);
 		}
 		this.sendBroadcast(broadcastIntent);
 		

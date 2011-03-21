@@ -283,23 +283,20 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 			switch (status[0]) {
 			case INetChannel.CONNECTED:
 				color = this.res.getColor(R.color.status_active);
-				icon.setTextColor(color); 
 				text.setText(R.string.status_active);
-				text.setTextColor(color);
 				break;
 			case INetChannel.DISCONNECTED: 
 				color = this.res.getColor(R.color.status_inactive);
-				icon.setTextColor(color);
 				text.setText(R.string.status_inactive);
-				text.setTextColor(color);
 				break;
 			default:
 				color = this.res.getColor(R.color.status_disabled);
-				icon.setTextColor(color); 
 				text.setText(R.string.status_disabled);
-				text.setTextColor(color);
 				return false;
 			}
+			if (icon != null) icon.setTextColor(color); 
+			if (text != null) text.setTextColor(color);
+			
 			item.refreshDrawableState(); 
 			return true;
 		}

@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import edu.vu.isis.ammo.core.distributor.DistributorService;
+import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
 public class StartUpReceiver extends BroadcastReceiver {
 
@@ -30,5 +31,9 @@ public class StartUpReceiver extends BroadcastReceiver {
 		logger.debug("::onReceive");
 		context.startService(DistributorService.LAUNCH);
 		// context.startService(NetworkService.LAUNCH);
+		
+		Intent svc = new Intent();
+		svc.setClass(context, EthTrackSvc.class);  // explicit start
+        context.startService(svc);
 	}
 }

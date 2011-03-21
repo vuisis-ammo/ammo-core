@@ -196,9 +196,14 @@ public class DistributorService extends Service implements IDistributorService {
 		// If we get this intent, unbind from all services 
 		// so the service can be stopped.
 		callback = this;
-		if (intent != null && intent.getAction().equals(DistributorService.PREPARE_FOR_STOP)) {
-			this.teardownService();
-			return START_NOT_STICKY;
+		if (intent != null) {
+			String action = intent.getAction();
+			if (action != null) {
+				if (action.equals(DistributorService.PREPARE_FOR_STOP)) {
+					this.teardownService();
+					return START_NOT_STICKY;
+				}
+			}
 		}
 
 		if (isNetworkServiceBound) return START_STICKY;

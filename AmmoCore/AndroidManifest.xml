@@ -57,19 +57,14 @@
 
         <receiver android:name=".receiver.StartUpReceiver">
             <intent-filter>
-                <action android:name="edu.vu.isis.ammo.action.RESET" />
-            </intent-filter>
-        </receiver>
-
-        <receiver android:name=".ethertracker.EthrTrckrStartupReceiver">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.ACTION_USER_PRESENT" />
+                <action android:name="edu.vu.isis.ammo.action.RESET" />
                 <category android:name="android.intent.category.HOME" />
             </intent-filter>
         </receiver>
 
-      <!-- ========== SERVICE SECTION ================= -->
+   <!-- ========== SERVICE SECTION ================= -->
         <!-- 
          Services are started by the .receiver.StartUpReceiver
          should android:persistent be used?

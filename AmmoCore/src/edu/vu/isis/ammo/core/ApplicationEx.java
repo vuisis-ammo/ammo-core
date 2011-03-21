@@ -14,11 +14,14 @@ import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.distributor.DistributorService;
+import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 import edu.vu.isis.ammo.core.ui.GatewayActivity;
 import edu.vu.isis.ammo.core.ui.NetlinkActivity;
 
 import android.app.Activity;
 import android.app.Application;
+import android.content.Intent;
 import android.os.Environment;
 
 public class ApplicationEx  extends Application {
@@ -37,7 +40,17 @@ public class ApplicationEx  extends Application {
 	@Override
 	public final void onCreate() {
 		super.onCreate();
+		logger.debug("::onCreate");
 		singleton = this;
+		
+		Intent svc = new Intent();
+		
+		svc.setClass(this, DistributorService.class);
+		this.startService(svc);
+		// context.startService(NetworkService.LAUNCH);
+		
+		svc.setClass(this, EthTrackSvc.class);
+        this.startService(svc);
 	}
 	
 	/**

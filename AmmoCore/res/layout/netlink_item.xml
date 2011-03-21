@@ -8,9 +8,11 @@
    <ToggleButton android:id="@+id/netlink_status"
       android:layout_alignParentLeft="true" 
       android:layout_width="wrap_content"
-      android:text="Status" android:textOn="ON" 
+      android:text="Status" 
+      android:textOn="ON" 
       android:textOff="OFF"
-      android:layout_height="wrap_content" />
+      android:layout_height="wrap_content" 
+      android:visibility="invisible"/>
 
    <TextView android:id="@+id/netlink_name" 
       android:layout_width="wrap_content"
