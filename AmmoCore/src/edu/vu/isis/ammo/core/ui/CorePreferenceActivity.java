@@ -1,19 +1,13 @@
 package edu.vu.isis.ammo.core.ui;
 
-import android.content.Context;
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.preference.PreferenceActivity;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
-import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.MyCheckBoxPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference;
 import edu.vu.isis.ammo.core.MyEditTextPreference;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.MyEditIntegerPreference.Type;
-import edu.vu.isis.ammo.core.R.layout;
-import edu.vu.isis.ammo.core.R.string;
 
 /**
  * View and change the core application preferences.

@@ -279,6 +279,14 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
 			TextView text = (TextView)row.findViewById(R.id.gateway_status_text);
 			int color;
+			if (text == null) {
+				logger.error("text field is null");
+				return false;
+			}
+			if (icon == null) {
+				logger.error("icon field is null");
+				return false;
+			}
 			
 			switch (status[0]) {
 			case INetChannel.CONNECTED:
@@ -294,8 +302,8 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 				text.setText(R.string.status_disabled);
 				return false;
 			}
-			if (icon != null) icon.setTextColor(color); 
-			if (text != null) text.setTextColor(color);
+			icon.setTextColor(color); 
+			text.setTextColor(color);
 			
 			item.refreshDrawableState(); 
 			return true;

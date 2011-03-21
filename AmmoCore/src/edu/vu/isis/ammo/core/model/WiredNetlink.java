@@ -28,7 +28,7 @@ public class WiredNetlink extends Netlink {
 	public void setOnStatusChangeListener(OnStatusChangeListenerByView listener, View view) {
 		super.setOnStatusChangeListener(listener, view);
 		// initialize the status indicators
-		this.statusListener.onStatusChange(this.statusView, this.application.getNetlinkState() );
+		this.statusListener.onStatusChange(this.statusView, this.application.getWiredNetlinkState() );
 	}
 
 }

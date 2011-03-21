@@ -241,6 +241,14 @@ public class NetlinkActivity extends ActivityEx {
 			View row = item;
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.netlink_status);
 			TextView text = (TextView)row.findViewById(R.id.netlink_status_text);
+			if (text == null) {
+				logger.error("text field is null");
+				return false;
+			}
+			if (icon == null) {
+				logger.error("icon field is null");
+				return false;
+			}
 			int color;
 			
 			switch (status[0]) {
