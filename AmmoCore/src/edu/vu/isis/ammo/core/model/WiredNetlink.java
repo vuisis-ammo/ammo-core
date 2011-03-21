@@ -10,13 +10,13 @@ import android.view.View;
 
 public class WiredNetlink extends Netlink {
 
-	private WiredNetlink(TabActivityEx context, String type) {
-		super(context, type);
+	private WiredNetlink(TabActivityEx context) {
+		super(context, "Wired Netlink", "wired");
 	}
 	
 	public static Netlink getInstance(TabActivityEx context) {
 		// initialize the gateway from the shared preferences
-		return new WiredNetlink(context, "Wired Netlink");
+		return new WiredNetlink(context);
 	}
 
 	@Override

@@ -38,15 +38,19 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	public boolean isEnabled() { return this.election; }
 	
 	// the user selected familiar name 
-	private String type; 
+	private final String name; 
+	public String getName() { return this.name; }
+	
+	private final String type; 
 	public String getType() { return this.type; }
 	
 	protected final SharedPreferences prefs;
 	protected TabActivityEx context;
 	protected ApplicationEx application;
 	
-	protected Netlink(TabActivityEx context, String type) {
+	protected Netlink(TabActivityEx context, String name, String type) {
 		this.context = context;
+		this.name = name;
 		this.type = type;
 		this.election = true;
 
@@ -77,6 +81,7 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	}
 	
 	public void onStatusChange(int[] status) {
+		if (this.statusListener == null) return;
 		this.statusListener.onStatusChange(this.statusView, status);
 	}
 	

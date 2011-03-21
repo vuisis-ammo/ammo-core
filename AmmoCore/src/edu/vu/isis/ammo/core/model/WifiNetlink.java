@@ -18,13 +18,13 @@ import edu.vu.isis.ammo.core.ui.TabActivityEx;
 public class WifiNetlink extends Netlink {
 	private WifiReceiver wifiReceiver;
 
-	private WifiNetlink(TabActivityEx context, String type) {
-		super(context, type);
+	private WifiNetlink(TabActivityEx context) {
+		super(context, "Wifi Netlink", "wifi");
 	}
 	
 	public static Netlink getInstance(TabActivityEx context) {
 		// initialize the gateway from the shared preferences
-		return new WifiNetlink(context, "Wifi Netlink");
+		return new WifiNetlink(context);
 	}
 	
 	@Override

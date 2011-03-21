@@ -16,8 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
-import edu.vu.isis.ammo.core.ui.GatewayActivity;
-import edu.vu.isis.ammo.core.ui.NetlinkActivity;
+import edu.vu.isis.ammo.core.ui.AmmoActivity;
 
 import android.app.Activity;
 import android.app.Application;
@@ -96,11 +95,11 @@ public class ApplicationEx  extends Application {
 		 this.gatewayState = status;
 		 if (this.currentActivity == null) return;
 		 if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;
-		 if (!(this.currentActivity instanceof GatewayActivity)) return;
+		 if (!(this.currentActivity instanceof AmmoActivity)) return;
 		 final OnStatusChangeListenerByName scl = (OnStatusChangeListenerByName)this.currentActivity;
 		 ((Activity)scl).runOnUiThread(new Runnable() {
 		    public void run() {
-		        scl.onStatusChange("default", status);
+		        scl.onGatewayStatusChange("default", status);
 		    }
 		 });	
 	 }
@@ -121,11 +120,11 @@ public class ApplicationEx  extends Application {
 		 this.wiredNetlinkState = status;
 		 if (this.currentActivity == null) return;
 		 if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;
-		 if (!(this.currentActivity instanceof NetlinkActivity)) return;
+		 if (!(this.currentActivity instanceof AmmoActivity)) return;
 		 final OnStatusChangeListenerByName scl = (OnStatusChangeListenerByName)this.currentActivity;
 		 ((Activity)scl).runOnUiThread(new Runnable() {
 		    public void run() {
-		        scl.onStatusChange("wired", status);
+		        scl.onNetlinkStatusChange("wired", status);
 		    }
 		 });	
 	 }

@@ -20,6 +20,7 @@ import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 
 
@@ -136,5 +137,14 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 		item.refreshDrawableState(); 
 		return true;
 	}
+	
+    public Netlink getItemByType(String type) {
+    	for (int ix=0; ix < this.model.size(); ix++) {
+			Netlink item = this.model.get(ix);
+			if (! item.getType().equalsIgnoreCase(type)) continue;
+			return item;
+		}
+    	return null;
+    }
 	
 }

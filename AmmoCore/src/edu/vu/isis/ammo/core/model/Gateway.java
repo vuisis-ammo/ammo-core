@@ -149,7 +149,8 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 		}
 	}
 	
-	public void onStatusChanged(int[] status) {
+	public void onStatusChange(int[] status) {
+		if (this.statusListener == null) return;
 		this.statusListener.onStatusChange(this.statusView, status );
 	}
 	

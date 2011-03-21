@@ -7,13 +7,13 @@ import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
 public class JournalNetlink extends Netlink {
 
-	private JournalNetlink(TabActivityEx context, String type) {
-		super(context, type);
+	private JournalNetlink(TabActivityEx context) {
+		super(context, "Journal Netlink", "file");
 	}
 
 	public static Netlink getInstance(TabActivityEx context) {
 		// initialize the gateway from the shared preferences
-		return new JournalNetlink(context, "Journal Netlink");
+		return new JournalNetlink(context);
 	}
 
 

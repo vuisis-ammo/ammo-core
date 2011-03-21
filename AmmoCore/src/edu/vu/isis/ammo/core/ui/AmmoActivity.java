@@ -231,14 +231,6 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		this.startActivity(settingIntent);
 	}
 	
-	public void onNetlinkButtonClick(View view) {
-		logger.trace("::onClick");
-
-		Intent settingIntent = new Intent();
-		settingIntent.setClass(this, NetlinkActivity.class);
-		this.startActivity(settingIntent);
-	}
-	
 	public void onGatewayElectionToggle(View view) {
         int position = this.gatewayList.getPositionForView(view);
         Gateway gw = (Gateway) this.gatewayAdapter.getItem(position);
@@ -249,7 +241,6 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
         
         if (button.isChecked()) gw.enable(); else gw.enable();
        
-     
         row.refreshDrawableState();       
     }
 
@@ -258,8 +249,16 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	// ===========================================================
 	
 	@Override
-	public boolean onStatusChange(String item, int[] status) {
-		this.gatewayAdapter.onStatusChange(item, status);
+	public boolean onGatewayStatusChange(String name, int[] status) {
+		Gateway item = this.gatewayAdapter.getItemByName(name);
+		item.onStatusChange(status);
+		return true;
+	}
+	
+	@Override
+	public boolean onNetlinkStatusChange(String type, int[] status) {
+		Netlink item = this.netlinkAdapter.getItemByType(type);
+		item.onStatusChange(status);
 		return true;
 	}
 	

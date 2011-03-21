@@ -18,15 +18,15 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
-import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetChannel;
 
 public class GatewayAdapter extends ArrayAdapter<Gateway> 
 implements OnTouchListener, OnNameChangeListener, 
-OnStatusChangeListenerByView, OnStatusChangeListenerByName
+OnStatusChangeListenerByView
 {
 	public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
 	private final AmmoActivity parent;
@@ -139,15 +139,15 @@ OnStatusChangeListenerByView, OnStatusChangeListenerByName
 		item.refreshDrawableState(); 
 		return false;
 	}
-	@Override
-	public boolean onStatusChange(String itemName, int[] status) {
+
+	public Gateway getItemByName(String name) {
 		for (int ix=0; ix < this.model.size(); ix++) {
 			Gateway item = this.model.get(ix);
-			if (! item.getName().equalsIgnoreCase(itemName)) continue;
-			item.onStatusChanged(status);
-			return true;
+			if (! item.getName().equalsIgnoreCase(name)) continue;
+			return item;
 		}
-		return false;
+		return null;
 	}
+
 }
 

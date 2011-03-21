@@ -8,5 +8,6 @@ import android.view.View;
  *
  */
 public interface OnStatusChangeListenerByName {
-	public boolean onStatusChange(String itemName, int[] status);
+	public boolean onNetlinkStatusChange(String itemName, int[] status);
+	public boolean onGatewayStatusChange(String itemName, int[] status);
 }
