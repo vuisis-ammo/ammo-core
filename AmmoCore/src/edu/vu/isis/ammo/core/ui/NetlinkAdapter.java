@@ -20,9 +20,7 @@ import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
-
 
 public class NetlinkAdapter extends ArrayAdapter<Netlink> 
   implements OnClickListener, OnFocusChangeListener, OnTouchListener, 
@@ -52,12 +50,13 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 			row.setOnTouchListener(this);
 		}
 		Netlink nl = this.model.get(position);
-		((TextView)row.findViewById(R.id.netlink_name)).setText(nl.getType());
+		((TextView)row.findViewById(R.id.netlink_name)).setText(nl.getName());
 		
 		ToggleButton icon = (ToggleButton)row.findViewById(R.id.netlink_status);
 		// set button icon
 		icon.setChecked(nl.isEnabled());
-		nl.setOnStatusChangeListener(this, parent);
+		nl.setOnStatusChangeListener(this, row); 
+		nl.initialize();
 		
 		return row;
 	}
@@ -116,11 +115,11 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 		switch (status[0]) {
 		case Netlink.NETLINK_UP: 
 			color = this.res.getColor(R.color.status_active);
-			text.setText(R.string.status_disabled);
+			text.setText(R.string.status_active);
 			break;
 		case Netlink.NETLINK_DOWN: 
 			color = this.res.getColor(R.color.status_inactive);
-			text.setText(R.string.status_disabled);
+			text.setText(R.string.status_inactive);
 			break;
 		case Netlink.NETLINK_DISABLED: 
 			color = this.res.getColor(R.color.status_disabled);

@@ -3,7 +3,6 @@ package edu.vu.isis.ammo.core.model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
@@ -12,7 +11,6 @@ import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
-import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.ui.ActivityEx;
 import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
@@ -74,6 +72,8 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener {
 
 	protected OnStatusChangeListenerByView statusListener;
 	protected View statusView;
+	
+	public abstract void initialize();
 	
 	public void setOnStatusChangeListener(OnStatusChangeListenerByView listener, View view) {
 		this.statusListener = listener;

@@ -1,7 +1,6 @@
 package edu.vu.isis.ammo.core.model;
 
 import android.content.SharedPreferences;
-import edu.vu.isis.ammo.core.ui.ActivityEx;
 import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
 
@@ -16,7 +15,11 @@ public class JournalNetlink extends Netlink {
 		return new JournalNetlink(context);
 	}
 
-
+	public void initialize() {
+		int[] status = new int[]{ 3 };
+		this.statusListener.onStatusChange(this.statusView, status);
+	}
+	
 	/** 
 	 * When the status changes update the local variable and any user interface.
 	 */

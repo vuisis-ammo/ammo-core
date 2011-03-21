@@ -11,7 +11,6 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.ui.ActivityEx;
 import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
 
@@ -65,6 +64,12 @@ public class WifiNetlink extends Netlink {
 	// UI Management
 	// ===========================================================
 
+	public void initialize() {
+		int[] status = new int[]{ 3 };
+		this.statusListener.onStatusChange(this.statusView, status);
+		this.registerReceivers();
+	}
+	
 	// Broadcast Receivers
 	// ===========================================================
 	public void registerReceivers() {
