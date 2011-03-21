@@ -64,10 +64,12 @@
         <receiver android:name=".ethertracker.EthrTrckrStartupReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.ACTION_USER_PRESENT" />
                 <category android:name="android.intent.category.HOME" />
             </intent-filter>
         </receiver>
 
+      <!-- ========== SERVICE SECTION ================= -->
         <!-- 
          Services are started by the .receiver.StartUpReceiver
          should android:persistent be used?

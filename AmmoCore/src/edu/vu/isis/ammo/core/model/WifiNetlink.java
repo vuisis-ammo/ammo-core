@@ -23,7 +23,7 @@ public class WifiNetlink extends Netlink {
 	
 	public static Netlink getInstance(ActivityEx context) {
 		// initialize the gateway from the shared preferences
-		return new WifiNetlink(context, "Wired Netlink");
+		return new WifiNetlink(context, "Wifi Netlink");
 	}
 	
 	@Override
