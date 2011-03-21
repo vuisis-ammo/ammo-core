@@ -14,6 +14,9 @@ import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.ui.GatewayActivity;
+import edu.vu.isis.ammo.core.ui.NetlinkActivity;
+
 import android.app.Activity;
 import android.app.Application;
 import android.os.Environment;
@@ -62,39 +65,53 @@ public class ApplicationEx  extends Application {
 	        return this.currentActivity;
 	 }
 	 
-	 private GatewayState gatewayState = null;
-	 public GatewayState getGatewayState(GatewayState status) { 
-		 return this.gatewayState; 
-     }
-	 
 	 /**
-	  * This is for more efficient inter task communication than intents.
+	  * This is for more efficient inter-task communication than intents.
 	  * The calling task may be on the ui thread or it may not, so runOnUiThread is needed.
 	  * 
 	  * @param status
 	  */
-	 public void setGatewayState(final GatewayState status) {
+	
+	 // ============= Gateway connection state ==================
+	 
+	 private int[] gatewayState = null;
+	 
+	 public int[] getGatewayState() { 
+		 return this.gatewayState; 
+     }
+	 public void setGatewayState(final int[] status) {
 		 this.gatewayState = status;
 		 if (this.currentActivity == null) return;
 		 if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;
+		 if (!(this.currentActivity instanceof GatewayActivity)) return;
 		 final OnStatusChangeListenerByName scl = (OnStatusChangeListenerByName)this.currentActivity;
 		 ((Activity)scl).runOnUiThread(new Runnable() {
 		    public void run() {
-		        scl.onStatusChange("default", new int[]{status.conn, status.send, status.recv});
+		        scl.onStatusChange("default", status);
 		    }
 		 });	
 	 }
-	
 	 
-	 public static class GatewayState {
-		 int conn;
-		 int send;
-		 int recv;
-		 public GatewayState(int conn, int send, int recv) {
-			 this.conn = conn;
-			 this.send = send;
-			 this.recv = recv;
-		 }
+	 // ============= Wired Link state ==================
+	 
+	 private int[] wiredState = null;
+	 
+	 public int[] getWiredState() { 
+		 return this.wiredState; 
+     }
+	 
+	 public void setWiredState(final int[] status) {
+		 this.wiredState = status;
+		 if (this.currentActivity == null) return;
+		 if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;
+		 if (!(this.currentActivity instanceof NetlinkActivity)) return;
+		 final OnStatusChangeListenerByName scl = (OnStatusChangeListenerByName)this.currentActivity;
+		 ((Activity)scl).runOnUiThread(new Runnable() {
+		    public void run() {
+		        scl.onStatusChange("wired", wiredState);
+		    }
+		 });	
 	 }
+
 
 }

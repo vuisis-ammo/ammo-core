@@ -27,7 +27,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.core.ApplicationEx;
-import edu.vu.isis.ammo.core.ApplicationEx.GatewayState;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -720,7 +719,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	
 	@Override
 	public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
-		this.getApplicationEx().setGatewayState(new GatewayState(connStatus, sendStatus, recvStatus));
+		this.getApplicationEx().setGatewayState(new int[]{connStatus, sendStatus, recvStatus});
 		return false;
 	}
 	

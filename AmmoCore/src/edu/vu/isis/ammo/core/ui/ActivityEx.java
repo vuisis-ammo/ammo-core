@@ -4,7 +4,7 @@ import edu.vu.isis.ammo.core.ApplicationEx;
 import android.app.Activity;
 import android.content.Context;
 
-abstract class ActivityEx extends Activity implements IActivityEx {
+public abstract class ActivityEx extends Activity implements IActivityEx {
     public Context getAppContext(){
         return getApplicationContext();
     }

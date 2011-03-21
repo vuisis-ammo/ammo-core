@@ -89,7 +89,6 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 		// let others know we are running
 		intent.setAction(StartUpReceiver.RESET);
 		this.sendBroadcast(intent);
-		
 		this.setGateway(Gateway.getInstance(this));
 	}
 	
@@ -101,6 +100,14 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	public void onStart() {
 		super.onStart();
 		logger.trace("::onStart");
+
+        //reset all rows
+        for (int ix=0; ix < this.list.getChildCount(); ix++) 
+        {
+        	View row = this.list.getChildAt(ix);
+            row.setBackgroundColor(Color.TRANSPARENT);        
+        }
+        
 	}
 	
 	@Override
@@ -185,13 +192,6 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	}
 	
 	public void onGatewayElectionToggle(View view) {
-        //reset all rows
-//        for (int ix=0; ix < this.list.getChildCount(); ix++) 
-//        {
-//        	View row = this.list.getChildAt(ix);
-//            row.setBackgroundColor(Color.BLUE);        
-//        }
-        
         int position = this.list.getPositionForView(view);
         Gateway gw = (Gateway) this.adapter.getItem(position);
         
@@ -201,10 +201,7 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
         
         if (button.isChecked()) gw.enable(); else gw.enable();
        
-        // button.setText("I've been clicked!");
-        //int color = Color.CYAN;
-        
-        //row.setBackgroundColor(color); 
+     
         row.refreshDrawableState();       
     }
 
@@ -273,6 +270,8 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
          }
 		@Override
 		public boolean onStatusChange(View item, int[] status) {
+			if (status == null) return false;
+			if (status.length < 1) return false;
 			View row = item;
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
 			TextView text = (TextView)row.findViewById(R.id.gateway_status_text);

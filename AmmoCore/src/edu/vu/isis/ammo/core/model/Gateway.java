@@ -10,9 +10,11 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.preference.PreferenceManager;
 import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.ui.ActivityEx;
 
 /**
  * The Ammo core is responsible for distributing 
@@ -90,9 +92,10 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	public int getStatus() { return this.status; }
 	
 	private final SharedPreferences prefs;
-	Context context;
+	private ActivityEx context;
+	private ApplicationEx application;
 	
-	private Gateway(Context context, String name) {
+	private Gateway(ActivityEx context, String name) {
 		this.context = context;
 		this.name = name;
 		this.status = INACTIVE;
@@ -103,11 +106,12 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 				String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
 		this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
 		
-	    prefs.registerOnSharedPreferenceChangeListener(this);
+	    this.prefs.registerOnSharedPreferenceChangeListener(this);
+	    this.application = (ApplicationEx) this.context.getApplication();
 	}
 	
 	
-	public static Gateway getInstance(Context context) {
+	public static Gateway getInstance(ActivityEx context) {
 		// initialize the gateway from the shared preferences
 		return new Gateway(context, "default");
 	}
@@ -125,6 +129,8 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 		logger.trace("set on status change listener");
 		this.statusListener = listener;
 		this.statusView = view;
+
+		this.statusListener.onStatusChange(this.statusView, this.application.getGatewayState() );
 	}
 	
 	private OnNameChangeListener nameListener;
