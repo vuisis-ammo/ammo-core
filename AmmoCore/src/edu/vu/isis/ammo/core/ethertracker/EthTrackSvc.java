@@ -34,7 +34,7 @@ public class EthTrackSvc extends ServiceEx {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		logger.debug("::onStartCommand with intent {}", intent.getAction());
+//		logger.debug("::onStartCommand with intent {}", intent.getAction());
 		handleCommand();
 		
 		this.application.setWiredState(WIRED_NETLINK_DOWN);
