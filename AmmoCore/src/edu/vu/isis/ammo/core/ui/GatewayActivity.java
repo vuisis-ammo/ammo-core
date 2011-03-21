@@ -215,6 +215,7 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	{
 		private final GatewayActivity parent;
 		private final Resources res;
+		
 		GatewayAdapter(GatewayActivity parent, List<Gateway> model) {
 			super(parent,
 					android.R.layout.simple_list_item_1,
@@ -222,6 +223,7 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 			this.parent = parent;
 			this.res = this.parent.getResources();
 		}
+		
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
 			View row = convertView;
@@ -272,10 +274,12 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 		public boolean onStatusChange(View item, int[] status) {
 			if (status == null) return false;
 			if (status.length < 1) return false;
+			
 			View row = item;
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
 			TextView text = (TextView)row.findViewById(R.id.gateway_status_text);
 			int color;
+			
 			switch (status[0]) {
 			case INetChannel.CONNECTED:
 				color = this.res.getColor(R.color.status_active);

@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.ContextMenu;
@@ -81,7 +82,7 @@ public class NetlinkActivity extends ActivityEx {
 		
 		this.setNetlink(WifiNetlink.getInstance(this));
 		this.setNetlink(WiredNetlink.getInstance(this));
-		this.setNetlink(JournalNetlink.getInstance(this));
+		// this.setNetlink(JournalNetlink.getInstance(this));
 	}
 	
 	public void setNetlink(Netlink nl) {
@@ -168,10 +169,15 @@ public class NetlinkActivity extends ActivityEx {
 	implements OnClickListener, OnFocusChangeListener, OnTouchListener, 
 		OnStatusChangeListenerByView
 	{
+		private final NetlinkActivity parent;
+		private final Resources res;
+		
 		NetlinkAdapter(NetlinkActivity parent, List<Netlink> model) {
 			super(parent,
 					android.R.layout.simple_list_item_1,
 					model);
+			this.parent = parent;
+			this.res = this.parent.getResources();
 		}
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
@@ -229,22 +235,35 @@ public class NetlinkActivity extends ActivityEx {
          }
 		@Override
 		public boolean onStatusChange(View item, int[] status) {
+			if (status == null) return false;
+			if (status.length < 1) return false;
+			
 			View row = item;
 			ToggleButton icon = (ToggleButton)row.findViewById(R.id.netlink_status);
+			TextView text = (TextView)row.findViewById(R.id.netlink_status_text);
+			int color;
+			
 			switch (status[0]) {
-			case Netlink.ACTIVE: 
-				icon.setTextColor(R.color.status_active); 
+			case Netlink.NETLINK_UP: 
+				color = this.res.getColor(R.color.status_active);
+				text.setText(R.string.status_disabled);
 				break;
-			case Netlink.INACTIVE: 
-				icon.setTextColor(R.color.status_inactive); 
+			case Netlink.NETLINK_DOWN: 
+				color = this.res.getColor(R.color.status_inactive);
+				text.setText(R.string.status_disabled);
 				break;
-			case Netlink.DISABLED: 
-				icon.setTextColor(R.color.status_disabled); 
+			case Netlink.NETLINK_DISABLED: 
+				color = this.res.getColor(R.color.status_disabled);
+				text.setText(R.string.status_disabled);
 				break;
 			default:
-				icon.setTextColor(R.color.status_inactive); 
+				color = this.res.getColor(R.color.status_disabled);
+				text.setText(R.string.status_disabled);
 				return false;
 			}
+			icon.setTextColor(color); 
+			text.setTextColor(color);
+			
 			item.refreshDrawableState(); 
 			return true;
 		}

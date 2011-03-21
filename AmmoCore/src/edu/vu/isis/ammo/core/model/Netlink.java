@@ -18,9 +18,9 @@ import edu.vu.isis.ammo.core.ui.ActivityEx;
 public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	public static final Logger logger = LoggerFactory.getLogger(Netlink.class);
 	
-	public static final int ACTIVE = 0;
-	public static final int INACTIVE = 1;
-	public static final int DISABLED = 3;
+	public static final int NETLINK_UP = 1;
+	public static final int NETLINK_DOWN = 2;
+	public static final int NETLINK_DISABLED = 3;
 	
 	// does the operator wish to use this gateway?
 	private boolean election; 
@@ -67,19 +67,15 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener {
 		return sb.toString();
 	}
 
-	private OnStatusChangeListenerByView statusListener;
-	private View statusView;
+	protected OnStatusChangeListenerByView statusListener;
+	protected View statusView;
 	
 	public void setOnStatusChangeListener(OnStatusChangeListenerByView listener, View view) {
 		this.statusListener = listener;
 		this.statusView = view;
-		
-		// initialize the status indicators
-		this.statusListener.onStatusChange(this.statusView, this.application.getGatewayState() );
 	}
 	
-	
-	public void onStatusChanged(int[] status) {
+	public void onStatusChange(int[] status) {
 		this.statusListener.onStatusChange(this.statusView, status);
 	}
 	

@@ -92,23 +92,27 @@ public class ApplicationEx  extends Application {
 		 });	
 	 }
 	 
+	// ============= Net Link state ==================
+	 public int[] getNetlinkState() { 
+		 return this.wiredNetlinkState; 
+     }
 	 // ============= Wired Link state ==================
 	 
-	 private int[] wiredState = null;
+	 private int[] wiredNetlinkState = null;
 	 
-	 public int[] getWiredState() { 
-		 return this.wiredState; 
+	 public int[] getWiredNetlinkState() { 
+		 return this.wiredNetlinkState; 
      }
 	 
 	 public void setWiredState(final int[] status) {
-		 this.wiredState = status;
+		 this.wiredNetlinkState = status;
 		 if (this.currentActivity == null) return;
 		 if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;
 		 if (!(this.currentActivity instanceof NetlinkActivity)) return;
 		 final OnStatusChangeListenerByName scl = (OnStatusChangeListenerByName)this.currentActivity;
 		 ((Activity)scl).runOnUiThread(new Runnable() {
 		    public void run() {
-		        scl.onStatusChange("wired", wiredState);
+		        scl.onStatusChange("wired", status);
 		    }
 		 });	
 	 }

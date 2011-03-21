@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -15,15 +14,18 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
+import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.ServiceEx;
 
-public class EthTrackSvc extends Service {
+public class EthTrackSvc extends ServiceEx {
 
 	private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
-
+    private ApplicationEx application;
+    
 	@Override
 	public void onCreate() {
-		// handleCommand();
+		this.application = (ApplicationEx)this.getApplication();
 	}
 
 	@Override
@@ -68,6 +70,9 @@ public class EthTrackSvc extends Service {
 
 	private static final int HELLO_ID = 1;
 
+	public static final int[] WIRED_NETLINK_UP = new int[] {1};
+	public static final int[] WIRED_NETLINK_DOWN = new int[] {2};
+	
 	/*
 	 * @function Notify Send a notification to android once interface goes up or
 	 * down
@@ -106,10 +111,13 @@ public class EthTrackSvc extends Service {
 		Intent broadcastIntent = new Intent(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
 		if (msg.indexOf("Up") > 0) {
 			broadcastIntent.putExtra("state",AmmoIntents.LINK_UP);
+			this.application.setWiredState(WIRED_NETLINK_UP);
 		} else if (msg.indexOf("Down") > 0) {
 			broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
+			this.application.setWiredState(WIRED_NETLINK_UP);
 		}
 		this.sendBroadcast(broadcastIntent);
+		
 
 		return 0;
 	}
