@@ -14,6 +14,8 @@ import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.ui.ActivityEx;
+import edu.vu.isis.ammo.core.ui.IActivityEx;
+import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
 /**
  * The Ammo core is responsible for distributing 
@@ -76,10 +78,10 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	}
 	
 	private final SharedPreferences prefs;
-	private ActivityEx context;
+	private TabActivityEx context;
 	private ApplicationEx application;
 	
-	private Gateway(ActivityEx context, String name) {
+	private Gateway(TabActivityEx context, String name) {
 		this.context = context;
 		this.name = name;
 
@@ -94,7 +96,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 	}
 	
 	
-	public static Gateway getInstance(ActivityEx context) {
+	public static Gateway getInstance(TabActivityEx context) {
 		// initialize the gateway from the shared preferences
 		return new Gateway(context, "default");
 	}

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+ android:id="@+id/gateway_layout"
 	android:layout_width="fill_parent" 
 	android:layout_height="fill_parent"
 	android:background="@color/gateway_background">
@@ -45,16 +46,6 @@
 			android:gravity="center" 
 			android:textSize="16dip" 
 			android:onClick="onSettingsButtonClick"/>
-			
-	<ImageButton android:id="@+id/netlink_button"
-         android:layout_alignParentBottom="true" 
-         android:layout_alignParentLeft="true"
-         android:src="@drawable/netlink_32" 
-         android:layout_width="wrap_content" 
-         android:layout_height="wrap_content"
-         android:gravity="center" 
-         android:textSize="16dip" 
-         android:onClick="onNetlinkButtonClick"/>
 
 	<ListView android:id="@+id/gateway_list" 
 	   android:layout_below="@id/version_label"

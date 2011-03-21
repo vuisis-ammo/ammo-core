@@ -20,6 +20,7 @@ import android.view.View.OnTouchListener;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+import android.widget.TabHost;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
@@ -28,6 +29,9 @@ import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch;
 import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.core.model.Netlink;
+import edu.vu.isis.ammo.core.model.WifiNetlink;
+import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 
@@ -41,9 +45,9 @@ import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
  * @author phreed
  *
  */
-public class GatewayActivity extends ActivityEx implements OnStatusChangeListenerByName
+public class AmmoActivity extends TabActivityEx implements OnStatusChangeListenerByName
 {
-	public static final Logger logger = LoggerFactory.getLogger(GatewayActivity.class);
+	public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
 	
 	private static final int PREFERENCES_MENU = Menu.NONE + 0;
 	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
@@ -55,14 +59,19 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	// Fields
 	// ===========================================================
 	
-	private List<Gateway> model = new ArrayList<Gateway>();
-	private GatewayAdapter adapter = null;
+	private List<Gateway> gatewayModel = new ArrayList<Gateway>();
+	private GatewayAdapter gatewayAdapter = null;
+	
+	private List<Netlink> netlinkModel = new ArrayList<Netlink>();
+	private NetlinkAdapter netlinkAdapter = null;
 	
 	// ===========================================================
 	// Views
 	// ===========================================================
 	
-	private ListView list;
+	private ListView gatewayList;
+	private ListView netlinkList;
+	
 	
 	/**
 	 * @Cateogry Lifecycle
@@ -71,12 +80,23 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		logger.trace("::onCreate");
-		this.setContentView(R.layout.gateway_activity);
+		this.setContentView(R.layout.ammo_activity);
 		
-		// set view references
-		this.list = (ListView)this.findViewById(R.id.gateway_list);
-		this.adapter = new GatewayAdapter(this, this.model);
-		list.setAdapter(adapter);
+		// set gateway view references
+		this.gatewayList = (ListView)this.findViewById(R.id.gateway_list);
+		this.gatewayAdapter = new GatewayAdapter(this, this.gatewayModel);
+		gatewayList.setAdapter(gatewayAdapter);
+		
+		this.setGateway(Gateway.getInstance(this));
+		
+		// set netlink view references
+		this.netlinkList = (ListView)this.findViewById(R.id.netlink_list);
+		this.netlinkAdapter = new NetlinkAdapter(this, this.netlinkModel);
+		netlinkList.setAdapter(netlinkAdapter);
+		
+		this.setNetlink(WifiNetlink.getInstance(this));
+		this.setNetlink(WiredNetlink.getInstance(this));
+		// this.setNetlink(JournalNetlink.getInstance(this));
 		
 		// set listeners
 		
@@ -86,15 +106,43 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 		Intent intent = new Intent("edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH");
 		this.startService(intent);
 		
+		
 		// let others know we are running
 		intent.setAction(StartUpReceiver.RESET);
 		this.sendBroadcast(intent);
-		//this.setGateway(Gateway.getInstance(this));
+		
+		
+		
+		// setup tabs
+		TabHost.TabSpec spec;
+		Resources res = this.getResources();
+		
+		spec = getTabHost().newTabSpec("tag1");
+		spec.setContent(R.id.gateway_layout);
+		spec.setIndicator("Gateway", res.getDrawable(R.drawable.gateway_32));	
+		getTabHost().addTab(spec);
+		
+		spec = getTabHost().newTabSpec("tag2");
+		spec.setContent(R.id.netlink_layout);
+		spec.setIndicator("Netlink", res.getDrawable(R.drawable.netlink_32));
+		getTabHost().addTab(spec);
+		
+//		spec = getTabHost().newTabSpec("tag3");
+//		spec.setContent(R.id.preferences_layout);
+//		spec.setIndicator("Preferences", res.getDrawable(R.drawable.cog_32));
+//		getTabHost().addTab(spec);
+		
+		getTabHost().setCurrentTab(0);
 	}
 	
 	public void setGateway(Gateway gw) {
-		adapter.add(gw);
+		gatewayAdapter.add(gw);
 	}
+	
+	public void setNetlink(Netlink nl) {
+		netlinkAdapter.add(nl);
+	}
+	
 	
 	@Override
 	public void onStart() {
@@ -102,9 +150,9 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 		logger.trace("::onStart");
 
         //reset all rows
-        for (int ix=0; ix < this.list.getChildCount(); ix++) 
+        for (int ix=0; ix < this.gatewayList.getChildCount(); ix++) 
         {
-        	View row = this.list.getChildAt(ix);
+        	View row = this.gatewayList.getChildAt(ix);
             row.setBackgroundColor(Color.TRANSPARENT);        
         }
         
@@ -192,8 +240,8 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	}
 	
 	public void onGatewayElectionToggle(View view) {
-        int position = this.list.getPositionForView(view);
-        Gateway gw = (Gateway) this.adapter.getItem(position);
+        int position = this.gatewayList.getPositionForView(view);
+        Gateway gw = (Gateway) this.gatewayAdapter.getItem(position);
         
         // get the button's row
         RelativeLayout row = (RelativeLayout)view.getParent();
@@ -209,133 +257,9 @@ public class GatewayActivity extends ActivityEx implements OnStatusChangeListene
 	// Inner Classes
 	// ===========================================================
 	
-	private class GatewayAdapter extends ArrayAdapter<Gateway> 
-	implements OnTouchListener, OnNameChangeListener, 
-	     OnStatusChangeListenerByView, OnStatusChangeListenerByName
-	{
-		private final GatewayActivity parent;
-		private final Resources res;
-		
-		GatewayAdapter(GatewayActivity parent, List<Gateway> model) {
-			super(parent,
-					android.R.layout.simple_list_item_1,
-					model);
-			this.parent = parent;
-			this.res = this.parent.getResources();
-		}
-		
-		@Override
-		public View getView(int position, View convertView, ViewGroup parent) {
-			View row = convertView;
-			if (row == null) {
-				LayoutInflater inflater = getLayoutInflater();
-				row = inflater.inflate(R.layout.gateway_item, null);
-				row.setOnTouchListener(this);
-			}
-			Gateway gw = model.get(position);
-			((TextView)row.findViewById(R.id.gateway_name)).setText(gw.getName());
-			((TextView)row.findViewById(R.id.gateway_formal)).setText(gw.getFormal());
-			
-			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
-			// set button icon
-			icon.setChecked(gw.isEnabled());
-			gw.setOnNameChangeListener(this, parent);
-			gw.setOnStatusChangeListener(this, parent);
-			
-			return row;
-		}
-		
-		 @Override
-         public boolean onTouch(View view, MotionEvent event) {
-             // Only perform this transform on image buttons for now.
-			 if (view.getClass() != RelativeLayout.class) return false;
-
-			 RelativeLayout item = (RelativeLayout) view;
-			 int action = event.getAction();
-
-			 switch (action) {
-			 case MotionEvent.ACTION_DOWN:
-			 case MotionEvent.ACTION_MOVE:
-				 item.setBackgroundResource(R.drawable.select_gradient);
-				 logger.trace("::onClick");
-
-					Intent gatewayIntent = new Intent();
-					gatewayIntent.setClass(this.parent, GatewayDetailActivity.class);
-					this.parent.startActivity(gatewayIntent);
-				 break;
-
-			 default:
-				 item.setBackgroundColor(Color.TRANSPARENT);
-			 }
-
-			 return false;
-         }
-		@Override
-		public boolean onStatusChange(View item, int[] status) {
-			if (status == null) return false;
-			if (status.length < 1) return false;
-			
-			View row = item;
-			ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
-			TextView text = (TextView)row.findViewById(R.id.gateway_status_text);
-			int color;
-			if (text == null) {
-				logger.error("text field is null");
-				return false;
-			}
-			if (icon == null) {
-				logger.error("icon field is null");
-				return false;
-			}
-			
-			switch (status[0]) {
-			case INetChannel.CONNECTED:
-				color = this.res.getColor(R.color.status_active);
-				text.setText(R.string.status_active);
-				break;
-			case INetChannel.DISCONNECTED: 
-				color = this.res.getColor(R.color.status_inactive);
-				text.setText(R.string.status_inactive);
-				break;
-			default:
-				color = this.res.getColor(R.color.status_disabled);
-				text.setText(R.string.status_disabled);
-				return false;
-			}
-			icon.setTextColor(color); 
-			text.setTextColor(color);
-			
-			item.refreshDrawableState(); 
-			return true;
-		}
-		
-		@Override
-		public boolean onNameChange(View item, String name) {
-			((TextView)item.findViewById(R.id.gateway_name)).setText(name);
-			item.refreshDrawableState(); 
-			return false;
-		}
-		@Override
-		public boolean onFormalChange(View item, String formal) {
-			((TextView)item.findViewById(R.id.gateway_formal)).setText(formal);
-			item.refreshDrawableState(); 
-			return false;
-		}
-		@Override
-		public boolean onStatusChange(String itemName, int[] status) {
-			for (int ix=0; ix < this.parent.model.size(); ix++) {
-				Gateway item = this.parent.model.get(ix);
-				if (! item.getName().equalsIgnoreCase(itemName)) continue;
-				item.onStatusChanged(status);
-				return true;
-			}
-			return false;
-		}
-	}
-
 	@Override
 	public boolean onStatusChange(String item, int[] status) {
-		this.adapter.onStatusChange(item, status);
+		this.gatewayAdapter.onStatusChange(item, status);
 		return true;
 	}
 	

@@ -14,6 +14,7 @@ import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.ui.ActivityEx;
+import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
 public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	public static final Logger logger = LoggerFactory.getLogger(Netlink.class);
@@ -41,10 +42,10 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	public String getType() { return this.type; }
 	
 	protected final SharedPreferences prefs;
-	protected ActivityEx context;
+	protected TabActivityEx context;
 	protected ApplicationEx application;
 	
-	protected Netlink(ActivityEx context, String type) {
+	protected Netlink(TabActivityEx context, String type) {
 		this.context = context;
 		this.type = type;
 		this.election = true;

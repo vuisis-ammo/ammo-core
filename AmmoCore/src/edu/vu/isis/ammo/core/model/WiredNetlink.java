@@ -3,17 +3,18 @@ package edu.vu.isis.ammo.core.model;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.ui.ActivityEx;
+import edu.vu.isis.ammo.core.ui.TabActivityEx;
 import android.content.SharedPreferences;
 import android.view.View;
 
 
 public class WiredNetlink extends Netlink {
 
-	private WiredNetlink(ActivityEx context, String type) {
+	private WiredNetlink(TabActivityEx context, String type) {
 		super(context, type);
 	}
 	
-	public static Netlink getInstance(ActivityEx context) {
+	public static Netlink getInstance(TabActivityEx context) {
 		// initialize the gateway from the shared preferences
 		return new WiredNetlink(context, "Wired Netlink");
 	}

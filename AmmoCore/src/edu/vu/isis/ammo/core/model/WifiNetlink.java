@@ -12,16 +12,17 @@ import android.net.wifi.WifiManager;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.ui.ActivityEx;
+import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
 
 public class WifiNetlink extends Netlink {
 	private WifiReceiver wifiReceiver;
 
-	private WifiNetlink(ActivityEx context, String type) {
+	private WifiNetlink(TabActivityEx context, String type) {
 		super(context, type);
 	}
 	
-	public static Netlink getInstance(ActivityEx context) {
+	public static Netlink getInstance(TabActivityEx context) {
 		// initialize the gateway from the shared preferences
 		return new WifiNetlink(context, "Wifi Netlink");
 	}

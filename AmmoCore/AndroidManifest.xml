@@ -12,12 +12,13 @@
 
 		<!-- ========== ACTIVITY SECTION ================= -->
 
-		<activity android:name=".ui.GatewayActivity">
+		<activity android:name=".ui.AmmoActivity">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN" />
 				<category android:name="android.intent.category.LAUNCHER" />
 			</intent-filter>
 		</activity>
+		<activity android:name=".ui.GatewayActivity"/>
 		<activity android:name=".ui.GatewayDetailActivity"/>
 		<activity android:name=".ui.NetlinkActivity"/>
 		<activity android:name=".ui.NetlinkDetailActivity"/>

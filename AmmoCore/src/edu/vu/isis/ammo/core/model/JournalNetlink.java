@@ -2,15 +2,16 @@ package edu.vu.isis.ammo.core.model;
 
 import android.content.SharedPreferences;
 import edu.vu.isis.ammo.core.ui.ActivityEx;
+import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
 
 public class JournalNetlink extends Netlink {
 
-	private JournalNetlink(ActivityEx context, String type) {
+	private JournalNetlink(TabActivityEx context, String type) {
 		super(context, type);
 	}
 
-	public static Netlink getInstance(ActivityEx context) {
+	public static Netlink getInstance(TabActivityEx context) {
 		// initialize the gateway from the shared preferences
 		return new JournalNetlink(context, "Journal Netlink");
 	}
