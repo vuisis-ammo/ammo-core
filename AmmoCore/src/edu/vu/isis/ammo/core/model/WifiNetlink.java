@@ -1,15 +1,15 @@
 package edu.vu.isis.ammo.core.model;
 
+import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.Editor;
+import android.net.NetworkInfo;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
-import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.ui.TabActivityEx;
 
@@ -37,50 +37,49 @@ public class WifiNetlink extends Netlink {
 	 * Each time we start this activity, we need to update the status message
 	 * for each connection since it may have changed since this activity was
 	 * last loaded.
-	 * 
 	 */
-	public void setWifiStatus() {
-		logger.trace("::setWifiStatus");
-		
-	    Thread wifiThread = new Thread() {
-		    public void run() {
-		    	logger.trace("WifiThread::run");
-		    	
+	private void setWifiStatus() {
+		final Activity self = this.context;
+		Thread wifiThread = new Thread() {
+			public void run() {
+				logger.trace("::setWifiStatus");
 				WifiManager manager = (WifiManager)WifiNetlink.this.context.getSystemService(Context.WIFI_SERVICE);
 				WifiInfo info = manager.getConnectionInfo();
 				logger.debug( "WifiInfo: " +  info.toString() );
-				boolean wifiConn = (info != null && info.getSupplicantState() == SupplicantState.COMPLETED);
-				Editor editor = PreferenceManager.getDefaultSharedPreferences(WifiNetlink.this.context).edit();
-				// editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_CONNECTED, wifiConn);
-				editor.putBoolean(INetPrefKeys.WIFI_PREF_IS_AVAILABLE, wifiConn);
-				// editor.putBoolean(INetPrefKeys.WIFI_PREF_SHOULD_USE, cbWifi.isChecked());		
-				editor.commit();
-		    }
+				final int wifiConn = (info == null) 
+				        ? NetworkInfo.DetailedState.FAILED.ordinal() 
+						: WifiInfo.getDetailedStateOf(info.getSupplicantState()).ordinal();
+
+				self.runOnUiThread(new Runnable() {
+					public void run() {
+						statusListener.onStatusChange(statusView, new int[]{ wifiConn });
+					}});
+			}
 		};
 		wifiThread.start();
 	}
-	
+
 	// ===========================================================
 	// UI Management
 	// ===========================================================
 
 	public void initialize() {
-		int[] status = new int[]{ 3 };
-		this.statusListener.onStatusChange(this.statusView, status);
-		this.registerReceivers();
-	}
-	
-	// Broadcast Receivers
-	// ===========================================================
-	public void registerReceivers() {
-		logger.trace("::registerReceivers");
-		
+		// get the starting value
+		logger.trace("WifiThread::run");
+		setWifiStatus();
+
+		// get updates as they happen
 		this.wifiReceiver = new WifiReceiver();
 		IntentFilter wifiFilter = new IntentFilter(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
-		this.registerReceiver(this.wifiReceiver, wifiFilter);
+		this.context.registerReceiver(this.wifiReceiver, wifiFilter);
 	}
 	
-	private void registerReceiver(WifiReceiver wifiReceiver2, IntentFilter wifiFilter) {
+	public void teardown() {
+		try {
+			this.context.unregisterReceiver(this.wifiReceiver);
+		} catch(IllegalArgumentException ex) {
+			logger.trace("tearing down the Wifi netlink object");
+		} 
 	}
 
 	// ===========================================================

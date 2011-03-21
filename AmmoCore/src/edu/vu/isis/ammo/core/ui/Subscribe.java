@@ -5,7 +5,6 @@ package edu.vu.isis.ammo.core.ui;
 
 import java.util.Calendar;
 
-import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.SharedPreferences;
@@ -26,9 +25,6 @@ import edu.vu.isis.ammo.api.AmmoDispatcher;
 import edu.vu.isis.ammo.collector.provider.IncidentSchema;
 import edu.vu.isis.ammo.collector.provider.IncidentSchema.EventTableSchema;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.R.array;
-import edu.vu.isis.ammo.core.R.id;
-import edu.vu.isis.ammo.core.R.layout;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
 /**
@@ -130,7 +126,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	    		  Toast.LENGTH_SHORT).show();
 	    }
 
-	    public void onNothingSelected(AdapterView parent) {
+	    public void onNothingSelected(AdapterView<?> parent) {
 	        uri = null;
 	    }
 	    

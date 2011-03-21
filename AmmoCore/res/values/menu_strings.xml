@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-<string name="pref_label">Core Preferences</string>
+<string name="pref_label">Preferences</string>
 <string name="channel_journal_label">Channel Journal Order</string>
 <string name="delivery_status_label">Delivery Status</string>
 <string name="subscription_label">Registered Subscriptions</string>

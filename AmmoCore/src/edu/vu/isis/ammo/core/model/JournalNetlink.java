@@ -37,6 +37,9 @@ public class JournalNetlink extends Netlink {
 		//	prefChannelJournal.setType(MyCheckBoxPreference.Type.JOURNAL);
 		//	
 	}
+	
+	@Override
+	public void teardown() {;}
 
 }
 

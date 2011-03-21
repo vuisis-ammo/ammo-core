@@ -23,8 +23,14 @@ public class WiredNetlink extends Netlink {
 		}
 	}
 	
+	/**
+	 * The application should have the current status.
+	 */
 	public void initialize() {
 		this.statusListener.onStatusChange(this.statusView, this.application.getWiredNetlinkState() );
 	}
+
+	@Override
+	public void teardown() {;}
 
 }

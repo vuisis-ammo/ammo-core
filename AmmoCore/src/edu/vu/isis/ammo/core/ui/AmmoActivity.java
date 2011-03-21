@@ -10,29 +10,20 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Bundle;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.View.OnTouchListener;
-import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TabHost;
-import android.widget.TextView;
 import android.widget.ToggleButton;
-import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
-import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
-import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 
 /**
@@ -98,41 +89,35 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		this.setNetlink(WiredNetlink.getInstance(this));
 		// this.setNetlink(JournalNetlink.getInstance(this));
 		
-		// set listeners
-		
-		// register receivers
-		
-		// start services
-		Intent intent = new Intent("edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH");
-		this.startService(intent);
-		
+		Intent intent = new Intent();
 		
 		// let others know we are running
 		intent.setAction(StartUpReceiver.RESET);
 		this.sendBroadcast(intent);
 		
 		
-		
 		// setup tabs
-		TabHost.TabSpec spec;
-		Resources res = this.getResources();
+		Resources res = getResources(); // Resource object to get Drawables
+	    TabHost tabHost = getTabHost();  // The activity TabHost
+	    TabHost.TabSpec spec;  // Reusable TabSpec for each tab
 		
-		spec = getTabHost().newTabSpec("tag1");
+		spec = tabHost.newTabSpec("gateway");	
+		spec.setIndicator("Gateway", res.getDrawable(R.drawable.gateway_tab));
 		spec.setContent(R.id.gateway_layout);
-		spec.setIndicator("Gateway", res.getDrawable(R.drawable.gateway_32));	
 		getTabHost().addTab(spec);
 		
-		spec = getTabHost().newTabSpec("tag2");
-		spec.setContent(R.id.netlink_layout);
+		spec = tabHost.newTabSpec("netlink");
 		spec.setIndicator("Netlink", res.getDrawable(R.drawable.netlink_32));
+		spec.setContent(R.id.netlink_layout);
 		getTabHost().addTab(spec);
 		
-//		spec = getTabHost().newTabSpec("tag3");
-//		spec.setContent(R.id.preferences_layout);
-//		spec.setIndicator("Preferences", res.getDrawable(R.drawable.cog_32));
-//		getTabHost().addTab(spec);
+		intent = new Intent().setClass(this, CorePreferenceActivity.class);
+		spec = tabHost.newTabSpec("settings");
+		spec.setIndicator("Preferences", res.getDrawable(R.drawable.cog_32));
+		spec.setContent(intent);
+		tabHost.addTab(spec);
 		
-		getTabHost().setCurrentTab(0);
+		tabHost.setCurrentTab(0);
 	}
 	
 	public void setGateway(Gateway gw) {
@@ -161,6 +146,9 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	@Override
 	public void onStop() {
 		super.onStop();
+		for (Netlink nl : this.netlinkModel) {
+			nl.teardown();
+		}
 	}
 
 	@Override

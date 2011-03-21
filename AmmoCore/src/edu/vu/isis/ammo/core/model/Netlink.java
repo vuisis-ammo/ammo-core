@@ -74,6 +74,7 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	protected View statusView;
 	
 	public abstract void initialize();
+	public abstract void teardown();
 	
 	public void setOnStatusChangeListener(OnStatusChangeListenerByView listener, View view) {
 		this.statusListener = listener;
