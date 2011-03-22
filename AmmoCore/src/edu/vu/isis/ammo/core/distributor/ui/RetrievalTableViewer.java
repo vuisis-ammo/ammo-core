@@ -15,9 +15,9 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 		super.onCreate(bun);
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("{").append(RetrievalTableSchema.DISPOSITION_SATISFIED);
+		sb.append("(").append(RetrievalTableSchema.DISPOSITION_SATISFIED);
 		sb.append(",").append(RetrievalTableSchema.DISPOSITION_EXPIRED);
-		sb.append(",").append(RetrievalTableSchema.DISPOSITION_FAIL).append("}");
+		sb.append(",").append(RetrievalTableSchema.DISPOSITION_FAIL).append(")");
 	    this.completeDisp = sb.toString();
 	}
 	

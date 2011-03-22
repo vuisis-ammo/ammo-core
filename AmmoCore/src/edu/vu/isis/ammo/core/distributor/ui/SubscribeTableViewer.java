@@ -15,8 +15,8 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 		super.onCreate(bun);
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("{").append(SubscriptionTableSchema.DISPOSITION_EXPIRED);
-		sb.append(",").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("}");
+		sb.append("(").append(SubscriptionTableSchema.DISPOSITION_EXPIRED);
+		sb.append(",").append(SubscriptionTableSchema.DISPOSITION_FAIL).append(")");
 	    this.completeDisp = sb.toString();
 	}
 

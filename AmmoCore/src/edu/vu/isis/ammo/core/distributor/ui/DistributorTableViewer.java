@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.core.distributor.ui;
 
+import java.util.Calendar;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,7 +29,7 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	static private final Logger logger = LoggerFactory.getLogger(DistributorTableViewer.class);
 	
-	public static final int MENU_PURGE = 1;
+	private static final int MENU_PURGE = 1;
 	private static final int MENU_GARBAGE = 2;
 	
 	public static final int MENU_CONTEXT_DELETE = 1;
@@ -104,7 +106,8 @@ implements IAmmoActivitySetup
 			// Delete things which are outdated or complete everything.
 			StringBuilder sb = new StringBuilder();
 			sb.append("_id > -1");
-			sb.append(" AND ").append(" expiration < DATETIME('NOW') ");
+			sb.append(" AND ");
+			sb.append(" expiration < '").append(Calendar.getInstance().getTimeInMillis()).append("'");
 			if (this.completeDisp != null)
 				sb.append(" AND ").append(" disposition IN ").append(this.completeDisp);
 			

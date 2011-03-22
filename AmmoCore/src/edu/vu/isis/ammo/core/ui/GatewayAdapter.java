@@ -92,11 +92,11 @@ OnStatusChangeListenerByView
 		if (status == null) return false;
 		if (status.length < 1) return false;
 
-		View row = item;
-		ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
-		TextView text_one = (TextView)row.findViewById(R.id.gateway_status_text_one);
-		TextView text_two = (TextView)row.findViewById(R.id.gateway_status_text_two);
-		
+		final View row = item;
+		final ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
+		final TextView text_one = (TextView)row.findViewById(R.id.gateway_status_text_one);
+		final TextView text_two = (TextView)row.findViewById(R.id.gateway_status_text_two);
+		TextView text = null;
 		
 		if (text_one == null) {
 			logger.error("text field is null");
@@ -108,101 +108,115 @@ OnStatusChangeListenerByView
 		}
 		if (text_two != null) text_two.setVisibility(TextView.INVISIBLE);
 
+		text = text_one;
 		switch (status[0]) {
 		case INetChannel.PENDING:
-			setColor(icon, text_one, R.color.status_pending);
-			text_one.setText(R.string.status_pending);
+			setColor(icon, text, R.color.status_pending);
+			text.setText(R.string.status_pending);
 			break;
 		case INetChannel.EXCEPTION:
-			setColor(icon, text_one, R.color.status_exception);
-			text_one.setText(R.string.status_exception);
+			setColor(icon, text, R.color.status_exception);
+			text.setText(R.string.status_exception);
 			break;
 		case INetChannel.CONNECTING:
-			setColor(icon, text_one, R.color.status_connecting);
-			text_one.setText(R.string.status_connecting);
+			setColor(icon, text, R.color.status_connecting);
+			text.setText(R.string.status_connecting);
 			break;
 		case INetChannel.CONNECTED:
 			
 		    if (status.length < 1) break;
 			switch (status[1]) {
 			case INetChannel.SENDING:
-				setColor(icon, text_one, R.color.status_sending);
-				text_one.setText(R.string.status_sending);
+				setColor(icon, text, R.color.status_sending);
+				text.setText(R.string.status_sending);
 				break;
 			case INetChannel.TAKING:
-				setColor(icon, text_one, R.color.status_taking);
-				text_one.setText(R.string.status_taking);
-				break;
-			default:
-				setColor(icon, text_one, R.color.status_unknown);
-				text_one.setText(R.string.status_unknown);
-			}
-			
-			if (status.length < 2) break;
-			text_two.setVisibility(TextView.VISIBLE);
-			
-			switch (status[2]) {
-			case INetChannel.SIZED: 
-				setColor(icon, text_two, R.color.status_sized);
-				text_two.setText(R.string.status_sized);
-				break;
-			case INetChannel.CHECKED: 
-				setColor(icon, text_two, R.color.status_checked);
-				text_two.setText(R.string.status_checked);
-				break;
-			case INetChannel.DELIVER: 
-				setColor(icon, text_two, R.color.status_deliver);
-				text_two.setText(R.string.status_deliver);
+				setColor(icon, text, R.color.status_taking);
+				text.setText(R.string.status_taking);
 				break;
 			case INetChannel.WAIT_CONNECT:
 			case INetChannel.WAIT_RECONNECT:
-				setColor(icon, text_two, R.color.status_waiting_recv);
-				text_two.setText(R.string.status_waiting);
+				setColor(icon, text, R.color.status_waiting_conn);
+				text.setText(R.string.status_waiting);
 				break;
 			default:
-				setColor(icon, text_two, R.color.status_unknown);
-				text_two.setText(R.string.status_unknown);
+				logger.error("missing sender status handling {}", status[1]);
+				setColor(icon, text, R.color.status_unknown);
+				text.setText(R.string.status_unknown);
+			}
+			
+			if (status.length < 2) break;
+			text = text_two;
+			text.setVisibility(TextView.VISIBLE);
+			
+			switch (status[2]) {
+			case INetChannel.SIZED: 
+				setColor(icon, text, R.color.status_sized);
+				text.setText(R.string.status_sized);
+				break;
+			case INetChannel.CHECKED: 
+				setColor(icon, text, R.color.status_checked);
+				text.setText(R.string.status_checked);
+				break;
+			case INetChannel.DELIVER: 
+				setColor(icon, text, R.color.status_deliver);
+				text.setText(R.string.status_deliver);
+				break;
+			case INetChannel.WAIT_CONNECT:
+			case INetChannel.WAIT_RECONNECT:
+				setColor(icon, text, R.color.status_waiting_recv);
+				text.setText(R.string.status_waiting);
+				break;
+			case INetChannel.START: 
+			case INetChannel.RESTART: 
+				setColor(icon, text, R.color.status_start);
+				text.setText(R.string.status_start);
+				break;
+			default:
+				logger.error("missing receiver status handling {}", status[2]);
+				setColor(icon, text, R.color.status_unknown);
+				text.setText(R.string.status_unknown);
 			}
 			break;
 		case INetChannel.DISCONNECTED:
-			setColor(icon, text_one, R.color.status_disconnected);
-			text_one.setText(R.string.status_disconnected);
+			setColor(icon, text, R.color.status_disconnected);
+			text.setText(R.string.status_disconnected);
 			break;
 		case INetChannel.STALE:
-			setColor(icon, text_one, R.color.status_stale);
-			text_one.setText(R.string.status_stale);
+			setColor(icon, text, R.color.status_stale);
+			text.setText(R.string.status_stale);
 			break;
 		case INetChannel.LINK_WAIT:
-			setColor(icon, text_one, R.color.status_link_wait);
-			text_one.setText(R.string.status_link_wait);
+			setColor(icon, text, R.color.status_link_wait);
+			text.setText(R.string.status_link_wait);
 			break;
 		case INetChannel.WAIT_CONNECT:
 		case INetChannel.WAIT_RECONNECT:
-			setColor(icon, text_one, R.color.status_waiting_conn);
-			text_one.setText(R.string.status_waiting);
+			setColor(icon, text, R.color.status_waiting_conn);
+			text.setText(R.string.status_waiting);
 			break;
 		
 		case INetChannel.INTERRUPTED:
-			setColor(icon, text_one, R.color.status_interrupted);
-			text_one.setText(R.string.status_interrupted);
+			setColor(icon, text, R.color.status_interrupted);
+			text.setText(R.string.status_interrupted);
 			break;
 		case INetChannel.SHUTDOWN:
-			setColor(icon, text_one, R.color.status_shutdown);
-			text_one.setText(R.string.status_shutdown);
+			setColor(icon, text, R.color.status_shutdown);
+			text.setText(R.string.status_shutdown);
 			break;
 		case INetChannel.START: 
 		case INetChannel.RESTART: 
-			setColor(icon, text_one, R.color.status_start);
-			text_one.setText(R.string.status_start);
+			setColor(icon, text, R.color.status_start);
+			text.setText(R.string.status_start);
 			break;
 		case INetChannel.STARTED: 
-			setColor(icon, text_one, R.color.status_started);
-			text_one.setText(R.string.status_started);
+			setColor(icon, text, R.color.status_started);
+			text.setText(R.string.status_started);
 			break;
 
 		default:
-			setColor(icon, text_one, R.color.status_unknown);
-			text_one.setText(R.string.status_unknown);
+			setColor(icon, text, R.color.status_unknown);
+			text.setText(R.string.status_unknown);
 		}
 		
 		item.refreshDrawableState(); 

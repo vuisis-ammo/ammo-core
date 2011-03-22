@@ -15,9 +15,9 @@ public class PostalTableViewer extends DistributorTableViewer {
 		super.onCreate(bun);
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("{").append(PostalTableSchema.DISPOSITION_SATISFIED);
+		sb.append("(").append(PostalTableSchema.DISPOSITION_SATISFIED);
 		sb.append(",").append(PostalTableSchema.DISPOSITION_EXPIRED);
-		sb.append(",").append(PostalTableSchema.DISPOSITION_FAIL).append("}");
+		sb.append(",").append(PostalTableSchema.DISPOSITION_FAIL).append(")");
 	    this.completeDisp = sb.toString();
 	}
 	@Override
