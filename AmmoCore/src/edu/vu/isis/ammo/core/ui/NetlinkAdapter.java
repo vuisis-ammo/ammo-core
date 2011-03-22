@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.net.NetworkInfo;
+import android.net.NetworkInfo.DetailedState;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -93,7 +95,10 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 		 }
 
 		 return false;
-     }
+     } 
+	
+
+	
 	@Override
 	public boolean onStatusChange(View item, int[] status) {
 		if (status == null) return false;
@@ -114,21 +119,48 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 		
 		switch (status[0]) {
 		case Netlink.NETLINK_UP: 
-			color = this.res.getColor(R.color.status_active);
-			text.setText(R.string.status_active);
+			color = this.res.getColor(R.color.status_up);
+			text.setText(R.string.status_up);
 			break;
 		case Netlink.NETLINK_DOWN: 
-			color = this.res.getColor(R.color.status_inactive);
-			text.setText(R.string.status_inactive);
+			color = this.res.getColor(R.color.status_down);
+			text.setText(R.string.status_down);
 			break;
 		case Netlink.NETLINK_DISABLED: 
 			color = this.res.getColor(R.color.status_disabled);
 			text.setText(R.string.status_disabled);
 			break;
+		case Netlink.NETLINK_DISCONNECTED: 
+			color = this.res.getColor(R.color.status_disconnected);
+			text.setText(R.string.status_disconnected);
+			break;
+		case Netlink.NETLINK_IDLE: 
+			color = this.res.getColor(R.color.status_idle);
+			text.setText(R.string.status_idle);
+			break;
+		case Netlink.NETLINK_SCANNING: 
+			color = this.res.getColor(R.color.status_scanning);
+			text.setText(R.string.status_scanning);
+			break;
+		case Netlink.NETLINK_CONNECTING: 
+			color = this.res.getColor(R.color.status_connecting);
+			text.setText(R.string.status_connecting);
+			break;
+		case Netlink.NETLINK_AUTHENTICATING: 
+			color = this.res.getColor(R.color.status_authenticating);
+			text.setText(R.string.status_authenticating);
+			break;
+		case Netlink.NETLINK_OBTAINING_IPADDR: 
+			color = this.res.getColor(R.color.status_obtaining_ipaddr);
+			text.setText(R.string.status_obtaining_ipaddr);
+			break;
+		case Netlink.NETLINK_FAILED: 
+			color = this.res.getColor(R.color.status_failed);
+			text.setText(R.string.status_failed);
+			break;
 		default:
-			color = this.res.getColor(R.color.status_disabled);
-			text.setText(R.string.status_disabled);
-			return false;
+			color = this.res.getColor(R.color.status_unknown);
+			text.setText(R.string.status_unknown);
 		}
 		icon.setTextColor(color); 
 		text.setTextColor(color);

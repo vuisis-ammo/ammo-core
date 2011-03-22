@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
+import android.net.NetworkInfo.DetailedState;
 import android.preference.PreferenceManager;
 import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;
@@ -20,6 +21,14 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	public static final int NETLINK_UP = 1;
 	public static final int NETLINK_DOWN = 2;
 	public static final int NETLINK_DISABLED = 3;
+	
+	public static final int NETLINK_DISCONNECTED = 4;
+	public static final int NETLINK_IDLE = 5;
+	public static final int NETLINK_SCANNING = 6;
+	public static final int NETLINK_CONNECTING = 7;
+	public static final int NETLINK_AUTHENTICATING = 8;
+	public static final int NETLINK_OBTAINING_IPADDR = 9;
+	public static final int NETLINK_FAILED = 10;
 	
 	// does the operator wish to use this gateway?
 	private boolean election; 

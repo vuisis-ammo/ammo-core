@@ -6,9 +6,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.wifi.SupplicantState;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.ui.TabActivityEx;
@@ -40,24 +39,33 @@ public class WifiNetlink extends Netlink {
 	 */
 	private void setWifiStatus() {
 		final Activity self = this.context;
-		Thread wifiThread = new Thread() {
+		final Thread wifiThread = new Thread() {
 			public void run() {
 				logger.trace("::setWifiStatus");
-				WifiManager manager = (WifiManager)WifiNetlink.this.context.getSystemService(Context.WIFI_SERVICE);
-				WifiInfo info = manager.getConnectionInfo();
-				logger.debug( "WifiInfo: " +  info.toString() );
-				final int wifiConn = (info == null) 
-				        ? NetworkInfo.DetailedState.FAILED.ordinal() 
-						: WifiInfo.getDetailedStateOf(info.getSupplicantState()).ordinal();
-
+				final ConnectivityManager connManager =
+					(ConnectivityManager) WifiNetlink.this.context.getSystemService(Context.CONNECTIVITY_SERVICE);
+				final NetworkInfo info = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+				
+				final int[] state = new int[1];
+				switch( info.getDetailedState() ) {
+				case DISCONNECTED      : state[0] = NETLINK_DISCONNECTED; break;
+				case IDLE              : state[0] = NETLINK_IDLE ; break;
+				case SCANNING          : state[0] = NETLINK_SCANNING; break;
+				case CONNECTING        : state[0] = NETLINK_CONNECTING ; break;
+				case AUTHENTICATING    : state[0] = NETLINK_AUTHENTICATING; break;
+				case OBTAINING_IPADDR  : state[0] = NETLINK_OBTAINING_IPADDR ; break;
+				case FAILED            : state[0] = NETLINK_FAILED ; break;
+				}
+				
 				self.runOnUiThread(new Runnable() {
 					public void run() {
-						statusListener.onStatusChange(statusView, new int[]{ wifiConn });
+						statusListener.onStatusChange(statusView, state);
 					}});
 			}
 		};
 		wifiThread.start();
 	}
+
 
 	// ===========================================================
 	// UI Management

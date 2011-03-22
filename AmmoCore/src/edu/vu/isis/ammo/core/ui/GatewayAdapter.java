@@ -21,7 +21,6 @@ import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.model.Gateway;
-import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetChannel;
 
 public class GatewayAdapter extends ArrayAdapter<Gateway> 
@@ -95,9 +94,11 @@ OnStatusChangeListenerByView
 
 		View row = item;
 		ToggleButton icon = (ToggleButton)row.findViewById(R.id.gateway_status);
-		TextView text = (TextView)row.findViewById(R.id.gateway_status_text);
-		int color;
-		if (text == null) {
+		TextView text_one = (TextView)row.findViewById(R.id.gateway_status_text_one);
+		TextView text_two = (TextView)row.findViewById(R.id.gateway_status_text_two);
+		
+		
+		if (text_one == null) {
 			logger.error("text field is null");
 			return false;
 		}
@@ -105,27 +106,114 @@ OnStatusChangeListenerByView
 			logger.error("icon field is null");
 			return false;
 		}
+		if (text_two != null) text_two.setVisibility(TextView.INVISIBLE);
 
 		switch (status[0]) {
+		case INetChannel.PENDING:
+			setColor(icon, text_one, R.color.status_pending);
+			text_one.setText(R.string.status_pending);
+			break;
+		case INetChannel.EXCEPTION:
+			setColor(icon, text_one, R.color.status_exception);
+			text_one.setText(R.string.status_exception);
+			break;
+		case INetChannel.CONNECTING:
+			setColor(icon, text_one, R.color.status_connecting);
+			text_one.setText(R.string.status_connecting);
+			break;
 		case INetChannel.CONNECTED:
-			color = this.res.getColor(R.color.status_active);
-			text.setText(R.string.status_active);
+			
+		    if (status.length < 1) break;
+			switch (status[1]) {
+			case INetChannel.SENDING:
+				setColor(icon, text_one, R.color.status_sending);
+				text_one.setText(R.string.status_sending);
+				break;
+			case INetChannel.TAKING:
+				setColor(icon, text_one, R.color.status_taking);
+				text_one.setText(R.string.status_taking);
+				break;
+			default:
+				setColor(icon, text_one, R.color.status_unknown);
+				text_one.setText(R.string.status_unknown);
+			}
+			
+			if (status.length < 2) break;
+			text_two.setVisibility(TextView.VISIBLE);
+			
+			switch (status[2]) {
+			case INetChannel.SIZED: 
+				setColor(icon, text_two, R.color.status_sized);
+				text_two.setText(R.string.status_sized);
+				break;
+			case INetChannel.CHECKED: 
+				setColor(icon, text_two, R.color.status_checked);
+				text_two.setText(R.string.status_checked);
+				break;
+			case INetChannel.DELIVER: 
+				setColor(icon, text_two, R.color.status_deliver);
+				text_two.setText(R.string.status_deliver);
+				break;
+			case INetChannel.WAIT_CONNECT:
+			case INetChannel.WAIT_RECONNECT:
+				setColor(icon, text_two, R.color.status_waiting_recv);
+				text_two.setText(R.string.status_waiting);
+				break;
+			default:
+				setColor(icon, text_two, R.color.status_unknown);
+				text_two.setText(R.string.status_unknown);
+			}
 			break;
-		case INetChannel.DISCONNECTED: 
-			color = this.res.getColor(R.color.status_inactive);
-			text.setText(R.string.status_inactive);
+		case INetChannel.DISCONNECTED:
+			setColor(icon, text_one, R.color.status_disconnected);
+			text_one.setText(R.string.status_disconnected);
 			break;
-		default:
-			color = this.res.getColor(R.color.status_disabled);
-			text.setText(R.string.status_disabled);
-			return false;
-		}
-		icon.setTextColor(color); 
-		text.setTextColor(color);
+		case INetChannel.STALE:
+			setColor(icon, text_one, R.color.status_stale);
+			text_one.setText(R.string.status_stale);
+			break;
+		case INetChannel.LINK_WAIT:
+			setColor(icon, text_one, R.color.status_link_wait);
+			text_one.setText(R.string.status_link_wait);
+			break;
+		case INetChannel.WAIT_CONNECT:
+		case INetChannel.WAIT_RECONNECT:
+			setColor(icon, text_one, R.color.status_waiting_conn);
+			text_one.setText(R.string.status_waiting);
+			break;
+		
+		case INetChannel.INTERRUPTED:
+			setColor(icon, text_one, R.color.status_interrupted);
+			text_one.setText(R.string.status_interrupted);
+			break;
+		case INetChannel.SHUTDOWN:
+			setColor(icon, text_one, R.color.status_shutdown);
+			text_one.setText(R.string.status_shutdown);
+			break;
+		case INetChannel.START: 
+		case INetChannel.RESTART: 
+			setColor(icon, text_one, R.color.status_start);
+			text_one.setText(R.string.status_start);
+			break;
+		case INetChannel.STARTED: 
+			setColor(icon, text_one, R.color.status_started);
+			text_one.setText(R.string.status_started);
+			break;
 
+		default:
+			setColor(icon, text_one, R.color.status_unknown);
+			text_one.setText(R.string.status_unknown);
+		}
+		
 		item.refreshDrawableState(); 
 		return true;
 	}
+	private void setColor(ToggleButton icon, TextView text, int resColor) {
+		int color = this.res.getColor(resColor);
+	    if (icon != null) icon.setTextColor(color); 
+	    if (text != null) text.setTextColor(color);
+	}
+
 
 	@Override
 	public boolean onNameChange(View item, String name) {
