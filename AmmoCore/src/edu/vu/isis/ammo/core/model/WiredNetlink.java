@@ -2,7 +2,7 @@ package edu.vu.isis.ammo.core.model;
 
 import android.content.SharedPreferences;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.ui.TabActivityEx;
+import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 
 public class WiredNetlink extends Netlink {

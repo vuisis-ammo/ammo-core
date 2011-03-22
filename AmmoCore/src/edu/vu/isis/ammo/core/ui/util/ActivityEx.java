@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.ammo.core.ui.util;
 
 import edu.vu.isis.ammo.core.ApplicationEx;
 import android.app.Activity;

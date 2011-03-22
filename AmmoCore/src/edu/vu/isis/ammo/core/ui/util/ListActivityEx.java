@@ -1,10 +1,10 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.ammo.core.ui.util;
 
-import edu.vu.isis.ammo.core.ApplicationEx;
+import android.app.ListActivity;
 import android.content.Context;
-import android.preference.PreferenceActivity;
+import edu.vu.isis.ammo.core.ApplicationEx;
 
-abstract class PreferenceActivityEx extends PreferenceActivity implements IActivityEx {
+public abstract class ListActivityEx extends ListActivity implements IActivityEx {
     public Context getAppContext(){
         return getApplicationContext();
     }

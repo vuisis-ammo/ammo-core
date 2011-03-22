@@ -8,6 +8,7 @@ import edu.vu.isis.ammo.core.MyCheckBoxPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference;
 import edu.vu.isis.ammo.core.MyEditTextPreference;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
 
 /**
  * View and change the core application preferences.

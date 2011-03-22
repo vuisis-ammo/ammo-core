@@ -1,12 +1,9 @@
-package edu.vu.isis.ammo.core.distributor;
-
-import java.util.HashMap;
+package edu.vu.isis.ammo.core.distributor.ui;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
-import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -15,26 +12,25 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ContextMenu.ContextMenuInfo;
-import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.SimpleCursorAdapter;
-import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
-import edu.vu.isis.ammo.collector.provider.IncidentSchema.EventTableSchema;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorTableViewAdapter;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
-import edu.vu.isis.ammo.core.ui.SubscriptionStatus;
 
-public class DistributorTableViewer extends ListActivity implements
-		IAmmoActivitySetup {
+public abstract class DistributorTableViewer extends ListActivity 
+implements IAmmoActivitySetup 
+{
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final int MENU_PURGE = 0;
+	static private final Logger logger = LoggerFactory.getLogger(DistributorTableViewer.class);
+	
+	public static final int MENU_PURGE = 1;
+	private static final int MENU_GARBAGE = 2;
+	
 	public static final int MENU_CONTEXT_DELETE = 1;
 
 	static private String[] fromItemLayout = new String[] {
@@ -53,9 +49,8 @@ public class DistributorTableViewer extends ListActivity implements
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	Logger logger = LoggerFactory.getLogger(SubscriptionStatus.class);
-	Uri uri;
-	private TextView tvLabel;
+	
+	protected Uri uri;
 	private DistributorTableViewAdapter adapter;
 
 	// ===========================================================
@@ -65,9 +60,8 @@ public class DistributorTableViewer extends ListActivity implements
 	public void onCreate(Bundle bun) {
 		super.onCreate(bun);
 		setContentView(R.layout.distributor_table_viewer);
-		Intent i = getIntent();
-		uri = (Uri) i.getParcelableExtra("uri");
-		if (uri == null) {
+		
+		if (this.uri == null) {
 			logger.error("no uri provided...exiting");
 			return;
 		}
@@ -76,12 +70,12 @@ public class DistributorTableViewer extends ListActivity implements
 				SubscriptionTableSchema.DISPOSITION,
 				SubscriptionTableSchema.URI, 
 				SubscriptionTableSchema.CREATED_DATE};
-		Cursor cursor = this.managedQuery(uri, projection, null, null, null);
-		adapter = new DistributorTableViewAdapter(this,
+		Cursor cursor = this.managedQuery(this.uri, projection, null, null, null);
+		this.adapter = new DistributorTableViewAdapter(this,
 				R.layout.distributor_table_view_item, cursor, fromItemLayout,
 				toItemLayout);
-		setListAdapter(adapter);
-		registerForContextMenu(this.getListView());
+		this.setListAdapter(adapter);
+		this.registerForContextMenu(this.getListView());
 	}
 
 	// ===========================================================
@@ -92,16 +86,23 @@ public class DistributorTableViewer extends ListActivity implements
 		super.onCreateOptionsMenu(menu);
 		logger.trace("::onCreateOptionsMenu");
 		menu.add(Menu.NONE, MENU_PURGE, Menu.NONE, "Purge");
+		menu.add(Menu.NONE, MENU_GARBAGE, Menu.NONE+1, "Garbage");
 		return true;
 	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		logger.trace("::onOptionsItemSelected");
+		int count;
 		switch (item.getItemId()) {
 		case MENU_PURGE:
 			// Delete everything.
-			int count = getContentResolver().delete(uri, "_id > -1", null);
+			count = getContentResolver().delete(this.uri, "_id > -1", null);
+			logger.debug("Deleted " + count + "subscriptions");
+			break;
+		case MENU_GARBAGE:
+			// Delete everything.
+			count = getContentResolver().delete(this.uri, "_id > -1", null);
 			logger.debug("Deleted " + count + "subscriptions");
 		}
 		return true;
@@ -141,9 +142,8 @@ public class DistributorTableViewer extends ListActivity implements
 		// Get the row id and uri of the selected item.
 		AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
 		int rowId = (int)acmi.id;
-		int count = getContentResolver().delete(uri, SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
+		int count = getContentResolver().delete(this.uri, SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
 		Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();
-
 	}
 
 	// ===========================================================
@@ -153,25 +153,6 @@ public class DistributorTableViewer extends ListActivity implements
 	@Override
 	public void setOnClickListeners() {
 
-	}
-
-	@Override
-	public void setViewAttributes() {
-
-		if (uri.equals(PostalTableSchema.CONTENT_URI)) {
-			tvLabel.setText("Postal Table");
-		} else if (uri.equals(RetrievalTableSchema.CONTENT_URI)) {
-			tvLabel.setText("Retrieval Table");
-		} else if (uri.equals(SubscriptionTableSchema.CONTENT_URI)) {
-			tvLabel.setText("Subscription Table");
-		} else {
-			tvLabel.setText("Unknown");
-		}
-	}
-
-	@Override
-	public void setViewReferences() {
-		tvLabel = (TextView) findViewById(R.id.distributor_table_viewer_label);
 	}
 
 }

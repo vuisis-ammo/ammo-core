@@ -26,6 +26,7 @@ import edu.vu.isis.ammo.collector.provider.IncidentSchema;
 import edu.vu.isis.ammo.collector.provider.IncidentSchema.EventTableSchema;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**
  * This activity provides the operator a direct way of subscribing to content of interest.

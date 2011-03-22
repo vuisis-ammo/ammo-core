@@ -11,7 +11,8 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
-public class DistributorTableViewAdapter extends SimpleCursorAdapter {
+public class DistributorTableViewAdapter extends SimpleCursorAdapter 
+{
 	static private HashMap<Integer, String> dispositionMap = new HashMap<Integer, String>();
 	static private HashMap<Integer, Integer> dispositionColor = new HashMap<Integer, Integer>();
 	
@@ -41,11 +42,9 @@ public class DistributorTableViewAdapter extends SimpleCursorAdapter {
 	@Override
 	public void bindView(View v, Context context, Cursor cursor) {
 		super.bindView(v, context, cursor);
-		this.bindDispositionToView(v, context, cursor);
-	}
 	
-	
-	private void bindDispositionToView(View v, Context context, Cursor cursor) {
+		// deal with the displaying of the disposition
+		
 		TextView tv = (TextView)v.findViewById(R.id.distributor_table_view_item_disposition);
 		int disposition = cursor.getInt(cursor.getColumnIndex(SubscriptionTableSchema.DISPOSITION));
 		if (dispositionMap.containsKey(disposition)) {
@@ -54,5 +53,10 @@ public class DistributorTableViewAdapter extends SimpleCursorAdapter {
 		} else {
 			tv.setText("Unknown Disposition");
 		}
+		
+		// deal with the displaying of the timestamp
+		TextView ttv = (TextView)v.findViewById(R.id.distributor_table_view_item_timestamp);
+		int timestamp = cursor.getInt(cursor.getColumnIndex(SubscriptionTableSchema.CREATED_DATE));
+		//ttv.setText(text)
 	}
 }

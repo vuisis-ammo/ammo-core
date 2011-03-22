@@ -5,6 +5,7 @@ import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.MyEditTextPreference.Type;
 import edu.vu.isis.ammo.core.R.layout;
 import edu.vu.isis.ammo.core.R.string;
+import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;

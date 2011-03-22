@@ -3,6 +3,8 @@ package edu.vu.isis.ammo.core.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.ui.util.ActivityEx;
+
 import android.app.Activity;
 
 /**

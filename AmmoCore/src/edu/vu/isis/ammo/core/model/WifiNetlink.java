@@ -10,7 +10,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.ui.TabActivityEx;
+import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 
 public class WifiNetlink extends Netlink {

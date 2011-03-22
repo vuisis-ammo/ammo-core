@@ -19,12 +19,13 @@ import android.widget.TabHost;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch;
+import edu.vu.isis.ammo.core.distributor.ui.DistributorViewerSwitch;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
+import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 /**
  * The principle activity for the ammo core application.

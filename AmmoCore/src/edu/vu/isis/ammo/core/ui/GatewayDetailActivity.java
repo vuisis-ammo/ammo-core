@@ -51,9 +51,10 @@ import edu.vu.isis.ammo.core.R.drawable;
 import edu.vu.isis.ammo.core.R.id;
 import edu.vu.isis.ammo.core.R.layout;
 import edu.vu.isis.ammo.core.R.string;
-import edu.vu.isis.ammo.core.distributor.DistributorViewerSwitch;
+import edu.vu.isis.ammo.core.distributor.ui.DistributorViewerSwitch;
 import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
+import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**
  * Show details about the gateway.

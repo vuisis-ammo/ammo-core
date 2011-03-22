@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.ammo.core.ui.util;
 
 import android.app.TabActivity;
 import android.content.Context;

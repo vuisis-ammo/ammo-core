@@ -13,6 +13,7 @@ import android.widget.Toast;
 import android.widget.AdapterView.OnItemClickListener;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
+import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**
  * This activity shows a list of the items and their delivery status.

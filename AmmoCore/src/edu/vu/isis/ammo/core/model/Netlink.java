@@ -12,8 +12,8 @@ import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
-import edu.vu.isis.ammo.core.ui.ActivityEx;
-import edu.vu.isis.ammo.core.ui.TabActivityEx;
+import edu.vu.isis.ammo.core.ui.util.ActivityEx;
+import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	public static final Logger logger = LoggerFactory.getLogger(Netlink.class);

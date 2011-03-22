@@ -20,6 +20,7 @@ import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.R.id;
 import edu.vu.isis.ammo.core.R.layout;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.ui.util.ListActivityEx;
 
 /**
  * This activity shows a list of the items and their subscription status.
