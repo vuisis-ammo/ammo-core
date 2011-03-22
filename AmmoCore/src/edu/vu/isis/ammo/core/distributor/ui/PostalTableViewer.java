@@ -11,8 +11,14 @@ public class PostalTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		super.onCreate(bun);
 		this.uri = PostalTableSchema.CONTENT_URI;
+		super.onCreate(bun);
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("{").append(PostalTableSchema.DISPOSITION_SATISFIED);
+		sb.append(",").append(PostalTableSchema.DISPOSITION_EXPIRED);
+		sb.append(",").append(PostalTableSchema.DISPOSITION_FAIL).append("}");
+	    this.completeDisp = sb.toString();
 	}
 	@Override
 	public void setViewAttributes() {

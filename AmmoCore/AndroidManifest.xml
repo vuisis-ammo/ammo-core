@@ -33,7 +33,7 @@
         <activity android:name=".distributor.ui.RetrievalTableViewer"/>
         <activity android:name=".distributor.ui.SubscribeTableViewer"/>
         <activity android:name=".distributor.ui.PostalTableViewer"/>
-        <activity android:name=".distributor.ui.DistributorViewerSwitch"/>
+        <activity android:name=".distributor.ui.DistributorTabActivity"/>
 
     <!-- ========== RECIEVER SECTION ================= -->
 

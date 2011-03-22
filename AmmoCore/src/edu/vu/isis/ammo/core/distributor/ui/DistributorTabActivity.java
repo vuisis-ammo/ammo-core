@@ -13,11 +13,11 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 /**
  * View that presents buttons users may select to view different tables
  * in distributor.
- * @author Demetri Miller
+ * @author Fred Eisele
  *
  */
-public class DistributorViewerSwitch extends TabActivityEx  {
-		public static final Logger logger = LoggerFactory.getLogger(DistributorViewerSwitch.class);
+public class DistributorTabActivity extends TabActivityEx  {
+		public static final Logger logger = LoggerFactory.getLogger(DistributorTabActivity.class);
 		
 		@Override
 		public void onCreate(Bundle savedInstanceState) {

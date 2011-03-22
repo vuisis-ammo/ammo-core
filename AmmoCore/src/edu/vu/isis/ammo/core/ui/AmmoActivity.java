@@ -19,7 +19,7 @@ import android.widget.TabHost;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.ui.DistributorViewerSwitch;
+import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
@@ -186,7 +186,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 			this.startActivity(intent);
 			return true;
 		case VIEW_TABLES_MENU:
-			intent.setClass(this, DistributorViewerSwitch.class);
+			intent.setClass(this, DistributorTabActivity.class);
 			this.startActivity(intent);
 			return true;
 		case LOGGING_MENU:
