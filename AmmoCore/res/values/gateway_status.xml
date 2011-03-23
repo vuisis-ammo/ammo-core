@@ -23,7 +23,7 @@
     <color name="status_link_wait">#FFFFBF00</color>
     
     <string name="status_waiting">Waiting</string>
-    <color name="status_waiting_conn">#FFFFBF00</color>
+    <color name="status_waiting_conn">#FF008000</color>
     <color name="status_waiting_send">#FFFFBF00</color>
     <color name="status_waiting_recv">#FFFFBF00</color>
     
@@ -39,14 +39,14 @@
     <string name="status_shutdown">Shutdown</string>
     <color name="status_shutdown">#FFF2003C</color>
      
-    <string name="status_start">Starting</string>
-    <color name="status_start">#FFF2003C</color>
+    <string name="status_start">Receiving</string>
+    <color name="status_start">#FF008000</color>
      
     <string name="status_started">Started</string>
-    <color name="status_started">#FFF2003C</color>
+    <color name="status_started">#FF008000</color>
     
     <string name="status_sized">Sized</string>
-    <color name="status_sized">#FFF2003C</color>
+    <color name="status_sized">#FF008000</color>
     
     <string name="status_checked">Checked</string>
     <color name="status_checked">#FF008000</color>

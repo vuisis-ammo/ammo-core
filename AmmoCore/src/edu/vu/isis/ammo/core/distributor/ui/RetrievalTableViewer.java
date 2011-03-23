@@ -11,8 +11,14 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		super.onCreate(bun);
 		this.uri = RetrievalTableSchema.CONTENT_URI;
+		super.onCreate(bun);
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("(").append(RetrievalTableSchema.DISPOSITION_SATISFIED);
+		sb.append(",").append(RetrievalTableSchema.DISPOSITION_EXPIRED);
+		sb.append(",").append(RetrievalTableSchema.DISPOSITION_FAIL).append(")");
+	    this.completeDisp = sb.toString();
 	}
 	
 	@Override

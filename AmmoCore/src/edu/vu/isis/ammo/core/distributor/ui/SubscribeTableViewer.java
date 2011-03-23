@@ -11,8 +11,13 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		super.onCreate(bun);
 		this.uri = SubscriptionTableSchema.CONTENT_URI;
+		super.onCreate(bun);
+		
+		StringBuilder sb = new StringBuilder();
+		sb.append("(").append(SubscriptionTableSchema.DISPOSITION_EXPIRED);
+		sb.append(",").append(SubscriptionTableSchema.DISPOSITION_FAIL).append(")");
+	    this.completeDisp = sb.toString();
 	}
 
 	@Override

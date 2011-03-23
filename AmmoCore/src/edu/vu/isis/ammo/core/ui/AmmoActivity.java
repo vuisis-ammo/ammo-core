@@ -19,7 +19,7 @@ import android.widget.TabHost;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.ui.DistributorViewerSwitch;
+import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
@@ -41,11 +41,9 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 {
 	public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
 	
-	private static final int PREFERENCES_MENU = Menu.NONE + 0;
-	private static final int DELIVERY_STATUS_MENU = Menu.NONE + 1;
-	private static final int VIEW_TABLES_MENU = Menu.NONE + 3;
-	private static final int LOGGING_MENU = Menu.NONE + 4;
-	private static final int SERVICE_MENU = Menu.NONE + 5;
+	private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
+	private static final int LOGGING_MENU = Menu.NONE + 1;
+	private static final int PREFERENCES_MENU = Menu.NONE + 2;
 		
 	// ===========================================================
 	// Fields
@@ -157,11 +155,9 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		super.onCreateOptionsMenu(menu);
 		logger.trace("::onCreateOptionsMenu");
 		
-		menu.add(Menu.NONE, PREFERENCES_MENU, Menu.NONE, getResources().getString(R.string.pref_label));
-		menu.add(Menu.NONE, DELIVERY_STATUS_MENU, Menu.NONE, getResources().getString(R.string.delivery_status_label));
 		menu.add(Menu.NONE, VIEW_TABLES_MENU, Menu.NONE, getResources().getString(R.string.view_tables_label));
 		menu.add(Menu.NONE, LOGGING_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
-		menu.add(Menu.NONE, SERVICE_MENU, Menu.NONE, getResources().getString(R.string.service_label));
+		menu.add(Menu.NONE, PREFERENCES_MENU, Menu.NONE, getResources().getString(R.string.pref_label));
 		return true;
 	}
 	
@@ -181,21 +177,13 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 			intent.setClass(this, CorePreferenceActivity.class);
 			this.startActivity(intent);
 			return true;
-		case DELIVERY_STATUS_MENU:
-			intent.setClass(this, DeliveryStatus.class);
-			this.startActivity(intent);
-			return true;
 		case VIEW_TABLES_MENU:
-			intent.setClass(this, DistributorViewerSwitch.class);
+			intent.setClass(this, DistributorTabActivity.class);
 			this.startActivity(intent);
 			return true;
 		case LOGGING_MENU:
 			intent.setClass(this, LoggingPreferences.class);
 			this.startActivity(intent);
-			return true;
-		case SERVICE_MENU:
-			intent.setAction(StartUpReceiver.RESET);
-			this.sendBroadcast(intent);
 			return true;
 		}
 		return false;

@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.core.distributor.ui;
 
+import java.util.Calendar;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +19,6 @@ import android.widget.Toast;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorTableViewAdapter;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
 public abstract class DistributorTableViewer extends ListActivity 
@@ -28,12 +29,12 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	static private final Logger logger = LoggerFactory.getLogger(DistributorTableViewer.class);
 	
-	public static final int MENU_PURGE = 1;
+	private static final int MENU_PURGE = 1;
 	private static final int MENU_GARBAGE = 2;
 	
 	public static final int MENU_CONTEXT_DELETE = 1;
 
-	static private String[] fromItemLayout = new String[] {
+	static private final String[] fromItemLayout = new String[] {
 			SubscriptionTableSchema.URI,
 			// SubscriptionTableSchema.PROJECTION ,
 			// SubscriptionTableSchema.SELECTION ,
@@ -43,7 +44,7 @@ implements IAmmoActivitySetup
 			// SubscriptionTableSchema.CREATED_DATE ,
 			SubscriptionTableSchema.CREATED_DATE };
 
-	static private int[] toItemLayout = new int[] {
+	static private final int[] toItemLayout = new int[] {
 			R.id.distributor_table_view_item_uri,
 			R.id.distributor_table_view_item_timestamp };
 	// ===========================================================
@@ -90,6 +91,7 @@ implements IAmmoActivitySetup
 		return true;
 	}
 
+	protected String completeDisp = null;
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		logger.trace("::onOptionsItemSelected");
@@ -101,8 +103,15 @@ implements IAmmoActivitySetup
 			logger.debug("Deleted " + count + "subscriptions");
 			break;
 		case MENU_GARBAGE:
-			// Delete everything.
-			count = getContentResolver().delete(this.uri, "_id > -1", null);
+			// Delete things which are outdated or complete everything.
+			StringBuilder sb = new StringBuilder();
+			sb.append("_id > -1");
+			sb.append(" AND ");
+			sb.append(" expiration < '").append(Calendar.getInstance().getTimeInMillis()).append("'");
+			if (this.completeDisp != null)
+				sb.append(" AND ").append(" disposition IN ").append(this.completeDisp);
+			
+			count = getContentResolver().delete(this.uri, sb.toString(), null);
 			logger.debug("Deleted " + count + "subscriptions");
 		}
 		return true;
