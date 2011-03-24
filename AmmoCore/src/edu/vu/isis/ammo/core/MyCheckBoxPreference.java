@@ -22,6 +22,7 @@ public class MyCheckBoxPreference extends CheckBoxPreference {
 	// ===========================================================
 	private String summaryPrefix = "";
 	private Type mType;
+	@SuppressWarnings("unused")
 	private Context context;
 	
 	// ===========================================================

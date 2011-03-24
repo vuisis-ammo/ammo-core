@@ -1,6 +1,5 @@
 package edu.vu.isis.ammo.core;
 
-import android.view.View;
 
 /** 
  * An application 
