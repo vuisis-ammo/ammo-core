@@ -25,8 +25,6 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.os.Looper;
-
 /**
  * Two long running threads and one short.
  * The long threads are for sending and receiving messages.

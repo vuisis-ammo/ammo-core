@@ -44,7 +44,6 @@ import com.google.protobuf.ByteString;
 
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.network.INetworkService.OnSendMessageHandler;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
