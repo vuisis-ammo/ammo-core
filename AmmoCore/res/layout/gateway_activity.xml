@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+ android:id="@+id/gateway_layout"
+	android:layout_width="fill_parent" 
+	android:layout_height="fill_parent"
+	android:background="@color/gateway_background">
+
+	<TextView android:id="@+id/gateway_label"
+		android:layout_alignParentTop="true" 
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content" 
+		android:textSize="20dip"
+		android:text="@string/gateway_title" 
+		android:textColor="@color/branding"
+		android:gravity="center" />
+
+	<TextView android:id="@+id/version_label"
+		android:layout_below="@id/gateway_label" 
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:gravity="center"
+		android:text="@string/ammo_version" 
+		android:textSize="8dip" />
+
+
+	<ListView android:id="@+id/gateway_list" 
+	   android:layout_below="@id/version_label"
+		android:layout_width="fill_parent"
+		android:layout_height="fill_parent" 
+		android:layout_weight="1" 
+		android:drawSelectorOnTop="false" />
+
+</RelativeLayout>

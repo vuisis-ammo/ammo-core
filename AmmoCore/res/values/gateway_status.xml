@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  
+    <string name="status_pending">Pending</string>
+    <color name="status_pending">#FF008000</color>
+    
+    <string name="status_exception">Exception</string>
+    <color name="status_exception">#FFFFBF00</color>
+    
+    <string name="status_connecting">Connecting</string>
+    <color name="status_connecting">#FFF2003C</color>
+    
+    <string name="status_connected">Connected</string>
+    <color name="status_connected">#FF008000</color>
+    
+    <string name="status_disconnected">Disconnected</string>  
+    <color name="status_disconnected">#FFFFBF00</color>
+    
+    <string name="status_stale">Stale</string>
+    <color name="status_stale">#FFFFBF00</color>
+    
+    <string name="status_link_wait">Linking</string>
+    <color name="status_link_wait">#FFFFBF00</color>
+    
+    <string name="status_waiting">Waiting</string>
+    <color name="status_waiting_conn">#FF008000</color>
+    <color name="status_waiting_send">#FFFFBF00</color>
+    <color name="status_waiting_recv">#FFFFBF00</color>
+    
+    <string name="status_sending">Sending</string>
+    <color name="status_sending">#FF008000</color>
+    
+    <string name="status_taking">Taking</string>
+    <color name="status_taking">#FF008000</color>
+    
+    <string name="status_interrupted">Interrupted</string>
+    <color name="status_interrupted">#FFF2003C</color>
+     
+    <string name="status_shutdown">Shutdown</string>
+    <color name="status_shutdown">#FFF2003C</color>
+     
+    <string name="status_start">Receiving</string>
+    <color name="status_start">#FF008000</color>
+     
+    <string name="status_started">Started</string>
+    <color name="status_started">#FF008000</color>
+    
+    <string name="status_sized">Sized</string>
+    <color name="status_sized">#FF008000</color>
+    
+    <string name="status_checked">Checked</string>
+    <color name="status_checked">#FF008000</color>
+    
+    <string name="status_deliver">Deliver</string>
+    <color name="status_deliver">#FF008000</color>
+   
+  
+</resources>

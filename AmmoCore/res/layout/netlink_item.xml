@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+   android:id="@+id/netlink_layout" 
+   android:layout_width="fill_parent"
+   android:layout_height="fill_parent">
+
+   <ToggleButton android:id="@+id/netlink_status"
+      android:layout_alignParentLeft="true" 
+      android:layout_width="wrap_content"
+      android:text="Status" 
+      android:textOn="ON" 
+      android:textOff="OFF"
+      android:layout_height="wrap_content" 
+      android:visibility="invisible"/>
+
+   <TextView android:id="@+id/netlink_name" 
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content" 
+      android:layout_toRightOf="@id/netlink_status"
+      android:layout_alignParentTop="true" 
+      android:padding="3dip"
+      android:textSize="16dip" 
+      android:hint="Name" />
+      
+   <TextView android:id="@+id/netlink_status_text"
+      android:layout_alignParentRight="true" 
+      android:layout_alignParentTop="true" 
+      android:layout_width="wrap_content" 
+      android:layout_height="wrap_content"
+      android:padding="3dip" 
+      android:textSize="16dip"
+      android:hint="status"  />
+
+</RelativeLayout>
+      

@@ -29,7 +29,7 @@ import android.os.Environment;
  * @author phreed
  *
  */
-public class JournalChannel {
+public class JournalChannel implements INetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(JournalChannel.class);
 	
 	private BlockingQueue<GwMessage> sendQueue = new LinkedBlockingQueue<GwMessage>(20);
@@ -297,7 +297,7 @@ public class JournalChannel {
 			BufferedOutputStream dos;
 			try {		
 				dos = JournalChannel.this.ostream;
-				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE + Integer.SIZE);
+				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE/Byte.SIZE + Integer.SIZE/Byte.SIZE);
 				// ByteOrder order = buf.order();
 				buf.order(parent.endian);
 				

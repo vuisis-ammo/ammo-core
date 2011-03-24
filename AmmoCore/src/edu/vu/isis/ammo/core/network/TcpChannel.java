@@ -7,6 +7,7 @@ import java.io.BufferedInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -35,9 +36,10 @@ import android.os.Looper;
  * @author phreed
  *
  */
-public class TcpChannel {
+public class TcpChannel implements INetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
 
+	private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
 	private boolean isEnabled = false;
 
 	private Socket socket = null;
@@ -51,19 +53,22 @@ public class TcpChannel {
 	private String gatewayHost = null;
 	private int gatewayPort = -1;
 
-
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private final Object syncObj;
 
 	private long flatLineTime;
+	private NetworkService driver;
 
 	private TcpChannel(NetworkService driver) {
 		super();
 		logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
 		this.syncObj = this;
+		
+		this.driver = driver;
 		this.connectorThread = new ConnectorThread(this, driver);
 		this.senderThread = new SenderThread(this, driver);
 		this.receiverThread = new ReceiverThread(this, driver);
+		
 		this.flatLineTime = 20 * 60 * 1000; // 20 minutes in milliseconds
 	}
 
@@ -86,9 +91,9 @@ public class TcpChannel {
 				return false;
 			this.isEnabled = true;
 
-			this.connectorThread.start();
-			this.senderThread.start();
-			this.receiverThread.start();
+			if (! this.connectorThread.isAlive()) this.connectorThread.start();
+			if (! this.senderThread.isAlive()) this.senderThread.start();
+			if (! this.receiverThread.isAlive()) this.receiverThread.start();
 		}
 		return true;
 	}
@@ -146,9 +151,32 @@ public class TcpChannel {
 	 */
 	public void reset() { 
 		logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
-		this.connectorThread.reset();
-	}
+		logger.trace("connector: {} sender: {} receiver: {}",
+				new String[] {
+				this.connectorThread.showState(), 
+				this.senderThread.showState(), 
+				this.receiverThread.showState()});
+		
+		synchronized (this.syncObj) {
+			if (! this.connectorThread.isAlive()) {
+				this.connectorThread = new ConnectorThread(this, this.driver);
+				this.connectorThread.start();
+			}
+			if (! this.senderThread.isAlive()) {
+				this.senderThread = new SenderThread(this, this.driver);
+				this.senderThread.start();
+			}
+			if (! this.receiverThread.isAlive()) {
+				this.receiverThread = new ReceiverThread(this, this.driver);
+				this.receiverThread.start();
+			}
 
+			this.connectorThread.reset();
+		}
+	}
+	private void statusChange() {
+		driver.statusChange(this, this.connectorThread.state.value, this.senderThread.state, this.receiverThread.state);
+	}
 
 	/**
 	 * manages the connection.
@@ -193,27 +221,20 @@ public class TcpChannel {
 		
 		private class State {
 			private int value;
-
-			static private final int CONNECTED     = 0; // the socket is good an active
-			static private final int CONNECTING    = 1; // trying to connect
-			static private final int DISCONNECTED  = 2; // the socket is disconnected
-			static private final int STALE         = 4; // indicating there is a message
-			static private final int LINK_WAIT     = 5; // indicating the underlying link is down 
+			private int actual;
 			
-			private long version; // used to uniquely name the connection
+			private long attempt; // used to uniquely name the connection
 			
 			public State() { 
 				this.value = STALE; 
-				this.version = Long.MIN_VALUE;
+				this.attempt = Long.MIN_VALUE;
 			}
 			public synchronized void set(int state) {
-				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), state);
+				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
 				if (state == STALE) {
 					logger.error("set stale only from the special setStale method");
 					return;
 				}
-				if (state == CONNECTED) 
-					version++;
 				this.value = state; 
 				this.notifyAll(); 
 			}
@@ -223,55 +244,51 @@ public class TcpChannel {
 				return this.value == CONNECTED; 
 			}
 
-			public synchronized boolean failure(long version) {
-				if (version != this.version) return true;
-				if (this.value != CONNECTED) return true;
+			/**
+			 * Previously this method would only set the state to stale
+			 * if the current state were CONNECTED.  It may be important
+			 * to return to STALE from other states as well.
+			 * For example during a failed link attempt.
+			 * Therefore if the attempt value matches then reset to STALE
+			 * This also causes a reset to reliably perform a notify.
+			 * 
+			 * @param attempt value (an increasing integer)
+			 * @return
+			 */
+			public synchronized boolean failure(long attempt) {
+				if (attempt != this.attempt) return true;
+				attempt++;
 				this.value = STALE;
 				this.notifyAll(); 
 				return true;
 			}
 			
-			public String toString ()
-			{
-				switch (value)
-				{
-				case CONNECTED:
-					return "CONNECTED";
-				case CONNECTING:
-					return "CONNECTING";
-				case DISCONNECTED:
-					return "DISCONNECTED";
-				case STALE:
-					return "STALE";
-				case LINK_WAIT:
-					return "LINK_WAIT";
-				default:
-					return "Undefined State";									
-				}
+			public String showState () {
+				if (this.value == this.actual)
+					return NetChannel.showState(this.value);
+				else
+					return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 			}
 		}
 		
 		public boolean isConnected() { 
 			return this.state.isConnected(); 
 		}
-		public long getVersion() { 
-			return this.state.version; 
+		public long getAttempt() { 
+			return this.state.attempt; 
 		}
+		public String showState() { return this.state.showState( ); }
 		
 		/**
 		 * reset forces the channel closed if open.
 		 */
 		public void reset() { 
-			logger.trace("Inside reset .. {} {}", this.state.version, this.state);
-			logger.trace("Receiver State .. {}", this.parent.receiverThread);
-			logger.trace("Inside reset .. {}", this.parent.senderThread);
-			this.state.failure(this.state.version);
+			this.state.failure(this.state.attempt);
 		}
 		
-		public void failure(long version) { 
-			this.state.failure(version); 
-		}
-			
+		public void failure(long attempt) { 
+			this.state.failure(attempt); 
+		}	
 
 		/**
 		 * A value machine based.
@@ -290,63 +307,78 @@ public class TcpChannel {
 		 */
 		@Override
 		public void run() { 
-			logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
-			MAINTAIN_CONNECTION: while (true) {
-				switch (this.state.get()) {
+			try {
+				logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+				MAINTAIN_CONNECTION: while (true) {
+					logger.debug("state: {}",this.showState());
 
-				case State.STALE: 
-					disconnect();
-					this.state.set(State.LINK_WAIT);
-					break;
+					switch (this.state.get()) {
+					case NetChannel.STALE: 
+						disconnect();
+						this.state.set(NetChannel.LINK_WAIT);
+						break;
 
-				case State.LINK_WAIT:
-					if (isLinkUp()) {
-						this.state.set(State.DISCONNECTED);
-					} 
-					// on else wait for link to come up TODO triggered through broadcast receiver
-					break;
+					case NetChannel.LINK_WAIT:
+						if (isLinkUp()) {
+							this.state.set(NetChannel.DISCONNECTED);
+						} 
+						// on else wait for link to come up TODO triggered through broadcast receiver
+						break;
 
-				case State.DISCONNECTED:
-					if ( !this.connect() ) {
-						this.state.set(State.CONNECTING);
-					} else {
-						this.state.set(State.CONNECTED);
-					}
-					break;
-
-				case State.CONNECTING: // keep trying
-				if ( this.connect() ) {
-					this.state.set(State.CONNECTED);
-				} else {
-					try {
-						Thread.sleep(GATEWAY_RETRY_TIME);
-					} catch (InterruptedException ex) {
-						logger.info("sleep interrupted - intentional disable, exiting thread ...");
-						this.state.set(State.STALE);
-						break MAINTAIN_CONNECTION;
-					}
-				}
-				break;
-
-				case State.CONNECTED:
-					handler.auth();
-				default: {
-					try {
-						synchronized (this.state) {
-							this.state.wait();   // wait for somebody to change the connection status
+					case NetChannel.DISCONNECTED:
+						this.parent.statusChange();
+						if ( !this.connect() ) {
+							this.state.set(NetChannel.CONNECTING);
+						} else {
+							this.state.set(NetChannel.CONNECTED);
 						}
-					} catch (InterruptedException ex) {
-						logger.info("connection intentionally disabled {}", this.state );
-						this.state.set(State.STALE);
-						break MAINTAIN_CONNECTION;
+						break;
+
+					case NetChannel.CONNECTING: // keep trying
+						if ( this.connect() ) {
+							this.state.set(NetChannel.CONNECTED);
+						} else {
+							try {
+								Thread.sleep(GATEWAY_RETRY_TIME);
+							} catch (InterruptedException ex) {
+								logger.info("sleep interrupted - intentional disable, exiting thread ...");
+								this.reset();
+								break MAINTAIN_CONNECTION;
+							}
+						}
+						break;
+
+					case NetChannel.CONNECTED:
+						handler.auth();
+					default: {
+						this.parent.statusChange();
+						try {
+							synchronized (this.state) {
+								while (this.isConnected()) // this is IMPORTANT don't remove it.
+									this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
+							}
+						} catch (InterruptedException ex) {
+							logger.info("connection intentionally disabled {}", this.state );
+							this.state.set(NetChannel.STALE);
+							break MAINTAIN_CONNECTION;
+						}
+						this.parent.statusChange();
+					}
 					}
 				}
-				}
+
+			} catch (Exception ex) {
+				this.state.set(NetChannel.EXCEPTION); 
 			}
 			try {
+				if (this.parent.socket == null) {
+					logger.error("channel closing without active socket");
+					return;
+				}
 				this.parent.socket.close();
 			} catch (IOException ex) {
 				ex.printStackTrace();
+				logger.error("channel closing without proper socket");
 			}
 		}
 
@@ -437,26 +469,15 @@ public class TcpChannel {
 	public static class SenderThread extends Thread {
 		private static final Logger logger = LoggerFactory.getLogger(SenderThread.class);
 		
-		static private final int WAIT_CONNECT  = 1; // waiting for connection
-		static private final int SENDING       = 2; // indicating the next thing is the size
-		static private final int TAKING        = 3; // indicating the next thing is the size
-		
-		public String toString ()
-		{
-			switch (state)
-			{
-			case WAIT_CONNECT:
-				return "WAIT_CONNECT";
-			case SENDING:
-				return "SENDING";
-			case TAKING:
-				return "TAKING";
-			default:
-				return "Undefined State";									
-			}
+		public String showState () {
+			if (this.state == this.actual)
+				return NetChannel.showState(this.state);
+			else
+				return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 		}
 		
-		private int state;
+		volatile private int state;
+		volatile private int actual;
 
 		private final TcpChannel parent;
 		private ConnectorThread connector;
@@ -485,6 +506,15 @@ public class TcpChannel {
 			}
 		}
 
+		private void failOutStream(OutputStream os, long attempt) { 
+			if (os == null) return;
+			try {
+				os.close();
+			} catch (IOException ex) {
+				logger.warn("close failed {}", ex.getLocalizedMessage());
+			}
+			this.connector.failure(attempt);
+		}
 		/**
 		 * Initiate a connection to the server and then wait for a response.
 		 * All responses are of the form:
@@ -500,8 +530,7 @@ public class TcpChannel {
 		public void run() { 
 			logger.trace("Thread <{}>SenderThread::run", Thread.currentThread().getId());
 
-//			int state = TAKING;
-			state = TAKING;
+			this.state = TAKING;
 
 			DataOutputStream dos = null;
 			try {            
@@ -509,43 +538,41 @@ public class TcpChannel {
 				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE/Byte.SIZE + 4);
 				buf.order(parent.endian);
 				GwMessage msg = null;
-				long version = Long.MAX_VALUE;
+				long attempt = Long.MAX_VALUE;
 
 				while (true) {
+					logger.debug("state: {}",this.showState());
+					this.parent.statusChange();
+					this.actual = this.state;
+					
 					switch (state) {
 					case WAIT_CONNECT:
+						synchronized (this.connector.state) {
+							while (! this.connector.isConnected()) {
+								try {
+									logger.trace("Thread <{}>SenderThread::value.wait",
+											Thread.currentThread().getId());
+
+									this.connector.state.wait(BURP_TIME);
+								} catch (InterruptedException ex) {
+									logger.warn("thread interupted {}",ex.getLocalizedMessage());
+									return ; // looks like the thread is being shut down.
+								}
+							}
+							attempt = this.connector.getAttempt();
+						}
 						try {
 							// if connected then proceed
 							// keep the working socket so that if something goes wrong
 							// the socket can be checked to see if it has changed
 							// in the interim.			
-							synchronized (this.connector.state) {
-								while (! this.connector.isConnected()) {
-									try {
-										logger.trace("Thread <{}>SenderThread::value.wait",
-												Thread.currentThread().getId());
-
-										this.connector.state.wait();
-									} catch (InterruptedException ex) {
-										logger.warn("thread interupted {}",ex.getLocalizedMessage());
-										return ; // looks like the thread is being shut down.
-									}
-								}
-								long newversion = this.connector.getVersion();
-								if (newversion != version) {
-									dos = new DataOutputStream(this.parent.socket.getOutputStream());
-									version = newversion;
-								}
-							}
-
-						} catch (SocketException ex) {
-							logger.warn("socket disconnected while writing a message");
-							if (msg.handler != null) msg.handler.ack(false);
-							this.connector.failure(version);
+							OutputStream os = this.parent.socket.getOutputStream();
+							dos = new DataOutputStream(os);
 						} catch (IOException ex) {
-							logger.warn("io exception writing messages");
+							logger.warn("io exception acquiring socket for writing messages {}", ex.getLocalizedMessage());
 							if (msg.handler != null) msg.handler.ack(false);
-							this.connector.failure(version);
+							this.failOutStream(dos, attempt);
+							break;
 						} 
 						state = SENDING;
 						break;
@@ -556,9 +583,6 @@ public class TcpChannel {
 						break;
 						
 					case SENDING:
-						
-						// refresh dos to current socket (current means version match)
-
 						buf.rewind();
 						buf.putInt(msg.size);
 						long cvalue = msg.checksum.getValue();
@@ -576,17 +600,17 @@ public class TcpChannel {
 							dos.write(msg.payload);
 							dos.flush();
 						} catch (SocketException ex) {
-							logger.warn("socket disconnected while writing a message");
+							logger.warn("exception writing to a socket {}", ex.getLocalizedMessage());
 							if (msg.handler != null) msg.handler.ack(false);
-							this.connector.failure(version);
-							state = TAKING;
+							this.failOutStream(dos, attempt);
+							this.state = WAIT_CONNECT;
 							break;
 
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
 							if (msg.handler != null) msg.handler.ack(false);
-							this.connector.failure(version);
-							state = TAKING;
+							this.failOutStream(dos, attempt);
+							this.state = WAIT_CONNECT;
 							break;
 						} 
 
@@ -600,6 +624,10 @@ public class TcpChannel {
 				}
 			} catch (InterruptedException ex) {
 				logger.warn("interupted writing messages");
+				this.actual = INTERRUPTED;
+			} catch (Exception ex) {
+				logger.warn("interupted writing messages");
+				this.actual = EXCEPTION;
 			}
 			logger.warn("sender thread exiting ...");
 		}
@@ -619,38 +647,15 @@ public class TcpChannel {
 		
 		// private TcpChannel.ConnectorThread;
 		volatile private int state;
+		volatile private int actual;
 
-		static private final int SHUTDOWN      = 0; // the run is being stopped
-		static private final int START         = 1; // indicating the next thing is the size
-		static private final int WAIT_CONNECT  = 2; // waiting for connection
-		static private final int STARTED       = 3; // indicating there is a message
-		static private final int SIZED         = 4; // indicating the next thing is a checksum
-		static private final int CHECKED       = 5; // indicating the bytes are being read
-		static private final int DELIVER       = 6; // indicating the message has been read
-		
-		public String toString ()
-		{
-			switch (state)
-			{
-			case SHUTDOWN:
-				return "SHUTDOWN";
-			case START:
-				return "START";
-			case WAIT_CONNECT:
-				return "WAIT_CONNECT";
-			case STARTED:
-				return "STARTED";
-			case SIZED:
-				return "SIZED";
-			case CHECKED:
-				return "CHECKED";
-			case DELIVER:
-				return "DELIVER";
-			default:
-				return "Undefined State";									
-			}
+		public String showState () {
+			if (this.state == this.actual)
+				return NetChannel.showState(this.state);
+			else
+				return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 		}
-
+		
 		private ReceiverThread(TcpChannel parent, INetworkService.OnReceiveMessageHandler handler ) {
 			logger.trace("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
@@ -662,17 +667,21 @@ public class TcpChannel {
 			this.connector = connector;
 		}
 
-		public void close() {
-			logger.trace("Thread <{}>::close", Thread.currentThread().getId());
-			this.state = SHUTDOWN;
-		}
-
 		@Override
 		public void start() {
 			super.start();
 			logger.trace("Thread <{}>::start", Thread.currentThread().getId());
 		}
 
+		private void failInStream(InputStream is, long attempt) { 
+			if (is == null) return;
+			try {
+				is.close();
+			} catch (IOException e) {
+				logger.warn("close failed {}", e.getLocalizedMessage());
+			}
+			this.connector.failure(attempt);
+		}
 		/**
 		 * Initiate a connection to the server and then wait for a response.
 		 * All responses are of the form:
@@ -689,146 +698,170 @@ public class TcpChannel {
 			logger.trace("Thread <{}>ReceiverThread::run", Thread.currentThread().getId());
 			//Looper.prepare();
 
-			state = WAIT_CONNECT;
+			try {
+				state = WAIT_CONNECT;
 
-			int bytesToRead = 0; // indicates how many bytes should be read
-			int bytesRead = 0;   // indicates how many bytes have been read
-			long checksum = 0;
+				int bytesToRead = 0; // indicates how many bytes should be read
+				int bytesRead = 0;   // indicates how many bytes have been read
+				long checksum = 0;
 
-			byte[] message = null;
-			byte[] byteToReadBuffer = new byte[Integer.SIZE/Byte.SIZE];
-			byte[] checksumBuffer = new byte[Long.SIZE/Byte.SIZE];
-			BufferedInputStream bis = null;
-			long version = Long.MAX_VALUE;
-			
-			while (true) {
-				switch (state) {
-				case WAIT_CONNECT:  // look for the size
-					synchronized (this.connector.state) {
-						while (! this.connector.isConnected() ) {
-							try {
-								logger.trace("Thread <{}>ReceiverThread::value.wait", 
-										Thread.currentThread().getId());
+				byte[] message = null;
+				byte[] byteToReadBuffer = new byte[Integer.SIZE/Byte.SIZE];
+				byte[] checksumBuffer = new byte[Long.SIZE/Byte.SIZE];
+				BufferedInputStream bis = null;
+				long attempt = Long.MAX_VALUE;
 
-								this.connector.state.wait();
-							} catch (InterruptedException ex) {
-								logger.warn("thread interupted {}",ex.getLocalizedMessage());
-								shutdown(bis); // looks like the thread is being shut down.
-								return;
+				while (true) {
+					this.parent.statusChange();
+					
+					switch (state) {
+					case WAIT_RECONNECT: break;
+					case RESTART: break;
+					default:
+						logger.debug("state: {}",this.showState());
+					}
+
+					this.actual = WAIT_CONNECT;
+					
+					switch (state) {
+					case WAIT_RECONNECT: 
+					case WAIT_CONNECT:  // look for the size
+						
+						synchronized (this.connector.state) {
+							while (! this.connector.isConnected() ) {
+								try {
+									logger.trace("Thread <{}>ReceiverThread::value.wait", 
+											Thread.currentThread().getId());
+
+									this.connector.state.wait(BURP_TIME);
+								} catch (InterruptedException ex) {
+									logger.warn("thread interupted {}",ex.getLocalizedMessage());
+									shutdown(bis); // looks like the thread is being shut down.
+									return;
+								}
 							}
+							attempt = this.connector.getAttempt();
 						}
-						version = this.connector.getVersion();
-					}
 
-					try {
-						InputStream insock = this.parent.socket.getInputStream();
-						bis = new BufferedInputStream(insock, 1024);
-					} catch (IOException ex) {
-						logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
-						this.connector.failure(version);
-						continue;
-					}    
-					if (bis == null) continue;
-					
-				case START:
-					try {
-						int temp = bis.read(byteToReadBuffer);
-						if (temp < 0) {
-							logger.error("read error  ...");
-							this.connector.failure(version);
-							this.state = WAIT_CONNECT;
-							break; // read error - end of connection
-						}
-					} catch (SocketTimeoutException ex) {
-						// the following checks the heart-stamp 
-						// TODO no pace-maker messages are sent, this could be added if needed.
-						long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
-						if (parent.flatLineTime < elapsedTime) {
-							logger.warn("heart timeout : {}", elapsedTime);
-							this.connector.failure(version);
-							this.state = WAIT_CONNECT;
-							break; 
-						}
-						continue;
-					} catch (IOException e) {
-						logger.error("read error  ...");
-						this.connector.failure(version);
-						this.state = WAIT_CONNECT;
-						break; // read error - set our value back to wait for connect
-					}
-					this.state = STARTED;
-					break;
-
-				case STARTED:  // look for the size
-				{
-					ByteBuffer bbuf = ByteBuffer.wrap(byteToReadBuffer);
-					bbuf.order(this.parent.endian);
-					bytesToRead = bbuf.getInt();
-
-					if (bytesToRead < 0) break; // bad read keep trying
-					if (bytesToRead > 100000) {
-					    logger.warn("message too large {} wrong size!!, we will be out of sync, disconnect ", bytesToRead);
-						this.connector.failure(version);
-						this.state = WAIT_CONNECT;
-						break;
-					}
-					this.state = SIZED;
-				}
-				break;
-				case SIZED: // look for the checksum
-				{
-					try {
-						bis.read(checksumBuffer, 0, 4);
-					} catch (SocketTimeoutException ex) {
-						logger.trace("timeout on socket");
-						continue;
-					} catch (IOException e) {
-						logger.trace("read error on socket");
-						this.connector.failure(version);
-						this.state = WAIT_CONNECT;
-						break;
-					}
-					ByteBuffer bbuf = ByteBuffer.wrap(checksumBuffer);
-					bbuf.order(this.parent.endian);
-					checksum =  bbuf.getLong();
-					
-					message = new byte[bytesToRead];
-
-					logger.info(checksumBuffer.toString(), checksum);
-					bytesRead = 0;
-					this.state = CHECKED;
-				} 
-				break;
-				case CHECKED: // read the message
-					while (bytesRead < bytesToRead) {
 						try {
-							int temp = bis.read(message, bytesRead, bytesToRead - bytesRead);
-							bytesRead += (temp >= 0) ? temp : 0;
+							InputStream insock = this.parent.socket.getInputStream();
+							bis = new BufferedInputStream(insock, 1024);
+						} catch (IOException ex) {
+							logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
+							failInStream(bis, attempt);
+							break;
+						}    
+						if (bis == null) break;
+						this.state = START;
+						break;
+
+					case RESTART:
+					case START:
+						try {
+							int temp = bis.read(byteToReadBuffer);
+							if (temp < 0) {
+								logger.error("START: end of socket");
+								failInStream(bis, attempt);
+								this.state = WAIT_CONNECT;
+								break; // read error - end of connection
+							}
+						} catch (SocketTimeoutException ex) {
+							// the following checks the heart-stamp 
+							// TODO no pace-maker messages are sent, this could be added if needed.
+							long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
+							if (parent.flatLineTime < elapsedTime) {
+								logger.warn("heart timeout : {}", elapsedTime);
+								failInStream(bis, attempt);
+								this.state = WAIT_RECONNECT;  // essentially the same as WAIT_CONNECT 
+								break; 
+							}
+							this.state = RESTART;
+							break;
+						} catch (IOException ex) {
+							logger.error("START: read error {}", ex.getLocalizedMessage());
+							failInStream(bis, attempt);
+							this.state = WAIT_CONNECT;
+							break; // read error - set our value back to wait for connect
+						}
+						this.state = STARTED;
+						break;
+
+					case STARTED:  // look for the size
+					{
+						ByteBuffer bbuf = ByteBuffer.wrap(byteToReadBuffer);
+						bbuf.order(this.parent.endian);
+						bytesToRead = bbuf.getInt();
+
+						if (bytesToRead < 0) break; // bad read keep trying
+						if (bytesToRead > 100000) {
+							logger.warn("message too large {} wrong size!!, we will be out of sync, disconnect ", bytesToRead);
+							failInStream(bis, attempt);
+							this.state = WAIT_CONNECT;
+							break;
+						}
+						this.state = SIZED;
+					}
+					break;
+					case SIZED: // look for the checksum
+					{
+						try {
+							bis.read(checksumBuffer, 0, 4);
 						} catch (SocketTimeoutException ex) {
 							logger.trace("timeout on socket");
 							continue;
-						} catch (IOException ex) {
-							logger.trace("read error on socket");
+						} catch (IOException e) {
+							logger.trace("SIZED: read error");
+							failInStream(bis, attempt);
 							this.state = WAIT_CONNECT;
-							this.connector.failure(version);
 							break;
 						}
-					}
-					if (bytesRead < bytesToRead) {
-						this.connector.failure(version);
-						this.state = WAIT_CONNECT;
+						ByteBuffer bbuf = ByteBuffer.wrap(checksumBuffer);
+						bbuf.order(this.parent.endian);
+						checksum =  bbuf.getLong();
+
+						message = new byte[bytesToRead];
+
+						logger.info("checksum {} {}", checksumBuffer, checksum);
+						bytesRead = 0;
+						this.state = CHECKED;
+					} 
+					break;
+					case CHECKED: // read the message
+						while (bytesRead < bytesToRead) {
+							try {
+								int temp = bis.read(message, bytesRead, bytesToRead - bytesRead);
+								bytesRead += (temp >= 0) ? temp : 0;
+							} catch (SocketTimeoutException ex) {
+								logger.trace("timeout on socket");
+								continue;
+							} catch (IOException ex) {
+								logger.trace("CHECKED: read error");
+								this.state = WAIT_CONNECT;
+								failInStream(bis, attempt);
+								break;
+							}
+						}
+						if (bytesRead < bytesToRead) {
+							failInStream(bis, attempt);
+							this.state = WAIT_CONNECT;
+							break;
+						}
+						this.state = DELIVER;
+						break;
+					case DELIVER: // deliver the message to the gateway
+						this.handler.deliver(message, checksum);
+						this.connector.resetHeartStamp();
+						message = null;
+						this.state = START;
 						break;
 					}
-					this.state = DELIVER;
-					break;
-				case DELIVER: // deliver the message to the gateway
-					this.handler.deliver(message, checksum);
-					this.connector.resetHeartStamp();
-					message = null;
-					this.state = START;
-					break;
 				}
+			} catch (Exception ex) {
+				logger.warn("interupted writing messages {}",ex.getLocalizedMessage());
+				this.actual = EXCEPTION;
+				ex.printStackTrace();
 			}
+			logger.warn("sender thread exiting ...");
 		}
 
 		private void shutdown(BufferedInputStream bis) {

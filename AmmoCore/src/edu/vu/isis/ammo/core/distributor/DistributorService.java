@@ -84,7 +84,6 @@ public class DistributorService extends Service implements IDistributorService {
 	private static final int FILE_READ_SIZE = 1024;
 	public static final String SERIALIZED_STRING_KEY = "serializedString";
 	public static final String SERIALIZED_BYTE_ARRAY_KEY = "serializedByteArray";
-	private final Object syncObj = this;
 
 	// ===========================================================
 	// Fields
@@ -197,15 +196,19 @@ public class DistributorService extends Service implements IDistributorService {
 		// If we get this intent, unbind from all services 
 		// so the service can be stopped.
 		callback = this;
-		if (intent != null && intent.getAction().equals(DistributorService.PREPARE_FOR_STOP)) {
-			this.teardownService();
-			return START_NOT_STICKY;
+		if (intent != null) {
+			String action = intent.getAction();
+			if (action != null) {
+				if (action.equals(DistributorService.PREPARE_FOR_STOP)) {
+					this.teardownService();
+					return START_NOT_STICKY;
+				}
+			}
 		}
 
 		if (isNetworkServiceBound) return START_STICKY;
 		if (networkServiceBinder != null) return START_STICKY;
-		networkServiceIntent = new Intent(INetworkService.ACTION); // implicit
-		// networkServiceIntent = new Intent(DistributorService.this, NetworkService.class); // explicit
+		networkServiceIntent = new Intent(this, NetworkService.class); 
 		DistributorService.this.bindService(networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE);
 		return START_STICKY;
 	}
@@ -285,55 +288,57 @@ public class DistributorService extends Service implements IDistributorService {
 	 * @return
 	 * @throws IOException
 	 */
-	private byte[] queryUriForSerializedData(String uri) throws IOException {
-		synchronized (this.syncObj) {
-			Uri rowUri = Uri.parse(uri);
-			Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
+	private synchronized byte[] queryUriForSerializedData(String uri) throws IOException {
+		Uri rowUri = Uri.parse(uri);
+		Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
 
-			ByteArrayOutputStream bout = new ByteArrayOutputStream();
-			byte[] buffer = new byte[1024];
-			BufferedInputStream bis = null;
-			InputStream instream = null;
+		ByteArrayOutputStream bout = new ByteArrayOutputStream();
+		byte[] buffer = new byte[1024];
+		BufferedInputStream bis = null;
+		InputStream instream = null;
 
+		try {
 			try {
-				try {
-					// instream = this.getContentResolver().openInputStream(serialUri);
-					AssetFileDescriptor afd = this.getContentResolver()
-					.openAssetFileDescriptor(serialUri, "r");
-					// afd.createInputStream();
-
-					ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-					instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-				} catch (IOException e) {
-					throw new FileNotFoundException("Unable to create stream");
+				// instream = this.getContentResolver().openInputStream(serialUri);
+				AssetFileDescriptor afd = this.getContentResolver()
+				.openAssetFileDescriptor(serialUri, "r");
+				if (afd == null) {
+					logger.warn("could not acquire file descriptor {}", serialUri);
+					throw new IOException("could not acquire file descriptor "+serialUri);
 				}
-				bis = new BufferedInputStream(instream);
+				// afd.createInputStream();
 
-				for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-					bout.write(buffer, 0, bytesRead);
-				}
-				bis.close();
-				// String bs = bout.toString();
-				// logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
-				byte[] ba = bout.toByteArray();
+				ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
 
-				bout.close();
-				return ba;
+				instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+			} catch (IOException e) {
+				throw new FileNotFoundException("Unable to create stream");
+			}
+			bis = new BufferedInputStream(instream);
 
-			} catch (FileNotFoundException ex) {
-				ex.printStackTrace();
-			} catch (IOException ex) {
-				ex.printStackTrace();
+			for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+				bout.write(buffer, 0, bytesRead);
 			}
-			if (bout != null) {
-				bout.close();
-			}
-			if (bis != null) {
-				bis.close();
-			}
-			return null;
+			bis.close();
+			// String bs = bout.toString();
+			// logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
+			byte[] ba = bout.toByteArray();
+
+			bout.close();
+			return ba;
+
+		} catch (FileNotFoundException ex) {
+			ex.printStackTrace();
+		} catch (IOException ex) {
+			ex.printStackTrace();
 		}
+		if (bout != null) {
+			bout.close();
+		}
+		if (bis != null) {
+			bis.close();
+		}
+		return null;
 	}
 
 	/**
@@ -437,8 +442,8 @@ public class DistributorService extends Service implements IDistributorService {
 			StringBuilder sb = new StringBuilder();
 			sb.append('"').append(PostalTableSchema.DISPOSITION).append('"');
 			sb.append("  IN ('").append(PostalTableSchema.DISPOSITION_PENDING).append("'");
-			sb.append(", '").append(PostalTableSchema.DISPOSITION_FAIL).append("'"); // TBD SKN: resend the failed ones
 			if (repost) { 
+				sb.append(", '").append(PostalTableSchema.DISPOSITION_FAIL).append("'"); // TBD SKN: resend the failed ones
 				sb.append(", '").append(PostalTableSchema.DISPOSITION_SENT).append("'");
 				// sb.append(", '").append(PostalTableSchema.DISPOSITION_QUEUED).append("'");
 			}
@@ -951,6 +956,7 @@ public class DistributorService extends Service implements IDistributorService {
 				return false;
 			}
 			final Uri retrieveUri = RetrievalTableSchema.getUri(cursor);
+			cursor.close ();
 			ContentValues values = new ContentValues();
 			values.put(RetrievalTableSchema.DISPOSITION, RetrievalTableSchema.DISPOSITION_SATISFIED);
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="ammo generator" default="provider">
+
+    <property name="repo-root" location="../.."/>
+
+    <target name="provider" depends="version">
+        <echo>for running within eclipse, instead of bash script.</echo>
+        <echo>Generating content provider source</echo>
+        <mkdir dir="gen"/>
+        <ant antfile="build.xml" dir="${repo-root}/AmmoGenerator/content_provider" target="promote"/>
+    </target>
+
+    <target name="version">
+        <ant antfile="build.xml" dir="${repo-root}" target="update-version"/>
+    </target>
+
+</project>

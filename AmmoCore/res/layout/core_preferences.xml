@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-	android:key="first_preferencescreen">
+  android:id="@+id/preferences_layout"
+ 	android:key="first_preferencescreen">
 	
 	<PreferenceCategory android:title="Network Connection Category">
 		<edu.vu.isis.ammo.core.MyEditTextPreference
@@ -17,25 +18,19 @@
 			android:summary="The port number of the gateway plugin"
 			android:defaultValue="33289" />
 
-  <edu.vu.isis.ammo.core.MyEditIntegerPreference
-   android:key="CORE_SOCKET_TIMEOUT"
-   android:name="Socket Timeout"
-   android:title="Network Timeout (milliseconds)"
-   android:summary="Time to wait for gateway response...in milliseconds."
-   android:defaultValue="3000" />
+      <edu.vu.isis.ammo.core.MyEditIntegerPreference
+         android:key="CORE_SOCKET_TIMEOUT"
+         android:name="Socket Timeout"
+         android:title="Network Timeout (milliseconds)"
+         android:summary="Time to wait for gateway response...in milliseconds."
+         android:defaultValue="3000" />
    
-  <edu.vu.isis.ammo.core.MyEditIntegerPreference
-   android:key="AMMO_NET_CONN_FLAT_LINE_TIME"
-   android:name="Socket Flatline"
-   android:title="Connection Inactive (minutes)"
-   android:summary="Time channel has not seen activity...in minutes"
-   android:defaultValue="20" />
-
-		<edu.vu.isis.ammo.core.MyCheckBoxPreference
-			android:key="CORE_IS_JOURNALED" 
-			android:title="@string/channel_journal"
-			android:summary="Is the network journal active?"
-			android:defaultValue="true" />
+     <edu.vu.isis.ammo.core.MyEditIntegerPreference
+         android:key="AMMO_NET_CONN_FLAT_LINE_TIME"
+         android:name="Socket Flatline"
+         android:title="Connection Inactive (minutes)"
+         android:summary="Time channel has not seen activity...in minutes"
+         android:defaultValue="20" />
 	</PreferenceCategory>
 	
 	<PreferenceCategory android:title="Network Authentication Category">
@@ -61,5 +56,4 @@
 			android:defaultValue="bar"/>
 	</PreferenceCategory>
 	
-
 </PreferenceScreen>

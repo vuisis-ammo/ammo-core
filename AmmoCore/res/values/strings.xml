@@ -1,10 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-   <string name="package_name">edu.vu.isis.ammo.core</string>
-    <string name="view_title">View Game Detail</string>
-    <string name="app_name">Ammo Core</string>
-    
-    <string name="forfeit_title">Forfeit Game</string>
-     
     <string name="serverlist">List of available servers</string>
 </resources>

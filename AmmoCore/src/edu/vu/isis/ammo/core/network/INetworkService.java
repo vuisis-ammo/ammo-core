@@ -27,6 +27,10 @@ public interface INetworkService {
 		public boolean deliver(byte[] message, long checksum);
 	}
 	
+	public static interface OnStatusChangeHandler {
+		public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus);
+	}
+	
 	// methods
 	public void teardown();
 	
@@ -79,5 +83,6 @@ public interface INetworkService {
 	 * @param callback
 	 */
 	public void setDistributorServiceCallback(IDistributorService callback) ;
+	
 	
 }

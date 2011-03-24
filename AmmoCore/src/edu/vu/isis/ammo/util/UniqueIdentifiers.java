@@ -26,11 +26,14 @@ public class UniqueIdentifiers {
 	 * @return
 	 */
 	static public String device(Context context) {
+		if (context == null) return "ammo:0123456789";
+		
 	    final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
 
-	    final String device = "" + tm.getDeviceId();
-	    final String serial = "" + tm.getSimSerialNumber();
-	    final String androidId = "" + android.provider.Settings.Secure.getString(context.getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+	    final String device = tm.getDeviceId();
+	    final String serial = tm.getSimSerialNumber();
+	    final String androidId = android.provider.Settings.Secure.getString(context.getContentResolver(), 
+	    		android.provider.Settings.Secure.ANDROID_ID);
 
 	    final WifiManager wfm = (WifiManager) (context.getSystemService(Context.WIFI_SERVICE));
 	    final String macAddr = wfm.getConnectionInfo().getMacAddress();
@@ -39,6 +42,6 @@ public class UniqueIdentifiers {
 	    UUID deviceUuid = new UUID(
 	    		((long)androidId.hashCode() << 32) | macCode.hashCode(), 
 	    		((long)device.hashCode() << 32) | serial.hashCode());
-	    return "android:"+ deviceUuid.toString();
+	    return "ammo:"+ deviceUuid.toString();
 	}
 }
