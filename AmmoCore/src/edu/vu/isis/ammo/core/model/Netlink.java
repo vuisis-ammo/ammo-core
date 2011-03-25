@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.net.NetworkInfo.DetailedState;
 import android.preference.PreferenceManager;
 import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;

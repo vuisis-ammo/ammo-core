@@ -7,8 +7,6 @@ import org.slf4j.LoggerFactory;
 
 import android.content.res.Resources;
 import android.graphics.Color;
-import android.net.NetworkInfo;
-import android.net.NetworkInfo.DetailedState;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;

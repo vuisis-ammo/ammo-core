@@ -13,8 +13,6 @@ import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.ui.util.ActivityEx;
-import edu.vu.isis.ammo.core.ui.util.IActivityEx;
 import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 /**

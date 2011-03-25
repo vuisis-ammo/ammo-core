@@ -1,14 +1,10 @@
 package edu.vu.isis.ammo.core.ui;
 
-import edu.vu.isis.ammo.core.MyEditTextPreference;
-import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.MyEditTextPreference.Type;
-import edu.vu.isis.ammo.core.R.layout;
-import edu.vu.isis.ammo.core.R.string;
-import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.preference.PreferenceActivity;
+import edu.vu.isis.ammo.core.MyEditTextPreference;
+import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
 
 /**
  * View and change the core application preferences.
