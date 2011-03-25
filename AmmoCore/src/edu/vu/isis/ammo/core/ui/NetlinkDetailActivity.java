@@ -5,8 +5,6 @@ import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
-import android.app.Activity;
-
 /**
  * The principle activity for the ammo core application.
  * Provides a means for...
