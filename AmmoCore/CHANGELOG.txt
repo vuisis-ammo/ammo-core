@@ -1,0 +1,33 @@
+Changelog
+
+DEVELOPER: Vanderbilt
+
+APP: AmmoCore
+
+************************************************
+
+
+Release 0.3.6 - March 24, 2011
+------------------------------
+
+- now does garbage collection on temporary files
+- overhaul of user interface 
+- bug fixes
+- performance and stability improvements
+
+
+FILES:  
+AmmoCore-release-0.3.6.apk
+
+
+
+Release 0.3.4 - March 11, 2011
+------------------------------
+
+- separated user interface and network connection threads
+- bug fixes
+- performance and stability improvements
+
+FILES:  
+AmmoCore-release-0.3.4.apk
+
