@@ -6,6 +6,17 @@ APP: AmmoCore
 
 ************************************************
 
+Release 0.3.8 - March 31, 2011
+------------------------------
+
+- Stability and performance improvements
+- Big fixes
+
+
+FILES:  
+AmmoCore-release-0.3.8.apk
+
+
 
 Release 0.3.6 - March 24, 2011
 ------------------------------
