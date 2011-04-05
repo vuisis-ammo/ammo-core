@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:padding="5dp">
+
+
+
+  <TableLayout
+     android:layout_width="fill_parent"
+     android:layout_height="wrap_content"
+     android:padding="5dp">
+    <TableRow android:layout_height="wrap_content"
+              android:layout_width="fill_parent"
+	      android:background="@drawable/about_table_row_border"
+	      android:layout_margin="3px">
+      <TextView android:id="@+id/about_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+		android:layout_weight="50"
+                android:layout_toRightOf="@+id/about_status"
+                android:layout_alignParentTop="true"
+                android:padding="3dip"
+                android:textSize="24dip"
+                android:text="Name" 
+		android:textStyle="bold"/>
+
+      <TextView android:id="@id/about_status"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+		android:layout_weight="50"
+                android:padding="3dip"
+                android:textSize="24dip"
+                android:text="status" 
+		android:textStyle="bold" />
+    </TableRow>
+
+<TableRow android:layout_height="wrap_content"
+              android:layout_width="fill_parent"
+	      android:background="@drawable/about_table_row_border"
+	      android:layout_margin="3px">
+      <TextView android:id="@+id/about_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+		android:layout_weight="50"
+                android:layout_toRightOf="@+id/about_status"
+                android:layout_alignParentTop="true"
+                android:padding="3dip"
+                android:textSize="24dip"
+                android:text="Name" 
+		android:textStyle="bold"/>
+
+      <TextView android:id="@id/about_status"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+		android:layout_weight="50"
+                android:padding="3dip"
+                android:textSize="24dip"
+                android:text="status" 
+		android:textStyle="bold" />
+    </TableRow>
+
+
+
+  </TableLayout>
+
+</LinearLayout>
