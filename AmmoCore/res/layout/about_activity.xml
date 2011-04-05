@@ -15,58 +15,62 @@
      android:padding="5dp">
     <TableRow android:layout_height="wrap_content"
               android:layout_width="fill_parent"
-	      android:background="@drawable/about_table_row_border"
-	      android:layout_margin="3px">
+              android:background="@drawable/about_table_row_border"
+              android:layout_margin="3px">
       <TextView android:id="@+id/about_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-		android:layout_weight="50"
+                android:layout_weight="50"
                 android:layout_toRightOf="@+id/about_status"
                 android:layout_alignParentTop="true"
                 android:padding="3dip"
                 android:textSize="24dip"
-                android:text="Name" 
-		android:textStyle="bold"/>
+                android:text="Ammo Core Version:"
+                />
+
+      <!-- android:textStyle="bold"  -->
 
       <TextView android:id="@id/about_status"
                 android:layout_alignParentRight="true"
                 android:layout_alignParentTop="true"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-		android:layout_weight="50"
+                android:layout_weight="50"
                 android:padding="3dip"
                 android:textSize="24dip"
-                android:text="status" 
-		android:textStyle="bold" />
+                android:text="@string/ammo_version"
+                />
     </TableRow>
 
-<TableRow android:layout_height="wrap_content"
+    <!-- second row -->
+    <!--
+    <TableRow android:layout_height="wrap_content"
               android:layout_width="fill_parent"
-	      android:background="@drawable/about_table_row_border"
-	      android:layout_margin="3px">
+              android:background="@drawable/about_table_row_border"
+              android:layout_margin="3px">
       <TextView android:id="@+id/about_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-		android:layout_weight="50"
+                android:layout_weight="50"
                 android:layout_toRightOf="@+id/about_status"
                 android:layout_alignParentTop="true"
                 android:padding="3dip"
                 android:textSize="24dip"
-                android:text="Name" 
-		android:textStyle="bold"/>
+                android:text="Build ID"
+                />
 
       <TextView android:id="@id/about_status"
                 android:layout_alignParentRight="true"
                 android:layout_alignParentTop="true"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-		android:layout_weight="50"
+                android:layout_weight="50"
                 android:padding="3dip"
                 android:textSize="24dip"
-                android:text="status" 
-		android:textStyle="bold" />
+                android:text="@string/ammo_version_tag"
+                />
     </TableRow>
-
+    -->
 
 
   </TableLayout>

@@ -17,7 +17,6 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  */
 public class AboutActivity extends ActivityEx
 {
-    public static final String version = "0.3.9";
 
     public static final Logger logger = LoggerFactory.getLogger(AboutActivity.class);
 
@@ -55,7 +54,7 @@ public class AboutActivity extends ActivityEx
     
     private void displayVersion() {
         logger.trace("::displayVersion");
-	String message = "version = " + version;  //getResources().getString(R.string.ammo_version);
+	String message = "version = " + getResources().getString(R.string.ammo_version);
 	//Toast.makeText(AboutActivity.this, message, Toast.LENGTH_LONG).show();
     }
 
