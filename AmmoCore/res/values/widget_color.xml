@@ -8,7 +8,7 @@
 	<color name="blue2">#FF0000FF</color>
 	<color name="blue25">#FF4444FF</color>
 	
-	<color name="netlink_background">#FF003000</color>
-	<color name="gateway_background">#FF000030</color>
+	<color name="netlink_background">#FF000000</color>
+	<color name="gateway_background">#FF000000</color>
 	<color name="transparent">#00000000</color>
 </resources>
