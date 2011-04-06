@@ -107,7 +107,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		getTabHost().addTab(spec);
 		
 		spec = tabHost.newTabSpec("netlink");
-		spec.setIndicator("Netlink", res.getDrawable(R.drawable.netlink_32));
+		spec.setIndicator("Link Status", res.getDrawable(R.drawable.netlink_32));
 		spec.setContent(R.id.netlink_layout);
 		getTabHost().addTab(spec);
 		

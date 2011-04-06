@@ -73,13 +73,16 @@ OnStatusChangeListenerByView
 		switch (action) {
 		case MotionEvent.ACTION_DOWN:
 		case MotionEvent.ACTION_MOVE:
-			item.setBackgroundResource(R.drawable.select_gradient);
-			logger.trace("::onClick");
-
-			Intent gatewayIntent = new Intent();
-			gatewayIntent.setClass(this.parent, GatewayDetailActivity.class);
-			this.parent.startActivity(gatewayIntent);
-			break;
+		    // NOTE: Do nothing here for now, since no functionality
+		    // is implemented behind a click action... Do not display
+		    // "this page intentionally left blank" in a major release.
+		    
+		    //item.setBackgroundResource(R.drawable.select_gradient);
+		    //logger.trace("::onClick");
+		    //Intent gatewayIntent = new Intent();
+		    //gatewayIntent.setClass(this.parent, GatewayDetailActivity.class);
+		    //this.parent.startActivity(gatewayIntent);
+		    break;
 
 		default:
 			item.setBackgroundColor(Color.TRANSPARENT);
