@@ -10,5 +10,6 @@
 	
 	<color name="netlink_background">#FF000000</color>
 	<color name="gateway_background">#FF000000</color>
+	<color name="about_background">#FF000000</color>
 	<color name="transparent">#00000000</color>
 </resources>

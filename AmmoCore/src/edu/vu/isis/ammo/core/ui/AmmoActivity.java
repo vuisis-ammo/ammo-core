@@ -44,6 +44,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
 	private static final int LOGGING_MENU = Menu.NONE + 1;
 	private static final int PREFERENCES_MENU = Menu.NONE + 2;
+	private static final int ABOUT_MENU = Menu.NONE + 3;
 		
 	// ===========================================================
 	// Fields
@@ -158,6 +159,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		menu.add(Menu.NONE, VIEW_TABLES_MENU, Menu.NONE, getResources().getString(R.string.view_tables_label));
 		menu.add(Menu.NONE, LOGGING_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
 		menu.add(Menu.NONE, PREFERENCES_MENU, Menu.NONE, getResources().getString(R.string.pref_label));
+		menu.add(Menu.NONE, ABOUT_MENU, Menu.NONE, getResources().getString(R.string.about_label));
 		return true;
 	}
 	
@@ -185,6 +187,10 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 			intent.setClass(this, LoggingPreferences.class);
 			this.startActivity(intent);
 			return true;
+		case ABOUT_MENU:
+			intent.setClass(this, AboutActivity.class);
+			this.startActivity(intent);
+		        return true;			
 		}
 		return false;
 	}
