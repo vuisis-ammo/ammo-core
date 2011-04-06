@@ -791,7 +791,8 @@ public class TcpChannel implements INetChannel {
 						bytesToRead = bbuf.getInt();
 
 						if (bytesToRead < 0) break; // bad read keep trying
-						if (bytesToRead > 100000) {
+						
+						if (bytesToRead > 4000000) {
 							logger.warn("message too large {} wrong size!!, we will be out of sync, disconnect ", bytesToRead);
 							failInStream(bis, attempt);
 							this.state = WAIT_CONNECT;
