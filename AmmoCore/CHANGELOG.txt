@@ -9,7 +9,7 @@ APP: AmmoCore
 Release 0.3.9 - April 6, 2011
 ------------------------------
 
-- User interface improvements (background colors, About menu)
+- User interface improvements (new icons, background colors, About menu)
 
 FILES:  
 AmmoCore-release-0.3.9.apk
