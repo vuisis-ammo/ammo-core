@@ -26,6 +26,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -97,7 +98,8 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	private IDistributorService distributor;
 	
 	// Channels
-	private TcpChannel tcpChannel = TcpChannel.getInstance(this);
+//	private TcpChannel tcpChannel = TcpChannel.getInstance(this);
+	public TcpChannel tcpChannel = TcpChannel.getInstance(this);
 	private JournalChannel journalChannel = JournalChannel.getInstance(this);
 	
 	private MyBroadcastReceiver myReceiver = null;
@@ -188,6 +190,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		final IntentFilter networkFilter = new IntentFilter();
 		networkFilter.addAction(INetworkService.ACTION_RECONNECT);
 		networkFilter.addAction(INetworkService.ACTION_DISCONNECT);
+		networkFilter.addAction(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
 		this.mReceiverRegistrar.registerReceiver(this.myReceiver, networkFilter);
 	}
 
@@ -680,6 +683,17 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 			
 			final String action = aIntent.getAction();
 			logger.info("onReceive: " + action);
+			
+			if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)){
+				logger.info("onReceive: " + action);
+				int state = aIntent.getIntExtra("state", 0);
+				
+				if (state != 0 && state == AmmoIntents.LINK_UP){
+					logger.info("onReceive: Link UP " + action);
+					tcpChannel.reset();
+				}
+			}
+				
 
 			if (INetworkService.ACTION_RECONNECT.equals(action)) {
 				//NetworkService.this.connectChannels(true);
