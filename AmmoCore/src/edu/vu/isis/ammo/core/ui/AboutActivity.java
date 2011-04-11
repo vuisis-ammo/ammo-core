@@ -4,8 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Bundle;
-import android.widget.Toast;
-
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
@@ -17,10 +15,7 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  */
 public class AboutActivity extends ActivityEx
 {
-
     public static final Logger logger = LoggerFactory.getLogger(AboutActivity.class);
-
-    private static final String TAG = "AmmoCore/about";
 
 
     /**
@@ -54,7 +49,7 @@ public class AboutActivity extends ActivityEx
     
     private void displayVersion() {
         logger.trace("::displayVersion");
-	String message = "version = " + getResources().getString(R.string.ammo_version);
+	//String message = "version = " + getResources().getString(R.string.ammo_version);
 	//Toast.makeText(AboutActivity.this, message, Toast.LENGTH_LONG).show();
     }
 

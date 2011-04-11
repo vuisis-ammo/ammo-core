@@ -72,8 +72,10 @@ public class EthTrackSvc extends ServiceEx {
 
 	private static final int HELLO_ID = 1;
 
-	public static final int[] WIRED_NETLINK_UP = new int[] {1};
-	public static final int[] WIRED_NETLINK_DOWN = new int[] {2};
+	public static final int WIRED_NETLINK_UP_VALUE = 1;
+	public static final int[] WIRED_NETLINK_UP = new int[] {WIRED_NETLINK_UP_VALUE};
+	public static final int WIRED_NETLINK_DOWN_VALUE = 2;
+	public static final int[] WIRED_NETLINK_DOWN = new int[] {WIRED_NETLINK_DOWN_VALUE};
 	
 	/*
 	 * @function Notify Send a notification to android once interface goes up or
@@ -118,8 +120,7 @@ public class EthTrackSvc extends ServiceEx {
 			broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
 			this.application.setWiredState(WIRED_NETLINK_DOWN);
 		}
-		this.sendBroadcast(broadcastIntent);
-		
+		this.sendBroadcast(broadcastIntent);		
 
 		return 0;
 	}

@@ -156,6 +156,10 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 			color = this.res.getColor(R.color.status_failed);
 			text.setText(R.string.status_failed);
 			break;
+		case Netlink.NETLINK_CONNECTED: 
+			color = this.res.getColor(R.color.status_connected);
+			text.setText(R.string.status_connected);
+			break;
 		default:
 			color = this.res.getColor(R.color.status_unknown);
 			text.setText(R.string.status_unknown);
