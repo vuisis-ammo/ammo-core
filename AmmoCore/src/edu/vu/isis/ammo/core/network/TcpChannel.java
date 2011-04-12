@@ -232,8 +232,9 @@ public class TcpChannel implements INetChannel {
 			}
 			public synchronized void set(int state) {
 				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
-				if (state == STALE) {
-					logger.error("set stale only from the failure method");
+				switch (state) {
+				case STALE:
+					this.reset();
 					return;
 				}
 				this.value = state; 
@@ -259,6 +260,9 @@ public class TcpChannel implements INetChannel {
 			 */
 			public synchronized boolean failure(long attempt) {
 				if (attempt != this.attempt) return true;
+				return this.reset();
+			}
+			public synchronized boolean reset() {
 				attempt++;
 				this.value = STALE;
 				this.notifyAll(); 
