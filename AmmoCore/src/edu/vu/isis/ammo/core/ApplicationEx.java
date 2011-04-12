@@ -105,9 +105,9 @@ public class ApplicationEx  extends Application {
 	 }
 	 
 	// ============= Net Link state ==================
-	 public int[] getNetlinkState() { 
-		 return this.wiredNetlinkState; 
-     }
+//	 public int[] getNetlinkState() { 
+//		 return this.wiredNetlinkState; 
+//     }
 	 // ============= Wired Link state ==================
 	 
 	 private int[] wiredNetlinkState = null;

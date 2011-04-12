@@ -10,6 +10,7 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.app.Activity;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -17,6 +18,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
@@ -29,6 +33,8 @@ import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
+import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
+import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -191,6 +197,11 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		networkFilter.addAction(INetworkService.ACTION_RECONNECT);
 		networkFilter.addAction(INetworkService.ACTION_DISCONNECT);
 		networkFilter.addAction(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
+		
+		networkFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
+		
+		this.isWifiLinkUp = false;
+		
 		this.mReceiverRegistrar.registerReceiver(this.myReceiver, networkFilter);
 	}
 
@@ -678,7 +689,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	private class MyBroadcastReceiver extends BroadcastReceiver {
 		@Override
-		public void onReceive(final Context aContext, final Intent aIntent) {
+		public void onReceive(final Context context, final Intent aIntent) {
 			logger.trace("MyBroadcastReceiver::onReceive");
 			
 			final String action = aIntent.getAction();
@@ -688,13 +699,45 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 				logger.info("onReceive: " + action);
 				int state = aIntent.getIntExtra("state", 0);
 				
-				if (state != 0 && state == AmmoIntents.LINK_UP){
-					logger.info("onReceive: Link UP " + action);
-					tcpChannel.reset();
+				if (state != 0) {
+					switch (state) {
+					case AmmoIntents.LINK_UP:
+						logger.info("onReceive: Link UP " + action);
+						tcpChannel.wakeUp(INetChannel.LINK_ACTIVE);
+						break;
+					case AmmoIntents.LINK_DOWN:
+						logger.info("onReceive: Link DOWN " + action);
+						tcpChannel.wakeUp(INetChannel.STALE);
+						break;
+					}				
 				}
+				return;
 			}
-				
 
+			if (WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)) {
+				logger.info("onReceive: " + action);
+				final WifiManager wm = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+				if (!wm.isWifiEnabled()) {
+					NetworkService.this.isWifiLinkUp = false;
+					return;
+				}
+				final ConnectivityManager connManager =
+					(ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+				final NetworkInfo info = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+				
+				final NetworkInfo.DetailedState dstate = info.getDetailedState(); 
+				switch(dstate) {
+				case DISCONNECTED      : NetworkService.this.isWifiLinkUp = false; break; 
+				case IDLE              : NetworkService.this.isWifiLinkUp = false; break;
+				case SCANNING          : NetworkService.this.isWifiLinkUp = false; break;
+				case CONNECTING        : NetworkService.this.isWifiLinkUp = false; break;
+				case AUTHENTICATING    : NetworkService.this.isWifiLinkUp = true; break;
+				case OBTAINING_IPADDR  : NetworkService.this.isWifiLinkUp = true; break;
+				case FAILED            : NetworkService.this.isWifiLinkUp = false; break;
+				case CONNECTED         : NetworkService.this.isWifiLinkUp = true; break;
+				}
+				return;
+			}
 			if (INetworkService.ACTION_RECONNECT.equals(action)) {
 				//NetworkService.this.connectChannels(true);
 				return;
@@ -734,6 +777,35 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	@Override
 	public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
 		this.getApplicationEx().setGatewayState(new int[]{connStatus, sendStatus, recvStatus});
+		return false;
+	}
+
+	/**
+	 * This needs to be firmed up to include wifi.
+	 * 
+	 * @return
+	 */
+	public boolean isWiredLinkUp() {
+		int[] wiredNetlinkState = this.getApplicationEx().getWiredNetlinkState();
+		if (wiredNetlinkState == null) return false;
+		if (wiredNetlinkState.length < 1) return false;
+		switch (wiredNetlinkState[0]) {
+		case EthTrackSvc.WIRED_NETLINK_UP_VALUE: 
+			return true;
+		case EthTrackSvc.WIRED_NETLINK_DOWN_VALUE:
+			return false;
+		}
+		return false;
+	}
+
+	private boolean isWifiLinkUp; 
+	
+	public boolean isWifiLinkUp() {
+		return isWifiLinkUp;
+	}
+	public boolean isAnyLinkUp() {
+		if (this.isWiredLinkUp()) return true;
+		if (this.isWifiLinkUp()) return true;
 		return false;
 	}
 	

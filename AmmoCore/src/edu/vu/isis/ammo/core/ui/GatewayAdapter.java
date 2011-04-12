@@ -5,7 +5,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.view.LayoutInflater;
