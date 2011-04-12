@@ -6,6 +6,17 @@ APP: AmmoCore
 
 ************************************************
 
+Release 0.4.0 - April 12, 2011
+------------------------------
+
+- Critical fix to handle network disconnect/reconnect events better
+
+
+FILES:  
+AmmoCore-release-0.4.0.apk
+
+
+
 Release 0.3.9 - April 6, 2011
 ------------------------------
 
