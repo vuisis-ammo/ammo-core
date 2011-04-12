@@ -144,6 +144,9 @@ public class TcpChannel implements INetChannel {
 		return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
 	}
 
+	public void wakeUp(int state) { 
+		this.connectorThread.state.set(state);
+	}
 	/**
 	 * forces a reconnection.
 	 */
@@ -230,7 +233,7 @@ public class TcpChannel implements INetChannel {
 			public synchronized void set(int state) {
 				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
 				if (state == STALE) {
-					logger.error("set stale only from the special setStale method");
+					logger.error("set stale only from the failure method");
 					return;
 				}
 				this.value = state; 
@@ -241,6 +244,7 @@ public class TcpChannel implements INetChannel {
 			public synchronized boolean isConnected() { 
 				return this.value == CONNECTED; 
 			}
+			
 
 			/**
 			 * Previously this method would only set the state to stale
@@ -317,10 +321,20 @@ public class TcpChannel implements INetChannel {
 						break;
 
 					case NetChannel.LINK_WAIT:
-						if (isLinkUp()) {
+						this.parent.statusChange();
+						try {
+							synchronized (this.state) {
+								while (! this.isAnyLinkUp()) // this is IMPORTANT don't remove it.
+									this.state.wait(BURP_TIME);   // wait for a link interface
+							}
 							this.state.set(NetChannel.DISCONNECTED);
-						} 
-						// on else wait for link to come up TODO triggered through broadcast receiver
+						} catch (InterruptedException ex) {
+							logger.info("connection intentionally disabled {}", this.state );
+							this.state.set(NetChannel.STALE);
+							break MAINTAIN_CONNECTION;
+						}
+						this.parent.statusChange();
+						// or else wait for link to come up, triggered through broadcast receiver
 						break;
 
 					case NetChannel.DISCONNECTED:
@@ -333,16 +347,20 @@ public class TcpChannel implements INetChannel {
 						break;
 
 					case NetChannel.CONNECTING: // keep trying
-						if ( this.connect() ) {
-							this.state.set(NetChannel.CONNECTED);
-						} else {
-							try {
-								Thread.sleep(GATEWAY_RETRY_TIME);
-							} catch (InterruptedException ex) {
-								logger.info("sleep interrupted - intentional disable, exiting thread ...");
-								this.reset();
-								break MAINTAIN_CONNECTION;
+						try {
+							this.parent.statusChange();
+							long attempt = this.getAttempt();
+							Thread.sleep(GATEWAY_RETRY_TIME);
+							if ( this.connect() ) {
+								this.state.set(NetChannel.CONNECTED);
+							} else {
+								this.failure(attempt);
 							}
+							this.parent.statusChange();
+						} catch (InterruptedException ex) {
+							logger.info("sleep interrupted - intentional disable, exiting thread ...");
+							this.reset();
+							break MAINTAIN_CONNECTION;
 						}
 						break;
 
@@ -391,7 +409,9 @@ public class TcpChannel implements INetChannel {
 			return true;
 		}
 
-		private boolean isLinkUp() { return true; }
+		private boolean isAnyLinkUp() { 
+			return this.parent.driver.isAnyLinkUp();
+		}
 
 		/**
 		 * connects to the gateway

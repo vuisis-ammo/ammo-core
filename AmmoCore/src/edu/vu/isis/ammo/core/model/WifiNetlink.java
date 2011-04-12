@@ -41,22 +41,8 @@ public class WifiNetlink extends Netlink {
 		final Activity self = this.context;
 		final Thread wifiThread = new Thread() {
 			public void run() {
-				logger.trace("::setWifiStatus");
-				final ConnectivityManager connManager =
-					(ConnectivityManager) WifiNetlink.this.context.getSystemService(Context.CONNECTIVITY_SERVICE);
-				final NetworkInfo info = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 				
-				final int[] state = new int[1];
-				switch( info.getDetailedState() ) {
-				case DISCONNECTED      : state[0] = NETLINK_DISCONNECTED; break;
-				case IDLE              : state[0] = NETLINK_IDLE ; break;
-				case SCANNING          : state[0] = NETLINK_SCANNING; break;
-				case CONNECTING        : state[0] = NETLINK_CONNECTING ; break;
-				case AUTHENTICATING    : state[0] = NETLINK_AUTHENTICATING; break;
-				case OBTAINING_IPADDR  : state[0] = NETLINK_OBTAINING_IPADDR ; break;
-				case FAILED            : state[0] = NETLINK_FAILED ; break;
-				}
-				
+			    final int[] state = WifiNetlink.getState(WifiNetlink.this.context);
 				self.runOnUiThread(new Runnable() {
 					public void run() {
 						statusListener.onStatusChange(statusView, state);
@@ -65,7 +51,25 @@ public class WifiNetlink extends Netlink {
 		};
 		wifiThread.start();
 	}
-
+	static public int[] getState(Context context) {
+		logger.trace("::setWifiStatus");
+		final ConnectivityManager connManager =
+			(ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+		final NetworkInfo info = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+		
+		final int[] state = new int[1];
+		switch( info.getDetailedState() ) {
+		case DISCONNECTED      : state[0] = NETLINK_DISCONNECTED; break;
+		case IDLE              : state[0] = NETLINK_IDLE ; break;
+		case SCANNING          : state[0] = NETLINK_SCANNING; break;
+		case CONNECTING        : state[0] = NETLINK_CONNECTING ; break;
+		case AUTHENTICATING    : state[0] = NETLINK_AUTHENTICATING; break;
+		case OBTAINING_IPADDR  : state[0] = NETLINK_OBTAINING_IPADDR ; break;
+		case FAILED            : state[0] = NETLINK_FAILED ; break;
+		case CONNECTED         : state[0] = NETLINK_CONNECTED; break;
+		}
+		return state;
+	}
 
 	// ===========================================================
 	// UI Management
