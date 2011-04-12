@@ -196,8 +196,8 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		final IntentFilter networkFilter = new IntentFilter();
 		networkFilter.addAction(INetworkService.ACTION_RECONNECT);
 		networkFilter.addAction(INetworkService.ACTION_DISCONNECT);
-		networkFilter.addAction(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
 		
+		networkFilter.addAction(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);	
 		networkFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 		
 		this.isWifiLinkUp = false;
