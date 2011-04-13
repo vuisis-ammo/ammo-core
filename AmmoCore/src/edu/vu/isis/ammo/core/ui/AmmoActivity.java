@@ -235,6 +235,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	public boolean onGatewayStatusChange(String name, int[] status) {
 		Gateway item = this.gatewayAdapter.getItemByName(name);
 		item.onStatusChange(status);
+		this.gatewayAdapter.notifyDataSetChanged();
 		return true;
 	}
 	
@@ -242,6 +243,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	public boolean onNetlinkStatusChange(String type, int[] status) {
 		Netlink item = this.netlinkAdapter.getItemByType(type);
 		item.onStatusChange(status);
+		this.netlinkAdapter.notifyDataSetChanged();
 		return true;
 	}
 	

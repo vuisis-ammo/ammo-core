@@ -703,11 +703,11 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 					switch (state) {
 					case AmmoIntents.LINK_UP:
 						logger.info("onReceive: Link UP " + action);
-						tcpChannel.wakeUp(INetChannel.LINK_ACTIVE);
+						tcpChannel.linkUp();
 						break;
 					case AmmoIntents.LINK_DOWN:
 						logger.info("onReceive: Link DOWN " + action);
-						tcpChannel.wakeUp(INetChannel.STALE);
+						tcpChannel.linkDown();
 						break;
 					}				
 				}

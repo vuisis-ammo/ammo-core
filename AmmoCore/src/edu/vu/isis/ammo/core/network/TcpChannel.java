@@ -144,8 +144,11 @@ public class TcpChannel implements INetChannel {
 		return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
 	}
 
-	public void wakeUp(int state) { 
-		this.connectorThread.state.set(state);
+	public void linkUp() { 
+		this.connectorThread.state.linkUp();
+	}
+	public void linkDown() { 
+		this.connectorThread.state.linkDown();
 	}
 	/**
 	 * forces a reconnection.
@@ -229,6 +232,12 @@ public class TcpChannel implements INetChannel {
 			public State() { 
 				this.value = STALE; 
 				this.attempt = Long.MIN_VALUE;
+			}
+			public synchronized void linkUp() {
+				this.notifyAll(); 
+			}
+			public synchronized void linkDown() {
+				this.reset();
 			}
 			public synchronized void set(int state) {
 				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
@@ -370,20 +379,33 @@ public class TcpChannel implements INetChannel {
 
 					case NetChannel.CONNECTED:
 						handler.auth();
-					default: {
-						this.parent.statusChange();
-						try {
-							synchronized (this.state) {
-								while (this.isConnected()) // this is IMPORTANT don't remove it.
-									this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
+						{
+							this.parent.statusChange();
+							try {
+								synchronized (this.state) {
+									while (this.isConnected()) // this is IMPORTANT don't remove it.
+										this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
+								}
+							} catch (InterruptedException ex) {
+								logger.info("connection intentionally disabled {}", this.state );
+								this.state.set(NetChannel.STALE);
+								break MAINTAIN_CONNECTION;
 							}
+							this.parent.statusChange();
+						}
+						break;
+					default: 
+						try {
+							long attempt = this.getAttempt();
+							this.parent.statusChange();
+							Thread.sleep(GATEWAY_RETRY_TIME);
+							this.failure(attempt);
+							this.parent.statusChange();
 						} catch (InterruptedException ex) {
-							logger.info("connection intentionally disabled {}", this.state );
-							this.state.set(NetChannel.STALE);
+							logger.info("sleep interrupted - intentional disable, exiting thread ...");
+							this.reset();
 							break MAINTAIN_CONNECTION;
 						}
-						this.parent.statusChange();
-					}
 					}
 				}
 
