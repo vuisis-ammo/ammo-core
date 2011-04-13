@@ -379,20 +379,33 @@ public class TcpChannel implements INetChannel {
 
 					case NetChannel.CONNECTED:
 						handler.auth();
-					default: {
-						this.parent.statusChange();
-						try {
-							synchronized (this.state) {
-								while (this.isConnected()) // this is IMPORTANT don't remove it.
-									this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
+						{
+							this.parent.statusChange();
+							try {
+								synchronized (this.state) {
+									while (this.isConnected()) // this is IMPORTANT don't remove it.
+										this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
+								}
+							} catch (InterruptedException ex) {
+								logger.info("connection intentionally disabled {}", this.state );
+								this.state.set(NetChannel.STALE);
+								break MAINTAIN_CONNECTION;
 							}
+							this.parent.statusChange();
+						}
+						break;
+					default: 
+						try {
+							long attempt = this.getAttempt();
+							this.parent.statusChange();
+							Thread.sleep(GATEWAY_RETRY_TIME);
+							this.failure(attempt);
+							this.parent.statusChange();
 						} catch (InterruptedException ex) {
-							logger.info("connection intentionally disabled {}", this.state );
-							this.state.set(NetChannel.STALE);
+							logger.info("sleep interrupted - intentional disable, exiting thread ...");
+							this.reset();
 							break MAINTAIN_CONNECTION;
 						}
-						this.parent.statusChange();
-					}
 					}
 				}
 

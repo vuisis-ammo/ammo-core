@@ -69,11 +69,11 @@ public class ApplicationEx  extends Application {
 	 */
 	 private Activity currentActivity;
 
-	 public void setCurrentActivity(Activity currentActivity) {
+	 public synchronized void setCurrentActivity(Activity currentActivity) {
 	        this.currentActivity = currentActivity;
 	 }
 
-	 public Activity getCurrentActivity() {
+	 public synchronized Activity getCurrentActivity() {
 	        return this.currentActivity;
 	 }
 	 
@@ -88,10 +88,10 @@ public class ApplicationEx  extends Application {
 	 
 	 private int[] gatewayState = null;
 	 
-	 public int[] getGatewayState() { 
+	 public synchronized int[] getGatewayState() { 
 		 return this.gatewayState; 
      }
-	 public void setGatewayState(final int[] status) {
+	 public synchronized void setGatewayState(final int[] status) {
 		 this.gatewayState = status;
 		 if (this.currentActivity == null) return;
 		 if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;
@@ -104,19 +104,17 @@ public class ApplicationEx  extends Application {
 		 });	
 	 }
 	 
-	// ============= Net Link state ==================
-//	 public int[] getNetlinkState() { 
-//		 return this.wiredNetlinkState; 
-//     }
+	 // ============= Net Link state ==================
+
 	 // ============= Wired Link state ==================
 	 
 	 private int[] wiredNetlinkState = null;
 	 
-	 public int[] getWiredNetlinkState() { 
+	 public synchronized int[] getWiredNetlinkState() { 
 		 return this.wiredNetlinkState; 
      }
 	 
-	 public void setWiredState(final int[] status) {
+	 public synchronized void setWiredState(final int[] status) {
 		 this.wiredNetlinkState = status;
 		 if (this.currentActivity == null) return;
 		 if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;

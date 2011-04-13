@@ -22,6 +22,9 @@
     <string name="status_link_wait">Linking</string>
     <color name="status_link_wait">#FFFFBF00</color>
     
+    <string name="status_link_active">Linked</string>
+    <color name="status_link_active">#FFFFBF00</color>
+    
     <string name="status_waiting">Waiting</string>
     <color name="status_waiting_conn">#FF008000</color>
     <color name="status_waiting_send">#FFFFBF00</color>

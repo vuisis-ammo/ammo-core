@@ -193,8 +193,8 @@ OnStatusChangeListenerByView
 			text.setText(R.string.status_link_wait);
 			break;
 		case INetChannel.LINK_ACTIVE:
-			setColor(icon, text, R.color.status_link_wait);
-			text.setText(R.string.status_link_wait);
+			setColor(icon, text, R.color.status_link_active);
+			text.setText(R.string.status_link_active);
 			break;
 		case INetChannel.WAIT_CONNECT:
 		case INetChannel.WAIT_RECONNECT:
