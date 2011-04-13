@@ -9,7 +9,7 @@
 			android:name="IP Address" 
 			android:title="Plugin IP Address"
 			android:summary="The IP address of the gateway plugin" 
-			android:defaultValue="129.59.129.25"/>
+			android:defaultValue="129.59.129.189"/>
 
 		<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="CORE_IP_PORT" 
