@@ -192,6 +192,10 @@ OnStatusChangeListenerByView
 			setColor(icon, text, R.color.status_link_wait);
 			text.setText(R.string.status_link_wait);
 			break;
+		case INetChannel.LINK_ACTIVE:
+			setColor(icon, text, R.color.status_link_wait);
+			text.setText(R.string.status_link_wait);
+			break;
 		case INetChannel.WAIT_CONNECT:
 		case INetChannel.WAIT_RECONNECT:
 			setColor(icon, text, R.color.status_waiting_conn);
@@ -218,7 +222,8 @@ OnStatusChangeListenerByView
 
 		default:
 			setColor(icon, text, R.color.status_unknown);
-			text.setText(R.string.status_unknown);
+			// text.setText(R.string.status_unknown);
+			text.setText("unknown ["+status[0]+"]");
 		}
 		
 		item.refreshDrawableState(); 

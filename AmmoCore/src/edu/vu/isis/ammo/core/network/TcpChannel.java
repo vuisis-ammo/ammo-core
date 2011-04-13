@@ -144,8 +144,11 @@ public class TcpChannel implements INetChannel {
 		return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
 	}
 
-	public void wakeUp(int state) { 
-		this.connectorThread.state.set(state);
+	public void linkUp() { 
+		this.connectorThread.state.linkUp();
+	}
+	public void linkDown() { 
+		this.connectorThread.state.linkDown();
 	}
 	/**
 	 * forces a reconnection.
@@ -229,6 +232,12 @@ public class TcpChannel implements INetChannel {
 			public State() { 
 				this.value = STALE; 
 				this.attempt = Long.MIN_VALUE;
+			}
+			public synchronized void linkUp() {
+				this.notifyAll(); 
+			}
+			public synchronized void linkDown() {
+				this.reset();
 			}
 			public synchronized void set(int state) {
 				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
