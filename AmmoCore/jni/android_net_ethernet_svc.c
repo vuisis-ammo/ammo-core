@@ -226,31 +226,36 @@ static char* process_msg (struct nlmsghdr* nl_msg)
 
 	if (nl_msg->nlmsg_type == RTM_NEWLINK) {
 
-		parse_msg_detail (nl_msg);
+		//parse_msg_detail (nl_msg);
 
 		buffer = (char*)malloc (100);
 		memset (buffer, 0, 100);
-		sprintf (buffer, "New Link %s Message", iface);
-		__android_log_print(
-				ANDROID_LOG_INFO,
-				LOG_TAG,  
-				"BUFFER %s", buffer);
+		sprintf (buffer, "Link %s New", iface);
 
 	} else if (nl_msg->nlmsg_type == RTM_DELLINK) {
 
-		parse_msg_detail (nl_msg);
+		//parse_msg_detail (nl_msg);
+
+		buffer = (char*)malloc (100);
+		memset (buffer, 0, 100);
+		sprintf (buffer, "Link %s Delete", iface);
+
+	} else if (nl_msg->nlmsg_type == RTM_DELADDR) {
+
+		//parse_msg_detail (nl_msg);
 
 		buffer = (char*)malloc (100);
 		memset (buffer, 0, 100);
 		sprintf (buffer, "Interface %s Down", iface);
+
 		__android_log_print(
-				ANDROID_LOG_INFO,
-				LOG_TAG,  
-				"BUFFER %s", buffer);
+				ANDROID_LOG_INFO, 
+				LOG_TAG,
+				buffer);
 
 	} else if (nl_msg->nlmsg_type == RTM_NEWADDR) {
 
-		parse_msg_detail (nl_msg);
+		//parse_msg_detail (nl_msg);
 
 		buffer = (char*)malloc (100);
 		memset (buffer, 0, 100);
@@ -347,7 +352,8 @@ Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_waitForEvent(JNIEnv *env,
 			}
 
 			if (nh->nlmsg_type == RTM_DELLINK ||
-					nh->nlmsg_type == RTM_NEWADDR)
+					nh->nlmsg_type == RTM_NEWADDR ||
+					nh->nlmsg_type == RTM_DELADDR)
 				ethstatmsg = process_msg (nh);
 			else
 				ethstatmsg = result;
