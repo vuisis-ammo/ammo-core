@@ -38,22 +38,21 @@
 			android:key="CORE_DEVICE_ID" 
 			android:name="Device Identifier" 
 			android:title="Device Identifier"
-			android:summary="The unique device identifier" 
-			android:defaultValue="foo"/>
+			android:summary="The unique device identifier" />
 			
 		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_OPERATOR_ID" 
 			android:name="Operator Identifier" 
 			android:title="Operator Identifier"
 			android:summary="The unique device identifier" 
-			android:defaultValue="foo"/>
+			android:defaultValue="operator"/>
 			
 		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_OPERATOR_KEY" 
 			android:name="Operator Pass Key" 
 			android:title="Operator Pass Key"
 			android:summary="The operator's secret key" 
-			android:defaultValue="bar"/>
+			android:defaultValue="key"/>
 	</PreferenceCategory>
 	
 </PreferenceScreen>

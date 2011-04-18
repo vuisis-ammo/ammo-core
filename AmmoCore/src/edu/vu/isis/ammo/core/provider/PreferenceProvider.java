@@ -71,7 +71,7 @@ public class PreferenceProvider extends ContentProvider {
 			Editor editor = prefs.edit();
 			String deviceId = UniqueIdentifiers.device(context);
 			editor.putString(INetPrefKeys.CORE_DEVICE_ID, deviceId);
-			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, "foo");
+			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, "operator2");
 			editor.putBoolean(INetPrefKeys.NET_IS_ACTIVE, false);
 			editor.putBoolean(INetPrefKeys.NET_IS_AVAILABLE, false);
 			editor.putBoolean("prefsCreated", true);

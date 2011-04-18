@@ -9,6 +9,7 @@ import edu.vu.isis.ammo.core.MyEditIntegerPreference;
 import edu.vu.isis.ammo.core.MyEditTextPreference;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
+import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
  * View and change the core application preferences.
@@ -63,6 +64,9 @@ public class CorePreferenceActivity extends PreferenceActivityEx {
 		mSocketTimeout.setType(MyEditIntegerPreference.Type.TIMEOUT);
 		
 		mDeviceId = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_DEVICE_ID);
+		String deviceId = UniqueIdentifiers.device(this);
+		mDeviceId.setDefaultValue(deviceId);
+		mDeviceId.setText(deviceId);
 		mDeviceId.setSummaryPrefix(res.getString(R.string.device_id_label));
 		mDeviceId.setType(MyEditTextPreference.Type.DEVICE_ID);
 		
