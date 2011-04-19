@@ -522,11 +522,11 @@ public class TcpChannel implements INetChannel {
 
 		private final TcpChannel parent;
 		private ConnectorThread connector;
-		private final INetworkService.OnSendMessageHandler handler;
+		private final INetworkService handler;
 
 		private final BlockingQueue<GwMessage> queue;
 
-		private SenderThread(TcpChannel parent, INetworkService.OnSendMessageHandler handler) {
+		private SenderThread(TcpChannel parent, INetworkService handler) {
 			logger.trace("Thread <{}>SenderThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.handler = handler;
@@ -622,7 +622,7 @@ public class TcpChannel implements INetChannel {
 						break;
 
 					case TAKING:
-						if (this.queue.isEmpty()) this.handler.ack(true);
+						if (this.queue.isEmpty()) this.handler.repost();
 						msg = queue.take(); // THE MAIN BLOCKING CALL
 						state = WAIT_CONNECT;
 						break;
@@ -668,13 +668,13 @@ public class TcpChannel implements INetChannel {
 					}
 				}
 			} catch (InterruptedException ex) {
-				logger.warn("interupted writing messages");
+				logger.error("interupted writing messages {}", ex.getLocalizedMessage());
 				this.actual = INTERRUPTED;
 			} catch (Exception ex) {
-				logger.warn("interupted writing messages");
+				logger.error("exception writing messages {}", ex.getLocalizedMessage());
 				this.actual = EXCEPTION;
 			}
-			logger.warn("sender thread exiting ...");
+			logger.error("sender thread exiting ...");
 		}
 	}
 	/**
