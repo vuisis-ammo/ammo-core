@@ -622,7 +622,7 @@ public class TcpChannel implements INetChannel {
 						break;
 
 					case TAKING:
-						if (this.queue.isEmpty()) this.handler.repost();
+						if (this.queue.isEmpty()) this.handler.postToQueue();
 						msg = queue.take(); // THE MAIN BLOCKING CALL
 						state = WAIT_CONNECT;
 						break;
@@ -671,7 +671,7 @@ public class TcpChannel implements INetChannel {
 				logger.error("interupted writing messages {}", ex.getLocalizedMessage());
 				this.actual = INTERRUPTED;
 			} catch (Exception ex) {
-				logger.error("exception writing messages {}", ex.getLocalizedMessage());
+				logger.error("exception writing messages ({}) {} ", ex, ex.getStackTrace());
 				this.actual = EXCEPTION;
 			}
 			logger.error("sender thread exiting ...");

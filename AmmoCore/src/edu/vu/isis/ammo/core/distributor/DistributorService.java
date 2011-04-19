@@ -377,6 +377,17 @@ public class DistributorService extends Service implements IDistributorService {
 		callback.processRetrievalChange(false);
 		callback.processPostalChange(false);
 	}
+	
+	public void repostToNetworkService3() {
+		logger.trace("::repostToNetworkService3()");
+		if (this.networkServiceBinder == null) {
+			logger.warn("repost attempted when network service binding is null");
+			return;
+		}
+		callback.processSubscriptionChange(false);
+		callback.processRetrievalChange(false);
+		callback.processPostalChange(false);
+	}
 
 	private class ProcessChangeTask extends AsyncTask<Void, DistributorService, Void> {
 		@Override
@@ -641,7 +652,6 @@ public class DistributorService extends Service implements IDistributorService {
 				@SuppressWarnings("unused")
 				int numUpdated = cr.update(retrieveUri, values,null, null);
 				
-				@SuppressWarnings("unused")
 				boolean sent = 
 					this.networkServiceBinder.dispatchRetrievalRequest( rowUri.toString(), mime, selection,
 							new INetworkService.OnSendMessageHandler() {

@@ -85,5 +85,5 @@ public interface INetworkService {
 	public void setDistributorServiceCallback(IDistributorService callback) ;
 	
 
-	public boolean repost();
+	public boolean postToQueue();
 }
