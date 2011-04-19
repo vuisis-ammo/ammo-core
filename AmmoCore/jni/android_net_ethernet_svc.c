@@ -238,7 +238,12 @@ static char* process_msg (struct nlmsghdr* nl_msg)
 
 		buffer = (char*)malloc (100);
 		memset (buffer, 0, 100);
-		sprintf (buffer, "Link %s Delete", iface);
+		sprintf (buffer, "Interface %s Down DELLINK", iface);
+		__android_log_print(
+				ANDROID_LOG_INFO, 
+				LOG_TAG,
+				buffer);
+
 
 	} else if (nl_msg->nlmsg_type == RTM_DELADDR) {
 
@@ -246,12 +251,8 @@ static char* process_msg (struct nlmsghdr* nl_msg)
 
 		buffer = (char*)malloc (100);
 		memset (buffer, 0, 100);
-		sprintf (buffer, "Interface %s Down", iface);
+		sprintf (buffer, "Interface %s Down DELADDR", iface);
 
-		__android_log_print(
-				ANDROID_LOG_INFO, 
-				LOG_TAG,
-				buffer);
 
 	} else if (nl_msg->nlmsg_type == RTM_NEWADDR) {
 
@@ -259,7 +260,7 @@ static char* process_msg (struct nlmsghdr* nl_msg)
 
 		buffer = (char*)malloc (100);
 		memset (buffer, 0, 100);
-		sprintf (buffer, "Interface %s Up", iface);
+		sprintf (buffer, "Interface %s Up NEWADDR", iface);
 	}
 
 	return buffer;
@@ -352,8 +353,7 @@ Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_waitForEvent(JNIEnv *env,
 			}
 
 			if (nh->nlmsg_type == RTM_DELLINK ||
-					nh->nlmsg_type == RTM_NEWADDR ||
-					nh->nlmsg_type == RTM_DELADDR)
+					nh->nlmsg_type == RTM_NEWADDR )
 				ethstatmsg = process_msg (nh);
 			else
 				ethstatmsg = result;
