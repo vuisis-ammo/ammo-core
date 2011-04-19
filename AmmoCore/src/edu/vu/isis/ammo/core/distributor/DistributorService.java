@@ -549,6 +549,12 @@ public class DistributorService extends Service implements IDistributorService {
 								}
 
 							});
+						if (! dispatchSuccessful) {
+							
+							values.put(PostalTableSchema.DISPOSITION, PostalTableSchema.DISPOSITION_PENDING);
+							cr.update(postalUri, values, null, null);
+						}
+
 					}
 				} catch (NullPointerException e) {
 					logger.warn("NullPointerException, sending to gateway failed");
@@ -655,6 +661,11 @@ public class DistributorService extends Service implements IDistributorService {
 									numUpdated, (status ? "sent" : "pending"));
 							return false;
 						} });
+				if (! sent) {
+					values.put(RetrievalTableSchema.DISPOSITION, RetrievalTableSchema.DISPOSITION_PENDING);
+					cr.update(retrieveUri, values, null, null);
+					// break; // no point in trying any more
+				}
 			}
 			pendingCursor.close();
 		}
@@ -760,6 +771,11 @@ public class DistributorService extends Service implements IDistributorService {
 									+ (status ? "sent" : "pending") + " status");
 							return true;
 						}});
+				if (! sent) {
+					values.put(SubscriptionTableSchema.DISPOSITION, SubscriptionTableSchema.DISPOSITION_PENDING);
+					cr.update(subUri, values, null, null);
+					// break; // no point in trying any more
+				}
 			}
 			pendingCursor.close();
 		}

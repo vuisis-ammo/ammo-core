@@ -30,13 +30,13 @@ public class UniqueIdentifiers {
 		
 	    final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
 
-	    final String device = tm.getDeviceId();
-	    final String serial = tm.getSimSerialNumber();
+	    final String device = (tm.getDeviceId() == null) ? "device" : tm.getDeviceId();
+	    final String serial = (tm.getSimSerialNumber() == null) ? "serial" : tm.getSimSerialNumber();
 	    final String androidId = android.provider.Settings.Secure.getString(context.getContentResolver(), 
 	    		android.provider.Settings.Secure.ANDROID_ID);
 
 	    final WifiManager wfm = (WifiManager) (context.getSystemService(Context.WIFI_SERVICE));
-	    final String macAddr = wfm.getConnectionInfo().getMacAddress();
+	    final String macAddr = (wfm == null) ? "wifi-manager" : wfm.getConnectionInfo().getMacAddress();
 	    final String macCode = (macAddr != null) ? macAddr : "null";
 	    
 	    UUID deviceUuid = new UUID(

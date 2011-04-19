@@ -486,10 +486,7 @@ public class TcpChannel implements INetChannel {
 	 */
 	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) 
 	{
-		synchronized (this.syncObj) {
-			this.senderThread.putMsg(new GwMessage(size, checksum, payload, handler) );
-			return true;
-		}
+		return this.senderThread.queueMsg(new GwMessage(size, checksum, payload, handler) );
 	}
 
 	public class GwMessage {
@@ -525,7 +522,6 @@ public class TcpChannel implements INetChannel {
 
 		private final TcpChannel parent;
 		private ConnectorThread connector;
-		@SuppressWarnings("unused")
 		private final INetworkService.OnSendMessageHandler handler;
 
 		private final BlockingQueue<GwMessage> queue;
@@ -542,12 +538,16 @@ public class TcpChannel implements INetChannel {
 			this.connector = connector;
 		}
 
-		public void putMsg(GwMessage msg) {
-			try {
-				this.queue.put(msg);
-			} catch (InterruptedException ex) {
-				ex.printStackTrace();
-			}
+		/**
+		 * This makes use of the non-blocking offer call.
+		 * A proper producer-consumer should use put or add.
+		 * This is necessary as the calling thread is the UI thread.
+		 * 
+		 * @param msg
+		 * @return
+		 */
+		public boolean queueMsg(GwMessage msg) {
+		    return this.queue.offer(msg);
 		}
 
 		private void failOutStream(OutputStream os, long attempt) { 
@@ -622,6 +622,7 @@ public class TcpChannel implements INetChannel {
 						break;
 
 					case TAKING:
+						if (this.queue.isEmpty()) this.handler.ack(true);
 						msg = queue.take(); // THE MAIN BLOCKING CALL
 						state = WAIT_CONNECT;
 						break;
