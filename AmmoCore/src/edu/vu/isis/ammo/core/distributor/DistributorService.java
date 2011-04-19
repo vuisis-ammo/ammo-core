@@ -548,7 +548,6 @@ public class DistributorService extends Service implements IDistributorService {
 									//	 }
 									return false;
 								}
-
 							});
 						if (! dispatchSuccessful) {
 							

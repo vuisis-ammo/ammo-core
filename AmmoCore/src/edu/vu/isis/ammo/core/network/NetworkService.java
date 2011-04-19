@@ -757,7 +757,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	public boolean ack(boolean status) {
 	    if (status) {	// authentication succeeded
 		logger.debug("authentication complete, repost subscriptions and pending data : ");
-		this.distributor.repostToNetworkService2();
+		this.repost();
 
 		logger.debug("authentication complete inform applications : ");
 		// broadcast login event to apps ...
@@ -766,6 +766,13 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 		this.sendBroadcast(loginIntent);
 	    }
 
+	    return false;
+	}
+	
+	@Override
+	public boolean repost() {
+		logger.debug("repost subscriptions and pending data");
+		this.distributor.repostToNetworkService2();
 	    return false;
 	}
 	
