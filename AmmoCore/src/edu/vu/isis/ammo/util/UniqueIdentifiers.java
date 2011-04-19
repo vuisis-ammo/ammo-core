@@ -31,7 +31,9 @@ public class UniqueIdentifiers {
 	    final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
 
 	    final String device = tm.getDeviceId();
-	    final String serial = tm.getSimSerialNumber();
+	    String serial = tm.getSimSerialNumber();
+	    if (serial == null)
+		serial = "0123456789";
 	    final String androidId = android.provider.Settings.Secure.getString(context.getContentResolver(), 
 	    		android.provider.Settings.Secure.ANDROID_ID);
 
