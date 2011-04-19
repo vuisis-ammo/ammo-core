@@ -30,8 +30,8 @@ public class UniqueIdentifiers {
 		
 	    final TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
 
-	    final String device = (tm.getDeviceId() == null) ? "device" : tm.getDeviceId();
-	    final String serial = (tm.getSimSerialNumber() == null) ? "serial" : tm.getSimSerialNumber();
+	    final String device = (tm.getDeviceId() == null) ? "null-device" : tm.getDeviceId();
+	    final String serial = (tm.getSimSerialNumber() == null) ? "null-sim" : tm.getSimSerialNumber();
 	    final String androidId = android.provider.Settings.Secure.getString(context.getContentResolver(), 
 	    		android.provider.Settings.Secure.ANDROID_ID);
 
