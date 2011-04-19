@@ -56,6 +56,7 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.InternetMediaType;
 
 
+
 /**
  * The DistributorService is responsible for synchronization between the World
  * Server and the player's individual databases. The DistributorService will
@@ -139,15 +140,15 @@ public class DistributorService extends Service implements IDistributorService {
 
 		postalObserver = new PostalObserver(new Handler(), this);
 		this.getContentResolver().registerContentObserver(
-				PostalTableSchema.CONTENT_URI, false, postalObserver);
+				PostalTableSchema.CONTENT_URI, true, postalObserver);
 
 		enrollmentObserver = new RetrievalObserver(new Handler(), this);
 		this.getContentResolver().registerContentObserver(
-				RetrievalTableSchema.CONTENT_URI, false, enrollmentObserver);
+				RetrievalTableSchema.CONTENT_URI, true, enrollmentObserver);
 
 		subscriptionObserver = new SubscriptionObserver(new Handler(), this);
 		this.getContentResolver().registerContentObserver(
-				SubscriptionTableSchema.CONTENT_URI, false, subscriptionObserver);
+				SubscriptionTableSchema.CONTENT_URI, true, subscriptionObserver);
 
 		// Initialize our receivers/listeners.
 		/*
