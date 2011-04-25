@@ -10,7 +10,6 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.app.Activity;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -34,7 +33,6 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
-import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -162,14 +160,14 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) 
 	{
-		logger.trace("::onStartCommand");
+		logger.info("::onStartCommand");
 		if (intent.getAction().equals(NetworkService.PREPARE_FOR_STOP)) {
 			logger.debug("Preparing to stop NPS");
 			this.teardown();
 			this.stopSelf();
 			return START_NOT_STICKY;
 		}
-        logger.debug("started");
+        logger.info("started");
 		return START_STICKY;
 	}
 
@@ -180,7 +178,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		logger.trace("onCreate");
+		logger.info("onCreate");
 		
 		// no point in enabling the socket until the preferences have been read
 		this.tcpChannel.disable();  // 
@@ -207,7 +205,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 
 	@Override
 	public void onDestroy() {
-		logger.trace("::onDestroy");
+		logger.warn("::onDestroy");
 		this.tcpChannel.disable();
 		this.journalChannel.close();
 		
@@ -223,7 +221,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * Read the system preferences for the network connection information.
 	 */
 	private void acquirePreferences() {
-		logger.trace("::acquirePreferences");
+		logger.info("::acquirePreferences");
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 		
 		this.journalingSwitch = prefs.getBoolean(INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
@@ -253,7 +251,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-		logger.trace("::onSharedPreferenceChanged {}", key);
+		logger.info("::onSharedPreferenceChanged {}", key);
 		
 		if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
 			String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
@@ -303,7 +301,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 //			shouldUse(prefs);
 //		}
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
-			logger.warn("explicit opererator reset on channel");
+			logger.info("explicit opererator reset on channel");
 			this.networkingSwitch = true;
 			this.tcpChannel.reset();
 		}
@@ -324,7 +322,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * They are primarily concerned with obtaining the sessionId.
 	 */
 	private AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
-		logger.trace("::buildAuthenticationRequest");
+		logger.info("::buildAuthenticationRequest");
 		
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
@@ -346,7 +344,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * @return
 	 */
 	private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
-		logger.trace("::receiveAuthenticationResponse");
+		logger.info("::receiveAuthenticationResponse");
 		
 		if (mw == null) return false;
 		if (! mw.hasAuthenticationResult()) return false;
@@ -375,7 +373,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	private AmmoMessages.MessageWrapper.Builder buildPushRequest(String uri, String mimeType, byte[] data) 
 	{
-		logger.trace("::buildPushRequest");
+		logger.info("::buildPushRequest");
 		
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
@@ -398,7 +396,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * @return
 	 */
 	private boolean receivePushResponse(AmmoMessages.MessageWrapper mw) {
-		logger.trace("::receivePushResponse");
+		logger.info("::receivePushResponse");
 		
 		if (mw == null) return false;
 		if (! mw.hasPushAcknowledgement()) return false;
@@ -417,7 +415,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	private AmmoMessages.MessageWrapper.Builder buildRetrievalRequest(String uuid, String mimeType, String query) 
 	{
-		logger.trace("::buildRetrievalRequest");
+		logger.info("::buildRetrievalRequest");
 		
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
@@ -448,7 +446,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * @return
 	 */
 	private boolean receivePullResponse(AmmoMessages.MessageWrapper mw) {
-		logger.trace("::receivePullResponse");
+		logger.info("::receivePullResponse");
 		
 		if (mw == null) return false;
 		if (! mw.hasPullResponse()) return false;
@@ -459,7 +457,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	
 	private AmmoMessages.MessageWrapper.Builder buildSubscribeRequest(String mimeType, String query) 
 	{
-		logger.trace("::buildSubscribeRequest");
+		logger.info("::buildSubscribeRequest");
 		
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
@@ -476,7 +474,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	}	
 	
 	private boolean receiveSubscribeResponse(AmmoMessages.MessageWrapper mw) {
-		logger.trace("::receiveSubscribeResponse");
+		logger.info("::receiveSubscribeResponse");
 		
 		if (mw == null) return false;
 		if (! mw.hasDataMessage()) return false;
@@ -500,7 +498,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	private boolean sendRequest(int size, CRC32 checksum, byte[] message, OnSendMessageHandler handler) 
 	{
-		logger.trace("::sendGatewayRequest");
+		logger.info("::sendGatewayRequest");
 		return this.tcpChannel.sendRequest(size, checksum, message, handler);
 	}
 	
@@ -541,7 +539,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 */
 	public boolean deliver(byte[] message, long checksum) 
 	{
-		logger.trace("::deliverGatewayResponse");
+		logger.info("::deliverGatewayResponse");
 		
 		CRC32 crc32 = new CRC32();
 		crc32.update(message);
@@ -594,8 +592,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * service is being intentionally shut down.
 	 */
 	public void teardown() {
-		logger.trace("::teardown");
-		logger.debug("Tearing down NPS");
+		logger.info("Tearing down NPS");
 		this.tcpChannel.disable();
 		
 		Timer t = new Timer();
@@ -615,7 +612,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * @return
 	 */
 	public boolean isConnected() {
-		logger.trace("::isConnected");
+		logger.info("::isConnected");
 		return tcpChannel.isConnected();
 	}
 	
@@ -624,7 +621,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	 * the connection has been pre-verified.
 	 */
 	public boolean auth() {
-		logger.trace("::authenticate");
+		logger.info("::authenticate");
 		
 		/** Message Building */
 		AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
@@ -636,7 +633,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	}
 	
 	public boolean dispatchPushRequest(String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
-		logger.trace("::dispatchPushRequest");
+		logger.info("::dispatchPushRequest");
 		
 		Long now = System.currentTimeMillis();
 		logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
@@ -652,7 +649,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	}
 	
 	public boolean dispatchRetrievalRequest(String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
-		logger.trace("::dispatchRetrievalRequest");
+		logger.info("::dispatchRetrievalRequest");
 		
 		/** Message Building */
 		AmmoMessages.MessageWrapper.Builder mwb = buildRetrievalRequest(subscriptionId, mimeType, selection);
@@ -663,7 +660,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	}
 	
 	public boolean dispatchSubscribeRequest(String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
-		logger.trace("::dispatchSubscribeRequest");
+		logger.info("::dispatchSubscribeRequest");
 		
 		/** Message Building */
 		AmmoMessages.MessageWrapper.Builder mwb = buildSubscribeRequest(mimeType, selection);
@@ -674,7 +671,7 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	}
 	
 	public void setDistributorServiceCallback(IDistributorService callback) {
-		logger.trace("::setDistributorServiceCallback");
+		logger.info("::setDistributorServiceCallback");
 		
 		distributor = callback;
 		// there is now someplace to send the received messages.
@@ -690,13 +687,10 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	private class MyBroadcastReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(final Context context, final Intent aIntent) {
-			logger.trace("MyBroadcastReceiver::onReceive");
-			
 			final String action = aIntent.getAction();
-			logger.info("onReceive: " + action);
+			logger.info("onReceive: {}", action);
 			
 			if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)){
-				logger.info("onReceive: " + action);
 				int state = aIntent.getIntExtra("state", 0);
 				
 				if (state != 0) {
@@ -715,7 +709,6 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 			}
 
 			if (WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)) {
-				logger.info("onReceive: " + action);
 				final WifiManager wm = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
 				if (!wm.isWifiEnabled()) {
 					NetworkService.this.isWifiLinkUp = false;
@@ -756,22 +749,21 @@ implements OnSharedPreferenceChangeListener, INetworkService,
 	@Override
 	public boolean ack(boolean status) {
 	    if (status) {	// authentication succeeded
-		logger.debug("authentication complete, repost subscriptions and pending data : ");
-		this.distributor.repostToNetworkService2();
-
-		logger.debug("authentication complete inform applications : ");
-		// broadcast login event to apps ...
-		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-		loginIntent.putExtra("operatorId", operatorId);
-		this.sendBroadcast(loginIntent);
+			logger.trace("authentication complete, repost subscriptions and pending data : ");
+			this.distributor.repostToNetworkService2();
+	
+			logger.info("authentication complete inform applications : ");
+			// broadcast login event to apps ...
+			Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+			loginIntent.putExtra("operatorId", operatorId);
+			this.sendBroadcast(loginIntent);
 	    }
-
 	    return false;
 	}
 	
 	@Override
 	public boolean postToQueue() {
-		logger.debug("repost subscriptions and pending data");
+		logger.info("repost subscriptions and pending data");
 		if (this.distributor == null) return false;
 		this.distributor.repostToNetworkService3();
 	    return false;

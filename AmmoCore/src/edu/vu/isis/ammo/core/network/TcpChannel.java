@@ -59,7 +59,7 @@ public class TcpChannel implements INetChannel {
 
 	private TcpChannel(NetworkService driver) {
 		super();
-		logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
+		logger.info("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
 		this.syncObj = this;
 		
 		this.driver = driver;
@@ -126,14 +126,14 @@ public class TcpChannel implements INetChannel {
 	}
 
 	public boolean setHost(String host) {
-		logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
+		logger.info("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
 		if ( gatewayHost != null && gatewayHost.equals(host) ) return false;
 		this.gatewayHost = host;
 		this.reset();
 		return true;
 	}
 	public boolean setPort(int port) {
-		logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
+		logger.info("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
 		if (gatewayPort == port) return false;
 		this.gatewayPort = port;
 		this.reset();
@@ -155,7 +155,7 @@ public class TcpChannel implements INetChannel {
 	 */
 	public void reset() { 
 		logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
-		logger.trace("connector: {} sender: {} receiver: {}",
+		logger.info("connector: {} sender: {} receiver: {}",
 				new String[] {
 				this.connectorThread.showState(), 
 				this.senderThread.showState(), 
@@ -215,7 +215,7 @@ public class TcpChannel implements INetChannel {
 		}
 		
 		private ConnectorThread(TcpChannel parent, INetworkService.OnConnectHandler handler) {
-			logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
+			logger.info("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.state = new State();
 			
@@ -240,7 +240,7 @@ public class TcpChannel implements INetChannel {
 				this.reset();
 			}
 			public synchronized void set(int state) {
-				logger.trace("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
+				logger.info("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
 				switch (state) {
 				case STALE:
 					this.reset();
@@ -323,9 +323,9 @@ public class TcpChannel implements INetChannel {
 		@Override
 		public void run() { 
 			try {
-				logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+				logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
 				MAINTAIN_CONNECTION: while (true) {
-					logger.debug("state: {}",this.showState());
+					logger.info("connector state: {}",this.showState());
 
 					switch (this.state.get()) {
 					case NetChannel.STALE: 
@@ -342,7 +342,7 @@ public class TcpChannel implements INetChannel {
 							}
 							this.state.set(NetChannel.DISCONNECTED);
 						} catch (InterruptedException ex) {
-							logger.info("connection intentionally disabled {}", this.state );
+							logger.warn("connection intentionally disabled {}", this.state );
 							this.state.set(NetChannel.STALE);
 							break MAINTAIN_CONNECTION;
 						}
@@ -387,7 +387,7 @@ public class TcpChannel implements INetChannel {
 										this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
 								}
 							} catch (InterruptedException ex) {
-								logger.info("connection intentionally disabled {}", this.state );
+								logger.warn("connection intentionally disabled {}", this.state );
 								this.state.set(NetChannel.STALE);
 								break MAINTAIN_CONNECTION;
 							}
@@ -422,10 +422,11 @@ public class TcpChannel implements INetChannel {
 				ex.printStackTrace();
 				logger.error("channel closing without proper socket");
 			}
+			logger.error("channel closing");
 		}
 
 		private boolean disconnect() {
-			logger.trace("Thread <{}>ConnectorThread::disconnect", Thread.currentThread().getId());
+			logger.info("Thread <{}>ConnectorThread::disconnect", Thread.currentThread().getId());
 			try {
 				if (this.parent.socket == null) return true;
 				this.parent.socket.close();
@@ -444,7 +445,7 @@ public class TcpChannel implements INetChannel {
 		 * @return
 		 */
 		private boolean connect() {
-			logger.trace("Thread <{}>ConnectorThread::connect", Thread.currentThread().getId());
+			logger.info("Thread <{}>ConnectorThread::connect", Thread.currentThread().getId());
 
 			String host = (parent.gatewayHost != null) ? parent.gatewayHost : DEFAULT_HOST;
 			int port =  (parent.gatewayPort > 10) ? parent.gatewayPort : DEFAULT_PORT;
@@ -452,7 +453,7 @@ public class TcpChannel implements INetChannel {
 			try {
 				ipaddr = InetAddress.getByName(host);
 			} catch (UnknownHostException e) {
-				logger.info("could not resolve host name");
+				logger.warn("could not resolve host name");
 				return false;
 			}
 			parent.socket = new Socket();
@@ -527,7 +528,7 @@ public class TcpChannel implements INetChannel {
 		private final BlockingQueue<GwMessage> queue;
 
 		private SenderThread(TcpChannel parent, INetworkService handler) {
-			logger.trace("Thread <{}>SenderThread::<constructor>", Thread.currentThread().getId());
+			logger.info("Thread <{}>SenderThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.handler = handler;
 			this.connector = parent.connectorThread;
@@ -572,7 +573,7 @@ public class TcpChannel implements INetChannel {
 		 */
 		@Override
 		public void run() { 
-			logger.trace("Thread <{}>SenderThread::run", Thread.currentThread().getId());
+			logger.info("Thread <{}>SenderThread::run", Thread.currentThread().getId());
 
 			this.state = TAKING;
 
@@ -585,7 +586,7 @@ public class TcpChannel implements INetChannel {
 				long attempt = Long.MAX_VALUE;
 
 				while (true) {
-					logger.debug("state: {}",this.showState());
+					logger.info("sender state: {}",this.showState());
 					this.parent.statusChange();
 					this.actual = this.state;
 					
@@ -702,7 +703,7 @@ public class TcpChannel implements INetChannel {
 		}
 		
 		private ReceiverThread(TcpChannel parent, INetworkService.OnReceiveMessageHandler handler ) {
-			logger.trace("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
+			logger.info("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.handler = handler;
 			this.connector = parent.connectorThread;
@@ -740,7 +741,7 @@ public class TcpChannel implements INetChannel {
 		 */
 		@Override
 		public void run() { 
-			logger.trace("Thread <{}>ReceiverThread::run", Thread.currentThread().getId());
+			logger.info("Thread <{}>ReceiverThread::run", Thread.currentThread().getId());
 			//Looper.prepare();
 
 			try {
@@ -757,6 +758,7 @@ public class TcpChannel implements INetChannel {
 				long attempt = Long.MAX_VALUE;
 
 				while (true) {
+					logger.info("receiver state: {}",this.showState());
 					this.parent.statusChange();
 					
 					switch (state) {
@@ -907,11 +909,11 @@ public class TcpChannel implements INetChannel {
 				this.actual = EXCEPTION;
 				ex.printStackTrace();
 			}
-			logger.warn("sender thread exiting ...");
+			logger.error("reciever thread exiting ...");
 		}
 
 		private void shutdown(BufferedInputStream bis) {
-			logger.debug("no longer listening, thread closing");
+			logger.warn("no longer listening, thread closing");
 			try { bis.close(); } catch (IOException e) {}
 			return;
 		}
