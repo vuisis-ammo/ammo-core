@@ -97,14 +97,14 @@ public class DistributorService extends Service implements IDistributorService {
 
 	private ServiceConnection networkServiceConnection = new ServiceConnection() {
 		public void onServiceConnected(ComponentName name, IBinder service) {
-			logger.trace("::onServiceConnected - Network Service");
+			logger.info("::onServiceConnected - Network Service");
 			isNetworkServiceBound = true;
 			networkServiceBinder = ((NetworkService.MyBinder) service).getService();
 			networkServiceBinder.setDistributorServiceCallback(callback);
 		}
 
 		public void onServiceDisconnected(ComponentName name) {
-			logger.trace("::onServiceDisconnected - Network Service");
+			logger.info("::onServiceDisconnected - Network Service");
 			isNetworkServiceBound = false;
 			networkServiceBinder = null;
 		}
@@ -133,7 +133,7 @@ public class DistributorService extends Service implements IDistributorService {
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		logger.trace("::onCreate");
+		logger.info("::onCreate");
 
 		// Set this service to observe certain Content Providers.
 		// Initialize our content observer.
@@ -192,7 +192,7 @@ public class DistributorService extends Service implements IDistributorService {
 	 */
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		logger.trace("::onStartCommand");
+		logger.info("::onStartCommand");
 		// If we get this intent, unbind from all services 
 		// so the service can be stopped.
 		callback = this;
@@ -214,12 +214,10 @@ public class DistributorService extends Service implements IDistributorService {
 	}
 
 	public void teardownService() {
-		logger.trace("::teardownService");
 		if (!isNetworkServiceBound) {
 			return;
 		}
-
-		logger.debug("service unbinding from networkServiceBinder proxy service");
+		logger.info("service unbinding from networkServiceBinder proxy service");
 		// Use our binding for notifying the NPS of teardown.
 		if (networkServiceBinder != null) {
 			networkServiceBinder.teardown();
@@ -229,13 +227,13 @@ public class DistributorService extends Service implements IDistributorService {
 	}
 
 	public void finishTeardown() {
-		logger.debug("service teardown finished");
+		logger.info("service teardown finished");
 		this.stopSelf();
 	}
 
 	@Override
 	public void onDestroy() {
-		logger.trace("onDestroy");
+		logger.warn("onDestroy");
 		if (isNetworkServiceBound) {
 			this.unbindService(networkServiceConnection);
 			isNetworkServiceBound = false;
@@ -301,7 +299,7 @@ public class DistributorService extends Service implements IDistributorService {
 			try {
 				// instream = this.getContentResolver().openInputStream(serialUri);
 				AssetFileDescriptor afd = this.getContentResolver()
-				.openAssetFileDescriptor(serialUri, "r");
+					.openAssetFileDescriptor(serialUri, "r");
 				if (afd == null) {
 					logger.warn("could not acquire file descriptor {}", serialUri);
 					throw new IOException("could not acquire file descriptor "+serialUri);
@@ -352,7 +350,7 @@ public class DistributorService extends Service implements IDistributorService {
 	private ProcessChangeTask lastChangeTask = null;
 
 	public void repostToNetworkService() {
-		logger.trace("::repostToNetworkService()");
+		logger.info("::repostToNetworkService()");
 		if (this.networkServiceBinder == null) {
 			logger.warn("repost attempted when network service binding is null");
 			return;
@@ -368,7 +366,7 @@ public class DistributorService extends Service implements IDistributorService {
 	}
 	
 	public void repostToNetworkService2() {
-		logger.trace("::repostToNetworkService2()");
+		logger.info("::repostToNetworkService2()");
 		if (this.networkServiceBinder == null) {
 			logger.warn("repost attempted when network service binding is null");
 			return;
@@ -379,7 +377,7 @@ public class DistributorService extends Service implements IDistributorService {
 	}
 	
 	public void repostToNetworkService3() {
-		logger.trace("::repostToNetworkService3()");
+		logger.info("::repostToNetworkService3()");
 		if (this.networkServiceBinder == null) {
 			logger.warn("repost attempted when network service binding is null");
 			return;
@@ -432,7 +430,7 @@ public class DistributorService extends Service implements IDistributorService {
 	private AtomicBoolean processPostalChangeGuard = new AtomicBoolean();
 	@Override
 	public void processPostalChange(boolean repost) {
-		logger.trace("::processPostalChange()");
+		logger.info("::processPostalChange()");
 		// is another thread already running this process?
 		if (! processPostalChangeGuard.compareAndSet(false, true)) return;
 		processPostalChange_aux(repost);
@@ -524,7 +522,7 @@ public class DistributorService extends Service implements IDistributorService {
 				// Dispatch the message.
 				try {
 					if (! this.networkServiceBinder.isConnected()) {
-						logger.debug("no network connection");
+						logger.info("no network connection");
 					} else {
 						final Uri postalUri = PostalTableSchema.getUri(cur);
 						ContentValues values = new ContentValues();
@@ -533,7 +531,6 @@ public class DistributorService extends Service implements IDistributorService {
 						@SuppressWarnings("unused")
 						int numUpdated = cr.update(postalUri, values, null, null);
 
-						@SuppressWarnings("unused")
 						boolean dispatchSuccessful = 
 							this.networkServiceBinder.dispatchPushRequest(rowUri.toString(), mimeType, serialized, 
 									new INetworkService.OnSendMessageHandler() {
@@ -550,7 +547,7 @@ public class DistributorService extends Service implements IDistributorService {
 												: PostalTableSchema.DISPOSITION_FAIL);
 									int numUpdated = cr.update(postalUri, values, null, null);
 
-									logger.debug("Postal: {} rows updated to {}",
+									logger.info("Postal: {} rows updated to {}",
 											numUpdated, (status ? "sent" : "failed"));
 
 									//	if (status) {
@@ -594,7 +591,7 @@ public class DistributorService extends Service implements IDistributorService {
 	}
 		
 	private void processRetrievalChange_aux(boolean repost) {
-		logger.trace("::processRetrievalChange()");
+		logger.info("::processRetrievalChange()");
 		
 		if (! this.isNetworkServiceBound) return;
 		if (! this.networkServiceBinder.isConnected()) return;
@@ -667,7 +664,7 @@ public class DistributorService extends Service implements IDistributorService {
 
 							int numUpdated = cr.update(retrieveUri, values, null,null);
 
-							logger.debug("{} rows updated to {} status",
+							logger.info("{} rows updated to {} status",
 									numUpdated, (status ? "sent" : "pending"));
 							return false;
 						} });
@@ -700,7 +697,7 @@ public class DistributorService extends Service implements IDistributorService {
 	}
 
 	private void processSubscriptionChange_aux(boolean repost) {
-		logger.trace("::processSubscriptionChange()");
+		logger.info("::processSubscriptionChange()");
 		
 		if (! this.isNetworkServiceBound) return;
 		if (! this.networkServiceBinder.isConnected()) return;
@@ -751,7 +748,7 @@ public class DistributorService extends Service implements IDistributorService {
 
 				// long createdDate = pendingCursor.getLong(pendingCursor.getColumnIndex(SubscriptionTableSchema.CREATED_DATE));
 
-				logger.debug("Subscribe request with mime: " + mime + " and selection: " + selection);
+				logger.info("Subscribe request with mime: " + mime + " and selection: " + selection);
 
 				final Uri subUri = SubscriptionTableSchema.getUri(pendingCursor);
 				
@@ -761,7 +758,6 @@ public class DistributorService extends Service implements IDistributorService {
 				@SuppressWarnings("unused")
 				int numUpdated = cr.update(subUri, values,null, null);
 				
-				@SuppressWarnings("unused")
 				boolean sent = 
 					this.networkServiceBinder.dispatchSubscribeRequest(mime, selection, 
 							new INetworkService.OnSendMessageHandler() {
@@ -776,7 +772,7 @@ public class DistributorService extends Service implements IDistributorService {
 
 							int numUpdated = cr.update(subUri, values,null, null);
 
-							logger.debug( "Subscription: " + 
+							logger.info( "Subscription: " + 
 									String.valueOf(numUpdated) + " rows updated to "
 									+ (status ? "sent" : "pending") + " status");
 							return true;
@@ -835,13 +831,13 @@ public class DistributorService extends Service implements IDistributorService {
 
 		public PostalObserver(Handler handler, IDistributorService aCallback) {
 			super(handler);
-			logger.trace("PostalObserver::");
+			logger.info("PostalObserver::");
 			this.callback = aCallback;
 		}
 
 		@Override
 		public void onChange(boolean selfChange) {
-			logger.trace("PostalObserver::onChange : {}", selfChange);
+			logger.info("PostalObserver::onChange : {}", selfChange);
 			this.callback.processPostalChange(false);
 		}
 	}
@@ -853,13 +849,13 @@ public class DistributorService extends Service implements IDistributorService {
 
 		public RetrievalObserver(Handler handler, IDistributorService aCallback) {
 			super(handler);
-			logger.trace("RetrievalObserver::");
+			logger.info("RetrievalObserver::");
 			this.callback = aCallback;
 		}
 
 		@Override
 		public void onChange(boolean selfChange) {
-			logger.trace("RetrievalObserver::onChange : {}", selfChange );
+			logger.info("RetrievalObserver::onChange : {}", selfChange );
 			this.callback.processRetrievalChange(false);
 		}
 	}
@@ -871,13 +867,13 @@ public class DistributorService extends Service implements IDistributorService {
 
 		public SubscriptionObserver(Handler handler, IDistributorService aCallback) {
 			super(handler);
-			logger.trace("SubscriptionObserver::");
+			logger.info("SubscriptionObserver::");
 			this.callback = aCallback;
 		}
 
 		@Override
 		public void onChange(boolean selfChange) {
-			logger.trace("SubscriptionObserver::onChange : {}", selfChange );
+			logger.info("SubscriptionObserver::onChange : {}", selfChange );
 			this.callback.processSubscriptionChange(false);
 		}
 	}
@@ -894,7 +890,7 @@ public class DistributorService extends Service implements IDistributorService {
 
 			final String action = aIntent.getAction();
 
-			logger.trace("::onReceive: " + action);
+			logger.info("::onReceive: {}", action);
 			checkResourceStatus(aContext);
 
 			if (Intent.ACTION_MEDIA_MOUNTED.equals(action)) {// find serialized directory
@@ -906,27 +902,27 @@ public class DistributorService extends Service implements IDistributorService {
 		}
 
 		public void checkResourceStatus(final Context aContext) { //
-			logger.trace("::checkResourceStatus");
+			logger.info("::checkResourceStatus");
 			{ 
 				final WifiManager wm = (WifiManager) aContext.getSystemService(Context.WIFI_SERVICE);
 				final int wifiState = wm.getWifiState(); // TODO check for permission or catch error
-				logger.debug("wifi state=" + wifiState);
+				logger.info("wifi state={}", wifiState);
 
 				final TelephonyManager tm = (TelephonyManager) aContext.getSystemService(
 						Context.TELEPHONY_SERVICE);
 				final int dataState = tm.getDataState(); // TODO check for permission or catch error
-				logger.debug("telephone data state=" + dataState);
+				logger.info("telephone data state={}", dataState);
 
 				mNetworkConnected = wifiState == WifiManager.WIFI_STATE_ENABLED
 				|| dataState == TelephonyManager.DATA_CONNECTED;
-				logger.debug("mConnected=" + mNetworkConnected);
+				logger.info("mConnected={}", mNetworkConnected);
 			} 
 			{
 				final String state = Environment.getExternalStorageState();
 
-				logger.info("sdcard state: " + state);
+				logger.info("sdcard state={}", state);
 				mSdCardAvailable = Environment.MEDIA_MOUNTED.equals(state);
-				logger.debug("mSdcardAvailable=" + mSdCardAvailable);
+				logger.info("mSdcardAvailable={}", mSdCardAvailable);
 			}
 		}
 	}
@@ -940,7 +936,7 @@ public class DistributorService extends Service implements IDistributorService {
 	 */
 	@Override
 	public boolean dispatchPushResponse(PushAcknowledgement resp) {	
-		logger.trace("::dispatchPushResponse");
+		logger.info("::dispatchPushResponse");
 		return true;
 	}
 
@@ -951,7 +947,7 @@ public class DistributorService extends Service implements IDistributorService {
 	 */
 	@Override
 	public boolean dispatchRetrievalResponse(PullResponse resp) {
-		logger.trace("::dispatchRetrievalResponse : {} : {}", resp.getRequestUid(), resp.getUri());
+		logger.info("::dispatchRetrievalResponse : {} : {}", resp.getRequestUid(), resp.getUri());
 		String uriStr = resp.getRequestUid(); // resp.getUri(); --- why do we have uri in data message and retrieval response?
 		Uri uri = Uri.parse(uriStr);
 		ContentResolver cr = this.getContentResolver();
@@ -1006,7 +1002,7 @@ public class DistributorService extends Service implements IDistributorService {
 	 */
 	@Override
 	public boolean dispatchSubscribeResponse(DataMessage resp) {
-		logger.trace("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
+		logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
 		String mime = resp.getMimeType();
 		ContentResolver cr = this.getContentResolver();
 		String tableUriStr = null;
@@ -1051,7 +1047,6 @@ public class DistributorService extends Service implements IDistributorService {
 
 	@Override
 	public void processPublicationChange(boolean repost) {
-		logger.trace("::processPublicationChange : {}", repost);
 		logger.error("::processPublicationChange : {} : not implemented", repost);
 	}
 
