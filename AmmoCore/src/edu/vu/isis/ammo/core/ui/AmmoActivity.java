@@ -40,6 +40,7 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 public class AmmoActivity extends TabActivityEx implements OnStatusChangeListenerByName
 {
 	public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
+	public static final Logger log_status = LoggerFactory.getLogger("scenario.network.status");
 	
 	private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
 	private static final int LOGGING_MENU = Menu.NONE + 1;
