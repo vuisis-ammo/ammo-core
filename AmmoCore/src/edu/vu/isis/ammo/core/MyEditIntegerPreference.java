@@ -10,6 +10,11 @@ import android.preference.EditTextPreference;
 import android.util.AttributeSet;
 import android.widget.Toast;
 
+/**
+ * EditText widget used in preferences and holds number values. 
+ * @author demetri
+ *
+ */
 public class MyEditIntegerPreference extends EditTextPreference {
 
 	// ===========================================================

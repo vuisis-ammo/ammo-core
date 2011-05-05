@@ -10,6 +10,11 @@ import android.preference.EditTextPreference;
 import android.util.AttributeSet;
 import android.widget.Toast;
 
+/**
+ * EditText widget that appears in a dialog when preference item is selected. 
+ * @author demetri
+ *
+ */
 public class MyEditTextPreference extends EditTextPreference {
 
 	// ===========================================================
