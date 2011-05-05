@@ -6,7 +6,12 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import android.preference.CheckBoxPreference;
 import android.util.AttributeSet;
-
+/**
+ * This is a checkbox widget that can be used in the preferences screen of 
+ * AmmoCore. It currently is not in use.
+ * @author demetri
+ *
+ */
 public class MyCheckBoxPreference extends CheckBoxPreference {
 
 	// ===========================================================

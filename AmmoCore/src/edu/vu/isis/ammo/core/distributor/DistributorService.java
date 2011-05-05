@@ -58,10 +58,15 @@ import edu.vu.isis.ammo.util.InternetMediaType;
 
 
 /**
- * The DistributorService is responsible for synchronization between the World
- * Server and the player's individual databases. The DistributorService will
- * issue calls to the networkServiceBinder proxy service for updates and then writes the
- * results to the correct content provider.
+ * The DistributorService is responsible for synchronization between the Gateway
+ * and individual application databases. The DistributorService will
+ * issue calls to the NetworkService for updates and then writes the
+ * results to the correct content provider using the deserialization mechanism
+ * defined by each content provider.
+ * 
+ * Any activity or application wishing to send data via the DistributorService
+ * should use one of the AmmoDispatcher API methods for communication between
+ * said application and AmmoCore.
  * 
  * Any activity or application wishing to receive updates when a content
  * provider has been modified can register via a custom ContentObserver

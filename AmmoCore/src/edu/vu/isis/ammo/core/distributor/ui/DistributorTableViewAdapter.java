@@ -16,6 +16,13 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
+/**
+ * CursorAdapter used by AmmoCore to display its tables in a human-readable format.
+ * Each row of the table view is formatted a certain way based on the disposition 
+ * of the corresponding row in the content provider's table.
+ * @author demetri
+ *
+ */
 public class DistributorTableViewAdapter extends SimpleCursorAdapter 
 {
 	public static final Logger logger = LoggerFactory.getLogger(DistributorTableViewAdapter.class);

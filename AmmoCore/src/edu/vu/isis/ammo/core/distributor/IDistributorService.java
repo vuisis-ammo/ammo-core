@@ -7,7 +7,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 
 /**
  * This interface declares different callback methods that will be used by 
- * different services within the Core Application. 
+ * different services within AmmoCore. 
  * @author Demetri Miller
  *
  */
@@ -28,7 +28,7 @@ public interface IDistributorService {
 	public void processSubscriptionChange(boolean repost);
 	public void processPublicationChange(boolean repost);
 	
-	/** Network Proxy Service callbacks */
+	/** Network Service callbacks */
 	public void finishTeardown();
 	public boolean dispatchPushResponse(PushAcknowledgement resp);
 	public boolean dispatchRetrievalResponse(PullResponse resp);

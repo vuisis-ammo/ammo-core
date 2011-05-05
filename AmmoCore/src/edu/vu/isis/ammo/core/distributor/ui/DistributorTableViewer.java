@@ -21,6 +21,11 @@ import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
+/**
+ * ListActivity class used in viewing the distributor's tables.
+ * @author Fred Eisele
+ *
+ */
 public abstract class DistributorTableViewer extends ListActivity 
 implements IAmmoActivitySetup 
 {
