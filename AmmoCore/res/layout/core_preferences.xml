@@ -33,7 +33,8 @@
          android:defaultValue="20" />
 	</PreferenceCategory>
 	
-	<PreferenceCategory android:title="Network Authentication Category">
+	<PreferenceCategory android:title="Network Authentication Category" 
+	    android:focusable="false">
 		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_DEVICE_ID" 
 			android:name="Device Identifier" 
