@@ -1,15 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="ammo message" default="protobuf">
 
+    <property name="proto.dir" value="../../Gateway/common/protocol"/>
+
     <target name="protobuf">
         <echo>for running within eclipse, instead of bash script.</echo>
         <echo>Generating protocol buffers</echo>
         <mkdir dir="gen"/>
         <exec executable="protoc" taskname="pb">
-            <arg value="--proto_path=src"/>
+            <arg value="--proto_path"/>
+            <arg value="${proto.dir}"/>
             <arg value="--java_out=gen"/>
-            <arg value="src/edu/vu/isis/ammo/core/pb/AmmoMessages.proto"/>
+            <arg value="${proto.dir}/AmmoMessages.proto"/>
         </exec>
     </target>
-
+ 
 </project>
