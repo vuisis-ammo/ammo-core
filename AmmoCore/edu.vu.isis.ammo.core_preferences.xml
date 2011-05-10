@@ -6,6 +6,6 @@
 <boolean name="edu.vu.isis.ammo.core.connect.SHOULD_USE" value="true" />
 <string name="CORE_OPERATOR_ID">operator</string>
 <string name="CORE_OPERATOR_KEY">key</string>
-<string name="CORE_IP_ADDRESS">192.168.1.201</string>
+<string name="CORE_IP_ADDRESS">129.59.129.189</string>
 <string name="CORE_IP_PORT">33289</string>
 </map>
