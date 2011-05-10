@@ -160,6 +160,10 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 			color = this.res.getColor(R.color.status_connected);
 			text.setText(R.string.status_connected);
 			break;
+		case Netlink.NETLINK_SUSPENDED: 
+			color = this.res.getColor(R.color.status_suspended);
+			text.setText(R.string.status_suspended);
+			break;
 		default:
 			color = this.res.getColor(R.color.status_unknown);
 			text.setText(R.string.status_unknown);

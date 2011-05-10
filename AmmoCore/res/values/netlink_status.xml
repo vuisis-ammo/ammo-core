@@ -34,4 +34,7 @@
     <string name="status_failed">Failed</string>
     <color name="status_failed">#F2003C</color>
   
+    <string name="status_suspended">Suspended</string>
+    <color name="status_suspended">#FFBF00</color>
+  
 </resources>

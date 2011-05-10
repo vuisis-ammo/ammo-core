@@ -22,6 +22,7 @@ import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
+import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
@@ -88,6 +89,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		
 		this.setNetlink(WifiNetlink.getInstance(this));
 		this.setNetlink(WiredNetlink.getInstance(this));
+		this.setNetlink(PhoneNetlink.getInstance(this));
 		// this.setNetlink(JournalNetlink.getInstance(this));
 		
 		Intent intent = new Intent();
