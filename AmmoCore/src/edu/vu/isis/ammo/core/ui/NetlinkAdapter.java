@@ -119,12 +119,12 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 		{
 			switch (status[0]) {
 			case Netlink.NETLINK_UP: 
-				color = this.res.getColor(R.color.status_up);
-				text.setText(R.string.status_up);
+				color = this.res.getColor(R.color.status_connected);
+				text.setText(R.string.status_connected);
 				break;
 			case Netlink.NETLINK_DOWN: 
-				color = this.res.getColor(R.color.status_down);
-				text.setText(R.string.status_down);
+				color = this.res.getColor(R.color.status_disconnected);
+				text.setText(R.string.status_disconnected);
 				break;
 			case Netlink.NETLINK_DISABLED: 
 				color = this.res.getColor(R.color.status_disabled);
@@ -174,11 +174,10 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 		
 		// If we are working in the simple view, we need to change the
 		// mappings.
-		// TODO: What should UP/DOWN/SUSPENDED be mapped to?
 		//   NETLINK STATUS | SIMPLE STATUS
 		// -----------------------------------------------------------
-		//               UP | UP
-		//             DOWN | DOWN
+		//               UP | CONNECTED
+		//             DOWN | DISCONNECTED
 		//         DISABLED | DISCONNECTED
 		//     DISCONNECTED | DISCONNECTED
 		//             IDLE | DISCONNECTED
@@ -188,17 +187,17 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 		// OBTAINING_IPADDR | CONNECTING
 		//           FAILED | DISCONNECTED
 		//        CONNECTED | CONNECTED
-		//        SUSPENDED | SUSPENDED
+		//        SUSPENDED | DISCONNECTED
 		else
 		{
 			switch (status[0]) {
 			case Netlink.NETLINK_UP: 
-				color = this.res.getColor(R.color.status_up);
-				text.setText(R.string.status_up);
+				color = this.res.getColor(R.color.status_connected);
+				text.setText(R.string.status_connected);
 				break;
 			case Netlink.NETLINK_DOWN: 
-				color = this.res.getColor(R.color.status_down);
-				text.setText(R.string.status_down);
+				color = this.res.getColor(R.color.status_disconnected);
+				text.setText(R.string.status_disconnected);
 				break;
 			case Netlink.NETLINK_DISABLED: 
 				color = this.res.getColor(R.color.status_disconnected);
@@ -237,8 +236,8 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 				text.setText(R.string.status_connected);
 				break;
 			case Netlink.NETLINK_SUSPENDED: 
-				color = this.res.getColor(R.color.status_suspended);
-				text.setText(R.string.status_suspended);
+				color = this.res.getColor(R.color.status_disconnected);
+				text.setText(R.string.status_disconnected);
 				break;
 			default:
 				color = this.res.getColor(R.color.status_unknown);
