@@ -63,21 +63,24 @@ public class CorePreferenceActivity extends PreferenceActivityEx {
 		mSocketTimeout.setSummaryPrefix(res.getString(R.string.socket_timeout_label));
 		mSocketTimeout.setType(MyEditIntegerPreference.Type.TIMEOUT);
 		
+		/*
 		mDeviceId = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_DEVICE_ID);
 		String deviceId = UniqueIdentifiers.device(this);
 		mDeviceId.setDefaultValue(deviceId);
 		mDeviceId.setText(deviceId);
 		mDeviceId.setSummaryPrefix(res.getString(R.string.device_id_label));
 		mDeviceId.setType(MyEditTextPreference.Type.DEVICE_ID);
-		
+		*/
 		mOperatorId = (MyEditTextPreference) findPreference(IPrefKeys.CORE_OPERATOR_ID);
 		mOperatorId.setSummaryPrefix(res.getString(R.string.operator_id_label));
 		mOperatorId.setType(MyEditTextPreference.Type.OPERATOR_ID);
 		
+		/*
 		mOperatorKey = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_OPERATOR_KEY);
 		mOperatorKey.setSummaryPrefix(res.getString(R.string.operator_key_label));
 		mOperatorKey.setType(MyEditTextPreference.Type.OPERATOR_KEY);
-		
+		*/
+
 		flatLineTime = (MyEditIntegerPreference) findPreference(INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
 		flatLineTime.setSummaryPrefix(res.getString(R.string.net_conn_flat_line_label));
 		flatLineTime.setType(MyEditIntegerPreference.Type.TIMEOUT);

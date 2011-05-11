@@ -425,7 +425,9 @@ implements OnSharedPreferenceChangeListener, INetworkService,
         AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder();
 
         pushReq.setRequestUid(uuid)
-               .setMimeType(mimeType);
+               .setMimeType(mimeType)
+               .setPluginId(""); //TODO Added this line for a Connection exception according to Sandeep's instructions
+				 //Marked as TODO for confirmation.
 
         if (query != null) pushReq.setQuery(query);
 

@@ -249,5 +249,25 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		this.netlinkAdapter.notifyDataSetChanged();
 		return true;
 	}
+
+	/*
+	 * Used to toggle the netlink view between simple and advanced.
+	 */
+	public void toggleMode(View v)
+	{
+		if(!netlinkAdvancedView)
+		{	
+			Button b = (Button)v;
+			b.setText(R.string.simple_view);
+			netlinkAdvancedView = true;
+		}
+		else
+		{
+			Button b = (Button)v;
+			b.setText(R.string.advanced_view);
+			netlinkAdvancedView = false;
+		}
+		this.netlinkAdapter.notifyDataSetChanged();
+	}
 	
 }

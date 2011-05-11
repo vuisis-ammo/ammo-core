@@ -37,4 +37,6 @@
     <string name="status_suspended">Suspended</string>
     <color name="status_suspended">#FFBF00</color>
   
+    <string name="advanced_view">Advanced View</string>
+    <string name="simple_view">Simple View</string>
 </resources>

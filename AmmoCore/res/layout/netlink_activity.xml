@@ -6,6 +6,12 @@
    android:layout_height="fill_parent"
    android:background="@color/netlink_background">
 
+    <Button
+      android:layout_height="wrap_content"
+      android:layout_width="wrap_content"
+      android:text="@string/advanced_view"
+      android:onClick="toggleMode" />
+
    <TextView android:id="@+id/netlink_label"
       android:layout_alignParentTop="true" 
       android:layout_width="fill_parent"
