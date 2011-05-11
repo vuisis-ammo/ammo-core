@@ -34,7 +34,7 @@ public class DistributorTabActivity extends TabActivityEx  {
 			
 			intent = new Intent().setClass(this, RetrievalTableViewer.class);
 			spec = tabHost.newTabSpec("retrieval");
-			spec.setIndicator("Retrival", res.getDrawable(R.drawable.retrieval_32));
+			spec.setIndicator("Retrieval", res.getDrawable(R.drawable.retrieval_32));
 			spec.setContent(intent);
 			tabHost.addTab(spec);
 			
