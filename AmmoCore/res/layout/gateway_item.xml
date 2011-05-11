@@ -40,7 +40,7 @@
         android:layout_height="wrap_content"
         android:padding="3dip" 
         android:textSize="16dip" 
-        android:hint="status" />
+        android:hint="Checking status..." />
         
     <TextView android:id="@+id/gateway_status_text_two"
         android:layout_alignParentRight="true" 

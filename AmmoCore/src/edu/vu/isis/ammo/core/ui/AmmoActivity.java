@@ -17,11 +17,13 @@ import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TabHost;
 import android.widget.ToggleButton;
+import android.widget.Button;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
+import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
@@ -57,6 +59,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	private List<Netlink> netlinkModel = new ArrayList<Netlink>();
 	private NetlinkAdapter netlinkAdapter = null;
 	
+	public boolean netlinkAdvancedView = false;
 	// ===========================================================
 	// Views
 	// ===========================================================
@@ -88,6 +91,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		
 		this.setNetlink(WifiNetlink.getInstance(this));
 		this.setNetlink(WiredNetlink.getInstance(this));
+		this.setNetlink(PhoneNetlink.getInstance(this));
 		// this.setNetlink(JournalNetlink.getInstance(this));
 		
 		Intent intent = new Intent();
@@ -246,6 +250,26 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		item.onStatusChange(status);
 		this.netlinkAdapter.notifyDataSetChanged();
 		return true;
+	}
+
+	/*
+	 * Used to toggle the netlink view between simple and advanced.
+	 */
+	public void toggleMode(View v)
+	{
+		if(!netlinkAdvancedView)
+		{	
+			Button b = (Button)v;
+			b.setText(R.string.simple_view);
+			netlinkAdvancedView = true;
+		}
+		else
+		{
+			Button b = (Button)v;
+			b.setText(R.string.advanced_view);
+			netlinkAdvancedView = false;
+		}
+		this.netlinkAdapter.notifyDataSetChanged();
 	}
 	
 }

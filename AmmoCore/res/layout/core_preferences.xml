@@ -7,14 +7,14 @@
 		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_IP_ADDRESS" 
 			android:name="IP Address" 
-			android:title="Plugin IP Address"
+			android:title="Gateway IP Address"
 			android:summary="The IP address of the gateway plugin" 
 			android:defaultValue="129.59.129.189"/>
 
 		<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="CORE_IP_PORT" 
 			android:name="Port Number"
-			android:title="Plugin Port Number"
+			android:title="Gateway Port Number"
 			android:summary="The port number of the gateway plugin"
 			android:defaultValue="33289" />
 
@@ -35,11 +35,11 @@
 	
 	<PreferenceCategory android:title="Network Authentication Category" 
 	    android:focusable="false">
-		<edu.vu.isis.ammo.core.MyEditTextPreference
+		<!--<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_DEVICE_ID" 
 			android:name="Device Identifier" 
 			android:title="Device Identifier"
-			android:summary="The unique device identifier" />
+			android:summary="The unique device identifier" />-->
 			
 		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_OPERATOR_ID" 
@@ -48,12 +48,13 @@
 			android:summary="The unique device identifier" 
 			android:defaultValue="operator"/>
 			
-		<edu.vu.isis.ammo.core.MyEditTextPreference
+		<!--<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_OPERATOR_KEY" 
 			android:name="Operator Pass Key" 
 			android:title="Operator Pass Key"
 			android:summary="The operator's secret key" 
-			android:defaultValue="key"/>
+			android:defaultValue="key"/>-->
 	</PreferenceCategory>
 	
 </PreferenceScreen>
+

@@ -30,7 +30,7 @@
       android:layout_height="wrap_content"
       android:padding="3dip" 
       android:textSize="16dip"
-      android:hint="status"  />
+      android:hint="Checking Status..."  />
 
 </RelativeLayout>
       
