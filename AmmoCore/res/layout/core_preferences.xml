@@ -21,8 +21,8 @@
       <edu.vu.isis.ammo.core.MyEditIntegerPreference
          android:key="CORE_SOCKET_TIMEOUT"
          android:name="Socket Timeout"
-         android:title="Network Timeout (milliseconds)"
-         android:summary="Time to wait for gateway response...in milliseconds."
+         android:title="Network Timeout (seconds)"
+         android:summary="Time to wait for gateway response...in seconds."
          android:defaultValue="3000" />
    
      <edu.vu.isis.ammo.core.MyEditIntegerPreference
