@@ -12,7 +12,8 @@
         android:textOn="ON" 
         android:textOff="OFF"
         android:layout_height="wrap_content" 
-        android:onClick="onGatewayElectionToggle"/>
+        android:onClick="onGatewayElectionToggle"
+        android:visibility="invisible" />
 
     <TextView android:id="@+id/gateway_name" 
         android:layout_width="wrap_content"
