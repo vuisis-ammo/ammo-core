@@ -17,6 +17,7 @@ import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TabHost;
 import android.widget.ToggleButton;
+import android.widget.Button;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
@@ -58,6 +59,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	private List<Netlink> netlinkModel = new ArrayList<Netlink>();
 	private NetlinkAdapter netlinkAdapter = null;
 	
+	public boolean netlinkAdvancedView = false;
 	// ===========================================================
 	// Views
 	// ===========================================================
