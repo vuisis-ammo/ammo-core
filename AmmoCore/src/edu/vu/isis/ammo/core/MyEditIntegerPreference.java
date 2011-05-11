@@ -75,19 +75,47 @@ public class MyEditIntegerPreference extends EditTextPreference {
 				Toast.makeText(context, "Invalid port, please try again", Toast.LENGTH_SHORT).show();
 				checkedText = this.getText();
 			}
+			
 			break;
 
 		case TIMEOUT:
 			if (!this.validateTimeout(uncheckedText)) {
 				Toast.makeText(context, "Invalid timeout value", Toast.LENGTH_SHORT).show();
 				checkedText = this.getText();
+				
 			}
+			else
+			{
+				//Convert to milliseconds
+				checkedText = Integer.toString((Integer.parseInt(uncheckedText)*1000));
+			}
+			
+			
 			break;
 		default:
 			// do nothing.
 		}
+		
+		
 		super.setText(checkedText);
 	}
+	
+	
+	
+	
+	public String getText() {
+		// We should do some bounds checking here based on type of ETP.
+		String value = super.getText();
+		switch (mType)
+		{
+		case TIMEOUT:
+			return Integer.toString(Integer.parseInt(value)/1000);
+		default:
+			return value;
+		}
+
+	}
+	
 	
 	/**
 	 *  Checks whether or not the input ip address is valid for IPv4 protocol.
