@@ -86,8 +86,22 @@ public class MyEditIntegerPreference extends EditTextPreference {
 			}
 			else
 			{
-				//Convert to milliseconds
-				checkedText = Integer.toString((Integer.parseInt(uncheckedText)*1000));
+				
+				//Shared enum solution. It's not exactly graceful, but it works.
+				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
+				{
+					//Input is in seconds, we need to store as minutes
+					checkedText = Integer.toString((Integer.parseInt(uncheckedText)/60));
+					
+				}
+				else if(this.getKey().equals("CORE_SOCKET_TIMEOUT"))
+				{
+					//Input is in seconds, we need to store as milliseconds
+					checkedText = Integer.toString((Integer.parseInt(uncheckedText)*1000));
+					
+				}
+				
+				
 			}
 			
 			
@@ -109,7 +123,15 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		switch (mType)
 		{
 		case TIMEOUT:
-			return Integer.toString(Integer.parseInt(value)/1000);
+				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
+				{
+					return Integer.toString(Integer.parseInt(value)*60);
+				}
+				else if(this.getKey().equals("CORE_SOCKET_TIMEOUT"))
+				{
+					return Integer.toString(Integer.parseInt(value)/1000);
+				}
+			
 		default:
 			return value;
 		}
@@ -188,9 +210,9 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	 *  Set the summary field such that it displays the value of the edit text.
 	 */
 	public void refreshSummaryField() {
-		if (!summaryPrefix.equals("")) {
-			this.setSummary(summaryPrefix + this.getText());	
-		}
+
+		this.setSummary(summaryPrefix + this.getText());	
+
 	}
 
 	// ===========================================================

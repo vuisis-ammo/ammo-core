@@ -14,4 +14,5 @@ public class TabActivityEx extends TabActivity implements IActivityEx {
 	        
 	        ((ApplicationEx)this.getApplication()).setCurrentActivity(this);
 	    }
+	    
 }

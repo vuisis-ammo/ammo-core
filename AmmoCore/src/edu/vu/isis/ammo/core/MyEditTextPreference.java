@@ -99,7 +99,7 @@ public class MyEditTextPreference extends EditTextPreference {
 		}
 		super.setText(checkedText);
 	}
-	
+		
 	/**
 	 *  Checks whether or not the input ip address is valid for IPv4 protocol.
 	 *  @see http://forums.sun.com/thread.jspa?threadID=584205
@@ -125,9 +125,7 @@ public class MyEditTextPreference extends EditTextPreference {
 	 *  Set the summary field such that it displays the value of the edit text.
 	 */
 	public void refreshSummaryField() {
-		if (!summaryPrefix.equals("")) {
-			this.setSummary(summaryPrefix + this.getText());	
-		}
+		this.setSummary(summaryPrefix + this.getText());	
 	}
 
 	// ===========================================================

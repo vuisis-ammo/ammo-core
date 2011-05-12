@@ -125,7 +125,7 @@ OnStatusChangeListenerByView
 			text.setText(R.string.status_connecting);
 			break;
 		case INetChannel.CONNECTED:
-			
+			//START INetChannel.CONNECTED
 		    if (status.length < 1) break;
 			switch (status[1]) {
 			case INetChannel.SENDING:
@@ -180,6 +180,8 @@ OnStatusChangeListenerByView
 				text.setText(R.string.status_unknown);
 			}
 			break;
+			//END INetChannel.CONNECTED
+			
 		case INetChannel.DISCONNECTED:
 			setColor(icon, text, R.color.status_disconnected);
 			text.setText(R.string.status_disconnected);

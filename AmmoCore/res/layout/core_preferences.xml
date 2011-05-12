@@ -8,7 +8,7 @@
 			android:key="CORE_IP_ADDRESS" 
 			android:name="IP Address" 
 			android:title="Gateway IP Address"
-			android:summary="The IP address of the gateway plugin" 
+			android:summary="" 
 			android:defaultValue="129.59.129.189"/>
 
 		<edu.vu.isis.ammo.core.MyEditIntegerPreference
@@ -21,15 +21,15 @@
       <edu.vu.isis.ammo.core.MyEditIntegerPreference
          android:key="CORE_SOCKET_TIMEOUT"
          android:name="Socket Timeout"
-         android:title="Network Timeout (seconds)"
+         android:title="Network Connection Timeout (seconds)"
          android:summary="Time to wait for gateway response...in seconds."
          android:defaultValue="3000" />
    
      <edu.vu.isis.ammo.core.MyEditIntegerPreference
          android:key="AMMO_NET_CONN_FLAT_LINE_TIME"
          android:name="Socket Flatline"
-         android:title="Connection Inactive (minutes)"
-         android:summary="Time channel has not seen activity...in minutes"
+         android:title="Connection Idle Timeout (seconds)"
+         android:summary="Time channel has not seen activity...in seconds"
          android:defaultValue="20" />
 	</PreferenceCategory>
 	
@@ -43,8 +43,8 @@
 			
 		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_OPERATOR_ID" 
-			android:name="Operator Identifier" 
-			android:title="Operator Identifier"
+			android:name="User Identifier" 
+			android:title="User Identifier"
 			android:summary="The unique device identifier" 
 			android:defaultValue="operator"/>
 			

@@ -9,8 +9,8 @@
         android:layout_alignParentLeft="true" 
         android:layout_width="wrap_content"
         android:text="Status" 
-        android:textOn="ON" 
-        android:textOff="OFF"
+        android:textOn="Enabled" 
+        android:textOff="Disabled"
         android:layout_height="wrap_content" 
         android:onClick="onGatewayElectionToggle"
         android:visibility="invisible" />

@@ -2,6 +2,8 @@
 <resources>
 
 <string name="pref_label">Preferences</string>
+<string name="debug_label">Debug Mode</string>
+<string name="user_label">User Mode</string>
 <string name="channel_journal_label">Channel Journal Order</string>
 <string name="delivery_status_label">Delivery Status</string>
 <string name="subscription_label">Registered Subscriptions</string>
