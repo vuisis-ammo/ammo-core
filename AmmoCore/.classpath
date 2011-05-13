@@ -2,12 +2,11 @@
 <classpath>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
 	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="lib" path="/AmmoLib/libs/gson-1.5.jar"/>
+	<classpathentry kind="lib" path="/AmmoLib/libs/protobuf-java-2.3.0.jar"/>
+	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="src" path="AmmoLib_tests"/>
 	<classpathentry kind="src" path="AmmoLib_src"/>
-	<classpathentry kind="lib" path="/home/sheamj/Software/ammo/Android/AmmoLib/libs/gson-1.5.jar"/>
-	<classpathentry kind="lib" path="/home/sheamj/Software/ammo/Android/AmmoLib/libs/protobuf-java-2.3.0.jar"/>
-	<classpathentry kind="lib" path="/home/sheamj/Software/slf4j-1.6.1/slf4j-api-1.6.1.jar"/>
-	<classpathentry combineaccessrules="false" kind="src" path="/AmmoLib"/>
-	<classpathentry kind="src" path="gen"/>
+
 	<classpathentry kind="output" path="bin"/>
 </classpath>
