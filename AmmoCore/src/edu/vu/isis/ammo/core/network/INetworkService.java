@@ -15,20 +15,20 @@ import edu.vu.isis.ammo.core.distributor.IDistributorService;
 public interface INetworkService {
 
     // Intent action constants
-    public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP";
-    public static final String UPDATE_IP = "edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP";
-    public static final String ACTION = "edu.vu.isis.ammo.core.network.NetworkService.ACTION";
-    public static final String ACTION_RECONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_BEGIN_ACTION";
-    public static final String ACTION_DISCONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_HALT_ACTION";
+    String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP";
+    String UPDATE_IP = "edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP";
+    String ACTION = "edu.vu.isis.ammo.core.network.NetworkService.ACTION";
+    String ACTION_RECONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_BEGIN_ACTION";
+    String ACTION_DISCONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_HALT_ACTION";
 
     // Callback interfaces
-    public static interface OnSendMessageHandler {
-        public boolean ack(boolean status);
+    interface OnSendMessageHandler {
+        boolean ack(boolean status);
     }
 
     // methods
-    public void teardown();
-    public boolean isConnected();
+    void teardown();
+    boolean isConnected();
 
     /**
      * Posting a data item to the gateway for distribution.
@@ -38,7 +38,7 @@ public interface INetworkService {
      * @param data
      * @return
      */
-    public boolean dispatchPushRequest(String uri, String mimeType, byte []data, OnSendMessageHandler handler);
+    boolean dispatchPushRequest(String uri, String mimeType, byte []data, OnSendMessageHandler handler);
 
     /**
      * Enrolling with the gateway for a data stream.
@@ -49,7 +49,7 @@ public interface INetworkService {
      *
      * @return was the request posted successfully
      */
-    public boolean dispatchRetrievalRequest(String requestId, String mimeType, String selection, OnSendMessageHandler handler);
+    boolean dispatchRetrievalRequest(String requestId, String mimeType, String selection, OnSendMessageHandler handler);
 
     /**
      * Subscribe with the gateway for a data stream.
@@ -59,7 +59,7 @@ public interface INetworkService {
      *
      * @return was the request posted successfully
      */
-    public boolean dispatchSubscribeRequest(String mimeType, String selection, OnSendMessageHandler handler);
+    boolean dispatchSubscribeRequest(String mimeType, String selection, OnSendMessageHandler handler);
 
     /**
      * Pass control to the distributor service to handle the message.
@@ -71,5 +71,5 @@ public interface INetworkService {
      *
      * @param callback
      */
-    public void setDistributorServiceCallback(IDistributorService callback);
+    void setDistributorServiceCallback(IDistributorService callback);
 }

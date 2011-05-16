@@ -19,7 +19,7 @@ public interface IChannelManager
      *
      * @return boolean
      */
-    public boolean auth();
+    boolean auth();
 
 
     /**
@@ -28,8 +28,8 @@ public interface IChannelManager
      *
      * @return boolean
      */
-    public boolean deliver( byte[] message,
-                            long checksum );
+    boolean deliver( byte[] message,
+                     long checksum );
 
 
     /**
@@ -40,10 +40,10 @@ public interface IChannelManager
      *
      * @return boolean
      */
-    public boolean statusChange( INetChannel channel,
-                                 int connStatus,
-                                 int sendStatus,
-                                 int recvStatus);
+    boolean statusChange( INetChannel channel,
+                          int connStatus,
+                          int sendStatus,
+                          int recvStatus );
 
 
     /**
@@ -51,7 +51,7 @@ public interface IChannelManager
      *
      * @return boolean
      */
-    public boolean postToQueue();
+    boolean postToQueue();
 
 
     /**
@@ -59,5 +59,5 @@ public interface IChannelManager
      *
      * @return boolean
      */
-    public boolean isAnyLinkUp();
+    boolean isAnyLinkUp();
 }
