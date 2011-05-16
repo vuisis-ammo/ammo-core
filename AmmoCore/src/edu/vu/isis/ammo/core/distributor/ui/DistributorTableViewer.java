@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.ContextMenu;
@@ -32,24 +31,15 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	static private final Logger logger = LoggerFactory.getLogger(DistributorTableViewer.class);
+	public static final Logger logger = LoggerFactory.getLogger(DistributorTableViewer.class);
 	
 	private static final int MENU_PURGE = 1;
 	private static final int MENU_GARBAGE = 2;
 	
 	public static final int MENU_CONTEXT_DELETE = 1;
 
-	static private final String[] fromItemLayout = new String[] {
-			SubscriptionTableSchema.URI,
-			// SubscriptionTableSchema.PROJECTION ,
-			// SubscriptionTableSchema.SELECTION ,
-			// SubscriptionTableSchema.ARGS ,
-			// SubscriptionTableSchema.ORDER ,
-			// SubscriptionTableSchema.EXPIRATION ,
-			// SubscriptionTableSchema.CREATED_DATE ,
-			SubscriptionTableSchema.CREATED_DATE };
 
-	static private final int[] toItemLayout = new int[] {
+	static protected final int[] toItemLayout = new int[] {
 			R.id.distributor_table_view_item_uri,
 			R.id.distributor_table_view_item_timestamp };
 	// ===========================================================
@@ -57,7 +47,7 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	
 	protected Uri uri;
-	private DistributorTableViewAdapter adapter;
+	protected DistributorTableViewAdapter adapter;
 
 	// ===========================================================
 	// Lifecycle
@@ -66,21 +56,11 @@ implements IAmmoActivitySetup
 	public void onCreate(Bundle bun) {
 		super.onCreate(bun);
 		setContentView(R.layout.distributor_table_viewer);
-		
 		if (this.uri == null) {
 			logger.error("no uri provided...exiting");
 			return;
 		}
-
-		String[] projection = {SubscriptionTableSchema._ID, 
-				SubscriptionTableSchema.DISPOSITION,
-				SubscriptionTableSchema.URI, 
-				SubscriptionTableSchema.CREATED_DATE};
-		Cursor cursor = this.managedQuery(this.uri, projection, null, null, null);
-		this.adapter = new DistributorTableViewAdapter(this,
-				R.layout.distributor_table_view_item, cursor, fromItemLayout,
-				toItemLayout);
-		this.setListAdapter(adapter);
+		this.setListAdapter(this.adapter);
 		this.registerForContextMenu(this.getListView());
 	}
 
