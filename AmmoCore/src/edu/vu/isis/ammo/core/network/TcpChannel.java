@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package edu.vu.isis.ammo.core.network;
 
@@ -25,12 +25,13 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
  * Two long running threads and one short.
  * The long threads are for sending and receiving messages.
  * The short thread is to connect the socket.
  * The sent messages are placed into a queue if the socket is connected.
- * 
+ *
  * @author phreed
  *
  */
@@ -55,29 +56,29 @@ public class TcpChannel implements INetChannel {
 	private final Object syncObj;
 
 	private long flatLineTime;
-	private NetworkService driver;
+	private IChannelManager driver;
 
-	private TcpChannel(NetworkService driver) {
+	private TcpChannel(IChannelManager driver) {
 		super();
 		logger.info("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
 		this.syncObj = this;
-		
+
 		this.driver = driver;
 		this.connectorThread = new ConnectorThread(this, driver);
 		this.senderThread = new SenderThread(this, driver);
 		this.receiverThread = new ReceiverThread(this, driver);
-		
+
 		this.flatLineTime = 20 * 60 * 1000; // 20 minutes in milliseconds
 	}
 
-	public static TcpChannel getInstance(NetworkService driver) {
+	public static TcpChannel getInstance(IChannelManager driver) {
 		logger.trace("Thread <{}>::getInstance", Thread.currentThread().getId());
 		TcpChannel instance = new TcpChannel(driver);
 		return instance;
 	}
 
 	public boolean isConnected() { return this.connectorThread.isConnected(); }
-	/** 
+	/**
 	 * Was the status changed as a result of enabling the connection.
 	 * @return
 	 */
@@ -85,7 +86,7 @@ public class TcpChannel implements INetChannel {
 	public boolean enable() {
 		logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
 		synchronized (this.syncObj) {
-			if (this.isEnabled == true) 
+			if (this.isEnabled == true)
 				return false;
 			this.isEnabled = true;
 
@@ -98,7 +99,7 @@ public class TcpChannel implements INetChannel {
 	public boolean disable() {
 		logger.trace("Thread <{}>::disable", Thread.currentThread().getId());
 		synchronized (this.syncObj) {
-			if (this.isEnabled == false) 
+			if (this.isEnabled == false)
 				return false;
 			this.isEnabled = false;
 
@@ -120,7 +121,7 @@ public class TcpChannel implements INetChannel {
 		this.reset();
 		return true;
 	}
-	
+
 	public void setFlatLineTime(long flatLineTime) {
 		this.flatLineTime = flatLineTime;
 	}
@@ -144,23 +145,23 @@ public class TcpChannel implements INetChannel {
 		return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
 	}
 
-	public void linkUp() { 
+	public void linkUp() {
 		this.connectorThread.state.linkUp();
 	}
-	public void linkDown() { 
+	public void linkDown() {
 		this.connectorThread.state.linkDown();
 	}
 	/**
 	 * forces a reconnection.
 	 */
-	public void reset() { 
+	public void reset() {
 		logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
 		logger.info("connector: {} sender: {} receiver: {}",
 				new String[] {
-				this.connectorThread.showState(), 
-				this.senderThread.showState(), 
+				this.connectorThread.showState(),
+				this.senderThread.showState(),
 				this.receiverThread.showState()});
-		
+
 		synchronized (this.syncObj) {
 			if (! this.connectorThread.isAlive()) {
 				this.connectorThread = new ConnectorThread(this, this.driver);
@@ -186,8 +187,8 @@ public class TcpChannel implements INetChannel {
 	 * manages the connection.
 	 * enable or disable expresses the operator intent.
 	 * There is no reason to run the thread unless the channel is enabled.
-	 * 
-	 * Any of the properties of the channel 
+	 *
+	 * Any of the properties of the channel
 	 * @author phreed
 	 *
 	 */
@@ -199,7 +200,7 @@ public class TcpChannel implements INetChannel {
 		private static final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
 
 		private TcpChannel parent;
-		private INetworkService.OnConnectHandler handler;
+		private IChannelManager driver;
 		private final State state;
 
 		private long heartstamp;
@@ -213,28 +214,28 @@ public class TcpChannel implements INetChannel {
 				this.heartstamp = System.currentTimeMillis();
 			}
 		}
-		
-		private ConnectorThread(TcpChannel parent, INetworkService.OnConnectHandler handler) {
+
+		private ConnectorThread(TcpChannel parent, IChannelManager driver) {
 			logger.info("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.state = new State();
-			
-			this.handler = handler;
+
+			this.driver = driver;
 			this.resetHeartStamp();
 		}
-		
+
 		private class State {
 			private int value;
 			private int actual;
-			
+
 			private long attempt; // used to uniquely name the connection
-			
-			public State() { 
-				this.value = STALE; 
+
+			public State() {
+				this.value = STALE;
 				this.attempt = Long.MIN_VALUE;
 			}
 			public synchronized void linkUp() {
-				this.notifyAll(); 
+				this.notifyAll();
 			}
 			public synchronized void linkDown() {
 				this.reset();
@@ -246,15 +247,15 @@ public class TcpChannel implements INetChannel {
 					this.reset();
 					return;
 				}
-				this.value = state; 
-				this.notifyAll(); 
+				this.value = state;
+				this.notifyAll();
 			}
 			public synchronized int get() { return this.value; }
 
-			public synchronized boolean isConnected() { 
-				return this.value == CONNECTED; 
+			public synchronized boolean isConnected() {
+				return this.value == CONNECTED;
 			}
-			
+
 
 			/**
 			 * Previously this method would only set the state to stale
@@ -263,7 +264,7 @@ public class TcpChannel implements INetChannel {
 			 * For example during a failed link attempt.
 			 * Therefore if the attempt value matches then reset to STALE
 			 * This also causes a reset to reliably perform a notify.
-			 * 
+			 *
 			 * @param attempt value (an increasing integer)
 			 * @return
 			 */
@@ -274,10 +275,10 @@ public class TcpChannel implements INetChannel {
 			public synchronized boolean reset() {
 				attempt++;
 				this.value = STALE;
-				this.notifyAll(); 
+				this.notifyAll();
 				return true;
 			}
-			
+
 			public String showState () {
 				if (this.value == this.actual)
 					return NetChannel.showState(this.value);
@@ -285,50 +286,50 @@ public class TcpChannel implements INetChannel {
 					return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 			}
 		}
-		
-		public boolean isConnected() { 
-			return this.state.isConnected(); 
+
+		public boolean isConnected() {
+			return this.state.isConnected();
 		}
-		public long getAttempt() { 
-			return this.state.attempt; 
+		public long getAttempt() {
+			return this.state.attempt;
 		}
 		public String showState() { return this.state.showState( ); }
-		
+
 		/**
 		 * reset forces the channel closed if open.
 		 */
-		public void reset() { 
+		public void reset() {
 			this.state.failure(this.state.attempt);
 		}
-		
-		public void failure(long attempt) { 
-			this.state.failure(attempt); 
-		}	
+
+		public void failure(long attempt) {
+			this.state.failure(attempt);
+		}
 
 		/**
 		 * A value machine based.
 		 * Most of the time this machine will be in a CONNECTED value.
-		 * In that CONNECTED value the machine wait for the connection value to 
+		 * In that CONNECTED value the machine wait for the connection value to
 		 * change or for an interrupt indicating that the thread is being shut down.
-		 *  
+		 *
 		 *  The value machine takes care of the following constraints:
 		 * We don't need to reconnect unless.
-		 * 1) the connection has been lost 
+		 * 1) the connection has been lost
 		 * 2) the connection has been marked stale
 		 * 3) the connection is enabled.
 		 * 4) an explicit reconnection was requested
-		 * 
+		 *
 		 * @return
 		 */
 		@Override
-		public void run() { 
+		public void run() {
 			try {
 				logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
 				MAINTAIN_CONNECTION: while (true) {
 					logger.info("connector state: {}",this.showState());
 
 					switch (this.state.get()) {
-					case NetChannel.STALE: 
+					case NetChannel.STALE:
 						disconnect();
 						this.state.set(NetChannel.LINK_WAIT);
 						break;
@@ -378,7 +379,7 @@ public class TcpChannel implements INetChannel {
 						break;
 
 					case NetChannel.CONNECTED:
-						handler.auth();
+						driver.auth();
 						{
 							this.parent.statusChange();
 							try {
@@ -394,7 +395,7 @@ public class TcpChannel implements INetChannel {
 							this.parent.statusChange();
 						}
 						break;
-					default: 
+					default:
 						try {
 							long attempt = this.getAttempt();
 							this.parent.statusChange();
@@ -410,7 +411,7 @@ public class TcpChannel implements INetChannel {
 				}
 
 			} catch (Exception ex) {
-				this.state.set(NetChannel.EXCEPTION); 
+				this.state.set(NetChannel.EXCEPTION);
 			}
 			try {
 				if (this.parent.socket == null) {
@@ -436,7 +437,7 @@ public class TcpChannel implements INetChannel {
 			return true;
 		}
 
-		private boolean isAnyLinkUp() { 
+		private boolean isAnyLinkUp() {
 			return this.parent.driver.isAnyLinkUp();
 		}
 
@@ -474,18 +475,18 @@ public class TcpChannel implements INetChannel {
 			logger.info("connection to {}:{} established ", ipaddr, port);
 			return true;
 		}
-		
-	}    
 
-	/** 
+	}
+
+	/**
 	 * do your best to send the message.
-	 * 
+	 *
 	 * @param size
 	 * @param checksum
 	 * @param message
 	 * @return
 	 */
-	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) 
+	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler)
 	{
 		return this.senderThread.queueMsg(new GwMessage(size, checksum, payload, handler) );
 	}
@@ -496,9 +497,9 @@ public class TcpChannel implements INetChannel {
 		public final byte[] payload;
 		public final INetworkService.OnSendMessageHandler handler;
 		public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) {
-			this.size = size; 
-			this.checksum = checksum; 
-			this.payload = payload; 
+			this.size = size;
+			this.checksum = checksum;
+			this.payload = payload;
 			this.handler = handler;
 		}
 	}
@@ -510,31 +511,31 @@ public class TcpChannel implements INetChannel {
 	 */
 	public static class SenderThread extends Thread {
 		private static final Logger logger = LoggerFactory.getLogger(SenderThread.class);
-		
+
 		public String showState () {
 			if (this.state == this.actual)
 				return NetChannel.showState(this.state);
 			else
 				return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 		}
-		
+
 		volatile private int state;
 		volatile private int actual;
 
 		private final TcpChannel parent;
 		private ConnectorThread connector;
-		private final INetworkService handler;
+		private final IChannelManager driver;
 
 		private final BlockingQueue<GwMessage> queue;
 
-		private SenderThread(TcpChannel parent, INetworkService handler) {
+		private SenderThread(TcpChannel parent, IChannelManager driver) {
 			logger.info("Thread <{}>SenderThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
-			this.handler = handler;
+			this.driver = driver;
 			this.connector = parent.connectorThread;
 			this.queue = new LinkedBlockingQueue<GwMessage>(20);
 		}
-		
+
 		public void updateConnector(ConnectorThread connector) {
 			this.connector = connector;
 		}
@@ -543,7 +544,7 @@ public class TcpChannel implements INetChannel {
 		 * This makes use of the non-blocking offer call.
 		 * A proper producer-consumer should use put or add.
 		 * This is necessary as the calling thread is the UI thread.
-		 * 
+		 *
 		 * @param msg
 		 * @return
 		 */
@@ -551,7 +552,7 @@ public class TcpChannel implements INetChannel {
 		    return this.queue.offer(msg);
 		}
 
-		private void failOutStream(OutputStream os, long attempt) { 
+		private void failOutStream(OutputStream os, long attempt) {
 			if (os == null) return;
 			try {
 				os.close();
@@ -568,17 +569,17 @@ public class TcpChannel implements INetChannel {
 		 * bytes[]  : <size>
 		 * This is done via a simple value machine.
 		 * If the checksum doesn't match the connection is dropped and restarted.
-		 * 
+		 *
 		 * Once the message has been read it is passed off to...
 		 */
 		@Override
-		public void run() { 
+		public void run() {
 			logger.info("Thread <{}>SenderThread::run", Thread.currentThread().getId());
 
 			this.state = TAKING;
 
 			DataOutputStream dos = null;
-			try {            
+			try {
 				// one integer for size & four bytes for checksum
 				ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE/Byte.SIZE + 4);
 				buf.order(parent.endian);
@@ -589,7 +590,7 @@ public class TcpChannel implements INetChannel {
 					logger.info("sender state: {}",this.showState());
 					this.parent.statusChange();
 					this.actual = this.state;
-					
+
 					switch (state) {
 					case WAIT_CONNECT:
 						synchronized (this.connector.state) {
@@ -610,7 +611,7 @@ public class TcpChannel implements INetChannel {
 							// if connected then proceed
 							// keep the working socket so that if something goes wrong
 							// the socket can be checked to see if it has changed
-							// in the interim.			
+							// in the interim.
 							OutputStream os = this.parent.socket.getOutputStream();
 							dos = new DataOutputStream(os);
 						} catch (IOException ex) {
@@ -618,16 +619,16 @@ public class TcpChannel implements INetChannel {
 							if (msg.handler != null) msg.handler.ack(false);
 							this.failOutStream(dos, attempt);
 							break;
-						} 
+						}
 						state = SENDING;
 						break;
 
 					case TAKING:
-						if (this.queue.isEmpty()) this.handler.postToQueue();
+						if (this.queue.isEmpty()) this.driver.postToQueue();
 						msg = queue.take(); // THE MAIN BLOCKING CALL
 						state = WAIT_CONNECT;
 						break;
-						
+
 					case SENDING:
 						buf.rewind();
 						buf.putInt(msg.size);
@@ -658,12 +659,12 @@ public class TcpChannel implements INetChannel {
 							this.failOutStream(dos, attempt);
 							this.state = WAIT_CONNECT;
 							break;
-						} 
+						}
 
 						// legitimately sent to gateway.
 						if (msg.handler != null) msg.handler.ack(true);
 						this.connector.resetHeartStamp();
-						
+
 						state = TAKING;
 						break;
 					}
@@ -686,11 +687,11 @@ public class TcpChannel implements INetChannel {
 	public static class ReceiverThread extends Thread {
 		private static final Logger logger = LoggerFactory.getLogger(ReceiverThread.class);
 
-		final private INetworkService.OnReceiveMessageHandler handler;
+		final private IChannelManager driver;
 
 		private TcpChannel parent = null;
 		private ConnectorThread connector = null;
-		
+
 		// private TcpChannel.ConnectorThread;
 		volatile private int state;
 		volatile private int actual;
@@ -701,14 +702,14 @@ public class TcpChannel implements INetChannel {
 			else
 				return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
 		}
-		
-		private ReceiverThread(TcpChannel parent, INetworkService.OnReceiveMessageHandler handler ) {
+
+		private ReceiverThread(TcpChannel parent, IChannelManager driver ) {
 			logger.info("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
-			this.handler = handler;
+			this.driver = driver;
 			this.connector = parent.connectorThread;
 		}
-		
+
 		public void updateConnector(ConnectorThread connector) {
 			this.connector = connector;
 		}
@@ -719,7 +720,7 @@ public class TcpChannel implements INetChannel {
 			logger.trace("Thread <{}>::start", Thread.currentThread().getId());
 		}
 
-		private void failInStream(InputStream is, long attempt) { 
+		private void failInStream(InputStream is, long attempt) {
 			if (is == null) return;
 			try {
 				is.close();
@@ -736,11 +737,11 @@ public class TcpChannel implements INetChannel {
 		 * bytes[]  : <size>
 		 * This is done via a simple value machine.
 		 * If the checksum doesn't match the connection is dropped and restarted.
-		 * 
+		 *
 		 * Once the message has been read it is passed off to...
 		 */
 		@Override
-		public void run() { 
+		public void run() {
 			logger.info("Thread <{}>ReceiverThread::run", Thread.currentThread().getId());
 			//Looper.prepare();
 
@@ -760,7 +761,7 @@ public class TcpChannel implements INetChannel {
 				while (true) {
 					logger.info("receiver state: {}",this.showState());
 					this.parent.statusChange();
-					
+
 					switch (state) {
 					case WAIT_RECONNECT: break;
 					case RESTART: break;
@@ -769,15 +770,15 @@ public class TcpChannel implements INetChannel {
 					}
 
 					this.actual = WAIT_CONNECT;
-					
+
 					switch (state) {
-					case WAIT_RECONNECT: 
+					case WAIT_RECONNECT:
 					case WAIT_CONNECT:  // look for the size
-						
+
 						synchronized (this.connector.state) {
 							while (! this.connector.isConnected() ) {
 								try {
-									logger.trace("Thread <{}>ReceiverThread::value.wait", 
+									logger.trace("Thread <{}>ReceiverThread::value.wait",
 											Thread.currentThread().getId());
 
 									this.connector.state.wait(BURP_TIME);
@@ -797,7 +798,7 @@ public class TcpChannel implements INetChannel {
 							logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
 							failInStream(bis, attempt);
 							break;
-						}    
+						}
 						if (bis == null) break;
 						this.state = START;
 						break;
@@ -813,14 +814,14 @@ public class TcpChannel implements INetChannel {
 								break; // read error - end of connection
 							}
 						} catch (SocketTimeoutException ex) {
-							// the following checks the heart-stamp 
+							// the following checks the heart-stamp
 							// TODO no pace-maker messages are sent, this could be added if needed.
 							long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
 							if (parent.flatLineTime < elapsedTime) {
 								logger.warn("heart timeout : {}", elapsedTime);
 								failInStream(bis, attempt);
-								this.state = WAIT_RECONNECT;  // essentially the same as WAIT_CONNECT 
-								break; 
+								this.state = WAIT_RECONNECT;  // essentially the same as WAIT_CONNECT
+								break;
 							}
 							this.state = RESTART;
 							break;
@@ -840,7 +841,7 @@ public class TcpChannel implements INetChannel {
 						bytesToRead = bbuf.getInt();
 
 						if (bytesToRead < 0) break; // bad read keep trying
-						
+
 						if (bytesToRead > 4000000) {
 							logger.warn("message too large {} wrong size!!, we will be out of sync, disconnect ", bytesToRead);
 							failInStream(bis, attempt);
@@ -872,7 +873,7 @@ public class TcpChannel implements INetChannel {
 						logger.info("checksum {} {}", checksumBuffer, checksum);
 						bytesRead = 0;
 						this.state = CHECKED;
-					} 
+					}
 					break;
 					case CHECKED: // read the message
 						while (bytesRead < bytesToRead) {
@@ -897,7 +898,7 @@ public class TcpChannel implements INetChannel {
 						this.state = DELIVER;
 						break;
 					case DELIVER: // deliver the message to the gateway
-						this.handler.deliver(message, checksum);
+						this.driver.deliver(message, checksum);
 						this.connector.resetHeartStamp();
 						message = null;
 						this.state = START;
@@ -924,7 +925,7 @@ public class TcpChannel implements INetChannel {
 	/**
 	 * A routine to get the local ip address
 	 * TODO use this someplace
-	 * 
+	 *
 	 * @return
 	 */
 	public String getLocalIpAddress() {
@@ -934,8 +935,8 @@ public class TcpChannel implements INetChannel {
 				NetworkInterface intf = en.nextElement();
 				for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
 					InetAddress inetAddress = enumIpAddr.nextElement();
-					if (!inetAddress.isLoopbackAddress()) { 
-						return inetAddress.getHostAddress().toString(); 
+					if (!inetAddress.isLoopbackAddress()) {
+						return inetAddress.getHostAddress().toString();
 					}
 				}
 			}

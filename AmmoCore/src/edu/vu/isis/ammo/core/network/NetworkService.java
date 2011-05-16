@@ -38,6 +38,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 
+
 /**
  * Network Proxy Service is responsible for all networking between the
  * core application and the server. Currently, this service implements a UDP
@@ -49,9 +50,10 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  *
  */
 public class NetworkService extends Service
-implements OnSharedPreferenceChangeListener, INetworkService,
-    INetworkService.OnConnectHandler, INetworkService.OnSendMessageHandler,
-    INetworkService.OnReceiveMessageHandler, INetworkService.OnStatusChangeHandler
+implements OnSharedPreferenceChangeListener,
+           INetworkService,
+           INetworkService.OnSendMessageHandler,
+           IChannelManager
 {
     // ===========================================================
     // Constants
