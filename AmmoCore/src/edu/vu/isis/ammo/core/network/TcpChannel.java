@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * @author phreed
  *
  */
-public class TcpChannel implements INetChannel {
+public class TcpChannel extends NetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
 
 	private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
@@ -96,6 +96,7 @@ public class TcpChannel implements INetChannel {
 		}
 		return true;
 	}
+	
 	public boolean disable() {
 		logger.trace("Thread <{}>::disable", Thread.currentThread().getId());
 		synchronized (this.syncObj) {
@@ -109,6 +110,8 @@ public class TcpChannel implements INetChannel {
 		}
 		return true;
 	}
+
+	public boolean close() { return false; }
 
 	public boolean setConnectTimeout(int value) {
 		logger.trace("Thread <{}>::setConnectTimeout {}", Thread.currentThread().getId(), value);
@@ -281,9 +284,9 @@ public class TcpChannel implements INetChannel {
 
 			public String showState () {
 				if (this.value == this.actual)
-					return NetChannel.showState(this.value);
+					return parent.showState(this.value);
 				else
-					return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
+					return parent.showState(this.actual) + "->" + parent.showState(this.actual);
 			}
 		}
 
@@ -509,14 +512,14 @@ public class TcpChannel implements INetChannel {
 	 * The main method is run().
 	 *
 	 */
-	public static class SenderThread extends Thread {
+	private static class SenderThread extends Thread {
 		private static final Logger logger = LoggerFactory.getLogger(SenderThread.class);
 
 		public String showState () {
 			if (this.state == this.actual)
-				return NetChannel.showState(this.state);
+				return parent.showState(this.state);
 			else
-				return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
+				return parent.showState(this.actual) + "->" + parent.showState(this.actual);
 		}
 
 		volatile private int state;
@@ -684,7 +687,7 @@ public class TcpChannel implements INetChannel {
 	 * The main method is run().
 	 *
 	 */
-	public static class ReceiverThread extends Thread {
+	private static class ReceiverThread extends Thread {
 		private static final Logger logger = LoggerFactory.getLogger(ReceiverThread.class);
 
 		final private IChannelManager driver;
@@ -698,9 +701,9 @@ public class TcpChannel implements INetChannel {
 
 		public String showState () {
 			if (this.state == this.actual)
-				return NetChannel.showState(this.state);
+				return parent.showState(this.state);
 			else
-				return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.actual);
+				return parent.showState(this.actual) + "->" + parent.showState(this.actual);
 		}
 
 		private ReceiverThread(TcpChannel parent, IChannelManager driver ) {

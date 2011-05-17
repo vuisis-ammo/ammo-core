@@ -105,8 +105,8 @@ implements OnSharedPreferenceChangeListener,
     private IDistributorService distributor;
 
     // Channels
-    private TcpChannel tcpChannel = TcpChannel.getInstance(this);
-    private JournalChannel journalChannel = JournalChannel.getInstance(this);
+    private INetChannel tcpChannel = TcpChannel.getInstance(this);
+    private INetChannel journalChannel = JournalChannel.getInstance(this);
 
     private MyBroadcastReceiver myReceiver = null;
     private IRegisterReceiver mReceiverRegistrar = new IRegisterReceiver() {
