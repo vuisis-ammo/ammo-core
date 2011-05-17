@@ -57,5 +57,13 @@
     <string name="status_deliver">Deliver</string>
     <color name="status_deliver">#FF008000</color>
    
+	<string name="status_transmitting">Transmitting</string>
+	<color name="status_transmitting">#FF008000</color>
+	
+	<string name="status_error">Error: Restart AmmoCore</string>
+	<color name="status_error">#FFF2003C</color>
+	
+	<string name="status_checking">Checking Status</string>
+	<color name="status_checking">#FFCCCCCC</color>
   
 </resources>

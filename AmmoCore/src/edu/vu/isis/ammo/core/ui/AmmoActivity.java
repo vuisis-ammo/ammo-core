@@ -20,6 +20,7 @@ import android.widget.RelativeLayout;
 import android.widget.TabHost;
 import android.widget.ToggleButton;
 import android.widget.Button;
+import android.widget.TextView;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
