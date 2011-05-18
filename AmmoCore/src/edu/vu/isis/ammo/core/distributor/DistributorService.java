@@ -411,6 +411,8 @@ public class DistributorService extends Service implements IDistributorService {
 		}
 	}
 
+        private boolean garbage_collection = true;
+
 	/**
 	 * Every time the distributor provider is modified, find out what the
 	 * changes were and, if necessary, send the data to the server. Be careful
@@ -441,6 +443,35 @@ public class DistributorService extends Service implements IDistributorService {
 		processPostalChange_aux(repost);
 		processPostalChangeGuard.set(false);
 	}
+
+ private static final String POSTAL_GARBAGE;
+                private static final String POSTAL_RESEND;
+                private static final String POSTAL_SEND;
+
+                static {
+                        StringBuilder sb = new StringBuilder()
+                          .append('"').append(PostalTableSchema.DISPOSITION).append('"')
+                          .append(" IN (")
+                          .append("'").append(PostalTableSchema.DISPOSITION_SATISFIED).append("'")
+                          .append(",")
+                          .append("'").append(PostalTableSchema.DISPOSITION_EXPIRED).append("'")
+                          .append(")");
+                        POSTAL_GARBAGE = sb.toString();
+
+                        sb = new StringBuilder()
+                          .append('"').append(PostalTableSchema.DISPOSITION).append('"')
+                          .append(" IN ('").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
+                          .append(", '").append(PostalTableSchema.DISPOSITION_FAIL).append("'")
+                          .append(", '").append(PostalTableSchema.DISPOSITION_SENT).append("'")
+                          .append(")");
+                        POSTAL_RESEND = sb.toString();
+
+                        sb = new StringBuilder()
+                          .append('"').append(PostalTableSchema.DISPOSITION).append('"')
+                          .append("  IN ('").append(PostalTableSchema.DISPOSITION_PENDING).append("')");
+                        POSTAL_SEND = sb.toString();
+                }
+
 		
 	private void processPostalChange_aux(boolean repost) {
 		logger.trace("::processPostalChangeAux()");
@@ -449,27 +480,17 @@ public class DistributorService extends Service implements IDistributorService {
 		if (! this.networkServiceBinder.isConnected()) return;
 
 		final ContentResolver cr = this.getContentResolver();
+                if (this.garbage_collection)
+                  cr.delete(PostalTableSchema.CONTENT_URI, POSTAL_GARBAGE, null);
 
 		int prevPendingCount = 0;
 
 		for (; true; repost = false) {
-			StringBuilder sb = new StringBuilder();
-			sb.append('"').append(PostalTableSchema.DISPOSITION).append('"');
-			sb.append("  IN ('").append(PostalTableSchema.DISPOSITION_PENDING).append("'");
-			if (repost) { 
-				sb.append(", '").append(PostalTableSchema.DISPOSITION_FAIL).append("'"); // TBD SKN: resend the failed ones
-				sb.append(", '").append(PostalTableSchema.DISPOSITION_SENT).append("'");
-				// sb.append(", '").append(PostalTableSchema.DISPOSITION_QUEUED).append("'");
-			}
-			sb.append(")");
-
 			String[] selectionArgs = null;
-			// Cursor cur = cr.query(PostalTableSchema.CONTENT_URI, null,
-			// selectPending, selectionArgs,
-			// PostalTableSchema.PRIORITY_SORT_ORDER);
 
 			Cursor cur = cr.query(PostalTableSchema.CONTENT_URI, null,
-					sb.toString(), selectionArgs, PostalTableSchema._ID + " ASC");
+					(repost ? POSTAL_RESEND : POSTAL_SEND), 
+                                        selectionArgs, PostalTableSchema._ID + " ASC");
 
 			int curCount = cur.getCount();
 
@@ -594,6 +615,42 @@ public class DistributorService extends Service implements IDistributorService {
 		processRetrievalChange_aux(repost);
 		processRetrievalChangeGuard.set(false);
 	}
+
+                private static final String RETRIEVAL_GARBAGE;
+                private static final String RETRIEVAL_SEND;
+                private static final String RETRIEVAL_RESEND;
+
+                static {
+                        StringBuilder sb = new StringBuilder()
+                          .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
+                          .append(" IN (")
+                          .append("'").append(RetrievalTableSchema.DISPOSITION_SATISFIED).append("'")
+                          .append(",")
+                          .append("'").append(RetrievalTableSchema.DISPOSITION_EXPIRED).append("'")
+                          .append(")");
+                        RETRIEVAL_GARBAGE = sb.toString();
+
+                        sb = new StringBuilder()
+                          .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
+                          .append(" IN (")
+                          .append("'").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'")
+                          .append(",")
+                          .append("'").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'")
+                          .append(")");
+                        RETRIEVAL_SEND = sb.toString();
+
+                        sb = new StringBuilder()
+                          .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
+                          .append(" IN (")
+                          .append("'").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'")
+                          .append(",")
+                          .append("'").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'")
+                          .append(",")
+                          .append("'").append(RetrievalTableSchema.DISPOSITION_SENT).append("'")
+                          .append(")");
+                        RETRIEVAL_RESEND = sb.toString();
+                }
+
 		
 	private void processRetrievalChange_aux(boolean repost) {
 		logger.info("::processRetrievalChange()");
@@ -602,25 +659,19 @@ public class DistributorService extends Service implements IDistributorService {
 		if (! this.networkServiceBinder.isConnected()) return;
 
 		final ContentResolver cr = this.getContentResolver();
+                if (this.garbage_collection)
+                  cr.delete(RetrievalTableSchema.CONTENT_URI, RETRIEVAL_GARBAGE, null);
+
 		String order = RetrievalTableSchema.PRIORITY_SORT_ORDER;
 		
 		// Additional items may be added to the table while the current set are 
 		// being processed
 		
 		for (; true; repost = false) {
-			StringBuilder sb = new StringBuilder();
-			sb.append('"').append(RetrievalTableSchema.DISPOSITION).append('"');
-			sb.append("  IN ('").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'");
-			sb.append(", '").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'"); // resend the FAILED one regardless of repost
-			if (repost) { 
-				sb.append(", '").append(RetrievalTableSchema.DISPOSITION_SENT).append("'");
-				// sb.append(", '").append(RetrievalTableSchema.DISPOSITION_QUEUED).append("'");
-			}
-			sb.append(")");
-
 			String[] selectionArgs = null;
 			Cursor pendingCursor = cr.query(RetrievalTableSchema.CONTENT_URI,
-					null, sb.toString(), selectionArgs, order);
+					null, (repost ? RETRIEVAL_RESEND : RETRIEVAL_SEND), 
+                                        selectionArgs, order);
 
 			if (pendingCursor.getCount() < 1) {
 				pendingCursor.close();
@@ -701,6 +752,33 @@ public class DistributorService extends Service implements IDistributorService {
 		processSubscriptionChangeGuard.set(false);
 	}
 
+                private static final String SUBSCRIPTION_RESEND;
+                private static final String SUBSCRIPTION_SEND;
+
+                static {
+                        StringBuilder sb = new StringBuilder();
+
+                        sb = new StringBuilder()
+                          .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
+                          .append(" IN (")
+                          .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
+                          .append(",")
+                          .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
+                          .append(")");
+                        SUBSCRIPTION_SEND = sb.toString();
+
+                        sb = new StringBuilder()
+                          .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
+                          .append(" IN (")
+                          .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
+                          .append(",")
+                          .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
+                          .append(",")
+                          .append("'").append(SubscriptionTableSchema.DISPOSITION_SENT).append("'")
+                          .append(")");
+                        SUBSCRIPTION_RESEND = sb.toString();
+                }
+
 	private void processSubscriptionChange_aux(boolean repost) {
 		logger.info("::processSubscriptionChange()");
 		
@@ -708,26 +786,19 @@ public class DistributorService extends Service implements IDistributorService {
 		if (! this.networkServiceBinder.isConnected()) return;
 
 		final ContentResolver cr = this.getContentResolver();
-		String order = SubscriptionTableSchema.PRIORITY_SORT_ORDER;
+                // if (this.garbage_collection)
+                //   cr.delete(SubscriptionTableSchema.CONTENT_URI, RETRIEVAL_GARBAGE, null);
+
+		final String order = SubscriptionTableSchema.PRIORITY_SORT_ORDER;
 
 		// Additional items may be added to the table while the current set are
 		// being processed
 		
 		for (; true; repost = false) {
 			String[] selectionArgs = null;
-			StringBuilder sb = new StringBuilder();
-			
-			sb.append('"').append(SubscriptionTableSchema.DISPOSITION).append('"');
-			sb.append("  IN ('").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'");
-			sb.append(", '").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'"); // TBD SKN - resend failed messages always
-			if (repost) { 
-				sb.append(", '").append(SubscriptionTableSchema.DISPOSITION_SENT).append("'");
-				// sb.append(", '").append(SubscriptionTableSchema.DISPOSITION_QUEUED).append("'");
-			}
-			sb.append(")");
-
 			Cursor pendingCursor = cr.query(SubscriptionTableSchema.CONTENT_URI,
-					null, sb.toString(), selectionArgs, order);
+					null, (repost ? SUBSCRIPTION_RESEND : SUBSCRIPTION_SEND),
+                                        selectionArgs, order);
 
 			if (pendingCursor.getCount() < 1) {
 				pendingCursor.close();
