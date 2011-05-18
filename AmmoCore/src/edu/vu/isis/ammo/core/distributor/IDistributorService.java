@@ -1,10 +1,8 @@
 package edu.vu.isis.ammo.core.distributor;
 
-import edu.vu.isis.ammo.core.distributor.DistributorService.ProcessChangeTask;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
-
 
 /**
  * This interface declares different callback methods that will be used by 
@@ -28,5 +26,5 @@ public interface IDistributorService {
 	 * There is no response to a publish unless there is a subscription?
 	 */
 	// public boolean dispatchPublishResponse(PushAcknowledgement resp);
-        public void consumerReady();
+    public void consumerReady();
 }
