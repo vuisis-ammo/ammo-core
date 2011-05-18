@@ -544,15 +544,21 @@ public class TcpChannel extends NetChannel {
 		}
 
 		/**
-		 * This makes use of the non-blocking offer call.
-		 * A proper producer-consumer should use put or add.
-		 * This is necessary as the calling thread is the UI thread.
+		 * This makes use of the blocking "put" call.
+		 * A proper producer-consumer should use put or add and not offer.
+		 * "put" is blocking call.
+		 * If this were on the UI thread then offer would be used.
 		 *
 		 * @param msg
 		 * @return
 		 */
 		public boolean queueMsg(GwMessage msg) {
-		    return this.queue.offer(msg);
+		    try {
+				this.queue.put(msg);
+			} catch (InterruptedException e) {
+				return false;
+			}
+		    return true;
 		}
 
 		private void failOutStream(OutputStream os, long attempt) {
@@ -627,7 +633,6 @@ public class TcpChannel extends NetChannel {
 						break;
 
 					case TAKING:
-						if (this.queue.isEmpty()) this.driver.postToQueue();
 						msg = queue.take(); // THE MAIN BLOCKING CALL
 						state = WAIT_CONNECT;
 						break;

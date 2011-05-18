@@ -45,15 +45,6 @@ public interface IChannelManager
                           int sendStatus,
                           int recvStatus );
 
-
-    /**
-     * @param void
-     *
-     * @return boolean
-     */
-    boolean postToQueue();
-
-
     /**
      * @param void
      *

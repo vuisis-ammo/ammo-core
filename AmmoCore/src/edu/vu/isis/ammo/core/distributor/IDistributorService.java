@@ -1,5 +1,6 @@
 package edu.vu.isis.ammo.core.distributor;
 
+import edu.vu.isis.ammo.core.distributor.DistributorService.ProcessChangeTask;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
@@ -17,16 +18,6 @@ public interface IDistributorService {
 	public static final String BIND = "edu.vu.isis.ammo.core.distributor.DistributorService.BIND";
 	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP";
 	public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED";
-   
-	/** Content Observer callbacks */
-	public void repostToNetworkService();
-	public void repostToNetworkService2(); // same as repostToNetworkService but not threaded
-	public void repostToNetworkService3();
-	
-	public void processPostalChange(boolean repost);
-	public void processRetrievalChange(boolean repost);
-	public void processSubscriptionChange(boolean repost);
-	public void processPublicationChange(boolean repost);
 	
 	/** Network Service callbacks */
 	public void finishTeardown();
@@ -37,5 +28,5 @@ public interface IDistributorService {
 	 * There is no response to a publish unless there is a subscription?
 	 */
 	// public boolean dispatchPublishResponse(PushAcknowledgement resp);
-	
+        public void consumerReady();
 }
