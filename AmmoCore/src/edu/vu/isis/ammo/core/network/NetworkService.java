@@ -806,13 +806,15 @@ implements OnSharedPreferenceChangeListener,
     }
 
     /**
-     * A routine to let the distributor know that the message was sent or discarded.
+     * A routine to let the distributor know that the 
+     * *authentication* message was sent (or discarded).
+     * The distributor is notified that a channel is available.
      */
     @Override
     public boolean ack(boolean status) {
         if (status) {   // authentication succeeded
             logger.trace("authentication complete, repost subscriptions and pending data : ");
-            this.distributor.repostToNetworkService2();
+            this.distributor.consumerReady();
 
             logger.info("authentication complete inform applications : ");
             // broadcast login event to apps ...
@@ -820,14 +822,6 @@ implements OnSharedPreferenceChangeListener,
             loginIntent.putExtra("operatorId", operatorId);
             this.sendBroadcast(loginIntent);
         }
-        return false;
-    }
-
-    @Override
-    public boolean postToQueue() {
-        logger.info("repost subscriptions and pending data");
-        if (this.distributor == null) return false;
-        this.distributor.repostToNetworkService3();
         return false;
     }
 
