@@ -9,14 +9,11 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.app.PendingIntent;
 import android.app.Service;
-import android.app.PendingIntent.CanceledException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.ContentResolver;
@@ -35,7 +32,6 @@ import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
@@ -377,10 +373,8 @@ public class DistributorService extends Service implements IDistributorService {
     public static class ProcessChangeTask extends
             AsyncTask<DistributorService, Integer, Void> 
     {
-        private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in
+        private static final int BURP_TIME = 20 * 1000; // 20 seconds expressed in
                                                         // milliseconds
-
-        private DistributorService[] them;
 
         private boolean subscriptionDelta;
 
@@ -410,7 +404,7 @@ public class DistributorService extends Service implements IDistributorService {
         @Override
         protected Void doInBackground(DistributorService... them) {
             logger.info("::post to network service");
-            this.them = them;
+          
             for (DistributorService that : them) {
                 this.processSubscriptionChange(that, true);
                 this.processRetrievalChange(that, true);
@@ -674,8 +668,9 @@ public class DistributorService extends Service implements IDistributorService {
          * 
          * Be careful about the race condition; don't leave gaps in the time
          * line. Originally this method used time stamps to determine if the
-         * item had be sent. Now a status indicator is used. TODO Garbage
-         * collect items which are expired.
+         * item had be sent. Now a status indicator is used.
+         * 
+         * Garbage collect items which are expired.
          */
 
         private static final String RETRIEVAL_GARBAGE;
@@ -684,7 +679,7 @@ public class DistributorService extends Service implements IDistributorService {
         
         static {
             StringBuilder sb = new StringBuilder()
-                          .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
+              .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
               .append(" IN (")
               .append("'").append(RetrievalTableSchema.DISPOSITION_SATISFIED).append("'")
               .append(",")
@@ -693,7 +688,7 @@ public class DistributorService extends Service implements IDistributorService {
             RETRIEVAL_GARBAGE = sb.toString();
             
             sb = new StringBuilder()
-                          .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
+              .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
               .append(" IN (")
               .append("'").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'")
               .append(",")
@@ -815,8 +810,9 @@ public class DistributorService extends Service implements IDistributorService {
          * 
          * Be careful about the race condition; don't leave gaps in the time
          * line. Originally this method used time stamps to determine if the
-         * item had be sent. Now a status indicator is used. TODO Garbage
-         * collect items which are expired.
+         * item had be sent. Now a status indicator is used.
+         * 
+         * Garbage collect items which are expired.
          */
         private static final String SUBSCRIPTION_GARBAGE;
         private static final String SUBSCRIPTION_RESEND;
@@ -857,7 +853,7 @@ public class DistributorService extends Service implements IDistributorService {
 
             final ContentResolver cr = that.getContentResolver();
             if (collectGarbage)
-            cr.delete(SubscriptionTableSchema.CONTENT_URI, POSTAL_GARBAGE, null);
+            cr.delete(SubscriptionTableSchema.CONTENT_URI, SUBSCRIPTION_GARBAGE, null);
 
             String order = SubscriptionTableSchema.PRIORITY_SORT_ORDER;
 
@@ -866,7 +862,6 @@ public class DistributorService extends Service implements IDistributorService {
 
             for (; true; resend = false) {
                 String[] selectionArgs = null;
-                StringBuilder sb = new StringBuilder();
 
                 Cursor pendingCursor = cr.query(
                         SubscriptionTableSchema.CONTENT_URI, null, 
