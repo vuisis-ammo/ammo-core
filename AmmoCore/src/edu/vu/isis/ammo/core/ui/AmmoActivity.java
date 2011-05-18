@@ -271,6 +271,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	{
 		this.netlinkAdvancedView = !this.netlinkAdvancedView;
 		this.netlinkAdapter.notifyDataSetChanged();
+		this.gatewayAdapter.notifyDataSetChanged();
 		
 		//ANDROID3.0
 		//There will be bugs. Ideally, when this toggles, we need to
