@@ -238,7 +238,14 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
         RelativeLayout row = (RelativeLayout)view.getParent();
         ToggleButton button = (ToggleButton)view;
         
-        if (button.isChecked()) gw.enable(); else gw.enable();
+        if (button.isChecked()) {
+        	gw.enable();
+        }
+        else {
+        	TextView t = (TextView)row.findViewById(R.id.gateway_status_text_one);
+        	t.setText("Disabling...");
+    		gw.disable();
+    	}
        
         row.refreshDrawableState();       
     }

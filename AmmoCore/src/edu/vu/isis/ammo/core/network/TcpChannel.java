@@ -39,7 +39,7 @@ public class TcpChannel extends NetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
 
 	private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
-	private boolean isEnabled = false;
+	private boolean isEnabled = true;
 
 	private Socket socket = null;
 	private ConnectorThread connectorThread;
@@ -55,6 +55,8 @@ public class TcpChannel extends NetChannel {
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private final Object syncObj;
 
+	
+	private boolean shouldBeDisabled = false;
 	private long flatLineTime;
 	private IChannelManager driver;
 
@@ -85,14 +87,23 @@ public class TcpChannel extends NetChannel {
 	public boolean isEnabled() { return this.isEnabled; }
 	public boolean enable() {
 		logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
+		logger.debug("ENABLING TCPCHANNEL");
 		synchronized (this.syncObj) {
+			
 			if (this.isEnabled == true)
 				return false;
 			this.isEnabled = true;
 
+			/*
 			if (! this.connectorThread.isAlive()) this.connectorThread.start();
 			if (! this.senderThread.isAlive()) this.senderThread.start();
 			if (! this.receiverThread.isAlive()) this.receiverThread.start();
+			*/
+			logger.warn("::enable - Setting the state to STALE");
+			this.shouldBeDisabled = false;
+			this.connectorThread.state.set(NetChannel.STALE);
+			
+			//this.connectorThread.connect();
 		}
 		return true;
 	}
@@ -100,13 +111,18 @@ public class TcpChannel extends NetChannel {
 	public boolean disable() {
 		logger.trace("Thread <{}>::disable", Thread.currentThread().getId());
 		synchronized (this.syncObj) {
+			
 			if (this.isEnabled == false)
 				return false;
 			this.isEnabled = false;
-
-//			this.connectorThread.stop();
-//			this.senderThread.stop();
-//			this.receiverThread.stop();
+			logger.warn("::disable - Setting the state to DISABLED");
+			this.shouldBeDisabled = true;
+			this.connectorThread.state.set(NetChannel.DISABLED);
+			
+			/* Deprecated Thread Methods throw an exception */
+			//this.connectorThread.stop();
+			//this.senderThread.stop();
+			//this.receiverThread.stop();
 		}
 		return true;
 	}
@@ -286,7 +302,7 @@ public class TcpChannel extends NetChannel {
 				if (this.value == this.actual)
 					return parent.showState(this.value);
 				else
-					return parent.showState(this.actual) + "->" + parent.showState(this.actual);
+					return parent.showState(this.actual) + "->" + parent.showState(this.value);
 			}
 		}
 
@@ -330,8 +346,37 @@ public class TcpChannel extends NetChannel {
 				logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
 				MAINTAIN_CONNECTION: while (true) {
 					logger.info("connector state: {}",this.showState());
-
+					if(this.parent.shouldBeDisabled) this.state.set(NetChannel.DISABLED);
 					switch (this.state.get()) {
+					
+					/*
+					 * 
+					 * 
+					 * Notes for Thursday: It looks like if i set the state to disabled while it is working on
+					 * or waiting in another state, it will remove my set state. Essentially we have a threading issue.
+					 * Perhaps we need to implement a state request queue to ensure that the request to disabled never gets lost.
+					 * or perhaps set a flag in the state machine that will force it to disabled.
+					 * 
+					 */
+					case NetChannel.DISABLED:
+						try {
+							synchronized (this.state) {
+								logger.info("this.state.get() = {}", this.state.get());
+								
+								while (this.state.get() == NetChannel.DISABLED) // this is IMPORTANT don't remove it.
+								{
+									this.driver.statusChange(this.parent, this.state.value, this.parent.senderThread.state, this.parent.receiverThread.state);
+									this.state.wait(BURP_TIME);   // wait for a link interface
+									logger.info("Looping in Disabled");
+									
+								}
+							}
+						} catch (InterruptedException ex) {
+							logger.warn("connection intentionally disabled {}", this.state );
+							this.state.set(NetChannel.STALE);
+							break MAINTAIN_CONNECTION;
+						}
+						break;
 					case NetChannel.STALE:
 						disconnect();
 						this.state.set(NetChannel.LINK_WAIT);

@@ -115,7 +115,13 @@ OnStatusChangeListenerByView
 		
 		if(parent.netlinkAdvancedView)
 		{
+			icon.setEnabled(true);
 			switch (status[0]) {
+			
+			case INetChannel.DISABLED:
+				setColor(icon, text, R.color.status_disabled);
+				text.setText(R.string.status_disabled);
+				break;
 			case INetChannel.PENDING:
 				setColor(icon, text, R.color.status_pending);
 				text.setText(R.string.status_pending);
@@ -254,6 +260,10 @@ OnStatusChangeListenerByView
 			*/
 			switch (status[0]) {
 			
+			case INetChannel.DISABLED:
+				setColor(icon, text, R.color.status_disabled);
+				text.setText(R.string.status_disabled);
+				break;
 			case INetChannel.START: 
 			case INetChannel.RESTART:			
 			case INetChannel.PENDING:
@@ -326,7 +336,7 @@ OnStatusChangeListenerByView
 	}
 	private void setColor(ToggleButton icon, TextView text, int resColor) {
 		int color = this.res.getColor(resColor);
-	    if (icon != null) icon.setTextColor(color); 
+	    if (icon != null) icon.setTextColor(R.color.togglebutton_default); 
 	    if (text != null) text.setTextColor(color);
 	}
 

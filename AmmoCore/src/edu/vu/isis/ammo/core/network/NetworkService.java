@@ -94,6 +94,9 @@ implements OnSharedPreferenceChangeListener,
     // journalingSwitch
     private boolean journalingSwitch = false;
 
+    
+    //Determine if the connection is enabled
+    private boolean gatewayEnabled = true;
     // for providing networking support
     // should this be using IPv6?
     private boolean networkingSwitch = true;
@@ -185,7 +188,7 @@ implements OnSharedPreferenceChangeListener,
         // no point in enabling the socket until the preferences have been read
         this.tcpChannel.disable();  //
         this.acquirePreferences();
-        if (this.networkingSwitch)
+        if (this.networkingSwitch && this.gatewayEnabled)
             this.tcpChannel.enable();   //
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -229,6 +232,7 @@ implements OnSharedPreferenceChangeListener,
 
         this.journalingSwitch = prefs.getBoolean(INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
 
+        this.gatewayEnabled = prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
         this.networkingSwitch = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 
         this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
@@ -312,6 +316,19 @@ implements OnSharedPreferenceChangeListener,
         if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
             long flatLineTime = Integer.valueOf(prefs.getString(INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String.valueOf(DEFAULT_FLAT_LINE_TIME)));
             this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert from minutes to milliseconds
+        }
+        
+        if(key.equals(INetPrefKeys.GATEWAY_SHOULD_USE))
+        {
+        	if(prefs.getBoolean(key, true))
+        	{
+        		
+        		this.tcpChannel.enable();
+        	}
+        	else
+        	{
+        		this.tcpChannel.disable();
+        	}
         }
         return;
     }
