@@ -2,10 +2,13 @@ package edu.vu.isis.ammo.core.network;
 
 public abstract class NetChannel implements INetChannel {
 
-    // The values in the INetChannel that we are translating here could
+    
+
+	// The values in the INetChannel that we are translating here could
     // probably be made into an enum and the translation to strings
     // would be handled for us.
     public String showState(int state) {
+    	
         switch (state){
         case  PENDING        :     return "PENDING";
         case  EXCEPTION      :     return "EXCEPTION";
@@ -30,8 +33,9 @@ public abstract class NetChannel implements INetChannel {
         case  SIZED          :     return "SIZED";
         case  CHECKED        :     return "CHECKED";
         case  DELIVER        :     return "DELIVER";
+        case  DISABLED       :     return "DISABLED";
         default:
-            return "Undefined State";
+            return "Undefined State [" + state +"]";
         }
     }
 }

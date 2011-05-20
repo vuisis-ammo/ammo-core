@@ -4,6 +4,7 @@
     <string name="status_pending">Pending</string>
     <color name="status_pending">#FF008000</color>
     
+    <color name="togglebutton_default">#000000</color>
     <string name="status_exception">Exception</string>
     <color name="status_exception">#FFFFBF00</color>
     
@@ -65,5 +66,8 @@
 	
 	<string name="status_checking">Checking Status</string>
 	<color name="status_checking">#FFCCCCCC</color>
+	
+	<string name="status_disabled">Disabled</string>
+	<color name="status_disabled">#FFF2003C</color>
   
 </resources>

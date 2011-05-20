@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+<string name="delay_explanation">In order to preserve battery power, some methods were used that will cause up to a 5 second delay in the status updates.</string>
 <string name="gateway_page">The Gateway tab displays information about this device\'s connections to the gateways.</string>
 
 <string name="gateway_statuses_debug"></string>
