@@ -6,12 +6,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.net.wifi.WifiManager;
-import android.telephony.PhoneStateListener;
-import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
-import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 
