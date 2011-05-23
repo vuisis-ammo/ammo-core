@@ -37,6 +37,10 @@
     <string name="status_suspended">Suspended</string>
     <color name="status_suspended">#FFBF00</color>
   
-    <string name="advanced_view">Advanced View</string>
-    <string name="simple_view">Simple View</string>
+    <string name="advanced_view">Debug Mode</string>
+    <string name="simple_view">User Mode</string>
+    
+    <string name="status_unavailable">Lost</string>
+    <string name="status_init">Initializing</string>
+    <string name="status_avail">Available</string>
 </resources>

@@ -192,53 +192,31 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 		{
 			switch (status[0]) {
 			case Netlink.NETLINK_UP: 
-				color = this.res.getColor(R.color.status_connected);
-				text.setText(R.string.status_connected);
-				break;
-			case Netlink.NETLINK_DOWN: 
-				color = this.res.getColor(R.color.status_disconnected);
-				text.setText(R.string.status_disconnected);
-				break;
-			case Netlink.NETLINK_DISABLED: 
-				color = this.res.getColor(R.color.status_disconnected);
-				text.setText(R.string.status_disconnected);
-				break;
-			case Netlink.NETLINK_DISCONNECTED: 
-				color = this.res.getColor(R.color.status_disconnected);
-				text.setText(R.string.status_disconnected);
-				break;
-			case Netlink.NETLINK_IDLE: 
-				color = this.res.getColor(R.color.status_disconnected);
-				text.setText(R.string.status_disconnected);
-				break;
-			case Netlink.NETLINK_SCANNING: 
-				color = this.res.getColor(R.color.status_connecting);
-				text.setText(R.string.status_connecting);
-				break;
-			case Netlink.NETLINK_CONNECTING: 
-				color = this.res.getColor(R.color.status_connecting);
-				text.setText(R.string.status_connecting);
-				break;
-			case Netlink.NETLINK_AUTHENTICATING: 
-				color = this.res.getColor(R.color.status_connecting);
-				text.setText(R.string.status_connecting);
-				break;
-			case Netlink.NETLINK_OBTAINING_IPADDR: 
-				color = this.res.getColor(R.color.status_connecting);
-				text.setText(R.string.status_connecting);
-				break;
-			case Netlink.NETLINK_FAILED: 
-				color = this.res.getColor(R.color.status_disconnected);
-				text.setText(R.string.status_failed);
-				break;
 			case Netlink.NETLINK_CONNECTED: 
 				color = this.res.getColor(R.color.status_connected);
-				text.setText(R.string.status_connected);
+				text.setText(R.string.status_avail);
 				break;
+				
+				
+			case Netlink.NETLINK_DOWN: 
+			case Netlink.NETLINK_DISABLED: 
+			case Netlink.NETLINK_DISCONNECTED: 
+			case Netlink.NETLINK_IDLE: 
+			case Netlink.NETLINK_FAILED: 
 			case Netlink.NETLINK_SUSPENDED: 
 				color = this.res.getColor(R.color.status_disconnected);
-				text.setText(R.string.status_disconnected);
+				text.setText(R.string.status_unavailable);
 				break;
+				
+				
+			case Netlink.NETLINK_SCANNING: 
+			case Netlink.NETLINK_CONNECTING: 
+			case Netlink.NETLINK_AUTHENTICATING: 
+			case Netlink.NETLINK_OBTAINING_IPADDR: 
+				color = this.res.getColor(R.color.status_connecting);
+				text.setText(R.string.status_init);
+				break;
+				
 			default:
 				color = this.res.getColor(R.color.status_unknown);
 				text.setText(R.string.status_unknown);
