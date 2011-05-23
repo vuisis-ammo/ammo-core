@@ -48,6 +48,9 @@
 <string name="nsd_failed">The connection attempt has failed. Attempt to reconnect.</string>
 <string name="nsd_conn">IP traffic should be available.</string>
 <string name="nsd_susp">IP traffic is suspended.</string>
+<string name="nsd_u_avail">The Netlink is available for traffic.</string>
+<string name="nsd_u_lost">The Netlink is not available for traffic.</string>
+<string name="nsd_u_init">The Netlink is attempting to become available. Details of this depend on the Netlink type.</string>
 
 
 <string name="prefs_gw_ip">The IP address of the Gateway.</string>
