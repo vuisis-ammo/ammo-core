@@ -72,7 +72,21 @@ android:layout_height="fill_parent">
     </TableRow>
 
 
-
+<!-- 
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	>
+	
+		<TextView android:id="@+id/about_table_header"
+			android:text="@string/delay_explanation"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:textSize="18sp"
+			android:layout_span="2"
+			android:layout_weight="50"
+			 />
+				
+	</TableRow> -->
 	<!--
 	
 	
@@ -930,14 +944,85 @@ android:layout_height="fill_parent">
 	</TableRow>
 	
 	
+
 	
 	
 	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_avail_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_avail"
+		android:textStyle="bold"
+		android:text="Available:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_avail"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_u_avail"
+		/>
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_lost_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_lost"
+		android:textStyle="bold"
+		android:text="Lost:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_lost"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_u_lost"
+		/>
+		
+	</TableRow>
 	
 	
-	
-	
-	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_init_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_init"
+		android:textStyle="bold"
+		android:text="Initializing:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_init"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_u_init"
+		/>
+		
+	</TableRow>
 	
 	
 	

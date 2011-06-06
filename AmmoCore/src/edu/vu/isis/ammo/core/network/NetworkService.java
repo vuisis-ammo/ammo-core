@@ -3,6 +3,8 @@
  */
 package edu.vu.isis.ammo.core.network;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.CRC32;
@@ -34,8 +36,15 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
+import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.core.model.Netlink;
+import edu.vu.isis.ammo.core.model.PhoneNetlink;
+import edu.vu.isis.ammo.core.model.WifiNetlink;
+import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
+import edu.vu.isis.ammo.core.ui.GatewayAdapter;
+import edu.vu.isis.ammo.core.ui.NetlinkAdapter;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 
 
@@ -94,6 +103,9 @@ implements OnSharedPreferenceChangeListener,
     // journalingSwitch
     private boolean journalingSwitch = false;
 
+
+    //Determine if the connection is enabled
+    private boolean gatewayEnabled = true;
     // for providing networking support
     // should this be using IPv6?
     private boolean networkingSwitch = true;
@@ -182,10 +194,16 @@ implements OnSharedPreferenceChangeListener,
         super.onCreate();
         logger.info("onCreate");
 
+        mGateways.add( Gateway.getInstance( getBaseContext() ));
+
+        //mNetlinks.add( WifiNetlink.getInstance( getBaseContext() ));
+        //mNetlinks.add( WiredNetlink.getInstance( getBaseContext() ));
+        //mNetlinks.add( PhoneNetlink.getInstance( getBaseContext() ));
+
         // no point in enabling the socket until the preferences have been read
         this.tcpChannel.disable();  //
         this.acquirePreferences();
-        if (this.networkingSwitch)
+        if (this.networkingSwitch && this.gatewayEnabled)
             this.tcpChannel.enable();   //
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -229,6 +247,7 @@ implements OnSharedPreferenceChangeListener,
 
         this.journalingSwitch = prefs.getBoolean(INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
 
+        this.gatewayEnabled = prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
         this.networkingSwitch = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 
         this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
@@ -312,6 +331,19 @@ implements OnSharedPreferenceChangeListener,
         if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
             long flatLineTime = Integer.valueOf(prefs.getString(INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String.valueOf(DEFAULT_FLAT_LINE_TIME)));
             this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert from minutes to milliseconds
+        }
+
+        if(key.equals(INetPrefKeys.GATEWAY_SHOULD_USE))
+        {
+            if(prefs.getBoolean(key, true))
+            {
+
+                this.tcpChannel.enable();
+            }
+            else
+            {
+                this.tcpChannel.disable();
+            }
         }
         return;
     }
@@ -429,7 +461,7 @@ implements OnSharedPreferenceChangeListener,
         pushReq.setRequestUid(uuid)
                .setMimeType(mimeType)
                .setPluginId(""); //TODO Added this line for a Connection exception according to Sandeep's instructions
-				 //Marked as TODO for confirmation.
+                 //Marked as TODO for confirmation.
 
         if (query != null) pushReq.setQuery(query);
 
@@ -802,9 +834,12 @@ implements OnSharedPreferenceChangeListener,
      */
 
     @Override
-    public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
-        this.getApplicationEx().setGatewayState(new int[]{connStatus, sendStatus, recvStatus});
-        return false;
+    public void statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
+        // Once we have multiple gateways we'll have to fix this.
+        mGateways.get( 0 ).setStatus( new int[]{connStatus, sendStatus, recvStatus} );
+
+        Intent broadcastIntent = new Intent( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE );
+        this.sendBroadcast( broadcastIntent );
     }
 
     /**
@@ -842,5 +877,18 @@ implements OnSharedPreferenceChangeListener,
     public boolean isAnyLinkUp()
     {
         return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
+    }
+
+    private List<Gateway> mGateways = new ArrayList<Gateway>();
+    private List<Netlink> mNetlinks = new ArrayList<Netlink>();
+
+    public List<Gateway> getGatewayList()
+    {
+        return mGateways;
+    }
+
+    public List<Netlink> getNetlinkList()
+    {
+        return mNetlinks;
     }
 }

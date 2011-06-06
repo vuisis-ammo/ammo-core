@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+<string name="delay_explanation">In order to preserve battery power, some methods were used that will cause up to a 5 second delay in the status updates.</string>
 <string name="gateway_page">The Gateway tab displays information about this device\'s connections to the gateways.</string>
 
 <string name="gateway_statuses_debug"></string>
@@ -47,6 +48,9 @@
 <string name="nsd_failed">The connection attempt has failed. Attempt to reconnect.</string>
 <string name="nsd_conn">IP traffic should be available.</string>
 <string name="nsd_susp">IP traffic is suspended.</string>
+<string name="nsd_u_avail">The Netlink is available for traffic.</string>
+<string name="nsd_u_lost">The Netlink is not available for traffic.</string>
+<string name="nsd_u_init">The Netlink is attempting to become available. Details of this depend on the Netlink type.</string>
 
 
 <string name="prefs_gw_ip">The IP address of the Gateway.</string>
