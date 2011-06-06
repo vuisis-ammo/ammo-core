@@ -36,7 +36,7 @@
         <activity android:name=".distributor.ui.PostalTableViewer"/>
         <activity android:name=".distributor.ui.DistributorTabActivity"/>
 
-    <!-- ========== RECIEVER SECTION ================= -->
+    <!-- ========== RECEIVER SECTION ================= -->
 
         <receiver android:name=".receiver.WifiReceiver">
             <intent-filter>
@@ -81,15 +81,9 @@
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP" />
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
             </intent-filter>
-        </service>
-        
-        <service android:enabled="true"
-        android:name=".preferences.PreferenceService"
-        android:exported="true">
-          <intent-filter>
-              <action android:name="edu.vu.isis.ammo.core.preferences.PreferenceService.BIND" />
-          </intent-filter>
-        
+            <intent-filter>
+              <action android:name="edu.vu.isis.ammo.api.IAmmoDistributorService"/>
+            </intent-filter>
         </service>
         
         <service android:enabled="true" 
