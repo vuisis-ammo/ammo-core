@@ -40,10 +40,10 @@ public interface IChannelManager
      *
      * @return boolean
      */
-    void statusChange( INetChannel channel,
-                       int connStatus,
-                       int sendStatus,
-                       int recvStatus );
+    boolean statusChange( INetChannel channel,
+                          int connStatus,
+                          int sendStatus,
+                          int recvStatus );
 
     /**
      * @param void
