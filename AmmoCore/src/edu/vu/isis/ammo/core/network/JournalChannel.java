@@ -29,7 +29,7 @@ import android.os.Environment;
  * @author phreed
  *
  */
-public class JournalChannel implements INetChannel {
+public class JournalChannel extends NetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(JournalChannel.class);
 	
 	private BlockingQueue<GwMessage> sendQueue = new LinkedBlockingQueue<GwMessage>(20);
@@ -333,5 +333,23 @@ public class JournalChannel implements INetChannel {
 			}
 		}
 	}
-	
+
+	// The following methods are stubbed out to get things to compile.
+	// JournalChannel is not currently used, but if we ever need to
+	// get it working again, we will need to implement all of the
+	// methods in the INetChannel interface.
+	public String showState(int state) { return ""; }
+
+	public boolean isConnected() { return false; }
+	public boolean setConnectTimeout(int value) { return false; }
+	public boolean setSocketTimeout(int value) { return false; }
+	public void setFlatLineTime(long flatLineTime) {}
+	public boolean setHost(String host) { return false; }
+	public boolean setPort(int port) { return false; }
+
+	public void linkUp() {}
+	public void linkDown() {}
+	public void reset() {}
+	public String getLocalIpAddress() { return ""; }
+
 }

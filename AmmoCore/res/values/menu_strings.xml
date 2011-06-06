@@ -2,6 +2,8 @@
 <resources>
 
 <string name="pref_label">Preferences</string>
+<string name="debug_label">Debug Mode</string>
+<string name="user_label">User Mode</string>
 <string name="channel_journal_label">Channel Journal Order</string>
 <string name="delivery_status_label">Delivery Status</string>
 <string name="subscription_label">Registered Subscriptions</string>
@@ -13,7 +15,7 @@
 <string name="reconnect_button_label">Reconnect</string>
 
 <string name="view_tables_label">View Tables</string>
-<string name="about_label">About</string>
+<string name="about_label">Help/About</string>
 
 <string name="netlink_title">Available Netlinks</string>
 <string name="gateway_title">AMMO Gateway List</string>

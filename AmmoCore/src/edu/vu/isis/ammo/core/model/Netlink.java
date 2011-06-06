@@ -29,6 +29,7 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener {
 	public static final int NETLINK_OBTAINING_IPADDR = 9;
 	public static final int NETLINK_FAILED = 10;
 	public static final int NETLINK_CONNECTED = 11;
+	public static final int NETLINK_SUSPENDED = 12;
 	
 	// does the operator wish to use this gateway?
 	private boolean election; 

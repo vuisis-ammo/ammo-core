@@ -9,10 +9,11 @@
         android:layout_alignParentLeft="true" 
         android:layout_width="wrap_content"
         android:text="Status" 
-        android:textOn="ON" 
-        android:textOff="OFF"
+        android:textOn="Enabled" 
+        android:textOff="Disabled"
         android:layout_height="wrap_content" 
-        android:onClick="onGatewayElectionToggle"/>
+        android:onClick="onGatewayElectionToggle"
+        android:visibility="invisible" />
 
     <TextView android:id="@+id/gateway_name" 
         android:layout_width="wrap_content"
@@ -40,7 +41,7 @@
         android:layout_height="wrap_content"
         android:padding="3dip" 
         android:textSize="16dip" 
-        android:hint="status" />
+        android:hint="Checking status..." />
         
     <TextView android:id="@+id/gateway_status_text_two"
         android:layout_alignParentRight="true" 

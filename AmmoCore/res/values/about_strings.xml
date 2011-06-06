@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="gateway_page">The Gateway tab displays information about this device\'s connections to the gateways.</string>
+
+<string name="gateway_statuses_debug"></string>
+
+<!-- Text_One can have these statuses if not connected -->
+<string name="gw_t1_pending">The distributor has the message, but cannot send it. This may be due to the lack of an available netlink.</string>
+<string name="gw_t1_exception">AmmoCore needs restarted.</string>
+<string name="gw_t1_connecting">Attempting to connect to the gateway.</string>
+<string name="gw_t1_disconnected">The gateway is not connected.</string>
+<string name="gw_t1_stale">The state of the Gateway connection is uncertain and AmmoCore is checking.</string>
+<string name="gw_t1_linking">Attempting to find a valid netlink to use.</string>
+<string name="gw_t1_linked">Connected to a netlink.</string>
+<string name="gw_t1_waiting">AmmoCore needs restarted.</string>
+<string name="gw_t1_shutdown">The connection has been shutdown and needs to be reestablished.</string>
+<string name="gw_t1_interrupted">AmmoCore needs restarted.</string>
+<string name="gw_t1_start">The message header is being read.</string>
+<string name="gw_t1_started">The message is being read.</string>
+
+<!-- Text_One can have these if connected -->
+<string name="gw_t1_sending">AmmoCore is currently sending a message to the Gateway.</string>
+<string name="gw_t1_taking">AmmoCore is currently receiving a message from the Gateway.</string>
+<!--This set also uses waiting -->
+
+
+<!-- Text Two can have these only if connected,
+		otherwise, it is invisible -->
+<string name="gw_t2_checked">The message\'s checksum has been confirmed.</string>
+<string name="gw_t2_deliver">The message has been delivered to the distributor.</string>
+<string name="gw_t2_waiting">The message thread is waiting.</string>
+<string name="gw_t2_start">The message header is being read.</string>
+<string name="gw_t2_sized">The size of the message has been determined.</string>
+
+
+<string name="netlink_page">The Netlinks tab displays information about the various data connections on this device.</string>
+
+<string name="nsd_up">IP traffic should be available.</string>
+<string name="nsd_down">IP traffic is not available. Attempt to connect the netlink.</string>
+<string name="nsd_disabled">The netlink is disabled and cannot be used.</string>
+<string name="nsd_disconnected">IP traffic is not available. Attempt to connect the netlink.</string>
+<string name="nsd_idle">Ready to start data connection setup.</string>
+<string name="nsd_scanning">Searching for an available access point.</string>
+<string name="nsd_connecting">The device is attempting to connect with the netlink.</string>
+<string name="nsd_auth">Link is established; performing authentication.</string>
+<string name="nsd_obt_ip">The device is attempting to obtain an IP address from a DHCP server.</string>
+<string name="nsd_failed">The connection attempt has failed. Attempt to reconnect.</string>
+<string name="nsd_conn">IP traffic should be available.</string>
+<string name="nsd_susp">IP traffic is suspended.</string>
+
+
+<string name="prefs_gw_ip">The IP address of the Gateway.</string>
+<string name="prefs_gw_port">The port to connect to the Gateway on.</string>
+<string name="ntwk_conn_timeout">When attempting to connect, on a slow network, you may need a larger timeout. If you are having connection problems, try increasing this value.</string>
+<string name="conn_idle_timeout">Heartbeat timeout. If a connection is idle for this time period, then it will disconnect and attempt to reconnect.</string>
+<string name="user_id">The ID of the device\'s user.</string>
+</resources>

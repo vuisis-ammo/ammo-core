@@ -7,14 +7,14 @@
     <string name="status_exception">Exception</string>
     <color name="status_exception">#FFFFBF00</color>
     
-    <string name="status_connecting">Connecting</string>
-    <color name="status_connecting">#FFF2003C</color>
+    <!-- <string name="status_connecting">Connecting</string>
+    <color name="status_connecting">#FFF2003C</color> -->
     
     <string name="status_connected">Connected</string>
     <color name="status_connected">#FF008000</color>
     
-    <string name="status_disconnected">Disconnected</string>  
-    <color name="status_disconnected">#FFFFBF00</color>
+    <!-- <string name="status_disconnected">Disconnected</string>  
+    <color name="status_disconnected">#FFFFBF00</color> -->
     
     <string name="status_stale">Stale</string>
     <color name="status_stale">#FFFFBF00</color>
@@ -57,5 +57,13 @@
     <string name="status_deliver">Deliver</string>
     <color name="status_deliver">#FF008000</color>
    
+	<string name="status_transmitting">Transmitting</string>
+	<color name="status_transmitting">#FF008000</color>
+	
+	<string name="status_error">Error: Restart AmmoCore</string>
+	<color name="status_error">#FFF2003C</color>
+	
+	<string name="status_checking">Checking Status</string>
+	<color name="status_checking">#FFCCCCCC</color>
   
 </resources>

@@ -1,3 +1,5 @@
+//There are things in this file that are prepared for the Android 3.0 port
+//They are tagged by ANDROID3.0
 package edu.vu.isis.ammo.core.ui;
 
 import java.util.ArrayList;
@@ -17,11 +19,14 @@ import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TabHost;
 import android.widget.ToggleButton;
+import android.widget.Button;
+import android.widget.TextView;
 import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
+import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
@@ -44,7 +49,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	
 	private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
 	private static final int LOGGING_MENU = Menu.NONE + 1;
-	private static final int PREFERENCES_MENU = Menu.NONE + 2;
+	private static final int DEBUG_MENU = Menu.NONE + 2;
 	private static final int ABOUT_MENU = Menu.NONE + 3;
 		
 	// ===========================================================
@@ -57,6 +62,9 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	private List<Netlink> netlinkModel = new ArrayList<Netlink>();
 	private NetlinkAdapter netlinkAdapter = null;
 	
+	public boolean netlinkAdvancedView = false;
+	
+	private Menu activity_menu;
 	// ===========================================================
 	// Views
 	// ===========================================================
@@ -88,6 +96,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		
 		this.setNetlink(WifiNetlink.getInstance(this));
 		this.setNetlink(WiredNetlink.getInstance(this));
+		this.setNetlink(PhoneNetlink.getInstance(this));
 		// this.setNetlink(JournalNetlink.getInstance(this));
 		
 		Intent intent = new Intent();
@@ -156,17 +165,24 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 	public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
 		logger.trace("::onCreateOptionsMenu");
-		
 		menu.add(Menu.NONE, VIEW_TABLES_MENU, Menu.NONE, getResources().getString(R.string.view_tables_label));
 		menu.add(Menu.NONE, LOGGING_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
-		menu.add(Menu.NONE, PREFERENCES_MENU, Menu.NONE, getResources().getString(R.string.pref_label));
+		menu.add(Menu.NONE, DEBUG_MENU, Menu.NONE, getResources().getString((!this.netlinkAdvancedView)?(R.string.debug_label):(R.string.user_label)));
 		menu.add(Menu.NONE, ABOUT_MENU, Menu.NONE, getResources().getString(R.string.about_label));
+		
+		//ANDROID3.0
+		//Store the reference to the menu so we can use it in the toggle
+		//function
+		//this.activity_menu = menu;
 		return true;
 	}
 	
 	@Override 
 	public boolean onPrepareOptionsMenu(Menu menu) {
 		logger.trace("::onPrepareOptionsMenu");
+		
+		
+		menu.findItem(DEBUG_MENU).setTitle((!this.netlinkAdvancedView)?(R.string.debug_label):(R.string.user_label));
 		return true;
 	}
 	
@@ -176,9 +192,8 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		
 		Intent intent = new Intent();
 		switch (item.getItemId()) {
-		case PREFERENCES_MENU:
-			intent.setClass(this, CorePreferenceActivity.class);
-			this.startActivity(intent);
+		case DEBUG_MENU:
+			toggleMode();
 			return true;
 		case VIEW_TABLES_MENU:
 			intent.setClass(this, DistributorTabActivity.class);
@@ -246,6 +261,25 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
 		item.onStatusChange(status);
 		this.netlinkAdapter.notifyDataSetChanged();
 		return true;
+	}
+
+
+	/*
+	 * Used to toggle the netlink view between simple and advanced.
+	 */
+	public void toggleMode()
+	{
+		this.netlinkAdvancedView = !this.netlinkAdvancedView;
+		this.netlinkAdapter.notifyDataSetChanged();
+		this.gatewayAdapter.notifyDataSetChanged();
+		
+		//ANDROID3.0
+		//There will be bugs. Ideally, when this toggles, we need to
+		//refresh the menu. This line will invalidate it so that
+		//onPrepareOptionsMenu(...) will be called when the user
+		//opens it again.
+		//this.activity_menu.invalidateOptionsMenu();
+
 	}
 	
 }
