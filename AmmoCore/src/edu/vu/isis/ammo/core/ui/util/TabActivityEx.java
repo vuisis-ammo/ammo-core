@@ -8,11 +8,4 @@ public class TabActivityEx extends TabActivity implements IActivityEx {
 	   public Context getAppContext(){
 	        return getApplicationContext();
 	    }
-
-	    public void onResume() {
-	        super.onResume();
-	        
-	        ((ApplicationEx)this.getApplication()).setCurrentActivity(this);
-	    }
-	    
 }

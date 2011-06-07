@@ -4,5 +4,4 @@ import android.content.Context;
 
 public interface IActivityEx {
 	  public Context getAppContext();
-	  public void onResume();
 }

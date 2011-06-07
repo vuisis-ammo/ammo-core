@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.os.Binder;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
@@ -17,212 +18,235 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ServiceEx;
+import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.network.NetworkService.MyBinder;
 
 public class EthTrackSvc extends ServiceEx {
 
-	private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
+    private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
     private ApplicationEx application;
-    
-	@Override
-	public void onCreate() {
-		this.application = (ApplicationEx)this.getApplication();
-	}
 
-	@Override
-	public void onDestroy() {
-	}
+    private boolean mIsLinkUp = false;
 
-	@Override
-	public int onStartCommand(Intent intent, int flags, int startId) {
-//		logger.debug("::onStartCommand with intent {}", intent.getAction());
-		handleCommand();
-		
-		this.application.setWiredState(WIRED_NETLINK_DOWN);
-		
-		// We want this service to continue running until it is explicitly
-		// stopped, so return sticky.
-		return START_STICKY;
-	}
+    public boolean isLinkUp() { return mIsLinkUp; }
 
-	@Override
-	public IBinder onBind(Intent intent) {
-		return null;
-	}
+    @Override
+    public void onCreate() {
+        this.application = (ApplicationEx)this.getApplication();
+    }
 
-	/*
-	 * @function handleCommand It initiates the RTM message handling by calling
-	 * the native method initEthernetNative.
-	 * 
-	 * It then starts the thread which waits on any RTM messages signifying
-	 * state changes of the interface
-	 */
-	public void handleCommand() {
-		
-		int ret = this.initEthernetNative();
-		
-		if (ret == -1)
-		{
-			logger.info("Error in InitEthernet: create or socket bind error, Exiting ...");
-			return;
-		}
+    @Override
+    public void onDestroy() {
+    }
 
-		EtherStatReceiver stat = new EtherStatReceiver("ethersvc", this);
-		stat.start();
-	}
+    private final IBinder binder = new MyBinder();
 
-	private static final int HELLO_ID = 1;
+    public class MyBinder extends Binder
+    {
+        public EthTrackSvc getService()
+        {
+            logger.trace("MyBinder::getService");
+            return EthTrackSvc.this;
+        }
+    }
 
-	public static final int WIRED_NETLINK_UP_VALUE = 1;
-	public static final int[] WIRED_NETLINK_UP = new int[] {WIRED_NETLINK_UP_VALUE};
-	public static final int WIRED_NETLINK_DOWN_VALUE = 2;
-	public static final int[] WIRED_NETLINK_DOWN = new int[] {WIRED_NETLINK_DOWN_VALUE};
-	
-	/*
-	 * @function Notify Send a notification to android once interface goes up or
-	 * down
-	 */
-	public int Notify(String msg) {
-		this.updateSharedPreferencesForInterfaceStatus(msg);
-		
-		// Start specific application respond on selection
-		
-		String ns = Context.NOTIFICATION_SERVICE;
-		NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
 
-		int icon = R.drawable.icon;
-		CharSequence tickerText = "Ethernet Status";
-		long when = System.currentTimeMillis();
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+//      logger.debug("::onStartCommand with intent {}", intent.getAction());
+        handleCommand();
 
-		Notification notification = new Notification(icon, tickerText, when);
+        //this.application.setWiredState(WIRED_NETLINK_DOWN);
 
-		Context context = getApplicationContext();
+        // FIXME: we need a way to query the current state here.
 
-		CharSequence contentTitle = "Network Interface";
-		CharSequence contentText = msg;
+        // We want this service to continue running until it is explicitly
+        // stopped, so return sticky.
+        return START_STICKY;
+    }
 
-		Intent notificationIntent = new Intent(this, EthTrackSvc.class);
+    @Override
+    public IBinder onBind(Intent arg0) {
+        logger.trace("MyBinder::onBind {}", Thread.currentThread().toString());
+        return binder;
+    }
 
-		PendingIntent contentIntent = PendingIntent
-			.getActivity(this, 0, notificationIntent, 0);
+    /*
+     * @function handleCommand It initiates the RTM message handling by calling
+     * the native method initEthernetNative.
+     *
+     * It then starts the thread which waits on any RTM messages signifying
+     * state changes of the interface
+     */
+    public void handleCommand() {
 
-		notification.setLatestEventInfo(context, contentTitle, contentText,
-				contentIntent);
+        int ret = this.initEthernetNative();
 
-		mNotificationManager.notify(HELLO_ID, notification);
-		
-		// Let applications respond immediately by receiving a broadcast intent.
-		
-		Intent broadcastIntent = new Intent(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
-		if (msg.indexOf("Up") > 0) {
-			broadcastIntent.putExtra("state",AmmoIntents.LINK_UP);
-			this.application.setWiredState(WIRED_NETLINK_UP);
-		} else if (msg.indexOf("Down") > 0) {
-			broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
-			this.application.setWiredState(WIRED_NETLINK_DOWN);
-		}
-		this.sendBroadcast(broadcastIntent);		
+        if (ret == -1)
+        {
+            logger.info("Error in InitEthernet: create or socket bind error, Exiting ...");
+            return;
+        }
 
-		return 0;
-	}
-	
-	/**
-	 * Writes a flag to the system preferences based on status of interface.
-	 * @param status - Status message relating to interface. Either "Up" or "Down"
-	 */
-	public void updateSharedPreferencesForInterfaceStatus(String msg) {
-		boolean status = (msg.equals("Up")) ? true : false;
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		Editor editor = prefs.edit();
-		 
-		editor.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, status);
-		editor.commit();
-	}
+        EtherStatReceiver stat = new EtherStatReceiver("ethersvc", this);
+        stat.start();
+    }
 
-	/*
-	 * A native method that is implemented by the 'android_net_ethernet.cpp'
-	 * native library, which is packaged with this application.
-	 * 
-	 * This function waits for any event from the underlying interface
-	 */
-	public native String waitForEvent();
+    private static final int HELLO_ID = 1;
 
-	/*
-	 * This is a native function implemented in android_net_ethernet function.
-	 * It initiates the ethernet interface
-	 */
-	public native int initEthernetNative();
+    public static final int WIRED_NETLINK_UP_VALUE = 1;
+    public static final int[] WIRED_NETLINK_UP = new int[] {WIRED_NETLINK_UP_VALUE};
+    public static final int WIRED_NETLINK_DOWN_VALUE = 2;
+    public static final int[] WIRED_NETLINK_DOWN = new int[] {WIRED_NETLINK_DOWN_VALUE};
 
-	/*
-	 * This function is not used now
-	 */
-	public native String getInterfaceName(int index);
+    /*
+     * @function Notify Send a notification to android once interface goes up or
+     * down
+     */
+    public int Notify(String msg) {
+        this.updateSharedPreferencesForInterfaceStatus(msg);
 
-	/*
-	 * This function is not used now
-	 */
-	public native int getInterfaceCnt();
+        // Start specific application respond on selection
 
-	/*
-	 * @class EtherStatReceiver
-	 * 
-	 * This extends the Thread class and makes a call on the Native waitForEvent
-	 * function.
-	 * 
-	 * The waitForEvent returns when there is a status change in the underlying
-	 * interface.
-	 */
-	private class EtherStatReceiver extends Thread {
+        String ns = Context.NOTIFICATION_SERVICE;
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
 
-		EthTrackSvc parent;
+        int icon = R.drawable.icon;
+        CharSequence tickerText = "Ethernet Status";
+        long when = System.currentTimeMillis();
 
-		/*
-		 * The Thread constructor
-		 */
+        Notification notification = new Notification(icon, tickerText, when);
 
-		public EtherStatReceiver(String str, EthTrackSvc _parent) {
-			super(str);
-			parent = _parent;
-		}
+        Context context = getApplicationContext();
 
-		/*
-		 * The main thread function.
-		 * 
-		 * It makes a call on the waitForEvent and makes call on the notify
-		 * function to send a notification once the interface is either up or
-		 * down.
-		 */
-		public void run() {
-			while (true) {
+        CharSequence contentTitle = "Network Interface";
+        CharSequence contentText = msg;
 
-				String res = waitForEvent();
-				
-				if (res.indexOf("Error") > 0)
-				{
-					logger.info("Error in waitForEvent: Exiting Thread");
-					return;
-				}
+        Intent notificationIntent = new Intent(this, EthTrackSvc.class);
 
-				// send the notification if the interface is
-				// up or down
-				if ((res.indexOf("Up") > 0) || (res.indexOf("Down") > 0)) {
-					parent.Notify(res);
+        PendingIntent contentIntent = PendingIntent
+            .getActivity(this, 0, notificationIntent, 0);
 
-					// Write a true/false value to the shared preferences
-					// indicating status
-					// of connection.
+        notification.setLatestEventInfo(context, contentTitle, contentText,
+                contentIntent);
 
-				}
+        mNotificationManager.notify(HELLO_ID, notification);
 
-				try {
-					sleep((int) (Math.random() * 1000));
-				} catch (InterruptedException e) {
-				}
-			}
-			// logger.info("Thread Done");
-		}
-	}
+        // Let applications respond immediately by receiving a broadcast intent.
 
-	static {
+        Intent broadcastIntent = new Intent(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
+        if (msg.indexOf("Up") > 0) {
+            mIsLinkUp = true;
+            broadcastIntent.putExtra("state",AmmoIntents.LINK_UP);
+            //this.application.setWiredState(WIRED_NETLINK_UP);
+        } else if (msg.indexOf("Down") > 0) {
+            mIsLinkUp = false;
+            broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
+            //this.application.setWiredState(WIRED_NETLINK_DOWN);
+        }
+        this.sendBroadcast(broadcastIntent);
+
+        return 0;
+    }
+
+    /**
+     * Writes a flag to the system preferences based on status of interface.
+     * @param status - Status message relating to interface. Either "Up" or "Down"
+     */
+    public void updateSharedPreferencesForInterfaceStatus(String msg) {
+        boolean status = (msg.equals("Up")) ? true : false;
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        Editor editor = prefs.edit();
+
+        editor.putBoolean(INetPrefKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, status);
+        editor.commit();
+    }
+
+    /*
+     * A native method that is implemented by the 'android_net_ethernet.cpp'
+     * native library, which is packaged with this application.
+     *
+     * This function waits for any event from the underlying interface
+     */
+    public native String waitForEvent();
+
+    /*
+     * This is a native function implemented in android_net_ethernet function.
+     * It initiates the ethernet interface
+     */
+    public native int initEthernetNative();
+
+    /*
+     * This function is not used now
+     */
+    public native String getInterfaceName(int index);
+
+    /*
+     * This function is not used now
+     */
+    public native int getInterfaceCnt();
+
+    /*
+     * @class EtherStatReceiver
+     *
+     * This extends the Thread class and makes a call on the Native waitForEvent
+     * function.
+     *
+     * The waitForEvent returns when there is a status change in the underlying
+     * interface.
+     */
+    private class EtherStatReceiver extends Thread {
+
+        EthTrackSvc parent;
+
+        /*
+         * The Thread constructor
+         */
+
+        public EtherStatReceiver(String str, EthTrackSvc _parent) {
+            super(str);
+            parent = _parent;
+        }
+
+        /*
+         * The main thread function.
+         *
+         * It makes a call on the waitForEvent and makes call on the notify
+         * function to send a notification once the interface is either up or
+         * down.
+         */
+        public void run() {
+            while (true) {
+
+                String res = waitForEvent();
+
+                if (res.indexOf("Error") > 0)
+                {
+                    logger.info("Error in waitForEvent: Exiting Thread");
+                    return;
+                }
+
+                // send the notification if the interface is
+                // up or down
+                if ((res.indexOf("Up") > 0) || (res.indexOf("Down") > 0)) {
+                    parent.Notify(res);
+
+                    // Write a true/false value to the shared preferences
+                    // indicating status
+                    // of connection.
+
+                }
+
+                try {
+                    sleep((int) (Math.random() * 1000));
+                } catch (InterruptedException e) {
+                }
+            }
+            // logger.info("Thread Done");
+        }
+    }
+
+    static {
         System.loadLibrary("ethrmon");
     }
 }
