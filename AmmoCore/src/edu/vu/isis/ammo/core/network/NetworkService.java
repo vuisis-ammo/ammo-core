@@ -3,6 +3,7 @@
  */
 package edu.vu.isis.ammo.core.network;
 
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.zip.CRC32;
@@ -34,6 +35,8 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
+import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -803,12 +806,14 @@ implements OnSharedPreferenceChangeListener,
 
     @Override
     public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
-        this.getApplicationEx().setGatewayState(new int[]{connStatus, sendStatus, recvStatus});
+    	// FIXME
+        //this.getApplicationEx()
+        //	.setGatewayState(new int[]{connStatus, sendStatus, recvStatus});
         return false;
     }
 
     /**
-     * This needs to be firmed up to include wifi.
+     * This needs to be firmed up to include WiFi.
      *
      * @return
      */
@@ -843,4 +848,14 @@ implements OnSharedPreferenceChangeListener,
     {
         return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
     }
+	@Override
+	public List<Gateway> getGatewayList() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public List<Netlink> getNetlinkList() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

@@ -33,11 +33,17 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
+import android.os.RemoteException;
+import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
 import com.google.protobuf.ByteString;
 
+import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.api.AmmoRequestImpl;
+import edu.vu.isis.ammo.api.IAmmoDistributorService;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
@@ -50,6 +56,7 @@ import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.InternetMediaType;
+import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 
 
@@ -132,6 +139,75 @@ public class DistributorService extends Service implements IDistributorService {
     private MyBroadcastReceiver mReadyResourceReceiver = null;
     private boolean mNetworkConnected = false;
     private boolean mSdCardAvailable = false;
+
+
+    // ===========================================================
+    // Binding
+    // ===========================================================
+    @Override
+    public IBinder onBind(Intent intent) {
+        return this.binder;
+    }
+    
+    private IBinder binder = new IAmmoDistributorService.Stub() {
+		
+		
+		
+		@Override
+		public void refresh() throws RemoteException {
+			// TODO Auto-generated method stub
+			
+		}
+		
+		@Override
+		public String getOperator() throws RemoteException {
+			return PreferenceManager
+				.getDefaultSharedPreferences(DistributorService.this)
+				.getString(IPrefKeys.CORE_OPERATOR_ID, "operator");
+		}
+		@Override
+		public String getDeviceId() throws RemoteException {
+			return PreferenceManager
+			    .getDefaultSharedPreferences(DistributorService.this)
+			    .getString(INetPrefKeys.CORE_DEVICE_ID, UniqueIdentifiers.device(null));
+		}
+
+		@Override
+		public AmmoRequestImpl interest(AmmoRequestImpl request)
+				throws RemoteException {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public AmmoRequestImpl subscribe(AmmoRequestImpl request)
+				throws RemoteException {
+			// TODO Auto-generated method stub
+			return null;
+		}
+		
+		@Override
+		public AmmoRequestImpl post(AmmoRequestImpl request)
+				throws RemoteException {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public AmmoRequestImpl publish(AmmoRequestImpl request)
+				throws RemoteException {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public AmmoRequestImpl pull(AmmoRequestImpl request)
+				throws RemoteException {
+			// TODO Auto-generated method stub
+			return null;
+		}
+	};
+    
 
 
     // ===========================================================
@@ -260,11 +336,7 @@ public class DistributorService extends Service implements IDistributorService {
         super.onDestroy();
     }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-
+ 
     // ===========================================================
     // IDistributorService implementation
     // ===========================================================
