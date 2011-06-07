@@ -2,7 +2,6 @@
 //They are tagged by ANDROID3.0
 package edu.vu.isis.ammo.core.ui;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -27,14 +26,10 @@ import android.widget.TabHost;
 import android.widget.ToggleButton;
 import android.widget.TextView;
 import edu.vu.isis.ammo.api.AmmoIntents;
-import edu.vu.isis.ammo.core.OnStatusChangeListenerByName;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
-import edu.vu.isis.ammo.core.model.PhoneNetlink;
-import edu.vu.isis.ammo.core.model.WifiNetlink;
-import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
@@ -50,10 +45,9 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
  * @author phreed
  *
  */
-public class AmmoActivity extends TabActivityEx implements OnStatusChangeListenerByName
+public class AmmoActivity extends TabActivityEx
 {
-    public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
-    public static final Logger log_status = LoggerFactory.getLogger("scenario.network.status");
+    public static final Logger logger = LoggerFactory.getLogger( AmmoActivity.class );
 
     private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
     private static final int LOGGING_MENU = Menu.NONE + 1;
@@ -67,12 +61,13 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
     private List<Gateway> gatewayModel = null;
     private GatewayAdapter gatewayAdapter = null;
 
-    private List<Netlink> netlinkModel = new ArrayList<Netlink>();
+    private List<Netlink> netlinkModel = null;
     private NetlinkAdapter netlinkAdapter = null;
 
     public boolean netlinkAdvancedView = false;
 
     private Menu activity_menu;
+
     // ===========================================================
     // Views
     // ===========================================================
@@ -87,13 +82,14 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
             logger.info("::onServiceConnected - Network Service");
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
             initializeGatewayAdapter();
+            initializeNetlinkAdapter();
         }
 
         public void onServiceDisconnected(ComponentName name) {
             logger.info("::onServiceDisconnected - Network Service");
             networkServiceBinder = null;
             // FIXME: what to do here if the NS goes away?
-            // Change the model for the adapter to an empty list.
+            // Change the model for the adapters to an empty list.
             // This situation should probably never happen, but we should
             // handle it properly anyway.
         }
@@ -116,6 +112,17 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
         }
     }
 
+    private void initializeNetlinkAdapter()
+    {
+        netlinkModel = networkServiceBinder.getNetlinkList();
+
+        // set netlink view references
+        netlinkList = (ListView)findViewById(R.id.netlink_list);
+        netlinkAdapter = new NetlinkAdapter(this, netlinkModel);
+        netlinkList.setAdapter(netlinkAdapter);
+    }
+
+
     /**
      * @Cateogry Lifecycle
      */
@@ -131,24 +138,11 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
         if ( !result )
             logger.error( "AmmoActivity failed to bind to the NetworkService!" );
 
-        //netlinkModel = networkServiceBinder.getNetlinkList();
-
-        // set netlink view references
-        this.netlinkList = (ListView)this.findViewById(R.id.netlink_list);
-        this.netlinkAdapter = new NetlinkAdapter(this, this.netlinkModel);
-        netlinkList.setAdapter(netlinkAdapter);
-
-        this.setNetlink(WifiNetlink.getInstance(this));
-        this.setNetlink(WiredNetlink.getInstance(this));
-        this.setNetlink(PhoneNetlink.getInstance(this));
-        // this.setNetlink(JournalNetlink.getInstance(this));
-
         Intent intent = new Intent();
 
         // let others know we are running
         intent.setAction(StartUpReceiver.RESET);
         this.sendBroadcast(intent);
-
 
         // setup tabs
         Resources res = getResources(); // Resource object to get Drawables
@@ -174,11 +168,6 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
         tabHost.setCurrentTab(0);
     }
 
-    public void setNetlink(Netlink nl) {
-        netlinkAdapter.add(nl);
-    }
-
-
     @Override
     public void onStart() {
         super.onStart();
@@ -194,22 +183,22 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
             }
         }
 
-        mReceiver = new GatewayStatusReceiver();
+        mReceiver = new StatusReceiver();
 
         final IntentFilter statusFilter = new IntentFilter();
         statusFilter.addAction( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE );
+        statusFilter.addAction( AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE );
         registerReceiver( mReceiver, statusFilter );
-    }
 
-    private GatewayStatusReceiver mReceiver = null;
+        if ( gatewayAdapter != null )
+            gatewayAdapter.notifyDataSetChanged();
+        if ( netlinkAdapter != null )
+            netlinkAdapter.notifyDataSetChanged();
+    }
 
     @Override
     public void onStop() {
         super.onStop();
-        for (Netlink nl : this.netlinkModel) {
-            nl.teardown();
-        }
-
         try {
             unregisterReceiver( mReceiver );
         } catch(IllegalArgumentException ex) {
@@ -217,14 +206,27 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
         }
     }
 
-    private class GatewayStatusReceiver extends BroadcastReceiver {
+    private StatusReceiver mReceiver = null;
+
+    private class StatusReceiver extends BroadcastReceiver {
         @Override
-        public void onReceive(Context context, Intent intent) {
-            //logger.info( "GatewayStatusReceiver::onReceive" );
-            if ( gatewayAdapter != null )
-                gatewayAdapter.notifyDataSetChanged();
+        public void onReceive(Context context, Intent iIntent) {
+            final String action = iIntent.getAction();
+            logger.info("onReceive:");
+
+            if ( action.equals( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE ))
+            {
+                if ( gatewayAdapter != null )
+                    gatewayAdapter.notifyDataSetChanged();
+            }
+            else if ( action.equals( AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE ))
+            {
+                if ( netlinkAdapter != null )
+                    netlinkAdapter.notifyDataSetChanged();
+            }
         }
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -279,6 +281,7 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
     public void onDestroy() {
         super.onDestroy();
         logger.trace("::onDestroy");
+        unbindService( networkServiceConnection );
     }
 
 
@@ -314,18 +317,6 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
         row.refreshDrawableState();
     }
 
-    // ===========================================================
-    // Inner Classes
-    // ===========================================================
-
-    @Override
-    public boolean onNetlinkStatusChange(String type, int[] status) {
-        Netlink item = this.netlinkAdapter.getItemByType(type);
-        item.onStatusChange(status);
-        this.netlinkAdapter.notifyDataSetChanged();
-        return true;
-    }
-
 
     /*
      * Used to toggle the netlink view between simple and advanced.
@@ -344,5 +335,4 @@ public class AmmoActivity extends TabActivityEx implements OnStatusChangeListene
         //this.activity_menu.invalidateOptionsMenu();
 
     }
-
 }

@@ -1,106 +1,122 @@
 package edu.vu.isis.ammo.core.model;
 
-import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
+import android.os.IBinder;
+import android.preference.PreferenceManager;
+import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
-import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
+import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
+import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.network.NetworkService;
 
 
-public class WiredNetlink extends Netlink {
+public class WiredNetlink extends Netlink
+{
+    private Context mContext = null;
 
-    private WiredReceiver mReceiver;
 
-	private WiredNetlink(TabActivityEx context) {
-		super(context, "Wired Netlink", "wired");
-	}
-	
-	public static Netlink getInstance(TabActivityEx context) {
-		// initialize the gateway from the shared preferences
-		return new WiredNetlink(context);
-	}
+    private WiredNetlink( Context context )
+    {
+        super( context, "Wired Netlink", "wired" );
+        mContext = context;
 
-	@Override
-	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-		if (key.equals(INetPrefKeys.WIRED_PREF_SHOULD_USE)) {
-		      //shouldUse(prefs);
-		}
-	}
-
-    /**
-     * Each time we start this activity, we need to update the status message
-     * for each connection since it may have changed since this activity was
-     * last loaded.
-     */
-    private void setWiredStatus( final int[] state ) {
-        final Activity self = this.context;
-        final Thread wiredThread = new Thread() {
-            public void run() {
-                self.runOnUiThread(new Runnable() {
-                    public void run() {
-                		logger.info( "Calling onStatusChange() for wired. Thread=<{}>", Thread.currentThread().getId() );
-                    	statusListener.onStatusChange(statusView, state);
-                    }});
-            }
-        };
-        wiredThread.start();
+        // Get a reference to the EthTrackSvc.
+        Intent ethernetServiceIntent = new Intent( mContext, EthTrackSvc.class );
+        boolean result = mContext.bindService( ethernetServiceIntent,
+                                               ethernetServiceConnection,
+                                               Context.BIND_AUTO_CREATE );
+        if ( !result )
+            logger.error( "WiredNetlink failed to bind to the EthTrackSvc!" );
+        else
+            logger.error( "WiredNetlink binding to EthTrackSvc!" );
     }
 
-    
-	/**
-	 * The application should have the current status.
-	 */
-	public void initialize() {
-		this.statusListener.onStatusChange(this.statusView, this.application.getWiredNetlinkState() );
 
-        mReceiver = new WiredReceiver();
+    public static Netlink getInstance( Context context )
+    {
+        // initialize the gateway from the shared preferences
+        return new WiredNetlink( context );
+    }
 
-        final IntentFilter wiredFilter = new IntentFilter();
-        wiredFilter.addAction( AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE );
-        this.context.registerReceiver( mReceiver, wiredFilter );
-	}
 
-	@Override
-	public void teardown()
-	{
-        try {
-            this.context.unregisterReceiver( mReceiver );
-        } catch(IllegalArgumentException ex) {
-            logger.trace("tearing down the wired netlink object");
+    @Override
+    public void onSharedPreferenceChanged( SharedPreferences sharedPreferences, String key )
+    {
+        if ( key.equals(INetPrefKeys.WIRED_PREF_SHOULD_USE) )
+        {
+              //shouldUse( prefs );
         }
     }
 
 
-    // ===========================================================
-    // Inner Classes
-    // ===========================================================
+    private EthTrackSvc ethernetServiceBinder;
 
-    
-    private class WiredReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            //logger.info( "WiredReceiver::onReceive" );
-            int state = intent.getIntExtra( "state", 0 );
+    private ServiceConnection ethernetServiceConnection = new ServiceConnection()
+    {
+        public void onServiceConnected( ComponentName name, IBinder service )
+        {
+            logger.error( "::onServiceConnected - Ethernet tracking service" );
+            ethernetServiceBinder = ((EthTrackSvc.MyBinder) service).getService();
+            updateStatus();
+        }
 
-            if (state != 0) {
-                switch (state) {
-                case AmmoIntents.LINK_UP:
-                    logger.info( "onReceive: Link UP " );
-                    setWiredStatus( new int[] {Netlink.NETLINK_UP} );
-                    break;
-                case AmmoIntents.LINK_DOWN:
-                    logger.info( "onReceive: Link DOWN " );
-                    setWiredStatus( new int[] {Netlink.NETLINK_DOWN} );
-                    break;
-                default:
-                	logger.info( "onReceive: Unknown State" );
-                	break;
-                }
-            }
+        public void onServiceDisconnected( ComponentName name )
+        {
+            logger.info( "::onServiceDisconnected - Ethernet tracking service" );
+            ethernetServiceBinder = null;
+        }
+    };
+
+
+    public void updateStatus()
+    {
+        logger.error( "::updateStatus" );
+
+        if ( ethernetServiceBinder == null )
+            return;
+
+        final int[] state = new int[1];
+
+        final boolean status = ethernetServiceBinder.isLinkUp();
+        logger.error( "wired state={}", status );
+
+        if ( status )
+        {
+            state[0] = Netlink.NETLINK_UP;
+            setLinkUp( true );
+        }
+        else
+        {
+            state[0] = Netlink.NETLINK_DOWN;
+            setLinkUp( false );
+        }
+
+        setStatus( state );
+    }
+
+
+    @Override
+    public void initialize() {}
+
+
+    @Override
+    public void teardown()
+    {
+        try
+        {
+            mContext.unbindService( ethernetServiceConnection );
+        }
+        catch(IllegalArgumentException ex)
+        {
+            logger.trace( "tearing down the wired netlink object" );
         }
     }
 }

@@ -17,14 +17,12 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
-import edu.vu.isis.ammo.core.OnStatusChangeListenerByView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.network.INetChannel;
 
 public class GatewayAdapter extends ArrayAdapter<Gateway>
-implements OnTouchListener, OnNameChangeListener,
-OnStatusChangeListenerByView
+    implements OnTouchListener, OnNameChangeListener
 {
     public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
     private final AmmoActivity parent;
@@ -91,8 +89,8 @@ OnStatusChangeListenerByView
 
         return false;
     }
-    @Override
-    public boolean onStatusChange(View item, int[] status) {
+
+    private boolean onStatusChange(View item, int[] status) {
         if (status == null) return false;
         if (status.length < 1) return false;
 

@@ -8,10 +8,4 @@ public abstract class PreferenceActivityEx extends PreferenceActivity implements
     public Context getAppContext(){
         return getApplicationContext();
     }
-
-    public void onResume() {
-        super.onResume();
-        
-        ((ApplicationEx)this.getApplication()).setCurrentActivity(this);
-    }
 }
