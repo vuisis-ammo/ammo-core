@@ -13,10 +13,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -67,6 +69,7 @@ public class AmmoActivity extends TabActivityEx
     public boolean netlinkAdvancedView = false;
 
     private Menu activity_menu;
+    SharedPreferences prefs = null;
 
     // ===========================================================
     // Views
@@ -166,6 +169,9 @@ public class AmmoActivity extends TabActivityEx
         tabHost.addTab(spec);
 
         tabHost.setCurrentTab(0);
+        
+        this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        this.netlinkAdvancedView = prefs.getBoolean("debug_mode", this.netlinkAdvancedView);
     }
 
     @Override
@@ -324,6 +330,8 @@ public class AmmoActivity extends TabActivityEx
     public void toggleMode()
     {
         this.netlinkAdvancedView = !this.netlinkAdvancedView;
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefs.edit().putBoolean("debug_mode", this.netlinkAdvancedView).commit();
         this.netlinkAdapter.notifyDataSetChanged();
         this.gatewayAdapter.notifyDataSetChanged();
 
