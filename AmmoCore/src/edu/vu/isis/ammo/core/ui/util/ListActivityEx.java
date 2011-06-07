@@ -8,10 +8,4 @@ public abstract class ListActivityEx extends ListActivity implements IActivityEx
     public Context getAppContext(){
         return getApplicationContext();
     }
-
-    public void onResume() {
-        super.onResume();
-        
-        ((ApplicationEx)this.getApplication()).setCurrentActivity(this);
-    }
 }

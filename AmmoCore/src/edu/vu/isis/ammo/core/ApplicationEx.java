@@ -61,49 +61,4 @@ public class ApplicationEx  extends Application {
         File base = new File(Environment.getExternalStorageDirectory(), ApplicationEx.class.toString());
         return new File(base, type);
     }
-
-    /**
-     * These provide an intra-application communication channel.
-     * Using these services can update activities without the overhead of intents.
-     * This should only be used for rapid updates.
-     */
-     private Activity currentActivity;
-
-     public synchronized void setCurrentActivity(Activity currentActivity) {
-            this.currentActivity = currentActivity;
-     }
-
-     public synchronized Activity getCurrentActivity() {
-            return this.currentActivity;
-     }
-
-     /**
-      * This is for more efficient inter-task communication than intents.
-      * The calling task may be on the ui thread or it may not, so runOnUiThread is needed.
-      *
-      * @param status
-      */
-
-     // ============= Wired Link state ==================
-
-     private int[] wiredNetlinkState = null;
-
-     public synchronized int[] getWiredNetlinkState() {
-         return this.wiredNetlinkState;
-     }
-
-     public synchronized void setWiredState(final int[] status) {
-         this.wiredNetlinkState = status;
-         if (this.currentActivity == null) return;
-         if (!(this.currentActivity instanceof OnStatusChangeListenerByName)) return;
-         if (!(this.currentActivity instanceof AmmoActivity)) return;
-         final OnStatusChangeListenerByName scl = (OnStatusChangeListenerByName)this.currentActivity;
-         ((Activity)scl).runOnUiThread(new Runnable() {
-            public void run() {
-                scl.onNetlinkStatusChange("wired", status);
-            }
-         });
-     }
-
-
 }

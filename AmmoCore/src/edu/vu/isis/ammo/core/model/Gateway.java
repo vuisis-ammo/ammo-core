@@ -98,7 +98,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
 
     public static Gateway getInstance(Context context) {
         // initialize the gateway from the shared preferences
-        return new Gateway(context, "default");
+        return new Gateway(context, "Default Gateway");
     }
 
     public String toString() {

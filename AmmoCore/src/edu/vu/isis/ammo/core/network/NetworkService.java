@@ -25,6 +25,9 @@ import android.telephony.TelephonyManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.telephony.PhoneStateListener;
+import android.telephony.TelephonyManager;
+
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -61,7 +64,7 @@ implements OnSharedPreferenceChangeListener,
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger(NetworkService.class);
+    private static final Logger logger = LoggerFactory.getLogger( NetworkService.class );
 
     // Local constants
     public static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
@@ -176,6 +179,9 @@ implements OnSharedPreferenceChangeListener,
         return START_STICKY;
     }
 
+
+    private PhoneStateListener mListener;
+
     /**
      * When the service is first created, we should grab
      * the IP and Port values from the SystemPreferences.
@@ -184,6 +190,12 @@ implements OnSharedPreferenceChangeListener,
     public void onCreate() {
         super.onCreate();
         logger.info("onCreate");
+
+        mGateways.add( Gateway.getInstance( getBaseContext() ));
+
+        mNetlinks.add( WifiNetlink.getInstance( getBaseContext() ));
+        mNetlinks.add( WiredNetlink.getInstance( getBaseContext() ));
+        mNetlinks.add( PhoneNetlink.getInstance( getBaseContext() ));
 
         // no point in enabling the socket until the preferences have been read
         this.tcpChannel.disable();  //
@@ -202,11 +214,29 @@ implements OnSharedPreferenceChangeListener,
 
         networkFilter.addAction(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
         networkFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
+        networkFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
+        networkFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
+        networkFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
         networkFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
 
-        this.isWifiLinkUp = false;
-
         this.mReceiverRegistrar.registerReceiver(this.myReceiver, networkFilter);
+
+        mListener = new PhoneStateListener()
+        {
+            public void onDataConnectionStateChanged( int state )
+            {
+                logger.info( "PhoneReceiver::onCallStateChanged()" );
+                mNetlinks.get( 2 ).updateStatus();
+                netlinkStatusChanged();
+            }
+        };
+        final TelephonyManager tm = (TelephonyManager) getBaseContext().getSystemService( Context.TELEPHONY_SERVICE );
+        tm.listen( mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE );
+
+        // get updates as they happen
+        //this.phoneReceiver = new PhoneReceiver();
+        //IntentFilter phoneFilter = new IntentFilter( TelephonyManager.ACTION_PHONE_STATE_CHANGED );
+        //getBaseContext().registerReceiver(this.phoneReceiver, phoneFilter);
     }
 
     @Override
@@ -695,11 +725,12 @@ implements OnSharedPreferenceChangeListener,
         @Override
         public void onReceive(final Context context, final Intent aIntent) {
             final String action = aIntent.getAction();
-            logger.info("onReceive: {}", action);
+            logger.debug("onReceive: {}", action);
 
             if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)){
                 int state = aIntent.getIntExtra("state", 0);
 
+                // Should we be doing this here? It's not parallel with the wifi and 3G below.
                 if (state != 0) {
                     switch (state) {
                     case AmmoIntents.LINK_UP:
@@ -712,57 +743,29 @@ implements OnSharedPreferenceChangeListener,
                         break;
                     }
                 }
+
+                // This intent comes in for both wired and wifi.
+                mNetlinks.get( 0 ).updateStatus();
+                mNetlinks.get( 1 ).updateStatus();
+                netlinkStatusChanged();
                 return;
             }
-
-            if (WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)) {
-                final WifiManager wm = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
-                if (!wm.isWifiEnabled()) {
-                    NetworkService.this.isWifiLinkUp = false;
-                    return;
-                }
-                final ConnectivityManager connManager =
-                    (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-                final NetworkInfo info = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-
-                final NetworkInfo.DetailedState dstate = info.getDetailedState();
-                switch(dstate) {
-                case DISCONNECTED      : NetworkService.this.isWifiLinkUp = false; break;
-                case IDLE              : NetworkService.this.isWifiLinkUp = false; break;
-                case SCANNING          : NetworkService.this.isWifiLinkUp = false; break;
-                case CONNECTING        : NetworkService.this.isWifiLinkUp = false; break;
-                case AUTHENTICATING    : NetworkService.this.isWifiLinkUp = true; break;
-                case OBTAINING_IPADDR  : NetworkService.this.isWifiLinkUp = true; break;
-                case FAILED            : NetworkService.this.isWifiLinkUp = false; break;
-                case CONNECTED         : NetworkService.this.isWifiLinkUp = true; break;
-                }
-                return;
-            }
-
-            // This may not be working.  We may need to implement a
-            // PhoneStateListener like the PhoneNetlinkUses. Address
-            // this when we unify the connection-related code
-            if ( TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action) )
+            else if ( WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)
+                      || WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)
+                      || WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
+                      || WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action) )
             {
-                final TelephonyManager tm =
-                    (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-                if ( tm.getDataState() != TelephonyManager.DATA_CONNECTED )
-                {
-                    NetworkService.this.is3GLinkUp = false;
-                    return;
-                }
-                final ConnectivityManager connManager =
-                    (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-                final NetworkInfo info = connManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
-
-                final NetworkInfo.State state = info.getState();
-                logger.info("network state={}", state);
-                switch(state) {
-                case DISCONNECTED      : NetworkService.this.is3GLinkUp = false; break;
-                case CONNECTING        : NetworkService.this.is3GLinkUp = false; break;
-                case CONNECTED         : NetworkService.this.is3GLinkUp = true;  break;
-                case DISCONNECTING     : NetworkService.this.is3GLinkUp = false; break;
-                }
+                logger.warn( "WIFI state changed" );
+                mNetlinks.get( 0 ).updateStatus();
+                mNetlinks.get( 1 ).updateStatus();
+                netlinkStatusChanged();
+                return;
+            }
+            else if ( TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action) )
+            {
+                logger.warn( "3G state changed" );
+                mNetlinks.get( 2 ).updateStatus();
+                netlinkStatusChanged();
                 return;
             }
 
@@ -812,35 +815,28 @@ implements OnSharedPreferenceChangeListener,
         return false;
     }
 
-    /**
-     * This needs to be firmed up to include WiFi.
-     *
-     * @return
-     */
-    public boolean isWiredLinkUp() {
-        int[] wiredNetlinkState = this.getApplicationEx().getWiredNetlinkState();
-        if (wiredNetlinkState == null) return false;
-        if (wiredNetlinkState.length < 1) return false;
-        switch (wiredNetlinkState[0]) {
-        case EthTrackSvc.WIRED_NETLINK_UP_VALUE:
-            return true;
-        case EthTrackSvc.WIRED_NETLINK_DOWN_VALUE:
-            return false;
-        }
-        return false;
+    private void netlinkStatusChanged()
+    {
+        Intent broadcastIntent = new Intent( AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE );
+        sendBroadcast( broadcastIntent );
     }
 
-    // Wifi
-    private boolean isWifiLinkUp;
-    public boolean isWifiLinkUp() {
-        return isWifiLinkUp;
+
+    public boolean isWiredLinkUp()
+    {
+        return mNetlinks.get( 1 ).isLinkUp();
     }
 
-    // 3G
-    private boolean is3GLinkUp = false;
+
+    public boolean isWifiLinkUp()
+    {
+        return mNetlinks.get( 0 ).isLinkUp();
+    }
+
+
     public boolean is3GLinkUp()
     {
-        return is3GLinkUp;
+        return mNetlinks.get( 2 ).isLinkUp();
     }
 
 
@@ -848,14 +844,17 @@ implements OnSharedPreferenceChangeListener,
     {
         return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
     }
-	@Override
-	public List<Gateway> getGatewayList() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-	@Override
-	public List<Netlink> getNetlinkList() {
-		// TODO Auto-generated method stub
-		return null;
-	}
+
+    private List<Gateway> mGateways = new ArrayList<Gateway>();
+    private List<Netlink> mNetlinks = new ArrayList<Netlink>();
+
+    public List<Gateway> getGatewayList()
+    {
+        return mGateways;
+    }
+
+    public List<Netlink> getNetlinkList()
+    {
+        return mNetlinks;
+    }
 }
