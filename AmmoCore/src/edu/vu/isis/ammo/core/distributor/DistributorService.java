@@ -419,8 +419,11 @@ public class DistributorService extends Service implements IDistributorService {
                     
                     synchronized (this) {
                         while (!this.isReady())
+                        {
+                        	logger.info("!this.isReady()");
                             // this is IMPORTANT don't remove it.
                             this.wait(BURP_TIME);
+                        }
                         subscriptionFlag = this.subscriptionDelta;
                         this.subscriptionDelta = false;
                         

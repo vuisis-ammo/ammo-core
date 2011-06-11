@@ -244,7 +244,7 @@ public class TcpChannel extends NetChannel {
 				this.reset();
 			}
 			public synchronized void set(int state) {
-				logger.info("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
+				logger.info("Thread <{}>State::set({})", Thread.currentThread().getId(), state);
 				switch (state) {
 				case STALE:
 					this.reset();
@@ -277,7 +277,8 @@ public class TcpChannel extends NetChannel {
 			}
 			public synchronized boolean reset() {
 				attempt++;
-				this.value = STALE;
+				if(this.value != EXCEPTION)
+					this.value = STALE;
 				this.notifyAll();
 				return true;
 			}
@@ -414,7 +415,11 @@ public class TcpChannel extends NetChannel {
 				}
 
 			} catch (Exception ex) {
+				logger.error("channel closing exception");
+				ex.printStackTrace();
+				
 				this.state.set(NetChannel.EXCEPTION);
+				this.parent.statusChange();
 			}
 			try {
 				if (this.parent.socket == null) {

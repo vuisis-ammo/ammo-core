@@ -49,6 +49,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.ui.GatewayAdapter;
 import edu.vu.isis.ammo.core.ui.NetlinkAdapter;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
+import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 
 /**
@@ -388,7 +389,7 @@ implements OnSharedPreferenceChangeListener,
         mw.setSessionUuid(sessionId);
 
         AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
-        authreq.setDeviceId(deviceId)
+        authreq.setDeviceId(UniqueIdentifiers.device(this.getApplicationContext()))
                .setUserId(operatorId)
                .setUserKey(operatorKey);
 
