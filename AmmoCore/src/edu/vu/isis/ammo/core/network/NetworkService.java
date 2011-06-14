@@ -94,6 +94,9 @@ implements OnSharedPreferenceChangeListener,
     // journalingSwitch
     private boolean journalingSwitch = false;
 
+    //Determine if the connection is enabled
+    private boolean gatewayEnabled = true;
+
     // for providing networking support
     // should this be using IPv6?
     private boolean networkingSwitch = true;
@@ -187,8 +190,9 @@ implements OnSharedPreferenceChangeListener,
         // no point in enabling the socket until the preferences have been read
         this.tcpChannel.disable();  //
         this.acquirePreferences();
-        if (this.networkingSwitch)
-            this.tcpChannel.enable();   //
+        if (this.networkingSwitch && this.gatewayEnabled) {
+            this.tcpChannel.enable(); 
+        }
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(this);
@@ -248,7 +252,7 @@ implements OnSharedPreferenceChangeListener,
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
 
         this.journalingSwitch = prefs.getBoolean(INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
-
+        this.gatewayEnabled = prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
         this.networkingSwitch = prefs.getBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 
         this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
@@ -332,6 +336,14 @@ implements OnSharedPreferenceChangeListener,
         if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
             long flatLineTime = Integer.valueOf(prefs.getString(INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String.valueOf(DEFAULT_FLAT_LINE_TIME)));
             this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert from minutes to milliseconds
+        }
+
+        if(key.equals(INetPrefKeys.GATEWAY_SHOULD_USE)) {
+        	if(prefs.getBoolean(key, true)) {
+        	    this.tcpChannel.enable();
+        	} else {
+        	    this.tcpChannel.disable();
+        	}
         }
         return;
     }
@@ -793,14 +805,26 @@ implements OnSharedPreferenceChangeListener,
      * Deal with the status of the connection changing.
      * Report the status to the application who acts as a broker.
      */
+    
+	@Override
+	public boolean postToQueue() {
+		logger.info("repost subscriptions and pending data");
+		if (this.distributor == null)
+			return false;
+		// this.distributor.repostToNetworkService3();
+		return false;
+	}
+
 
     @Override
-    public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
-    	// FIXME
-        //this.getApplicationEx()
-        //	.setGatewayState(new int[]{connStatus, sendStatus, recvStatus});
-        return false;
-    }
+	public boolean statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
+		// Once we have multiple gateways we'll have to fix this.
+		mGateways.get(0).setStatus(new int[] { connStatus, sendStatus, recvStatus });
+
+		Intent broadcastIntent = new Intent(AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
+		this.sendBroadcast(broadcastIntent);
+		return true;
+	}
 
     private void netlinkStatusChanged()
     {

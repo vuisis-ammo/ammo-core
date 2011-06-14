@@ -51,4 +51,12 @@ public interface IChannelManager
      * @return boolean
      */
     boolean isAnyLinkUp();
+    
+    /**
+     * @param void
+     *
+     * @return boolean
+     */
+    boolean postToQueue();
+
 }

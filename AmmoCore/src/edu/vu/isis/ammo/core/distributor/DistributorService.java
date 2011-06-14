@@ -150,9 +150,7 @@ public class DistributorService extends Service implements IDistributorService {
     }
     
     private IBinder binder = new IAmmoDistributorService.Stub() {
-		
-		
-		
+			
 		@Override
 		public void refresh() throws RemoteException {
 			// TODO Auto-generated method stub
