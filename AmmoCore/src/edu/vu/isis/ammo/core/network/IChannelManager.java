@@ -44,13 +44,6 @@ public interface IChannelManager
                           int connStatus,
                           int sendStatus,
                           int recvStatus );
-
-    /**
-     * @param void
-     *
-     * @return boolean
-     */
-    boolean isAnyLinkUp();
     
     /**
      * @param void
@@ -59,4 +52,11 @@ public interface IChannelManager
      */
     boolean postToQueue();
 
+    /**
+     * @param void
+     *
+     * @return boolean
+     */
+    boolean isAnyLinkUp();
+   
 }

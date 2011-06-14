@@ -889,8 +889,13 @@ public class DistributorService extends Service implements IDistributorService {
         private static final String SUBSCRIPTION_SEND;
         
         static {
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = null;
             
+            sb = new StringBuilder()
+            .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
+            .append(" IN (")
+            .append("'").append(SubscriptionTableSchema.DISPOSITION_EXPIRED).append("'")
+            .append(")");
             SUBSCRIPTION_GARBAGE = null;
 
             sb = new StringBuilder()
