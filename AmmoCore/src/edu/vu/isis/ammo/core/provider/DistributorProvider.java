@@ -110,7 +110,7 @@ public class DistributorProvider extends DistributorProviderBase {
          String insertTable = "";
          String nullColumnHack = "";
          Uri tableUri = null;
-	  logger.debug("insert: " + uri.toString() );
+	  logger.info("insert: " + uri.toString() );
 
          ContentValues values = (initialValues != null) 
             ? new ContentValues(initialValues)
