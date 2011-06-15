@@ -277,7 +277,7 @@ public class DistributorService extends Service implements IDistributorService {
      * @return
      * @throws IOException
      */
-    private synchronized byte[] queryUriForSerializedData(String uri) throws IOException {
+    private synchronized byte[] queryUriForSerializedData(String uri) throws FileNotFoundException, IOException {
         Uri rowUri = Uri.parse(uri);
         Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
 
@@ -300,8 +300,9 @@ public class DistributorService extends Service implements IDistributorService {
                 ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
 
                 instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-            } catch (IOException e) {
-                logger.info("unable to create stream {} ",e.getMessage());
+            } catch (IOException ex) {
+                logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
+                bout.close();
                 throw new FileNotFoundException("Unable to create stream");
             }
             bis = new BufferedInputStream(instream);
@@ -310,10 +311,11 @@ public class DistributorService extends Service implements IDistributorService {
                 bout.write(buffer, 0, bytesRead);
             }
             bis.close();
+            instream.close();
             // String bs = bout.toString();
             // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
             byte[] ba = bout.toByteArray();
-
+            logger.info("length of serialized data: ["+ba.length+"]");
             bout.close();
             return ba;
 
@@ -1173,7 +1175,6 @@ public class DistributorService extends Service implements IDistributorService {
         } catch (IOException ex) {
             logger.warn("could not write to the content provider {}", ex.getLocalizedMessage());
             return false;
-        }
+        } 
     }
-
 }
