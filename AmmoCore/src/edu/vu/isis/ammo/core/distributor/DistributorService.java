@@ -301,6 +301,7 @@ public class DistributorService extends Service implements IDistributorService {
 
                 instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
             } catch (IOException e) {
+                logger.info("unable to create stream {} ",e.getMessage());
                 throw new FileNotFoundException("Unable to create stream");
             }
             bis = new BufferedInputStream(instream);
