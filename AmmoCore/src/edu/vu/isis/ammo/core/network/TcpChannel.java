@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import edu.vu.isis.ammo.core.network.NetworkService.MsgHeader;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
-
 /**
  * Two long running threads and one short.
  * The long threads are for sending and receiving messages.
@@ -134,7 +133,7 @@ public class TcpChannel extends NetChannel {
 	}
 
 	public void setFlatLineTime(long flatLineTime) {
-		//this.flatLineTime = flatLineTime;  // currently broken
+		this.flatLineTime = flatLineTime;
 	}
 
 	public boolean setHost(String host) {
@@ -194,8 +193,6 @@ public class TcpChannel extends NetChannel {
 		driver.statusChange(this, this.connectorThread.state.value, this.senderThread.state, this.receiverThread.state);
 	}
 
-	 // Called by ReceiverThread to send an incoming message to the
-	 // NetworkService.
 	private boolean deliverMessage( byte[] message, long checksum )
 	{
 	//logger.warn( "In deliverMessage()" );
@@ -277,8 +274,6 @@ public class TcpChannel extends NetChannel {
 			// logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
 		}
 	}
-	
-
 	/**
 	 * manages the connection.
 	 * enable or disable expresses the operator intent.
@@ -370,7 +365,8 @@ public class TcpChannel extends NetChannel {
 			}
 			public synchronized boolean reset() {
 				attempt++;
-				this.value = STALE;
+				if(this.value != EXCEPTION)
+					this.value = STALE;
 				this.notifyAll();
 				return true;
 			}
@@ -448,7 +444,6 @@ public class TcpChannel extends NetChannel {
 							break MAINTAIN_CONNECTION;
 						}
 						break;
-
 					case NetChannel.STALE:
 						disconnect();
 						this.state.set(NetChannel.LINK_WAIT);
@@ -499,7 +494,7 @@ public class TcpChannel extends NetChannel {
 						break;
 
 					case NetChannel.CONNECTED:
-						
+
 						driver.auth();
 						{
 							this.parent.statusChange();
@@ -540,7 +535,11 @@ public class TcpChannel extends NetChannel {
 				}
 
 			} catch (Exception ex) {
+				logger.error("channel closing exception");
+				ex.printStackTrace();
+				
 				this.state.set(NetChannel.EXCEPTION);
+				this.parent.statusChange();
 			}
 			try {
 				if (this.parent.socket == null) {

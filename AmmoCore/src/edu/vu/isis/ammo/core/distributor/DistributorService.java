@@ -489,8 +489,11 @@ public class DistributorService extends Service implements IDistributorService {
                     
                     synchronized (this) {
                         while (!this.isReady())
+                        {
+                        	logger.info("!this.isReady()");
                             // this is IMPORTANT don't remove it.
                             this.wait(BURP_TIME);
+                        }
                         subscriptionFlag = this.subscriptionDelta;
                         this.subscriptionDelta = false;
                         
@@ -896,7 +899,7 @@ public class DistributorService extends Service implements IDistributorService {
             .append(" IN (")
             .append("'").append(SubscriptionTableSchema.DISPOSITION_EXPIRED).append("'")
             .append(")");
-            SUBSCRIPTION_GARBAGE = null;
+            SUBSCRIPTION_GARBAGE = sb.toString();
 
             sb = new StringBuilder()
               .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
@@ -1239,6 +1242,7 @@ public class DistributorService extends Service implements IDistributorService {
         } catch (IOException ex) {
             logger.warn("could not write to the content provider {}", ex.getLocalizedMessage());
             return false;
+
         }
     }
 
