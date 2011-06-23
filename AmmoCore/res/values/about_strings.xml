@@ -18,7 +18,7 @@
 <string name="gw_t1_interrupted">AmmoCore needs restarted.</string>
 <string name="gw_t1_start">The message header is being read.</string>
 <string name="gw_t1_started">The message is being read.</string>
-
+<string name="gw_t1_transmitting">There is a connection to the Gateway and data can be transmitted.</string>
 <!-- Text_One can have these if connected -->
 <string name="gw_t1_sending">AmmoCore is currently sending a message to the Gateway.</string>
 <string name="gw_t1_taking">AmmoCore is currently receiving a message from the Gateway.</string>
