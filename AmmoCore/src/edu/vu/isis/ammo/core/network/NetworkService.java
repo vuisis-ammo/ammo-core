@@ -28,6 +28,7 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
+import android.widget.Toast;
 
 
 import com.google.protobuf.ByteString;
@@ -51,6 +52,8 @@ import edu.vu.isis.ammo.core.ui.NetlinkAdapter;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
+import edu.vu.isis.ammo.core.security.AmmoSecurityManager;
+import edu.vu.isis.ammo.core.security.Ammo_Crypto;
 
 /**
  * Network Proxy Service is responsible for all networking between the
@@ -103,6 +106,8 @@ implements OnSharedPreferenceChangeListener,
     private String deviceId = null;
     private String operatorId = "0004";
     private String operatorKey = "37";
+    
+    private AmmoSecurityManager	secMgr;
 
     // journalingSwitch
     private boolean journalingSwitch = false;
@@ -383,18 +388,42 @@ implements OnSharedPreferenceChangeListener,
      */
     private AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
         logger.info("::buildAuthenticationRequest");
-
+/*
         AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
         mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
         mw.setSessionUuid(sessionId);
 
+        // encrypt the operator key and then send it ... 
+        Ammo_Crypto crp = new Ammo_Crypto ();
+        
+//        byte[] enc_operatorKey = 
+//        	crp.encrypt_data("/data/public_key_phone.der", operatorKey.getBytes(), "RSA", "PKCS1Padding");
+        
+//        byte[] sign = crp.sign("/mnt/sdcard/private_key_phone.der", 
+        byte[] sign = crp.sign("/data/private_key_phone.der",
+        						//operatorKey.getBytes(), 
+        						//operatorKey.getBytes().length, 
+        						operatorId.getBytes(), 
+        						operatorId.getBytes().length, 
+        						"SHA1withRSA");
+        
+        ByteString signStr = ByteString.copyFrom(sign);
+        
+      //  ByteString str = ByteString.copyFrom(enc_operatorKey);
+        
+    
         AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
         authreq.setDeviceId(UniqueIdentifiers.device(this.getApplicationContext()))
                .setUserId(operatorId)
-               .setUserKey(operatorKey);
+        //       .setUserKey(operatorKey);
+        //       .setUserKey(str);
+               .setUserKey(signStr);
 
         mw.setAuthenticationMessage(authreq);
         return mw;
+*/
+        
+        return secMgr.getClientNonce(UniqueIdentifiers.device(this.getApplicationContext()));
     }
 
     /**
@@ -408,8 +437,39 @@ implements OnSharedPreferenceChangeListener,
 
         if (mw == null) return false;
         if (! mw.hasAuthenticationResult()) return false;
+        
+        
         if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
             return false;
+        }
+        else 
+        {
+        	// Device authentication worked, so now verify the Gateway, sign 
+        	
+        	Ammo_Crypto crp = new Ammo_Crypto ();
+        	
+        	boolean result = crp.verify("/mnt/sdcard/public_key_gateway.der",
+        	//boolean result = crp.verify("/data/public_key_gateway.der",
+        								mw.getAuthenticationResult().getMessage().toByteArray(), 
+        								//operatorKey.getBytes(), 
+        								//operatorKey.getBytes().length, 
+        								operatorId.getBytes(), 
+        								operatorId.getBytes().length, 
+        								"SHA1withRSA");
+        	
+        	System.out.println((result)?"True Gateway":"False Gateway");
+        	
+        	//Toast.makeText(application, (result)?"True Gateway":"False Gateway", Toast.LENGTH_LONG).show();
+        	//System.out.println ("The msg is " + mw.getAuthenticationResult().getMessage().toString());
+        	
+        	logger.info((result)?"True Gateway":"False Gateway");
+        	//ack(true);
+            logger.info("authentication complete inform applications : ");
+            // broadcast login event to apps ...
+            Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+            loginIntent.putExtra("operatorId", operatorId);
+            this.sendBroadcast(loginIntent);
+        	
         }
         PreferenceManager
             .getDefaultSharedPreferences(this)
@@ -817,11 +877,11 @@ implements OnSharedPreferenceChangeListener,
             logger.trace("authentication complete, repost subscriptions and pending data : ");
             this.distributor.consumerReady();
 
-            logger.info("authentication complete inform applications : ");
-            // broadcast login event to apps ...
-            Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-            loginIntent.putExtra("operatorId", operatorId);
-            this.sendBroadcast(loginIntent);
+//            logger.info("authentication complete inform applications : ");
+//            // broadcast login event to apps ...
+//            Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+//            loginIntent.putExtra("operatorId", operatorId);
+//            this.sendBroadcast(loginIntent);
         }
         return false;
     }
