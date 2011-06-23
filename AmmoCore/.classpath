@@ -7,6 +7,5 @@
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="src" path="AmmoLib_tests"/>
 	<classpathentry kind="src" path="AmmoLib_src"/>
-
 	<classpathentry kind="output" path="bin"/>
 </classpath>
