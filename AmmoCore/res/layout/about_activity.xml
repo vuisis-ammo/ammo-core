@@ -20,7 +20,6 @@ android:layout_height="fill_parent">
      android:layout_width="fill_parent"
      android:layout_height="wrap_content"
      android:padding="5dp"
-     
       >
 
 
@@ -124,6 +123,33 @@ android:layout_height="fill_parent">
 				
 	</TableRow>
 	<!-- Gateway Help-->
+		<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_gw_t1_transmitting_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:textStyle="bold"
+		android:layout_toRightOf="@+id/help_gw_t1_transmitting_dsc"
+		android:text="Transmitting:"
+		/>
+
+
+      <TextView android:id="@id/help_gw_t1_transmitting_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/gw_t1_transmitting"
+                />
+		
+	</TableRow>
+	
+	
 	<TableRow android:layout_height="wrap_content"
 		android:layout_width="fill_parent"
 		android:paddingTop="9sp"
