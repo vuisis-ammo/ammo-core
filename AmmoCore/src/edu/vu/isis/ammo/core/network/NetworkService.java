@@ -107,7 +107,7 @@ implements OnSharedPreferenceChangeListener,
     private String operatorId = "0004";
     private String operatorKey = "37";
     
-    private AmmoSecurityManager	secMgr;
+    private AmmoSecurityManager	secMgr = null;
 
     // journalingSwitch
     private boolean journalingSwitch = false;
@@ -422,7 +422,9 @@ implements OnSharedPreferenceChangeListener,
         mw.setAuthenticationMessage(authreq);
         return mw;
 */
-        
+        if (secMgr == null)
+        	secMgr = new AmmoSecurityManager();
+
         return secMgr.getClientNonce(UniqueIdentifiers.device(this.getApplicationContext()));
     }
 
@@ -436,16 +438,18 @@ implements OnSharedPreferenceChangeListener,
         logger.info("::receiveAuthenticationResponse");
 
         if (mw == null) return false;
-        if (! mw.hasAuthenticationResult()) return false;
+//        if (! mw.hasAuthenticationResult()) return false;
+        if (!mw.hasAuthenticationMessage()) return false;
         
         
-        if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
+        if (mw.getAuthenticationMessage().getResult() != AmmoMessages.AuthenticationMessage.Status.SUCCESS) {
+        //if (mw.getAuthenticationMessage().has.getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
             return false;
         }
         else 
         {
         	// Device authentication worked, so now verify the Gateway, sign 
-        	
+ /*       	
         	Ammo_Crypto crp = new Ammo_Crypto ();
         	
         	boolean result = crp.verify("/mnt/sdcard/public_key_gateway.der",
@@ -469,7 +473,61 @@ implements OnSharedPreferenceChangeListener,
             Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
             loginIntent.putExtra("operatorId", operatorId);
             this.sendBroadcast(loginIntent);
+ */
+        	if (mw.getAuthenticationMessage().getType() == AmmoMessages.AuthenticationMessage.Type.SERVER_NONCE)
+        	{     		
+
+        		System.out.println("THE SERVER NONCE " + mw.getAuthenticationMessage().getMessage().toString());
         	
+        		secMgr.setServerNonce(mw.getAuthenticationResult().getMessage().toByteArray());
+
+        		// send the keyExchange ...
+        		AmmoMessages.MessageWrapper.Builder msgW = AmmoMessages.MessageWrapper.newBuilder();
+	            msgW.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+	            //mw.setSessionUuid(sessionId);
+	          
+	            AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
+	            authreq.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_KEYXCHANGE);
+	            authreq.setMessage(ByteString.copyFrom(secMgr.generateKeyExchange()));
+	
+	            msgW.setAuthenticationMessage(authreq);
+	            
+	            byte[] protocByteBuf = msgW.build().toByteArray();
+	            MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
+	
+	            sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this);
+	            
+	            
+	            // now wait for a second or two and then send the PhoneAuth msg 
+	            try {
+	            	
+					Thread.sleep(3000);
+					
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+	        	//send it the phone auth message
+				AmmoMessages.MessageWrapper.Builder phnAuth = AmmoMessages.MessageWrapper.newBuilder();
+	            phnAuth.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+	            //mw.setSessionUuid(sessionId);
+	          
+	            AmmoMessages.AuthenticationMessage.Builder phnAuthauth = AmmoMessages.AuthenticationMessage.newBuilder();
+	
+	            phnAuthauth.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_PHNAUTH);
+	            phnAuthauth.setMessage(ByteString.copyFrom(secMgr.generatePhoneAuth()));
+
+	        	phnAuth.setAuthenticationMessage(phnAuthauth);
+	            
+	            byte[] phnAuthProtocByteBuf = phnAuth.build().toByteArray();
+	            MsgHeader msgHeaderPhnAuth = MsgHeader.getInstance(phnAuthProtocByteBuf , true);
+	
+	            sendRequest(msgHeaderPhnAuth.size, msgHeaderPhnAuth.checksum, phnAuthProtocByteBuf , this);
+
+	        	return true;
+        	}
+        	        	
         }
         PreferenceManager
             .getDefaultSharedPreferences(this)
@@ -686,7 +744,7 @@ implements OnSharedPreferenceChangeListener,
             receiveSubscribeResponse(mw);
             break;
 
-        case AUTHENTICATION_RESULT:
+        case AUTHENTICATION_MESSAGE:
             receiveAuthenticationResponse(mw);
             break;
 
