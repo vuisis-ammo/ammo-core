@@ -32,7 +32,7 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 		Cursor cursor = this.managedQuery(this.uri, projection, null, null, 
                 RetrievalTableSchema._ID + " DESC");
 		
-		this.adapter = new DistributorTableViewAdapter(this,
+		this.adapter = new RetrievalDistributorTableViewAdapter(this,
 				R.layout.distributor_table_view_item, cursor, 
 				fromItemLayout, toItemLayout);
 		

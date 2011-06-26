@@ -26,12 +26,13 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 		String[] projection = {SubscriptionTableSchema._ID, 
 				SubscriptionTableSchema.DISPOSITION,
 				SubscriptionTableSchema.URI, 
-				SubscriptionTableSchema.CREATED_DATE};
+				SubscriptionTableSchema.CREATED_DATE,
+				SubscriptionTableSchema.MIME};
 		
 		Cursor cursor = this.managedQuery(this.uri, projection, null, null, 
                 SubscriptionTableSchema._ID + " DESC");
 		
-		this.adapter = new DistributorTableViewAdapter(this,
+		this.adapter = new SubscribeDistributorTableViewAdapter(this,
 				R.layout.distributor_table_view_item, cursor, 
 				fromItemLayout, toItemLayout);
 		

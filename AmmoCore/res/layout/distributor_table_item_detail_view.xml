@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="fill_parent"
+  android:layout_height="fill_parent"
+  android:background="@drawable/distributor_detail_view_border"
+  >
+  <Button android:layout_width="40px"
+  android:layout_height="40px"
+  android:layout_alignParentRight="true"
+  android:layout_alignParentTop="true"
+  android:onClick="closePopup"
+  android:text="X"
+  />
+  <TextView android:layout_height="wrap_content"
+  android:layout_width="wrap_content"
+  android:text=""
+  android:id="@+id/distributor_detail_view_text1"
+  />
+  <TextView android:layout_height="wrap_content"
+  android:layout_width="wrap_content"
+  android:text=""
+  android:id="@+id/distributor_detail_view_text2"
+  android:layout_below="@id/distributor_detail_view_text1"
+  />
+  <TextView android:layout_height="wrap_content"
+  android:layout_width="wrap_content"
+  android:text=""
+  android:id="@+id/distributor_detail_view_text3"
+  android:layout_below="@id/distributor_detail_view_text2"
+  />
+  <TextView android:layout_height="wrap_content"
+  android:layout_width="wrap_content"
+  android:text=""
+  android:id="@+id/distributor_detail_view_text4"
+  android:layout_below="@id/distributor_detail_view_text3"
+  />
+  <TextView android:layout_height="wrap_content"
+  android:layout_width="wrap_content"
+  android:text=""
+  android:id="@+id/distributor_detail_view_text5"
+  android:layout_below="@id/distributor_detail_view_text4"
+  />
+  
+  
+ </RelativeLayout>

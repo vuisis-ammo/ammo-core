@@ -32,7 +32,7 @@ public class PostalTableViewer extends DistributorTableViewer {
 		Cursor cursor = this.managedQuery(this.uri, projection, null, null, 
                 PostalTableSchema._ID + " DESC");
 		
-		this.adapter = new DistributorTableViewAdapter(this,
+		this.adapter = new PostalDistributorTableViewAdapter(this,
 				R.layout.distributor_table_view_item, cursor, 
 				fromItemLayout, toItemLayout);
 		
