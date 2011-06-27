@@ -14,6 +14,7 @@ import android.graphics.Color;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
 /**
@@ -84,7 +85,9 @@ public class PostalDistributorTableViewAdapter extends DistributorTableViewAdapt
 		logger.debug("tuple timestamp {}",timed);
 		ttv.setText(timed);
 		
-
+		// set the mime-type / topic
+		TextView tttv = (TextView)v.findViewById(R.id.distributor_table_view_item_topic);
+		tttv.setText(cursor.getString(cursor.getColumnIndex(PostalTableSchema.CP_TYPE)));
 		
 	}
 	

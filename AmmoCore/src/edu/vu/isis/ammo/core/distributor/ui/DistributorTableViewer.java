@@ -7,10 +7,12 @@ import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
 import android.content.Context;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.ContextMenu;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -141,7 +143,10 @@ implements IAmmoActivitySetup
 	       this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		
 	    pw = new DistributorPopupWindow(inflater, position, this.adapter.getCursor());
+	    
+	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
+	  
 	    
 	}
 	
@@ -164,8 +169,15 @@ implements IAmmoActivitySetup
 	
 	public void closePopup(View v)
 	{
+		if(pw == null)
+			return;
+		
+		if(!pw.isShowing())
+			return;
+		
 		pw.dismiss();
 		
 	}
+
 
 }
