@@ -29,8 +29,9 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 				RetrievalTableSchema.URI, 
 				RetrievalTableSchema.CREATED_DATE};
 		
-		Cursor cursor = this.managedQuery(this.uri, projection, null, null, 
+		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 RetrievalTableSchema._ID + " DESC");
+
 		
 		this.adapter = new RetrievalDistributorTableViewAdapter(this,
 				R.layout.distributor_table_view_item, cursor, 

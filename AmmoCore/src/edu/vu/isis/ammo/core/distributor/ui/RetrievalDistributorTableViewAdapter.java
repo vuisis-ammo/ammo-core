@@ -83,6 +83,10 @@ public class RetrievalDistributorTableViewAdapter extends DistributorTableViewAd
 		logger.debug("tuple timestamp {}",timed);
 		ttv.setText(timed);
 		
+		// set the mime-type / topic
+		TextView tttv = (TextView)v.findViewById(R.id.distributor_table_view_item_topic);
+		tttv.setText(cursor.getString(cursor.getColumnIndex(SubscriptionTableSchema.MIME)));
+		
 
 		
 	}
