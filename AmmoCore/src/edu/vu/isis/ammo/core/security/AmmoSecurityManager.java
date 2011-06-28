@@ -68,21 +68,37 @@ public class AmmoSecurityManager {
 	
 	public byte[] generatePhoneAuth ()
 	{
+		
 		byte allData[] = 
 			new byte[keyExchange.length + the_client_nonce.length + the_server_nonce.length];
+//			new byte[keyExchange.length + the_client_nonce.length];
+//			new byte[keyExchange.length + the_server_nonce.length];
 		
 		System.arraycopy(keyExchange, 0, allData, 0, keyExchange.length);
 		
 		System.arraycopy(the_client_nonce, 0, allData, keyExchange.length, the_client_nonce.length);
-		
+//		System.arraycopy(the_server_nonce, 0, allData, keyExchange.length, the_server_nonce.length);
+
 		System.arraycopy(
 						the_server_nonce,
 						0, 
 						allData, 
 						keyExchange.length + the_client_nonce.length, 
 						the_server_nonce.length);
+/*
+		//		byte allData[] = new byte[keyExchange.length];
+//		
+//		System.arraycopy(keyExchange, 0, allData, 0, keyExchange.length);
+		
+		//byte allData[] = new byte[this.the_client_nonce.length];
+		
+		//System.arraycopy(the_client_nonce, 0, allData, 0, the_client_nonce.length);
 		
 		
+		byte allData[] = new byte[this.the_server_nonce.length];
+		
+		System.arraycopy(the_server_nonce, 0, allData, 0, the_server_nonce.length);
+*/		
 		phoneAuth = crp_.sign("/data/private_key_phone.der", allData, allData.length, "SHA1withRSA");
 		
 		return phoneAuth;

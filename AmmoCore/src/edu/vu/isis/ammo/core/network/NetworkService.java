@@ -3,6 +3,8 @@
  */
 package edu.vu.isis.ammo.core.network;
 
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
@@ -478,8 +480,23 @@ implements OnSharedPreferenceChangeListener,
         	{     		
 
         		System.out.println("THE SERVER NONCE " + mw.getAuthenticationMessage().getMessage().toString());
+        		
+        		int len = mw.getAuthenticationMessage().getMessage().toByteArray().length;
         	
-        		secMgr.setServerNonce(mw.getAuthenticationResult().getMessage().toByteArray());
+        		secMgr.setServerNonce(mw.getAuthenticationMessage().getMessage().toByteArray());
+        		
+        /*		   try
+        		   {      
+        		     DataOutputStream out = new DataOutputStream(
+        		         new FileOutputStream( "/mnt/sdcard/server_nonce") );
+
+        		     out.write(mw.getAu)
+        		     out.close();
+        		   }
+        		   catch ( IOException iox )
+        		   {
+        		     System.out.println("Problem writing " + fileName );
+        		   }*/
 
         		// send the keyExchange ...
         		AmmoMessages.MessageWrapper.Builder msgW = AmmoMessages.MessageWrapper.newBuilder();
