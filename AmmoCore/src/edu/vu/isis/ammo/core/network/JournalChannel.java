@@ -239,7 +239,7 @@ public class JournalChannel extends NetChannel {
 	 * @param message
 	 * @return
 	 */
-	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) 
+	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler) 
 	{
 		synchronized (this.syncObj) {
 			logger.trace("::sendGatewayRequest");
@@ -351,5 +351,6 @@ public class JournalChannel extends NetChannel {
 	public void linkDown() {}
 	public void reset() {}
 	public String getLocalIpAddress() { return ""; }
+	
 
 }

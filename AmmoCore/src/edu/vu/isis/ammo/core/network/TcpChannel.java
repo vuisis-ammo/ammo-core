@@ -214,7 +214,7 @@ public class TcpChannel extends NetChannel {
      *  This exists primarily to make a place to add instrumentation.
      *  Also, follows the delegation pattern.
      */
-    private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
+    private boolean ackToHandler( INetworkService.OnSendHandler handler,
                                   boolean status )
     {
         return handler.ack( status );
@@ -606,7 +606,7 @@ public class TcpChannel extends NetChannel {
 	 * @param message
 	 * @return
 	 */
-	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler)
+	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler)
 	{
 		return this.senderThread.queueMsg(new GwMessage(size, checksum, payload, handler) );
 	}
@@ -615,8 +615,8 @@ public class TcpChannel extends NetChannel {
 		public final int size;
 		public final CRC32 checksum;
 		public final byte[] payload;
-		public final INetworkService.OnSendMessageHandler handler;
-		public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) {
+		public final INetworkService.OnSendHandler handler;
+		public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler) {
 			this.size = size;
 			this.checksum = checksum;
 			this.payload = payload;

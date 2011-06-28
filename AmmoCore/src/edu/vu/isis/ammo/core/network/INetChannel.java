@@ -53,6 +53,6 @@ public interface INetChannel
     boolean sendRequest( int size,
                          CRC32 checksum,
                          byte[] payload,
-                         INetworkService.OnSendMessageHandler handler );
+                         INetworkService.OnSendHandler handler );
     String getLocalIpAddress();
 }
