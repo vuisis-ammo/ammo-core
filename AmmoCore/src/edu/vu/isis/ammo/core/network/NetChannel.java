@@ -1,8 +1,8 @@
 package edu.vu.isis.ammo.core.network;
 
-public abstract class NetChannel implements INetChannel {
+import java.util.zip.CRC32;
 
-    
+public abstract class NetChannel implements INetChannel {
 
 	// The values in the INetChannel that we are translating here could
     // probably be made into an enum and the translation to strings
@@ -38,4 +38,20 @@ public abstract class NetChannel implements INetChannel {
             return "Undefined State [" + state +"]";
         }
     }
+    
+
+
+	static public class GwMessage {
+		public final int size;
+		public final CRC32 checksum;
+		public final byte[] payload;
+		public final INetworkService.OnSendHandler handler;
+		
+		public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler) {
+			this.size = size;
+			this.checksum = checksum;
+			this.payload = payload;
+			this.handler = handler;
+		}
+	}
 }

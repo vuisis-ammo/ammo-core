@@ -12,7 +12,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -239,8 +238,8 @@ public class JournalChannel extends NetChannel {
 	 * @param message
 	 * @return
 	 */
-	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler) 
-	{
+	@Override
+	public boolean sendRequest(NetChannel.GwMessage msg) {
 		synchronized (this.syncObj) {
 			logger.trace("::sendGatewayRequest");
 			if (! JournalChannel.isConnected) {
@@ -248,20 +247,12 @@ public class JournalChannel extends NetChannel {
 				return false;
 			}
 			try {
-				this.sendQueue.put(new GwMessage(size, checksum, payload));
-			} catch (InterruptedException e) {
+				this.sendQueue.put(msg);
+			} catch (InterruptedException ex) {
+				ex.getStackTrace();
 				return false;
 			}
 			return true;
-		}
-	}
-	
-	public class GwMessage {
-		public final int size;
-		public final CRC32 checksum;
-		public final byte[] payload;
-		public GwMessage(int size, CRC32 checksum, byte[] payload) {
-			this.size = size; this.checksum = checksum; this.payload = payload;
 		}
 	}
 	

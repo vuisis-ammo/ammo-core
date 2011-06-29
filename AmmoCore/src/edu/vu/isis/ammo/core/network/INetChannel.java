@@ -1,7 +1,11 @@
 package edu.vu.isis.ammo.core.network;
 
-import java.util.zip.CRC32;
-
+/**
+ * The NetChannel is some mechanism for establishing a network connection
+ * over which requests will be sent to "the cloud".
+ * Typically this will be a socket.
+ *
+ */
 
 public interface INetChannel
 {
@@ -50,9 +54,13 @@ public interface INetChannel
     void linkUp();
     void linkDown();
     void reset();
-    boolean sendRequest( int size,
-                         CRC32 checksum,
-                         byte[] payload,
-                         INetworkService.OnSendHandler handler );
+   
+    /**
+     * The method to post things to the channel input queue.
+     * 
+     * @param req
+     * @return
+     */
+    boolean sendRequest(NetChannel.GwMessage msg);
     String getLocalIpAddress();
 }

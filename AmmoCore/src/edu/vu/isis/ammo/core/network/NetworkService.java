@@ -32,7 +32,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
-import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
@@ -111,6 +110,9 @@ implements OnSharedPreferenceChangeListener,
     public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
 
     private IDistributorService distributor;
+    private PhoneStateListener mListener;
+	private NetworkChannelThread senderThread;
+
 
     // Channels
     private INetChannel tcpChannel = TcpChannel.getInstance(this);
@@ -176,8 +178,6 @@ implements OnSharedPreferenceChangeListener,
     }
 
 
-    private PhoneStateListener mListener;
-
     /**
      * When the service is first created, we should grab
      * the IP and Port values from the SystemPreferences.
@@ -196,8 +196,9 @@ implements OnSharedPreferenceChangeListener,
         // no point in enabling the socket until the preferences have been read
         this.tcpChannel.disable();  //
         this.acquirePreferences();
-        if (this.networkingSwitch && this.gatewayEnabled)
-            this.tcpChannel.enable();   //
+        if (this.networkingSwitch && this.gatewayEnabled) {
+            this.tcpChannel.enable(); 
+        }
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(this);
@@ -233,6 +234,12 @@ implements OnSharedPreferenceChangeListener,
         //this.phoneReceiver = new PhoneReceiver();
         //IntentFilter phoneFilter = new IntentFilter( TelephonyManager.ACTION_PHONE_STATE_CHANGED );
         //getBaseContext().registerReceiver(this.phoneReceiver, phoneFilter);
+        
+        // Start processing the requests
+        final PriorityBlockingQueue<NetworkService.Request> outboundQueue
+    	     = new PriorityBlockingQueue<NetworkService.Request>(); 
+        this.senderThread = new NetworkChannelThread(outboundQueue);
+        this.senderThread.execute(this.tcpChannel);
     }
 
     @Override
@@ -344,15 +351,10 @@ implements OnSharedPreferenceChangeListener,
             this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert from minutes to milliseconds
         }
 
-        if(key.equals(INetPrefKeys.GATEWAY_SHOULD_USE))
-        {
-            if(prefs.getBoolean(key, true))
-            {
-
+        if(key.equals(INetPrefKeys.GATEWAY_SHOULD_USE)) {
+            if(prefs.getBoolean(key, true)) {
                 this.tcpChannel.enable();
-            }
-            else
-            {
+            } else {
                 this.tcpChannel.disable();
             }
         }
@@ -370,7 +372,8 @@ implements OnSharedPreferenceChangeListener,
      * @param mw
      * @return
      */
-    private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
+    @SuppressWarnings("unused")
+	private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
         logger.info("::receiveAuthenticationResponse");
 
         if (mw == null) return false;
@@ -387,27 +390,6 @@ implements OnSharedPreferenceChangeListener,
 
         // the distributor doesn't need to know about authentication results.
         return true;
-    }
-
-
-    // ===========================================================
-    // Gateway Communication Methods
-    // ===========================================================
-
-    /**
-     * Used to send a message to the android gateway plugin.
-     *
-     * This takes an argument indicating the carrier type [udp, tcp, journal].
-     *
-     * @param outstream
-     * @param size
-     * @param checksum
-     * @param message
-     */
-    private boolean sendRequest(int size, CRC32 checksum, byte[] message, OnSendHandler handler)
-    {
-        logger.info("::sendGatewayRequest");
-        return this.tcpChannel.sendRequest(size, checksum, message, handler);
     }
 
     // ===========================================================

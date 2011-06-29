@@ -21,7 +21,6 @@ import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,9 +197,21 @@ public class TcpChannel extends NetChannel {
 		driver.statusChange(this, this.connectorThread.state.value, this.senderThread.state, this.receiverThread.state);
     }
 
+	/**
+	 * place the message in the send queue
+	 */
+	@Override
+	public boolean sendRequest(GwMessage msg) {
+		this.senderThread.queueMsg(msg);
+		return false;
+	}
 
-    // Called by ReceiverThread to send an incoming message to the
-    // NetworkService.
+    /**
+     * Called by ReceiverThread to send an incoming message to the Network Service
+     * @param message
+     * @param checksum
+     * @return
+     */
     private boolean deliverMessage( byte[] message,
                                    long checksum )
     {
@@ -284,7 +295,8 @@ public class TcpChannel extends NetChannel {
             byte[] protocByteBuf = mw.build().toByteArray();
             MsgHeader msgHeader = MsgHeader.getInstance( protocByteBuf, true );
 
-            sendRequest( msgHeader.size, msgHeader.checksum, protocByteBuf, null );
+            sendRequest(new NetChannel.GwMessage(msgHeader.size, msgHeader.checksum, 
+            		protocByteBuf, null));
 
             mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
             //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
@@ -598,31 +610,6 @@ public class TcpChannel extends NetChannel {
 
 	}
 
-	/**
-	 * do your best to send the message.
-	 *
-	 * @param size
-	 * @param checksum
-	 * @param message
-	 * @return
-	 */
-	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler)
-	{
-		return this.senderThread.queueMsg(new GwMessage(size, checksum, payload, handler) );
-	}
-
-	public class GwMessage {
-		public final int size;
-		public final CRC32 checksum;
-		public final byte[] payload;
-		public final INetworkService.OnSendHandler handler;
-		public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler) {
-			this.size = size;
-			this.checksum = checksum;
-			this.payload = payload;
-			this.handler = handler;
-		}
-	}
 
 	/**
 	 * A thread for receiving incoming messages on the socket.
