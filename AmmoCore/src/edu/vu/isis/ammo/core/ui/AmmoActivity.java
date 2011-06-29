@@ -68,8 +68,7 @@ public class AmmoActivity extends TabActivityEx
 
     public boolean netlinkAdvancedView = false;
 
-    private Menu activity_menu;
-    SharedPreferences prefs = null;
+    private SharedPreferences prefs = null;
 
     // ===========================================================
     // Views

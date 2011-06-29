@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.util.Log;
 
 /**
  * USBReceiver is a broadcast receiver which handles system intents broadcast

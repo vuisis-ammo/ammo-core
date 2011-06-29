@@ -23,13 +23,13 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 	public void onCreate(Bundle bun) {
 		this.uri = SubscriptionTableSchema.CONTENT_URI;
 		
-		String[] projection = {SubscriptionTableSchema._ID, 
+		final String[] projection = {SubscriptionTableSchema._ID, 
 				SubscriptionTableSchema.DISPOSITION,
 				SubscriptionTableSchema.URI, 
 				SubscriptionTableSchema.CREATED_DATE,
 				SubscriptionTableSchema.MIME};
 		
-		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
+		Cursor cursor = this.managedQuery(this.uri, projection, null, null, 
                 SubscriptionTableSchema._ID + " DESC");
 		
 		

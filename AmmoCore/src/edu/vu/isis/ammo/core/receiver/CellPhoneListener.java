@@ -7,7 +7,6 @@ import android.content.Context;
 import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
-import android.util.Log;
 
 /**
  * CellPhoneListener is a PhoneStateListener which manages the 3G radio on the
@@ -30,6 +29,7 @@ public class CellPhoneListener extends PhoneStateListener {
 	// ===========================================================
 	// Fields
 	// ===========================================================
+	@SuppressWarnings("unused")
 	private Context context;
 	
 	// ===========================================================

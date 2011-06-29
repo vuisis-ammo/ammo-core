@@ -194,43 +194,5 @@ public class PreferenceProvider extends ContentProvider {
 	// =================================
 	// Helpers
 	// =================================
-	/**
-	 * Returns an array where default value and method name are interleaved.
-	 * Methods are even indices and default values are odd indices.
-	 */
-	private String[] parseFredProtocolStringArray(String[]combinedArray) {
-		String[] results = new String[combinedArray.length*2];
-		int index = 0;
-		for (String s : combinedArray) {
-			String method = s.substring(0, s.indexOf(":"));
-			String defVal = s.substring(s.indexOf(":")+1);
-			results[index++] = method;
-			results[index++] = defVal;
-		}
-		
-		return results;
-	}
 	
-	/**
-	 * Get's the data type corresponding to each 
-	 * @param combinedArray
-	 * @return
-	 */
-	private String[] typesFromFredProtocolArray(String[] combinedArray) {
-		String[] results = new String[combinedArray.length*2];
-		int index = 0;
-		for (String s : combinedArray) {
-			String method = s.substring(0, s.indexOf(":"));
-			String defVal = s.substring(s.indexOf(":")+1);
-			results[index++] = method;
-			results[index++] = defVal;
-		}
-		
-		return results;
-	}
-	
-	private String[] defValsFromFredProtocolArray(String[] combinedArray) {
-		return null;
-	}
-
 }

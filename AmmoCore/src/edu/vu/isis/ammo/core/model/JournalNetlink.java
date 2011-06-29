@@ -16,7 +16,7 @@ public class JournalNetlink extends Netlink {
     }
 
     public void initialize() {
-        int[] status = new int[]{ 3 };
+        // int[] status = new int[]{ 3 };
         //this.statusListener.onStatusChange(this.statusView, status);
     }
 

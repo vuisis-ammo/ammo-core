@@ -1,21 +1,13 @@
 package edu.vu.isis.ammo.core.model;
 
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
-import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
-import edu.vu.isis.ammo.core.network.INetworkService;
-import edu.vu.isis.ammo.core.network.NetworkService;
 
 
 public class WiredNetlink extends Netlink

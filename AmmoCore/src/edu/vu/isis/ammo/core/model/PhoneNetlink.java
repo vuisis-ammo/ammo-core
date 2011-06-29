@@ -3,27 +3,20 @@ package edu.vu.isis.ammo.core.model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.app.Activity;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 
 public class PhoneNetlink extends Netlink
 {
-    private static final Logger connectionLogger = LoggerFactory.getLogger( "scenario.network.link" );
+    private static final Logger logger = LoggerFactory.getLogger( "scenario.network.link" );
 
     private TelephonyManager mTelephonyManager = null;
-    private ConnectivityManager mConnManager = null;
+    @SuppressWarnings("unused")
+	private ConnectivityManager mConnManager = null;
 
 
     private PhoneNetlink(Context context)

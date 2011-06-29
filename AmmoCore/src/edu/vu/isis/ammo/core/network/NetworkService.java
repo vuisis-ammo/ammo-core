@@ -20,18 +20,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
-import android.telephony.TelephonyManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
-
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
@@ -39,16 +34,12 @@ import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
-import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
-import edu.vu.isis.ammo.core.ui.GatewayAdapter;
-import edu.vu.isis.ammo.core.ui.NetlinkAdapter;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -142,13 +133,6 @@ implements OnSharedPreferenceChangeListener,
     // ===========================================================
 
     private final IBinder binder = new MyBinder();
-
-    private ApplicationEx application;
-    private ApplicationEx getApplicationEx() {
-        if (this.application == null)
-            this.application = (ApplicationEx)this.getApplication();
-        return this.application;
-    }
 
     public class MyBinder extends Binder {
         public NetworkService getService() {

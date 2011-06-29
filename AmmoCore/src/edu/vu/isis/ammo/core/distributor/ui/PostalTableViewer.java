@@ -24,12 +24,12 @@ public class PostalTableViewer extends DistributorTableViewer {
 	public void onCreate(Bundle bun) {
 		this.uri = PostalTableSchema.CONTENT_URI;
 		
-		String[] projection = {PostalTableSchema._ID, 
+		final String[] projection = {PostalTableSchema._ID, 
 				PostalTableSchema.DISPOSITION,
 				PostalTableSchema.URI, 
 				PostalTableSchema.CREATED_DATE};
 		
-		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
+		Cursor cursor = this.managedQuery(this.uri, projection, null, null, 
                 PostalTableSchema._ID + " DESC");
 
 		this.adapter = new PostalDistributorTableViewAdapter(this,

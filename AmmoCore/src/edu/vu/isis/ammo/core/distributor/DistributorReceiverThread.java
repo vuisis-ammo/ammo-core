@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -19,7 +18,6 @@ import com.google.protobuf.ByteString;
 
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 
@@ -84,7 +82,7 @@ public class DistributorReceiverThread extends
 
         if (mw == null) return false;
         if (! mw.hasPushAcknowledgement()) return false;
-        PushAcknowledgement resp = mw.getPushAcknowledgement();
+        /* PushAcknowledgement resp = */ mw.getPushAcknowledgement();
 
         return true;
     }

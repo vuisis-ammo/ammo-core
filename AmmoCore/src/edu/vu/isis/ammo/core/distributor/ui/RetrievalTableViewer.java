@@ -24,12 +24,12 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 	public void onCreate(Bundle bun) {
 		this.uri = RetrievalTableSchema.CONTENT_URI;
 		
-		String[] projection = {RetrievalTableSchema._ID, 
+		final String[] projection = {RetrievalTableSchema._ID, 
 				RetrievalTableSchema.DISPOSITION,
 				RetrievalTableSchema.URI, 
 				RetrievalTableSchema.CREATED_DATE};
 		
-		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
+		Cursor cursor = this.managedQuery(this.uri, projection, null, null, 
                 RetrievalTableSchema._ID + " DESC");
 
 		

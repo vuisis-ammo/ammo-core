@@ -8,7 +8,6 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.slf4j.Logger;
@@ -17,42 +16,29 @@ import org.slf4j.LoggerFactory;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.res.AssetFileDescriptor;
 import android.database.ContentObserver;
-import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
-import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-
-import com.google.protobuf.ByteString;
-
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
-import edu.vu.isis.ammo.util.InternetMediaType;
-
 
 
 /**
@@ -92,7 +78,6 @@ public class DistributorService extends Service implements IDistributorService {
     // Fields
     // ===========================================================
 
-    private IDistributorService callback;
     private Intent networkServiceIntent = new Intent(INetworkService.ACTION);
 
     public INetworkService networkServiceBinder;
@@ -218,7 +203,6 @@ public class DistributorService extends Service implements IDistributorService {
         logger.info("::onStartCommand");
         // If we get this intent, unbind from all services 
         // so the service can be stopped.
-        callback = this;
         if (intent != null) {
             String action = intent.getAction();
             if (action != null) {
