@@ -6,19 +6,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
+import android.content.Context;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.ContextMenu;
+import android.view.Gravity;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.widget.ListView;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.ui.DistributorPopupWindow;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
@@ -48,6 +55,7 @@ implements IAmmoActivitySetup
 	
 	protected Uri uri;
 	protected DistributorTableViewAdapter adapter;
+	protected PopupWindow pw;
 
 	// ===========================================================
 	// Lifecycle
@@ -60,6 +68,7 @@ implements IAmmoActivitySetup
 			logger.error("no uri provided...exiting");
 			return;
 		}
+		
 		this.setListAdapter(this.adapter);
 		this.registerForContextMenu(this.getListView());
 	}
@@ -130,6 +139,15 @@ implements IAmmoActivitySetup
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
 		super.onListItemClick(l, v, position, id);
+		LayoutInflater inflater = (LayoutInflater)
+	       this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		
+	    pw = new DistributorPopupWindow(inflater, position, this.adapter.getCursor());
+	    
+	    pw.setBackgroundDrawable(new BitmapDrawable());
+	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
+	  
+	    
 	}
 	
 	public void removeMenuItem(MenuItem item) {
@@ -148,5 +166,18 @@ implements IAmmoActivitySetup
 	public void setOnClickListeners() {
 
 	}
+	
+	public void closePopup(View v)
+	{
+		if(pw == null)
+			return;
+		
+		if(!pw.isShowing())
+			return;
+		
+		pw.dismiss();
+		
+	}
+
 
 }
