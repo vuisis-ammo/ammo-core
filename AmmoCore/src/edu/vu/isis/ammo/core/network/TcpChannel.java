@@ -17,7 +17,6 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -26,8 +25,6 @@ import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.protobuf.ByteString;
 
 import edu.vu.isis.ammo.core.network.NetworkService.MsgHeader;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -46,7 +43,7 @@ public class TcpChannel extends NetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
 
 	private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
-	private boolean isEnabled = false;
+	private boolean isEnabled = true;
 
 	private Socket socket = null;
 	private ConnectorThread connectorThread;
@@ -62,6 +59,7 @@ public class TcpChannel extends NetChannel {
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private final Object syncObj;
 
+    private boolean shouldBeDisabled = false;
 	private long flatLineTime;
 	private IChannelManager driver;
 
@@ -71,11 +69,11 @@ public class TcpChannel extends NetChannel {
 		this.syncObj = this;
 
 		this.driver = driver;
-		this.connectorThread = new ConnectorThread(this, driver);
-		this.senderThread = new SenderThread(this, driver);
-		this.receiverThread = new ReceiverThread(this, driver);
+        this.connectorThread = new ConnectorThread(this);
+        this.senderThread = new SenderThread(this);
+        this.receiverThread = new ReceiverThread(this);
 
-		this.flatLineTime = 20 * 60 * 1000; // 20 minutes in milliseconds
+        this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
 	}
 
 	public static TcpChannel getInstance(IChannelManager driver) {
@@ -96,10 +94,14 @@ public class TcpChannel extends NetChannel {
 			if (this.isEnabled == true)
 				return false;
 			this.isEnabled = true;
-
+            
 			if (! this.connectorThread.isAlive()) this.connectorThread.start();
 			if (! this.senderThread.isAlive()) this.senderThread.start();
 			if (! this.receiverThread.isAlive()) this.receiverThread.start();
+            
+            logger.warn("::enable - Setting the state to STALE");
+            this.shouldBeDisabled = false;
+            this.connectorThread.state.set(NetChannel.STALE);
 		}
 		return true;
 	}
@@ -110,6 +112,9 @@ public class TcpChannel extends NetChannel {
 			if (this.isEnabled == false)
 				return false;
 			this.isEnabled = false;
+            logger.warn("::disable - Setting the state to DISABLED");
+            this.shouldBeDisabled = true;
+            this.connectorThread.state.set(NetChannel.DISABLED);
 
 //			this.connectorThread.stop();
 //			this.senderThread.stop();
@@ -133,7 +138,7 @@ public class TcpChannel extends NetChannel {
 	}
 
 	public void setFlatLineTime(long flatLineTime) {
-		this.flatLineTime = flatLineTime;
+		//this.flatLineTime = flatLineTime;
 	}
 
 	public boolean setHost(String host) {
@@ -174,15 +179,15 @@ public class TcpChannel extends NetChannel {
 
 		synchronized (this.syncObj) {
 			if (! this.connectorThread.isAlive()) {
-				this.connectorThread = new ConnectorThread(this, this.driver);
+                this.connectorThread = new ConnectorThread(this);
 				this.connectorThread.start();
 			}
 			if (! this.senderThread.isAlive()) {
-				this.senderThread = new SenderThread(this, this.driver);
+                this.senderThread = new SenderThread(this);
 				this.senderThread.start();
 			}
 			if (! this.receiverThread.isAlive()) {
-				this.receiverThread = new ReceiverThread(this, this.driver);
+                this.receiverThread = new ReceiverThread(this);
 				this.receiverThread.start();
 			}
 
@@ -191,6 +196,99 @@ public class TcpChannel extends NetChannel {
 	}
 	private void statusChange() {
 		driver.statusChange(this, this.connectorThread.state.value, this.senderThread.state, this.receiverThread.state);
+    }
+
+
+    // Called by ReceiverThread to send an incoming message to the
+    // NetworkService.
+    private boolean deliverMessage( byte[] message,
+                                   long checksum )
+    {
+        //logger.warn( "In deliverMessage()" );
+        resetTimeoutWatchdog();
+        return driver.deliver( message, checksum );
+    }
+
+    /**
+     *  Called by the SenderThread.
+     *  This exists primarily to make a place to add instrumentation.
+     *  Also, follows the delegation pattern.
+     */
+    private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
+                                  boolean status )
+    {
+        return handler.ack( status );
+    }
+
+
+    // Called by the ConnectorThread.
+    private boolean auth()
+    {
+        return driver.auth();
+    }
+
+
+    // Called by the ConnectorThread.
+    private boolean isAnyLinkUp()
+    {
+        return driver.isAnyLinkUp();
+    }
+
+
+    private final AtomicLong mTimeOfLastGoodRead = new AtomicLong( 0 );
+
+    // This should be called each time we successfully read data from the
+    // socket.
+    private void resetTimeoutWatchdog()
+    {
+        //logger.warn( "Resetting watchdog timer" );
+        mTimeOfLastGoodRead.set( System.currentTimeMillis() );
+    }
+
+
+    // Returns true if we have gone more than flatLineTime without reading
+    // any data from the socket.
+    private boolean hasWatchdogExpired()
+    {
+        return (System.currentTimeMillis() - mTimeOfLastGoodRead.get()) > flatLineTime;
+    }
+
+
+    // Heartbeat-related members.
+    private final long mHeartbeatInterval = 10 * 1000; // ms
+    private final AtomicLong mNextHeartbeatTime = new AtomicLong( 0 );
+
+    // Send a heartbeat packet to the gateway if enough time has elapsed.
+    // Note: the way this currently works, the heartbeat can only be sent
+    // in intervals that are multiples of the burp time.  This may change
+    // later if I can eliminate some of the wait()s.
+    private void sendHeartbeatIfNeeded()
+    {
+        //logger.warn( "In sendHeartbeatIfNeeded()." );
+
+        long nowInMillis = System.currentTimeMillis();
+        if ( nowInMillis > mNextHeartbeatTime.get() )
+        {
+            // Send the heartbeat here.
+            logger.warn( "Sending a heartbeat. t={}", nowInMillis );
+
+            // Create a heartbeat message and call the method to send it.
+            AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+            mw.setType( AmmoMessages.MessageWrapper.MessageType.HEARTBEAT );
+
+            AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
+            message.setSequenceNumber( nowInMillis ); // Just for testing
+
+            mw.setHeartbeat( message );
+
+            byte[] protocByteBuf = mw.build().toByteArray();
+            MsgHeader msgHeader = MsgHeader.getInstance( protocByteBuf, true );
+
+            sendRequest( msgHeader.size, msgHeader.checksum, protocByteBuf, null );
+
+            mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
+            //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
+        }
 	}
 
 	/**
@@ -210,28 +308,12 @@ public class TcpChannel extends NetChannel {
 		private static final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
 
 		private TcpChannel parent;
-		private IChannelManager driver;
 		private final State state;
 
-		private long heartstamp;
-		public long getHeartStamp() {
-			synchronized (this.state) {
-				return this.heartstamp;
-			}
-		}
-		public void resetHeartStamp() {
-			synchronized (this.state) {
-				this.heartstamp = System.currentTimeMillis();
-			}
-		}
-
-		private ConnectorThread(TcpChannel parent, IChannelManager driver) {
+		private ConnectorThread(TcpChannel parent) {
 			logger.info("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.state = new State();
-
-			this.driver = driver;
-			this.resetHeartStamp();
 		}
 
 		private class State {
@@ -251,7 +333,7 @@ public class TcpChannel extends NetChannel {
 				this.reset();
 			}
 			public synchronized void set(int state) {
-				logger.info("Thread <{}>State::set({})", Thread.currentThread().getId(), state);
+				logger.info("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
 				switch (state) {
 				case STALE:
 					this.reset();
@@ -284,8 +366,7 @@ public class TcpChannel extends NetChannel {
 			}
 			public synchronized boolean reset() {
 				attempt++;
-				if(this.value != EXCEPTION)
-					this.value = STALE;
+				this.value = STALE;
 				this.notifyAll();
 				return true;
 			}
@@ -294,7 +375,7 @@ public class TcpChannel extends NetChannel {
 				if (this.value == this.actual)
 					return parent.showState(this.value);
 				else
-					return parent.showState(this.actual) + "->" + parent.showState(this.actual);
+                    return parent.showState(this.actual) + "->" + parent.showState(this.value);
 			}
 		}
 
@@ -339,7 +420,27 @@ public class TcpChannel extends NetChannel {
 				MAINTAIN_CONNECTION: while (true) {
 					logger.info("connector state: {}",this.showState());
 
+                    if(this.parent.shouldBeDisabled) this.state.set(NetChannel.DISABLED);
 					switch (this.state.get()) {
+                    case NetChannel.DISABLED:
+                        try {
+                            synchronized (this.state) {
+                                logger.info("this.state.get() = {}", this.state.get());
+
+                                while (this.state.get() == NetChannel.DISABLED) // this is IMPORTANT don't remove it.
+                                {
+                                    this.parent.statusChange();
+                                    this.state.wait(BURP_TIME);   // wait for a link interface
+                                    logger.info("Looping in Disabled");
+
+                                }
+                            }
+                        } catch (InterruptedException ex) {
+                            logger.warn("connection intentionally disabled {}", this.state );
+                            this.state.set(NetChannel.STALE);
+                            break MAINTAIN_CONNECTION;
+                        }
+                        break;
 					case NetChannel.STALE:
 						disconnect();
 						this.state.set(NetChannel.LINK_WAIT);
@@ -390,14 +491,22 @@ public class TcpChannel extends NetChannel {
 						break;
 
 					case NetChannel.CONNECTED:
-						driver.auth();
+                        parent.auth();
 						{
 							this.parent.statusChange();
 							try {
 								synchronized (this.state) {
 									while (this.isConnected()) // this is IMPORTANT don't remove it.
+                                    {
+                                        parent.sendHeartbeatIfNeeded();
 										this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
+                                        if ( parent.hasWatchdogExpired() )
+                                        {
+                                            //logger.error( "Watchdog timer expired!!" );
+                                            failure( getAttempt() );
 								}
+                                    }
+                                }
 							} catch (InterruptedException ex) {
 								logger.warn("connection intentionally disabled {}", this.state );
 								this.state.set(NetChannel.STALE);
@@ -422,11 +531,7 @@ public class TcpChannel extends NetChannel {
 				}
 
 			} catch (Exception ex) {
-				logger.error("channel closing exception");
-				ex.printStackTrace();
-				
 				this.state.set(NetChannel.EXCEPTION);
-				this.parent.statusChange();
 			}
 			try {
 				if (this.parent.socket == null) {
@@ -453,7 +558,7 @@ public class TcpChannel extends NetChannel {
 		}
 
 		private boolean isAnyLinkUp() {
-			return this.parent.driver.isAnyLinkUp();
+            return this.parent.isAnyLinkUp();
 		}
 
 		/**
@@ -539,20 +644,14 @@ public class TcpChannel extends NetChannel {
 
 		private final TcpChannel parent;
 		private ConnectorThread connector;
-		private final IChannelManager driver;
 
 		private final BlockingQueue<GwMessage> queue;
 
-		private SenderThread(TcpChannel parent, IChannelManager driver) {
+        private SenderThread(TcpChannel parent) {
 			logger.info("Thread <{}>SenderThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
-			this.driver = driver;
 			this.connector = parent.connectorThread;
 			this.queue = new LinkedBlockingQueue<GwMessage>(20);
-		}
-
-		public void updateConnector(ConnectorThread connector) {
-			this.connector = connector;
 		}
 
 		/**
@@ -637,7 +736,8 @@ public class TcpChannel extends NetChannel {
 							dos = new DataOutputStream(os);
 						} catch (IOException ex) {
 							logger.warn("io exception acquiring socket for writing messages {}", ex.getLocalizedMessage());
-							if (msg.handler != null) msg.handler.ack(false);
+                            if (msg.handler != null)
+                                parent.ackToHandler( msg.handler, false );
 							this.failOutStream(dos, attempt);
 							break;
 						}
@@ -668,22 +768,24 @@ public class TcpChannel extends NetChannel {
 							dos.flush();
 						} catch (SocketException ex) {
 							logger.warn("exception writing to a socket {}", ex.getLocalizedMessage());
-							if (msg.handler != null) msg.handler.ack(false);
+                            if (msg.handler != null)
+                                parent.ackToHandler( msg.handler, false );
 							this.failOutStream(dos, attempt);
 							this.state = WAIT_CONNECT;
 							break;
 
 						} catch (IOException ex) {
 							logger.warn("io exception writing messages");
-							if (msg.handler != null) msg.handler.ack(false);
+                            if (msg.handler != null)
+                                parent.ackToHandler( msg.handler, false );
 							this.failOutStream(dos, attempt);
 							this.state = WAIT_CONNECT;
 							break;
 						}
 
 						// legitimately sent to gateway.
-						if (msg.handler != null) msg.handler.ack(true);
-						this.connector.resetHeartStamp();
+                        if (msg.handler != null)
+                            parent.ackToHandler( msg.handler, true );
 
 						state = TAKING;
 						break;
@@ -707,8 +809,6 @@ public class TcpChannel extends NetChannel {
 	private static class ReceiverThread extends Thread {
 		private static final Logger logger = LoggerFactory.getLogger(ReceiverThread.class);
 
-		final private IChannelManager driver;
-
 		private TcpChannel parent = null;
 		private ConnectorThread connector = null;
 
@@ -723,15 +823,10 @@ public class TcpChannel extends NetChannel {
 				return parent.showState(this.actual) + "->" + parent.showState(this.actual);
 		}
 
-		private ReceiverThread(TcpChannel parent, IChannelManager driver ) {
+        private ReceiverThread(TcpChannel parent) {
 			logger.info("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
-			this.driver = driver;
 			this.connector = parent.connectorThread;
-		}
-
-		public void updateConnector(ConnectorThread connector) {
-			this.connector = connector;
 		}
 
 		@Override
@@ -832,17 +927,13 @@ public class TcpChannel extends NetChannel {
 								failInStream(bis, attempt);
 								this.state = WAIT_CONNECT;
 								break; // read error - end of connection
+                            } else {
+                                parent.resetTimeoutWatchdog();
 							}
 						} catch (SocketTimeoutException ex) {
 							// the following checks the heart-stamp
 							// TODO no pace-maker messages are sent, this could be added if needed.
-							long elapsedTime = System.currentTimeMillis() - this.connector.getHeartStamp();
-							if (parent.flatLineTime < elapsedTime) {
-								logger.warn("heart timeout : {}", elapsedTime);
-								failInStream(bis, attempt);
-								this.state = WAIT_RECONNECT;  // essentially the same as WAIT_CONNECT
-								break;
-							}
+							
 							this.state = RESTART;
 							break;
 						} catch (IOException ex) {
@@ -874,7 +965,9 @@ public class TcpChannel extends NetChannel {
 					case SIZED: // look for the checksum
 					{
 						try {
-							bis.read(checksumBuffer, 0, 4);
+                            int temp = bis.read(checksumBuffer, 0, 4);
+                            if ( temp >= 0 )
+                                parent.resetTimeoutWatchdog();
 						} catch (SocketTimeoutException ex) {
 							logger.trace("timeout on socket");
 							continue;
@@ -899,7 +992,11 @@ public class TcpChannel extends NetChannel {
 						while (bytesRead < bytesToRead) {
 							try {
 								int temp = bis.read(message, bytesRead, bytesToRead - bytesRead);
-								bytesRead += (temp >= 0) ? temp : 0;
+                                if ( temp >= 0 )
+                                {
+                                    bytesRead += temp;
+                                    parent.resetTimeoutWatchdog();
+                                }
 							} catch (SocketTimeoutException ex) {
 								logger.trace("timeout on socket");
 								continue;
@@ -918,8 +1015,7 @@ public class TcpChannel extends NetChannel {
 						this.state = DELIVER;
 						break;
 					case DELIVER: // deliver the message to the gateway
-						this.driver.deliver(message, checksum);
-						this.connector.resetHeartStamp();
+                        this.parent.deliverMessage( message, checksum );
 						message = null;
 						this.state = START;
 						break;
