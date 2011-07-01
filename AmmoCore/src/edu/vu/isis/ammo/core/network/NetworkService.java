@@ -485,18 +485,7 @@ implements OnSharedPreferenceChangeListener,
         	
         		secMgr.setServerNonce(mw.getAuthenticationMessage().getMessage().toByteArray());
         		
-        /*		   try
-        		   {      
-        		     DataOutputStream out = new DataOutputStream(
-        		         new FileOutputStream( "/mnt/sdcard/server_nonce") );
-
-        		     out.write(mw.getAu)
-        		     out.close();
-        		   }
-        		   catch ( IOException iox )
-        		   {
-        		     System.out.println("Problem writing " + fileName );
-        		   }*/
+       
 
         		// send the keyExchange ...
         		AmmoMessages.MessageWrapper.Builder msgW = AmmoMessages.MessageWrapper.newBuilder();
@@ -542,6 +531,35 @@ implements OnSharedPreferenceChangeListener,
 	
 	            sendRequest(msgHeaderPhnAuth.size, msgHeaderPhnAuth.checksum, phnAuthProtocByteBuf , this);
 
+	            // compute the master secret ....
+	            secMgr.computeMasterSecret();
+	            
+	            // now wait for a second or two and then send the Phone Finsh msg 
+	            try {
+	            	
+					Thread.sleep(3000);
+					
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+	            // send the phone finish ....
+	            
+				AmmoMessages.MessageWrapper.Builder phnFinish = AmmoMessages.MessageWrapper.newBuilder();
+	            phnFinish.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+	            //mw.setSessionUuid(sessionId);
+	          
+	            AmmoMessages.AuthenticationMessage.Builder phnFinAuth = AmmoMessages.AuthenticationMessage.newBuilder();
+	
+	            phnFinAuth.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_FINISH);
+	            phnFinAuth.setMessage(ByteString.copyFrom(secMgr.generatePhoneFinish()));
+
+	        	phnFinish.setAuthenticationMessage(phnFinAuth);
+	            
+	            byte[] phnFinProtocByteBuf = phnFinish.build().toByteArray();
+	            MsgHeader msgHeaderPhnFin = MsgHeader.getInstance(phnFinProtocByteBuf , true);
+	
+	            sendRequest(msgHeaderPhnFin.size, msgHeaderPhnFin.checksum, phnFinProtocByteBuf , this);
 	        	return true;
         	}
         	        	
