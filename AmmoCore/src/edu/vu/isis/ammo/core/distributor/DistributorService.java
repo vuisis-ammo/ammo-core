@@ -96,6 +96,7 @@ public class DistributorService extends Service implements IDistributorService {
     private INetworkService networkServiceBinder;
     private boolean isNetworkServiceBound = false;
     private ProcessChangeTask pct;
+
     public void consumerReady() {
         pct.resend();
     }
@@ -402,7 +403,8 @@ public class DistributorService extends Service implements IDistributorService {
             return this.subscriptionDelta || this.retrievalDelta || this.postalDelta;
         }
 
-        public synchronized boolean resend() {
+        private boolean resend;
+        public synchronized void resend() {
             this.resend = true;
             subscriptionDelta = true;
             retrievalDelta = true;
@@ -413,12 +415,12 @@ public class DistributorService extends Service implements IDistributorService {
         @Override
         protected Void doInBackground(DistributorService... them) {
             logger.info("::post to network service");
-          
             for (DistributorService that : them) {
                 this.processSubscriptionChange(that, true);
                 this.processRetrievalChange(that, true);
                 this.processPostalChange(that, true);
             }
+            this.resend = false; 
             // condition wait is there something to process?
             try {
                 while (true) {
