@@ -21,11 +21,9 @@ import android.os.Environment;
 
 /**
  * Two long running threads and one short.
- * The long threads are for sending and recieving messages.
+ * The long threads are for sending and receiving messages.
  * The short thread is to connect the socket.
  * The sent messages are placed into a queue if the socket is connected.
- * 
- * @author phreed
  *
  */
 public class JournalChannel extends NetChannel {

@@ -7,7 +7,6 @@ import android.os.AsyncTask;
 /**
  * This is a producer consumer thread it takes messages from on
  * PriorityBlockingQueue and places them on another BlockingQueue.
- *
  */
 public class NetworkChannelThread extends AsyncTask<INetChannel, Integer, Void> {
 
