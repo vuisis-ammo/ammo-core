@@ -97,9 +97,7 @@ public class DistributorService extends Service implements IDistributorService {
     private boolean isNetworkServiceBound = false;
     private ProcessChangeTask pct;
     public void consumerReady() {
-        pct.subscriptionChange();
-        pct.retrievalChange();
-        pct.postalChange();
+        pct.resend();
     }
     
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
@@ -404,6 +402,14 @@ public class DistributorService extends Service implements IDistributorService {
             return this.subscriptionDelta || this.retrievalDelta || this.postalDelta;
         }
 
+        public synchronized boolean resend() {
+            this.resend = true;
+            subscriptionDelta = true;
+            retrievalDelta = true;
+            postalDelta = true;
+            this.notifyAll();
+        }
+
         @Override
         protected Void doInBackground(DistributorService... them) {
             logger.info("::post to network service");
@@ -438,19 +444,20 @@ public class DistributorService extends Service implements IDistributorService {
                     }
                     if (subscriptionFlag) {
                         for (DistributorService that : them) {
-                            this.processSubscriptionChange(that, false);
+                            this.processSubscriptionChange(that, this.resend);
                         }
                     }
                     if (retrievalFlag) {
                         for (DistributorService that : them) {
-                            this.processRetrievalChange(that, false);
+                            this.processRetrievalChange(that, this.resend);
                         }
                     }
                     if (postalFlag) {
                         for (DistributorService that : them) {
-                            this.processPostalChange(that, false);
+                            this.processPostalChange(that, this.resend);
                         }
                     }
+                    this.resend = false;
                 }
             } catch (InterruptedException ex) {
                 ex.printStackTrace();
