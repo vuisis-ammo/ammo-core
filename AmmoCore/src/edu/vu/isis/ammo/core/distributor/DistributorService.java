@@ -98,6 +98,7 @@ public class DistributorService extends Service implements IDistributorService {
     private ProcessChangeTask pct;
 
     public void consumerReady() {
+        logger.info("::consumer ready : resend old requests");
         pct.resend();
     }
     
@@ -427,6 +428,7 @@ public class DistributorService extends Service implements IDistributorService {
                     boolean subscriptionFlag = false;
                     boolean retrievalFlag = false;
                     boolean postalFlag = false;
+                    boolean resend = false;
                     
                     synchronized (this) {
                         while (!this.isReady())
@@ -443,23 +445,25 @@ public class DistributorService extends Service implements IDistributorService {
                         
                         postalFlag = this.postalDelta;
                         this.postalDelta = false;
+
+                        resend = this.resend;
+                        this.resend = false;
                     }
                     if (subscriptionFlag) {
                         for (DistributorService that : them) {
-                            this.processSubscriptionChange(that, this.resend);
+                            this.processSubscriptionChange(that, resend);
                         }
                     }
                     if (retrievalFlag) {
                         for (DistributorService that : them) {
-                            this.processRetrievalChange(that, this.resend);
+                            this.processRetrievalChange(that, resend);
                         }
                     }
                     if (postalFlag) {
                         for (DistributorService that : them) {
-                            this.processPostalChange(that, this.resend);
+                            this.processPostalChange(that, resend);
                         }
                     }
-                    this.resend = false;
                 }
             } catch (InterruptedException ex) {
                 ex.printStackTrace();
@@ -531,8 +535,6 @@ public class DistributorService extends Service implements IDistributorService {
               .append("'").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
               .append(",")
               .append("'").append(PostalTableSchema.DISPOSITION_FAIL).append("'")
-              .append(",")
-              .append("'").append(PostalTableSchema.DISPOSITION_SENT).append("'")
               .append(")");
             POSTAL_RESEND = sb.toString();
         }
@@ -855,7 +857,7 @@ public class DistributorService extends Service implements IDistributorService {
             sb = new StringBuilder()
               .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
               .append(" IN (")
-                          .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
+              .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
               .append(",")
               .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
               .append(",")
@@ -959,10 +961,8 @@ public class DistributorService extends Service implements IDistributorService {
             }
         }
 
-        public void processPublicationChange(DistributorService that,
-                boolean resend) {
-            logger.error("::processPublicationChange : {} : not implemented",
-                    resend);
+        public void processPublicationChange(DistributorService that, boolean resend) {
+            logger.error("::processPublicationChange : {} : not implemented", resend);
         }
     }
 
