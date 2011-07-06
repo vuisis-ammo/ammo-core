@@ -22,6 +22,7 @@ import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
 import java.lang.Long;
 
@@ -49,12 +50,10 @@ public class TcpChannel extends NetChannel {
 
     private Socket socket = null;
     private ConnectorThread connectorThread;
-    //private ReceiverThread receiverThread;
-    //private SenderThread senderThread;
 
     // New threads
-    private NewSenderThread mSender;
-    private NewReceiverThread mReceiver;
+    private SenderThread mSender;
+    private ReceiverThread mReceiver;
 
     private int connectTimeout = 5 * 1000;     // this should come from network preferences
     private int socketTimeout = 5 * 1000; // milliseconds.
@@ -79,8 +78,6 @@ public class TcpChannel extends NetChannel {
 
         this.driver = driver;
         this.connectorThread = new ConnectorThread(this);
-        //this.senderThread = new SenderThread(this);
-        //this.receiverThread = new ReceiverThread(this);
 
         this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
 
@@ -107,8 +104,6 @@ public class TcpChannel extends NetChannel {
             this.isEnabled = true;
 
             // if (! this.connectorThread.isAlive()) this.connectorThread.start();
-            // if (! this.senderThread.isAlive()) this.senderThread.start();
-            // if (! this.receiverThread.isAlive()) this.receiverThread.start();
 
             logger.warn("::enable - Setting the state to STALE");
             this.shouldBeDisabled = false;
@@ -128,8 +123,6 @@ public class TcpChannel extends NetChannel {
             this.connectorThread.state.set(NetChannel.DISABLED);
 
             //          this.connectorThread.stop();
-            //          this.senderThread.stop();
-            //          this.receiverThread.stop();
         }
         return true;
     }
@@ -193,14 +186,6 @@ public class TcpChannel extends NetChannel {
                 this.connectorThread = new ConnectorThread(this);
                 this.connectorThread.start();
             }
-            //if (! this.senderThread.isAlive()) {
-            //    this.senderThread = new SenderThread(this);
-            //    this.senderThread.start();
-            //}
-            // if (! this.receiverThread.isAlive()) {
-            //     this.receiverThread = new ReceiverThread(this);
-            //     this.receiverThread.start();
-            // }
 
             this.connectorThread.reset();
         }
@@ -222,7 +207,6 @@ public class TcpChannel extends NetChannel {
                                     long checksum )
     {
         logger.error( "In deliverMessage()" );
-        resetTimeoutWatchdog();
         return driver.deliver( message, checksum );
     }
 
@@ -258,7 +242,7 @@ public class TcpChannel extends NetChannel {
     // socket.
     private void resetTimeoutWatchdog()
     {
-        //logger.warn( "Resetting watchdog timer" );
+        //logger.debug( "Resetting watchdog timer" );
         mTimeOfLastGoodRead.set( System.currentTimeMillis() );
     }
 
@@ -327,21 +311,29 @@ public class TcpChannel extends NetChannel {
         private TcpChannel parent;
         private final State state;
 
+        private AtomicBoolean mIsConnected;
+
         public void statusChange()
         {
             parent.statusChange();
         }
 
+
+        // Called by the sender and receiver when they have an exception on the
+        // SocketChannel.  We only want to call reset() once, so we use an
+        // AtomicBoolean to keep track of whether we need to call it.
         public void socketOperationFailed()
         {
-            // Is there a better way to deal with this?
-            disconnect();
+            if ( mIsConnected.compareAndSet( true, false ))
+                reset();
         }
+
 
         private ConnectorThread(TcpChannel parent) {
             logger.info("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
             this.parent = parent;
             this.state = new State();
+            mIsConnected = new AtomicBoolean( false );
         }
 
         private class State {
@@ -478,7 +470,7 @@ public class TcpChannel extends NetChannel {
                         this.parent.statusChange();
                         try {
                             synchronized (this.state) {
-                                while (! this.isAnyLinkUp()) // this is IMPORTANT don't remove it.
+                                while (! parent.isAnyLinkUp()) // this is IMPORTANT don't remove it.
                                     this.state.wait(BURP_TIME);   // wait for a link interface
                             }
                             this.state.set(NetChannel.DISCONNECTED);
@@ -526,13 +518,13 @@ public class TcpChannel extends NetChannel {
                                 synchronized (this.state) {
                                     while (this.isConnected()) // this is IMPORTANT don't remove it.
                                     {
-                                        //parent.sendHeartbeatIfNeeded();
+                                        parent.sendHeartbeatIfNeeded();
                                         this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
-                                        // if ( parent.hasWatchdogExpired() )
-                                        // {
-                                        //     //logger.error( "Watchdog timer expired!!" );
-                                        //     failure( getAttempt() );
-                                        // }
+                                        if ( parent.hasWatchdogExpired() )
+                                        {
+                                            //logger.warn( "Watchdog timer expired!!" );
+                                            failure( getAttempt() );
+                                        }
                                     }
                                 }
                             } catch (InterruptedException ex) {
@@ -574,95 +566,80 @@ public class TcpChannel extends NetChannel {
             logger.error("channel closing");
         }
 
-        // private boolean disconnect() {
-        //     logger.info("Thread <{}>ConnectorThread::disconnect", Thread.currentThread().getId());
-        //     try {
-        //         if (this.parent.socket == null) return true;
-        //         this.parent.socket.close();
-        //     } catch (IOException e) {
-        //         return false;
-        //     }
-        //     return true;
-        // }
 
-        // private boolean isAnyLinkUp() {
-        //     return this.parent.isAnyLinkUp();
-        // }
+        private boolean connect()
+        {
+            logger.info( "Thread <{}>ConnectorThread::connect",
+                         Thread.currentThread().getId() );
 
-        /**
-         * connects to the gateway
-         * @return
-         */
-        private boolean connect() {
-            logger.info("Thread <{}>ConnectorThread::connect", Thread.currentThread().getId());
-
+            // Resolve the hostname to an IP address.
             String host = (parent.gatewayHost != null) ? parent.gatewayHost : DEFAULT_HOST;
             int port =  (parent.gatewayPort > 10) ? parent.gatewayPort : DEFAULT_PORT;
             InetAddress ipaddr = null;
-            try {
-                ipaddr = InetAddress.getByName(host);
-            } catch (UnknownHostException e) {
-                logger.warn("could not resolve host name");
+            try
+            {
+                ipaddr = InetAddress.getByName( host );
+            }
+            catch ( UnknownHostException e )
+            {
+                logger.warn( "could not resolve host name" );
                 return false;
             }
-            parent.socket = new Socket();
-            InetSocketAddress sockAddr = new InetSocketAddress(ipaddr, port);
+
+            // Create the SocketChannel.
+            InetSocketAddress sockAddr = new InetSocketAddress( ipaddr, port );
             try
             {
                 parent.mSocketChannel = SocketChannel.open( sockAddr );
                 boolean result = parent.mSocketChannel.finishConnect();
-                logger.warn( "1 {}", result );
             }
             catch ( Exception e )
             {
-                logger.warn( "2" );
-                logger.warn("connection 2 to {}:{} failed : " + e.getLocalizedMessage(), ipaddr, port);
+                logger.warn( "connection to {}:{} failed: " + e.getLocalizedMessage(),
+                             ipaddr, port );
+                parent.mSocketChannel = null;
                 return false;
             }
-            // try {
-            //     //parent.socket.connect(sockAddr, parent.connectTimeout);
-            //     logger.warn( "3" );
-            // } catch (IOException ex) {
-            //     logger.warn( "4" );
-            //     logger.warn("connection to {}:{} failed : " + ex.getLocalizedMessage(), ipaddr, port);
-            //     parent.socket = null;
-            //     return false;
-            // }
-                logger.warn( "5" );
-            if (parent.socket == null) return false;
-                logger.warn( "6" );
-            // try {
-            //     //parent.socket.setSoTimeout(parent.socketTimeout);
-            //     logger.warn( "7" );
-            // } catch (SocketException ex) {
-            //     return false;
-            // }
 
-            logger.warn( "8" );
-            logger.info("connection to {}:{} established ", ipaddr, port);
-            // Create the sending and receiving threads here.
+            // Set the socket timeout.
+            try
+            {
+                Socket s = parent.mSocketChannel.socket();
+                if ( s != null )
+                    s.setSoTimeout( parent.socketTimeout );
+            }
+            catch ( SocketException ex )
+            {
+                return false;
+            }
+
+            logger.info( "connection to {}:{} established ", ipaddr, port );
+
+            mIsConnected.set( true );
+
+            // Create the sending thread.
             if ( parent.mSender != null )
                 logger.error( "Tried to create Sender when we already had one." );
-            mSender = new NewSenderThread( this, parent, parent.mSenderQueue, parent.mSocketChannel );
+            mSender = new SenderThread( this, parent, parent.mSenderQueue, parent.mSocketChannel );
             mSender.start();
 
-            logger.warn( "9" );
-
+            // Create the receiving thread.
             if ( parent.mReceiver != null )
                 logger.error( "Tried to create Receiver when we already had one." );
-            mReceiver = new NewReceiverThread( this, parent, parent.mSocketChannel );
+            mReceiver = new ReceiverThread( this, parent, parent.mSocketChannel );
             mReceiver.start();
-            logger.warn( "10" );
+
             return true;
         }
 
-        private boolean disconnect() {
-            logger.info("Thread <{}>ConnectorThread::disconnect", Thread.currentThread().getId());
-            try {
-                //if (this.parent.socket == null)
-                //    return true;
 
-                //this.parent.socket.close();
+        private boolean disconnect()
+        {
+            logger.info( "Thread <{}>ConnectorThread::disconnect",
+                         Thread.currentThread().getId() );
+            try
+            {
+                mIsConnected.set( false );
 
                 if ( mSender != null )
                     mSender.interrupt();
@@ -677,17 +654,15 @@ public class TcpChannel extends NetChannel {
 
                 parent.mSender = null;
                 parent.mReceiver = null;
-            } catch (IOException e) {
+            }
+            catch ( IOException e )
+            {
                 return false;
             }
             return true;
         }
-
-
-        private boolean isAnyLinkUp() {
-            return this.parent.driver.isAnyLinkUp();
-        }
     }
+
 
     /**
      * do your best to send the message.
@@ -703,7 +678,6 @@ public class TcpChannel extends NetChannel {
      */
     public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler)
     {
-        //return this.senderThread.queueMsg(new GwMessage(size, checksum, payload, handler) );
         try
         {
             mSenderQueue.put( new GwMessage(size, checksum, payload, handler) );
@@ -728,455 +702,15 @@ public class TcpChannel extends NetChannel {
         }
     }
 
-    /**
-     * A thread for receiving incoming messages on the socket.
-     * The main method is run().
-     *
-     */
-    // private static class SenderThread extends Thread {
-    //     private static final Logger logger = LoggerFactory.getLogger(SenderThread.class);
-
-    //     public String showState () {
-    //         if (this.state == this.actual)
-    //             return parent.showState(this.state);
-    //         else
-    //             return parent.showState(this.actual) + "->" + parent.showState(this.actual);
-    //     }
-
-    //     volatile private int state;
-    //     volatile private int actual;
-
-    //     private final TcpChannel parent;
-    //     private ConnectorThread connector;
-
-    //     private final BlockingQueue<GwMessage> queue;
-
-    //     private SenderThread(TcpChannel parent) {
-    //         logger.info("Thread <{}>SenderThread::<constructor>", Thread.currentThread().getId());
-    //         this.parent = parent;
-    //         this.connector = parent.connectorThread;
-    //         this.queue = new LinkedBlockingQueue<GwMessage>(20);
-    //     }
-
-    //     /**
-    //      * This makes use of the blocking "put" call.
-    //      * A proper producer-consumer should use put or add and not offer.
-    //      * "put" is blocking call.
-    //      * If this were on the UI thread then offer would be used.
-    //      *
-    //      * @param msg
-    //      * @return
-    //      */
-    //     public boolean queueMsg(GwMessage msg) {
-    //         try {
-    //             this.queue.put(msg);
-    //         } catch (InterruptedException e) {
-    //             return false;
-    //         }
-    //         return true;
-    //     }
-
-    //     private void failOutStream(OutputStream os, long attempt) {
-    //         if (os == null) return;
-    //         try {
-    //             os.close();
-    //         } catch (IOException ex) {
-    //             logger.warn("close failed {}", ex.getLocalizedMessage());
-    //         }
-    //         this.connector.failure(attempt);
-    //     }
-    //     /**
-    //      * Initiate a connection to the server and then wait for a response.
-    //      * All responses are of the form:
-    //      * size     : int32
-    //      * checksum : int32
-    //      * bytes[]  : <size>
-    //      * This is done via a simple value machine.
-    //      * If the checksum doesn't match the connection is dropped and restarted.
-    //      *
-    //      * Once the message has been read it is passed off to...
-    //      */
-    //     @Override
-    //     public void run() {
-    //         logger.info("Thread <{}>SenderThread::run", Thread.currentThread().getId());
-
-    //         this.state = TAKING;
-
-    //         DataOutputStream dos = null;
-    //         try {
-    //             // one integer for size & four bytes for checksum
-    //             ByteBuffer buf = ByteBuffer.allocate(Integer.SIZE/Byte.SIZE + 4);
-    //             buf.order(parent.endian);
-    //             GwMessage msg = null;
-    //             long attempt = Long.MAX_VALUE;
-
-    //             while (true) {
-    //                 logger.info("sender state: {}",this.showState());
-    //                 this.parent.statusChange();
-    //                 this.actual = this.state;
-
-    //                 switch (state) {
-    //                 case WAIT_CONNECT:
-    //                     synchronized (this.connector.state) {
-    //                         while (! this.connector.isConnected()) {
-    //                             try {
-    //                                 logger.trace("Thread <{}>SenderThread::value.wait",
-    //                                              Thread.currentThread().getId());
-
-    //                                 this.connector.state.wait(BURP_TIME);
-    //                             } catch (InterruptedException ex) {
-    //                                 logger.warn("thread interupted {}",ex.getLocalizedMessage());
-    //                                 return ; // looks like the thread is being shut down.
-    //                             }
-    //                         }
-    //                         attempt = this.connector.getAttempt();
-    //                     }
-    //                     try {
-    //                         // if connected then proceed
-    //                         // keep the working socket so that if something goes wrong
-    //                         // the socket can be checked to see if it has changed
-    //                         // in the interim.
-    //                         OutputStream os = this.parent.socket.getOutputStream();
-    //                         dos = new DataOutputStream(os);
-    //                     } catch (IOException ex) {
-    //                         logger.warn("io exception acquiring socket for writing messages {}", ex.getLocalizedMessage());
-    //                         if (msg.handler != null)
-    //                             parent.ackToHandler( msg.handler, false );
-    //                         this.failOutStream(dos, attempt);
-    //                         break;
-    //                     }
-    //                     state = SENDING;
-    //                     break;
-
-    //                 case TAKING:
-    //                     msg = queue.take(); // THE MAIN BLOCKING CALL
-    //                     state = WAIT_CONNECT;
-    //                     break;
-
-    //                 case SENDING:
-    //                     buf.rewind();
-    //                     buf.putInt(msg.size);
-    //                     long cvalue = msg.checksum.getValue();
-    //                     byte[] checksum = new byte[] {
-    //                         (byte)cvalue,
-    //                         (byte)(cvalue >>> 8),
-    //                         (byte)(cvalue >>> 16),
-    //                         (byte)(cvalue >>> 24)
-    //                     };
-    //                     logger.debug("checksum [{}]", checksum);
-
-    //                     buf.put(checksum, 0, 4);
-    //                     try {
-    //                         dos.write(buf.array());
-    //                         dos.write(msg.payload);
-    //                         dos.flush();
-    //                     } catch (SocketException ex) {
-    //                         logger.warn("exception writing to a socket {}", ex.getLocalizedMessage());
-    //                         if (msg.handler != null)
-    //                             parent.ackToHandler( msg.handler, false );
-    //                         this.failOutStream(dos, attempt);
-    //                         this.state = WAIT_CONNECT;
-    //                         break;
-
-    //                     } catch (IOException ex) {
-    //                         logger.warn("io exception writing messages");
-    //                         if (msg.handler != null)
-    //                             parent.ackToHandler( msg.handler, false );
-    //                         this.failOutStream(dos, attempt);
-    //                         this.state = WAIT_CONNECT;
-    //                         break;
-    //                     }
-
-    //                     // legitimately sent to gateway.
-    //                     if (msg.handler != null)
-    //                         parent.ackToHandler( msg.handler, true );
-
-    //                     state = TAKING;
-    //                     break;
-    //                 }
-    //             }
-    //         } catch (InterruptedException ex) {
-    //             logger.error("interupted writing messages {}", ex.getLocalizedMessage());
-    //             this.actual = INTERRUPTED;
-    //         } catch (Exception ex) {
-    //             logger.error("exception writing messages ({}) {} ", ex, ex.getStackTrace());
-    //             this.actual = EXCEPTION;
-    //         }
-    //         logger.error("sender thread exiting ...");
-    //     }
-    // }
-    /**
-     * A thread for receiving incoming messages on the socket.
-     * The main method is run().
-     *
-     */
-
-
-
-    // private static class ReceiverThread extends Thread {
-    //     private static final Logger logger = LoggerFactory.getLogger(ReceiverThread.class);
-
-    //     private TcpChannel parent = null;
-    //     private ConnectorThread connector = null;
-
-    //     // private TcpChannel.ConnectorThread;
-    //     volatile private int state;
-    //     volatile private int actual;
-
-    //     public String showState () {
-    //         if (this.state == this.actual)
-    //             return parent.showState(this.state);
-    //         else
-    //             return parent.showState(this.actual) + "->" + parent.showState(this.actual);
-    //     }
-
-    //     private ReceiverThread(TcpChannel parent) {
-    //         logger.info("Thread <{}>ReceiverThread::<constructor>", Thread.currentThread().getId());
-    //         this.parent = parent;
-    //         this.connector = parent.connectorThread;
-    //     }
-
-    //     @Override
-    //     public void start() {
-    //         super.start();
-    //         logger.trace("Thread <{}>::start", Thread.currentThread().getId());
-    //     }
-
-    //     private void failInStream(InputStream is, long attempt) {
-    //         if (is == null) return;
-    //         try {
-    //             is.close();
-    //         } catch (IOException e) {
-    //             logger.warn("close failed {}", e.getLocalizedMessage());
-    //         }
-    //         this.connector.failure(attempt);
-    //     }
-    //     /**
-    //      * Initiate a connection to the server and then wait for a response.
-    //      * All responses are of the form:
-    //      * size     : int32
-    //      * checksum : int32
-    //      * bytes[]  : <size>
-    //      * This is done via a simple value machine.
-    //      * If the checksum doesn't match the connection is dropped and restarted.
-    //      *
-    //      * Once the message has been read it is passed off to...
-    //      */
-    //     @Override
-    //     public void run() {
-    //         logger.info("Thread <{}>ReceiverThread::run", Thread.currentThread().getId());
-    //         //Looper.prepare();
-
-    //         try {
-    //             state = WAIT_CONNECT;
-
-    //             int bytesToRead = 0; // indicates how many bytes should be read
-    //             int bytesRead = 0;   // indicates how many bytes have been read
-    //             long checksum = 0;
-
-    //             byte[] message = null;
-    //             byte[] byteToReadBuffer = new byte[Integer.SIZE/Byte.SIZE];
-    //             byte[] checksumBuffer = new byte[Long.SIZE/Byte.SIZE];
-    //             BufferedInputStream bis = null;
-    //             long attempt = Long.MAX_VALUE;
-
-    //             while (true) {
-    //                 logger.info("receiver state: {}",this.showState());
-    //                 this.parent.statusChange();
-
-    //                 switch (state) {
-    //                 case WAIT_RECONNECT: break;
-    //                 case RESTART: break;
-    //                 default:
-    //                     logger.debug("state: {}",this.showState());
-    //                 }
-
-    //                 this.actual = WAIT_CONNECT;
-
-    //                 switch (state) {
-    //                 case WAIT_RECONNECT:
-    //                 case WAIT_CONNECT:  // look for the size
-
-    //                     synchronized (this.connector.state) {
-    //                         while (! this.connector.isConnected() ) {
-    //                             try {
-    //                                 logger.trace("Thread <{}>ReceiverThread::value.wait",
-    //                                              Thread.currentThread().getId());
-
-    //                                 this.connector.state.wait(BURP_TIME);
-    //                             } catch (InterruptedException ex) {
-    //                                 logger.warn("thread interupted {}",ex.getLocalizedMessage());
-    //                                 shutdown(bis); // looks like the thread is being shut down.
-    //                                 return;
-    //                             }
-    //                         }
-    //                         attempt = this.connector.getAttempt();
-    //                     }
-
-    //                     try {
-    //                         InputStream insock = this.parent.socket.getInputStream();
-    //                         bis = new BufferedInputStream(insock, 1024);
-    //                     } catch (IOException ex) {
-    //                         logger.error("could not open input stream on socket {}", ex.getLocalizedMessage());
-    //                         failInStream(bis, attempt);
-    //                         break;
-    //                     }
-    //                     if (bis == null) break;
-    //                     this.state = START;
-    //                     break;
-
-    //                 case RESTART:
-    //                 case START:
-    //                     try {
-    //                         int temp = bis.read(byteToReadBuffer);
-    //                         if (temp < 0) {
-    //                             logger.error("START: end of socket");
-    //                             failInStream(bis, attempt);
-    //                             this.state = WAIT_CONNECT;
-    //                             break; // read error - end of connection
-    //                         } else {
-    //                             parent.resetTimeoutWatchdog();
-    //                         }
-    //                     } catch (SocketTimeoutException ex) {
-    //                         // the following checks the heart-stamp
-    //                         // TODO no pace-maker messages are sent, this could be added if needed.
-
-    //                         this.state = RESTART;
-    //                         break;
-    //                     } catch (IOException ex) {
-    //                         logger.error("START: read error {}", ex.getLocalizedMessage());
-    //                         failInStream(bis, attempt);
-    //                         this.state = WAIT_CONNECT;
-    //                         break; // read error - set our value back to wait for connect
-    //                     }
-    //                     this.state = STARTED;
-    //                     break;
-
-    //                 case STARTED:  // look for the size
-    //                 {
-    //                     ByteBuffer bbuf = ByteBuffer.wrap(byteToReadBuffer);
-    //                     bbuf.order(this.parent.endian);
-    //                     bytesToRead = bbuf.getInt();
-
-    //                     if (bytesToRead < 0) break; // bad read keep trying
-
-    //                     if (bytesToRead > 4000000) {
-    //                         logger.warn("message too large {} wrong size!!, we will be out of sync, disconnect ", bytesToRead);
-    //                         failInStream(bis, attempt);
-    //                         this.state = WAIT_CONNECT;
-    //                         break;
-    //                     }
-    //                     this.state = SIZED;
-    //                 }
-    //                 break;
-    //                 case SIZED: // look for the checksum
-    //                 {
-    //                     try {
-    //                         int temp = bis.read(checksumBuffer, 0, 4);
-    //                         if ( temp >= 0 )
-    //                             parent.resetTimeoutWatchdog();
-    //                     } catch (SocketTimeoutException ex) {
-    //                         logger.trace("timeout on socket");
-    //                         continue;
-    //                     } catch (IOException e) {
-    //                         logger.trace("SIZED: read error");
-    //                         failInStream(bis, attempt);
-    //                         this.state = WAIT_CONNECT;
-    //                         break;
-    //                     }
-    //                     ByteBuffer bbuf = ByteBuffer.wrap(checksumBuffer);
-    //                     bbuf.order(this.parent.endian);
-    //                     checksum =  bbuf.getLong();
-
-    //                     message = new byte[bytesToRead];
-
-    //                     logger.info("checksum {} {}", checksumBuffer, checksum);
-    //                     bytesRead = 0;
-    //                     this.state = CHECKED;
-    //                 }
-    //                 break;
-    //                 case CHECKED: // read the message
-    //                     while (bytesRead < bytesToRead) {
-    //                         try {
-    //                             int temp = bis.read(message, bytesRead, bytesToRead - bytesRead);
-    //                             if ( temp >= 0 )
-    //                             {
-    //                                 bytesRead += temp;
-    //                                 parent.resetTimeoutWatchdog();
-    //                             }
-    //                         } catch (SocketTimeoutException ex) {
-    //                             logger.trace("timeout on socket");
-    //                             continue;
-    //                         } catch (IOException ex) {
-    //                             logger.trace("CHECKED: read error");
-    //                             this.state = WAIT_CONNECT;
-    //                             failInStream(bis, attempt);
-    //                             break;
-    //                         }
-    //                     }
-    //                     if (bytesRead < bytesToRead) {
-    //                         failInStream(bis, attempt);
-    //                         this.state = WAIT_CONNECT;
-    //                         break;
-    //                     }
-    //                     this.state = DELIVER;
-    //                     break;
-    //                 case DELIVER: // deliver the message to the gateway
-    //                     this.parent.deliverMessage( message, checksum );
-    //                     message = null;
-    //                     this.state = START;
-    //                     break;
-    //                 }
-    //             }
-    //         } catch (Exception ex) {
-    //             logger.warn("interupted writing messages {}",ex.getLocalizedMessage());
-    //             this.actual = EXCEPTION;
-    //             ex.printStackTrace();
-    //         }
-    //         logger.error("reciever thread exiting ...");
-    //     }
-
-    //     private void shutdown(BufferedInputStream bis) {
-    //         logger.warn("no longer listening, thread closing");
-    //         try { bis.close(); } catch (IOException e) {}
-    //         return;
-    //     }
-    // }
-
-    // ********** UTILITY METHODS ****************
-
-    /**
-     * A routine to get the local ip address
-     * TODO use this someplace
-     *
-     * @return
-     */
-    public String getLocalIpAddress() {
-        logger.trace("Thread <{}>::getLocalIpAddress", Thread.currentThread().getId());
-        try {
-            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
-                NetworkInterface intf = en.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress()) {
-                        return inetAddress.getHostAddress().toString();
-                    }
-                }
-            }
-        } catch (SocketException ex) {
-            logger.error( ex.toString());
-        }
-        return null;
-    }
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class NewSenderThread extends Thread
+    class SenderThread extends Thread
     {
-        public NewSenderThread( ConnectorThread iParent,
-                                TcpChannel iChannel,
-                                BlockingQueue<GwMessage> iQueue,
-                                SocketChannel iSocketChannel )
+        public SenderThread( ConnectorThread iParent,
+                             TcpChannel iChannel,
+                             BlockingQueue<GwMessage> iQueue,
+                             SocketChannel iSocketChannel )
         {
             mParent = iParent;
             mChannel = iChannel;
@@ -1202,41 +736,42 @@ public class TcpChannel extends NetChannel {
                 {
                     setSenderState( INetChannel.TAKING );
                     msg = mQueue.take(); // The main blocking call
-                    logger.error( "Took a message from the send queue" );
+                    logger.debug( "Took a message from the send queue" );
                 }
                 catch ( InterruptedException ex )
                 {
-                    logger.error( "interrupted taking messages from send queue: {}", ex.getLocalizedMessage() );
+                    logger.debug( "interrupted taking messages from send queue: {}",
+                                  ex.getLocalizedMessage() );
                     setSenderState( INetChannel.INTERRUPTED );
                     break;
                 }
 
-                int total_length = (Integer.SIZE/Byte.SIZE) + 4 + msg.payload.length;
-                ByteBuffer buf = ByteBuffer.allocate( total_length );
-                buf.order( ByteOrder.LITTLE_ENDIAN ); // mParent.endian
-
-                buf.putInt( msg.size );
-                logger.error( "   size={}", msg.size );
-                long cvalue = msg.checksum.getValue();
-                byte[] checksum = new byte[]
-                    {
-                        (byte) cvalue,
-                        (byte) (cvalue >>> 8),
-                        (byte) (cvalue >>> 16),
-                        (byte) (cvalue >>> 24)
-                    };
-                logger.error( "   checksum={}", checksum );
-
-                buf.put( checksum, 0, 4 );
-                buf.put( msg.payload );
-                logger.error( "   payload={}", msg.payload );
-                buf.flip();
-
                 try
                 {
+                    int total_length = (Integer.SIZE/Byte.SIZE) + 4 + msg.payload.length;
+                    ByteBuffer buf = ByteBuffer.allocate( total_length );
+                    buf.order( ByteOrder.LITTLE_ENDIAN ); // mParent.endian
+
+                    buf.putInt( msg.size );
+                    logger.debug( "   size={}", msg.size );
+                    long cvalue = msg.checksum.getValue();
+                    byte[] checksum = new byte[]
+                        {
+                            (byte) cvalue,
+                            (byte) (cvalue >>> 8),
+                            (byte) (cvalue >>> 16),
+                            (byte) (cvalue >>> 24)
+                        };
+                    logger.debug( "   checksum={}", checksum );
+
+                    buf.put( checksum, 0, 4 );
+                    buf.put( msg.payload );
+                    logger.debug( "   payload={}", msg.payload );
+                    buf.flip();
+
                     setSenderState( INetChannel.SENDING );
                     int bytesWritten = mSocketChannel.write( buf );
-                    logger.error( "Wrote packet to SocketChannel" );
+                    logger.info( "Wrote packet to SocketChannel" );
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
@@ -1245,7 +780,7 @@ public class TcpChannel extends NetChannel {
                 catch ( Exception e )
                 {
                     e.printStackTrace();
-                    logger.error("sender threw exception");
+                    logger.warn("sender threw exception");
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, false );
                     setSenderState( INetChannel.INTERRUPTED );
@@ -1254,9 +789,13 @@ public class TcpChannel extends NetChannel {
             }
         }
 
-        private synchronized void setSenderState( int iState )
+
+        private void setSenderState( int iState )
         {
-            mState = iState;
+            synchronized ( this )
+            {
+                mState = iState;
+            }
             mParent.statusChange();
         }
 
@@ -1273,11 +812,11 @@ public class TcpChannel extends NetChannel {
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class NewReceiverThread extends Thread
+    class ReceiverThread extends Thread
     {
-        public NewReceiverThread( ConnectorThread iParent,
-                                  TcpChannel iDestination,
-                                  SocketChannel iSocketChannel )
+        public ReceiverThread( ConnectorThread iParent,
+                               TcpChannel iDestination,
+                               SocketChannel iSocketChannel )
         {
             mParent = iParent;
             mDestination = iDestination;
@@ -1302,32 +841,35 @@ public class TcpChannel extends NetChannel {
                 try
                 {
                     setReceiverState( INetChannel.START );
-                    logger.error( "Reading from SocketChannel..." );
+                    logger.debug( "Reading from SocketChannel..." );
                     int bytesRead =  mSocketChannel.read( mBuffer );
-                    logger.error( "SocketChannel read bytes={}", bytesRead );
+                    logger.debug( "SocketChannel read bytes={}", bytesRead );
+
+                    mDestination.resetTimeoutWatchdog();
 
                     // We loop here because a single read() may have  read in
                     // the data for several messages
                     if ( bufferContainsAMessage() )
                     {
-                        logger.error( "flipping" );
+                        logger.debug( "flipping" );
                         mBuffer.flip();  // Switch to draining
                         while ( processAMessageIfAvailable() )
-                            logger.error( "processed a message" );
-                        logger.error( "compacting buffer" );
+                            logger.debug( "processed a message" );
+                        logger.debug( "compacting buffer" );
                         mBuffer.compact(); // Switches back to filling
                     }
 
                 }
                 catch ( InterruptedException e )
                 {
-                    logger.error( "interrupted reading messages {}", e.getLocalizedMessage() );
+                    logger.debug( "interrupted reading messages {}",
+                                  e.getLocalizedMessage() );
                     setReceiverState( INetChannel.INTERRUPTED );
                 }
                 catch ( Exception e )
                 {
                     e.printStackTrace();
-                    logger.error("receiver threw exception");
+                    logger.warn("receiver threw exception");
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
@@ -1335,15 +877,20 @@ public class TcpChannel extends NetChannel {
         }
 
 
+        // If the header is corrupted, things could go horribly wrong. We need
+        // better error detection and error handling when we're reading stuff
+        // in off the network.  Add this when we do the enhancement to handle
+        // priorities.
+
         // Flips the buffer, but returns it back to filling. We can't tell if
         // a buffer contains a complete message without entering draining mode,
         // so this method does that but returns mBuffer to its original state.
-        private boolean bufferContainsAMessage() throws InterruptedException
+        private boolean bufferContainsAMessage()
         {
             int position = mBuffer.position();
             int limit = mBuffer.limit();
 
-            mBuffer.flip();
+            mBuffer.flip(); // Switches to draining mode
 
             // If we haven't received enough bytes for an integer, then we
             // even have enough for the size.
@@ -1359,30 +906,14 @@ public class TcpChannel extends NetChannel {
                 containsMessage = (messageSize + 4) <= mBuffer.remaining();
             }
 
-            // Return buffer back to normal before returning
+            // Return buffer back to normal before returning. This has the
+            // effect of switching back to filling mode and it will be in
+            // exactly the same state as when this function was called.
             mBuffer.position( position );
             mBuffer.limit( limit );
 
             return containsMessage;
         }
-
-
-        // Used in draining mode, and leaves it in draining mode with the
-        // pointers unchanged.
-        // private boolean bufferContainsAMessageDraining()
-        // {
-        //     if ( mBuffer.remaining() < 4 )
-        //     {
-        //         return false;
-        //     }
-        //     else
-        //     {
-        //         mBuffer.mark();
-        //         int messageSize = mBuffer.getInt();
-        //         mBuffer.reset();
-        //         return (messageSize + 4) <= mBuffer.remaining();
-        //     }
-        // }
 
 
         // Only called while in draining mode. Returns true if we process a
@@ -1403,23 +934,23 @@ public class TcpChannel extends NetChannel {
                 return false;
             }
 
-            logger.error( "Receiving message:" );
-            logger.info( "   message size={}", messageSize );
+            logger.debug( "Receiving message:" );
+            logger.debug( "   message size={}", messageSize );
 
             // The four bytes of the checksum go into the least significant
             // four bytes of a long.
             byte[] checkBytes = new byte[ 4 ];
             mBuffer.get( checkBytes, 0, 4 );
-            logger.error( "   checkBytes={}", checkBytes );
+            logger.debug( "   checkBytes={}", checkBytes );
             long checksum = ( ((0xFFL & checkBytes[0]) << 0)
                             | ((0xFFL & checkBytes[1]) << 8)
                             | ((0xFFL & checkBytes[2]) << 16)
                             | ((0xFFL & checkBytes[3]) << 24) );
-            logger.error( "   checksum={}", Long.toHexString(checksum) );
+            logger.debug( "   checksum={}", Long.toHexString(checksum) );
 
             byte[] message = new byte[messageSize];
             mBuffer.get( message, 0, messageSize );
-            logger.error( "   message={}", message );
+            logger.debug( "   message={}", message );
 
             setReceiverState( INetChannel.DELIVER );
             mDestination.deliverMessage( message, checksum );
@@ -1444,6 +975,34 @@ public class TcpChannel extends NetChannel {
         private TcpChannel mDestination;
         private SocketChannel mSocketChannel;
         private ByteBuffer mBuffer;
-        private final Logger logger = LoggerFactory.getLogger( "network.tcp.receiver" );
+        private final Logger logger
+            = LoggerFactory.getLogger( "network.tcp.receiver" );
+    }
+
+
+    // ********** UTILITY METHODS ****************
+
+    /**
+     * A routine to get the local ip address
+     * TODO use this someplace
+     *
+     * @return
+     */
+    public String getLocalIpAddress() {
+        logger.trace("Thread <{}>::getLocalIpAddress", Thread.currentThread().getId());
+        try {
+            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                NetworkInterface intf = en.nextElement();
+                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                    InetAddress inetAddress = enumIpAddr.nextElement();
+                    if (!inetAddress.isLoopbackAddress()) {
+                        return inetAddress.getHostAddress().toString();
+                    }
+                }
+            }
+        } catch (SocketException ex) {
+            logger.error( ex.toString());
+        }
+        return null;
     }
 }
