@@ -7,6 +7,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -51,6 +52,8 @@ public class AmmoSecurityManager {
 	private byte[] getNonce (){
 		
 		the_client_nonce = generateRandom(NONCE_LENGTH);
+//		String str = "Nilabja";
+//		the_client_nonce = str.getBytes();
 		
 		return the_client_nonce;
 	}
@@ -63,6 +66,8 @@ public class AmmoSecurityManager {
 	private byte[] generatePreMasterSecret ()
 	{
 		preMasterSecret = generateRandom(PRE_MASTER_LENGTH);
+//		String str = "Vanderbilt";
+//		preMasterSecret = str.getBytes();
 		
 		return preMasterSecret;
 	}
@@ -70,6 +75,8 @@ public class AmmoSecurityManager {
 	public byte[] generateKeyExchange ()
 	{
 		generatePreMasterSecret();
+		
+		this.dump_to_file("/data/data/edu.vu.isis.ammo.core/masterSec", preMasterSecret);
 		
 		keyExchange = 
 			crp_.encrypt_data("/data/public_key_gateway.der", 
@@ -139,8 +146,10 @@ public class AmmoSecurityManager {
 	      byte[] buf = new byte[1];
 	      buf[0] = 'A';
 	      
-	      byte[] content = concatBytes(buf, this.preMasterSecret, the_client_nonce, the_server_nonce);
+//	      byte[] content = concatBytes(buf, this.preMasterSecret, the_client_nonce, the_server_nonce);
+	      byte[] content = concatBytes(this.preMasterSecret, the_client_nonce, the_server_nonce);
 
+	     // this.dump_to_file("/data/data/edu.vu.isis.ammo.core/masterSec", content);
 	      // Update the message digest with some more bytes
 	      // This can be performed multiple times before creating the hash
 	      md.update(content);
@@ -157,7 +166,6 @@ public class AmmoSecurityManager {
 	      
 	      this.masterSecret = md.digest();
 	      
-	      this.dump_to_file("/sdcard/masterSec", masterSecret);
 	}
 	
 	// concats a list of byte arrays ..
@@ -224,6 +232,7 @@ public class AmmoSecurityManager {
 	{
 		try
 		{      
+//			getBaseContext() openFileOutput ()
 			DataOutputStream out = new DataOutputStream(
 						new FileOutputStream(file));
 
@@ -234,6 +243,47 @@ public class AmmoSecurityManager {
 		{
 			System.out.println("Problem writing " + file );
 		}
+	}
+	
+	public boolean verify_GW_finish (byte[] gw_finish)
+	{
+		return Arrays.equals(gw_finish, generate_GW_finish());
+	}
+	
+	private byte[] generate_GW_finish ()
+	{
+		byte[] handshake = concatBytes(this.phoneAuth, this.keyExchange, this.the_client_nonce, this.the_server_nonce);
+		
+		String gateway_id = "GW01";
+		
+		byte[] content = concatBytes(handshake, gateway_id.getBytes(), masterSecret/*, there needs to be a pad here*/ );
+
+		MessageDigest md = null;
+		
+		try {
+		
+			md = MessageDigest.getInstance("SHA-256");
+			
+		} catch (NoSuchAlgorithmException e) {
+			
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		md.update(content);
+		
+		byte[] first_level = md.digest();
+		
+		// upper level 
+		content = concatBytes(masterSecret, /*need padding here*/first_level);
+		
+		md.reset();
+		
+		md.update(content);
+		
+		phoneFinish = md.digest();
+		
+		return phoneFinish;
 	}
 	
 }

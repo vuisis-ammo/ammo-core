@@ -481,8 +481,6 @@ implements OnSharedPreferenceChangeListener,
 
         		System.out.println("THE SERVER NONCE " + mw.getAuthenticationMessage().getMessage().toString());
         		
-        		int len = mw.getAuthenticationMessage().getMessage().toByteArray().length;
-        	
         		secMgr.setServerNonce(mw.getAuthenticationMessage().getMessage().toByteArray());
         		
        
@@ -562,6 +560,18 @@ implements OnSharedPreferenceChangeListener,
 	            sendRequest(msgHeaderPhnFin.size, msgHeaderPhnFin.checksum, phnFinProtocByteBuf , this);
 	        	return true;
         	}
+        	else if (mw.getAuthenticationMessage().getType() == AmmoMessages.AuthenticationMessage.Type.SERVER_FINISH)
+        	{
+        		// need to verify the gateway finish message ...
+        		boolean fin_verify = secMgr.verify_GW_finish (mw.getAuthenticationMessage().getMessage().toByteArray());
+        		
+        		if (fin_verify)
+        			System.out.println("Gateway Finish Verified");
+        		else
+        			System.out.println("Gateway Finish Cannot Verify");
+        			
+        	}
+        	
         	        	
         }
         PreferenceManager
