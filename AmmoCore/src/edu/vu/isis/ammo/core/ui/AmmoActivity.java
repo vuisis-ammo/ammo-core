@@ -217,7 +217,6 @@ public class AmmoActivity extends TabActivityEx
         @Override
         public void onReceive(Context context, Intent iIntent) {
             final String action = iIntent.getAction();
-            logger.info("onReceive:");
 
             if ( action.equals( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE ))
             {

@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
@@ -80,17 +81,12 @@ public class WiredNetlink extends Netlink
         final boolean status = ethernetServiceBinder.isLinkUp();
         logger.error( "wired state={}", status );
 
-        if ( status )
-        {
-            state[0] = Netlink.NETLINK_UP;
-            setLinkUp( true );
-        }
-        else
-        {
-            state[0] = Netlink.NETLINK_DOWN;
-            setLinkUp( false );
-        }
-
+        state[0] = (status) ?  Netlink.NETLINK_UP : Netlink.NETLINK_DOWN;
+        setLinkUp( status );
+        
+        Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
+        editor.putInt(INetPrefKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, state[0]).commit();   
+        
         setStatus( state );
     }
 

@@ -5,28 +5,27 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
+import android.content.SharedPreferences.Editor;
+import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 
 
 public class PhoneNetlink extends Netlink
 {
-    private static final Logger logger = LoggerFactory.getLogger( "scenario.network.link" );
+    private static final Logger logger = LoggerFactory.getLogger( PhoneNetlink.class );
 
     private TelephonyManager mTelephonyManager = null;
-    @SuppressWarnings("unused")
-	private ConnectivityManager mConnManager = null;
-
+    private Context mContext = null;
 
     private PhoneNetlink(Context context)
     {
         super( context, "3G Netlink", "3G" );
 
-        mTelephonyManager = (TelephonyManager) context.getSystemService( Context.TELEPHONY_SERVICE );
-        mConnManager =
-            (ConnectivityManager) context.getSystemService( Context.CONNECTIVITY_SERVICE );
+        this.mContext = context;
 
+        mTelephonyManager = (TelephonyManager) context.getSystemService( Context.TELEPHONY_SERVICE );
+        
         updateStatus();
     }
 
@@ -75,7 +74,9 @@ public class PhoneNetlink extends Netlink
             setLinkUp( false );
             break;
         }
-
+        Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
+        editor.putInt(INetPrefKeys.PHONE_PREF_IS_ACTIVE, state[0]).commit();    
+        
         setStatus( state );
     }
 

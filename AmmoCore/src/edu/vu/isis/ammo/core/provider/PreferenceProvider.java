@@ -63,6 +63,7 @@ public class PreferenceProvider extends ContentProvider {
 
 	// Pre-populate preferences with default values if this is the first time
 	// the content provider has been created.
+	
 	@Override
 	public boolean onCreate() {
 		Context context = getContext();
@@ -77,6 +78,7 @@ public class PreferenceProvider extends ContentProvider {
 			editor.putBoolean("prefsCreated", true);
 			editor.commit();	
 		}
+		
 		return true;
 	}
 
@@ -190,9 +192,5 @@ public class PreferenceProvider extends ContentProvider {
 	private void putFloat(String key, float val, Editor editor) {
 		editor.putFloat(key, val).commit();
 	}
-	
-	// =================================
-	// Helpers
-	// =================================
 	
 }
