@@ -3,18 +3,12 @@
  */
 package edu.vu.isis.ammo.core.network;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -22,17 +16,15 @@ import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.CRC32;
-import java.lang.Long;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.network.NetworkService.MsgHeader;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.FLogger;
 
 
 /**
@@ -206,8 +198,8 @@ public class TcpChannel extends NetChannel {
 	 * place the message in the send queue
 	 */
 	@Override
-	public boolean sendRequest(GwMessage msg) {
-		this.senderThread.queueMsg(msg);
+	public boolean sendRequest(NetChannel.GwMessage msg) {
+		// TODO this.senderThread.queueMsg(msg);
 		return false;
 	}
 
@@ -691,7 +683,7 @@ public class TcpChannel extends NetChannel {
      * @param message
      * @return
      */
-    public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler)
+    public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler)
     {
         try
         {
@@ -708,8 +700,8 @@ public class TcpChannel extends NetChannel {
         public final int size;
         public final CRC32 checksum;
         public final byte[] payload;
-        public final INetworkService.OnSendMessageHandler handler;
-        public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) {
+        public final INetworkService.OnSendHandler handler;
+        public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler) {
             this.size = size;
             this.checksum = checksum;
             this.payload = payload;
@@ -1020,4 +1012,5 @@ public class TcpChannel extends NetChannel {
         }
         return null;
     }
+
 }

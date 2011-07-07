@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.core.network;
 
+import edu.vu.isis.ammo.core.network.TcpChannel.GwMessage;
+
 /**
  * The NetChannel is some mechanism for establishing a network connection
  * over which requests will be sent to "the cloud".
@@ -63,4 +65,5 @@ public interface INetChannel
      */
     boolean sendRequest(NetChannel.GwMessage msg);
     String getLocalIpAddress();
+
 }
