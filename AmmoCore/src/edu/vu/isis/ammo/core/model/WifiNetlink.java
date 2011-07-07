@@ -1,28 +1,25 @@
 package edu.vu.isis.ammo.core.model;
 
-import android.app.Activity;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
+import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 
 public class WifiNetlink extends Netlink
 {
     private WifiManager mWifiManager = null;
     private ConnectivityManager mConnManager = null;
-
+    private Context mContext = null;
 
     private WifiNetlink( Context context )
     {
         super( context, "Wifi Netlink", "wifi" );
+        this.mContext = context;
 
         mWifiManager = (WifiManager) context.getSystemService( Context.WIFI_SERVICE );
         mConnManager =
@@ -99,6 +96,9 @@ public class WifiNetlink extends Netlink
                 break;
             }
         }
+        Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
+        editor.putInt(INetPrefKeys.WIFI_PREF_IS_ACTIVE, state[0]).commit();    
+        
         logger.error( "Wifi: updating status to {}", state );
         setStatus( state );
     }
