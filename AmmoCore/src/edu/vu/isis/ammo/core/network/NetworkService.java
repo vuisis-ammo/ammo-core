@@ -476,6 +476,7 @@ implements OnSharedPreferenceChangeListener,
      * @return was the message clean (true) or garbled (false).
      *    a null message is considered garbled indicating it won't be processed.
      */
+    // TODO move to distributor
     public boolean deliver(byte[] message, long checksum)
     {
         logger.info("::deliverGatewayResponse");

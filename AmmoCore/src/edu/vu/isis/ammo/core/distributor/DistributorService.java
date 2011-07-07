@@ -39,6 +39,7 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
+import edu.vu.isis.ammo.core.FLogger;
 
 
 /**
@@ -55,9 +56,6 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  * Any activity or application wishing to receive updates when a content
  * provider has been modified can register via a custom ContentObserver
  * subclass.
- * 
- * @author Demetri Miller
- * @author Fred Eisele
  * 
  */
 public class DistributorService extends Service implements IDistributorService {

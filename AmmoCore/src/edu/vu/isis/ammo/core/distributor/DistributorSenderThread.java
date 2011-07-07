@@ -13,6 +13,7 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
+import edu.vu.isis.ammo.core.FLogger;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -171,8 +172,6 @@ public class DistributorSenderThread extends
           .append("'").append(PostalTableSchema.DISPOSITION_SATISFIED).append("'")
           .append(",")
           .append("'").append(PostalTableSchema.DISPOSITION_EXPIRED).append("'")
-        //  .append("'").append(RetrievalTableSchema.EXPIRATION).append("'")
-        //  .append("<\"").append(Long.valueOf(System.currentTimeMillis())).append("\"");
           .append(")");
         POSTAL_GARBAGE = sb.toString();
         
@@ -189,8 +188,8 @@ public class DistributorSenderThread extends
           .append("'").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
           .append(",")
           .append("'").append(PostalTableSchema.DISPOSITION_FAIL).append("'")
-          .append(",")
-          .append("'").append(PostalTableSchema.DISPOSITION_SENT).append("'")
+          // .append(",")
+          // .append("'").append(PostalTableSchema.DISPOSITION_SENT).append("'")
           .append(")");
         POSTAL_RESEND = sb.toString();
     }
@@ -306,7 +305,9 @@ public class DistributorSenderThread extends
                         		.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE)
                         		.setDataMessage(dmb);
                         // mw.setSessionUuid(sessionId); // the session should be sent by the Network Service
-                        
+
+                        // TODO or call the network service directly.
+                        // this.deliver(NetworkService.Request.getInstance(0, mwb,
                         this.queue.put(NetworkService.Request.getInstance(0, mwb, 
                         	new INetworkService.OnSendHandler() {
                                 @Override
@@ -582,7 +583,7 @@ public class DistributorSenderThread extends
                 // long createdDate =
                 // pendingCursor.getLong(pendingCursor.getColumnIndex(SubscriptionTableSchema.CREATED_DATE));
 
-                logger.info("Subscribe request with mime: {} and selection: {}",
+                FLogger.request.trace("subscribe type[{}] select[{}]",
                         mime, selection);
 
                 final Uri subUri = SubscriptionTableSchema
@@ -621,8 +622,7 @@ public class DistributorSenderThread extends
                                                         : SubscriptionTableSchema.DISPOSITION_FAIL);
 
                                 int numUpdated = cr.update(subUri, values, null, null);
-
-                                logger.info("Subscription: {} rows updated to {} status ",
+                                FLogger.request.trace("subscribe rows[{}] status[{}]",
                                         numUpdated, (status ? "sent" : "pending"));
                                 return true;
                             }

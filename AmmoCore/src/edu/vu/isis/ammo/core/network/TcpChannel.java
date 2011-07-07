@@ -4,6 +4,7 @@
 package edu.vu.isis.ammo.core.network;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.network.NetworkService.MsgHeader;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.FLogger;
 
 
 /**
@@ -747,6 +749,7 @@ public class TcpChannel extends NetChannel {
 								(byte)(cvalue >>> 24)
 						};
 						logger.debug("checksum [{}]", checksum);
+						FLogger.request.trace("sending len[{}] chk[{}]", msg.payload.length, checksum);
 
 						buf.put(checksum, 0, 4);
 						try {
@@ -1002,6 +1005,9 @@ public class TcpChannel extends NetChannel {
 						this.state = DELIVER;
 						break;
 					case DELIVER: // deliver the message to the gateway
+						FLogger.response.trace("receiving len[{}] pay[{}]", 
+								message.length, 
+								new ByteArrayInputStream(message,0,128));
                         this.parent.deliverMessage( message, checksum );
 						message = null;
 						this.state = START;
