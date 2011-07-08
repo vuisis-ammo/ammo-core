@@ -1,21 +1,15 @@
 package edu.vu.isis.ammo.core.model;
 
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
-import edu.vu.isis.ammo.core.network.INetworkService;
-import edu.vu.isis.ammo.core.network.NetworkService;
 
 
 public class WiredNetlink extends Netlink
@@ -88,17 +82,12 @@ public class WiredNetlink extends Netlink
         final boolean status = ethernetServiceBinder.isLinkUp();
         logger.error( "wired state={}", status );
 
-        if ( status )
-        {
-            state[0] = Netlink.NETLINK_UP;
-            setLinkUp( true );
-        }
-        else
-        {
-            state[0] = Netlink.NETLINK_DOWN;
-            setLinkUp( false );
-        }
-
+        state[0] = (status) ?  Netlink.NETLINK_UP : Netlink.NETLINK_DOWN;
+        setLinkUp( status );
+        
+        Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
+        editor.putInt(INetPrefKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, state[0]).commit();   
+        
         setStatus( state );
     }
 

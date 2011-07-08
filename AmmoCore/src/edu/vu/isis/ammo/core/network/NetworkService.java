@@ -616,7 +616,11 @@ implements OnSharedPreferenceChangeListener,
         } catch (InvalidProtocolBufferException ex) {
             ex.printStackTrace();
         }
-        if (mw == null) return false; // TBD SKN: this was true, why? if we can't parse it then its bad
+        if (mw == null)
+        {
+            logger.error( "mw was null!" );
+            return false; // TBD SKN: this was true, why? if we can't parse it then its bad
+        }
 
         switch (mw.getType()) {
 
@@ -625,7 +629,8 @@ implements OnSharedPreferenceChangeListener,
             break;
 
         case AUTHENTICATION_RESULT:
-            receiveAuthenticationResponse(mw);
+            boolean result = receiveAuthenticationResponse(mw);
+            logger.error( "authentication result={}", result );
             break;
 
         case PUSH_ACKNOWLEDGEMENT:
@@ -635,6 +640,8 @@ implements OnSharedPreferenceChangeListener,
         case PULL_RESPONSE:
             receivePullResponse(mw);
             break;
+        default:
+            logger.error( "mw.getType() returned an unexpected type." );
         }
         return true;
     }
