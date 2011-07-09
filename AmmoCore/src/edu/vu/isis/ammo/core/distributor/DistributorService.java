@@ -96,10 +96,10 @@ public class DistributorService extends Service implements IDistributorService {
     private INetworkService networkServiceBinder;
     private boolean isNetworkServiceBound = false;
     private ProcessChangeTask pct;
+
     public void consumerReady() {
-        pct.subscriptionChange();
-        pct.retrievalChange();
-        pct.postalChange();
+        logger.info("::consumer ready : resend old requests");
+        pct.resend();
     }
     
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
@@ -404,21 +404,31 @@ public class DistributorService extends Service implements IDistributorService {
             return this.subscriptionDelta || this.retrievalDelta || this.postalDelta;
         }
 
+        private boolean resend;
+        public synchronized void resend() {
+            this.resend = true;
+            subscriptionDelta = true;
+            retrievalDelta = true;
+            postalDelta = true;
+            this.notifyAll();
+        }
+
         @Override
         protected Void doInBackground(DistributorService... them) {
             logger.info("::post to network service");
-          
             for (DistributorService that : them) {
                 this.processSubscriptionChange(that, true);
                 this.processRetrievalChange(that, true);
                 this.processPostalChange(that, true);
             }
+            this.resend = false; 
             // condition wait is there something to process?
             try {
                 while (true) {
                     boolean subscriptionFlag = false;
                     boolean retrievalFlag = false;
                     boolean postalFlag = false;
+                    boolean resend = false;
                     
                     synchronized (this) {
                         while (!this.isReady())
@@ -435,20 +445,23 @@ public class DistributorService extends Service implements IDistributorService {
                         
                         postalFlag = this.postalDelta;
                         this.postalDelta = false;
+
+                        resend = this.resend;
+                        this.resend = false;
                     }
                     if (subscriptionFlag) {
                         for (DistributorService that : them) {
-                            this.processSubscriptionChange(that, false);
+                            this.processSubscriptionChange(that, resend);
                         }
                     }
                     if (retrievalFlag) {
                         for (DistributorService that : them) {
-                            this.processRetrievalChange(that, false);
+                            this.processRetrievalChange(that, resend);
                         }
                     }
                     if (postalFlag) {
                         for (DistributorService that : them) {
-                            this.processPostalChange(that, false);
+                            this.processPostalChange(that, resend);
                         }
                     }
                 }
@@ -522,8 +535,6 @@ public class DistributorService extends Service implements IDistributorService {
               .append("'").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
               .append(",")
               .append("'").append(PostalTableSchema.DISPOSITION_FAIL).append("'")
-              .append(",")
-              .append("'").append(PostalTableSchema.DISPOSITION_SENT).append("'")
               .append(")");
             POSTAL_RESEND = sb.toString();
         }
@@ -846,7 +857,7 @@ public class DistributorService extends Service implements IDistributorService {
             sb = new StringBuilder()
               .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
               .append(" IN (")
-                          .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
+              .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
               .append(",")
               .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
               .append(",")
@@ -950,10 +961,8 @@ public class DistributorService extends Service implements IDistributorService {
             }
         }
 
-        public void processPublicationChange(DistributorService that,
-                boolean resend) {
-            logger.error("::processPublicationChange : {} : not implemented",
-                    resend);
+        public void processPublicationChange(DistributorService that, boolean resend) {
+            logger.error("::processPublicationChange : {} : not implemented", resend);
         }
     }
 

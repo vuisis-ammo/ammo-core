@@ -63,6 +63,7 @@ public class PreferenceProvider extends ContentProvider {
 
 	// Pre-populate preferences with default values if this is the first time
 	// the content provider has been created.
+	
 	@Override
 	public boolean onCreate() {
 		Context context = getContext();
@@ -77,6 +78,7 @@ public class PreferenceProvider extends ContentProvider {
 			editor.putBoolean("prefsCreated", true);
 			editor.commit();	
 		}
+		
 		return true;
 	}
 
@@ -191,46 +193,4 @@ public class PreferenceProvider extends ContentProvider {
 		editor.putFloat(key, val).commit();
 	}
 	
-	// =================================
-	// Helpers
-	// =================================
-	/**
-	 * Returns an array where default value and method name are interleaved.
-	 * Methods are even indices and default values are odd indices.
-	 */
-	private String[] parseFredProtocolStringArray(String[]combinedArray) {
-		String[] results = new String[combinedArray.length*2];
-		int index = 0;
-		for (String s : combinedArray) {
-			String method = s.substring(0, s.indexOf(":"));
-			String defVal = s.substring(s.indexOf(":")+1);
-			results[index++] = method;
-			results[index++] = defVal;
-		}
-		
-		return results;
-	}
-	
-	/**
-	 * Get's the data type corresponding to each 
-	 * @param combinedArray
-	 * @return
-	 */
-	private String[] typesFromFredProtocolArray(String[] combinedArray) {
-		String[] results = new String[combinedArray.length*2];
-		int index = 0;
-		for (String s : combinedArray) {
-			String method = s.substring(0, s.indexOf(":"));
-			String defVal = s.substring(s.indexOf(":")+1);
-			results[index++] = method;
-			results[index++] = defVal;
-		}
-		
-		return results;
-	}
-	
-	private String[] defValsFromFredProtocolArray(String[] combinedArray) {
-		return null;
-	}
-
 }

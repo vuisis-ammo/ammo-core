@@ -3,37 +3,29 @@ package edu.vu.isis.ammo.core.model;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.app.Activity;
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.telephony.PhoneStateListener;
+import android.content.SharedPreferences.Editor;
+import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 
 public class PhoneNetlink extends Netlink
 {
-    private static final Logger connectionLogger = LoggerFactory.getLogger( "scenario.network.link" );
+    private static final Logger logger = LoggerFactory.getLogger( PhoneNetlink.class );
 
     private TelephonyManager mTelephonyManager = null;
-    private ConnectivityManager mConnManager = null;
-
+    private Context mContext = null;
 
     private PhoneNetlink(Context context)
     {
         super( context, "3G Netlink", "3G" );
 
-        mTelephonyManager = (TelephonyManager) context.getSystemService( Context.TELEPHONY_SERVICE );
-        mConnManager =
-            (ConnectivityManager) context.getSystemService( Context.CONNECTIVITY_SERVICE );
+        this.mContext = context;
 
+        mTelephonyManager = (TelephonyManager) context.getSystemService( Context.TELEPHONY_SERVICE );
+        
         updateStatus();
     }
 
@@ -82,7 +74,9 @@ public class PhoneNetlink extends Netlink
             setLinkUp( false );
             break;
         }
-
+        Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
+        editor.putInt(INetPrefKeys.PHONE_PREF_IS_ACTIVE, state[0]).commit();    
+        
         setStatus( state );
     }
 
