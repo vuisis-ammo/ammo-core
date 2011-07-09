@@ -5,6 +5,7 @@
 package edu.vu.isis.ammo.core.network;
 
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import edu.vu.isis.ammo.core.model.Gateway;
@@ -54,6 +55,6 @@ public interface INetworkService {
      *
      * @param callback
      */
-	void setRequestQueue(PriorityBlockingQueue<NetworkService.Request> requestQueue);
-	PriorityBlockingQueue<NetworkService.Response> getResponseQueue();
+	void setRequestQueue(BlockingQueue<NetworkService.Message> requestQueue);
+	PriorityBlockingQueue<NetworkService.Message> getResponseQueue();
 }

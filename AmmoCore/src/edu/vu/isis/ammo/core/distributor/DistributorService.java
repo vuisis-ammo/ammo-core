@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import org.slf4j.Logger;
@@ -33,9 +34,6 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -80,8 +78,7 @@ public class DistributorService extends Service implements IDistributorService {
 
     public INetworkService networkServiceBinder;
     public boolean isNetworkServiceBound = false;
-    private DistributorSenderThread senderThread;
-    private DistributorReceiverThread receiverThread;
+    private DistributorThread senderThread;
     
     public void consumerReady() {
         senderThread.subscriptionChange();
@@ -96,17 +93,12 @@ public class DistributorService extends Service implements IDistributorService {
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
                     
             // Start processing the requests
-            final PriorityBlockingQueue<NetworkService.Request> outboundQueue
-        	     = new PriorityBlockingQueue<NetworkService.Request>();      
+            final BlockingQueue<NetworkService.Message> outboundQueue
+        	     = new PriorityBlockingQueue<NetworkService.Message>();      
             networkServiceBinder.setRequestQueue(outboundQueue);
-            DistributorService.this.senderThread = new DistributorSenderThread(outboundQueue);
+            DistributorService.this.senderThread = 
+            	new DistributorThread(DistributorService.this.getBaseContext(), outboundQueue);
             DistributorService.this.senderThread.execute(DistributorService.this);
-                      
-            // Start processing the receives
-            final PriorityBlockingQueue<NetworkService.Response> inboundQueue
-            	= networkServiceBinder.getResponseQueue();
-            DistributorService.this.receiverThread = new DistributorReceiverThread(inboundQueue);
-            DistributorService.this.receiverThread.execute(DistributorService.this);
         }
 
         public void onServiceDisconnected(ComponentName name) {
@@ -115,10 +107,6 @@ public class DistributorService extends Service implements IDistributorService {
             networkServiceBinder = null;
         }
     };
-
-    private PostalObserver postalObserver;
-    private RetrievalObserver retrievalObserver;
-    private SubscriptionObserver subscriptionObserver;
 
     private TelephonyManager tm;
     private CellPhoneListener cellPhoneListener;
@@ -140,21 +128,6 @@ public class DistributorService extends Service implements IDistributorService {
     public void onCreate() {
         super.onCreate();
         logger.info("::onCreate");
-
-        // Set this service to observe certain Content Providers.
-        // Initialize our content observer.
-
-        postalObserver = new PostalObserver(new Handler(), this);
-        this.getContentResolver().registerContentObserver(
-                PostalTableSchema.CONTENT_URI, true, postalObserver);
-
-        retrievalObserver = new RetrievalObserver(new Handler(), this);
-        this.getContentResolver().registerContentObserver(
-                RetrievalTableSchema.CONTENT_URI, true, retrievalObserver);
-
-        subscriptionObserver = new SubscriptionObserver(new Handler(), this);
-        this.getContentResolver().registerContentObserver(
-                SubscriptionTableSchema.CONTENT_URI, true, subscriptionObserver);
 
         // Initialize our receivers/listeners.
         /*
@@ -246,9 +219,7 @@ public class DistributorService extends Service implements IDistributorService {
         this.stopService(networkServiceIntent);
         tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
         wifiReceiver.setInitialized(false);
-        this.getContentResolver().unregisterContentObserver(postalObserver);
-        this.getContentResolver().unregisterContentObserver(retrievalObserver);
-        this.getContentResolver().unregisterContentObserver(subscriptionObserver);
+       
         this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
 
         super.onDestroy();
@@ -370,63 +341,6 @@ public class DistributorService extends Service implements IDistributorService {
     }
 
 
-    // ===========================================================
-    // Content Observer Nested Classes
-    // ===========================================================
-
-    private class PostalObserver extends ContentObserver 
-    {
-        /** Fields */
-        private DistributorService callback;
-
-        public PostalObserver(Handler handler, DistributorService aCallback) {
-            super(handler);
-            logger.info("PostalObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("PostalObserver::onChange : {}", selfChange);
-            this.callback.senderThread.postalChange();
-        }
-    }
-
-    private class RetrievalObserver extends ContentObserver {
-
-        /** Fields */
-        private DistributorService callback;
-
-        public RetrievalObserver(Handler handler, DistributorService aCallback) {
-            super(handler);
-            logger.info("RetrievalObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("RetrievalObserver::onChange : {}", selfChange );
-            this.callback.senderThread.retrievalChange();
-        }
-    }
-
-    private class SubscriptionObserver extends ContentObserver {
-
-        /** Fields */
-        private DistributorService callback;
-
-        public SubscriptionObserver(Handler handler, DistributorService aCallback) {
-            super(handler);
-            logger.info("SubscriptionObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("SubscriptionObserver::onChange : {}", selfChange );
-            this.callback.senderThread.subscriptionChange();
-        }
-    }
 
     /**
      * This broadcast receiver is responsible for determining 

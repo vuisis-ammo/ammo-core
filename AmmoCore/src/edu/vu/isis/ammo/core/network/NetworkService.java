@@ -420,7 +420,20 @@ implements OnSharedPreferenceChangeListener,
             return new MsgHeader(data.length, crc32);
         }
     }
-    static public class Request {
+    
+    /**
+     * This message class is provided so that a single queue may be used
+     * for both requests and responses destined for the distributor.
+     *  We could use RTTI to get the specific type but a type parameter will be provided.
+     */
+    static abstract public class Message {
+    	public final Type type;
+    	
+    	public enum Type {
+    		REQUEST, RESPONSE;
+    	}
+    }
+    static public class Request extends Message {
     	public final int priority;
     	public final MsgHeader header;
     	public final AmmoMessages.MessageWrapper.Builder builder; 	
@@ -429,6 +442,7 @@ implements OnSharedPreferenceChangeListener,
     	private Request(int priority, MsgHeader header, 
     			AmmoMessages.MessageWrapper.Builder builder, INetworkService.OnSendHandler handler ) 
     	{
+    		this.type = Message.Type.REQUEST;
     		this.priority = priority;
     		this.header = header;
     		this.builder = builder;
@@ -446,7 +460,7 @@ implements OnSharedPreferenceChangeListener,
     	}
     }
     
-    static public class Response {
+    static public class Response extends Message {
     	public final int priority;
     	public final MsgHeader header;
     	public final AmmoMessages.MessageWrapper msg;
@@ -454,6 +468,7 @@ implements OnSharedPreferenceChangeListener,
     	private Response(int priority, MsgHeader header,
     			AmmoMessages.MessageWrapper msg) 
     	{
+    		this.type = Message.Type.RESPONSE;
     		this.priority = priority;
     		this.header = header;
     		this.msg = msg;

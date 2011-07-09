@@ -1,7 +1,7 @@
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,66 +10,55 @@ import com.google.protobuf.ByteString;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
 import edu.vu.isis.ammo.core.FLogger;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.network.NetworkService.Message;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Disposition;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTable;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTable;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.util.InternetMediaType;
 
 /**
  * The distributor service runs in the ui thread.
  * This establishes a new thread for distributing the requests.
  * 
+ * It consumes messages from a priority queue and, depending on the message type,
+ * <ul>
+ * <li>attempts to send requests to the gateway, saving the request in the data store </li>
+ * <li>updates the data store with responses from the gateway, also updates content providers </li>
+ * </ul>
+ * 
  */
-public class DistributorSenderThread extends
+public class DistributorThread extends
         AsyncTask<DistributorService, Integer, Void> 
 {
-	private static final Logger logger = LoggerFactory.getLogger(DistributorSenderThread.class);
-	
-	public class Junk {}
+	private static final Logger logger = LoggerFactory.getLogger(DistributorThread.class);
 	
     private static final int BURP_TIME = 20 * 1000; 
     // 20 seconds expressed in milliseconds
     
     /**
-     * The thread processes the queues and puts messages on the queue.
+     * The queues from which requests and responses are processed.
      */
-    private final PriorityBlockingQueue<NetworkService.Request> queue;
+    private final BlockingQueue<NetworkService.Message> queue;
+    private final Context context;
+    private final DistributorDataStore ds;
     
-    public DistributorSenderThread(PriorityBlockingQueue<NetworkService.Request> queue) {
+    public DistributorThread(Context context, BlockingQueue<NetworkService.Message> queue) {
     	super();
     	this.queue = queue;
-    }
-
-    private boolean subscriptionDelta;
-
-    public synchronized void subscriptionChange() {
-        subscriptionDelta = true;
-        this.notifyAll();
-    }
-
-    private boolean retrievalDelta;
-
-    public synchronized void retrievalChange() {
-        retrievalDelta = true;
-        this.notifyAll();
-    }
-
-    private boolean postalDelta;
-
-    public synchronized void postalChange() {
-        postalDelta = true;
-        this.notifyAll();
-    }
-
-    private boolean isReady() {
-        return this.subscriptionDelta || this.retrievalDelta || this.postalDelta;
+    	this.ds = new DistributorDataStore(this.context);
     }
 
     @Override
@@ -83,43 +72,56 @@ public class DistributorSenderThread extends
         }
         // condition wait is there something to process?
         try {
-            while (true) {
-                boolean subscriptionFlag = false;
-                boolean retrievalFlag = false;
-                boolean postalFlag = false;
-                
-                synchronized (this) {
-                    while (!this.isReady())
-                    {
-                    	logger.info("!this.isReady()");
-                        // this is IMPORTANT don't remove it.
-                        this.wait(BURP_TIME);
-                    }
-                    subscriptionFlag = this.subscriptionDelta;
-                    this.subscriptionDelta = false;
-                    
-                    retrievalFlag = this.retrievalDelta;
-                    this.retrievalDelta = false;
-                    
-                    postalFlag = this.postalDelta;
-                    this.postalDelta = false;
-                }
-                if (subscriptionFlag) {
-                    for (DistributorService that : them) {
-                        this.processSubscriptionChange(that, false);
-                    }
-                }
-                if (retrievalFlag) {
-                    for (DistributorService that : them) {
-                        this.processRetrievalChange(that, false);
-                    }
-                }
-                if (postalFlag) {
-                    for (DistributorService that : them) {
-                        this.processPostalChange(that, false);
-                    }
-                }
-            }
+        	NetworkService.Message = message;
+            
+			while (null != (message = this.queue.take())) {
+				if (message.Type == NetworkService.Message.Type.REQUEST) {
+					NetworkService.Request request = (NetworkService.Request) message;
+
+					switch(request.type) {
+					case POSTAL:
+						for (DistributorService that : them) {
+	                        this.processPostalChange(that, false);
+	                    }
+						break;
+					case PUBLISH:
+						for (DistributorService that : them) {
+	                        this.processPublishChange(that, false);
+	                    }
+						break;
+					case RETRIEVE:
+	                    for (DistributorService that : them) {
+	                        this.processPostalChange(that, false);
+	                    }
+	                    break;
+					case SUBSCRIBE:
+	                    for (DistributorService that : them) {
+	                        this.processSubscriptionChange(that, false);
+	                    }
+	                    break;
+					}
+				} else if (message.Type == NetworkService.Message.Type.RESPONSE){
+					NetworkService.Response response = (NetworkService.Response) message;
+					AmmoMessages.MessageWrapper mw = response.msg;
+        			switch (mw.getType()) {
+
+        			    case DATA_MESSAGE:
+        			    	for (DistributorService that : them) 
+        			    		dispatchSubscribeResponse(mw, that);
+        			        break;
+
+        			    case PUSH_ACKNOWLEDGEMENT:
+        			    	for (DistributorService that : them) 
+        			    		dispatchPushResponse(mw, that);
+        			        break;
+
+        			    case PULL_RESPONSE:
+        			    	for (DistributorService that : them) 
+        			    		dispatchRetrievalResponse(mw, that);
+        			        break;
+        			 }
+				}
+			}
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
@@ -167,30 +169,23 @@ public class DistributorSenderThread extends
     
     static {
         StringBuilder sb = new StringBuilder()
-          .append('"').append(PostalTableSchema.DISPOSITION).append('"')
+          .append(PostalTableSchema.DISPOSITION.col())
           .append(" IN (")
-          .append("'").append(PostalTableSchema.DISPOSITION_SATISFIED).append("'")
-          .append(",")
-          .append("'").append(PostalTableSchema.DISPOSITION_EXPIRED).append("'")
-          .append(")");
+          .append(Disposition.SATISFIED.val()).append(",")
+          .append(Disposition.EXPIRED.val()).append(")");
         POSTAL_GARBAGE = sb.toString();
         
         sb = new StringBuilder()
-          .append('"').append(PostalTableSchema.DISPOSITION).append('"')
+          .append(PostalTableSchema.DISPOSITION.col())
           .append(" IN (")
-          .append("'").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
-          .append(")");
+          .append(Disposition.PENDING.val()).append(")");
         POSTAL_SEND = sb.toString();
 
         sb = new StringBuilder()
-          .append('"').append(PostalTableSchema.DISPOSITION).append('"')
+          .append(PostalTableSchema.DISPOSITION.col())
           .append(" IN (")
-          .append("'").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
-          .append(",")
-          .append("'").append(PostalTableSchema.DISPOSITION_FAIL).append("'")
-          // .append(",")
-          // .append("'").append(PostalTableSchema.DISPOSITION_SENT).append("'")
-          .append(")");
+          .append(Disposition.PENDING.val()).append(",")
+          .append(Disposition.FAIL.val()).append(")");
         POSTAL_RESEND = sb.toString();
     }
     
@@ -209,17 +204,15 @@ public class DistributorSenderThread extends
         if (!that.networkServiceBinder.isConnected())
             return;
 
-        final ContentResolver cr = that.getContentResolver();
-
         if (collectGarbage)
-        cr.delete(PostalTableSchema.CONTENT_URI, POSTAL_GARBAGE, null);
+        ds.deletePostal(POSTAL_GARBAGE, null);
         
         int prevPendingCount = 0;
 
         for (; true; resend = false) {
             String[] selectionArgs = null;
 
-            Cursor cur = cr.query(PostalTableSchema.CONTENT_URI, null, 
+            Cursor cur = ds.queryPostal(null, 
                     (resend ? POSTAL_RESEND : POSTAL_SEND), 
                     selectionArgs, PostalTableSchema._ID + " ASC");
 
@@ -236,9 +229,9 @@ public class DistributorSenderThread extends
                  moreItems = cur.moveToNext()) 
             {
                 String rowUri = cur.getString(
-                    cur.getColumnIndex(PostalTableSchema.URI));
+                    cur.getColumnIndex(PostalTableSchema.PROVIDER.n));
                 String cpType = cur.getString(
-                    cur.getColumnIndex(PostalTableSchema.CP_TYPE));
+                    cur.getColumnIndex(PostalTableSchema.CP_TYPE.n));
 
                 logger.debug("serializing: " + rowUri);
                 logger.debug("rowUriType: " + cpType);
@@ -248,11 +241,11 @@ public class DistributorSenderThread extends
                 byte[] serialized;
 
                 int serialType = cur.getInt(
-                    cur.getColumnIndex(PostalTableSchema.SERIALIZE_TYPE));
+                    cur.getColumnIndex(PostalTableSchema.SERIALIZE_TYPE.n));
 
                 switch (serialType) {
-                case PostalTableSchema.SERIALIZE_TYPE_DIRECT:
-                    int dataColumnIndex = cur.getColumnIndex(PostalTableSchema.DATA);
+                case SerializeType.DIRECT.o:
+                    int dataColumnIndex = cur.getColumnIndex(PostalTableSchema.DATA.n);
 
                     if (!cur.isNull(dataColumnIndex)) {
                         String data = cur.getString(dataColumnIndex);
@@ -265,8 +258,8 @@ public class DistributorSenderThread extends
                     }
                     break;
 
-                case PostalTableSchema.SERIALIZE_TYPE_INDIRECT:
-                case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
+                case SerializeType.INDIRECT.o:
+                case SerializeType.DEFERRED.o:
                 default:
                     try {
                         serialized = that.queryUriForSerializedData(rowUri);
@@ -288,9 +281,8 @@ public class DistributorSenderThread extends
                         final Uri postalUri = PostalTableSchema.getUri(cur);
                         ContentValues values = new ContentValues();
 
-                        values.put(PostalTableSchema.DISPOSITION,
-                                PostalTableSchema.DISPOSITION_QUEUED);
-                        cr.update(postalUri, values, null, null);
+                        values.put(PostalTableSchema.DISPOSITION, Disposition.QUEUED.o);
+                        ds.updatePostal(values, null, null);
 
                         logger.info("::dispatchPushRequest");
 
@@ -357,32 +349,25 @@ public class DistributorSenderThread extends
     
     static {
         StringBuilder sb = new StringBuilder()
-          .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
+          .append(RetrievalTableSchema.DISPOSITION.col())
           .append(" IN (")
-          .append("'").append(RetrievalTableSchema.DISPOSITION_SATISFIED).append("'")
-          .append(",")
-          .append("'").append(RetrievalTableSchema.DISPOSITION_EXPIRED).append("'")
-          .append(")");
+          .append(Disposition.SATISFIED.val()).append(",")
+          .append(Disposition.EXPIRED.val()).append(")");
         RETRIEVAL_GARBAGE = sb.toString();
         
         sb = new StringBuilder()
           .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
           .append(" IN (")
-          .append("'").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'")
-          .append(",")
-          .append("'").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'")
-          .append(")");
+          .append(Disposition.PENDING.val()).append(",")
+          .append(Disposition.FAIL.val()).append(")");
         RETRIEVAL_SEND = sb.toString();
 
         sb = new StringBuilder()
           .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
           .append(" IN (")
-          .append("'").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'")
-          .append(",")
-          .append("'").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'")
-          .append(",")
-          .append("'").append(RetrievalTableSchema.DISPOSITION_SENT).append("'")
-          .append(")");
+          .append(Disposition.PENDING.val()).append(",")
+          .append(Disposition.FAIL.val()).append(",")
+          .append(Disposition.SENT.val()).append(")");
         RETRIEVAL_RESEND = sb.toString();
     }
     
@@ -394,19 +379,17 @@ public class DistributorSenderThread extends
         if (!that.networkServiceBinder.isConnected())
             return;
 
-        final ContentResolver cr = that.getContentResolver();
-        String order = RetrievalTableSchema.PRIORITY_SORT_ORDER;
+        String order = RetrievalTable.PRIORITY_SORT_ORDER;
 
         if (collectGarbage)
-        cr.delete(RetrievalTableSchema.CONTENT_URI, RETRIEVAL_GARBAGE, null);
+        ds.deleteRetrieval(RETRIEVAL_GARBAGE, null);
         
         // Additional items may be added to the table while the current set
         // are being processed
 
         for (; true; resend = false) {
             String[] selectionArgs = null;
-            Cursor pendingCursor = cr.query(
-                    RetrievalTableSchema.CONTENT_URI, null, 
+            Cursor pendingCursor = ds.queryRetrieval(null, 
                     (resend ? RETRIEVAL_RESEND : RETRIEVAL_SEND),
                     selectionArgs, order);
 
@@ -422,13 +405,13 @@ public class DistributorSenderThread extends
                 // serialize it, then pass it off to the NPS.
 
                 String uri = pendingCursor.getString(pendingCursor
-                        .getColumnIndex(RetrievalTableSchema.URI));
+                        .getColumnIndex(RetrievalTableSchema.PROVIDER.n));
                 String mime = pendingCursor.getString(pendingCursor
-                        .getColumnIndex(RetrievalTableSchema.MIME));
+                        .getColumnIndex(RetrievalTableSchema.DATA_TYPE.n));
                 // String disposition =
                 // pendingCursor.getString(pendingCursor.getColumnIndex(RetrievalTableSchema.DISPOSITION));
                 String selection = pendingCursor.getString(pendingCursor
-                        .getColumnIndex(RetrievalTableSchema.SELECTION));
+                        .getColumnIndex(RetrievalTableSchema.SELECTION.n));
                 // int expiration =
                 // pendingCursor.getInt(pendingCursor.getColumnIndex(RetrievalTableSchema.EXPIRATION));
                 // long createdDate =
@@ -442,9 +425,9 @@ public class DistributorSenderThread extends
                 final Uri retrieveUri = RetrievalTableSchema.getUri(pendingCursor);
                 ContentValues values = new ContentValues();
                 values.put(RetrievalTableSchema.DISPOSITION,
-                        RetrievalTableSchema.DISPOSITION_QUEUED);
+                        Disposition.QUEUED.o);
 
-                cr.update(retrieveUri, values, null, null);
+                ds.updateRetrieval(values, null, null);
 
                 AmmoMessages.PullRequest.Builder prb = 
                 	AmmoMessages.PullRequest.newBuilder()
@@ -468,12 +451,10 @@ public class DistributorSenderThread extends
                             ContentValues values = new ContentValues();
 
                             values.put(RetrievalTableSchema.DISPOSITION,
-                                    status ? RetrievalTableSchema.DISPOSITION_SENT
-                                           : RetrievalTableSchema.DISPOSITION_FAIL);
+                                    status ? Disposition.SENT
+                                           : Disposition.FAIL);
 
-                            int numUpdated = cr.update(
-                                    retrieveUri, values, null,
-                                    null);
+                            int numUpdated = ds.updateRetrieval(values, null, null);
 
                             logger.info("{} rows updated to {} status",
                                     numUpdated, (status ? "sent" : "pending"));
@@ -504,30 +485,24 @@ public class DistributorSenderThread extends
         StringBuilder sb = new StringBuilder();
         
         sb = new StringBuilder()
-        .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
-        .append(" IN (")
-        .append("'").append(SubscriptionTableSchema.DISPOSITION_EXPIRED).append("'")
-        .append(")");      
+           .append(SubscribeTableSchema.DISPOSITION.col())
+           .append(" IN (")
+           .append(Disposition.EXPIRED.val()).append(")");      
         SUBSCRIPTION_GARBAGE = sb.toString();
 
         sb = new StringBuilder()
-          .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
+          .append(SubscribeTableSchema.DISPOSITION).append('"')
           .append(" IN (")
-          .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
-          .append(",")
-          .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
-          .append(")");             
+          .append(Disposition.PENDING.val()).append(",")
+          .append(Disposition.FAIL.val()).append(")");             
         SUBSCRIPTION_SEND = sb.toString();
         
         sb = new StringBuilder()
-          .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
+          .append(SubscribeTableSchema.DISPOSITION).append('"')
           .append(" IN (")
-                      .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
-          .append(",")
-          .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
-          .append(",")
-          .append("'").append(SubscriptionTableSchema.DISPOSITION_SENT).append("'")
-          .append(")");
+          .append(Disposition.PENDING.val()).append(",")
+          .append(Disposition.FAIL.val()).append(",")
+          .append(Disposition.SENT.val()).append(")");
         SUBSCRIPTION_RESEND = sb.toString();
     }
     public void processSubscriptionChange(DistributorService that, boolean resend) {
@@ -540,9 +515,9 @@ public class DistributorSenderThread extends
 
         final ContentResolver cr = that.getContentResolver();
         if (collectGarbage)
-        cr.delete(SubscriptionTableSchema.CONTENT_URI, SUBSCRIPTION_GARBAGE, null);
+        ds.deleteSubscribe(SUBSCRIPTION_GARBAGE, null);
 
-        String order = SubscriptionTableSchema.PRIORITY_SORT_ORDER;
+        String order = SubscribeTable.PRIORITY_SORT_ORDER;
 
         // Additional items may be added to the table while the current set
         // are being processed
@@ -550,8 +525,7 @@ public class DistributorSenderThread extends
         for (; true; resend = false) {
             String[] selectionArgs = null;
 
-            Cursor pendingCursor = cr.query(
-                    SubscriptionTableSchema.CONTENT_URI, null, 
+            Cursor pendingCursor = ds.querySubscribe(null, 
                     (resend ? SUBSCRIPTION_RESEND : SUBSCRIPTION_SEND), 
                     selectionArgs, order);
 
@@ -567,13 +541,13 @@ public class DistributorSenderThread extends
                 // serialize it, then pass it off to the NPS.
 
                 String mime = pendingCursor.getString(pendingCursor
-                        .getColumnIndex(SubscriptionTableSchema.MIME));
+                        .getColumnIndex(SubscribeTableSchema.DATA_TYPE.n));
                 // String disposition =
-                // pendingCursor.getString(pendingCursor.getColumnIndex(SubscriptionTableSchema.DISPOSITION));
+                // pendingCursor.getString(pendingCursor.getColumnIndex(SubscribeTableSchema.DISPOSITION));
                 String selection = pendingCursor.getString(pendingCursor
-                        .getColumnIndex(SubscriptionTableSchema.SELECTION));
+                        .getColumnIndex(SubscribeTableSchema.SELECTION.n));
                 int expiration = pendingCursor.getInt(pendingCursor
-                        .getColumnIndex(SubscriptionTableSchema.EXPIRATION));
+                        .getColumnIndex(SubscribeTableSchema.EXPIRATION.n));
 
                 // skip subscriptions with expiration of 0 -- they have been
                 // unsubscribed
@@ -581,20 +555,20 @@ public class DistributorSenderThread extends
                     continue;
 
                 // long createdDate =
-                // pendingCursor.getLong(pendingCursor.getColumnIndex(SubscriptionTableSchema.CREATED_DATE));
+                // pendingCursor.getLong(pendingCursor.getColumnIndex(SubscribeTableSchema.CREATED_DATE));
 
                 FLogger.request.trace("subscribe type[{}] select[{}]",
                         mime, selection);
 
-                final Uri subUri = SubscriptionTableSchema
+                final Uri subUri = SubscribeTableSchema
                         .getUri(pendingCursor);
 
                 ContentValues values = new ContentValues();
-                values.put(SubscriptionTableSchema.DISPOSITION,
-                        SubscriptionTableSchema.DISPOSITION_QUEUED);
+                values.put(SubscribeTableSchema.DISPOSITION,
+                		Disposition.QUEUED.o);
 
                 @SuppressWarnings("unused")
-                int numUpdated = cr.update(subUri, values, null, null);
+                int numUpdated = ds.update(subUri, values, null, null);
                 
 
                 AmmoMessages.SubscribeMessage.Builder smb = 
@@ -617,9 +591,9 @@ public class DistributorSenderThread extends
                                 // Update distributor status if
                                 // message dispatch successful.
                                 ContentValues values = new ContentValues();
-                                values.put( SubscriptionTableSchema.DISPOSITION,
-                                                (status) ? SubscriptionTableSchema.DISPOSITION_SENT
-                                                        : SubscriptionTableSchema.DISPOSITION_FAIL);
+                                values.put( SubscribeTableSchema.DISPOSITION.n,
+                                                (status) ? Disposition.SENT.o()
+                                                        : Disposition.FAIL.o());
 
                                 int numUpdated = cr.update(subUri, values, null, null);
                                 FLogger.request.trace("subscribe rows[{}] status[{}]",
