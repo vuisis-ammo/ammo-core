@@ -138,11 +138,9 @@ public class EthTrackSvc extends ServiceEx {
         if (msg.indexOf("Up") > 0) {
             mIsLinkUp = true;
             broadcastIntent.putExtra("state",AmmoIntents.LINK_UP);
-            //this.application.setWiredState(WIRED_NETLINK_UP);
         } else if (msg.indexOf("Down") > 0) {
             mIsLinkUp = false;
             broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
-            //this.application.setWiredState(WIRED_NETLINK_DOWN);
         }
         this.sendBroadcast(broadcastIntent);
 
