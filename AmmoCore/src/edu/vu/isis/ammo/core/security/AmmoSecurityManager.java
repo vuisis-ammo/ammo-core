@@ -254,7 +254,7 @@ public class AmmoSecurityManager {
 	{
 		byte[] handshake = concatBytes(this.phoneAuth, this.keyExchange, this.the_client_nonce, this.the_server_nonce);
 		
-		String gateway_id = "GW01";
+		String gateway_id = "MainGateway";
 		
 		byte[] content = concatBytes(handshake, gateway_id.getBytes(), masterSecret/*, there needs to be a pad here*/ );
 

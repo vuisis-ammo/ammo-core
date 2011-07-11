@@ -792,6 +792,7 @@ implements OnSharedPreferenceChangeListener,
             break;
 
         case AUTHENTICATION_RESULT:
+        case AUTHENTICATION_MESSAGE:
             boolean result = receiveAuthenticationResponse(mw);
             logger.error( "authentication result={}", result );
             break;
