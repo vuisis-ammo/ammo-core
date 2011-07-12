@@ -1,13 +1,6 @@
 package edu.vu.isis.ammo.core.distributor;
 
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 
@@ -21,23 +14,20 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.content.res.AssetFileDescriptor;
-import android.database.ContentObserver;
 import android.net.ConnectivityManager;
-import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.ParcelFileDescriptor;
+import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.IDistributorService;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
-import edu.vu.isis.ammo.core.FLogger;
 
 
 /**
@@ -56,7 +46,7 @@ import edu.vu.isis.ammo.core.FLogger;
  * subclass.
  * 
  */
-public class DistributorService extends Service implements IDistributorService {
+public class DistributorService extends Service {
 
     // ===========================================================
     // Constants
@@ -64,6 +54,10 @@ public class DistributorService extends Service implements IDistributorService {
     private static final Logger logger = LoggerFactory.getLogger(DistributorService.class);
 
     public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH");
+    public static final String BIND = "edu.vu.isis.ammo.core.distributor.DistributorService.BIND";
+    public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP";
+    public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED";
+    
 
     @SuppressWarnings("unused")
     private static final int FILE_READ_SIZE = 1024;
@@ -78,27 +72,30 @@ public class DistributorService extends Service implements IDistributorService {
 
     public INetworkService networkServiceBinder;
     public boolean isNetworkServiceBound = false;
-    private DistributorThread senderThread;
+    private DistributorThread workerThread;
     
     public void consumerReady() {
-        senderThread.subscriptionChange();
-        senderThread.retrievalChange();
-        senderThread.postalChange();
+        //workerThread.subscriptionChange();
+        //workerThread.retrievalChange();
+        //workerThread.postalChange();
     }
     
+    final BlockingQueue<NetworkService.Message> outboundQueue = 
+        new PriorityBlockingQueue<NetworkService.Message>();      
+   
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.info("::onServiceConnected - Network Service");
             isNetworkServiceBound = true;
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
                     
+            
+            DistributorService.this.workerThread = 
+                new DistributorThread(DistributorService.this.getBaseContext(), outboundQueue);
             // Start processing the requests
-            final BlockingQueue<NetworkService.Message> outboundQueue
-        	     = new PriorityBlockingQueue<NetworkService.Message>();      
-            networkServiceBinder.setRequestQueue(outboundQueue);
-            DistributorService.this.senderThread = 
-            	new DistributorThread(DistributorService.this.getBaseContext(), outboundQueue);
-            DistributorService.this.senderThread.execute(DistributorService.this);
+           
+            networkServiceBinder.setCallback(DistributorService.this.workerThread);
+            DistributorService.this.workerThread.execute(DistributorService.this);
         }
 
         public void onServiceDisconnected(ComponentName name) {
@@ -115,6 +112,34 @@ public class DistributorService extends Service implements IDistributorService {
     private MyBroadcastReceiver mReadyResourceReceiver = null;
     private boolean mNetworkConnected = false;
     private boolean mSdCardAvailable = false;
+
+    // ===========================================================
+    // AIDL Implementation
+    // ===========================================================
+    
+    public class DistributorServiceAidl extends IDistributorService.Stub 
+    {
+        @Override
+        public String makeRequest(AmmoRequest request) throws RemoteException {
+            logger.trace("received data request");
+            NetworkService.Request msg = new NetworkService.Raw.getInstance(request);
+            DistributorService.this.outboundQueue.put(msg);
+            return "1234567890";
+        }
+
+        @Override
+        public AmmoRequest recoverRequest(String uuid) throws RemoteException {
+            logger.trace("recover data request {}", uuid);
+            return null;
+        }
+        
+    }
+    
+    @Override
+    public IBinder onBind(Intent intent) {
+    	logger.trace("client binding...");
+        return new DistributorServiceAidl();
+    }
 
 
     // ===========================================================
@@ -225,123 +250,10 @@ public class DistributorService extends Service implements IDistributorService {
         super.onDestroy();
     }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
 
     // ===========================================================
-    // IDistributorService implementation
+    // RECEIVERS
     // ===========================================================
-
-    /**
-     * Make a specialized query on a specific content provider URI 
-     * to get back that row in serialized form
-     * 
-     * @param uri
-     * @return
-     * @throws IOException
-     */
-    public synchronized byte[] queryUriForSerializedData(String uri) throws FileNotFoundException, IOException {
-        Uri rowUri = Uri.parse(uri);
-        Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
-
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        BufferedInputStream bis = null;
-        InputStream instream = null;
-
-        try {
-            try {
-                // instream = this.getContentResolver().openInputStream(serialUri);
-                AssetFileDescriptor afd = this.getContentResolver()
-                    .openAssetFileDescriptor(serialUri, "r");
-                if (afd == null) {
-                    logger.warn("could not acquire file descriptor {}", serialUri);
-                    throw new IOException("could not acquire file descriptor "+serialUri);
-                }
-                // afd.createInputStream();
-
-                ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-                instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-            } catch (IOException ex) {
-                logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
-                bout.close();
-                throw new FileNotFoundException("Unable to create stream");
-            }
-            bis = new BufferedInputStream(instream);
-
-            for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-                bout.write(buffer, 0, bytesRead);
-            }
-            bis.close();
-            instream.close();
-            // String bs = bout.toString();
-            // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
-            byte[] ba = bout.toByteArray();
-            logger.info("length of serialized data: ["+ba.length+"]");
-            bout.close();
-            return ba;
-
-        } catch (FileNotFoundException ex) {
-            ex.printStackTrace();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        }
-        if (bout != null) {
-            bout.close();
-        }
-        if (bis != null) {
-            bis.close();
-        }
-        return null;
-    }
-    
-
-    /**
-     * Get the contents of a file as a byte array.
-     * 
-     * @param file
-     * @return
-     * @throws IOException
-     */
-    public byte[] getBytesFromFile(File file) throws IOException {
-        InputStream is = new FileInputStream(file);
-
-        // Get the size of the file
-        long length = file.length();
-
-        if (length > Integer.MAX_VALUE) {
-        	// File is too large
-        }
-
-        // Create the byte array to hold the data
-        byte[] bytes = new byte[(int) length];
-
-        // Read in the bytes
-        int offset = 0;
-        int numRead = 0;
-
-        while (offset < bytes.length
-                && (numRead = is.read(bytes, offset, bytes.length - offset))
-                >= 0) {
-            offset += numRead;
-        }
-
-        // Ensure all the bytes have been read in
-        if (offset < bytes.length) {
-            throw new IOException(
-                    "Could not completely read file " + file.getName());
-        }
-
-        // Close the input stream and return bytes
-        is.close();
-        return bytes;
-    }
-
-
-
     /**
      * This broadcast receiver is responsible for determining 
      * that an interface is available for use.

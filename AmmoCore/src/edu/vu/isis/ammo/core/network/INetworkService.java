@@ -5,12 +5,9 @@
 package edu.vu.isis.ammo.core.network;
 
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
 
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
-
 
 /**
  * This interface is used by the Distributor and others to interact with the
@@ -19,7 +16,7 @@ import edu.vu.isis.ammo.core.model.Netlink;
  */
 public interface INetworkService {
 
-	// Intent action constants
+    // Intent action constants
     String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP";
     String UPDATE_IP = "edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP";
     String ACTION = "edu.vu.isis.ammo.core.network.NetworkService.ACTION";
@@ -33,6 +30,9 @@ public interface INetworkService {
     interface OnSendHandler {
         boolean ack(boolean status);
     }
+    interface DeliveryHandler {
+        public boolean deliver(byte[] message, long checksum);
+    }
 
     // methods
     void teardown();
@@ -41,10 +41,6 @@ public interface INetworkService {
     List<Gateway> getGatewayList();
     List<Netlink> getNetlinkList();
     
-    /**
-     * Provide queues for sending, receiving and acknowledging.
-     * @param requestQueue
-     */
     /**
      * Pass control to the distributor service to handle the message.
      * The network service proxy is responsible for receiving messages from
@@ -55,6 +51,8 @@ public interface INetworkService {
      *
      * @param callback
      */
-	void setRequestQueue(BlockingQueue<NetworkService.Message> requestQueue);
-	PriorityBlockingQueue<NetworkService.Message> getResponseQueue();
+    boolean sendRequest(NetworkService.Message message);
+    public boolean deliver(byte[] message, long checksum);
+    void setCallback(DeliveryHandler handler);
+    
 }

@@ -26,13 +26,11 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-
-import com.google.protobuf.InvalidProtocolBufferException;
-
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
-import edu.vu.isis.ammo.core.distributor.IDistributorService;
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
@@ -44,14 +42,8 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 
 /**
- * Network Proxy Service is responsible for all networking between the
- * core application and the server. Currently, this service implements a UDP
- * connection for periodic data updates and a long-polling TCP connection for
- * event driven notifications.
- *
- * @author Demetri Miller
- * @author Fred Eisele
- *
+ * Network Service is responsible for all networking between the
+ * core application and the gateway server. 
  */
 public class NetworkService extends Service
 implements OnSharedPreferenceChangeListener,
@@ -109,9 +101,9 @@ implements OnSharedPreferenceChangeListener,
     public boolean getNetworkingSwitch() { return networkingSwitch; }
     public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
 
-    private IDistributorService distributor;
+    private DistributorService distributor;
     private PhoneStateListener mListener;
-	private NetworkChannelThread senderThread;
+    private NetworkChannelThread senderThread;
 
 
     // Channels
@@ -237,7 +229,7 @@ implements OnSharedPreferenceChangeListener,
         
         // Start processing the requests
         final PriorityBlockingQueue<NetworkService.Request> outboundQueue
-    	     = new PriorityBlockingQueue<NetworkService.Request>(); 
+             = new PriorityBlockingQueue<NetworkService.Request>(); 
         this.senderThread = new NetworkChannelThread(outboundQueue);
         this.senderThread.execute(this.tcpChannel);
     }
@@ -373,7 +365,7 @@ implements OnSharedPreferenceChangeListener,
      * @return
      */
     @SuppressWarnings("unused")
-	private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
+    private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
         logger.info("::receiveAuthenticationResponse");
 
         if (mw == null) return false;
@@ -424,100 +416,96 @@ implements OnSharedPreferenceChangeListener,
     /**
      * This message class is provided so that a single queue may be used
      * for both requests and responses destined for the distributor.
-     *  We could use RTTI to get the specific type but a type parameter will be provided.
+     *  We could use RTTI to get the specific type but a type parameter is used to make this unnecessary.
      */
     static abstract public class Message {
-    	public final Type type;
-    	
-    	public enum Type {
-    		REQUEST, RESPONSE;
-    	}
-    }
-    static public class Request extends Message {
-    	public final int priority;
-    	public final MsgHeader header;
-    	public final AmmoMessages.MessageWrapper.Builder builder; 	
-    	public final INetworkService.OnSendHandler handler;
-    	
-    	private Request(int priority, MsgHeader header, 
-    			AmmoMessages.MessageWrapper.Builder builder, INetworkService.OnSendHandler handler ) 
-    	{
-    		this.type = Message.Type.REQUEST;
-    		this.priority = priority;
-    		this.header = header;
-    		this.builder = builder;
-    		this.handler = handler;
-    	}
-    	static public Request getInstance(int priority,
-    			AmmoMessages.MessageWrapper.Builder builder, 
-    			INetworkService.OnSendHandler handler) 
-    	{
-    		// logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
-            byte[] protocByteBuf = builder.build().toByteArray();
-            MsgHeader header = MsgHeader.getInstance(protocByteBuf, true);
-            // this.journalChannel.sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
-    		return new Request(priority, header, builder, handler);
-    	}
+        public final Type type;
+        
+        public enum Type {
+            RAW, REQUEST, RESPONSE;
+        }
+        protected Message(Type type) { this.type = type; }
     }
     
+    /**
+     * The raw client message being sent to the gateway.
+     */
+    static public class Raw extends Message {
+    	public final AmmoRequest req;
+       
+        private Raw(AmmoRequest req) {
+            super(Message.Type.RAW);
+            this.req = req;
+        }
+        static public Raw getInstance(AmmoRequest req) {
+            return new Raw(req);
+        }
+    }
+    
+    /**
+     * The message being sent to the gateway.
+     */
+    static public class Request extends Message {
+        public enum Action {
+         AUTH, POSTAL, PUBLISH, RETRIEVE, SUBSCRIBE
+        };
+        public final Action action;
+        public final int priority;
+        public final MsgHeader header;
+        public final AmmoMessages.MessageWrapper.Builder builder;
+        public final INetworkService.OnSendHandler handler;
+        
+        private Request(int priority, Action action, MsgHeader header, 
+                AmmoMessages.MessageWrapper.Builder builder, 
+                INetworkService.OnSendHandler handler ) 
+        {
+            super(Message.Type.REQUEST);
+            this.action = action;
+            this.priority = priority;
+            this.header = header;
+            this.builder = builder;
+            this.handler = handler;
+        }
+        static public Request getInstance(int priority,
+                Action action,
+                AmmoMessages.MessageWrapper.Builder builder, 
+                INetworkService.OnSendHandler handler) 
+        {
+            logger.debug("Finished wrap build @ time {}",
+                    System.currentTimeMillis());
+            byte[] protocByteBuf = builder.build().toByteArray();
+            MsgHeader header = MsgHeader.getInstance(protocByteBuf, true);
+            return new Request(priority, action, header, builder, handler);
+        }
+    }
+    
+    /**
+     * The message obtained from the gateway.
+     */
     static public class Response extends Message {
-    	public final int priority;
-    	public final MsgHeader header;
-    	public final AmmoMessages.MessageWrapper msg;
-    	
-    	private Response(int priority, MsgHeader header,
-    			AmmoMessages.MessageWrapper msg) 
-    	{
-    		this.type = Message.Type.RESPONSE;
-    		this.priority = priority;
-    		this.header = header;
-    		this.msg = msg;
-    	}
-    	static public Response getInstance(int priority,
-    			AmmoMessages.MessageWrapper msg) 
-    	{
-    		// logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
+        public final int priority;
+        public final MsgHeader header;
+        public final AmmoMessages.MessageWrapper msg;
+        
+        private Response(int priority, MsgHeader header,
+                AmmoMessages.MessageWrapper msg) 
+        {
+            super(Message.Type.RESPONSE);
+            this.priority = priority;
+            this.header = header;
+            this.msg = msg;
+        }
+        static public Response getInstance(int priority,
+                AmmoMessages.MessageWrapper msg) 
+        {
+            logger.debug("Finished wrap build @ time {}",
+                    System.currentTimeMillis());
             byte[] protocByteBuf = msg.toByteArray();
             MsgHeader header = MsgHeader.getInstance(protocByteBuf, true);
-            // this.journalChannel.sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
-    		return new Response(priority, header, msg);
-    	}
+            return new Response(priority, header, msg);
+        }
     }
 
-    /**
-     *  Processes and delivers in-bound messages received from the gateway.
-     *
-     * @param instream
-     * @return was the message clean (true) or garbled (false).
-     *    a null message is considered garbled indicating it won't be processed.
-     */
-    // TODO move to distributor
-    public boolean deliver(byte[] message, long checksum)
-    {
-        logger.info("::deliverGatewayResponse");
-
-        CRC32 crc32 = new CRC32();
-        crc32.update(message);
-        if (crc32.getValue() != checksum) {
-            String msg = "you have received a bad message, the checksums did not match)"+
-            Long.toHexString(crc32.getValue()) +":"+ Long.toHexString(checksum);
-            // Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-            logger.warn(msg);
-            return false;
-        }
-
-        AmmoMessages.MessageWrapper mw = null;
-        try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(message);
-        } catch (InvalidProtocolBufferException ex) {
-            ex.printStackTrace();
-        }
-        if (mw == null) return false;
-
-        this.inboundQueue.put(Response.getInstance(0, mw));
-       
-        return true;
-    }
 
     // ===============================================================
     // BINDING CALLS (NetworkServiceBinder)
@@ -563,22 +551,22 @@ implements OnSharedPreferenceChangeListener,
         logger.info("::authenticate");
 
         AmmoMessages.AuthenticationMessage.Builder amb = 
-        	AmmoMessages.AuthenticationMessage.newBuilder()
-        	   .setDeviceId(UniqueIdentifiers.device(this.getApplicationContext()))
+            AmmoMessages.AuthenticationMessage.newBuilder()
+               .setDeviceId(UniqueIdentifiers.device(this.getApplicationContext()))
                .setUserId(operatorId)
                .setUserKey(operatorKey);
         
         AmmoMessages.MessageWrapper.Builder mwb = 
-        	AmmoMessages.MessageWrapper.newBuilder()
-        		.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE)
-        		.setAuthenticationMessage(amb)
+            AmmoMessages.MessageWrapper.newBuilder()
+                .setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE)
+                .setAuthenticationMessage(amb)
                 .setSessionUuid(sessionId); 
         
-        this.outboundQueue.put(NetworkService.Request.getInstance(0, mwb, null)); 
+        this.outboundQueue.put(NetworkService.Request.getInstance(0, Request.Action.AUTH, mwb, null)); 
         return true;
     }
 
-    public void setDistributorServiceCallback(IDistributorService callback) {
+    public void setDistributorServiceCallback(DistributorService callback) {
         logger.info("::setDistributorServiceCallback");
 
         distributor = callback;
@@ -732,28 +720,33 @@ implements OnSharedPreferenceChangeListener,
         return mNetlinks;
     }
     
-    private final PriorityBlockingQueue<NetworkService.Response> inboundQueue =
-    	new PriorityBlockingQueue<NetworkService.Response>();    
+
+    private PriorityBlockingQueue<NetworkService.Request> outboundQueue;
     
-	@Override
-	public PriorityBlockingQueue<NetworkService.Response> getResponseQueue() {
-		return this.inboundQueue;
-	}
-	
-	private PriorityBlockingQueue<NetworkService.Request> outboundQueue;
-	
-	@Override
-	public void setRequestQueue(PriorityBlockingQueue<Request> outboundQueue) {
-		this.outboundQueue = outboundQueue;
-	}
-	
-	/**
-	 * We need a check on the authorization request
-	 */
-/**
-case AUTHENTICATION_RESULT:
-    receiveAuthenticationResponse(mw);
-    break;
-    */
+    /**
+     * Processes message from the Distributor
+     */
+    @Override
+    public boolean sendRequest(Message message) {
+        // TODO Auto-generated method stub
+        return true;
+    }
+    
+    /**
+     * Forwards message to the Distributor from a channel.
+     */
+    private DeliveryHandler handler;
+    
+    @Override
+    public void setCallback(DeliveryHandler handler) {
+        this.handler = handler;
+    }
+    
+    @Override
+    public boolean deliver(byte[] message, long checksum) {
+        this.handler.deliver(message, checksum);
+        return false;
+    }
+
 
 }
