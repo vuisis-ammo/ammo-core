@@ -10,30 +10,30 @@ import android.os.AsyncTask;
  */
 public class NetworkChannelThread extends AsyncTask<INetChannel, Integer, Void> {
 
-	private PriorityBlockingQueue<NetworkService.Request> queue;
-	
-	public NetworkChannelThread(PriorityBlockingQueue<NetworkService.Request> queue) {
-		this.queue = queue;
-	}
-	
-	/**
-	 * The requests need to be transmogrified to work with the NetChannel.
-	 */
-	@Override
-	protected Void doInBackground(INetChannel... them) {
-		while(true) {
-			try {
-				NetworkService.Request req = this.queue.take();
-				for (INetChannel that : them) {
-					NetChannel.GwMessage msg = 
-						new NetChannel.GwMessage(req.header.size, req.header.checksum, 
-								req.builder.build().toByteArray(), req.handler);
-					that.sendRequest(msg);
-				}
-			} catch (InterruptedException ex) {
-				ex.printStackTrace();
-			}
-		}
-	}
+    private PriorityBlockingQueue<NetworkService.Request> queue;
+
+    public NetworkChannelThread(PriorityBlockingQueue<NetworkService.Request> queue) {
+        this.queue = queue;
+    }
+
+    /**
+     * The requests need to be transmogrified to work with the NetChannel.
+     */
+    @Override
+    protected Void doInBackground(INetChannel... them) {
+        while(true) {
+            try {
+                NetworkService.Request req = this.queue.take();
+                for (INetChannel that : them) {
+                    NetChannel.GwMessage msg =
+                        new NetChannel.GwMessage(req.header.size, req.header.checksum,
+                                                 req.builder.build().toByteArray(), req.handler);
+                    that.sendRequest(msg);
+                }
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
 
 }

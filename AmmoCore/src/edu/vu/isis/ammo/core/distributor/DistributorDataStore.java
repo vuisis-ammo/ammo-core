@@ -23,7 +23,7 @@ import android.text.TextUtils;
 
 /**
  * The Distributor Store Object is managed by the distributor thread.
- * 
+ *
  * The distributor thread manages two queues.
  * <ul>
  * <li>coming from the AIDL calls from clients</li>
@@ -46,14 +46,14 @@ public class DistributorDataStore {
     // ===========================================================
     // Schema
     // ===========================================================
-    
+
     /**
      * Data Store Table definitions
      */
     public enum Tables {
-        POSTAL("postal"), 
-        RETRIEVAL("retrieval"), 
-        PUBLISH("publication"), 
+        POSTAL("postal"),
+        RETRIEVAL("retrieval"),
+        PUBLISH("publication"),
         SUBSCRIBE("subscription");
 
         final public String n;
@@ -61,32 +61,32 @@ public class DistributorDataStore {
         private Tables(String name) {
             this.n = name;
         }
-        
+
         public static final int VERSION = 6;
         public static final String NAME = "distributor.db";
-        
+
         /**
          * Produce string builders of the form...
          * CREATE TABLE "<table-name>" ( <row defs> );
-         * 
+         *
          */
         public StringBuilder sqlCreate(StringBuilder sb) {
             StringBuilder wrap = new StringBuilder();
             return wrap.append("CREATE TABLE ")
-                .append('"').append(this.n).append('"')
-                .append(" (").append(sb).append(");");
+            .append('"').append(this.n).append('"')
+            .append(" (").append(sb).append(");");
         }
-        
+
         /**
          * Produce string builders of the form...
          * DROP TABLE "<table-name>";
-         * 
+         *
          */
         public StringBuilder sqlDrop(StringBuilder sb) {
             StringBuilder wrap = new StringBuilder();
             return wrap.append("DROP TABLE ")
-                .append('"').append(this.n).append('"')
-                .append(" (").append(sb).append(");");
+            .append('"').append(this.n).append('"')
+            .append(" (").append(sb).append(");");
         }
     };
 
@@ -94,131 +94,134 @@ public class DistributorDataStore {
     // ===========================================================
     // Enumerated types in the tables.
     // ===========================================================
-    
+
     /**
      * Indicates if the provider indicates a table entry or whether the
-     * data has been pre-serialized. 
+     * data has been pre-serialized.
      */
-       public enum SerializeType {
-           DIRECT(1), 
-           // the serialized data is found in the data field (or a suitable file)
-           
-           INDIRECT(2),
-           // the serialized data is obtained from the named provider uri
-           
-           DEFERRED(3);
-           // the same as INDIRECT but the serialization doesn't happen until the data is sent.
-           
-           public int o; // ordinal
+    public enum SerializeType {
+        DIRECT(1),
+        // the serialized data is found in the data field (or a suitable file)
 
-            private SerializeType(int o) {
-                this.o = o;
-            }
-            /**
-             * Produce string of the form...
-             * '<field-ordinal-value>';
-             * 
-             */
-            public String val() {
-                return new StringBuilder().append("'").append(this.o).append("'").toString();
-            }
-			public static SerializeType byOrdinal(int serialType) {
-				switch(serialType) {
-				case 1: return DIRECT;
-				case 2: return INDIRECT;
-				case 3: return DEFERRED;
-				}
-				throw new IllegalArgumentException("unknown SerialType "+Integer.toString(serialType));
-			}
-       };
-       
-        /**
-         * Status of the entry (sent or not sent).
-         * <P>
-         * Type: EXCLUSIVE
-         * </P>
-         */
+        INDIRECT(2),
+        // the serialized data is obtained from the named provider uri
 
-        public enum Disposition {
-            PENDING(1, "PENDING"), 
-            QUEUED(2, "QUEUED"), 
-            SENT(3, "SENT"),
-            JOURNAL(4, "JOURNAL"),
-            FAIL(5, "FAIL"),
-            EXPIRED(6, "EXPIRED"),
-            SATISFIED(7, "SATISFIED");
+        DEFERRED(3);
+        // the same as INDIRECT but the serialization doesn't happen until the data is sent.
 
-            final public int o;
-            final public String t;
+        public int o; // ordinal
 
-            private Disposition(int ordinal, String title) {
-                this.o = ordinal;
-                this.t = title;
-            }
-            /**
-             * Produce string of the form...
-             * '<field-ordinal-value>';
-             * 
-             */
-            public String val() {
-                return new StringBuilder().append("'").append(this.o).append("'").toString();
-            }
-        };
-        
-        /**
-         * Indicates how delayed messages are to be prioritized.
-         */
-        public enum ContinuityType {
-            ONCE(1, "once"), 
-            TEMPORAL(2, "temporal"), 
-            QUANTITY(3, "quantity");
-
-            final public int o;
-            final public String t;
-
-            private ContinuityType(int ordinal, String title) {
-                this.o = ordinal;
-                this.t = title;
-            }
-            /**
-             * Produce string of the form...
-             * '<field-ordinal-value>';
-             */
-            public String val() {
-                return new StringBuilder().append("'").append(this.o).append("'").toString();
-            }
-        };
-        
-        /**
-         * Indicates message priority.
-         */
-        public enum PriorityType {
-            FLASH(128, "FLASH"),
-            URGENT(64, "URGENT"),
-            IMPORTANT(32, "IMPORTANT"),
-            NORMAL(16, "NORMAL"),
-            BACKGROUND(8, "BACKGROUND");
-            
-            final public int o;
-            final public String t;
-
-            private PriorityType(int ordinal, String title) {
-                this.o = ordinal;
-                this.t = title;
-            }
-            /**
-             * Produce string of the form...
-             * '<field-ordinal-value>';
-             */
-            public String val() {
-                return new StringBuilder().append("'").append(this.o).append("'").toString();
-            }
+        private SerializeType(int o) {
+            this.o = o;
         }
-    
-        // ===========================================================
-        // Enumerated types in the tables.
-        // ===========================================================
-        
+        /**
+         * Produce string of the form...
+         * '<field-ordinal-value>';
+         *
+         */
+        public String val() {
+            return new StringBuilder().append("'").append(this.o).append("'").toString();
+        }
+        public static SerializeType byOrdinal(int serialType) {
+            switch(serialType) {
+            case 1:
+                return DIRECT;
+            case 2:
+                return INDIRECT;
+            case 3:
+                return DEFERRED;
+            }
+            throw new IllegalArgumentException("unknown SerialType "+Integer.toString(serialType));
+        }
+    };
+
+    /**
+     * Status of the entry (sent or not sent).
+     * <P>
+     * Type: EXCLUSIVE
+     * </P>
+     */
+
+    public enum Disposition {
+        PENDING(1, "PENDING"),
+        QUEUED(2, "QUEUED"),
+        SENT(3, "SENT"),
+        JOURNAL(4, "JOURNAL"),
+        FAIL(5, "FAIL"),
+        EXPIRED(6, "EXPIRED"),
+        SATISFIED(7, "SATISFIED");
+
+        final public int o;
+        final public String t;
+
+        private Disposition(int ordinal, String title) {
+            this.o = ordinal;
+            this.t = title;
+        }
+        /**
+         * Produce string of the form...
+         * '<field-ordinal-value>';
+         *
+         */
+        public String val() {
+            return new StringBuilder().append("'").append(this.o).append("'").toString();
+        }
+    };
+
+    /**
+     * Indicates how delayed messages are to be prioritized.
+     */
+    public enum ContinuityType {
+        ONCE(1, "once"),
+        TEMPORAL(2, "temporal"),
+        QUANTITY(3, "quantity");
+
+        final public int o;
+        final public String t;
+
+        private ContinuityType(int ordinal, String title) {
+            this.o = ordinal;
+            this.t = title;
+        }
+        /**
+         * Produce string of the form...
+         * '<field-ordinal-value>';
+         */
+        public String val() {
+            return new StringBuilder().append("'").append(this.o).append("'").toString();
+        }
+    };
+
+    /**
+     * Indicates message priority.
+     */
+    public enum PriorityType {
+        FLASH(128, "FLASH"),
+        URGENT(64, "URGENT"),
+        IMPORTANT(32, "IMPORTANT"),
+        NORMAL(16, "NORMAL"),
+        BACKGROUND(8, "BACKGROUND");
+
+        final public int o;
+        final public String t;
+
+        private PriorityType(int ordinal, String title) {
+            this.o = ordinal;
+            this.t = title;
+        }
+        /**
+         * Produce string of the form...
+         * '<field-ordinal-value>';
+         */
+        public String val() {
+            return new StringBuilder().append("'").append(this.o).append("'").toString();
+        }
+    }
+
+    // ===========================================================
+    // Enumerated types in the tables.
+    // ===========================================================
+
     /**
      * The postal table is for holding retrieval requests.
      */
@@ -228,7 +231,7 @@ public class DistributorDataStore {
         public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
         public static final String[] COLUMNS = new String[PostalTableSchema.values().length];
-        public static final Map<String,String> PROJECTION_MAP = 
+        public static final Map<String,String> PROJECTION_MAP =
             new HashMap<String,String>(PostalTableSchema.values().length);
     };
     static {
@@ -244,41 +247,41 @@ public class DistributorDataStore {
 
         CREATED("created", "INTEGER"),
         // When the request was made
-        
+
         MODIFIED("modified", "INTEGER"),
         // When the request was last modified
-            
-        CP_TYPE("cp_type", "TEXT"),  
-        // This along with the cost is used to decide how to deliver the specific object.
-        
-        PROVIDER("provider", "TEXT"), 
-        // The uri of the content provider 
-        
-        NOTICE("notice", "BLOB"), 
-        // A description of what is to be done when various state-transition occur.        
 
-        PRIORITY("priority", "INTEGER"), 
+        CP_TYPE("cp_type", "TEXT"),
+        // This along with the cost is used to decide how to deliver the specific object.
+
+        PROVIDER("provider", "TEXT"),
+        // The uri of the content provider
+
+        NOTICE("notice", "BLOB"),
+        // A description of what is to be done when various state-transition occur.
+
+        PRIORITY("priority", "INTEGER"),
         // What order should this message be sent. Negative priorities indicated less than normal.
-        
-        SERIALIZE_TYPE("serialize_type", "INTEGER"), 
-        
-        DISPOSITION("disposition", "INTEGER"), 
+
+        SERIALIZE_TYPE("serialize_type", "INTEGER"),
+
+        DISPOSITION("disposition", "INTEGER"),
         // The current best guess of the status of the request.
-        
-        EXPIRATION("expiration", "INTEGER"), 
+
+        EXPIRATION("expiration", "INTEGER"),
         // Time-stamp at which point entry becomes stale.
-        
-        UNIT("unit", "TEXT"), 
+
+        UNIT("unit", "TEXT"),
         // Units associated with {@link #VALUE}. Used to determine whether should occur.
-        
-        VALUE("value", "INTEGER"), 
+
+        VALUE("value", "INTEGER"),
         // Arbitrary value linked to importance that entry is transmitted and battery drain.
-        
-        DATA("data", "TEXT"); 
+
+        DATA("data", "TEXT");
         // If the If null then the data file corresponding to the
         // column name and record id should be used. This is done when the data
         // size is larger than that allowed for a field contents.
-        
+
         final public String n; // name
         final public String t; // type
 
@@ -304,7 +307,7 @@ public class DistributorDataStore {
         }
     };
 
-    
+
     /**
      * The publication table is for holding publication requests.
      */
@@ -313,7 +316,7 @@ public class DistributorDataStore {
         public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
         public static final String[] COLUMNS = new String[PublishTableSchema.values().length];
-        public static final Map<String,String> PROJECTION_MAP = 
+        public static final Map<String,String> PROJECTION_MAP =
             new HashMap<String,String>(PublishTableSchema.values().length);
     }
     static {
@@ -323,28 +326,28 @@ public class DistributorDataStore {
             PublishTable.PROJECTION_MAP.put(field.n, field.n);
         }
     }
-    
+
     public enum PublishTableSchema {
         _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
         CREATED("created", "INTEGER"),
         // When the request was made
-        
-        MODIFIED("modified", "INTEGER"), 
+
+        MODIFIED("modified", "INTEGER"),
         // When the request was last modified
-            
-        DATA_TYPE("data_type", "TEXT"),  
+
+        DATA_TYPE("data_type", "TEXT"),
         // This along with the cost is used to decide how to deliver the specific object.
-        
-        PROVIDER("provider", "TEXT"), 
-        // The uri of the content provider 
-        
-        DISPOSITION("disposition", "INTEGER"), 
+
+        PROVIDER("provider", "TEXT"),
+        // The uri of the content provider
+
+        DISPOSITION("disposition", "INTEGER"),
         // The current best guess of the status of the request.
-        
-        EXPIRATION("expiration", "INTEGER"); 
+
+        EXPIRATION("expiration", "INTEGER");
         // Time-stamp at which request entry becomes stale.
-        
+
         final public String n; // name
         final public String t; // type
 
@@ -374,13 +377,13 @@ public class DistributorDataStore {
      * The retrieval table is for holding retrieval requests.
      */
     public static interface RetrievalTable extends BaseColumns {
-        
+
         public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
         public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
         public static final String[] COLUMNS = new String[RetrievalTableSchema.values().length];
-        public static final Map<String,String> PROJECTION_MAP = 
-            new HashMap<String,String>(RetrievalTableSchema.values().length); 
+        public static final Map<String,String> PROJECTION_MAP =
+            new HashMap<String,String>(RetrievalTableSchema.values().length);
     };
     static {
         int ix = 0;
@@ -389,66 +392,66 @@ public class DistributorDataStore {
             RetrievalTable.PROJECTION_MAP.put(field.n, field.n);
         }
     };
-    
+
     public enum RetrievalTableSchema {
         _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
         CREATED("created", "INTEGER"),
         // When the request was made
-        
-        MODIFIED("modified", "INTEGER"), 
-        // When the request was last modified
-            
-        DATA_TYPE("data_type", "TEXT"),  
-        // This along with the cost is used to decide how to deliver the specific object.
-        
-        PROVIDER("provider", "TEXT"), 
-        // The uri of the content provider 
-        
-        NOTICE("notice", "BLOB"), 
-        // A description of what is to be done when various state-transition occur.        
 
-        PRIORITY("priority", "INTEGER"), 
+        MODIFIED("modified", "INTEGER"),
+        // When the request was last modified
+
+        DATA_TYPE("data_type", "TEXT"),
+        // This along with the cost is used to decide how to deliver the specific object.
+
+        PROVIDER("provider", "TEXT"),
+        // The uri of the content provider
+
+        NOTICE("notice", "BLOB"),
+        // A description of what is to be done when various state-transition occur.
+
+        PRIORITY("priority", "INTEGER"),
         // What order should this message be sent. Negative priorities indicated less than normal.
-        
-        PROJECTION("projection", "TEXT"), 
+
+        PROJECTION("projection", "TEXT"),
         // The fields/columns wanted.
-        
-        SELECTION("selection", "TEXT"), 
+
+        SELECTION("selection", "TEXT"),
         // The rows/tuples wanted.
-        
-        ARGS("args", "TEXT"), 
+
+        ARGS("args", "TEXT"),
         // The values using in the selection.
-        
-        ORDERING("ordering", "TEXT"), 
+
+        ORDERING("ordering", "TEXT"),
         // The order the values are to be returned in.
-        
-        DISPOSITION("disposition", "INTEGER"), 
+
+        DISPOSITION("disposition", "INTEGER"),
         // The current best guess of the status of the request.
-        
-        EXPIRATION("expiration", "INTEGER"), 
+
+        EXPIRATION("expiration", "INTEGER"),
         // Time-stamp at which request entry becomes stale.
-        
-        UNIT("unit", "TEXT"), 
+
+        UNIT("unit", "TEXT"),
         // Units associated with {@link #VALUE}. Used to determine whether should occur.
-        
-        VALUE("value", "INTEGER"), 
+
+        VALUE("value", "INTEGER"),
         // Arbitrary value linked to importance that entry is transmitted and battery drain.
-        
-        DATA("data", "TEXT"), 
+
+        DATA("data", "TEXT"),
         // If the If null then the data file corresponding to the
         // column name and record id should be used. This is done when the data
         // size is larger than that allowed for a field contents.
-        
+
         CONTINUITY_TYPE("continuity_type", "INTEGER"),
-        CONTINUITY_VALUE("continuity_value", "INTEGER"); 
+        CONTINUITY_VALUE("continuity_value", "INTEGER");
         // The meaning changes based on the continuity type.
-        // - ONCE : undefined 
-        // - TEMPORAL : chronic, this differs slightly from the expiration 
-        //      which deals with the request this deals with the time stamps 
+        // - ONCE : undefined
+        // - TEMPORAL : chronic, this differs slightly from the expiration
+        //      which deals with the request this deals with the time stamps
         //      of the requested objects.
         // - QUANTITY : the maximum number of objects to return
-        
+
         final public String n; // name
         final public String t; // type
 
@@ -473,7 +476,7 @@ public class DistributorDataStore {
             return new StringBuilder().append('"').append(this.n).append('"').toString();
         }
     };
-    
+
 
     /**
      * The subscription table is for holding subscription requests.
@@ -482,7 +485,7 @@ public class DistributorDataStore {
 
         public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
         public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-        
+
         public static final String[] COLUMNS = new String[SubscribeTableSchema.values().length];
         public static final Map<String,String> PROJECTION_MAP =
             new HashMap<String,String>(SubscribeTableSchema.values().length);
@@ -494,37 +497,37 @@ public class DistributorDataStore {
             SubscribeTable.PROJECTION_MAP.put(field.n, field.n);
         }
     }
-    
+
     public enum SubscribeTableSchema {
         _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
         CREATED("created", "INTEGER"),
         // When the request was made
-        
+
         MODIFIED("modified", "INTEGER"),
         // When the request was last modified
-            
-        DATA_TYPE("data_type", "TEXT"),  
+
+        DATA_TYPE("data_type", "TEXT"),
         // This along with the cost is used to decide how to deliver the specific object.
-        
-        PROVIDER("provider", "TEXT"), 
-        // The uri of the content provider 
-        
-        DISPOSITION("disposition", "INTEGER"), 
+
+        PROVIDER("provider", "TEXT"),
+        // The uri of the content provider
+
+        DISPOSITION("disposition", "INTEGER"),
         // The current best guess of the status of the request.
-        
-        EXPIRATION("expiration", "INTEGER"), 
+
+        EXPIRATION("expiration", "INTEGER"),
         // Time-stamp at which request entry becomes stale.
-        
-        SELECTION("selection", "TEXT"), 
+
+        SELECTION("selection", "TEXT"),
         // The rows/tuples wanted.
-        
-        NOTICE("notice", "BLOB"), 
+
+        NOTICE("notice", "BLOB"),
         // A description of what is to be done when various state-transition occur.
-        
+
         PRIORITY("priority", "INTEGER");
         // What order should this message be sent. Negative priorities indicated less than normal.
-        
+
 
         final public String n; // name
         final public String t; // type
@@ -539,7 +542,7 @@ public class DistributorDataStore {
          * e.g.
          * "dog" TEXT
          */
-        
+
         public StringBuilder addfield() {
             return new StringBuilder().append('"').append(this.n).append('"').append(' ').append(this.t);
         }
@@ -551,7 +554,7 @@ public class DistributorDataStore {
             return new StringBuilder().append('"').append(this.n).append('"').toString();
         }
     }
-    
+
 
     // Views.
     public interface Views {
@@ -567,7 +570,7 @@ public class DistributorDataStore {
         this.context = context;
         this.helper = new MyHelper(this.context);
     }
-    
+
     public DistributorDataStore openRead() {
         this.db = this.helper.getReadableDatabase();
         return this;
@@ -576,14 +579,14 @@ public class DistributorDataStore {
         this.db = this.helper.getWritableDatabase();
         return this;
     }
-    
+
     public void close() {
         this.db.close();
     }
 
     /**
      * Query set.
-     * 
+     *
      * @param projection
      * @param selection
      * @param selectionArgs
@@ -591,8 +594,7 @@ public class DistributorDataStore {
      * @return
      */
     public Cursor queryPostal(String[] projection, String selection,
-            String[] selectionArgs, String sortOrder) 
-    {
+                              String[] selectionArgs, String sortOrder) {
         SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
         qb.setTables(Tables.POSTAL.n);
@@ -600,14 +602,13 @@ public class DistributorDataStore {
 
         // Get the database and run the query.
         SQLiteDatabase db = this.helper.getReadableDatabase();
-        return qb.query(db, projection, selection, selectionArgs, null, null, 
-                (!TextUtils.isEmpty(sortOrder)) ? sortOrder
+        return qb.query(db, projection, selection, selectionArgs, null, null,
+                        (!TextUtils.isEmpty(sortOrder)) ? sortOrder
                         : PostalTable.DEFAULT_SORT_ORDER);
     }
-    
+
     public Cursor queryPublish(String[] projection, String selection,
-            String[] selectionArgs, String sortOrder) 
-    {
+                               String[] selectionArgs, String sortOrder) {
         SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
         qb.setTables(Tables.PUBLISH.n);
@@ -615,14 +616,13 @@ public class DistributorDataStore {
 
         // Get the database and run the query.
         SQLiteDatabase db = this.helper.getReadableDatabase();
-        return qb.query(db, projection, selection, selectionArgs, null, null, 
-                (!TextUtils.isEmpty(sortOrder)) ? sortOrder
+        return qb.query(db, projection, selection, selectionArgs, null, null,
+                        (!TextUtils.isEmpty(sortOrder)) ? sortOrder
                         : PublishTable.DEFAULT_SORT_ORDER);
     }
-    
+
     public Cursor queryRetrieval(String[] projection, String selection,
-            String[] selectionArgs, String sortOrder) 
-    {
+                                 String[] selectionArgs, String sortOrder) {
         SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
         qb.setTables(Tables.RETRIEVAL.n);
@@ -630,14 +630,13 @@ public class DistributorDataStore {
 
         // Get the database and run the query.
         SQLiteDatabase db = this.helper.getReadableDatabase();
-        return qb.query(db, projection, selection, selectionArgs, null, null, 
-                (!TextUtils.isEmpty(sortOrder)) ? sortOrder
+        return qb.query(db, projection, selection, selectionArgs, null, null,
+                        (!TextUtils.isEmpty(sortOrder)) ? sortOrder
                         : RetrievalTable.DEFAULT_SORT_ORDER);
     }
-    
+
     public Cursor querySubscribe(String[] projection, String selection,
-            String[] selectionArgs, String sortOrder) 
-    {
+                                 String[] selectionArgs, String sortOrder) {
         SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
         qb.setTables(Tables.SUBSCRIBE.n);
@@ -645,65 +644,65 @@ public class DistributorDataStore {
 
         // Get the database and run the query.
         SQLiteDatabase db = this.helper.getReadableDatabase();
-        return qb.query(db, projection, selection, selectionArgs, null, null, 
-                (!TextUtils.isEmpty(sortOrder)) ? sortOrder
+        return qb.query(db, projection, selection, selectionArgs, null, null,
+                        (!TextUtils.isEmpty(sortOrder)) ? sortOrder
                         : SubscribeTable.DEFAULT_SORT_ORDER);
     }
-    
+
 
     /**
      * Insert set, if the record already exists then update it.
-     * 
+     *
      * @param cv
      * @return
      */
     public long insertPostal(ContentValues cv) {
         return this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
     }
-    
+
     public long insertPublish(ContentValues cv) {
         return this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
     }
-    
+
     public long insertRetrieval(ContentValues cv) {
         return this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
     }
     /**
-     * 
+     *
      */
     public long insertSubscribe(ContentValues cv) {
 
-    	
+
 //    		String[] projection = {SubscribeTableSchema.URI, SubscribeTableSchema._ID};
 //    		String selection = SubscribeTableSchema.URI + " LIKE \"" + selectedUri.toString() + "\"";
 //    		Cursor c = cr.query(SubscribeTableSchema.CONTENT_URI, projection, selection, null, null);
 //    		return (c.getCount() == 0);
-    
+
         return this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
     }
-    
+
     /**
      * Update set, involves a selection
-     * 
+     *
      * @param cv
      * @return
      */
     public long updatePostal(ContentValues cv) {
         return this.db.update(Tables.POSTAL.n, cv, null, null);
     }
-    
+
     public long updatePublish(ContentValues cv) {
         return this.db.update(Tables.PUBLISH.n, cv, null, null);
     }
-    
+
     public long updateRetrieval(ContentValues cv) {
         return this.db.update(Tables.RETRIEVAL.n, cv, null, null);
     }
-    
+
     public long updateSubscribe(ContentValues cv) {
         return this.db.update(Tables.SUBSCRIBE.n, cv, null, null);
     }
-        
+
 
     /** Insert method helper */
     public ContentValues initializePostalDefaults(ContentValues values) {
@@ -723,11 +722,11 @@ public class DistributorDataStore {
         }
         if (!values.containsKey(PostalTableSchema.SERIALIZE_TYPE.n)) {
             values.put(PostalTableSchema.SERIALIZE_TYPE.col(),
-                    SerializeType.INDIRECT.o);
+                       SerializeType.INDIRECT.o);
         }
         if (!values.containsKey(PostalTableSchema.DISPOSITION.n)) {
             values.put(PostalTableSchema.DISPOSITION .col(),
-                    Disposition.PENDING.o);
+                       Disposition.PENDING.o);
         }
         if (!values.containsKey(PostalTableSchema.EXPIRATION.n)) {
             values.put(PostalTableSchema.EXPIRATION.col(), now);
@@ -747,7 +746,7 @@ public class DistributorDataStore {
         if (!values.containsKey(PostalTableSchema.MODIFIED.n)) {
             values.put(PostalTableSchema.MODIFIED.col(), now);
         }
-        
+
         return values;
     }
 
@@ -757,7 +756,7 @@ public class DistributorDataStore {
 
         if (!values.containsKey(PublishTableSchema.DISPOSITION.n)) {
             values.put(PublishTableSchema.DISPOSITION.col(),
-                    Disposition.PENDING.o);
+                       Disposition.PENDING.o);
         }
         if (!values.containsKey(PublishTableSchema.PROVIDER.n)) {
             values.put(PublishTableSchema.PROVIDER.col(), "unknown");
@@ -783,7 +782,7 @@ public class DistributorDataStore {
 
         if (!values.containsKey(RetrievalTableSchema.DISPOSITION.n)) {
             values.put(RetrievalTableSchema.DISPOSITION.col(),
-                    Disposition.PENDING.o);
+                       Disposition.PENDING.o);
         }
         if (!values.containsKey(RetrievalTableSchema.NOTICE.n)) {
             values.put(RetrievalTableSchema.NOTICE.col(), "");
@@ -811,7 +810,7 @@ public class DistributorDataStore {
         }
         if (!values.containsKey(RetrievalTableSchema.CONTINUITY_TYPE.n)) {
             values.put(RetrievalTableSchema.CONTINUITY_TYPE.col(),
-                    ContinuityType.ONCE.o);
+                       ContinuityType.ONCE.o);
         }
         if (!values.containsKey(RetrievalTableSchema.CONTINUITY_VALUE.n)) {
             values.put(RetrievalTableSchema.CONTINUITY_VALUE.col(), now);
@@ -825,7 +824,7 @@ public class DistributorDataStore {
         if (!values.containsKey(RetrievalTableSchema.MODIFIED.n)) {
             values.put(RetrievalTableSchema.MODIFIED.col(), now);
         }
-        
+
         return values;
     }
 
@@ -835,7 +834,7 @@ public class DistributorDataStore {
 
         if (!values.containsKey(SubscribeTableSchema.DISPOSITION.n)) {
             values.put(SubscribeTableSchema.DISPOSITION.col(),
-                    Disposition.PENDING.o);
+                       Disposition.PENDING.o);
         }
         if (!values.containsKey(SubscribeTableSchema.PROVIDER.n)) {
             values.put(SubscribeTableSchema.PROVIDER.col(), "unknown");
@@ -843,7 +842,7 @@ public class DistributorDataStore {
         if (!values.containsKey(SubscribeTableSchema.DATA_TYPE.n)) {
             values.put(SubscribeTableSchema.DATA_TYPE.col(), "unknown");
         }
-        
+
         if (!values.containsKey(SubscribeTableSchema.SELECTION.n)) {
             values.put(SubscribeTableSchema.SELECTION.col(), "");
         }
@@ -867,20 +866,20 @@ public class DistributorDataStore {
 
     /**
      * Delete set
-     * 
+     *
      * @param cv
      * @return
      */
     public int delete(String table, String selection, String[] selectionArgs) {
-    	SQLiteDatabase db = this.helper.getWritableDatabase();
-    	return db.delete(table, selection, selectionArgs);
+        SQLiteDatabase db = this.helper.getWritableDatabase();
+        return db.delete(table, selection, selectionArgs);
     }
-    
+
     public int deletePostal(String selection, String[] selectionArgs) {
-    	SQLiteDatabase db = this.helper.getWritableDatabase();
+        SQLiteDatabase db = this.helper.getWritableDatabase();
         return db.delete(Tables.POSTAL.n, selection, selectionArgs);
     }
-    
+
     public int deletePublish(String selection, String[] selectionArgs) {
         SQLiteDatabase db = this.helper.getWritableDatabase();
         return db.delete(Tables.PUBLISH.n, selection, selectionArgs);
@@ -903,11 +902,11 @@ public class DistributorDataStore {
     static public final File applTempDir;
     static {
         applDir = new File(Environment.getExternalStorageDirectory(),
-                "support/edu.vu.isis.ammo.core");
+                           "support/edu.vu.isis.ammo.core");
         applDir.mkdirs();
         if (!applDir.mkdirs()) {
             logger.error("cannot create files check permissions in manifest : "
-                    + applDir.toString());
+                         + applDir.toString());
         }
 
         applCacheDir = new File(applDir, "cache/distributor");
@@ -930,7 +929,7 @@ public class DistributorDataStore {
     }
 
     protected File blobFile(String table, String tuple, String field)
-            throws IOException {
+    throws IOException {
         File tupleCacheDir = blobDir(table, tuple);
         File cacheFile = new File(tupleCacheDir, field + ".blob");
         if (cacheFile.exists())
@@ -981,7 +980,7 @@ public class DistributorDataStore {
     /**
      * Recursively delete all children of this directory and the directory
      * itself.
-     * 
+     *
      * @param dir
      */
     protected void recursiveDelete(File dir) {
@@ -1000,7 +999,7 @@ public class DistributorDataStore {
             return;
         }
     }
-    
+
     protected class MyHelper extends SQLiteOpenHelper {
         // ===========================================================
         // Constants
@@ -1018,17 +1017,17 @@ public class DistributorDataStore {
         // ===========================================================
         public MyHelper(Context context) {
             super(context, DistributorDataStore.Tables.NAME, null,
-                    DistributorDataStore.Tables.VERSION);
+                  DistributorDataStore.Tables.VERSION);
         }
 
         // ===========================================================
         // SQLiteOpenHelper Methods
         // ===========================================================
-        
+
         @Override
         public void onCreate(SQLiteDatabase db) {
             logger.info("Bootstrapping database");
-            
+
             try {
                 StringBuilder sb = new StringBuilder();
                 for (PostalTableSchema field : PostalTableSchema.values()) {
@@ -1037,11 +1036,11 @@ public class DistributorDataStore {
                     sb.append(field.addfield());
                 }
                 db.execSQL(Tables.POSTAL.sqlCreate(sb).toString());
-                
+
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
-            
+
             try {
                 StringBuilder sb = new StringBuilder();
                 for (PublishTableSchema field : PublishTableSchema.values()) {
@@ -1054,7 +1053,7 @@ public class DistributorDataStore {
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
-            
+
             try {
                 StringBuilder sb = new StringBuilder();
                 for (RetrievalTableSchema field : RetrievalTableSchema.values()) {
@@ -1067,7 +1066,7 @@ public class DistributorDataStore {
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
-            
+
             try {
                 StringBuilder sb = new StringBuilder();
                 for (SubscribeTableSchema field : SubscribeTableSchema.values()) {
@@ -1080,14 +1079,14 @@ public class DistributorDataStore {
             } catch (SQLException ex) {
                 ex.printStackTrace();
             }
-            
+
             // create views, triggers, indices and preload
         }
 
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
             logger.warn("Upgrading database from version {} to {} which will destroy all old data",
-                            oldVersion, newVersion);
+                        oldVersion, newVersion);
             for (Tables table : Tables.values()) {
                 db.execSQL(table.sqlDrop(new StringBuilder()).toString());
             }

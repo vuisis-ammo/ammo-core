@@ -41,7 +41,9 @@ public class JournalNetlink extends Netlink {
     }
 
     @Override
-    public void teardown() {;}
+    public void teardown() {
+        ;
+    }
 
 }
 

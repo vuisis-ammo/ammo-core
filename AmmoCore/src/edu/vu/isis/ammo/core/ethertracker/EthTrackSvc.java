@@ -23,11 +23,13 @@ public class EthTrackSvc extends ServiceEx {
 
     private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
     @SuppressWarnings("unused")
-	private ApplicationEx application;
+    private ApplicationEx application;
 
     private boolean mIsLinkUp = false;
 
-    public boolean isLinkUp() { return mIsLinkUp; }
+    public boolean isLinkUp() {
+        return mIsLinkUp;
+    }
 
     @Override
     public void onCreate() {
@@ -40,10 +42,8 @@ public class EthTrackSvc extends ServiceEx {
 
     private final IBinder binder = new MyBinder();
 
-    public class MyBinder extends Binder
-    {
-        public EthTrackSvc getService()
-        {
+    public class MyBinder extends Binder {
+        public EthTrackSvc getService() {
             logger.trace("MyBinder::getService");
             return EthTrackSvc.this;
         }
@@ -81,8 +81,7 @@ public class EthTrackSvc extends ServiceEx {
 
         int ret = this.initEthernetNative();
 
-        if (ret == -1)
-        {
+        if (ret == -1) {
             logger.info("Error in InitEthernet: create or socket bind error, Exiting ...");
             return;
         }
@@ -124,10 +123,10 @@ public class EthTrackSvc extends ServiceEx {
         Intent notificationIntent = new Intent(this, EthTrackSvc.class);
 
         PendingIntent contentIntent = PendingIntent
-            .getActivity(this, 0, notificationIntent, 0);
+                                      .getActivity(this, 0, notificationIntent, 0);
 
         notification.setLatestEventInfo(context, contentTitle, contentText,
-                contentIntent);
+                                        contentIntent);
 
         mNotificationManager.notify(HELLO_ID, notification);
 
@@ -217,8 +216,7 @@ public class EthTrackSvc extends ServiceEx {
 
                 String res = waitForEvent();
 
-                if (res.indexOf("Error") > 0)
-                {
+                if (res.indexOf("Error") > 0) {
                     logger.info("Error in waitForEvent: Exiting Thread");
                     return;
                 }

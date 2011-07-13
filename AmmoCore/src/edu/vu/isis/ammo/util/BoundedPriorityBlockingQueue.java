@@ -105,10 +105,10 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class BoundedPriorityBlockingQueue<E> extends AbstractQueue<E>
     implements BlockingQueue<E>, java.io.Serializable {
-	
-	private static final long serialVersionUID = 519531922566043187L;
-	
-	private final PriorityQueue<E> q;
+
+    private static final long serialVersionUID = 519531922566043187L;
+
+    private final PriorityQueue<E> q;
     private final ReentrantLock lock = new ReentrantLock(true);
     private final Condition notEmpty = lock.newCondition();
 
@@ -147,7 +147,7 @@ public class BoundedPriorityBlockingQueue<E> extends AbstractQueue<E>
      *         than 1
      */
     public BoundedPriorityBlockingQueue(int initialCapacity,
-                                 Comparator<? super E> comparator) {
+                                        Comparator<? super E> comparator) {
         q = new PriorityQueue<E>(initialCapacity, comparator);
     }
 
@@ -555,7 +555,7 @@ public class BoundedPriorityBlockingQueue<E> extends AbstractQueue<E>
         }
 
         @SuppressWarnings("unchecked")
-		public E next() {
+        public E next() {
             if (cursor >= array.length)
                 throw new NoSuchElementException();
             lastRet = cursor;
@@ -563,7 +563,7 @@ public class BoundedPriorityBlockingQueue<E> extends AbstractQueue<E>
         }
 
         @SuppressWarnings("unchecked")
-		public void remove() {
+        public void remove() {
             if (lastRet < 0)
                 throw new IllegalStateException();
             Object x = array[lastRet];
@@ -592,7 +592,7 @@ public class BoundedPriorityBlockingQueue<E> extends AbstractQueue<E>
      * readObject is not defined, just relying on default.
      */
     private void writeObject(java.io.ObjectOutputStream s)
-        throws java.io.IOException {
+    throws java.io.IOException {
         lock.lock();
         try {
             s.defaultWriteObject();

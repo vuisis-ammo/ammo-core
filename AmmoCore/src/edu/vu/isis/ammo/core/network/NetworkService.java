@@ -46,14 +46,13 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
  * Network Service is responsible for all networking between the
- * core application and the gateway server. 
+ * core application and the gateway server.
  */
 public class NetworkService extends Service
-implements OnSharedPreferenceChangeListener,
-           INetworkService,
-           INetworkService.OnSendHandler,
-           IChannelManager
-{
+    implements OnSharedPreferenceChangeListener,
+    INetworkService,
+    INetworkService.OnSendHandler,
+    IChannelManager {
     // ===========================================================
     // Constants
     // ===========================================================
@@ -99,10 +98,18 @@ implements OnSharedPreferenceChangeListener,
     // for providing networking support
     // should this be using IPv6?
     private boolean networkingSwitch = true;
-    public boolean isNetworking() { return networkingSwitch; }
-    public void setNetworkingSwitch(boolean value) { networkingSwitch = value; }
-    public boolean getNetworkingSwitch() { return networkingSwitch; }
-    public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
+    public boolean isNetworking() {
+        return networkingSwitch;
+    }
+    public void setNetworkingSwitch(boolean value) {
+        networkingSwitch = value;
+    }
+    public boolean getNetworkingSwitch() {
+        return networkingSwitch;
+    }
+    public boolean toggleNetworkingSwitch() {
+        return networkingSwitch = networkingSwitch ? false : true;
+    }
 
     private DistributorService distributor;
     private PhoneStateListener mListener;
@@ -134,7 +141,7 @@ implements OnSharedPreferenceChangeListener,
     public class MyBinder extends Binder {
         public NetworkService getService() {
             logger.trace("MyBinder::getService");
-            
+
             return NetworkService.this;
         }
     }
@@ -159,8 +166,7 @@ implements OnSharedPreferenceChangeListener,
      * change the settings.
      */
     @Override
-    public int onStartCommand(Intent intent, int flags, int startId)
-    {
+    public int onStartCommand(Intent intent, int flags, int startId) {
         logger.info("::onStartCommand");
         if (intent.getAction().equals(NetworkService.PREPARE_FOR_STOP)) {
             logger.debug("Preparing to stop NPS");
@@ -192,7 +198,7 @@ implements OnSharedPreferenceChangeListener,
         this.tcpChannel.disable();  //
         this.acquirePreferences();
         if (this.networkingSwitch && this.gatewayEnabled) {
-            this.tcpChannel.enable(); 
+            this.tcpChannel.enable();
         }
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -213,10 +219,8 @@ implements OnSharedPreferenceChangeListener,
 
         this.mReceiverRegistrar.registerReceiver(this.myReceiver, networkFilter);
 
-        mListener = new PhoneStateListener()
-        {
-            public void onDataConnectionStateChanged( int state )
-            {
+        mListener = new PhoneStateListener() {
+            public void onDataConnectionStateChanged( int state ) {
                 logger.info( "PhoneReceiver::onCallStateChanged()" );
                 mNetlinks.get( 2 ).updateStatus();
                 netlinkStatusChanged();
@@ -229,10 +233,10 @@ implements OnSharedPreferenceChangeListener,
         //this.phoneReceiver = new PhoneReceiver();
         //IntentFilter phoneFilter = new IntentFilter( TelephonyManager.ACTION_PHONE_STATE_CHANGED );
         //getBaseContext().registerReceiver(this.phoneReceiver, phoneFilter);
-        
+
         // Start processing the requests
         final PriorityBlockingQueue<NetworkService.Request> outboundQueue
-             = new PriorityBlockingQueue<NetworkService.Request>(); 
+        = new PriorityBlockingQueue<NetworkService.Request>();
         this.senderThread = new NetworkChannelThread(outboundQueue);
         this.senderThread.execute(this.tcpChannel);
     }
@@ -301,7 +305,7 @@ implements OnSharedPreferenceChangeListener,
         if (key.equals(INetPrefKeys.CORE_IS_JOURNALED)) {
             this.journalingSwitch = prefs.getBoolean(INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
             if (this.journalingSwitch)
-                 this.journalChannel.enable();
+                this.journalChannel.enable();
             else this.journalChannel.disable();
             return;
         }
@@ -360,7 +364,7 @@ implements OnSharedPreferenceChangeListener,
     // Protocol Buffers Methods
     // ===========================================================
 
-  
+
     /**
      * Get the session id set by the gateway.
      *
@@ -377,10 +381,10 @@ implements OnSharedPreferenceChangeListener,
             return false;
         }
         PreferenceManager
-            .getDefaultSharedPreferences(this)
-            .edit()
-            .putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
-            .commit();
+        .getDefaultSharedPreferences(this)
+        .edit()
+        .putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+        .commit();
         sessionId = mw.getSessionUuid();
 
         // the distributor doesn't need to know about authentication results.
@@ -415,25 +419,24 @@ implements OnSharedPreferenceChangeListener,
             return new MsgHeader(data.length, crc32);
         }
     }
-    
+
 
     /**
      * The message being sent to the gateway.
      */
     static public class Request {
         public enum Action {
-         AUTH, POSTAL, PUBLISH, RETRIEVAL, SUBSCRIBE
+            AUTH, POSTAL, PUBLISH, RETRIEVAL, SUBSCRIBE
         };
         public final Action action;
         public final int priority;
         public final MsgHeader header;
         public final AmmoMessages.MessageWrapper.Builder builder;
         public final INetworkService.OnSendHandler handler;
-        
-        private Request(int priority, Action action, MsgHeader header, 
-                AmmoMessages.MessageWrapper.Builder builder, 
-                INetworkService.OnSendHandler handler ) 
-        {
+
+        private Request(int priority, Action action, MsgHeader header,
+                        AmmoMessages.MessageWrapper.Builder builder,
+                        INetworkService.OnSendHandler handler ) {
             this.action = action;
             this.priority = priority;
             this.header = header;
@@ -441,18 +444,17 @@ implements OnSharedPreferenceChangeListener,
             this.handler = handler;
         }
         static public Request getInstance(int priority,
-                Action action,
-                AmmoMessages.MessageWrapper.Builder builder, 
-                INetworkService.OnSendHandler handler) 
-        {
+                                          Action action,
+                                          AmmoMessages.MessageWrapper.Builder builder,
+                                          INetworkService.OnSendHandler handler) {
             logger.debug("Finished wrap build @ time {}",
-                    System.currentTimeMillis());
+                         System.currentTimeMillis());
             byte[] protocByteBuf = builder.build().toByteArray();
             MsgHeader header = MsgHeader.getInstance(protocByteBuf, true);
             return new Request(priority, action, header, builder, handler);
         }
     }
-    
+
     /**
      * This message class is provided so that a single queue may be used
      * for both requests and responses destined for the distributor.
@@ -460,19 +462,21 @@ implements OnSharedPreferenceChangeListener,
      */
     static abstract public class DistributorMessage {
         public final Type type;
-        
+
         public enum Type {
             RAW, REQUEST, RESPONSE;
         }
-        protected DistributorMessage(Type type) { this.type = type; }
+        protected DistributorMessage(Type type) {
+            this.type = type;
+        }
     }
-    
+
     /**
      * The raw client message being sent to the gateway.
      */
     static public class RawRequest extends DistributorMessage {
-    	public final AmmoRequest payload;
-       
+        public final AmmoRequest payload;
+
         private RawRequest(AmmoRequest payload) {
             super(DistributorMessage.Type.RAW);
             this.payload = payload;
@@ -481,7 +485,7 @@ implements OnSharedPreferenceChangeListener,
             return new RawRequest(req);
         }
     }
-    
+
     /**
      * The message obtained from the gateway.
      */
@@ -489,20 +493,18 @@ implements OnSharedPreferenceChangeListener,
         public final int priority;
         public final MsgHeader header;
         public final AmmoMessages.MessageWrapper msg;
-        
+
         private Response(int priority, MsgHeader header,
-                AmmoMessages.MessageWrapper msg) 
-        {
+                         AmmoMessages.MessageWrapper msg) {
             super(DistributorMessage.Type.RESPONSE);
             this.priority = priority;
             this.header = header;
             this.msg = msg;
         }
         static public Response getInstance(int priority,
-                AmmoMessages.MessageWrapper msg) 
-        {
+                                           AmmoMessages.MessageWrapper msg) {
             logger.debug("Finished wrap build @ time {}",
-                    System.currentTimeMillis());
+                         System.currentTimeMillis());
             byte[] protocByteBuf = msg.toByteArray();
             MsgHeader header = MsgHeader.getInstance(protocByteBuf, true);
             return new Response(priority, header, msg);
@@ -553,19 +555,19 @@ implements OnSharedPreferenceChangeListener,
     public boolean auth() {
         logger.info("::authenticate");
 
-        AmmoMessages.AuthenticationMessage.Builder amb = 
+        AmmoMessages.AuthenticationMessage.Builder amb =
             AmmoMessages.AuthenticationMessage.newBuilder()
-               .setDeviceId(UniqueIdentifiers.device(this.getApplicationContext()))
-               .setUserId(operatorId)
-               .setUserKey(operatorKey);
-        
-        AmmoMessages.MessageWrapper.Builder mwb = 
+            .setDeviceId(UniqueIdentifiers.device(this.getApplicationContext()))
+            .setUserId(operatorId)
+            .setUserKey(operatorKey);
+
+        AmmoMessages.MessageWrapper.Builder mwb =
             AmmoMessages.MessageWrapper.newBuilder()
-                .setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE)
-                .setAuthenticationMessage(amb)
-                .setSessionUuid(sessionId); 
-        
-        this.outboundQueue.put(NetworkService.Request.getInstance(0, Request.Action.AUTH, mwb, null)); 
+            .setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE)
+            .setAuthenticationMessage(amb)
+            .setSessionUuid(sessionId);
+
+        this.outboundQueue.put(NetworkService.Request.getInstance(0, Request.Action.AUTH, mwb, null));
         return true;
     }
 
@@ -589,7 +591,7 @@ implements OnSharedPreferenceChangeListener,
             final String action = aIntent.getAction();
             logger.debug("onReceive: {}", action);
 
-            if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)){
+            if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)) {
                 int state = aIntent.getIntExtra("state", 0);
 
                 // Should we be doing this here? It's not parallel with the wifi and 3G below.
@@ -611,20 +613,16 @@ implements OnSharedPreferenceChangeListener,
                 mNetlinks.get( 1 ).updateStatus();
                 netlinkStatusChanged();
                 return;
-            }
-            else if ( WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)
-                      || WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)
-                      || WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
-                      || WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action) )
-            {
+            } else if ( WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)
+                        || WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)
+                        || WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
+                        || WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action) ) {
                 logger.warn( "WIFI state changed" );
                 mNetlinks.get( 0 ).updateStatus();
                 mNetlinks.get( 1 ).updateStatus();
                 netlinkStatusChanged();
                 return;
-            }
-            else if ( TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action) )
-            {
+            } else if ( TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action) ) {
                 logger.warn( "3G state changed" );
                 mNetlinks.get( 2 ).updateStatus();
                 netlinkStatusChanged();
@@ -645,7 +643,7 @@ implements OnSharedPreferenceChangeListener,
     }
 
     /**
-     * A routine to let the distributor know that the 
+     * A routine to let the distributor know that the
      * *authentication* message was sent (or discarded).
      * The distributor is notified that a channel is available.
      */
@@ -672,40 +670,35 @@ implements OnSharedPreferenceChangeListener,
     @Override
     public void statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
         // Once we have multiple gateways we'll have to fix this.
-        mGateways.get( 0 ).setStatus( new int[]{connStatus, sendStatus, recvStatus} );
+        mGateways.get( 0 ).setStatus( new int[] {connStatus, sendStatus, recvStatus} );
 
         Intent broadcastIntent = new Intent( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE );
         this.sendBroadcast( broadcastIntent );
     }
 
 
-    private void netlinkStatusChanged()
-    {
+    private void netlinkStatusChanged() {
         Intent broadcastIntent = new Intent( AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE );
         sendBroadcast( broadcastIntent );
     }
 
 
-    public boolean isWiredLinkUp()
-    {
+    public boolean isWiredLinkUp() {
         return mNetlinks.get( 1 ).isLinkUp();
     }
 
 
-    public boolean isWifiLinkUp()
-    {
+    public boolean isWifiLinkUp() {
         return mNetlinks.get( 0 ).isLinkUp();
     }
 
 
-    public boolean is3GLinkUp()
-    {
+    public boolean is3GLinkUp() {
         return mNetlinks.get( 2 ).isLinkUp();
     }
 
 
-    public boolean isAnyLinkUp()
-    {
+    public boolean isAnyLinkUp() {
         return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
     }
 
@@ -713,38 +706,36 @@ implements OnSharedPreferenceChangeListener,
     private List<Gateway> mGateways = new ArrayList<Gateway>();
     private List<Netlink> mNetlinks = new ArrayList<Netlink>();
 
-    public List<Gateway> getGatewayList()
-    {
+    public List<Gateway> getGatewayList() {
         return mGateways;
     }
 
-    public List<Netlink> getNetlinkList()
-    {
+    public List<Netlink> getNetlinkList() {
         return mNetlinks;
     }
-    
+
 
     private PriorityBlockingQueue<NetworkService.Request> outboundQueue;
-    
+
     /**
      * Processes message from the Distributor
      */
     @Override
-	public boolean sendRequest(Request distributorMessage) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-    
+    public boolean sendRequest(Request distributorMessage) {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
     /**
      * Forwards message to the Distributor from a channel.
      */
     private DeliveryHandler handler;
-    
+
     @Override
     public void setCallback(DeliveryHandler handler) {
         this.handler = handler;
     }
-    
+
     @Override
     public boolean deliver(byte[] message, long checksum) {
         this.handler.deliver(message, checksum);

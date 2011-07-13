@@ -13,8 +13,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 
-public abstract class Netlink implements OnSharedPreferenceChangeListener
-{
+public abstract class Netlink implements OnSharedPreferenceChangeListener {
     public static final Logger logger = LoggerFactory.getLogger( Netlink.class );
 
     public static final int NETLINK_UP = 1;
@@ -39,27 +38,47 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener
         editor.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.election);
         editor.commit();
     }
-    public void enable() { this.setElection(true); }
-    public void disable() { this.setElection(false); }
-    public void toggle() { this.setElection(!this.election); }
-    public boolean isEnabled() { return this.election; }
+    public void enable() {
+        this.setElection(true);
+    }
+    public void disable() {
+        this.setElection(false);
+    }
+    public void toggle() {
+        this.setElection(!this.election);
+    }
+    public boolean isEnabled() {
+        return this.election;
+    }
 
     // the user selected familiar name
     private final String name;
-    public String getName() { return this.name; }
+    public String getName() {
+        return this.name;
+    }
 
     private final String type;
-    public String getType() { return this.type; }
+    public String getType() {
+        return this.type;
+    }
 
     private int[] mStatus = new int[] {57}; // bogus default will be obvious if code is not working
-    public synchronized int[] getStatus() { return mStatus; }
-    public synchronized void setStatus( int[] status ) { mStatus = status; }
+    public synchronized int[] getStatus() {
+        return mStatus;
+    }
+    public synchronized void setStatus( int[] status ) {
+        mStatus = status;
+    }
 
     public abstract void updateStatus();
 
     private boolean mIsLinkUp = false;
-    public synchronized boolean isLinkUp() { return mIsLinkUp; }
-    public synchronized void setLinkUp( boolean value ) { mIsLinkUp = value; }
+    public synchronized boolean isLinkUp() {
+        return mIsLinkUp;
+    }
+    public synchronized void setLinkUp( boolean value ) {
+        mIsLinkUp = value;
+    }
 
     protected final SharedPreferences prefs;
     protected Context context;

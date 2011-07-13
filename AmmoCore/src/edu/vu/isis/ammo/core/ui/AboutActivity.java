@@ -13,8 +13,7 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  * @author hackd
  *
  */
-public class AboutActivity extends ActivityEx
-{
+public class AboutActivity extends ActivityEx {
     public static final Logger logger = LoggerFactory.getLogger(AboutActivity.class);
 
 
@@ -22,35 +21,35 @@ public class AboutActivity extends ActivityEx
      * @Cateogry Lifecycle
      */
     @Override
-        public void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         logger.trace("::onCreate");
         this.setContentView(R.layout.about_activity);
     }
 
     @Override
-        public void onStart() {
+    public void onStart() {
         super.onStart();
         logger.trace("::onStart");
-	
-	this.displayVersion();
+
+        this.displayVersion();
     }
 
     @Override
-        public void onStop() {
+    public void onStop() {
         super.onStop();
     }
 
     @Override
-        public void onDestroy() {
+    public void onDestroy() {
         super.onDestroy();
         logger.trace("::onDestroy");
     }
-    
+
     private void displayVersion() {
         logger.trace("::displayVersion");
-	//String message = "version = " + getResources().getString(R.string.ammo_version);
-	//Toast.makeText(AboutActivity.this, message, Toast.LENGTH_LONG).show();
+        //String message = "version = " + getResources().getString(R.string.ammo_version);
+        //Toast.makeText(AboutActivity.this, message, Toast.LENGTH_LONG).show();
     }
 
 }

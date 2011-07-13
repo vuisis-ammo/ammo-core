@@ -40,7 +40,7 @@ public interface INetworkService {
 
     List<Gateway> getGatewayList();
     List<Netlink> getNetlinkList();
-    
+
     /**
      * Pass control to the distributor service to handle the message.
      * The network service proxy is responsible for receiving messages from
@@ -54,5 +54,5 @@ public interface INetworkService {
     boolean sendRequest(NetworkService.Request distributorMessage);
     public boolean deliver(byte[] message, long checksum);
     void setCallback(DeliveryHandler handler);
-    
+
 }

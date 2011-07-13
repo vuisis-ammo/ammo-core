@@ -4,7 +4,7 @@ import android.content.Context;
 import android.preference.PreferenceActivity;
 
 public abstract class PreferenceActivityEx extends PreferenceActivity implements IActivityEx {
-    public Context getAppContext(){
+    public Context getAppContext() {
         return getApplicationContext();
     }
 }

@@ -84,12 +84,16 @@ public class TcpChannel extends NetChannel {
         return instance;
     }
 
-    public boolean isConnected() { return this.connectorThread.isConnected(); }
+    public boolean isConnected() {
+        return this.connectorThread.isConnected();
+    }
     /**
      * Was the status changed as a result of enabling the connection.
      * @return
      */
-    public boolean isEnabled() { return this.isEnabled; }
+    public boolean isEnabled() {
+        return this.isEnabled;
+    }
     public boolean enable() {
         logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
         synchronized (this.syncObj) {
@@ -121,7 +125,9 @@ public class TcpChannel extends NetChannel {
         return true;
     }
 
-    public boolean close() { return false; }
+    public boolean close() {
+        return false;
+    }
 
     public boolean setConnectTimeout(int value) {
         logger.trace("Thread <{}>::setConnectTimeout {}", Thread.currentThread().getId(), value);
@@ -173,7 +179,8 @@ public class TcpChannel extends NetChannel {
                     new String[] {
                         this.connectorThread.showState(),
                         "blah", //this.senderThread.showState(),
-                        "blah" } ); //this.receiverThread.showState()});
+                        "blah"
+                    } ); //this.receiverThread.showState()});
 
         synchronized (this.syncObj) {
             if (! this.connectorThread.isAlive()) {
@@ -184,8 +191,7 @@ public class TcpChannel extends NetChannel {
             this.connectorThread.reset();
         }
     }
-    private void statusChange()
-    {
+    private void statusChange() {
         int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
         int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
 
@@ -194,14 +200,14 @@ public class TcpChannel extends NetChannel {
                              receiverState );
     }
 
-	/**
-	 * place the message in the send queue
-	 */
-	@Override
-	public boolean sendRequest(NetChannel.GwMessage msg) {
-		// TODO this.senderThread.queueMsg(msg);
-		return false;
-	}
+    /**
+     * place the message in the send queue
+     */
+    @Override
+    public boolean sendRequest(NetChannel.GwMessage msg) {
+        // TODO this.senderThread.queueMsg(msg);
+        return false;
+    }
 
     /**
      * Called by ReceiverThread to send an incoming message to the Network Service
@@ -210,8 +216,7 @@ public class TcpChannel extends NetChannel {
      * @return
      */
     private boolean deliverMessage( byte[] message,
-                                    long checksum )
-    {
+                                    long checksum ) {
         logger.error( "In deliverMessage()" );
         return driver.deliver( message, checksum );
     }
@@ -222,22 +227,19 @@ public class TcpChannel extends NetChannel {
      *  Also, follows the delegation pattern.
      */
     private boolean ackToHandler( INetworkService.OnSendHandler handler,
-                                  boolean status )
-    {
+                                  boolean status ) {
         return handler.ack( status );
     }
 
 
     // Called by the ConnectorThread.
-    private boolean auth()
-    {
+    private boolean auth() {
         return driver.auth();
     }
 
 
     // Called by the ConnectorThread.
-    private boolean isAnyLinkUp()
-    {
+    private boolean isAnyLinkUp() {
         return driver.isAnyLinkUp();
     }
 
@@ -246,8 +248,7 @@ public class TcpChannel extends NetChannel {
 
     // This should be called each time we successfully read data from the
     // socket.
-    private void resetTimeoutWatchdog()
-    {
+    private void resetTimeoutWatchdog() {
         //logger.debug( "Resetting watchdog timer" );
         mTimeOfLastGoodRead.set( System.currentTimeMillis() );
     }
@@ -255,8 +256,7 @@ public class TcpChannel extends NetChannel {
 
     // Returns true if we have gone more than flatLineTime without reading
     // any data from the socket.
-    private boolean hasWatchdogExpired()
-    {
+    private boolean hasWatchdogExpired() {
         return (System.currentTimeMillis() - mTimeOfLastGoodRead.get()) > flatLineTime;
     }
 
@@ -269,13 +269,11 @@ public class TcpChannel extends NetChannel {
     // Note: the way this currently works, the heartbeat can only be sent
     // in intervals that are multiples of the burp time.  This may change
     // later if I can eliminate some of the wait()s.
-    private void sendHeartbeatIfNeeded()
-    {
+    private void sendHeartbeatIfNeeded() {
         //logger.warn( "In sendHeartbeatIfNeeded()." );
 
         long nowInMillis = System.currentTimeMillis();
-        if ( nowInMillis > mNextHeartbeatTime.get() )
-        {
+        if ( nowInMillis > mNextHeartbeatTime.get() ) {
             // Send the heartbeat here.
             logger.warn( "Sending a heartbeat. t={}", nowInMillis );
 
@@ -291,8 +289,8 @@ public class TcpChannel extends NetChannel {
             byte[] protocByteBuf = mw.build().toByteArray();
             MsgHeader msgHeader = MsgHeader.getInstance( protocByteBuf, true );
 
-            sendRequest(new NetChannel.GwMessage(msgHeader.size, msgHeader.checksum, 
-            		protocByteBuf, null));
+            sendRequest(new NetChannel.GwMessage(msgHeader.size, msgHeader.checksum,
+                                                 protocByteBuf, null));
 
             mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
             //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
@@ -320,8 +318,7 @@ public class TcpChannel extends NetChannel {
 
         private AtomicBoolean mIsConnected;
 
-        public void statusChange()
-        {
+        public void statusChange() {
             parent.statusChange();
         }
 
@@ -329,8 +326,7 @@ public class TcpChannel extends NetChannel {
         // Called by the sender and receiver when they have an exception on the
         // SocketChannel.  We only want to call reset() once, so we use an
         // AtomicBoolean to keep track of whether we need to call it.
-        public void socketOperationFailed()
-        {
+        public void socketOperationFailed() {
             if ( mIsConnected.compareAndSet( true, false ))
                 reset();
         }
@@ -369,7 +365,9 @@ public class TcpChannel extends NetChannel {
                 this.value = state;
                 this.notifyAll();
             }
-            public synchronized int get() { return this.value; }
+            public synchronized int get() {
+                return this.value;
+            }
 
             public synchronized boolean isConnected() {
                 return this.value == CONNECTED;
@@ -412,7 +410,9 @@ public class TcpChannel extends NetChannel {
         public long getAttempt() {
             return this.state.attempt;
         }
-        public String showState() { return this.state.showState( ); }
+        public String showState() {
+            return this.state.showState( );
+        }
 
         /**
          * reset forces the channel closed if open.
@@ -454,8 +454,7 @@ public class TcpChannel extends NetChannel {
                             synchronized (this.state) {
                                 logger.info("this.state.get() = {}", this.state.get());
 
-                                while (this.state.get() == NetChannel.DISABLED) // this is IMPORTANT don't remove it.
-                                {
+                                while (this.state.get() == NetChannel.DISABLED) { // this is IMPORTANT don't remove it.
                                     this.parent.statusChange();
                                     this.state.wait(BURP_TIME);   // wait for a link interface
                                     logger.info("Looping in Disabled");
@@ -523,12 +522,10 @@ public class TcpChannel extends NetChannel {
                             this.parent.statusChange();
                             try {
                                 synchronized (this.state) {
-                                    while (this.isConnected()) // this is IMPORTANT don't remove it.
-                                    {
+                                    while (this.isConnected()) { // this is IMPORTANT don't remove it.
                                         parent.sendHeartbeatIfNeeded();
                                         this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
-                                        if ( parent.hasWatchdogExpired() )
-                                        {
+                                        if ( parent.hasWatchdogExpired() ) {
                                             //logger.warn( "Watchdog timer expired!!" );
                                             failure( getAttempt() );
                                         }
@@ -574,8 +571,7 @@ public class TcpChannel extends NetChannel {
         }
 
 
-        private boolean connect()
-        {
+        private boolean connect() {
             logger.info( "Thread <{}>ConnectorThread::connect",
                          Thread.currentThread().getId() );
 
@@ -583,25 +579,19 @@ public class TcpChannel extends NetChannel {
             String host = (parent.gatewayHost != null) ? parent.gatewayHost : DEFAULT_HOST;
             int port =  (parent.gatewayPort > 10) ? parent.gatewayPort : DEFAULT_PORT;
             InetAddress ipaddr = null;
-            try
-            {
+            try {
                 ipaddr = InetAddress.getByName( host );
-            }
-            catch ( UnknownHostException e )
-            {
+            } catch ( UnknownHostException e ) {
                 logger.warn( "could not resolve host name" );
                 return false;
             }
 
             // Create the SocketChannel.
             InetSocketAddress sockAddr = new InetSocketAddress( ipaddr, port );
-            try
-            {
+            try {
                 parent.mSocketChannel = SocketChannel.open( sockAddr );
                 boolean result = parent.mSocketChannel.finishConnect();
-            }
-            catch ( Exception e )
-            {
+            } catch ( Exception e ) {
                 logger.warn( "connection to {}:{} failed: " + e.getLocalizedMessage(),
                              ipaddr, port );
                 parent.mSocketChannel = null;
@@ -609,14 +599,11 @@ public class TcpChannel extends NetChannel {
             }
 
             // Set the socket timeout.
-            try
-            {
+            try {
                 Socket s = parent.mSocketChannel.socket();
                 if ( s != null )
                     s.setSoTimeout( parent.socketTimeout );
-            }
-            catch ( SocketException ex )
-            {
+            } catch ( SocketException ex ) {
                 return false;
             }
 
@@ -640,12 +627,10 @@ public class TcpChannel extends NetChannel {
         }
 
 
-        private boolean disconnect()
-        {
+        private boolean disconnect() {
             logger.info( "Thread <{}>ConnectorThread::disconnect",
                          Thread.currentThread().getId() );
-            try
-            {
+            try {
                 mIsConnected.set( false );
 
                 if ( mSender != null )
@@ -653,17 +638,14 @@ public class TcpChannel extends NetChannel {
                 if ( mReceiver != null )
                     mReceiver.interrupt();
 
-                if ( parent.mSocketChannel != null )
-                {
+                if ( parent.mSocketChannel != null ) {
                     parent.mSocketChannel.close();
                     parent.mSocketChannel = null;
                 }
 
                 parent.mSender = null;
                 parent.mReceiver = null;
-            }
-            catch ( IOException e )
-            {
+            } catch ( IOException e ) {
                 return false;
             }
             return true;
@@ -683,14 +665,10 @@ public class TcpChannel extends NetChannel {
      * @param message
      * @return
      */
-    public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler)
-    {
-        try
-        {
+    public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendHandler handler) {
+        try {
             mSenderQueue.put( new GwMessage(size, checksum, payload, handler) );
-        }
-        catch ( InterruptedException e )
-        {
+        } catch ( InterruptedException e ) {
             return false;
         }
         return true;
@@ -712,13 +690,11 @@ public class TcpChannel extends NetChannel {
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class SenderThread extends Thread
-    {
+    class SenderThread extends Thread {
         public SenderThread( ConnectorThread iParent,
                              TcpChannel iChannel,
                              BlockingQueue<GwMessage> iQueue,
-                             SocketChannel iSocketChannel )
-        {
+                             SocketChannel iSocketChannel ) {
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
@@ -727,34 +703,28 @@ public class TcpChannel extends NetChannel {
 
 
         @Override
-        public void run()
-        {
+        public void run() {
             logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the queue until we get a message to send.
             // Then send it on the socketchannel. Upon getting a socket error,
             // notify our parent and go into an error state.
 
-            while ( mState != INetChannel.INTERRUPTED )
-            {
+            while ( mState != INetChannel.INTERRUPTED ) {
                 GwMessage msg = null;
 
-                try
-                {
+                try {
                     setSenderState( INetChannel.TAKING );
                     msg = mQueue.take(); // The main blocking call
                     logger.debug( "Took a message from the send queue" );
-                }
-                catch ( InterruptedException ex )
-                {
+                } catch ( InterruptedException ex ) {
                     logger.debug( "interrupted taking messages from send queue: {}",
                                   ex.getLocalizedMessage() );
                     setSenderState( INetChannel.INTERRUPTED );
                     break;
                 }
 
-                try
-                {
+                try {
                     int total_length = (Integer.SIZE/Byte.SIZE) + 4 + msg.payload.length;
                     ByteBuffer buf = ByteBuffer.allocate( total_length );
                     buf.order( ByteOrder.LITTLE_ENDIAN ); // mParent.endian
@@ -762,13 +732,12 @@ public class TcpChannel extends NetChannel {
                     buf.putInt( msg.size );
                     logger.debug( "   size={}", msg.size );
                     long cvalue = msg.checksum.getValue();
-                    byte[] checksum = new byte[]
-                        {
-                            (byte) cvalue,
-                            (byte) (cvalue >>> 8),
-                            (byte) (cvalue >>> 16),
-                            (byte) (cvalue >>> 24)
-                        };
+                    byte[] checksum = new byte[] {
+                        (byte) cvalue,
+                        (byte) (cvalue >>> 8),
+                        (byte) (cvalue >>> 16),
+                        (byte) (cvalue >>> 24)
+                    };
                     logger.debug( "   checksum={}", checksum );
 
                     buf.put( checksum, 0, 4 );
@@ -783,9 +752,7 @@ public class TcpChannel extends NetChannel {
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, true );
-                }
-                catch ( Exception e )
-                {
+                } catch ( Exception e ) {
                     e.printStackTrace();
                     logger.warn("sender threw exception");
                     if ( msg.handler != null )
@@ -797,16 +764,16 @@ public class TcpChannel extends NetChannel {
         }
 
 
-        private void setSenderState( int iState )
-        {
-            synchronized ( this )
-            {
+        private void setSenderState( int iState ) {
+            synchronized ( this ) {
                 mState = iState;
             }
             mParent.statusChange();
         }
 
-        public synchronized int getSenderState() { return mState; }
+        public synchronized int getSenderState() {
+            return mState;
+        }
 
         private int mState = INetChannel.TAKING;
         private ConnectorThread mParent;
@@ -819,12 +786,10 @@ public class TcpChannel extends NetChannel {
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class ReceiverThread extends Thread
-    {
+    class ReceiverThread extends Thread {
         public ReceiverThread( ConnectorThread iParent,
                                TcpChannel iDestination,
-                               SocketChannel iSocketChannel )
-        {
+                               SocketChannel iSocketChannel ) {
             mParent = iParent;
             mDestination = iDestination;
             mSocketChannel = iSocketChannel;
@@ -835,18 +800,15 @@ public class TcpChannel extends NetChannel {
 
 
         @Override
-        public void run()
-        {
+        public void run() {
             logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the SocketChannel until we get some data.
             // Then examine the buffer to see if we have any complete packets.
             // If we have an error, notify our parent and go into an error state.
 
-            while ( mState != INetChannel.INTERRUPTED )
-            {
-                try
-                {
+            while ( mState != INetChannel.INTERRUPTED ) {
+                try {
                     setReceiverState( INetChannel.START );
                     logger.debug( "Reading from SocketChannel..." );
                     int bytesRead =  mSocketChannel.read( mBuffer );
@@ -856,8 +818,7 @@ public class TcpChannel extends NetChannel {
 
                     // We loop here because a single read() may have  read in
                     // the data for several messages
-                    if ( bufferContainsAMessage() )
-                    {
+                    if ( bufferContainsAMessage() ) {
                         logger.debug( "flipping" );
                         mBuffer.flip();  // Switch to draining
                         while ( processAMessageIfAvailable() )
@@ -866,15 +827,11 @@ public class TcpChannel extends NetChannel {
                         mBuffer.compact(); // Switches back to filling
                     }
 
-                }
-                catch ( InterruptedException e )
-                {
+                } catch ( InterruptedException e ) {
                     logger.debug( "interrupted reading messages {}",
                                   e.getLocalizedMessage() );
                     setReceiverState( INetChannel.INTERRUPTED );
-                }
-                catch ( Exception e )
-                {
+                } catch ( Exception e ) {
                     e.printStackTrace();
                     logger.warn("receiver threw exception");
                     setReceiverState( INetChannel.INTERRUPTED );
@@ -892,8 +849,7 @@ public class TcpChannel extends NetChannel {
         // Flips the buffer, but returns it back to filling. We can't tell if
         // a buffer contains a complete message without entering draining mode,
         // so this method does that but returns mBuffer to its original state.
-        private boolean bufferContainsAMessage()
-        {
+        private boolean bufferContainsAMessage() {
             int position = mBuffer.position();
             int limit = mBuffer.limit();
 
@@ -902,8 +858,7 @@ public class TcpChannel extends NetChannel {
             // If we haven't received enough bytes for an integer, then we
             // even have enough for the size.
             boolean containsMessage = false;
-            if ( mBuffer.remaining() >= 4 )
-            {
+            if ( mBuffer.remaining() >= 4 ) {
                 // Get the size from the first four bytes.  If that value is less
                 // than the number of bytes in the buffer, we have a complete
                 // packet.
@@ -926,8 +881,7 @@ public class TcpChannel extends NetChannel {
         // Only called while in draining mode. Returns true if we process a
         // message successfully and others may be available; returns false
         // if there are not further messages available.
-        private boolean processAMessageIfAvailable() throws InterruptedException
-        {
+        private boolean processAMessageIfAvailable() throws InterruptedException {
             if ( mBuffer.remaining() < 4 )
                 return false;
 
@@ -935,8 +889,7 @@ public class TcpChannel extends NetChannel {
             int messageSize = mBuffer.getInt();
 
             // Take into account checksum.
-            if ( (4 + messageSize) > mBuffer.remaining() )
-            {
+            if ( (4 + messageSize) > mBuffer.remaining() ) {
                 mBuffer.reset();
                 return false;
             }
@@ -950,9 +903,9 @@ public class TcpChannel extends NetChannel {
             mBuffer.get( checkBytes, 0, 4 );
             logger.debug( "   checkBytes={}", checkBytes );
             long checksum = ( ((0xFFL & checkBytes[0]) << 0)
-                            | ((0xFFL & checkBytes[1]) << 8)
-                            | ((0xFFL & checkBytes[2]) << 16)
-                            | ((0xFFL & checkBytes[3]) << 24) );
+                              | ((0xFFL & checkBytes[1]) << 8)
+                              | ((0xFFL & checkBytes[2]) << 16)
+                              | ((0xFFL & checkBytes[3]) << 24) );
             logger.debug( "   checksum={}", Long.toHexString(checksum) );
 
             byte[] message = new byte[messageSize];
@@ -966,16 +919,16 @@ public class TcpChannel extends NetChannel {
         }
 
 
-        private void setReceiverState( int iState )
-        {
-            synchronized ( this )
-            {
+        private void setReceiverState( int iState ) {
+            synchronized ( this ) {
                 mState = iState;
             }
             mParent.statusChange();
         }
 
-        public synchronized int getReceiverState() { return mState; }
+        public synchronized int getReceiverState() {
+            return mState;
+        }
 
         private int mState = INetChannel.TAKING; // fixme
         private ConnectorThread mParent;
@@ -983,7 +936,7 @@ public class TcpChannel extends NetChannel {
         private SocketChannel mSocketChannel;
         private ByteBuffer mBuffer;
         private final Logger logger
-            = LoggerFactory.getLogger( "network.tcp.receiver" );
+        = LoggerFactory.getLogger( "network.tcp.receiver" );
     }
 
 

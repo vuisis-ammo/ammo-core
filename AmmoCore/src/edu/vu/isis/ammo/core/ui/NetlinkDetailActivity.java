@@ -11,12 +11,11 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  * ...changing the user preferences.
  * ...checking delivery status of various messages.
  * ...registering/unregistering content interest requests.
- * 
+ *
  * @author phreed
  *
  */
-public class NetlinkDetailActivity extends ActivityEx 
-{
-	public static final Logger logger = LoggerFactory.getLogger(NetlinkDetailActivity.class);
-	
+public class NetlinkDetailActivity extends ActivityEx {
+    public static final Logger logger = LoggerFactory.getLogger(NetlinkDetailActivity.class);
+
 }

@@ -9,16 +9,15 @@ package edu.vu.isis.ammo.core.network;
 /**
  * Used by channel classes to interact with the NetworkService.
  */
-public interface IChannelManager
-{
-   /**
-     * Used to acquire the session id by which subsequent communication will be
-     * tracked.
-     *
-     * @param void
-     *
-     * @return boolean
-     */
+public interface IChannelManager {
+    /**
+      * Used to acquire the session id by which subsequent communication will be
+      * tracked.
+      *
+      * @param void
+      *
+      * @return boolean
+      */
     boolean auth();
 
 

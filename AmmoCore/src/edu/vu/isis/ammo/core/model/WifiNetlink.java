@@ -10,14 +10,12 @@ import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 
 
-public class WifiNetlink extends Netlink
-{
+public class WifiNetlink extends Netlink {
     private WifiManager mWifiManager = null;
     private ConnectivityManager mConnManager = null;
     private Context mContext = null;
 
-    private WifiNetlink( Context context )
-    {
+    private WifiNetlink( Context context ) {
         super( context, "Wifi Netlink", "wifi" );
         this.mContext = context;
 
@@ -29,39 +27,31 @@ public class WifiNetlink extends Netlink
     }
 
 
-    public static Netlink getInstance(Context context)
-    {
+    public static Netlink getInstance(Context context) {
         // initialize the gateway from the shared preferences
         return new WifiNetlink( context );
     }
 
 
     @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key)
-    {
-        if ( key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE) )
-        {
-              //shouldUse(prefs);
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        if ( key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE) ) {
+            //shouldUse(prefs);
         }
     }
 
 
     @Override
-    public void updateStatus()
-    {
+    public void updateStatus() {
         final int[] state = new int[1];
 
-        if ( !mWifiManager.isWifiEnabled() )
-        {
+        if ( !mWifiManager.isWifiEnabled() ) {
             state[0] = NETLINK_DISCONNECTED;
             setLinkUp( false );
-        }
-        else
-        {
+        } else {
             final NetworkInfo info = mConnManager.getNetworkInfo( ConnectivityManager.TYPE_WIFI );
 
-            switch( info.getDetailedState() )
-            {
+            switch( info.getDetailedState() ) {
             case DISCONNECTED:
                 state[0] = NETLINK_DISCONNECTED;
                 setLinkUp( false );
@@ -97,8 +87,8 @@ public class WifiNetlink extends Netlink
             }
         }
         Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
-        editor.putInt(INetPrefKeys.WIFI_PREF_IS_ACTIVE, state[0]).commit();    
-        
+        editor.putInt(INetPrefKeys.WIFI_PREF_IS_ACTIVE, state[0]).commit();
+
         logger.error( "Wifi: updating status to {}", state );
         setStatus( state );
     }

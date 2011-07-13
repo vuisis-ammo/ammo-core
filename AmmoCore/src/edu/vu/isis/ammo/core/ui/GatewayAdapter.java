@@ -22,8 +22,7 @@ import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.network.INetChannel;
 
 public class GatewayAdapter extends ArrayAdapter<Gateway>
-    implements OnTouchListener, OnNameChangeListener
-{
+    implements OnTouchListener, OnNameChangeListener {
     public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
     private final AmmoActivity parent;
     private final Resources res;
@@ -31,8 +30,8 @@ public class GatewayAdapter extends ArrayAdapter<Gateway>
 
     public GatewayAdapter(AmmoActivity parent, List<Gateway> model) {
         super(parent,
-                android.R.layout.simple_list_item_1,
-                model);
+              android.R.layout.simple_list_item_1,
+              model);
         this.parent = parent;
         this.res = this.parent.getResources();
         this.model = model;
@@ -113,8 +112,7 @@ public class GatewayAdapter extends ArrayAdapter<Gateway>
         text = text_one;
 
 
-        if(parent.netlinkAdvancedView)
-        {
+        if(parent.netlinkAdvancedView) {
             icon.setEnabled(true);
             switch (status[0]) {
 
@@ -240,8 +238,7 @@ public class GatewayAdapter extends ArrayAdapter<Gateway>
         }
 
         //User Mode
-        else
-        {
+        else {
             /*
                 Pending         |   Transmitting
                 Sending         |   Transmitting

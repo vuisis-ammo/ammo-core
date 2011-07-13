@@ -52,15 +52,27 @@ public class Gateway implements OnSharedPreferenceChangeListener {
         editor.putBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, this.election);
         editor.commit();
     }
-    public void enable() { this.setElection(true); }
-    public void disable() { this.setElection(false); }
-    public void toggle() { this.setElection(!this.election); }
-    public boolean isEnabled() { return this.election; }
+    public void enable() {
+        this.setElection(true);
+    }
+    public void disable() {
+        this.setElection(false);
+    }
+    public void toggle() {
+        this.setElection(!this.election);
+    }
+    public boolean isEnabled() {
+        return this.election;
+    }
 
     // the user selected familiar name
     private String name;
-    public void setName(String name) { this.name = name; }
-    public String getName() { return this.name; }
+    public void setName(String name) {
+        this.name = name;
+    }
+    public String getName() {
+        return this.name;
+    }
 
     // the formal name for this gateway,
     // in the case of a socket it is the "ip:<host ip>:<port>"
@@ -77,8 +89,12 @@ public class Gateway implements OnSharedPreferenceChangeListener {
     private Context context;
 
     private int[] mStatus = null;
-    public synchronized int[] getStatus() { return mStatus; }
-    public synchronized void setStatus( int[] status ) { mStatus = status; }
+    public synchronized int[] getStatus() {
+        return mStatus;
+    }
+    public synchronized void setStatus( int[] status ) {
+        mStatus = status;
+    }
 
     private Gateway(Context context, String name) {
         this.context = context;
@@ -87,7 +103,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this.context);
         this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, NetworkService.DEFAULT_GATEWAY_HOST);
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT,
-                String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
+                                    String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
         this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
 
         this.prefs.registerOnSharedPreferenceChangeListener(this);
@@ -129,7 +145,7 @@ public class Gateway implements OnSharedPreferenceChangeListener {
         if (key.equals(INetPrefKeys.CORE_IP_PORT)) {
             if (this.nameView == null) return;
             this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT,
-                    String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
+                                        String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
             this.nameListener.onFormalChange(this.nameView, this.getFormal());
             return;
         }

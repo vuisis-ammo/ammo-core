@@ -22,8 +22,7 @@ import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.model.Netlink;
 
 public class NetlinkAdapter extends ArrayAdapter<Netlink>
-  implements OnClickListener, OnFocusChangeListener, OnTouchListener
-{
+    implements OnClickListener, OnFocusChangeListener, OnTouchListener {
     public static final Logger logger = LoggerFactory.getLogger( AmmoActivity.class );
     private final AmmoActivity parent;
     private final Resources res;
@@ -31,8 +30,8 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
 
     public NetlinkAdapter(AmmoActivity parent, List<Netlink> model) {
         super(parent,
-                android.R.layout.simple_list_item_1,
-                model);
+              android.R.layout.simple_list_item_1,
+              model);
         this.parent = parent;
         this.res = this.parent.getResources();
         this.model = model;
@@ -67,33 +66,33 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
     @Override
     public void onFocusChange(View item, boolean hasFocus) {
         if (hasFocus) {
-           item.setBackgroundColor(Color.RED);
+            item.setBackgroundColor(Color.RED);
         } else {
-           item.setBackgroundColor(Color.TRANSPARENT);
+            item.setBackgroundColor(Color.TRANSPARENT);
         }
     }
 
-     @Override
-     public boolean onTouch(View view, MotionEvent event) {
-         // Only perform this transform on image buttons for now.
-         if (view.getClass() != RelativeLayout.class) return false;
+    @Override
+    public boolean onTouch(View view, MotionEvent event) {
+        // Only perform this transform on image buttons for now.
+        if (view.getClass() != RelativeLayout.class) return false;
 
-         RelativeLayout item = (RelativeLayout) view;
-         int action = event.getAction();
+        RelativeLayout item = (RelativeLayout) view;
+        int action = event.getAction();
 
-         switch (action) {
-         case MotionEvent.ACTION_DOWN:
-         case MotionEvent.ACTION_MOVE:
-             item.setBackgroundResource(R.drawable.select_gradient);
-             //item.setBackgroundColor(Color.GREEN);
-             break;
+        switch (action) {
+        case MotionEvent.ACTION_DOWN:
+        case MotionEvent.ACTION_MOVE:
+            item.setBackgroundResource(R.drawable.select_gradient);
+            //item.setBackgroundColor(Color.GREEN);
+            break;
 
-         default:
-             item.setBackgroundColor(Color.TRANSPARENT);
-         }
+        default:
+            item.setBackgroundColor(Color.TRANSPARENT);
+        }
 
-         return false;
-     }
+        return false;
+    }
 
 
     private boolean onStatusChange(View item, int[] status) {
@@ -113,8 +112,7 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
         }
         // remove the initialization here after everything is done
         int color = 0;
-        if(parent.netlinkAdvancedView)
-        {
+        if(parent.netlinkAdvancedView) {
             switch (status[0]) {
             case Netlink.NETLINK_UP:
                 color = this.res.getColor(R.color.status_connected);
@@ -186,8 +184,7 @@ public class NetlinkAdapter extends ArrayAdapter<Netlink>
         //           FAILED | DISCONNECTED
         //        CONNECTED | CONNECTED
         //        SUSPENDED | DISCONNECTED
-        else
-        {
+        else {
             switch (status[0]) {
             case Netlink.NETLINK_UP:
             case Netlink.NETLINK_CONNECTED:

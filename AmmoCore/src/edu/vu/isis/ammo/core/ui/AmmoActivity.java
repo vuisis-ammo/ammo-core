@@ -47,8 +47,7 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
  * @author phreed
  *
  */
-public class AmmoActivity extends TabActivityEx
-{
+public class AmmoActivity extends TabActivityEx {
     public static final Logger logger = LoggerFactory.getLogger( AmmoActivity.class );
 
     private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
@@ -97,8 +96,7 @@ public class AmmoActivity extends TabActivityEx
         }
     };
 
-    private void initializeGatewayAdapter()
-    {
+    private void initializeGatewayAdapter() {
         gatewayModel = networkServiceBinder.getGatewayList();
 
         // set gateway view references
@@ -107,15 +105,13 @@ public class AmmoActivity extends TabActivityEx
         gatewayList.setAdapter(gatewayAdapter);
 
         //reset all rows
-        for (int ix=0; ix < gatewayList.getChildCount(); ix++)
-        {
+        for (int ix=0; ix < gatewayList.getChildCount(); ix++) {
             View row = gatewayList.getChildAt(ix);
             row.setBackgroundColor(Color.TRANSPARENT);
         }
     }
 
-    private void initializeNetlinkAdapter()
-    {
+    private void initializeNetlinkAdapter() {
         netlinkModel = networkServiceBinder.getNetlinkList();
 
         // set netlink view references
@@ -168,7 +164,7 @@ public class AmmoActivity extends TabActivityEx
         tabHost.addTab(spec);
 
         tabHost.setCurrentTab(0);
-        
+
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
         this.netlinkAdvancedView = prefs.getBoolean("debug_mode", this.netlinkAdvancedView);
     }
@@ -179,10 +175,8 @@ public class AmmoActivity extends TabActivityEx
         logger.trace("::onStart");
 
         //reset all rows
-        if ( gatewayList != null )
-        {
-            for (int ix=0; ix < gatewayList.getChildCount(); ix++)
-            {
+        if ( gatewayList != null ) {
+            for (int ix=0; ix < gatewayList.getChildCount(); ix++) {
                 View row = gatewayList.getChildAt(ix);
                 row.setBackgroundColor(Color.TRANSPARENT);
             }
@@ -218,13 +212,10 @@ public class AmmoActivity extends TabActivityEx
         public void onReceive(Context context, Intent iIntent) {
             final String action = iIntent.getAction();
 
-            if ( action.equals( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE ))
-            {
+            if ( action.equals( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE )) {
                 if ( gatewayAdapter != null )
                     gatewayAdapter.notifyDataSetChanged();
-            }
-            else if ( action.equals( AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE ))
-            {
+            } else if ( action.equals( AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE )) {
                 if ( netlinkAdapter != null )
                     netlinkAdapter.notifyDataSetChanged();
             }
@@ -276,7 +267,7 @@ public class AmmoActivity extends TabActivityEx
         case ABOUT_MENU:
             intent.setClass(this, AboutActivity.class);
             this.startActivity(intent);
-                return true;
+            return true;
         }
         return false;
     }
@@ -311,8 +302,7 @@ public class AmmoActivity extends TabActivityEx
 
         if (button.isChecked()) {
             gw.enable();
-        }
-        else {
+        } else {
             TextView t = (TextView)row.findViewById(R.id.gateway_status_text_one);
             t.setText("Disabling...");
             gw.disable();
@@ -325,8 +315,7 @@ public class AmmoActivity extends TabActivityEx
     /*
      * Used to toggle the netlink view between simple and advanced.
      */
-    public void toggleMode()
-    {
+    public void toggleMode() {
         this.netlinkAdvancedView = !this.netlinkAdvancedView;
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.edit().putBoolean("debug_mode", this.netlinkAdvancedView).commit();

@@ -29,155 +29,154 @@ import edu.vu.isis.ammo.core.ui.DistributorPopupWindow;
 /**
  * ListActivity class used in viewing the distributor's tables.
  */
-public abstract class DistributorTableViewer extends ListActivity 
-implements IAmmoActivitySetup 
-{
-	// ===========================================================
-	// Constants
-	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger(DistributorTableViewer.class);
-	
-	private static final int MENU_PURGE = 1;
-	private static final int MENU_GARBAGE = 2;
-	
-	public static final int MENU_CONTEXT_DELETE = 1;
-	
-	static protected final int[] toItemLayout = new int[] {
-			R.id.distributor_table_view_item_uri,
-			R.id.distributor_table_view_item_timestamp };
-	// ===========================================================
-	// Fields
-	// ===========================================================
-	
-	protected DistributorDataStore.Tables table;
-	protected DistributorTableViewAdapter adapter;
-	protected PopupWindow pw;
-	protected DistributorDataStore ds;
+public abstract class DistributorTableViewer extends ListActivity
+    implements IAmmoActivitySetup {
+    // ===========================================================
+    // Constants
+    // ===========================================================
+    public static final Logger logger = LoggerFactory.getLogger(DistributorTableViewer.class);
 
-	// ===========================================================
-	// Lifecycle
-	// ===========================================================
-	@Override
-	public void onCreate(Bundle bun) {
-		super.onCreate(bun);
-		setContentView(R.layout.distributor_table_viewer);
-		if (this.table == null) {
-			logger.error("no uri provided...exiting");
-			return;
-		}
-		
-		this.setListAdapter(this.adapter);
-		this.registerForContextMenu(this.getListView());
-		this.ds = new DistributorDataStore(this);
-	}
+    private static final int MENU_PURGE = 1;
+    private static final int MENU_GARBAGE = 2;
 
-	// ===========================================================
-	// Menus
-	// ===========================================================
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		super.onCreateOptionsMenu(menu);
-		logger.trace("::onCreateOptionsMenu");
-		menu.add(Menu.NONE, MENU_PURGE, Menu.NONE, "Purge");
-		menu.add(Menu.NONE, MENU_GARBAGE, Menu.NONE+1, "Garbage");
-		return true;
-	}
+    public static final int MENU_CONTEXT_DELETE = 1;
 
-	protected String completeDisp = null;
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		logger.trace("::onOptionsItemSelected");
-		int count;
-		switch (item.getItemId()) {
-		case MENU_PURGE:
-			// Delete everything.
-			count = this.ds.delete(this.table.n, "_id > -1", null);
-			logger.debug("Deleted " + count + "subscriptions");
-			break;
-		case MENU_GARBAGE:
-			// Delete things which are outdated or complete everything.
-			StringBuilder sb = new StringBuilder();
-			sb.append("_id > -1");
-			sb.append(" AND ");
-			sb.append(" expiration < '").append(Calendar.getInstance().getTimeInMillis()).append("'");
-			if (this.completeDisp != null)
-				sb.append(" AND ").append(" disposition IN ").append(this.completeDisp);
-			
-			count = this.ds.delete(this.table.n, sb.toString(), null);
-			logger.debug("Deleted " + count + "subscriptions");
-		}
-		return true;
-	}
+    static protected final int[] toItemLayout = new int[] {
+        R.id.distributor_table_view_item_uri,
+        R.id.distributor_table_view_item_timestamp
+    };
+    // ===========================================================
+    // Fields
+    // ===========================================================
 
-	@Override
-	public void onCreateContextMenu(ContextMenu menu, View v,
-			ContextMenuInfo menuInfo) {
-		super.onCreateContextMenu(menu, v, menuInfo);
-		menu.add(ContextMenu.NONE, MENU_CONTEXT_DELETE, Menu.NONE, "Delete");
-	}
+    protected DistributorDataStore.Tables table;
+    protected DistributorTableViewAdapter adapter;
+    protected PopupWindow pw;
+    protected DistributorDataStore ds;
 
-	@Override
-	public boolean onContextItemSelected(MenuItem item) {
-		super.onContextItemSelected(item);
-		switch (item.getItemId()) {
-		case MENU_CONTEXT_DELETE:
-			removeMenuItem(item);
-			adapter.notifyDataSetChanged();
-			break;
+    // ===========================================================
+    // Lifecycle
+    // ===========================================================
+    @Override
+    public void onCreate(Bundle bun) {
+        super.onCreate(bun);
+        setContentView(R.layout.distributor_table_viewer);
+        if (this.table == null) {
+            logger.error("no uri provided...exiting");
+            return;
+        }
 
-		default:
+        this.setListAdapter(this.adapter);
+        this.registerForContextMenu(this.getListView());
+        this.ds = new DistributorDataStore(this);
+    }
 
-		}
-		return true;
-	}
+    // ===========================================================
+    // Menus
+    // ===========================================================
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        super.onCreateOptionsMenu(menu);
+        logger.trace("::onCreateOptionsMenu");
+        menu.add(Menu.NONE, MENU_PURGE, Menu.NONE, "Purge");
+        menu.add(Menu.NONE, MENU_GARBAGE, Menu.NONE+1, "Garbage");
+        return true;
+    }
 
-	// ===========================================================
-	// List Management
-	// ===========================================================
-	@Override
-	protected void onListItemClick(ListView l, View v, int position, long id) {
-		super.onListItemClick(l, v, position, id);
-		LayoutInflater inflater = (LayoutInflater)
-	       this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-		
-	    pw = new DistributorPopupWindow(inflater, position, this.adapter.getCursor());
-	    
-	    pw.setBackgroundDrawable(new BitmapDrawable());
-	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
-	  
-	    
-	}
-	
-	final static String SELECTION = new StringBuilder().append('"').append(BaseColumns._ID).append("\"=?").toString();
-	
-	public void removeMenuItem(MenuItem item) {
-		// Get the row id and uri of the selected item.
-		AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
-		int rowId = (int)acmi.id;
-		int count = this.ds.delete(this.table.n, SELECTION, new String[]{String.valueOf(rowId)});
-		Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();
-	}
+    protected String completeDisp = null;
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        logger.trace("::onOptionsItemSelected");
+        int count;
+        switch (item.getItemId()) {
+        case MENU_PURGE:
+            // Delete everything.
+            count = this.ds.delete(this.table.n, "_id > -1", null);
+            logger.debug("Deleted " + count + "subscriptions");
+            break;
+        case MENU_GARBAGE:
+            // Delete things which are outdated or complete everything.
+            StringBuilder sb = new StringBuilder();
+            sb.append("_id > -1");
+            sb.append(" AND ");
+            sb.append(" expiration < '").append(Calendar.getInstance().getTimeInMillis()).append("'");
+            if (this.completeDisp != null)
+                sb.append(" AND ").append(" disposition IN ").append(this.completeDisp);
 
-	// ===========================================================
-	// Activity setup
-	// ===========================================================
+            count = this.ds.delete(this.table.n, sb.toString(), null);
+            logger.debug("Deleted " + count + "subscriptions");
+        }
+        return true;
+    }
 
-	@Override
-	public void setOnClickListeners() {
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v,
+                                    ContextMenuInfo menuInfo) {
+        super.onCreateContextMenu(menu, v, menuInfo);
+        menu.add(ContextMenu.NONE, MENU_CONTEXT_DELETE, Menu.NONE, "Delete");
+    }
 
-	}
-	
-	public void closePopup(View v)
-	{
-		if(pw == null)
-			return;
-		
-		if(!pw.isShowing())
-			return;
-		
-		pw.dismiss();
-		
-	}
+    @Override
+    public boolean onContextItemSelected(MenuItem item) {
+        super.onContextItemSelected(item);
+        switch (item.getItemId()) {
+        case MENU_CONTEXT_DELETE:
+            removeMenuItem(item);
+            adapter.notifyDataSetChanged();
+            break;
+
+        default:
+
+        }
+        return true;
+    }
+
+    // ===========================================================
+    // List Management
+    // ===========================================================
+    @Override
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        super.onListItemClick(l, v, position, id);
+        LayoutInflater inflater = (LayoutInflater)
+                                  this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+
+        pw = new DistributorPopupWindow(inflater, position, this.adapter.getCursor());
+
+        pw.setBackgroundDrawable(new BitmapDrawable());
+        pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0);
+
+
+    }
+
+    final static String SELECTION = new StringBuilder().append('"').append(BaseColumns._ID).append("\"=?").toString();
+
+    public void removeMenuItem(MenuItem item) {
+        // Get the row id and uri of the selected item.
+        AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
+        int rowId = (int)acmi.id;
+        int count = this.ds.delete(this.table.n, SELECTION, new String[] {String.valueOf(rowId)});
+        Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();
+    }
+
+    // ===========================================================
+    // Activity setup
+    // ===========================================================
+
+    @Override
+    public void setOnClickListeners() {
+
+    }
+
+    public void closePopup(View v) {
+        if(pw == null)
+            return;
+
+        if(!pw.isShowing())
+            return;
+
+        pw.dismiss();
+
+    }
 
 
 }

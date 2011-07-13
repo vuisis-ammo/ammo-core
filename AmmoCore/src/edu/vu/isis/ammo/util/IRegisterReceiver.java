@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package edu.vu.isis.ammo.util;
 
@@ -10,7 +10,7 @@ import android.content.IntentFilter;
 /**
  * This is just a simple class which may be used to pass context around.
  * This can easily be done as a closure.
- * 
+ *
  * For example:
  * final IRegisterReceiver registerReceiver = new IRegisterReceiver() {
  *   @Override
@@ -22,11 +22,11 @@ import android.content.IntentFilter;
  *     applicationContext.unregisterReceiver(aReceiver);
  *   }
  * };
- * 
+ *
  * @author phreed
  *
  */
 public interface IRegisterReceiver {
-		public Intent registerReceiver(final BroadcastReceiver aReceiver, final IntentFilter aFilter);
-		public void unregisterReceiver(final BroadcastReceiver aReceiver);
+    public Intent registerReceiver(final BroadcastReceiver aReceiver, final IntentFilter aFilter);
+    public void unregisterReceiver(final BroadcastReceiver aReceiver);
 }

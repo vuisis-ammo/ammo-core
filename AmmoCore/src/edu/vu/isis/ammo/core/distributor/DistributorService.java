@@ -36,15 +36,15 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  * issue calls to the NetworkService for updates and then writes the
  * results to the correct content provider using the deserialization mechanism
  * defined by each content provider.
- * 
+ *
  * Any activity or application wishing to send data via the DistributorService
  * should use one of the AmmoDispatcher API methods for communication between
  * said application and AmmoCore.
- * 
+ *
  * Any activity or application wishing to receive updates when a content
  * provider has been modified can register via a custom ContentObserver
  * subclass.
- * 
+ *
  */
 public class DistributorService extends Service {
 
@@ -57,7 +57,7 @@ public class DistributorService extends Service {
     public static final String BIND = "edu.vu.isis.ammo.core.distributor.DistributorService.BIND";
     public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP";
     public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED";
-    
+
 
     @SuppressWarnings("unused")
     private static final int FILE_READ_SIZE = 1024;
@@ -73,25 +73,25 @@ public class DistributorService extends Service {
     public INetworkService networkServiceBinder;
     public boolean isNetworkServiceBound = false;
     private DistributorThread workerThread;
-    
+
     public void consumerReady() {
         //workerThread.subscriptionChange();
         //workerThread.retrievalChange();
         //workerThread.postalChange();
     }
-    
-    final BlockingQueue<NetworkService.DistributorMessage> queue = 
+
+    final BlockingQueue<NetworkService.DistributorMessage> queue =
         new PriorityBlockingQueue<NetworkService.DistributorMessage>();
-   
+
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.info("::onServiceConnected - Network Service");
             isNetworkServiceBound = true;
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
-            
-            DistributorService.this.workerThread = 
+
+            DistributorService.this.workerThread =
                 new DistributorThread(DistributorService.this.getBaseContext(), queue, networkServiceBinder);
-           
+
             networkServiceBinder.setCallback(DistributorService.this.workerThread);
             DistributorService.this.workerThread.execute(DistributorService.this);
         }
@@ -114,9 +114,8 @@ public class DistributorService extends Service {
     // ===========================================================
     // AIDL Implementation
     // ===========================================================
-    
-    public class DistributorServiceAidl extends IDistributorService.Stub 
-    {
+
+    public class DistributorServiceAidl extends IDistributorService.Stub {
         @Override
         public String makeRequest(AmmoRequest request) throws RemoteException {
             logger.trace("received data request");
@@ -134,9 +133,9 @@ public class DistributorService extends Service {
             logger.trace("recover data request {}", uuid);
             return null;
         }
-        
+
     }
-    
+
     @Override
     public IBinder onBind(Intent intent) {
         logger.trace("client binding...");
@@ -199,7 +198,7 @@ public class DistributorService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         logger.info("::onStartCommand");
-        // If we get this intent, unbind from all services 
+        // If we get this intent, unbind from all services
         // so the service can be stopped.
         if (intent != null) {
             String action = intent.getAction();
@@ -213,7 +212,7 @@ public class DistributorService extends Service {
 
         if (isNetworkServiceBound) return START_STICKY;
         if (networkServiceBinder != null) return START_STICKY;
-        networkServiceIntent = new Intent(this, NetworkService.class); 
+        networkServiceIntent = new Intent(this, NetworkService.class);
         DistributorService.this.bindService(networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE);
         return START_STICKY;
     }
@@ -246,7 +245,7 @@ public class DistributorService extends Service {
         this.stopService(networkServiceIntent);
         tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
         wifiReceiver.setInitialized(false);
-       
+
         this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
 
         super.onDestroy();
@@ -257,9 +256,9 @@ public class DistributorService extends Service {
     // RECEIVERS
     // ===========================================================
     /**
-     * This broadcast receiver is responsible for determining 
+     * This broadcast receiver is responsible for determining
      * that an interface is available for use.
-     * 
+     *
      */
     private class MyBroadcastReceiver extends BroadcastReceiver {
 
@@ -277,20 +276,20 @@ public class DistributorService extends Service {
 
         public void checkResourceStatus(final Context aContext) { //
             logger.info("::checkResourceStatus");
-            { 
+            {
                 final WifiManager wm = (WifiManager) aContext.getSystemService(Context.WIFI_SERVICE);
                 final int wifiState = wm.getWifiState(); // TODO check for permission or catch error
                 logger.info("wifi state={}", wifiState);
 
                 final TelephonyManager tm = (TelephonyManager) aContext.getSystemService(
-                        Context.TELEPHONY_SERVICE);
+                                                Context.TELEPHONY_SERVICE);
                 final int dataState = tm.getDataState(); // TODO check for permission or catch error
                 logger.info("telephone data state={}", dataState);
 
                 mNetworkConnected = wifiState == WifiManager.WIFI_STATE_ENABLED
-                                 || dataState == TelephonyManager.DATA_CONNECTED;
+                                    || dataState == TelephonyManager.DATA_CONNECTED;
                 logger.info("mConnected={}", mNetworkConnected);
-            } 
+            }
             {
                 final String state = Environment.getExternalStorageState();
 
@@ -299,6 +298,6 @@ public class DistributorService extends Service {
                 logger.info("mSdcardAvailable={}", mSdCardAvailable);
             }
         }
-    } 
-   
+    }
+
 }
