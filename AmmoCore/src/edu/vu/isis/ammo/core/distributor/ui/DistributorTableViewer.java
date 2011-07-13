@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 import android.app.ListActivity;
 import android.content.Context;
 import android.graphics.drawable.BitmapDrawable;
-import android.net.Uri;
 import android.os.Bundle;
+import android.provider.BaseColumns;
 import android.view.ContextMenu;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -23,13 +23,11 @@ import android.widget.Toast;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.ui.DistributorPopupWindow;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
- * @author Fred Eisele
- *
  */
 public abstract class DistributorTableViewer extends ListActivity 
 implements IAmmoActivitySetup 
@@ -43,8 +41,7 @@ implements IAmmoActivitySetup
 	private static final int MENU_GARBAGE = 2;
 	
 	public static final int MENU_CONTEXT_DELETE = 1;
-
-
+	
 	static protected final int[] toItemLayout = new int[] {
 			R.id.distributor_table_view_item_uri,
 			R.id.distributor_table_view_item_timestamp };
@@ -52,9 +49,10 @@ implements IAmmoActivitySetup
 	// Fields
 	// ===========================================================
 	
-	protected Uri uri;
+	protected DistributorDataStore.Tables table;
 	protected DistributorTableViewAdapter adapter;
 	protected PopupWindow pw;
+	protected DistributorDataStore ds;
 
 	// ===========================================================
 	// Lifecycle
@@ -63,13 +61,14 @@ implements IAmmoActivitySetup
 	public void onCreate(Bundle bun) {
 		super.onCreate(bun);
 		setContentView(R.layout.distributor_table_viewer);
-		if (this.uri == null) {
+		if (this.table == null) {
 			logger.error("no uri provided...exiting");
 			return;
 		}
 		
 		this.setListAdapter(this.adapter);
 		this.registerForContextMenu(this.getListView());
+		this.ds = new DistributorDataStore(this);
 	}
 
 	// ===========================================================
@@ -92,7 +91,7 @@ implements IAmmoActivitySetup
 		switch (item.getItemId()) {
 		case MENU_PURGE:
 			// Delete everything.
-			count = getContentResolver().delete(this.uri, "_id > -1", null);
+			count = this.ds.delete(this.table.n, "_id > -1", null);
 			logger.debug("Deleted " + count + "subscriptions");
 			break;
 		case MENU_GARBAGE:
@@ -104,7 +103,7 @@ implements IAmmoActivitySetup
 			if (this.completeDisp != null)
 				sb.append(" AND ").append(" disposition IN ").append(this.completeDisp);
 			
-			count = getContentResolver().delete(this.uri, sb.toString(), null);
+			count = this.ds.delete(this.table.n, sb.toString(), null);
 			logger.debug("Deleted " + count + "subscriptions");
 		}
 		return true;
@@ -149,11 +148,13 @@ implements IAmmoActivitySetup
 	    
 	}
 	
+	final static String SELECTION = new StringBuilder().append('"').append(BaseColumns._ID).append("\"=?").toString();
+	
 	public void removeMenuItem(MenuItem item) {
 		// Get the row id and uri of the selected item.
 		AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
 		int rowId = (int)acmi.id;
-		int count = getContentResolver().delete(this.uri, SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
+		int count = this.ds.delete(this.table.n, SELECTION, new String[]{String.valueOf(rowId)});
 		Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();
 	}
 

@@ -14,9 +14,6 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -25,14 +22,11 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+
 import edu.vu.isis.ammo.core.FLogger;
-import edu.vu.isis.ammo.core.network.INetworkService;
-import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.network.NetworkService.Message;
-import edu.vu.isis.ammo.core.network.NetworkService.Response;
-import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Disposition;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PublishTableSchema;
@@ -41,6 +35,11 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSche
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTable;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.network.NetworkService.Response;
+import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.util.InternetMediaType;
 
 /**
@@ -59,21 +58,24 @@ public class DistributorThread
     implements INetworkService.DeliveryHandler {
     private static final Logger logger = LoggerFactory.getLogger(DistributorThread.class);
 
+    @SuppressWarnings("unused")
     private static final int BURP_TIME = 20 * 1000;
     // 20 seconds expressed in milliseconds
 
     /**
      * The queues from which requests and responses are processed.
      */
-    private final BlockingQueue<NetworkService.Message> queue;
+    private final BlockingQueue<NetworkService.DistributorMessage> queue;
     private final Context context;
     private final DistributorDataStore ds;
+    private final INetworkService gateway;
 
-    public DistributorThread(Context context, BlockingQueue<NetworkService.Message> queue) {
+    public DistributorThread(Context context, BlockingQueue<NetworkService.DistributorMessage> queue, INetworkService gateway) {
         super();
         this.context = context;
         this.queue = queue;
         this.ds = new DistributorDataStore(this.context);
+        this.gateway = gateway;
     }
 
     @Override
@@ -81,46 +83,46 @@ public class DistributorThread
         logger.info("::post to network service");
 
         for (DistributorService that : them) {
-            this.processSubscriptionChange(that, true);
-            this.processRetrievalChange(that, true);
-            this.processPostalChange(that, true);
+            this.processSubscribeTable(that, true);
+            this.processRetrievalTable(that, true);
+            this.processPostalTable(that, true);
         }
-        // condition wait is there something to process?
         try {
-            NetworkService.Message message;
+            NetworkService.DistributorMessage distributorMessage;
 
-            while (null != (message = this.queue.take())) {
-                switch (message.type) {
+            while (null != (distributorMessage = this.queue.take())) {
+
+                switch (distributorMessage.type) {
                 case REQUEST:
-                    logger.trace("process out-bound message ");
-                    NetworkService.Request request = (NetworkService.Request) message;
+                    logger.trace("process out-bound request ");
+                    NetworkService.RawRequest request = (NetworkService.RawRequest) distributorMessage;
 
-                    switch(request.action) {
+                    switch(request.payload.action) {
                     case POSTAL:
                         for (DistributorService that : them) {
-                            this.processPostalChange(that, false);
+                            this.processPostalRequest(that, request);
                         }
                         break;
                     case PUBLISH:
                         for (DistributorService that : them) {
-                            this.processPublishChange(that, false);
+                            this.processPublishRequest(that, request);
                         }
                         break;
-                    case RETRIEVE:
+                    case RETRIEVAL:
                         for (DistributorService that : them) {
-                            this.processPostalChange(that, false);
+                            this.processRetrievalRequest(that, request);
                         }
                         break;
                     case SUBSCRIBE:
                         for (DistributorService that : them) {
-                            this.processSubscriptionChange(that, false);
+                            this.processSubscribeRequest(that, request);
                         }
                         break;
                     }
                     break;
                 case RESPONSE:
-                    logger.trace("process in-bound message ");
-                    NetworkService.Response response = (NetworkService.Response) message;
+                    logger.trace("process in-bound response ");
+                    NetworkService.Response response = (NetworkService.Response) distributorMessage;
                     AmmoMessages.MessageWrapper mw = response.msg;
                     switch (mw.getType()) {
 
@@ -162,10 +164,10 @@ public class DistributorThread
 
     private boolean collectGarbage = true;
 
-    
- // ================================================
- // Handle work originating from Client Application
- // ================================================
+
+// ================================================
+// Handle work originating from Client Application
+// ================================================
     /**
      * Every time the postal provider is modified, find out what the
      * changes were and, if necessary, send the data to the server. Be
@@ -186,6 +188,9 @@ public class DistributorThread
      * The post request will occur before the status update).
      *
      */
+    public void processPostalRequest(DistributorService that, NetworkService.RawRequest request) {
+        logger.info("::processPostalRequest()");
+    }
 
     private static final String POSTAL_GARBAGE;
     private static final String POSTAL_RESEND;
@@ -214,14 +219,14 @@ public class DistributorThread
     }
 
     /**
-     * Called when the postal table changes.
+     * Called when the postal table.
      * Places the postal requests into the input queue.
      *
      * @param that
      * @param resend
      */
-    public void processPostalChange(DistributorService that, boolean resend) {
-        logger.info("::processPostalChange()");
+    public void processPostalTable(DistributorService that, boolean resend) {
+        logger.info("::processPostalTable()");
 
         if (!that.isNetworkServiceBound)
             return;
@@ -266,8 +271,8 @@ public class DistributorThread
 
                 int serialType = cur.getInt(cur.getColumnIndex(PostalTableSchema.SERIALIZE_TYPE.n));
 
-                switch (serialType) {
-                case SerializeType.DIRECT.o:
+                switch (SerializeType.byOrdinal(serialType)) {
+                case DIRECT:
                     int dataColumnIndex = cur.getColumnIndex(PostalTableSchema.DATA.n);
 
                     if (!cur.isNull(dataColumnIndex)) {
@@ -281,8 +286,8 @@ public class DistributorThread
                     }
                     break;
 
-                case SerializeType.INDIRECT.o:
-                case SerializeType.DEFERRED.o:
+                case INDIRECT:
+                case DEFERRED:
                 default:
                     try {
                         serialized = queryUriForSerializedData(that.getBaseContext(), rowUri);
@@ -320,19 +325,19 @@ public class DistributorThread
                             .setDataMessage(dmb);
                         // mw.setSessionUuid(sessionId); // the session should be sent by the Network Service
 
-                        this.queue.put(NetworkService.Request.getInstance(0, 
-                        		NetworkService.Request.Action.POSTAL, mwb,
+                        final Uri postalUri = Uri.parse("content://the/thing/123");
+
+                        this.gateway.sendRequest(NetworkService.Request.getInstance(0,
+                                                 NetworkService.Request.Action.POSTAL, mwb,
                         new INetworkService.OnSendHandler() {
                             @Override
                             public boolean ack(boolean status) {
-                                // Update distributor status
-                                // if message dispatch
-                                // successful.
                                 ContentValues values = new ContentValues();
 
                                 values.put(PostalTableSchema.DISPOSITION.n,
                                            (status) ? Disposition.SENT.o
                                            : Disposition.FAIL.o);
+
                                 int numUpdated = cr.update(
                                                      postalUri, values,
                                                      null, null);
@@ -372,6 +377,9 @@ public class DistributorThread
      * The post request will occur before the status update).
      *
      */
+    public void processPublishRequest(DistributorService that, NetworkService.RawRequest request) {
+        logger.info("::processPublishRequest()");
+    }
 
     private static final String PUBLISH_GARBAGE;
     private static final String PUBLISH_RESEND;
@@ -406,8 +414,8 @@ public class DistributorThread
      * @param that
      * @param resend
      */
-    public void processPublishChange(DistributorService that, boolean resend) {
-        logger.info("::processPublishChange()");
+    public void processPublishTable(DistributorService that, boolean resend) {
+        logger.info("::processPublishTable()");
 
         if (!that.isNetworkServiceBound)
             return;
@@ -465,7 +473,7 @@ public class DistributorThread
                     if (!that.networkServiceBinder.isConnected()) {
                         logger.info("no network connection");
                     } else {
-                        final Uri publishUri = PublishTableSchema.getProvider(cur);
+                        final Uri publishUri = Uri.parse("content://the/thing/123"); // PublishTableSchema.getProvider(cur);
                         ContentValues values = new ContentValues();
 
                         values.put(PublishTableSchema.DISPOSITION.n, Disposition.QUEUED.o);
@@ -485,10 +493,8 @@ public class DistributorThread
                             .setDataMessage(dmb);
                         // mw.setSessionUuid(sessionId); // the session should be sent by the Network Service
 
-                        // TODO or call the network service directly.
-                        // this.deliver(NetworkService.Request.getInstance(0, mwb,
-                        this.queue.put(NetworkService.Request.getInstance(0,
-                        		NetworkService.Request.Action.PUBLISH, mwb,
+                        this.gateway.sendRequest(NetworkService.Request.getInstance(0,
+                                                 NetworkService.Request.Action.PUBLISH, mwb,
                         new INetworkService.OnSendHandler() {
                             @Override
                             public boolean ack(boolean status) {
@@ -530,6 +536,9 @@ public class DistributorThread
      *
      * Garbage collect items which are expired.
      */
+    public void processRetrievalRequest(DistributorService that, NetworkService.RawRequest request) {
+        logger.info("::processRetrievalRequest()");
+    }
 
     private static final String RETRIEVAL_GARBAGE;
     private static final String RETRIEVAL_SEND;
@@ -559,8 +568,8 @@ public class DistributorThread
         RETRIEVAL_RESEND = sb.toString();
     }
 
-    public void processRetrievalChange(DistributorService that, boolean resend) {
-        logger.info("::processRetrievalChange()");
+    public void processRetrievalTable(DistributorService that, boolean resend) {
+        logger.info("::processRetrievalTable()");
 
         if (!that.isNetworkServiceBound)
             return;
@@ -568,6 +577,7 @@ public class DistributorThread
             return;
 
         String order = RetrievalTable.PRIORITY_SORT_ORDER;
+        @SuppressWarnings("unused")
         final Context context = that.getApplicationContext();
         final ContentResolver cr = that.getContentResolver();
 
@@ -611,46 +621,51 @@ public class DistributorThread
                 if (!that.networkServiceBinder.isConnected()) {
                     continue;
                 }
-                final Uri retrieveUri = RetrievalTableSchema.getUri(pendingCursor);
-                ContentValues values = new ContentValues();
-                values.put(RetrievalTableSchema.DISPOSITION.n, Disposition.QUEUED.o);
+                try {
+                    final Uri retrieveUri = Uri.parse("content://the/thing/123"); //RetrievalTableSchema.getUri(pendingCursor);
+                    ContentValues values = new ContentValues();
+                    values.put(RetrievalTableSchema.DISPOSITION.n, Disposition.QUEUED.o);
 
-                ds.updateRetrieval(values);
+                    ds.updateRetrieval(values);
 
-                AmmoMessages.PullRequest.Builder prb =
-                    AmmoMessages.PullRequest.newBuilder()
-                    .setRequestUid(rowUri.toString())
-                    .setMimeType(mime);
-                if (selection != null) prb
-                    .setQuery(selection);
+                    AmmoMessages.PullRequest.Builder prb =
+                        AmmoMessages.PullRequest.newBuilder()
+                        .setRequestUid(rowUri.toString())
+                        .setMimeType(mime);
+                    if (selection != null) prb
+                        .setQuery(selection);
 
-                AmmoMessages.MessageWrapper.Builder mwb =
-                    AmmoMessages.MessageWrapper.newBuilder()
-                    .setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST)
-                    .setPullRequest(prb);
-                // mw.setSessionUuid(sessionId); // the session should be sent by the Network Service
+                    AmmoMessages.MessageWrapper.Builder mwb =
+                        AmmoMessages.MessageWrapper.newBuilder()
+                        .setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST)
+                        .setPullRequest(prb);
+                    // mw.setSessionUuid(sessionId); // the session should be sent by the Network Service
 
-                this.queue.put(NetworkService.Request.getInstance(0, 
-                		NetworkService.Request.Action.RETRIEVE, mwb,
-                new INetworkService.OnSendHandler() {
-                    @Override
-                    public boolean ack(boolean status) {
-                        // Update distributor status if
-                        // message dispatch successful.
-                        ContentValues values = new ContentValues();
+                    this.gateway.sendRequest(NetworkService.Request.getInstance(0,
+                                             NetworkService.Request.Action.RETRIEVAL, mwb,
+                    new INetworkService.OnSendHandler() {
+                        @Override
+                        public boolean ack(boolean status) {
+                            // Update distributor status if
+                            // message dispatch successful.
+                            ContentValues values = new ContentValues();
 
-                        values.put(RetrievalTableSchema.DISPOSITION.n,
-                                   status ? Disposition.SENT.o
-                                   : Disposition.FAIL.o);
+                            values.put(RetrievalTableSchema.DISPOSITION.n,
+                                       status ? Disposition.SENT.o
+                                       : Disposition.FAIL.o);
 
-                        int numUpdated = cr.update(retrieveUri, values, null, null);
+                            int numUpdated = cr.update(retrieveUri, values, null, null);
 
-                        logger.info("{} rows updated to {} status",
-                                    numUpdated, (status ? "sent" : "pending"));
-                        return false;
-                    }
-                }));
+                            logger.info("{} rows updated to {} status",
+                                        numUpdated, (status ? "sent" : "pending"));
+                            return false;
+                        }
+                    }));
+                } catch (NullPointerException ex) {
+                    logger.warn("NullPointerException, sending to gateway failed");
+                }
             }
+
             pendingCursor.close();
         }
     }
@@ -666,9 +681,13 @@ public class DistributorThread
      *
      * Garbage collect items which are expired.
      */
-    private static final String SUBSCRIPTION_GARBAGE;
-    private static final String SUBSCRIPTION_RESEND;
-    private static final String SUBSCRIPTION_SEND;
+    public void processSubscribeRequest(DistributorService that, NetworkService.RawRequest request) {
+        logger.info("::processSubscribeRequest()");
+    }
+
+    private static final String SUBSCRIBE_GARBAGE;
+    private static final String SUBSCRIBE_RESEND;
+    private static final String SUBSCRIBE_SEND;
 
     static {
         StringBuilder sb = new StringBuilder();
@@ -677,14 +696,14 @@ public class DistributorThread
         .append(SubscribeTableSchema.DISPOSITION.col())
         .append(" IN (")
         .append(Disposition.EXPIRED.val()).append(")");
-        SUBSCRIPTION_GARBAGE = sb.toString();
+        SUBSCRIBE_GARBAGE = sb.toString();
 
         sb = new StringBuilder()
         .append(SubscribeTableSchema.DISPOSITION).append('"')
         .append(" IN (")
         .append(Disposition.PENDING.val()).append(",")
         .append(Disposition.FAIL.val()).append(")");
-        SUBSCRIPTION_SEND = sb.toString();
+        SUBSCRIBE_SEND = sb.toString();
 
         sb = new StringBuilder()
         .append(SubscribeTableSchema.DISPOSITION).append('"')
@@ -692,10 +711,10 @@ public class DistributorThread
         .append(Disposition.PENDING.val()).append(",")
         .append(Disposition.FAIL.val()).append(",")
         .append(Disposition.SENT.val()).append(")");
-        SUBSCRIPTION_RESEND = sb.toString();
+        SUBSCRIBE_RESEND = sb.toString();
     }
-    public void processSubscriptionChange(DistributorService that, boolean resend) {
-        logger.info("::processSubscriptionChange()");
+    public void processSubscribeTable(DistributorService that, boolean resend) {
+        logger.info("::processSubscribeTable()");
 
         if (!that.isNetworkServiceBound)
             return;
@@ -704,7 +723,7 @@ public class DistributorThread
 
         final ContentResolver cr = that.getContentResolver();
         if (collectGarbage)
-            ds.deleteSubscribe(SUBSCRIPTION_GARBAGE, null);
+            ds.deleteSubscribe(SUBSCRIBE_GARBAGE, null);
 
         String order = SubscribeTable.PRIORITY_SORT_ORDER;
 
@@ -715,7 +734,7 @@ public class DistributorThread
             String[] selectionArgs = null;
 
             Cursor pendingCursor = ds.querySubscribe(null,
-                                   (resend ? SUBSCRIPTION_RESEND : SUBSCRIPTION_SEND),
+                                   (resend ? SUBSCRIBE_RESEND : SUBSCRIBE_SEND),
                                    selectionArgs, order);
 
             if (pendingCursor.getCount() < 1) {
@@ -748,56 +767,55 @@ public class DistributorThread
                 FLogger.request.trace("subscribe type[{}] select[{}]",
                                       mime, selection);
 
-                final Uri subUri = SubscribeTableSchema.getUri(pendingCursor);
+                try {
+                    final Uri subUri = Uri.parse("content://the/thing/123"); //SubscribeTableSchema.getUri(pendingCursor);
 
-                ContentValues values = new ContentValues();
-                values.put(SubscribeTableSchema.DISPOSITION.n, Disposition.QUEUED.o);
+                    ContentValues values = new ContentValues();
+                    values.put(SubscribeTableSchema.DISPOSITION.n, Disposition.QUEUED.o);
 
-                @SuppressWarnings("unused")
-                long numUpdated = ds.updateSubscribe(values);
-
-
-                AmmoMessages.SubscribeMessage.Builder smb =
-                    AmmoMessages.SubscribeMessage.newBuilder()
-                    .setMimeType(mime);
-                if (selection != null) smb
-                    .setQuery(selection);
-
-                AmmoMessages.MessageWrapper.Builder mwb =
-                    AmmoMessages.MessageWrapper.newBuilder()
-                    .setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE)
-                    .setSubscribeMessage(smb);
-                // mw.setSessionUuid(sessionId); // the session should be sent by the Network Service
+                    @SuppressWarnings("unused")
+                    long numUpdated = ds.updateSubscribe(values);
 
 
-                this.queue.put(NetworkService.Request.getInstance(0,
-                		NetworkService.Request.Action.RETRIEVE, mwb,
-                new INetworkService.OnSendHandler() {
-                    @Override
-                    public boolean ack(boolean status) {
-                        // Update distributor status if
-                        // message dispatch successful.
-                        ContentValues values = new ContentValues();
-                        values.put( SubscribeTableSchema.DISPOSITION.n,
-                                    (status) ? Disposition.SENT.o
-                                    : Disposition.FAIL.o);
+                    AmmoMessages.SubscribeMessage.Builder smb =
+                        AmmoMessages.SubscribeMessage.newBuilder()
+                        .setMimeType(mime);
+                    if (selection != null) smb
+                        .setQuery(selection);
 
-                        int numUpdated = cr.update(subUri, values, null, null);
-                        FLogger.request.trace("subscribe rows[{}] status[{}]",
-                                              numUpdated, (status ? "sent" : "pending"));
-                        return true;
-                    }
-                }));
+                    AmmoMessages.MessageWrapper.Builder mwb =
+                        AmmoMessages.MessageWrapper.newBuilder()
+                        .setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE)
+                        .setSubscribeMessage(smb);
+                    // mw.setSessionUuid(sessionId); // the session should be sent by the Network Service
+
+
+                    this.gateway.sendRequest(NetworkService.Request.getInstance(0,
+                                             NetworkService.Request.Action.SUBSCRIBE, mwb,
+                    new INetworkService.OnSendHandler() {
+                        @Override
+                        public boolean ack(boolean status) {
+                            // Update distributor status if
+                            // message dispatch successful.
+                            ContentValues values = new ContentValues();
+                            values.put( SubscribeTableSchema.DISPOSITION.n,
+                                        (status) ? Disposition.SENT.o
+                                        : Disposition.FAIL.o);
+
+                            int numUpdated = cr.update(subUri, values, null, null);
+                            FLogger.request.trace("subscribe rows[{}] status[{}]",
+                                                  numUpdated, (status ? "sent" : "pending"));
+                            return true;
+                        }
+                    }));
+                } catch (NullPointerException ex) {
+                    logger.warn("NullPointerException, sending to gateway failed");
+                }
             }
             pendingCursor.close();
         }
     }
 
-    public void processPublicationChange(DistributorService that,
-                                         boolean resend) {
-        logger.error("::processPublicationChange : {} : not implemented",
-                     resend);
-    }
 
     /**
      * Put the message in the queue.
@@ -829,10 +847,10 @@ public class DistributorThread
         if (mw == null) return false;
 
         try {
-			this.queue.put(Response.getInstance(0, mw));
-		} catch (InterruptedException ex) {
-			ex.printStackTrace();
-		}
+            this.queue.put(Response.getInstance(0, mw));
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
+        }
 
         return true;
     }
@@ -849,6 +867,7 @@ public class DistributorThread
      * @param mw
      * @return
      */
+    @SuppressWarnings("unused")
     final private static String POSTAL_SELECT = new StringBuilder()
     .append('"').append(PostalTableSchema.PROVIDER).append("\"=?")
     .toString();
@@ -858,6 +877,7 @@ public class DistributorThread
 
         if (mw == null) return false;
         if (! mw.hasPushAcknowledgement()) return false;
+        @SuppressWarnings("unused")
         PushAcknowledgement resp = mw.getPushAcknowledgement();
 
         return true;
@@ -900,13 +920,13 @@ public class DistributorThread
             outstream.close();
 
             // This update/delete the retrieval request as it has been fulfilled.
-            Cursor cursor = cr.query(RetrievalTableSchema.CONTENT_URI, null, RETRIEVE_SELECT, new String[] {uri}, null);
+            Cursor cursor = cr.query(serialUri, null, RETRIEVE_SELECT, new String[] {uri.toString()}, null);
             if (!cursor.moveToFirst()) {
                 logger.info("no matching retrieval: {} {}", RETRIEVE_SELECT, uri);
                 cursor.close();
                 return false;
             }
-            final Uri retrieveUri = RetrievalTableSchema.getUri(cursor);
+            final Uri retrieveUri = serialUri; // RetrievalTableSchema.getUri(cursor);
             cursor.close ();
             ContentValues values = new ContentValues();
             values.put(RetrievalTableSchema.DISPOSITION.n, Disposition.SATISFIED.o);
@@ -923,7 +943,7 @@ public class DistributorThread
         return true;
     }
 
-    
+
     /**
      * Update the content providers as appropriate. These are typically received
      * in response to subscriptions.
@@ -947,8 +967,7 @@ public class DistributorThread
         String tableUriStr = null;
 
         try {
-            Cursor subCursor = cr.query(
-                                   SubscribeTableSchema.CONTENT_URI,
+            Cursor subCursor = ds.querySubscribe(
                                    null,
                                    SUBSCRIBE_SELECT,
                                    new String[] {mime}, null);
@@ -958,7 +977,7 @@ public class DistributorThread
                 subCursor.close();
                 return false;
             }
-            tableUriStr = subCursor.getString(subCursor.getColumnIndex(SubscribeTableSchema.URI));
+            tableUriStr = subCursor.getString(subCursor.getColumnIndex(SubscribeTableSchema.PROVIDER.n));
             subCursor.close();
 
             Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
@@ -1058,6 +1077,7 @@ public class DistributorThread
      * @return
      * @throws IOException
      */
+    @SuppressWarnings("unused")
     static private byte[] getBytesFromFile(File file) throws IOException {
         InputStream is = new FileInputStream(file);
 

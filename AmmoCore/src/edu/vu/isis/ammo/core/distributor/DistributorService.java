@@ -80,19 +80,17 @@ public class DistributorService extends Service {
         //workerThread.postalChange();
     }
     
-    final BlockingQueue<NetworkService.Message> outboundQueue = 
-        new PriorityBlockingQueue<NetworkService.Message>();      
+    final BlockingQueue<NetworkService.DistributorMessage> queue = 
+        new PriorityBlockingQueue<NetworkService.DistributorMessage>();
    
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.info("::onServiceConnected - Network Service");
             isNetworkServiceBound = true;
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
-                    
             
             DistributorService.this.workerThread = 
-                new DistributorThread(DistributorService.this.getBaseContext(), outboundQueue);
-            // Start processing the requests
+                new DistributorThread(DistributorService.this.getBaseContext(), queue, networkServiceBinder);
            
             networkServiceBinder.setCallback(DistributorService.this.workerThread);
             DistributorService.this.workerThread.execute(DistributorService.this);
@@ -122,8 +120,12 @@ public class DistributorService extends Service {
         @Override
         public String makeRequest(AmmoRequest request) throws RemoteException {
             logger.trace("received data request");
-            NetworkService.Request msg = new NetworkService.Raw.getInstance(request);
-            DistributorService.this.outboundQueue.put(msg);
+            NetworkService.RawRequest msg = NetworkService.RawRequest.getInstance(request);
+            try {
+                DistributorService.this.queue.put(msg);
+            } catch (InterruptedException ex) {
+                ex.printStackTrace();
+            }
             return "1234567890";
         }
 
@@ -137,7 +139,7 @@ public class DistributorService extends Service {
     
     @Override
     public IBinder onBind(Intent intent) {
-    	logger.trace("client binding...");
+        logger.trace("client binding...");
         return new DistributorServiceAidl();
     }
 

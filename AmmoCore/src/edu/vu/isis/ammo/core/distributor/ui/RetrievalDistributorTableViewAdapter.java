@@ -13,7 +13,8 @@ import android.graphics.Color;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Disposition;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 
 /**
  * CursorAdapter used by AmmoCore to display its tables in a human-readable format.
@@ -37,19 +38,19 @@ public class RetrievalDistributorTableViewAdapter extends DistributorTableViewAd
 		super(context, layout, cursor, from, to);
 		this.context = context;
 		// Setup hashmap.
-		dispositionStateMap.put(SubscriptionTableSchema.DISPOSITION_EXPIRED, "Disposition Expired");
-		dispositionStateMap.put(SubscriptionTableSchema.DISPOSITION_FAIL, "Disposition Failed");
-		dispositionStateMap.put(SubscriptionTableSchema.DISPOSITION_JOURNAL, "Disposition Journal");
-		dispositionStateMap.put(SubscriptionTableSchema.DISPOSITION_PENDING, "Disposition Pending");
-		dispositionStateMap.put(SubscriptionTableSchema.DISPOSITION_QUEUED, "Disposition Queued");
-		dispositionStateMap.put(SubscriptionTableSchema.DISPOSITION_SENT, "Disposition Sent");
+		dispositionStateMap.put(Disposition.EXPIRED.o, "Disposition Expired");
+		dispositionStateMap.put(Disposition.FAIL.o, "Disposition Failed");
+		dispositionStateMap.put(Disposition.JOURNAL.o, "Disposition Journal");
+		dispositionStateMap.put(Disposition.PENDING.o, "Disposition Pending");
+		dispositionStateMap.put(Disposition.QUEUED.o, "Disposition Queued");
+		dispositionStateMap.put(Disposition.SENT.o, "Disposition Sent");
 		
-		dispositionColorMap.put(SubscriptionTableSchema.DISPOSITION_EXPIRED, Color.LTGRAY);
-		dispositionColorMap.put(SubscriptionTableSchema.DISPOSITION_FAIL, Color.RED);
-		dispositionColorMap.put(SubscriptionTableSchema.DISPOSITION_JOURNAL, Color.MAGENTA);
-		dispositionColorMap.put(SubscriptionTableSchema.DISPOSITION_PENDING, Color.rgb(255, 149, 28));
-		dispositionColorMap.put(SubscriptionTableSchema.DISPOSITION_QUEUED, Color.CYAN);
-		dispositionColorMap.put(SubscriptionTableSchema.DISPOSITION_SENT, Color.GREEN);
+		dispositionColorMap.put(Disposition.EXPIRED.o, Color.LTGRAY);
+		dispositionColorMap.put(Disposition.FAIL.o, Color.RED);
+		dispositionColorMap.put(Disposition.JOURNAL.o, Color.MAGENTA);
+		dispositionColorMap.put(Disposition.PENDING.o, Color.rgb(255, 149, 28));
+		dispositionColorMap.put(Disposition.QUEUED.o, Color.CYAN);
+		dispositionColorMap.put(Disposition.SENT.o, Color.GREEN);
 		
 		this.expiration = Calendar.getInstance();
 	}
@@ -66,7 +67,7 @@ public class RetrievalDistributorTableViewAdapter extends DistributorTableViewAd
 		// deal with the displaying of the disposition
 		
 		TextView tv = (TextView)v.findViewById(R.id.distributor_table_view_item_disposition);
-		int disposition = cursor.getInt(cursor.getColumnIndex(SubscriptionTableSchema.DISPOSITION));
+		int disposition = cursor.getInt(cursor.getColumnIndex(RetrievalTableSchema.DISPOSITION.n));
 		if (dispositionStateMap.containsKey(disposition)) {
 			tv.setText(dispositionStateMap.get(disposition));
 			tv.setTextColor(dispositionColorMap.get(disposition));
@@ -76,7 +77,7 @@ public class RetrievalDistributorTableViewAdapter extends DistributorTableViewAd
 		
 		// deal with the displaying of the timestamp
 		TextView ttv = (TextView)v.findViewById(R.id.distributor_table_view_item_timestamp);
-		long timestamp = cursor.getLong(cursor.getColumnIndex(SubscriptionTableSchema.CREATED_DATE));
+		long timestamp = cursor.getLong(cursor.getColumnIndex(RetrievalTableSchema.CREATED.n));
 		this.expiration.clear();
 		this.expiration.setTimeInMillis(timestamp);
 		String timed = sdf.format(this.expiration.getTime());
@@ -85,7 +86,7 @@ public class RetrievalDistributorTableViewAdapter extends DistributorTableViewAd
 		
 		// set the mime-type / topic
 		TextView tttv = (TextView)v.findViewById(R.id.distributor_table_view_item_topic);
-		tttv.setText(cursor.getString(cursor.getColumnIndex(SubscriptionTableSchema.MIME)));
+		tttv.setText(cursor.getString(cursor.getColumnIndex(RetrievalTableSchema.DATA_TYPE.n)));
 		
 
 		

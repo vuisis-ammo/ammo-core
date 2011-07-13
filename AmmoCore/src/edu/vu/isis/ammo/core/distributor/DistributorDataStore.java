@@ -8,6 +8,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -15,8 +16,9 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
+import android.net.Uri;
 import android.os.Environment;
-import android.provider.SyncStateContract.Columns;
+import android.provider.BaseColumns;
 import android.text.TextUtils;
 
 /**
@@ -54,7 +56,7 @@ public class DistributorDataStore {
         PUBLISH("publication"), 
         SUBSCRIBE("subscription");
 
-        final private String n;
+        final public String n;
 
         private Tables(String name) {
             this.n = name;
@@ -120,6 +122,14 @@ public class DistributorDataStore {
             public String val() {
                 return new StringBuilder().append("'").append(this.o).append("'").toString();
             }
+			public static SerializeType byOrdinal(int serialType) {
+				switch(serialType) {
+				case 1: return DIRECT;
+				case 2: return INDIRECT;
+				case 3: return DEFERRED;
+				}
+				throw new IllegalArgumentException("unknown SerialType "+Integer.toString(serialType));
+			}
        };
        
         /**
@@ -212,10 +222,10 @@ public class DistributorDataStore {
     /**
      * The postal table is for holding retrieval requests.
      */
-    public static interface PostalTable extends Columns {
+    public static interface PostalTable extends BaseColumns {
 
         public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-        public static final String PRIORITY_SORT_ORDER = Columns._ID + " ASC";
+        public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
         public static final String[] COLUMNS = new String[PostalTableSchema.values().length];
         public static final Map<String,String> PROJECTION_MAP = 
@@ -230,7 +240,7 @@ public class DistributorDataStore {
     };
 
     public enum PostalTableSchema  {
-        _ID("_id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+        _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
         CREATED("created", "INTEGER"),
         // When the request was made
@@ -298,9 +308,9 @@ public class DistributorDataStore {
     /**
      * The publication table is for holding publication requests.
      */
-    public static interface PublishTable extends Columns {
+    public static interface PublishTable extends BaseColumns {
         public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-        public static final String PRIORITY_SORT_ORDER = Columns._ID + " ASC";
+        public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
         public static final String[] COLUMNS = new String[PublishTableSchema.values().length];
         public static final Map<String,String> PROJECTION_MAP = 
@@ -315,7 +325,7 @@ public class DistributorDataStore {
     }
     
     public enum PublishTableSchema {
-        _ID("_id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+        _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
         CREATED("created", "INTEGER"),
         // When the request was made
@@ -363,10 +373,10 @@ public class DistributorDataStore {
     /**
      * The retrieval table is for holding retrieval requests.
      */
-    public static interface RetrievalTable extends Columns {
+    public static interface RetrievalTable extends BaseColumns {
         
         public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-        public static final String PRIORITY_SORT_ORDER = Columns._ID + " ASC";
+        public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
         public static final String[] COLUMNS = new String[RetrievalTableSchema.values().length];
         public static final Map<String,String> PROJECTION_MAP = 
@@ -381,7 +391,7 @@ public class DistributorDataStore {
     };
     
     public enum RetrievalTableSchema {
-        _ID("_id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+        _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
         CREATED("created", "INTEGER"),
         // When the request was made
@@ -468,10 +478,10 @@ public class DistributorDataStore {
     /**
      * The subscription table is for holding subscription requests.
      */
-    public static interface SubscribeTable extends Columns {
+    public static interface SubscribeTable extends BaseColumns {
 
         public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-        public static final String PRIORITY_SORT_ORDER = Columns._ID + " ASC";
+        public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
         
         public static final String[] COLUMNS = new String[SubscribeTableSchema.values().length];
         public static final Map<String,String> PROJECTION_MAP =
@@ -486,7 +496,7 @@ public class DistributorDataStore {
     }
     
     public enum SubscribeTableSchema {
-        _ID("_id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+        _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
         CREATED("created", "INTEGER"),
         // When the request was made
@@ -558,7 +568,11 @@ public class DistributorDataStore {
         this.helper = new MyHelper(this.context);
     }
     
-    public DistributorDataStore open() {
+    public DistributorDataStore openRead() {
+        this.db = this.helper.getReadableDatabase();
+        return this;
+    }
+    public DistributorDataStore openWrite() {
         this.db = this.helper.getWritableDatabase();
         return this;
     }
@@ -654,8 +668,17 @@ public class DistributorDataStore {
     public long insertRetrieval(ContentValues cv) {
         return this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
     }
-    
+    /**
+     * 
+     */
     public long insertSubscribe(ContentValues cv) {
+
+    	
+//    		String[] projection = {SubscribeTableSchema.URI, SubscribeTableSchema._ID};
+//    		String selection = SubscribeTableSchema.URI + " LIKE \"" + selectedUri.toString() + "\"";
+//    		Cursor c = cr.query(SubscribeTableSchema.CONTENT_URI, projection, selection, null, null);
+//    		return (c.getCount() == 0);
+    
         return this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
     }
     
@@ -848,8 +871,13 @@ public class DistributorDataStore {
      * @param cv
      * @return
      */
+    public int delete(String table, String selection, String[] selectionArgs) {
+    	SQLiteDatabase db = this.helper.getWritableDatabase();
+    	return db.delete(table, selection, selectionArgs);
+    }
+    
     public int deletePostal(String selection, String[] selectionArgs) {
-        SQLiteDatabase db = this.helper.getWritableDatabase();
+    	SQLiteDatabase db = this.helper.getWritableDatabase();
         return db.delete(Tables.POSTAL.n, selection, selectionArgs);
     }
     

@@ -36,7 +36,10 @@ import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
+import edu.vu.isis.ammo.core.network.INetworkService.OnSendHandler;
+import edu.vu.isis.ammo.core.network.NetworkService.Request.Action;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.Builder;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -413,41 +416,13 @@ implements OnSharedPreferenceChangeListener,
         }
     }
     
-    /**
-     * This message class is provided so that a single queue may be used
-     * for both requests and responses destined for the distributor.
-     *  We could use RTTI to get the specific type but a type parameter is used to make this unnecessary.
-     */
-    static abstract public class Message {
-        public final Type type;
-        
-        public enum Type {
-            RAW, REQUEST, RESPONSE;
-        }
-        protected Message(Type type) { this.type = type; }
-    }
-    
-    /**
-     * The raw client message being sent to the gateway.
-     */
-    static public class Raw extends Message {
-    	public final AmmoRequest req;
-       
-        private Raw(AmmoRequest req) {
-            super(Message.Type.RAW);
-            this.req = req;
-        }
-        static public Raw getInstance(AmmoRequest req) {
-            return new Raw(req);
-        }
-    }
-    
+
     /**
      * The message being sent to the gateway.
      */
-    static public class Request extends Message {
+    static public class Request {
         public enum Action {
-         AUTH, POSTAL, PUBLISH, RETRIEVE, SUBSCRIBE
+         AUTH, POSTAL, PUBLISH, RETRIEVAL, SUBSCRIBE
         };
         public final Action action;
         public final int priority;
@@ -459,7 +434,6 @@ implements OnSharedPreferenceChangeListener,
                 AmmoMessages.MessageWrapper.Builder builder, 
                 INetworkService.OnSendHandler handler ) 
         {
-            super(Message.Type.REQUEST);
             this.action = action;
             this.priority = priority;
             this.header = header;
@@ -480,9 +454,38 @@ implements OnSharedPreferenceChangeListener,
     }
     
     /**
+     * This message class is provided so that a single queue may be used
+     * for both requests and responses destined for the distributor.
+     *  We could use RTTI to get the specific type but a type parameter is used to make this unnecessary.
+     */
+    static abstract public class DistributorMessage {
+        public final Type type;
+        
+        public enum Type {
+            RAW, REQUEST, RESPONSE;
+        }
+        protected DistributorMessage(Type type) { this.type = type; }
+    }
+    
+    /**
+     * The raw client message being sent to the gateway.
+     */
+    static public class RawRequest extends DistributorMessage {
+    	public final AmmoRequest payload;
+       
+        private RawRequest(AmmoRequest payload) {
+            super(DistributorMessage.Type.RAW);
+            this.payload = payload;
+        }
+        static public RawRequest getInstance(AmmoRequest req) {
+            return new RawRequest(req);
+        }
+    }
+    
+    /**
      * The message obtained from the gateway.
      */
-    static public class Response extends Message {
+    static public class Response extends DistributorMessage {
         public final int priority;
         public final MsgHeader header;
         public final AmmoMessages.MessageWrapper msg;
@@ -490,7 +493,7 @@ implements OnSharedPreferenceChangeListener,
         private Response(int priority, MsgHeader header,
                 AmmoMessages.MessageWrapper msg) 
         {
-            super(Message.Type.RESPONSE);
+            super(DistributorMessage.Type.RESPONSE);
             this.priority = priority;
             this.header = header;
             this.msg = msg;
@@ -727,10 +730,10 @@ implements OnSharedPreferenceChangeListener,
      * Processes message from the Distributor
      */
     @Override
-    public boolean sendRequest(Message message) {
-        // TODO Auto-generated method stub
-        return true;
-    }
+	public boolean sendRequest(Request distributorMessage) {
+		// TODO Auto-generated method stub
+		return false;
+	}
     
     /**
      * Forwards message to the Distributor from a channel.
@@ -747,6 +750,4 @@ implements OnSharedPreferenceChangeListener,
         this.handler.deliver(message, checksum);
         return false;
     }
-
-
 }

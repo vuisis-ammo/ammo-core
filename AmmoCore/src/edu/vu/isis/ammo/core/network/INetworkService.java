@@ -51,7 +51,7 @@ public interface INetworkService {
      *
      * @param callback
      */
-    boolean sendRequest(NetworkService.Message message);
+    boolean sendRequest(NetworkService.Request distributorMessage);
     public boolean deliver(byte[] message, long checksum);
     void setCallback(DeliveryHandler handler);
     
