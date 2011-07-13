@@ -328,7 +328,7 @@ public class TcpChannel extends NetChannel {
         // AtomicBoolean to keep track of whether we need to call it.
         public void socketOperationFailed() {
             if ( mIsConnected.compareAndSet( true, false ))
-                reset();
+                state.reset();
         }
 
 
@@ -589,6 +589,8 @@ public class TcpChannel extends NetChannel {
             // Create the SocketChannel.
             InetSocketAddress sockAddr = new InetSocketAddress( ipaddr, port );
             try {
+                if ( parent.mSocketChannel != null )
+                    logger.error( "Tried to create mSocketChannel when we already had one." );
                 parent.mSocketChannel = SocketChannel.open( sockAddr );
                 boolean result = parent.mSocketChannel.finishConnect();
             } catch ( Exception e ) {
@@ -598,14 +600,22 @@ public class TcpChannel extends NetChannel {
                 return false;
             }
 
+            // I spoke to Fred, and we've decided that this is unnecessary
+            // because we have the watchdog timer now.  Also, the user can
+            // modify this to have innappropriate values using AmmoCore, and
+            // we need to prevent this.  We'll revisit this at some point.
+
             // Set the socket timeout.
-            try {
-                Socket s = parent.mSocketChannel.socket();
-                if ( s != null )
-                    s.setSoTimeout( parent.socketTimeout );
-            } catch ( SocketException ex ) {
-                return false;
-            }
+            // try
+            // {
+            //     Socket s = parent.mSocketChannel.socket();
+            //     if ( s != null )
+            //         s.setSoTimeout( parent.socketTimeout );
+            // }
+            // catch ( SocketException ex )
+            // {
+            //     return false;
+            // }
 
             logger.info( "connection to {}:{} established ", ipaddr, port );
 
@@ -639,6 +649,18 @@ public class TcpChannel extends NetChannel {
                     mReceiver.interrupt();
 
                 if ( parent.mSocketChannel != null ) {
+                    Socket s = parent.mSocketChannel.socket();
+                    if ( s != null )
+                    {
+                        logger.debug( "Closing underlying socket." );
+                        s.close();
+                        logger.debug( "Done" );
+                    }
+                    else
+                    {
+                        logger.debug( "SocketChannel had no underlying socket!" );
+                    }
+                    logger.info( "Closing SocketChannel..." );
                     parent.mSocketChannel.close();
                     parent.mSocketChannel = null;
                 }
@@ -646,8 +668,10 @@ public class TcpChannel extends NetChannel {
                 parent.mSender = null;
                 parent.mReceiver = null;
             } catch ( IOException e ) {
+                logger.error( "Caught IOException" );
                 return false;
             }
+            logger.debug( "returning after successful disconnect()." );
             return true;
         }
     }
