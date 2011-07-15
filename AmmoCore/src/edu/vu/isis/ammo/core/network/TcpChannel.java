@@ -3,17 +3,12 @@
  */
 package edu.vu.isis.ammo.core.network;
 
-import java.io.BufferedInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -21,10 +16,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.zip.CRC32;
-import java.lang.Long;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,8 +47,10 @@ public class TcpChannel extends NetChannel {
     private SenderThread mSender;
     private ReceiverThread mReceiver;
 
-    private int connectTimeout = 5 * 1000;     // this should come from network preferences
-    private int socketTimeout = 5 * 1000; // milliseconds.
+    @SuppressWarnings("unused")
+	private int connectTimeout = 5 * 1000; // this should come from network preferences
+    @SuppressWarnings("unused")
+	private int socketTimeout = 5 * 1000; // milliseconds.
 
     private String gatewayHost = null;
     private int gatewayPort = -1;
@@ -125,6 +120,32 @@ public class TcpChannel extends NetChannel {
         }
         return true;
     }
+
+
+    /**
+     * do your best to send the message.
+     * This makes use of the blocking "put" call.
+     * A proper producer-consumer should use put or add and not offer.
+     * "put" is blocking call.
+     * If this were on the UI thread then offer would be used.
+     *
+     * @param agm AmmoGatewayMessage
+     * @return
+     */
+    public boolean sendRequest(AmmoGatewayMessage agm)
+    {
+        try
+        {
+            mSenderQueue.put( agm );
+        }
+        catch ( InterruptedException e )
+        {
+            return false;
+        }
+        return true;
+    }
+
+
 
     public boolean close() { return false; }
 
@@ -294,7 +315,6 @@ public class TcpChannel extends NetChannel {
      * There is no reason to run the thread unless the channel is enabled.
      *
      * Any of the properties of the channel
-     * @author phreed
      *
      */
     private class ConnectorThread extends Thread {
@@ -589,7 +609,8 @@ public class TcpChannel extends NetChannel {
                 if ( parent.mSocketChannel != null )
                     logger.error( "Tried to create mSocketChannel when we already had one." );
                 parent.mSocketChannel = SocketChannel.open( sockAddr );
-                boolean result = parent.mSocketChannel.finishConnect();
+                @SuppressWarnings("unused")
+				boolean result = parent.mSocketChannel.finishConnect();
             }
             catch ( Exception e )
             {
@@ -681,33 +702,6 @@ public class TcpChannel extends NetChannel {
     }
 
 
-    /**
-     * do your best to send the message.
-     * This makes use of the blocking "put" call.
-     * A proper producer-consumer should use put or add and not offer.
-     * "put" is blocking call.
-     * If this were on the UI thread then offer would be used.
-     *
-     * @param size
-     * @param payload_checksum
-     * @param message
-     * @return
-     */
-    public boolean sendRequest(AmmoGatewayMessage agm)
-    {
-        try
-        {
-            mSenderQueue.put( agm );
-        }
-        catch ( InterruptedException e )
-        {
-            return false;
-        }
-        return true;
-    }
-
-
-
     ///////////////////////////////////////////////////////////////////////////
     //
     class SenderThread extends Thread
@@ -756,9 +750,10 @@ public class TcpChannel extends NetChannel {
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize();
+                    ByteBuffer buf = msg.serialize( endian );
                     setSenderState( INetChannel.SENDING );
-                    int bytesWritten = mSocketChannel.write( buf );
+                    @SuppressWarnings("unused")
+					int bytesWritten = mSocketChannel.write( buf );
                     logger.info( "Wrote packet to SocketChannel" );
 
                     // legitimately sent to gateway.
@@ -811,7 +806,7 @@ public class TcpChannel extends NetChannel {
             mSocketChannel = iSocketChannel;
 
             mBuffer = ByteBuffer.allocate( 400000 );
-            mBuffer.order( ByteOrder.LITTLE_ENDIAN ); // mParent.endian
+            mBuffer.order( endian ); // mParent.endian
         }
 
 
@@ -837,7 +832,7 @@ public class TcpChannel extends NetChannel {
 
                     // We loop here because a single read() may have 
                     // read data for several messages
-                    while (AmmoGatewayMessage.bufferContainsAMessage(this.mBuffer)) {
+                    while (AmmoGatewayMessage.bufferContainsAMessage(this.mBuffer, endian)) {
                         this.mBuffer.flip();
                         AmmoGatewayMessage agm = AmmoGatewayMessage.processAMessage(this.mBuffer);
                         
