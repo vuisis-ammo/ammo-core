@@ -109,9 +109,6 @@
 
         <!-- ========== PROVIDER SECTION ================= -->
 
-        <provider android:name=".provider.DistributorProvider"
-            android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
-
       <provider android:name=".provider.PreferenceProvider"
          android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider"/>
          
