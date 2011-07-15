@@ -24,12 +24,11 @@ public interface IChannelManager
 
     /**
      * @param message
-     * @param checksum
+     * @param payload_checksum
      *
      * @return boolean
      */
-    boolean deliver( byte[] message,
-                     long checksum );
+    boolean deliver( AmmoGatewayMessage message );
 
 
     /**

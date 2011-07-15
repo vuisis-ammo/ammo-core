@@ -29,7 +29,6 @@ import java.lang.Long;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.network.NetworkService.MsgHeader;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -68,7 +67,7 @@ public class TcpChannel extends NetChannel {
     private long flatLineTime;
     private IChannelManager driver;
     // Move me to a better place.
-    BlockingQueue<GwMessage> mSenderQueue;
+    BlockingQueue<AmmoGatewayMessage> mSenderQueue;
     SocketChannel mSocketChannel;
 
     private TcpChannel(IChannelManager driver) {
@@ -81,7 +80,7 @@ public class TcpChannel extends NetChannel {
 
         this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
 
-        mSenderQueue = new LinkedBlockingQueue<GwMessage>( 20 );
+        mSenderQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( 20 );
     }
 
     public static TcpChannel getInstance(IChannelManager driver) {
@@ -203,11 +202,10 @@ public class TcpChannel extends NetChannel {
 
     // Called by ReceiverThread to send an incoming message to the
     // NetworkService.
-    private boolean deliverMessage( byte[] message,
-                                    long checksum )
+    private boolean deliverMessage( AmmoGatewayMessage agm )
     {
         logger.error( "In deliverMessage()" );
-        return driver.deliver( message, checksum );
+        return driver.deliver( agm );
     }
 
     /**
@@ -268,28 +266,26 @@ public class TcpChannel extends NetChannel {
         //logger.warn( "In sendHeartbeatIfNeeded()." );
 
         long nowInMillis = System.currentTimeMillis();
-        if ( nowInMillis > mNextHeartbeatTime.get() )
-        {
-            // Send the heartbeat here.
-            logger.warn( "Sending a heartbeat. t={}", nowInMillis );
+        if ( nowInMillis < mNextHeartbeatTime.get() ) return;
+        
+        // Send the heartbeat here.
+        logger.warn( "Sending a heartbeat. t={}", nowInMillis );
 
-            // Create a heartbeat message and call the method to send it.
-            AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-            mw.setType( AmmoMessages.MessageWrapper.MessageType.HEARTBEAT );
+        // Create a heartbeat message and call the method to send it.
+        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        mw.setType( AmmoMessages.MessageWrapper.MessageType.HEARTBEAT );
+        mw.setMessagePriority(AmmoGatewayMessage.PriorityLevel.FLASH.v);
 
-            AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
-            message.setSequenceNumber( nowInMillis ); // Just for testing
+        AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
+        message.setSequenceNumber( nowInMillis ); // Just for testing
 
-            mw.setHeartbeat( message );
+        mw.setHeartbeat( message );
 
-            byte[] protocByteBuf = mw.build().toByteArray();
-            MsgHeader msgHeader = MsgHeader.getInstance( protocByteBuf, true );
+        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance(mw, null);
+        sendRequest( agm );
 
-            sendRequest( msgHeader.size, msgHeader.checksum, protocByteBuf, null );
-
-            mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
-            //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
-        }
+        mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
+        //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
     }
 
     /**
@@ -693,15 +689,15 @@ public class TcpChannel extends NetChannel {
      * If this were on the UI thread then offer would be used.
      *
      * @param size
-     * @param checksum
+     * @param payload_checksum
      * @param message
      * @return
      */
-    public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler)
+    public boolean sendRequest(AmmoGatewayMessage agm)
     {
         try
         {
-            mSenderQueue.put( new GwMessage(size, checksum, payload, handler) );
+            mSenderQueue.put( agm );
         }
         catch ( InterruptedException e )
         {
@@ -710,18 +706,6 @@ public class TcpChannel extends NetChannel {
         return true;
     }
 
-    public class GwMessage {
-        public final int size;
-        public final CRC32 checksum;
-        public final byte[] payload;
-        public final INetworkService.OnSendMessageHandler handler;
-        public GwMessage(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) {
-            this.size = size;
-            this.checksum = checksum;
-            this.payload = payload;
-            this.handler = handler;
-        }
-    }
 
 
     ///////////////////////////////////////////////////////////////////////////
@@ -730,7 +714,7 @@ public class TcpChannel extends NetChannel {
     {
         public SenderThread( ConnectorThread iParent,
                              TcpChannel iChannel,
-                             BlockingQueue<GwMessage> iQueue,
+                             BlockingQueue<AmmoGatewayMessage> iQueue,
                              SocketChannel iSocketChannel )
         {
             mParent = iParent;
@@ -740,19 +724,22 @@ public class TcpChannel extends NetChannel {
         }
 
 
+        /**
+         * the message format is
+         * 
+         */
         @Override
         public void run()
         {
             logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the queue until we get a message to send.
-            // Then send it on the socketchannel. Upon getting a socket error,
+            // Then send it on the socket channel. Upon getting a socket error,
             // notify our parent and go into an error state.
 
             while ( mState != INetChannel.INTERRUPTED )
             {
-                GwMessage msg = null;
-
+                AmmoGatewayMessage msg = null;
                 try
                 {
                     setSenderState( INetChannel.TAKING );
@@ -769,27 +756,7 @@ public class TcpChannel extends NetChannel {
 
                 try
                 {
-                    int total_length = (Integer.SIZE/Byte.SIZE) + 4 + msg.payload.length;
-                    ByteBuffer buf = ByteBuffer.allocate( total_length );
-                    buf.order( ByteOrder.LITTLE_ENDIAN ); // mParent.endian
-
-                    buf.putInt( msg.size );
-                    logger.debug( "   size={}", msg.size );
-                    long cvalue = msg.checksum.getValue();
-                    byte[] checksum = new byte[]
-                        {
-                            (byte) cvalue,
-                            (byte) (cvalue >>> 8),
-                            (byte) (cvalue >>> 16),
-                            (byte) (cvalue >>> 24)
-                        };
-                    logger.debug( "   checksum={}", checksum );
-
-                    buf.put( checksum, 0, 4 );
-                    buf.put( msg.payload );
-                    logger.debug( "   payload={}", msg.payload );
-                    buf.flip();
-
+                    ByteBuffer buf = msg.serialize();
                     setSenderState( INetChannel.SENDING );
                     int bytesWritten = mSocketChannel.write( buf );
                     logger.info( "Wrote packet to SocketChannel" );
@@ -825,7 +792,7 @@ public class TcpChannel extends NetChannel {
         private int mState = INetChannel.TAKING;
         private ConnectorThread mParent;
         private TcpChannel mChannel;
-        private BlockingQueue<GwMessage> mQueue;
+        private BlockingQueue<AmmoGatewayMessage> mQueue;
         private SocketChannel mSocketChannel;
         private final Logger logger = LoggerFactory.getLogger( "network.tcp.sender" );
     }
@@ -868,117 +835,34 @@ public class TcpChannel extends NetChannel {
 
                     mDestination.resetTimeoutWatchdog();
 
-                    // We loop here because a single read() may have  read in
-                    // the data for several messages
-                    if ( bufferContainsAMessage() )
-                    {
-                        logger.debug( "flipping" );
-                        mBuffer.flip();  // Switch to draining
-                        while ( processAMessageIfAvailable() )
-                            logger.debug( "processed a message" );
-                        logger.debug( "compacting buffer" );
-                        mBuffer.compact(); // Switches back to filling
+                    // We loop here because a single read() may have 
+                    // read data for several messages
+                    while (AmmoGatewayMessage.bufferContainsAMessage(this.mBuffer)) {
+                        this.mBuffer.flip();
+                        AmmoGatewayMessage agm = AmmoGatewayMessage.processAMessage(this.mBuffer);
+                        
+                        if (agm == null) continue;
+                        setReceiverState( INetChannel.DELIVER );
+                        mDestination.deliverMessage( agm );
+                        logger.debug( "processed a message" );
                     }
-
+                    mBuffer.compact();
                 }
-                catch ( InterruptedException e )
+                catch ( InterruptedException ex )
                 {
                     logger.debug( "interrupted reading messages {}",
-                                  e.getLocalizedMessage() );
+                                  ex.getLocalizedMessage() );
                     setReceiverState( INetChannel.INTERRUPTED );
                 }
-                catch ( Exception e )
+                catch ( Exception ex )
                 {
-                    e.printStackTrace();
+                    ex.printStackTrace();
                     logger.warn("receiver threw exception");
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
             }
         }
-
-
-        // If the header is corrupted, things could go horribly wrong. We need
-        // better error detection and error handling when we're reading stuff
-        // in off the network.  Add this when we do the enhancement to handle
-        // priorities.
-
-        // Flips the buffer, but returns it back to filling. We can't tell if
-        // a buffer contains a complete message without entering draining mode,
-        // so this method does that but returns mBuffer to its original state.
-        private boolean bufferContainsAMessage()
-        {
-            int position = mBuffer.position();
-            int limit = mBuffer.limit();
-
-            mBuffer.flip(); // Switches to draining mode
-
-            // If we haven't received enough bytes for an integer, then we
-            // even have enough for the size.
-            boolean containsMessage = false;
-            if ( mBuffer.remaining() >= 4 )
-            {
-                // Get the size from the first four bytes.  If that value is less
-                // than the number of bytes in the buffer, we have a complete
-                // packet.
-                int messageSize = mBuffer.getInt();
-
-                // Take into account the checksum.
-                containsMessage = (messageSize + 4) <= mBuffer.remaining();
-            }
-
-            // Return buffer back to normal before returning. This has the
-            // effect of switching back to filling mode and it will be in
-            // exactly the same state as when this function was called.
-            mBuffer.position( position );
-            mBuffer.limit( limit );
-
-            return containsMessage;
-        }
-
-
-        // Only called while in draining mode. Returns true if we process a
-        // message successfully and others may be available; returns false
-        // if there are not further messages available.
-        private boolean processAMessageIfAvailable() throws InterruptedException
-        {
-            if ( mBuffer.remaining() < 4 )
-                return false;
-
-            mBuffer.mark();
-            int messageSize = mBuffer.getInt();
-
-            // Take into account checksum.
-            if ( (4 + messageSize) > mBuffer.remaining() )
-            {
-                mBuffer.reset();
-                return false;
-            }
-
-            logger.debug( "Receiving message:" );
-            logger.debug( "   message size={}", messageSize );
-
-            // The four bytes of the checksum go into the least significant
-            // four bytes of a long.
-            byte[] checkBytes = new byte[ 4 ];
-            mBuffer.get( checkBytes, 0, 4 );
-            logger.debug( "   checkBytes={}", checkBytes );
-            long checksum = ( ((0xFFL & checkBytes[0]) << 0)
-                            | ((0xFFL & checkBytes[1]) << 8)
-                            | ((0xFFL & checkBytes[2]) << 16)
-                            | ((0xFFL & checkBytes[3]) << 24) );
-            logger.debug( "   checksum={}", Long.toHexString(checksum) );
-
-            byte[] message = new byte[messageSize];
-            mBuffer.get( message, 0, messageSize );
-            logger.debug( "   message={}", message );
-
-            setReceiverState( INetChannel.DELIVER );
-            mDestination.deliverMessage( message, checksum );
-
-            return true;
-        }
-
 
         private void setReceiverState( int iState )
         {
