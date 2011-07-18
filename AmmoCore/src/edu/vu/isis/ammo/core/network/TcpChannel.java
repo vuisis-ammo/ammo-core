@@ -38,6 +38,25 @@ public class TcpChannel extends NetChannel {
     private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
 
     private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
+    
+    /**
+     * $ sysctl net.ipv4.tcp_rmem 
+     * or
+     * $ cat /proc/sys/net/ipv4/tcp_rmem
+     * 4096   87380   4194304
+     * 
+     * The first value tells the kernel the minimum receive buffer for each TCP connection, and 
+     * this buffer is always allocated to a TCP socket, even under high pressure on the system.
+     * 
+     * The second value specified tells the kernel the default receive buffer allocated for each TCP socket. 
+     * This value overrides the /proc/sys/net/core/rmem_default value used by other protocols.
+     * 
+     * The third and last value specified in this variable specifies the maximum receive buffer 
+     * that can be allocated for a TCP socket.
+     * 
+     */
+    private static final int TCP_RECV_BUFF_SIZE = 0x400000; // the maximum receive buffer size
+    private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
     private boolean isEnabled = true;
 
     private Socket socket = null;
@@ -48,9 +67,9 @@ public class TcpChannel extends NetChannel {
     private ReceiverThread mReceiver;
 
     @SuppressWarnings("unused")
-	private int connectTimeout = 5 * 1000; // this should come from network preferences
+    private int connectTimeout = 5 * 1000; // this should come from network preferences
     @SuppressWarnings("unused")
-	private int socketTimeout = 5 * 1000; // milliseconds.
+    private int socketTimeout = 5 * 1000; // milliseconds.
 
     private String gatewayHost = null;
     private int gatewayPort = -1;
@@ -610,7 +629,7 @@ public class TcpChannel extends NetChannel {
                     logger.error( "Tried to create mSocketChannel when we already had one." );
                 parent.mSocketChannel = SocketChannel.open( sockAddr );
                 @SuppressWarnings("unused")
-				boolean result = parent.mSocketChannel.finishConnect();
+                boolean result = parent.mSocketChannel.finishConnect();
             }
             catch ( Exception e )
             {
@@ -753,7 +772,7 @@ public class TcpChannel extends NetChannel {
                     ByteBuffer buf = msg.serialize( endian );
                     setSenderState( INetChannel.SENDING );
                     @SuppressWarnings("unused")
-					int bytesWritten = mSocketChannel.write( buf );
+                    int bytesWritten = mSocketChannel.write( buf );
                     logger.info( "Wrote packet to SocketChannel" );
 
                     // legitimately sent to gateway.
@@ -804,11 +823,7 @@ public class TcpChannel extends NetChannel {
             mParent = iParent;
             mDestination = iDestination;
             mSocketChannel = iSocketChannel;
-
-            mBuffer = ByteBuffer.allocate( 400000 );
-            mBuffer.order( endian ); // mParent.endian
         }
-
 
         @Override
         public void run()
@@ -819,35 +834,65 @@ public class TcpChannel extends NetChannel {
             // Then examine the buffer to see if we have any complete packets.
             // If we have an error, notify our parent and go into an error state.
 
-            while ( mState != INetChannel.INTERRUPTED )
-            {
-                try
-                {
+            ByteBuffer fill = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
+            fill.order( endian ); // mParent.endian
+           
+            while ( mState != INetChannel.INTERRUPTED ) {
+                try {
+                    int bytesRead =  mSocketChannel.read( fill );
+                    logger.debug( "SocketChannel getting header read bytes={}", bytesRead );
                     setReceiverState( INetChannel.START );
-                    logger.debug( "Reading from SocketChannel..." );
-                    int bytesRead =  mSocketChannel.read( mBuffer );
-                    logger.debug( "SocketChannel read bytes={}", bytesRead );
-
-                    mDestination.resetTimeoutWatchdog();
-
-                    // We loop here because a single read() may have 
-                    // read data for several messages
-                    while (AmmoGatewayMessage.bufferContainsAMessage(this.mBuffer, endian)) {
-                        this.mBuffer.flip();
-                        AmmoGatewayMessage agm = AmmoGatewayMessage.processAMessage(this.mBuffer);
-                        
-                        if (agm == null) continue;
-                        setReceiverState( INetChannel.DELIVER );
-                        mDestination.deliverMessage( agm );
-                        logger.debug( "processed a message" );
+                    
+                    ByteBuffer drain = fill.duplicate();
+                    drain.flip();
+                    // process all complete headers in the drain
+                    while (true) {
+                        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader(drain);
+                        if (agmb == null) {
+                            fill = drain.compact();
+                            break; 
+                        }
+                        // if the message is TOO BIG throw away the message
+                        if (agmb.size > MAX_MESSAGE_SIZE) {
+                            int size = agmb.size;
+                            while (true) {
+                                if (drain.remaining() < size) {
+                                    int rem =  drain.remaining();
+                                    size -= rem;
+                                    fill = (ByteBuffer) drain.clear();
+                                    bytesRead =  mSocketChannel.read( fill );
+                                    drain = (ByteBuffer) fill.duplicate().flip();
+                                    continue;
+                                }
+                                fill.position(size);
+                                break;
+                            }
+                        }
+                        // extract the payload
+                        byte[] payload = new byte[agmb.size];
+                        int size = agmb.size;
+                        int offset = 0;
+                        while (true) {
+                            if (drain.remaining() < size) {
+                                int rem =  drain.remaining();
+                                drain.get(payload, offset, rem);
+                                offset += rem;
+                                size -= rem;
+                                fill = (ByteBuffer) drain.clear();
+                                bytesRead =  mSocketChannel.read( fill );
+                                drain = (ByteBuffer) fill.duplicate().flip();
+                                continue;
+                            }
+                            drain.get(payload, offset, size);
+                            
+                            AmmoGatewayMessage agm = agmb.payload(payload);
+                            setReceiverState( INetChannel.DELIVER );
+                            mDestination.deliverMessage( agm );
+                            logger.debug( "processed a message" );
+                            break;
+                        }
                     }
-                    mBuffer.compact();
-                }
-                catch ( InterruptedException ex )
-                {
-                    logger.debug( "interrupted reading messages {}",
-                                  ex.getLocalizedMessage() );
-                    setReceiverState( INetChannel.INTERRUPTED );
+                    mDestination.resetTimeoutWatchdog();
                 }
                 catch ( Exception ex )
                 {
@@ -874,7 +919,6 @@ public class TcpChannel extends NetChannel {
         private ConnectorThread mParent;
         private TcpChannel mDestination;
         private SocketChannel mSocketChannel;
-        private ByteBuffer mBuffer;
         private final Logger logger
             = LoggerFactory.getLogger( "network.tcp.receiver" );
     }
