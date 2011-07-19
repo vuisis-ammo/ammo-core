@@ -23,6 +23,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.LinkedList;
 import java.util.zip.CRC32;
 import java.lang.Long;
 
@@ -66,36 +67,47 @@ public class TcpChannel extends NetChannel {
 
     private boolean shouldBeDisabled = false;
     private long flatLineTime;
-    private IChannelManager driver;
-    // Move me to a better place.
-    BlockingQueue<GwMessage> mSenderQueue;
+
     SocketChannel mSocketChannel;
 
-    private TcpChannel(IChannelManager driver) {
+    private SenderQueue mSenderQueue;
+
+    private AtomicBoolean mIsAuthorized;
+    private IChannelManager mChannelManager;
+    private ISecurityObject mSecurityObject;
+
+    private TcpChannel( IChannelManager iChannelManager ) {
         super();
         logger.info("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
         this.syncObj = this;
 
-        this.driver = driver;
+        mIsAuthorized = new AtomicBoolean( false );
+
+        mChannelManager = iChannelManager;
         this.connectorThread = new ConnectorThread(this);
 
         this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
 
-        mSenderQueue = new LinkedBlockingQueue<GwMessage>( 20 );
+        mSenderQueue = new SenderQueue( this );
     }
 
-    public static TcpChannel getInstance(IChannelManager driver) {
+
+    public static TcpChannel getInstance( IChannelManager iChannelManager )
+    {
         logger.trace("Thread <{}>::getInstance", Thread.currentThread().getId());
-        TcpChannel instance = new TcpChannel(driver);
+        TcpChannel instance = new TcpChannel( iChannelManager );
         return instance;
     }
 
+
     public boolean isConnected() { return this.connectorThread.isConnected(); }
+
     /**
      * Was the status changed as a result of enabling the connection.
      * @return
      */
     public boolean isEnabled() { return this.isEnabled; }
+
     public boolean enable() {
         logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
         synchronized (this.syncObj) {
@@ -195,19 +207,77 @@ public class TcpChannel extends NetChannel {
         int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
         int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
 
-        driver.statusChange( this, this.connectorThread.state.value,
-                             senderState,
-                             receiverState );
+        mChannelManager.statusChange( this,
+                                      this.connectorThread.state.value,
+                                      senderState,
+                                      receiverState );
+    }
+
+
+    private synchronized void setSecurityObject( ISecurityObject iSecurityObject )
+    {
+        mSecurityObject = iSecurityObject;
+    }
+
+
+    private synchronized ISecurityObject getSecurityObject()
+    {
+        return mSecurityObject;
+    }
+
+
+    private void setIsAuthorized( boolean iValue )
+    {
+        logger.info( "In setIsAuthorized(). value={}", iValue );
+
+        mIsAuthorized.set( iValue );
+    }
+
+
+    public boolean getIsAuthorized()
+    {
+        return mIsAuthorized.get();
+    }
+
+
+    public void authorizationSucceeded()
+    {
+        setIsAuthorized( true );
+        mSenderQueue.markAsAuthorized();
+
+        // Tell the NetworkService that we're authorized and have it
+        // notify the apps.
+        mChannelManager.authorizationSucceeded();
+    }
+
+
+    public void authorizationFailed()
+    {
+        // Disconnect the channel.
+        reset();
     }
 
 
     // Called by ReceiverThread to send an incoming message to the
-    // NetworkService.
+    // appropriate destination.
     private boolean deliverMessage( byte[] message,
                                     long checksum )
     {
-        logger.error( "In deliverMessage()" );
-        return driver.deliver( message, checksum );
+        logger.info( "In deliverMessage()" );
+
+        boolean result;
+        if ( mIsAuthorized.get() )
+        {
+            logger.info( " delivering to channel manager" );
+            result = mChannelManager.deliver( message, checksum );
+        }
+        else
+        {
+            logger.info( " delivering to security object" );
+            result = getSecurityObject().deliverMessage( message, checksum );
+        }
+
+        return result;
     }
 
     /**
@@ -225,14 +295,14 @@ public class TcpChannel extends NetChannel {
     // Called by the ConnectorThread.
     private boolean auth()
     {
-        return driver.auth();
+        return mChannelManager.auth();
     }
 
 
     // Called by the ConnectorThread.
     private boolean isAnyLinkUp()
     {
-        return driver.isAnyLinkUp();
+        return mChannelManager.isAnyLinkUp();
     }
 
 
@@ -511,7 +581,6 @@ public class TcpChannel extends NetChannel {
                         break;
 
                     case NetChannel.CONNECTED:
-                        parent.auth();
                         {
                             this.parent.statusChange();
                             try {
@@ -624,17 +693,30 @@ public class TcpChannel extends NetChannel {
 
             mIsConnected.set( true );
 
+            // Create the security object.  This must be done before
+            // the ReceiverThread is created in case we receive a
+            // message before the SecurityObject is ready to have it
+            // delivered.
+            if ( parent.getSecurityObject() != null )
+                logger.error( "Tried to create SecurityObject when we already had one." );
+            parent.setSecurityObject( new TcpSecurityObject( parent ));
+
             // Create the sending thread.
             if ( parent.mSender != null )
                 logger.error( "Tried to create Sender when we already had one." );
-            mSender = new SenderThread( this, parent, parent.mSenderQueue, parent.mSocketChannel );
-            mSender.start();
+            parent.mSender = new SenderThread( this,
+                                               parent,
+                                               parent.mSenderQueue,
+                                               parent.mSocketChannel );
+            parent.mSender.start();
 
             // Create the receiving thread.
             if ( parent.mReceiver != null )
                 logger.error( "Tried to create Receiver when we already had one." );
-            mReceiver = new ReceiverThread( this, parent, parent.mSocketChannel );
-            mReceiver.start();
+            parent.mReceiver = new ReceiverThread( this, parent, parent.mSocketChannel );
+            parent.mReceiver.start();
+
+            parent.getSecurityObject().authorize();
 
             return true;
         }
@@ -652,6 +734,8 @@ public class TcpChannel extends NetChannel {
                     mSender.interrupt();
                 if ( mReceiver != null )
                     mReceiver.interrupt();
+
+                mSenderQueue.reset();
 
                 if ( parent.mSocketChannel != null )
                 {
@@ -671,12 +755,19 @@ public class TcpChannel extends NetChannel {
                     parent.mSocketChannel = null;
                 }
 
+                setIsAuthorized( false );
+
+                parent.setSecurityObject( null );
                 parent.mSender = null;
                 parent.mReceiver = null;
             }
             catch ( IOException e )
             {
                 logger.error( "Caught IOException" );
+                // Do this here, too, since if we exited early because
+                // of an exception, we want to make sure that we're in
+                // an unauthorized state.
+                setIsAuthorized( false );
                 return false;
             }
             logger.debug( "returning after successful disconnect()." );
@@ -699,15 +790,7 @@ public class TcpChannel extends NetChannel {
      */
     public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler)
     {
-        try
-        {
-            mSenderQueue.put( new GwMessage(size, checksum, payload, handler) );
-        }
-        catch ( InterruptedException e )
-        {
-            return false;
-        }
-        return true;
+        return mSenderQueue.putFromDistributor( new GwMessage(size, checksum, payload, handler) );
     }
 
     public class GwMessage {
@@ -724,13 +807,143 @@ public class TcpChannel extends NetChannel {
     }
 
 
+    public void putFromSecurityObject( int size,
+                                       CRC32 checksum,
+                                       byte[] payload,
+                                       INetworkService.OnSendMessageHandler handler )
+    {
+        mSenderQueue.putFromSecurityObject( new GwMessage(size, checksum, payload, handler) );
+    }
+
+
+    public void finishedPuttingFromSecurityObject()
+    {
+        mSenderQueue.finishedPuttingFromSecurityObject();
+    }
+
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    class SenderQueue
+    {
+        public SenderQueue( TcpChannel iChannel )
+        {
+            mChannel = iChannel;
+
+            setIsAuthorized( false );
+            mDistQueue = new LinkedBlockingQueue<GwMessage>( 20 );
+            mAuthQueue = new LinkedList<GwMessage>();
+        }
+
+
+        // In the new design, aren't we supposed to let the
+        // NetworkService know if the outgoing queue is full or not?
+        public boolean putFromDistributor( GwMessage iMessage )
+        {
+            try
+            {
+                logger.info( "putFromDistributor()" );
+                mDistQueue.put( iMessage );
+            }
+            catch ( InterruptedException e )
+            {
+                return false;
+            }
+            return true;
+        }
+
+
+        public synchronized void putFromSecurityObject( GwMessage iMessage )
+        {
+            logger.info( "putFromSecurityObject()" );
+            mAuthQueue.offer( iMessage );
+        }
+
+
+        public synchronized void finishedPuttingFromSecurityObject()
+        {
+            logger.info( "finishedPuttingFromSecurityObject()" );
+            notifyAll();
+        }
+
+
+        // This is called when the SecurityObject has successfully
+        // authorized the channel.
+        public synchronized void markAsAuthorized()
+        {
+            logger.info( "Marking channel as authorized" );
+            notifyAll();
+        }
+
+
+        public synchronized GwMessage take() throws InterruptedException
+        {
+            logger.info( "taking from SenderQueue" );
+            if ( mChannel.getIsAuthorized() )
+            {
+                // This is where the authorized SenderThread blocks.
+                return mDistQueue.take();
+            }
+            else
+            {
+                if ( mAuthQueue.size() > 0 )
+                {
+                    // return the first item in mAuthqueue and remove
+                    // it from the queue.
+                    return mAuthQueue.remove();
+                }
+                else
+                {
+                    logger.info( "wait()ing in SenderQueue" );
+                    wait(); // This is where the SenderThread blocks.
+
+                    if ( mChannel.getIsAuthorized() )
+                    {
+                        return mDistQueue.take();
+                    }
+                    else
+                    {
+                        // We are not yet authorized, so return the
+                        // first item in mAuthqueue and remove
+                        // it from the queue.
+                        return mAuthQueue.remove();
+                    }
+                }
+            }
+        }
+
+
+        // Somehow synchronize this here.
+        public synchronized void reset()
+        {
+            logger.info( "reset()ing the SenderQueue" );
+            // Tell the distributor that we couldn't send these
+            // packets.
+            GwMessage msg = mDistQueue.poll();
+            while ( msg != null )
+            {
+                if ( msg.handler != null )
+                    mChannel.ackToHandler( msg.handler, false );
+                msg = mDistQueue.poll();
+            }
+
+            setIsAuthorized( false );
+        }
+
+
+        private BlockingQueue<GwMessage> mDistQueue;
+        private LinkedList<GwMessage> mAuthQueue;
+        private TcpChannel mChannel;
+    }
+
+
     ///////////////////////////////////////////////////////////////////////////
     //
     class SenderThread extends Thread
     {
         public SenderThread( ConnectorThread iParent,
                              TcpChannel iChannel,
-                             BlockingQueue<GwMessage> iQueue,
+                             SenderQueue iQueue,
                              SocketChannel iSocketChannel )
         {
             mParent = iParent;
@@ -825,7 +1038,7 @@ public class TcpChannel extends NetChannel {
         private int mState = INetChannel.TAKING;
         private ConnectorThread mParent;
         private TcpChannel mChannel;
-        private BlockingQueue<GwMessage> mQueue;
+        private SenderQueue mQueue;
         private SocketChannel mSocketChannel;
         private final Logger logger = LoggerFactory.getLogger( "network.tcp.sender" );
     }

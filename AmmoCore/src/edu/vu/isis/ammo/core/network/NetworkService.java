@@ -812,24 +812,31 @@ implements OnSharedPreferenceChangeListener,
     }
 
     /**
-     * A routine to let the distributor know that the 
-     * *authentication* message was sent (or discarded).
-     * The distributor is notified that a channel is available.
+     * This routine is called when a message is successfully sent or
+     * when it is discarded.  It is currently unused, but we may want
+     * to do something with it in the future.
      */
     @Override
-    public boolean ack(boolean status) {
-        if (status) {   // authentication succeeded
-            logger.trace("authentication complete, repost subscriptions and pending data : ");
-            this.distributor.consumerReady();
-
-            logger.info("authentication complete inform applications : ");
-            // broadcast login event to apps ...
-            Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-            loginIntent.putExtra("operatorId", operatorId);
-            this.sendBroadcast(loginIntent);
-        }
+    public boolean ack( boolean status )
+    {
         return false;
     }
+
+
+    // The channel lets the NetworkService know that the channel was
+    // successfully authorized by calling this method.
+    public void authorizationSucceeded()
+    {
+        logger.trace("authentication complete, repost subscriptions and pending data : ");
+        this.distributor.consumerReady();
+
+        logger.info("authentication complete inform applications : ");
+        // broadcast login event to apps ...
+        Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+        loginIntent.putExtra("operatorId", operatorId);
+        this.sendBroadcast(loginIntent);
+    }
+
 
     /**
      * Deal with the status of the connection changing.
