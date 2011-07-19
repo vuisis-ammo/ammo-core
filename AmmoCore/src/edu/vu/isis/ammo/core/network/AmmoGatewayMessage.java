@@ -47,7 +47,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class AmmoGatewayMessage {
     private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
     
-    private static final byte[] MAGIC = {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
+    private static final int MAGIC = 0xfeedbeef; // {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
     
     @SuppressWarnings("unused")
     private static final long INT_MASK = 0x0FFFFFFFFL; // 
@@ -94,8 +94,12 @@ public class AmmoGatewayMessage {
    
     public static AmmoGatewayMessage getInstance(AmmoMessages.MessageWrapper.Builder amb, 
             INetworkService.OnSendMessageHandler handler) {
-        byte[] payload = amb.build().toByteArray();
-        byte priority = (byte) amb.getMessagePriority();
+         AmmoMessages.MessageWrapper amw = amb.build();
+         
+         byte[] payload = amw.toByteArray();
+         
+         byte priority = (byte) amw.getMessagePriority();
+        
         CRC32 crc32 = new CRC32();
         crc32.update(payload);
         return new AmmoGatewayMessage(payload.length, crc32.getValue(), (byte) priority, payload, handler);
@@ -128,7 +132,7 @@ public class AmmoGatewayMessage {
          ByteBuffer buf = ByteBuffer.allocate( total_length );
          buf.order( endian );
          
-         buf.put(MAGIC, 0, 4);
+         buf.putInt(MAGIC);
          
          buf.putInt( this.size );
          logger.debug( "   size={}", this.size );
@@ -169,10 +173,11 @@ public class AmmoGatewayMessage {
                 drain.mark();
                 int start = drain.arrayOffset() + drain.position();
                 // search for the magic
-                if (drain.get() != MAGIC[0]) continue;
-                if (drain.get() != MAGIC[1]) continue;
-                if (drain.get() != MAGIC[2]) continue;
-                if (drain.get() != MAGIC[3]) continue;
+                if (drain.getInt() != MAGIC) continue;
+                //if (drain.get() != MAGIC[0]) continue;
+                //if (drain.get() != MAGIC[1]) continue;
+                //if (drain.get() != MAGIC[2]) continue;
+                //if (drain.get() != MAGIC[3]) continue;
                 
                 int size = drain.getInt();
                 
@@ -203,8 +208,15 @@ public class AmmoGatewayMessage {
         return null;
     }
     
+    /**
+     * AUTH : authentication message only
+     * CTRL : all control type messages, not data messages: subscribe, pull, heartbeat
+     * No data, push, messages should be allowed to use anthing within the AUTH and CTRL span.
+     * If a data message tries to use a value in that range it should be degraded to FLASH.
+     *
+     */
     public enum PriorityLevel {
-        FLASH(128), URGENT(64), IMPORTANT(32), NORMAL(16), BACKGROUND(8);
+        AUTH(127), CTRL(112), FLASH(96), URGENT(64), IMPORTANT(32), NORMAL(0), BACKGROUND(-32);
         public int v;
         public byte b() { return (byte) this.v; }
         private PriorityLevel(int value) {

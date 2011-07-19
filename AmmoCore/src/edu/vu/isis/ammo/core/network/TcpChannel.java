@@ -12,6 +12,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
@@ -215,10 +216,10 @@ public class TcpChannel extends NetChannel {
     public void reset() {
         logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
         logger.info("connector: {} sender: {} receiver: {}",
-                    new String[] {
+                    new Object[] {
                         this.connectorThread.showState(),
-                        "blah", //this.senderThread.showState(),
-                        "blah" } ); //this.receiverThread.showState()});
+                        (this.mSender == null ? "none" : this.mSender.getSenderState()),
+                        (this.mReceiver == null ? "none" : this.mReceiver.getReceiverState())});
 
         synchronized (this.syncObj) {
             if (! this.connectorThread.isAlive()) {
@@ -388,7 +389,7 @@ public class TcpChannel extends NetChannel {
                 this.reset();
             }
             public synchronized void set(int state) {
-                logger.info("Thread <{}>State::set {}", Thread.currentThread().getId(), this.toString());
+                logger.info("Thread <{}>State::set", Thread.currentThread().getId());
                 switch (state) {
                 case STALE:
                     this.reset();
@@ -487,7 +488,6 @@ public class TcpChannel extends NetChannel {
                                     this.parent.statusChange();
                                     this.state.wait(BURP_TIME);   // wait for a link interface
                                     logger.info("Looping in Disabled");
-
                                 }
                             }
                         } catch (InterruptedException ex) {
@@ -893,11 +893,12 @@ public class TcpChannel extends NetChannel {
                         }
                     }
                     mDestination.resetTimeoutWatchdog();
-                }
-                catch ( Exception ex )
-                {
-                    ex.printStackTrace();
-                    logger.warn("receiver threw exception");
+                } catch (ClosedChannelException ex) {
+                	logger.warn("receiver threw exception {}", ex.getStackTrace());
+                    setReceiverState( INetChannel.INTERRUPTED );
+                    mParent.socketOperationFailed();
+                } catch ( Exception ex ) {
+                    logger.warn("receiver threw exception {}", ex.getStackTrace());
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }

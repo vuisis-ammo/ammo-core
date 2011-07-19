@@ -384,7 +384,7 @@ implements OnSharedPreferenceChangeListener,
                .setUserKey(operatorKey);
 
         mw.setAuthenticationMessage(authreq);
-        mw.clearMessagePriority();
+        mw.setMessagePriority(AmmoGatewayMessage.PriorityLevel.AUTH.v);
         return mw;
     }
 
