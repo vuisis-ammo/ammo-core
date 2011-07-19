@@ -51,4 +51,6 @@ public interface IChannelManager
      * @return boolean
      */
     boolean isAnyLinkUp();
+
+    void authorizationSucceeded();
 }
