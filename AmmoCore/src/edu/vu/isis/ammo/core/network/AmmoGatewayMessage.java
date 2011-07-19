@@ -184,12 +184,16 @@ public class AmmoGatewayMessage {
                 int priority = drain.get() & BYTE_MASK;
                 logger.debug( "   priority={}", priority );
                 
+                // reserved bytes
+                drain.get();  
+                drain.getShort();
+                
                 byte[] checkBytes = new byte[ 4 ];
+                
                 drain.get( checkBytes, 0, 4 );
                 logger.debug( "   payload check={}", checkBytes );
                 long payload_checksum = convertChecksum(checkBytes);
                 
-                checkBytes = new byte[ 4 ];
                 drain.get( checkBytes, 0, 4 );
                 logger.debug( "   header check={}", checkBytes );
                 long header_checksum = convertChecksum(checkBytes);

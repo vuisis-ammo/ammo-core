@@ -45,6 +45,7 @@ public class TcpChannel extends NetChannel {
      * or
      * $ cat /proc/sys/net/ipv4/tcp_rmem
      * 4096   87380   4194304
+     * 0x1000 0x15554 0x400000
      * 
      * The first value tells the kernel the minimum receive buffer for each TCP connection, and 
      * this buffer is always allocated to a TCP socket, even under high pressure on the system.
@@ -56,7 +57,7 @@ public class TcpChannel extends NetChannel {
      * that can be allocated for a TCP socket.
      * 
      */
-    private static final int TCP_RECV_BUFF_SIZE = 0x400000; // the maximum receive buffer size
+    private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
     private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
     private boolean isEnabled = true;
 

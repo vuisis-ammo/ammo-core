@@ -606,8 +606,17 @@ implements OnSharedPreferenceChangeListener,
         case PULL_RESPONSE:
             receivePullResponse(mw);
             break;
+            
+        case HEARTBEAT:
+        	break;
+        case AUTHENTICATION_MESSAGE:
+        case SUBSCRIBE_MESSAGE:
+        case PULL_REQUEST:
+        case UNSUBSCRIBE_MESSAGE:
+        	logger.warn( "received an outbound message type {}", mw.getType());
+        	break;
         default:
-            logger.error( "mw.getType() returned an unexpected type." );
+            logger.error( "mw.getType() returned an unexpected type. {}", mw.getType());
         }
         return true;
     }
