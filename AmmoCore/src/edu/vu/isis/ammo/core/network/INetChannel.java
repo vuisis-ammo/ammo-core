@@ -50,9 +50,6 @@ public interface INetChannel
     void linkUp();
     void linkDown();
     void reset();
-    boolean sendRequest( int size,
-                         CRC32 checksum,
-                         byte[] payload,
-                         INetworkService.OnSendMessageHandler handler );
+    boolean sendRequest( AmmoGatewayMessage agm );
     String getLocalIpAddress();
 }
