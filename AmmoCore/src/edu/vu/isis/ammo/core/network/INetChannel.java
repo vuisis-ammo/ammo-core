@@ -1,6 +1,6 @@
 package edu.vu.isis.ammo.core.network;
 
-import edu.vu.isis.ammo.core.network.TcpChannel.GwMessage;
+
 
 /**
  * The NetChannel is some mechanism for establishing a network connection
@@ -62,7 +62,7 @@ public interface INetChannel {
      * @param req
      * @return
      */
-    boolean sendRequest(NetChannel.GwMessage msg);
+    boolean sendRequest( AmmoGatewayMessage agm );
     String getLocalIpAddress();
 
 }
