@@ -44,7 +44,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * The header checksum, the CRC32 checksum of the header, not including the payload nor itself.
  * 
  */
-public class AmmoGatewayMessage {
+public class AmmoGatewayMessage implements Comparable {
     private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
     
     private static final int MAGIC = 0xfeedbeef; // {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
@@ -70,6 +70,31 @@ public class AmmoGatewayMessage {
     public final long payload_checksum;
     public final byte[] payload;
     public final INetworkService.OnSendMessageHandler handler;
+
+    /**
+     * @return
+     * a negative integer if this instance is less than another; 
+     * a positive integer if this instance is greater than another; 
+     * 0 if this instance has the same order as another.
+     * 
+     * priority first
+     * smaller message have higher priority.
+     * 
+     * @throws
+     * ClassCastException
+     */
+	@Override
+	public int compareTo(Object another) {
+		if (another instanceof AmmoGatewayMessage) 
+			throw new ClassCastException("does not compare with AmmoGatewayMessage");
+		
+		AmmoGatewayMessage that = (AmmoGatewayMessage) another;
+		if (this.priority > that.priority) return 1;
+		if (this.priority < that.priority) return -1;
+		if (this.size < that.size) return 1;
+		if (this.size > that.size) return -1;
+		return 0;
+	}
 
     static public class Builder {
         public final int size;
