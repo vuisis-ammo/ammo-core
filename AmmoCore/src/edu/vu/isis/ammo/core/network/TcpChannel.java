@@ -15,13 +15,11 @@ import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
+import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.LinkedList;
-import java.util.zip.CRC32;
-import java.lang.Long;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
