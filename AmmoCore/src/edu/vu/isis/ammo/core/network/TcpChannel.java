@@ -85,7 +85,11 @@ public class TcpChannel extends NetChannel {
     private SenderQueue mSenderQueue;
 
     private AtomicBoolean mIsAuthorized;
-    private IChannelManager mChannelManager;
+
+    // I made this public to support the hack to get authentication
+    // working before Nilabja's code is ready.  Make it private again
+    // once his stuff is in.
+    public IChannelManager mChannelManager;
     private ISecurityObject mSecurityObject;
 
     private TcpChannel( IChannelManager iChannelManager ) {
@@ -254,14 +258,14 @@ public class TcpChannel extends NetChannel {
     }
 
 
-    public void authorizationSucceeded()
+    public void authorizationSucceeded( AmmoGatewayMessage agm )
     {
         setIsAuthorized( true );
         mSenderQueue.markAsAuthorized();
 
         // Tell the NetworkService that we're authorized and have it
         // notify the apps.
-        mChannelManager.authorizationSucceeded();
+        mChannelManager.authorizationSucceeded( agm );
     }
 
 
@@ -699,7 +703,9 @@ public class TcpChannel extends NetChannel {
             parent.mReceiver = new ReceiverThread( this, parent, parent.mSocketChannel );
             parent.mReceiver.start();
 
-            parent.getSecurityObject().authorize();
+            // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
+            // just a temporary hack.
+            parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest() );
 
             return true;
         }
