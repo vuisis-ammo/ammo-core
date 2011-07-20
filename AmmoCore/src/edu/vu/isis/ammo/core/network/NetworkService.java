@@ -371,7 +371,7 @@ implements OnSharedPreferenceChangeListener,
      * Authentication requests are sent via TCP.
      * They are primarily concerned with obtaining the sessionId.
      */
-    private AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
+    public AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
         logger.info("::buildAuthenticationRequest");
 
         AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
@@ -789,8 +789,27 @@ implements OnSharedPreferenceChangeListener,
 
     // The channel lets the NetworkService know that the channel was
     // successfully authorized by calling this method.
-    public void authorizationSucceeded()
+    public void authorizationSucceeded( AmmoGatewayMessage agm )
     {
+        // HACK! Fixme
+        AmmoMessages.MessageWrapper mw = null;
+        try {
+            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
+        } catch (InvalidProtocolBufferException ex) {
+            ex.printStackTrace();
+        }
+        if (mw == null)
+        {
+            logger.error( "mw was null!" );
+        }
+
+        PreferenceManager
+            .getDefaultSharedPreferences(this)
+            .edit()
+            .putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+            .commit();
+        sessionId = mw.getSessionUuid();
+
         logger.trace("authentication complete, repost subscriptions and pending data : ");
         this.distributor.consumerReady();
 
