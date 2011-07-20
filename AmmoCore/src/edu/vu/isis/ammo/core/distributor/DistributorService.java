@@ -1,48 +1,33 @@
 package edu.vu.isis.ammo.core.distributor;
 
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.OutputStream;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.database.ContentObserver;
-import android.database.Cursor;
 import android.net.ConnectivityManager;
-import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-
-import com.google.protobuf.ByteString;
-
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
-
-
 
 /**
  * The DistributorService is responsible for synchronization between the Gateway
@@ -94,7 +79,7 @@ public class DistributorService extends Service implements IDistributorService {
 
     public void consumerReady() {
         logger.info("::consumer ready : resend old requests");
-        pct.resend();
+        this.pct.resend();
     }
     
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
@@ -104,13 +89,12 @@ public class DistributorService extends Service implements IDistributorService {
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
             networkServiceBinder.setDistributorServiceCallback(callback);
             
-            // Start processing the tables
-            DistributorService.this.pct = new DistributorThread();
-            pct.execute(DistributorService.this);
+            DistributorService.this.pct.execute(DistributorService.this);
         }
 
         public void onServiceDisconnected(ComponentName name) {
             logger.info("::onServiceDisconnected - Network Service");
+            DistributorService.this.pct.cancel(true);
             isNetworkServiceBound = false;
             networkServiceBinder = null;
         }
@@ -141,6 +125,9 @@ public class DistributorService extends Service implements IDistributorService {
         super.onCreate();
         logger.info("::onCreate");
 
+        // set up the worker thread
+        this.pct = new DistributorThread();
+        
         // Set this service to observe certain Content Providers.
         // Initialize our content observer.
 
@@ -372,117 +359,9 @@ public class DistributorService extends Service implements IDistributorService {
     // Calls originating from NetworkService
     // ================================================
 
-    /**
-     * Typically just an acknowledgment.
-     */
-    @Override
-    public boolean dispatchPushResponse(PushAcknowledgement resp) {    
-        logger.info("::dispatchPushResponse");
-        return true;
+
+    public boolean deliver(AmmoGatewayMessage agm) {
+    	return pct.deliver(agm);
     }
-
-    /**
-     * Update the content providers as appropriate.
-     * De-serialize into the proper content provider.
-     * 
-     */
-    @Override
-    public boolean dispatchRetrievalResponse(PullResponse resp) {
-        logger.info("::dispatchRetrievalResponse : {} : {}", resp.getRequestUid(), resp.getUri());
-        String uriStr = resp.getRequestUid(); // resp.getUri(); --- why do we have uri in data message and retrieval response?
-        Uri uri = Uri.parse(uriStr);
-        ContentResolver cr = this.getContentResolver();
-
-        try {
-            Uri serialUri = Uri.withAppendedPath(uri, "_serial");
-            OutputStream outstream = cr.openOutputStream(serialUri);
-
-            if (outstream == null) {
-                logger.error( "could not open output stream to content provider: {} ",serialUri);
-                return false;
-            }
-            ByteString data = resp.getData();
-
-            if (data != null) {
-                outstream.write(data.toByteArray());
-            }
-            outstream.close();
-
-            // This update/delete the retrieval request as it has been fulfilled.
-            
-            String selection = "\"" + RetrievalTableSchema.URI +"\" = '" + uri +"'";
-            Cursor cursor = cr.query(RetrievalTableSchema.CONTENT_URI, null, selection, null, null);
-            if (!cursor.moveToFirst()) {
-                logger.info("no matching retrieval: {}", selection);
-                cursor.close();
-                return false;
-            }
-            final Uri retrieveUri = RetrievalTableSchema.getUri(cursor);
-            cursor.close ();
-            ContentValues values = new ContentValues();
-            values.put(RetrievalTableSchema.DISPOSITION, RetrievalTableSchema.DISPOSITION_SATISFIED);
-
-            @SuppressWarnings("unused")
-            int numUpdated = cr.update(retrieveUri, values,null, null);
-            
-        } catch (FileNotFoundException e) {
-            logger.warn("could not connect to content provider");
-            return false;
-        } catch (IOException e) {
-            logger.warn("could not write to the content provider");
-        }
-        return true;
-    }
-
-    /**
-     * Update the content providers as appropriate. These are typically received
-     * in response to subscriptions.
-     * 
-     * The subscribing uri isn't sent with the subscription to the gateway
-     * therefore it needs to be recovered from the subscription table.
-     */
-    @Override
-    public boolean dispatchSubscribeResponse(DataMessage resp) {
-        logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
-        String mime = resp.getMimeType();
-        ContentResolver cr = this.getContentResolver();
-        String tableUriStr = null;
-
-        try {
-            Cursor subCursor = cr.query(
-                    SubscriptionTableSchema.CONTENT_URI,
-                    null,
-                    "\"" + SubscriptionTableSchema.MIME + "\" = '" + mime + "'",
-                    null, null);
-
-            if (!subCursor.moveToFirst()) {
-                logger.info("no matching subscription");
-                subCursor.close();
-                return false;
-            }
-            tableUriStr = subCursor.getString(subCursor.getColumnIndex(SubscriptionTableSchema.URI));
-            subCursor.close();
-
-            Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
-            OutputStream outstream = cr.openOutputStream(tableUri);
-
-            if (outstream == null) {
-                logger.error("the content provider {} is not available", tableUri);
-                return false;
-            }
-            outstream.write(resp.getData().toByteArray());
-            outstream.flush();
-            outstream.close();
-            return true;
-        } catch (IllegalArgumentException ex) {
-            logger.warn("could not serialize to content provider: {} : {}", tableUriStr, ex.getLocalizedMessage());
-            return false;
-        } catch (FileNotFoundException ex) {
-            logger.warn("could not connect to content provider using openFile: {}", ex.getLocalizedMessage());
-            return false;
-        } catch (IOException ex) {
-            logger.warn("could not write to the content provider {}", ex.getLocalizedMessage());
-            return false;
-        } 
-    }
+   
 }

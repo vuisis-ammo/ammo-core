@@ -33,8 +33,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * The short thread is to connect the socket.
  * The sent messages are placed into a queue if the socket is connected.
  *
- * @author phreed
- *
  */
 public class TcpChannel extends NetChannel {
     private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
@@ -631,8 +629,7 @@ public class TcpChannel extends NetChannel {
                 }
                 this.parent.socket.close();
             } catch (IOException ex) {
-                ex.printStackTrace();
-                logger.error("channel closing without proper socket");
+                logger.error("channel closing without proper socket {}", ex.getStackTrace());
             }
             logger.error("channel closing");
         }
@@ -960,10 +957,9 @@ public class TcpChannel extends NetChannel {
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, true );
                 }
-                catch ( Exception e )
+                catch ( Exception ex )
                 {
-                    e.printStackTrace();
-                    logger.warn("sender threw exception");
+                    logger.warn("sender threw exception {}", ex.getStackTrace());
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, false );
                     setSenderState( INetChannel.INTERRUPTED );

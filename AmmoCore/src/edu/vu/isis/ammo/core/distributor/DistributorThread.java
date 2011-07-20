@@ -5,6 +5,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.CRC32;
 
 import net.jcip.annotations.ThreadSafe;
 
@@ -19,7 +23,15 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
+import android.preference.PreferenceManager;
+
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+
+import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
@@ -38,99 +50,116 @@ public class DistributorThread extends
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger(DistributorService.class);
+    private static final Logger logger = LoggerFactory.getLogger(DistributorThread.class);
 
-    private static final int BURP_TIME = 20 * 1000; // 20 seconds expressed in
-                                                    // milliseconds
+    // 20 seconds expressed in milliseconds
+    private static final int BURP_TIME = 20 * 1000;
 
-    private boolean subscriptionDelta;
+    private final PriorityBlockingQueue<AmmoGatewayMessage> queue;
+    
+    public DistributorThread() {
+        super();
+        this.queue = new PriorityBlockingQueue<AmmoGatewayMessage>();
+    }
+    
+    private AtomicBoolean subscriptionDelta = new AtomicBoolean(true);
 
-    public synchronized void subscriptionChange() {
-        subscriptionDelta = true;
-        this.notifyAll();
+    public void subscriptionChange() {
+        if (this.subscriptionDelta.compareAndSet(false, true)) 
+            synchronized(this) { this.notifyAll(); }
     }
 
-    private boolean retrievalDelta;
+    private AtomicBoolean retrievalDelta = new AtomicBoolean(true);
 
-    public synchronized void retrievalChange() {
-        retrievalDelta = true;
-        this.notifyAll();
+    public void retrievalChange() {
+        if (this.retrievalDelta.compareAndSet(false, true)) 
+            synchronized(this) { this.notifyAll(); }
     }
 
-    private boolean postalDelta;
+    private AtomicBoolean postalDelta = new AtomicBoolean(true);
 
-    public synchronized void postalChange() {
-        postalDelta = true;
-        this.notifyAll();
+    public void postalChange() {
+        if (this.postalDelta.compareAndSet(false, true)) 
+            synchronized(this) { this.notifyAll(); }
+    }
+    
+    private AtomicBoolean receiptDelta = new AtomicBoolean(false);
+    
+    public boolean deliver(AmmoGatewayMessage agm)
+    {
+        this.queue.put(agm);
+        if (this.receiptDelta.compareAndSet(false, true)) 
+            synchronized(this) { this.notifyAll(); }
+        return true;
     }
 
     private boolean isReady() {
-        return this.subscriptionDelta || this.retrievalDelta || this.postalDelta;
+        if (this.subscriptionDelta.get()) return true;
+        if (this.retrievalDelta.get()) return true;
+        if (this.postalDelta.get()) return true;
+        if (this.receiptDelta.get()) return true;
+        return false;
     }
 
-    private boolean resend;
-    public synchronized void resend() {
-        this.resend = true;
-        subscriptionDelta = true;
-        retrievalDelta = true;
-        postalDelta = true;
-        this.notifyAll();
+    private AtomicBoolean resend = new AtomicBoolean(true);
+    public void resend() {
+        this.resend.set(true);
+        this.subscriptionDelta.set(true);
+        this.retrievalDelta.set(true);
+        this.postalDelta.set(true);
+        this.receiptDelta.set(true);
+        synchronized(this) { this.notifyAll(); }
     }
 
     @Override
     protected Void doInBackground(DistributorService... them) {
         logger.info("::post to network service");
-        for (DistributorService that : them) {
-            this.processSubscriptionChange(that, true);
-            this.processRetrievalChange(that, true);
-            this.processPostalChange(that, true);
+        if (this.resend.getAndSet(false)) {
+            for (DistributorService that : them) {
+                this.processSubscriptionChange(that, true);
+                this.processRetrievalChange(that, true);
+                this.processPostalChange(that, true);
+            }
         }
-        this.resend = false; 
         // condition wait is there something to process?
         try {
             while (true) {
-                boolean subscriptionFlag = false;
-                boolean retrievalFlag = false;
-                boolean postalFlag = false;
-                boolean resend = false;
-                
                 synchronized (this) {
                     while (!this.isReady())
                     {
-                    	logger.info("!this.isReady()");
+                        logger.info("!this.isReady()");
                         // this is IMPORTANT don't remove it.
                         this.wait(BURP_TIME);
                     }
-                    subscriptionFlag = this.subscriptionDelta;
-                    this.subscriptionDelta = false;
-                    
-                    retrievalFlag = this.retrievalDelta;
-                    this.retrievalDelta = false;
-                    
-                    postalFlag = this.postalDelta;
-                    this.postalDelta = false;
-
-                    resend = this.resend;
-                    this.resend = false;
                 }
-                if (subscriptionFlag) {
+                boolean resend = this.resend.getAndSet(false);
+                    
+                if (this.subscriptionDelta.getAndSet(false)) {
                     for (DistributorService that : them) {
                         this.processSubscriptionChange(that, resend);
                     }
                 }
-                if (retrievalFlag) {
+                if (this.retrievalDelta.getAndSet(false)) {
                     for (DistributorService that : them) {
                         this.processRetrievalChange(that, resend);
                     }
                 }
-                if (postalFlag) {
+                if (this.postalDelta.getAndSet(false)) {
                     for (DistributorService that : them) {
                         this.processPostalChange(that, resend);
                     }
                 }
+                if (this.receiptDelta.getAndSet(false)) {
+                    while (!this.queue.isEmpty()) {
+                        AmmoGatewayMessage agm = this.queue.take();
+                        for (DistributorService that : them) {
+                            this.processGatewayMessage(that, agm);
+                        }
+                    }
+                }
             }
         } catch (InterruptedException ex) {
-            ex.printStackTrace();
+            logger.warn("task interrupted {}", ex.getStackTrace());
         }
 
         // this.publishProgress(values);
@@ -629,7 +658,6 @@ public class DistributorThread extends
         logger.error("::processPublicationChange : {} : not implemented", resend);
     }
     
-
     /**
      * Make a specialized query on a specific content provider URI 
      * to get back that row in serialized form
@@ -682,9 +710,9 @@ public class DistributorThread extends
             return ba;
 
         } catch (FileNotFoundException ex) {
-            ex.printStackTrace();
+            logger.warn("query URI for serialized data {}", ex.getStackTrace());
         } catch (IOException ex) {
-            ex.printStackTrace();
+            logger.error("query URI for serialized data {}", ex.getStackTrace());
         }
         if (bout != null) {
             bout.close();
@@ -696,4 +724,230 @@ public class DistributorThread extends
     }
     
 
+    /**
+     *  Processes and delivers messages received from the gateway.
+     *  - Verify the check sum for the payload is correct
+     *  - Parse the payload into a message
+     *  - Receive the message
+     *
+     * @param instream
+     * @return was the message clean (true) or garbled (false).
+     */
+    private boolean processGatewayMessage(Context context, AmmoGatewayMessage agm) {
+        logger.info("::deliverGatewayResponse");
+
+        CRC32 crc32 = new CRC32();
+        crc32.update(agm.payload);
+        if (crc32.getValue() != agm.payload_checksum) {
+            String msg = "you have received a bad message, the checksums did not match)"+
+            Long.toHexString(crc32.getValue()) +":"+ Long.toHexString(agm.payload_checksum);
+            // Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+            logger.warn(msg);
+            return false;
+        }
+
+        AmmoMessages.MessageWrapper mw = null;
+        try {
+            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
+        } catch (InvalidProtocolBufferException ex) {
+            logger.error("parsing gateway message {}", ex.getStackTrace());
+        }
+        if (mw == null)
+        {
+            logger.error( "mw was null!" );
+            return false; // TBD SKN: this was true, why? if we can't parse it then its bad
+        }
+
+        switch (mw.getType()) {
+
+        case DATA_MESSAGE:
+            receiveSubscribeResponse(context, mw);
+            break;
+
+        case AUTHENTICATION_RESULT:
+            boolean result = receiveAuthenticationResponse(context, mw);
+            logger.error( "authentication result={}", result );
+            break;
+
+        case PUSH_ACKNOWLEDGEMENT:
+            receivePushResponse(context, mw);
+            break;
+
+        case PULL_RESPONSE:
+            receivePullResponse(context, mw);
+            break;
+            
+        case HEARTBEAT:
+            break;
+        case AUTHENTICATION_MESSAGE:
+        case SUBSCRIBE_MESSAGE:
+        case PULL_REQUEST:
+        case UNSUBSCRIBE_MESSAGE:
+            logger.warn( "received an outbound message type {}", mw.getType());
+            break;
+        default:
+            logger.error( "mw.getType() returned an unexpected type. {}", mw.getType());
+        }
+        return true;
+    }
+
+
+    /**
+     * Get the session id set by the gateway.
+     *
+     * @param mw
+     * @return
+     */
+    private boolean receiveAuthenticationResponse(Context context, AmmoMessages.MessageWrapper mw) {
+        logger.info("::receiveAuthenticationResponse");
+
+        if (mw == null) return false;
+        if (! mw.hasAuthenticationResult()) return false;
+        if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
+            return false;
+        }
+        PreferenceManager
+            .getDefaultSharedPreferences(context)
+            .edit()
+            .putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+            .commit();
+        // sessionId = mw.getSessionUuid();
+
+        // the distributor doesn't need to know about authentication results.
+        return true;
+    }
+    
+    /**
+     * Get response to PushRequest from the gateway.
+     * (PushResponse := PushAcknowledgement)
+     *
+     * @param mw
+     * @return
+     */
+    private boolean receivePushResponse(Context context, AmmoMessages.MessageWrapper mw) {
+        logger.info("::receivePushResponse");
+
+        if (mw == null) return false;
+        if (! mw.hasPushAcknowledgement()) return false;
+        // PushAcknowledgement pushResp = mw.getPushAcknowledgement();
+        return true;
+    }
+
+
+    /**
+     * Get response to RetrievalRequest, PullResponse, from the gateway.
+     *
+     * @param mw
+     * @return
+     */
+    private boolean receivePullResponse(Context context, AmmoMessages.MessageWrapper mw) {
+        logger.info("::receivePullResponse");
+
+        if (mw == null) return false;
+        if (! mw.hasPullResponse()) return false;
+        final AmmoMessages.PullResponse resp = mw.getPullResponse();
+
+        String uriStr = resp.getRequestUid(); 
+        // FIXME --- why do we have uri in data message and retrieval response?
+        Uri uri = Uri.parse(uriStr);
+        ContentResolver cr = context.getContentResolver();
+
+        try {
+            Uri serialUri = Uri.withAppendedPath(uri, "_serial");
+            OutputStream outstream = cr.openOutputStream(serialUri);
+
+            if (outstream == null) {
+                logger.error( "could not open output stream to content provider: {} ",serialUri);
+                return false;
+            }
+            ByteString data = resp.getData();
+
+            if (data != null) {
+                outstream.write(data.toByteArray());
+            }
+            outstream.close();
+
+            // This update/delete the retrieval request as it has been fulfilled.
+            
+            String selection = "\"" + RetrievalTableSchema.URI +"\" = '" + uri +"'";
+            Cursor cursor = cr.query(RetrievalTableSchema.CONTENT_URI, null, selection, null, null);
+            if (!cursor.moveToFirst()) {
+                logger.info("no matching retrieval: {}", selection);
+                cursor.close();
+                return false;
+            }
+            final Uri retrieveUri = RetrievalTableSchema.getUri(cursor);
+            cursor.close ();
+            ContentValues values = new ContentValues();
+            values.put(RetrievalTableSchema.DISPOSITION, RetrievalTableSchema.DISPOSITION_SATISFIED);
+
+            @SuppressWarnings("unused")
+            int numUpdated = cr.update(retrieveUri, values,null, null);
+            
+        } catch (FileNotFoundException e) {
+            logger.warn("could not connect to content provider");
+            return false;
+        } catch (IOException e) {
+            logger.warn("could not write to the content provider");
+        }
+        return true;
+    }
+
+    /**
+     * Update the content providers as appropriate. These are typically received
+     * in response to subscriptions.
+     * 
+     * The subscribing uri isn't sent with the subscription to the gateway
+     * therefore it needs to be recovered from the subscription table.
+     */
+
+
+    private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw) {
+        if (mw == null) return false;
+        if (! mw.hasDataMessage()) return false;
+        final AmmoMessages.DataMessage resp = mw.getDataMessage();
+
+        logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
+        String mime = resp.getMimeType();
+        ContentResolver cr = context.getContentResolver();
+        String tableUriStr = null;
+
+        try {
+            Cursor subCursor = cr.query(
+                    SubscriptionTableSchema.CONTENT_URI,
+                    null,
+                    "\"" + SubscriptionTableSchema.MIME + "\" = '" + mime + "'",
+                    null, null);
+
+            if (!subCursor.moveToFirst()) {
+                logger.info("no matching subscription");
+                subCursor.close();
+                return false;
+            }
+            tableUriStr = subCursor.getString(subCursor.getColumnIndex(SubscriptionTableSchema.URI));
+            subCursor.close();
+
+            Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
+            OutputStream outstream = cr.openOutputStream(tableUri);
+
+            if (outstream == null) {
+                logger.error("the content provider {} is not available", tableUri);
+                return false;
+            }
+            outstream.write(resp.getData().toByteArray());
+            outstream.flush();
+            outstream.close();
+            return true;
+        } catch (IllegalArgumentException ex) {
+            logger.warn("could not serialize to content provider: {} : {}", tableUriStr, ex.getLocalizedMessage());
+            return false;
+        } catch (FileNotFoundException ex) {
+            logger.warn("could not connect to content provider using openFile: {}", ex.getLocalizedMessage());
+            return false;
+        } catch (IOException ex) {
+            logger.warn("could not write to the content provider {}", ex.getLocalizedMessage());
+            return false;
+        } 
+    }
+    
 }
