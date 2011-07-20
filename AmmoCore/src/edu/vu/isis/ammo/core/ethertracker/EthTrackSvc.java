@@ -18,13 +18,12 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ServiceEx;
-import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.network.NetworkService.MyBinder;
 
 public class EthTrackSvc extends ServiceEx {
 
     private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
-    private ApplicationEx application;
+    @SuppressWarnings("unused")
+	private ApplicationEx application;
 
     private boolean mIsLinkUp = false;
 

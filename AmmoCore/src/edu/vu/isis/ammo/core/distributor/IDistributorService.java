@@ -1,14 +1,10 @@
 package edu.vu.isis.ammo.core.distributor;
 
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 
 /**
  * This interface declares different callback methods that will be used by 
  * different services within AmmoCore. 
- * @author Demetri Miller
  *
  */
 public interface IDistributorService {

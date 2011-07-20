@@ -1,6 +1,5 @@
 package edu.vu.isis.ammo.core.network;
 
-import java.util.zip.CRC32;
 
 
 public interface INetChannel
