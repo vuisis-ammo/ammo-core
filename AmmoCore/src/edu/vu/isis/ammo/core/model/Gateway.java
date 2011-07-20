@@ -10,10 +10,8 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.preference.PreferenceManager;
 import android.view.View;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 /**
  * The Ammo core is responsible for distributing

@@ -24,6 +24,7 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 	public void onCreate(Bundle bun) {
 		this.uri = RetrievalTableSchema.CONTENT_URI;
 		
+		@SuppressWarnings("unused")
 		String[] projection = {RetrievalTableSchema._ID, 
 				RetrievalTableSchema.DISPOSITION,
 				RetrievalTableSchema.URI, 

@@ -1,24 +1,29 @@
 package edu.vu.isis.ammo.core.network;
 
-import java.util.zip.CRC32;
 
 
-public interface INetChannel
-{
+/**
+ * The NetChannel is some mechanism for establishing a network connection
+ * over which requests will be sent to "the cloud".
+ * Typically this will be a socket.
+ *
+ */
+
+public interface INetChannel {
     int PENDING         =  0; // the run failed by some unhandled exception
     int EXCEPTION       =  1; // the run failed by some unhandled exception
 
     int CONNECTING      = 20; // trying to connect
     int CONNECTED       = 21; // the socket is good an active
 
-    
+
     int DISCONNECTED    = 30; // the socket is disconnected
     int STALE           = 31; // indicating there is a message
     int LINK_WAIT       = 32; // indicating the underlying link is down
     int LINK_ACTIVE     = 33; // indicating the underlying link is down -- unused
     int DISABLED		= 34; // indicating the link is disabled
-    
-    
+
+
     int WAIT_CONNECT    = 40; // waiting for connection
     int SENDING         = 41; // indicating the next thing is the size
     int TAKING          = 42; // indicating the next thing is the size
@@ -32,7 +37,7 @@ public interface INetChannel
     int SIZED           = 56; // indicating the next thing is a checksum
     int CHECKED         = 57; // indicating the bytes are being read
     int DELIVER         = 58; // indicating the message has been read
-    
+
     String showState(int state);
 
     boolean isConnected();
@@ -50,9 +55,14 @@ public interface INetChannel
     void linkUp();
     void linkDown();
     void reset();
-    boolean sendRequest( int size,
-                         CRC32 checksum,
-                         byte[] payload,
-                         INetworkService.OnSendMessageHandler handler );
+
+    /**
+     * The method to post things to the channel input queue.
+     *
+     * @param req
+     * @return
+     */
+    boolean sendRequest( AmmoGatewayMessage agm );
     String getLocalIpAddress();
+
 }

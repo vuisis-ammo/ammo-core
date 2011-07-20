@@ -5,6 +5,8 @@
 
 package edu.vu.isis.ammo.core.network;
 
+import edu.vu.isis.ammo.core.pb.AmmoMessages;
+
 
 /**
  * Used by channel classes to interact with the NetworkService.
@@ -24,12 +26,11 @@ public interface IChannelManager
 
     /**
      * @param message
-     * @param checksum
+     * @param payload_checksum
      *
      * @return boolean
      */
-    boolean deliver( byte[] message,
-                     long checksum );
+    boolean deliver( AmmoGatewayMessage message );
 
 
     /**
@@ -51,4 +52,12 @@ public interface IChannelManager
      * @return boolean
      */
     boolean isAnyLinkUp();
+
+    void authorizationSucceeded( AmmoGatewayMessage agm );
+
+    // FIXME: this is a temporary hack to get authentication working again,
+    // until Nilabja's new code is implemented.  Remove this afterward, and
+    // make the NetworkService's method private again (if it doesn't go away).
+    public AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest();
+
 }

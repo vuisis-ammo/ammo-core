@@ -14,14 +14,11 @@ import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.distributor.DistributorService;
-import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
-import edu.vu.isis.ammo.core.ui.AmmoActivity;
-
-import android.app.Activity;
 import android.app.Application;
 import android.content.Intent;
 import android.os.Environment;
+import edu.vu.isis.ammo.core.distributor.DistributorService;
+import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
 public class ApplicationEx  extends Application {
     private static final Logger logger = LoggerFactory.getLogger(ApplicationEx.class);
