@@ -151,9 +151,17 @@ public class DistributorThread extends
                 }
                 if (this.receiptDelta.getAndSet(false)) {
                     while (!this.queue.isEmpty()) {
-                        AmmoGatewayMessage agm = this.queue.take();
-                        for (DistributorService that : them) {
-                            this.processGatewayMessage(that, agm);
+                        Object obj = null;
+                        // FIXME the queue should only containt AmmoGatewayMessage's 
+                        // why was a ClassCastException happening?
+                        try {
+                             obj = this.queue.take();
+                             AmmoGatewayMessage agm = (AmmoGatewayMessage) obj;
+                            for (DistributorService that : them) {
+                                this.processGatewayMessage(that, agm);
+                            }
+                        } catch (ClassCastException ex) {
+                            logger.error("queue contains illegal item of class {}", obj.getClass());
                         }
                     }
                 }
