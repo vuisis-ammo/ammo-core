@@ -109,7 +109,6 @@ implements OnSharedPreferenceChangeListener,
     private String operatorId = "0004";
     private String operatorKey = "37";
     
-    private AmmoSecurityManager	secMgr = null;
 
     // journalingSwitch
     private boolean journalingSwitch = false;
@@ -390,7 +389,7 @@ implements OnSharedPreferenceChangeListener,
      */
     private AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
         logger.info("::buildAuthenticationRequest");
-/*
+
         AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
         mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
         mw.setSessionUuid(sessionId);
@@ -423,11 +422,6 @@ implements OnSharedPreferenceChangeListener,
 
         mw.setAuthenticationMessage(authreq);
         return mw;
-*/
-        if (secMgr == null)
-        	secMgr = new AmmoSecurityManager();
-
-        return secMgr.getClientNonce(UniqueIdentifiers.device(this.getApplicationContext()));
     }
 
     /**
@@ -448,10 +442,10 @@ implements OnSharedPreferenceChangeListener,
         //if (mw.getAuthenticationMessage().has.getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
             return false;
         }
+ /*       	
         else 
         {
         	// Device authentication worked, so now verify the Gateway, sign 
- /*       	
         	Ammo_Crypto crp = new Ammo_Crypto ();
         	
         	boolean result = crp.verify("/mnt/sdcard/public_key_gateway.der",
@@ -475,7 +469,6 @@ implements OnSharedPreferenceChangeListener,
             Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
             loginIntent.putExtra("operatorId", operatorId);
             this.sendBroadcast(loginIntent);
- */
         	if (mw.getAuthenticationMessage().getType() == AmmoMessages.AuthenticationMessage.Type.SERVER_NONCE)
         	{     		
 
@@ -574,6 +567,7 @@ implements OnSharedPreferenceChangeListener,
         	
         	        	
         }
+ */
         PreferenceManager
             .getDefaultSharedPreferences(this)
             .edit()
