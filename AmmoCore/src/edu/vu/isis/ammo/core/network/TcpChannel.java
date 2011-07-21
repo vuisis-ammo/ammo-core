@@ -291,7 +291,12 @@ public class TcpChannel extends NetChannel {
         else
         {
             logger.info( " delivering to security object" );
-            result = getSecurityObject().deliverMessage( agm );
+            ISecurityObject so = getSecurityObject();
+            if (so == null) {
+                logger.warn("security object not set");
+                return false;
+            }
+            result = so.deliverMessage( agm );
         }
         return result;
     }
@@ -1037,6 +1042,7 @@ public class TcpChannel extends NetChannel {
                         }
                         // if the message is TOO BIG throw away the message
                         if (agmb.size > MAX_MESSAGE_SIZE) {
+                            logger.warn("discarding message of size {}", agmb.size);
                             int size = agmb.size;
                             while (true) {
                                 if (drain.remaining() < size) {
@@ -1071,13 +1077,14 @@ public class TcpChannel extends NetChannel {
                             AmmoGatewayMessage agm = agmb.payload(payload);
                             setReceiverState( INetChannel.DELIVER );
                             mDestination.deliverMessage( agm );
-                            logger.debug( "processed a message" );
+                            logger.info( "processed a message {}", 
+                                    agm.payload_checksum );
                             break;
                         }
                     }
                     mDestination.resetTimeoutWatchdog();
                 } catch (ClosedChannelException ex) {
-                	logger.warn("receiver threw exception {}", ex.getStackTrace());
+                    logger.warn("receiver threw exception {}", ex.getStackTrace());
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 } catch ( Exception ex ) {

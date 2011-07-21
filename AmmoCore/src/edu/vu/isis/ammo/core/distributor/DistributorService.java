@@ -361,7 +361,7 @@ public class DistributorService extends Service implements IDistributorService {
 
 
     public boolean deliver(AmmoGatewayMessage agm) {
-    	return pct.deliver(agm);
+    	return pct.distributeResponse(agm);
     }
    
 }

@@ -55,13 +55,13 @@ public class DistributorThread extends
     // 20 seconds expressed in milliseconds
     private static final int BURP_TIME = 20 * 1000;
 
-    //private final PriorityBlockingQueue<AmmoGatewayMessage> req_queue;
+    private final PriorityBlockingQueue<AmmoGatewayMessage> req_queue;
     private final PriorityBlockingQueue<AmmoGatewayMessage> resp_queue;
     
     public DistributorThread() {
         super();
-        //this.resp_queue = new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
-                //new AmmoGatewayMessage.PriorityOrder());
+        this.req_queue = new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
+                new AmmoGatewayMessage.PriorityOrder());
         this.resp_queue = new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
                         new AmmoGatewayMessage.PriorityOrder());
     }
@@ -69,39 +69,49 @@ public class DistributorThread extends
     private AtomicBoolean subscriptionDelta = new AtomicBoolean(true);
 
     public void subscriptionChange() {
-        if (this.subscriptionDelta.compareAndSet(false, true)) 
-            synchronized(this) { this.notifyAll(); }
+    	this.signal(this.subscriptionDelta);
     }
 
     private AtomicBoolean retrievalDelta = new AtomicBoolean(true);
 
     public void retrievalChange() {
-        if (this.retrievalDelta.compareAndSet(false, true)) 
-            synchronized(this) { this.notifyAll(); }
+    	this.signal(this.retrievalDelta);
     }
 
     private AtomicBoolean postalDelta = new AtomicBoolean(true);
 
     public void postalChange() {
-        if (this.postalDelta.compareAndSet(false, true)) 
-            synchronized(this) { this.notifyAll(); }
+    	this.signal(this.postalDelta);
     }
     
-    private AtomicBoolean receiptDelta = new AtomicBoolean(false);
+    private AtomicBoolean requestDelta = new AtomicBoolean(true);
     
-    public boolean deliver(AmmoGatewayMessage agm)
+    public boolean distributeRequest(AmmoGatewayMessage agm)
+    {
+        this.req_queue.put(agm);
+        this.signal(this.requestDelta);
+        return true;
+    }
+    
+    private AtomicBoolean responseDelta = new AtomicBoolean(false);
+    
+    public boolean distributeResponse(AmmoGatewayMessage agm)
     {
         this.resp_queue.put(agm);
-        if (this.receiptDelta.compareAndSet(false, true)) 
-            synchronized(this) { this.notifyAll(); }
+        this.signal(this.responseDelta);
         return true;
+    }
+    
+    private void signal(AtomicBoolean atom) {
+    	if (!atom.compareAndSet(false, true)) return;
+        synchronized(this) { this.notifyAll(); }
     }
 
     private boolean isReady() {
         if (this.subscriptionDelta.get()) return true;
         if (this.retrievalDelta.get()) return true;
         if (this.postalDelta.get()) return true;
-        if (this.receiptDelta.get()) return true;
+        if (this.responseDelta.get()) return true;
         return false;
     }
 
@@ -111,7 +121,7 @@ public class DistributorThread extends
         this.subscriptionDelta.set(true);
         this.retrievalDelta.set(true);
         this.postalDelta.set(true);
-        this.receiptDelta.set(true);
+        this.responseDelta.set(true);
         synchronized(this) { this.notifyAll(); }
     }
 
@@ -153,7 +163,7 @@ public class DistributorThread extends
                         this.processPostalChange(that, resend);
                     }
                 }
-                if (this.receiptDelta.getAndSet(false)) {
+                if (this.responseDelta.getAndSet(false)) {
                     while (!this.resp_queue.isEmpty()) {
                         try {
                              AmmoGatewayMessage agm = this.resp_queue.take();

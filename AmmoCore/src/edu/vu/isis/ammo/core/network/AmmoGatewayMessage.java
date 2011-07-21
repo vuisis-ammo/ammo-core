@@ -48,7 +48,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class AmmoGatewayMessage implements Comparable<Object> {
     private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
     
-    private static final int MAGIC = 0xfeedbeef; // {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
+    private static final byte[] MAGIC = {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
     
     @SuppressWarnings("unused")
     private static final long INT_MASK = 0x0FFFFFFFFL; // 
@@ -192,7 +192,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
          ByteBuffer buf = ByteBuffer.allocate( total_length );
          buf.order( endian );
          
-         buf.putInt(MAGIC);
+         buf.put(MAGIC[3]);
+         buf.put(MAGIC[2]);
+         buf.put(MAGIC[1]);
+         buf.put(MAGIC[0]);
          
          buf.putInt( this.size );
          logger.debug( "   size={}", this.size );
@@ -233,11 +236,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 drain.mark();
                 int start = drain.arrayOffset() + drain.position();
                 // search for the magic
-                if (drain.getInt() != MAGIC) continue;
-                //if (drain.get() != MAGIC[0]) continue;
-                //if (drain.get() != MAGIC[1]) continue;
-                //if (drain.get() != MAGIC[2]) continue;
-                //if (drain.get() != MAGIC[3]) continue;
+                if (drain.get() != MAGIC[3]) continue;
+                if (drain.get() != MAGIC[2]) continue;
+                if (drain.get() != MAGIC[1]) continue;
+                if (drain.get() != MAGIC[0]) continue;
                 
                 int size = drain.getInt();
                 
