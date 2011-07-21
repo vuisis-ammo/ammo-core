@@ -1041,6 +1041,13 @@ public class TcpChannel extends NetChannel {
                     for (AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader(bbuf);
                         agmb != null; agmb = AmmoGatewayMessage.extractHeader(bbuf)) 
                     {
+                        // if the message size is zero then there may be an error
+                        if (agmb.size() < 1) {
+                            logger.warn("discarding empty message error {}",
+                                    agmb.error());
+                            // TODO cause the reconnection behavior to change based on the error code
+                            continue;
+                        }
                         // if the message is TOO BIG then throw away the message
                         if (agmb.size() > MAX_MESSAGE_SIZE) {
                             logger.warn("discarding message of size {} with checksum {}", 
@@ -1058,6 +1065,7 @@ public class TcpChannel extends NetChannel {
                                 bbuf.position(size);
                                 break;
                             }
+                            continue;
                         }
                         // extract the payload
                         byte[] payload = new byte[agmb.size()];
@@ -1111,7 +1119,7 @@ public class TcpChannel extends NetChannel {
 
         public synchronized int getReceiverState() { return mState; }
 
-        private int mState = INetChannel.TAKING; // fixme
+        private int mState = INetChannel.TAKING; // FIXME
         private ConnectorThread mParent;
         private TcpChannel mDestination;
         private SocketChannel mSocketChannel;

@@ -142,6 +142,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public Builder priority(byte val) { this.priority = val; return this; }
         public Builder priority(int val) { this.priority = (byte)val; return this; }
         
+        private byte error;
+        public byte error() { return this.error; }
+        public Builder error(byte val) { this.error = val; return this; }
+        public Builder error(int val) { this.error = (byte)val; return this; }
+        
         private long checksum;
         public long checksum() { return this.checksum; }
         public Builder checksum(long val) { this.checksum = val; return this; }
@@ -280,8 +285,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 int priority = drain.get() & BYTE_MASK;
                 logger.debug( "   priority={}", priority );
                 
+                int error = drain.get() & BYTE_MASK;
+                logger.debug( "   error={}", error );
+                
                 // reserved bytes
-                drain.get();  
                 drain.getShort();
                 
                 byte[] checkBytes = new byte[ 4 ];
@@ -299,7 +306,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 if (header_checksum != crc32.getValue()) 
                     continue;
     
-                return AmmoGatewayMessage.newBuilder(size, payload_checksum, (byte)priority, null);
+                return AmmoGatewayMessage.newBuilder()
+                         .size(size)
+                         .checksum(payload_checksum)
+                         .priority(priority)
+                         .error(error);
             }
         } catch (BufferUnderflowException ex) {
             // the data was looking like a header as far as it went
@@ -323,6 +334,29 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.v = value;
         }
     }
+    
+    /**
+     * error values for MessageHeader
+     * 
+     * These error codes are for the reasons why the gateway may subsequently disconnect.
+     * If the error code is non-zero, the message size and checksum will be zero.
+     * The headerChecksum is present and is calculated normally.
+     * The key to deciding whether to process the message should be the 
+     * message length and not the error code.
+     */
+    public enum GatewayError {
+       NO_ERROR(0),
+       INVALID_MAGIC_NUMBER(1),
+       INVALID_HEADER_CHECKSUM(2),
+       INVALID_MESSAGE_CHECKSUM(3),
+       MESSAGE_TOO_LARGE(4);
+       public int v;
+       public byte b() { return (byte) this.v; }
+       private GatewayError(int value) {
+           this.v = value;
+       }
+    }
+
     
     /**
      * The four least significant bytes of a long 
