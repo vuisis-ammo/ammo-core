@@ -55,11 +55,15 @@ public class DistributorThread extends
     // 20 seconds expressed in milliseconds
     private static final int BURP_TIME = 20 * 1000;
 
-    private final PriorityBlockingQueue<AmmoGatewayMessage> queue;
+    //private final PriorityBlockingQueue<AmmoGatewayMessage> req_queue;
+    private final PriorityBlockingQueue<AmmoGatewayMessage> resp_queue;
     
     public DistributorThread() {
         super();
-        this.queue = new PriorityBlockingQueue<AmmoGatewayMessage>();
+        //this.resp_queue = new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
+                //new AmmoGatewayMessage.PriorityOrder());
+        this.resp_queue = new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
+                        new AmmoGatewayMessage.PriorityOrder());
     }
     
     private AtomicBoolean subscriptionDelta = new AtomicBoolean(true);
@@ -87,7 +91,7 @@ public class DistributorThread extends
     
     public boolean deliver(AmmoGatewayMessage agm)
     {
-        this.queue.put(agm);
+        this.resp_queue.put(agm);
         if (this.receiptDelta.compareAndSet(false, true)) 
             synchronized(this) { this.notifyAll(); }
         return true;
@@ -150,14 +154,14 @@ public class DistributorThread extends
                     }
                 }
                 if (this.receiptDelta.getAndSet(false)) {
-                    while (!this.queue.isEmpty()) {
+                    while (!this.resp_queue.isEmpty()) {
                         try {
-                             AmmoGatewayMessage agm = this.queue.take();
+                             AmmoGatewayMessage agm = this.resp_queue.take();
                             for (DistributorService that : them) {
                                 this.processGatewayMessage(that, agm);
                             }
                         } catch (ClassCastException ex) {
-                            logger.error("queue contains illegal item of class {}", 
+                            logger.error("resp_queue contains illegal item of class {}", 
                                     ex.getLocalizedMessage());
                         }
                     }

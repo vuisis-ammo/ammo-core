@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Comparator;
 import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
@@ -44,7 +45,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * The header checksum, the CRC32 checksum of the header, not including the payload nor itself.
  * 
  */
-public class AmmoGatewayMessage implements Comparable {
+public class AmmoGatewayMessage implements Comparable<Object> {
     private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
     
     private static final int MAGIC = 0xfeedbeef; // {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
@@ -71,6 +72,9 @@ public class AmmoGatewayMessage implements Comparable {
     public final byte[] payload;
     public final INetworkService.OnSendMessageHandler handler;
 
+
+    
+
     /**
      * @return
      * a negative integer if this instance is less than another; 
@@ -83,18 +87,49 @@ public class AmmoGatewayMessage implements Comparable {
      * @throws
      * ClassCastException
      */
-	@Override
-	public int compareTo(Object another) {
-		if (another instanceof AmmoGatewayMessage) 
-			throw new ClassCastException("does not compare with AmmoGatewayMessage");
-		
-		AmmoGatewayMessage that = (AmmoGatewayMessage) another;
-		if (this.priority > that.priority) return 1;
-		if (this.priority < that.priority) return -1;
-		if (this.size < that.size) return 1;
-		if (this.size > that.size) return -1;
-		return 0;
-	}
+    @Override
+    public int compareTo(Object another) {
+        if (another instanceof AmmoGatewayMessage) 
+            throw new ClassCastException("does not compare with AmmoGatewayMessage");
+        
+        AmmoGatewayMessage that = (AmmoGatewayMessage) another;
+        if (this.priority > that.priority) return 1;
+        if (this.priority < that.priority) return -1;
+        if (this.size < that.size) return 1;
+        if (this.size > that.size) return -1;
+        if (this.payload_checksum < that.payload_checksum) return 1;
+        if (this.payload_checksum > that.payload_checksum) return -1;
+        return 0;
+    }
+    /**
+     * The recommendation is that equals conforms to compareTo.
+     */
+    @Override
+    public boolean equals(Object another) {
+        return (this.compareTo(another) == 0);
+    }
+    
+    /**
+     * A functor to be used in cases such as PriorityQueue.
+     * This gives a partial ordering, rather than total ordering of the natural order.
+     */
+    public static class PriorityOrder implements Comparator<AmmoGatewayMessage> {
+        @Override
+        public int compare(AmmoGatewayMessage o1, AmmoGatewayMessage o2) {
+             if (o1.priority > o2.priority) return 1;
+             if (o1.priority < o2.priority) return -1;
+             return 0;
+        }
+    }
+    
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("size").append(this.size).append(" ");
+        sb.append("priority").append(this.priority).append(" ");
+        sb.append("payload checksum").append(Long.toHexString(this.payload_checksum)).append(" ");
+        return sb.toString();
+    }
 
     static public class Builder {
         public final int size;
