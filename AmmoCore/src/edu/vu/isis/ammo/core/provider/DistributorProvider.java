@@ -1,62 +1,18 @@
 package edu.vu.isis.ammo.core.provider;
 
-import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
-
-import android.content.BroadcastReceiver;
-import android.content.ContentProvider;
-import android.content.ContentResolver;
-import android.content.ContentUris;
-import android.content.ContentValues;
-import android.content.IntentFilter;
-import android.content.UriMatcher;
-import android.content.Context;
-
-import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
-import android.database.sqlite.SQLiteQueryBuilder;
-import android.database.Cursor;
-
-import android.net.Uri;
-import android.os.Environment;
-import android.os.FileObserver;
-import android.os.ParcelFileDescriptor;
-import android.text.TextUtils;
-import android.util.Log;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.InputStream;
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
-import java.util.List;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Set;
-import java.util.HashSet;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-
-
-import edu.vu.isis.ammo.core.provider.DistributorSchema;
-
+import android.content.ContentUris;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
+import android.text.TextUtils;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PostalTableSchemaBase;
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.RetrievalTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PublicationTableSchemaBase;
+import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.RetrievalTableSchemaBase;
 import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.SubscriptionTableSchemaBase;
 
 

@@ -5,31 +5,21 @@
 
 package edu.vu.isis.ammo.core.network;
 
+import edu.vu.isis.ammo.core.pb.AmmoMessages;
+
 
 /**
  * Used by channel classes to interact with the NetworkService.
  */
 public interface IChannelManager
-{
-   /**
-     * Used to acquire the session id by which subsequent communication will be
-     * tracked.
-     *
-     * @param void
-     *
-     * @return boolean
-     */
-    boolean auth();
-
-
+{   
     /**
      * @param message
-     * @param checksum
+     * @param payload_checksum
      *
      * @return boolean
      */
-    boolean deliver( byte[] message,
-                     long checksum );
+    boolean deliver( AmmoGatewayMessage message );
 
 
     /**
@@ -52,5 +42,5 @@ public interface IChannelManager
      */
     boolean isAnyLinkUp();
 
-    void authorizationSucceeded();
+    void authorizationSucceeded( AmmoGatewayMessage agm );
 }

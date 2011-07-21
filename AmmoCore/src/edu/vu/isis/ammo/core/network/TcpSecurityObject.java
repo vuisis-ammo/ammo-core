@@ -2,60 +2,72 @@
 
 package edu.vu.isis.ammo.core.network;
 
-
-import java.util.zip.CRC32;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import edu.vu.isis.ammo.core.network.NetworkService.MsgHeader;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.security.AmmoSecurityManager;
 
 
-public class TcpSecurityObject implements ISecurityObject
+
+public class TcpSecurityObject implements ISecurityObject,
+                                          INetworkService.OnSendMessageHandler
 {
     private static final Logger logger = LoggerFactory.getLogger( TcpSecurityObject.class );
+    
+    private Context mContext;
+    
+    private String mOperatorId;
+    private String mOperatorKey;
+    private String mDeviceId;
 
-    TcpSecurityObject( TcpChannel iChannel )
+    TcpSecurityObject( TcpChannel iChannel, Context context )
     {
         logger.info( "Constructor of TcpSecurityObject." );
         mChannel = iChannel;
+        
+        mContext = context;
     }
 
 
     private AmmoSecurityManager	secMgr = null;
-    
+
     public void authorize()
     {
         logger.info( "TcpSecurityObject::authorize()." );
 
         // Start the authorization process.
+
+        //getPreferences();
+        
         if (secMgr == null)
-        	secMgr = new AmmoSecurityManager();
+        	secMgr = new AmmoSecurityManager("DeviceID");
 
-        AmmoMessages.MessageWrapper.Builder mw = 
-        	//secMgr.getClientNonce(UniqueIdentifiers.device(this.getApplicationContext()));
-        	secMgr.getClientNonce("DeviceID");
-        byte[] protocByteBuf = mw.build().toByteArray();
-        MsgHeader msgHeader = MsgHeader.getInstance( protocByteBuf, true );
 
-        mChannel.putFromSecurityObject( msgHeader.size,
-                                        msgHeader.checksum,
-                                        protocByteBuf,
-                                        null );
+
+
+        AmmoMessages.MessageWrapper.Builder builder = getClientNonce ();        
+        
+        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance(builder, this );
+
+        mChannel.putFromSecurityObject( agm );
         mChannel.finishedPuttingFromSecurityObject();
     }
 
 
-    public boolean deliverMessage( byte[] message,
-                                   long checksum )
+
+    public boolean deliverMessage( AmmoGatewayMessage agm )
     {
         logger.info( "Delivering message to TcpSecurityObject." );
-
+/*
         CRC32 crc32 = new CRC32();
         crc32.update(message);
         if (crc32.getValue() != checksum) {
@@ -65,12 +77,12 @@ public class TcpSecurityObject implements ISecurityObject
             logger.warn(msg);
             return false;
         }
-
+*/
         AmmoMessages.MessageWrapper mw = null;
         
         try {
         
-        	mw = AmmoMessages.MessageWrapper.parseFrom(message);
+        	mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
         	
         } 
         catch (InvalidProtocolBufferException ex) 
@@ -102,31 +114,13 @@ public class TcpSecurityObject implements ISecurityObject
         		
         		secMgr.setServerNonce(mw.getAuthenticationMessage().getMessage().toByteArray());
         		
-       
 
-        		// send the keyExchange ...
-        		AmmoMessages.MessageWrapper.Builder msgW = AmmoMessages.MessageWrapper.newBuilder();
-	            msgW.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
-	            //mw.setSessionUuid(sessionId);
-	          
-	            AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
-	            authreq.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_KEYXCHANGE);
-	            authreq.setMessage(ByteString.copyFrom(secMgr.generateKeyExchange()));
-	
-	            msgW.setAuthenticationMessage(authreq);
-	            
-	            byte[] protocByteBuf = msgW.build().toByteArray();
-	            MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
-	
-	           // sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this);
-	            
-	            
-	            mChannel.putFromSecurityObject(	msgHeader.size,
-	            								msgHeader.checksum,
-	            								protocByteBuf,
-	            								null);
-        
-	            
+        		//send the key Exchange
+        		AmmoMessages.MessageWrapper.Builder builder = getKeyExchange();
+        		
+	            AmmoGatewayMessage agmout = AmmoGatewayMessage.getInstance(builder, this );
+
+	            mChannel.putFromSecurityObject( agmout );
 	            
 	            // now wait for a second or two and then send the PhoneAuth msg 
 /*	            try {
@@ -139,26 +133,12 @@ public class TcpSecurityObject implements ISecurityObject
 				}*/
 
 	        	//send it the phone auth message
-				AmmoMessages.MessageWrapper.Builder phnAuth = AmmoMessages.MessageWrapper.newBuilder();
-	            phnAuth.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
-	            //mw.setSessionUuid(sessionId);
-	          
-	            AmmoMessages.AuthenticationMessage.Builder phnAuthauth = AmmoMessages.AuthenticationMessage.newBuilder();
-	
-	            phnAuthauth.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_PHNAUTH);
-	            phnAuthauth.setMessage(ByteString.copyFrom(secMgr.generatePhoneAuth()));
+        		builder = getPhoneAuth();
+        		
+	            agmout = AmmoGatewayMessage.getInstance(builder, this );
 
-	        	phnAuth.setAuthenticationMessage(phnAuthauth);
-	            
-	            byte[] phnAuthProtocByteBuf = phnAuth.build().toByteArray();
-	            MsgHeader msgHeaderPhnAuth = MsgHeader.getInstance(phnAuthProtocByteBuf , true);
-	
-//	            sendRequest(msgHeaderPhnAuth.size, msgHeaderPhnAuth.checksum, phnAuthProtocByteBuf , this);
+	            mChannel.putFromSecurityObject( agmout );
 
-	            mChannel.putFromSecurityObject(	msgHeaderPhnAuth.size,
-	            								msgHeaderPhnAuth.checksum,
-	            								phnAuthProtocByteBuf,
-	            								null);
 	            // compute the master secret ....
 	            secMgr.computeMasterSecret();
 	            
@@ -173,29 +153,14 @@ public class TcpSecurityObject implements ISecurityObject
 				}
 	            // send the phone finish ....
 	            
-				AmmoMessages.MessageWrapper.Builder phnFinish = AmmoMessages.MessageWrapper.newBuilder();
-	            phnFinish.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
-	            //mw.setSessionUuid(sessionId);
-	          
-	            AmmoMessages.AuthenticationMessage.Builder phnFinAuth = AmmoMessages.AuthenticationMessage.newBuilder();
-	
-	            phnFinAuth.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_FINISH);
-	            phnFinAuth.setMessage(ByteString.copyFrom(secMgr.generatePhoneFinish()));
+        		builder = getPhoneFinish();
+        		
+	            agmout = AmmoGatewayMessage.getInstance(builder, this );
 
-	        	phnFinish.setAuthenticationMessage(phnFinAuth);
-	            
-	            byte[] phnFinProtocByteBuf = phnFinish.build().toByteArray();
-	            MsgHeader msgHeaderPhnFin = MsgHeader.getInstance(phnFinProtocByteBuf , true);
-	
-	           // sendRequest(msgHeaderPhnFin.size, msgHeaderPhnFin.checksum, phnFinProtocByteBuf , this);
-
-	            
-	            mChannel.putFromSecurityObject(	msgHeaderPhnFin.size,
-	            								msgHeaderPhnFin.checksum,
-	            								phnFinProtocByteBuf,
-	            								null);
+	            mChannel.putFromSecurityObject( agmout );
 	            
 	            mChannel.finishedPuttingFromSecurityObject();
+	            
 	        	return true;
         	}
         	else if (mw.getAuthenticationMessage().getType() == AmmoMessages.AuthenticationMessage.Type.SERVER_FINISH)
@@ -209,17 +174,98 @@ public class TcpSecurityObject implements ISecurityObject
         			System.out.println("Gateway Finish Cannot Verify");
         			
         	}
-        	
-        	        	
         }
         
         
         // For now we haven't implemented any security.  Just
         // authorize if we receive a packet back from the server.
-        mChannel.authorizationSucceeded();
+        mChannel.authorizationSucceeded( agm );
 
         // If authorization fails, call mChannel.authorizationFailed();
 
+        return true;
+    }
+
+	private AmmoMessages.MessageWrapper.Builder getClientNonce () 
+	{
+
+		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+		mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+
+		mw.setSessionUuid("");
+  
+	    AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
+//	    authreq.setDeviceId(mDeviceId);
+	    // HACKKKKKK
+	    authreq.setDeviceId("DeviceID");
+	    authreq.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_NONCE);
+	    authreq.setMessage(ByteString.copyFrom(secMgr.getNonce()));
+	
+	    mw.setAuthenticationMessage(authreq);
+	    return mw;
+	}
+
+	private AmmoMessages.MessageWrapper.Builder getKeyExchange () 
+	{		
+		AmmoMessages.MessageWrapper.Builder msgW = AmmoMessages.MessageWrapper.newBuilder();
+        msgW.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+        //mw.setSessionUuid(sessionId);
+      
+        AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
+        authreq.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_KEYXCHANGE);
+        authreq.setMessage(ByteString.copyFrom(secMgr.generateKeyExchange()));
+
+        msgW.setAuthenticationMessage(authreq);
+        
+        return msgW;
+	}
+	
+	private AmmoMessages.MessageWrapper.Builder getPhoneFinish() 
+	{
+		AmmoMessages.MessageWrapper.Builder phnFinish = AmmoMessages.MessageWrapper.newBuilder();
+        phnFinish.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+        //mw.setSessionUuid(sessionId);
+      
+        AmmoMessages.AuthenticationMessage.Builder phnFinAuth = AmmoMessages.AuthenticationMessage.newBuilder();
+
+        phnFinAuth.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_FINISH);
+        phnFinAuth.setMessage(ByteString.copyFrom(secMgr.generatePhoneFinish()));
+
+    	phnFinish.setAuthenticationMessage(phnFinAuth);		
+    	
+    	return phnFinish;
+	}
+	
+	private AmmoMessages.MessageWrapper.Builder getPhoneAuth()
+	{
+		AmmoMessages.MessageWrapper.Builder phnAuth = AmmoMessages.MessageWrapper.newBuilder();
+        phnAuth.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+        //mw.setSessionUuid(sessionId);
+      
+        AmmoMessages.AuthenticationMessage.Builder phnAuthauth = AmmoMessages.AuthenticationMessage.newBuilder();
+
+        phnAuthauth.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_PHNAUTH);
+        phnAuthauth.setMessage(ByteString.copyFrom(secMgr.generatePhoneAuth()));
+
+    	phnAuth.setAuthenticationMessage(phnAuthauth);
+    	
+    	return phnAuth;
+	}
+
+	private void getPreferences ()
+	{
+		logger.info("::getPreferences");
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
+
+        mDeviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.mDeviceId);
+        mOperatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, this.mOperatorId);
+        mOperatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.mOperatorKey);
+
+	}
+    
+
+    public boolean ack( boolean status )
+    {
         return true;
     }
 

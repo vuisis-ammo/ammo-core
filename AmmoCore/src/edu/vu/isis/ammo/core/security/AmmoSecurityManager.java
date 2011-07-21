@@ -37,19 +37,21 @@ public class AmmoSecurityManager {
 	
 	byte[] masterSecret;
 	
-	String device;
+	String mDevice;
 	
 	byte[] phoneFinish;
 	
-	public AmmoSecurityManager (){
+	public AmmoSecurityManager (String device_id){
 		
         // Create the Crypto Object for use 
         crp_ = new Ammo_Crypto ();
         
         random = new SecureRandom ();
+        
+        mDevice = device_id;
 	}
 	
-	private byte[] getNonce (){
+	public byte[] getNonce (){
 		
 		the_client_nonce = generateRandom(NONCE_LENGTH);
 //		String str = "Nilabja";
@@ -105,26 +107,6 @@ public class AmmoSecurityManager {
 		return bytes;
 	}
 
-	public AmmoMessages.MessageWrapper.Builder getClientNonce (String deviceId) {
-
-		device = deviceId;
-		
-		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
-        //mw.setSessionUuid(sessionId);
-      
-        AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
-        authreq.setDeviceId(deviceId);
-        authreq.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_NONCE);
-        authreq.setMessage(ByteString.copyFrom(getNonce()));
-        	//.setUserId(operatorId)
-            //   .setUserKey(operatorKey);
-            //   .setUserKey(str);
-            //   .setUserKey(signStr);
-
-        mw.setAuthenticationMessage(authreq);
-        return mw;
-	}
 	
 	public void computeMasterSecret ()
 	{
@@ -198,7 +180,7 @@ public class AmmoSecurityManager {
 		//first level 
 		byte[] handshake = concatBytes(this.phoneAuth, this.keyExchange, this.the_client_nonce, this.the_server_nonce);
 		
-		byte[] content = concatBytes(handshake, device.getBytes(), masterSecret/*, there needs to be a pad here*/ );
+		byte[] content = concatBytes(handshake, mDevice.getBytes(), masterSecret/*, there needs to be a pad here*/ );
 
 		MessageDigest md = null;
 		

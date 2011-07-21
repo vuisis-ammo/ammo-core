@@ -22,17 +22,14 @@ import android.os.Environment;
 
 /**
  * Two long running threads and one short.
- * The long threads are for sending and recieving messages.
+ * The long threads are for sending and receiving messages.
  * The short thread is to connect the socket.
  * The sent messages are placed into a queue if the socket is connected.
- * 
- * @author phreed
- *
  */
 public class JournalChannel extends NetChannel {
 	private static final Logger logger = LoggerFactory.getLogger(JournalChannel.class);
 	
-	private BlockingQueue<GwMessage> sendQueue = new LinkedBlockingQueue<GwMessage>(20);
+	private BlockingQueue<AmmoGatewayMessage> sendQueue = new LinkedBlockingQueue<AmmoGatewayMessage>(20);
 	
 	private boolean isStale;
 	private boolean isEnabled;
@@ -235,11 +232,11 @@ public class JournalChannel extends NetChannel {
 	 * do your best to send the message.
 	 * 
 	 * @param size
-	 * @param checksum
+	 * @param payload_checksum
 	 * @param message
 	 * @return
 	 */
-	public boolean sendRequest(int size, CRC32 checksum, byte[] payload, INetworkService.OnSendMessageHandler handler) 
+	public boolean sendRequest(AmmoGatewayMessage agm) 
 	{
 		synchronized (this.syncObj) {
 			logger.trace("::sendGatewayRequest");
@@ -248,7 +245,7 @@ public class JournalChannel extends NetChannel {
 				return false;
 			}
 			try {
-				this.sendQueue.put(new GwMessage(size, checksum, payload));
+				this.sendQueue.put(agm);
 			} catch (InterruptedException e) {
 				return false;
 			}
@@ -272,7 +269,7 @@ public class JournalChannel extends NetChannel {
 	 */
 	public class SenderThread extends Thread {
 		private JournalChannel parent;
-		private final BlockingQueue<GwMessage> queue;
+		private final BlockingQueue<AmmoGatewayMessage> queue;
 		
 		private SenderThread(JournalChannel parent) {
 			logger.trace("::<constructor>");
@@ -284,10 +281,10 @@ public class JournalChannel extends NetChannel {
 		 * Initiate a connection to the server and then wait for a response.
 		 * All responses are of the form:
 		 * size     : int32
-		 * checksum : int32
+		 * payload_checksum : int32
 		 * bytes[]  : <size>
 		 * This is done via a simple state machine.
-		 * If the checksum doesn't match the connection is dropped and restarted.
+		 * If the payload_checksum doesn't match the connection is dropped and restarted.
 		 * 
 		 * Once the message has been read it is passed off to...
 		 */
@@ -312,17 +309,8 @@ public class JournalChannel extends NetChannel {
 							}
 						}
 					}
-					GwMessage msg = queue.take();
-					buf.putInt(msg.size);
-					long cvalue = msg.checksum.getValue();
-					byte[] checksum = new byte[] {
-				                (byte)(cvalue >>> 24),
-				                (byte)(cvalue >>> 16),
-				                (byte)(cvalue >>> 8),
-				                (byte)cvalue};
-					buf.put(checksum, 0, 4);
-					dos.write(buf.array());
-					dos.write(msg.payload);
+					AmmoGatewayMessage msg = queue.take();
+					dos.write(msg.serialize(endian).array());
 				}
 			} catch (SocketException ex) {
 				ex.printStackTrace();

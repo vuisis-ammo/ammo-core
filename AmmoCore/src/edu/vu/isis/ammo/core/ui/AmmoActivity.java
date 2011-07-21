@@ -44,8 +44,6 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
  * ...checking delivery status of various messages.
  * ...registering/unregistering content interest requests.
  *
- * @author phreed
- *
  */
 public class AmmoActivity extends TabActivityEx
 {
@@ -68,7 +66,8 @@ public class AmmoActivity extends TabActivityEx
 
     public boolean netlinkAdvancedView = false;
 
-    private Menu activity_menu;
+    @SuppressWarnings("unused")
+	private Menu activity_menu;
     SharedPreferences prefs = null;
 
     // ===========================================================

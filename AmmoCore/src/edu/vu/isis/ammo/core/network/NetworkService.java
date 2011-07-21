@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,17 +20,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
-import android.telephony.TelephonyManager;
 import android.os.Binder;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.widget.Toast;
-
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -41,16 +36,12 @@ import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.IDistributorService;
-import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
-import edu.vu.isis.ammo.core.ui.GatewayAdapter;
-import edu.vu.isis.ammo.core.ui.NetlinkAdapter;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -58,14 +49,10 @@ import edu.vu.isis.ammo.core.security.AmmoSecurityManager;
 import edu.vu.isis.ammo.core.security.Ammo_Crypto;
 
 /**
- * Network Proxy Service is responsible for all networking between the
+ * Network Service is responsible for all networking between the
  * core application and the server. Currently, this service implements a UDP
  * connection for periodic data updates and a long-polling TCP connection for
  * event driven notifications.
- *
- * @author Demetri Miller
- * @author Fred Eisele
- *
  */
 public class NetworkService extends Service
 implements OnSharedPreferenceChangeListener,
@@ -127,7 +114,7 @@ implements OnSharedPreferenceChangeListener,
     private IDistributorService distributor;
 
     // Channels
-    private INetChannel tcpChannel = TcpChannel.getInstance(this);
+    private INetChannel tcpChannel = TcpChannel.getInstance(this, getBaseContext());
     private INetChannel journalChannel = JournalChannel.getInstance(this);
 
     private MyBroadcastReceiver myReceiver = null;
@@ -149,7 +136,8 @@ implements OnSharedPreferenceChangeListener,
     private final IBinder binder = new MyBinder();
 
     private ApplicationEx application;
-    private ApplicationEx getApplicationEx() {
+    @SuppressWarnings("unused")
+	private ApplicationEx getApplicationEx() {
         if (this.application == null)
             this.application = (ApplicationEx)this.getApplication();
         return this.application;
@@ -327,17 +315,17 @@ implements OnSharedPreferenceChangeListener,
         // handle network authentication group
         if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
             deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, deviceId);
-            if (this.isConnected()) this.auth();
+            if (this.isConnected()) this.tcpChannel.reset();//this.auth();
             return;
         }
         if (key.equals(IPrefKeys.CORE_OPERATOR_ID)) {
             operatorId = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, operatorId);
-            if (this.isConnected()) this.auth(); // TBD SKN: this should really do a setStale rather than just authenticate
+            if (this.isConnected()) this.tcpChannel.reset();//this.auth(); // TBD SKN: this should really do a setStale rather than just authenticate
             return;
         }
         if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
             operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, operatorKey);
-            if (this.isConnected()) this.auth();
+            if (this.isConnected()) this.tcpChannel.reset();//this.auth();
             return;
         }
 
@@ -384,202 +372,6 @@ implements OnSharedPreferenceChangeListener,
     // ===========================================================
 
     /**
-     * Authentication requests are sent via TCP.
-     * They are primarily concerned with obtaining the sessionId.
-     */
-    private AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
-        logger.info("::buildAuthenticationRequest");
-
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
-        mw.setSessionUuid(sessionId);
-
-        // encrypt the operator key and then send it ... 
-        Ammo_Crypto crp = new Ammo_Crypto ();
-        
-//        byte[] enc_operatorKey = 
-//        	crp.encrypt_data("/data/public_key_phone.der", operatorKey.getBytes(), "RSA", "PKCS1Padding");
-        
-//        byte[] sign = crp.sign("/mnt/sdcard/private_key_phone.der", 
-        byte[] sign = crp.sign("/data/private_key_phone.der",
-        						//operatorKey.getBytes(), 
-        						//operatorKey.getBytes().length, 
-        						operatorId.getBytes(), 
-        						operatorId.getBytes().length, 
-        						"SHA1withRSA");
-        
-        ByteString signStr = ByteString.copyFrom(sign);
-        
-      //  ByteString str = ByteString.copyFrom(enc_operatorKey);
-        
-    
-        AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
-        authreq.setDeviceId(UniqueIdentifiers.device(this.getApplicationContext()))
-               .setUserId(operatorId)
-        //       .setUserKey(operatorKey);
-        //       .setUserKey(str);
-               .setUserKey(signStr);
-
-        mw.setAuthenticationMessage(authreq);
-        return mw;
-    }
-
-    /**
-     * Get the session id set by the gateway.
-     *
-     * @param mw
-     * @return
-     */
-    private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
-        logger.info("::receiveAuthenticationResponse");
-
-        if (mw == null) return false;
-//        if (! mw.hasAuthenticationResult()) return false;
-        if (!mw.hasAuthenticationMessage()) return false;
-        
-        
-        if (mw.getAuthenticationMessage().getResult() != AmmoMessages.AuthenticationMessage.Status.SUCCESS) {
-        //if (mw.getAuthenticationMessage().has.getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
-            return false;
-        }
- /*       	
-        else 
-        {
-        	// Device authentication worked, so now verify the Gateway, sign 
-        	Ammo_Crypto crp = new Ammo_Crypto ();
-        	
-        	boolean result = crp.verify("/mnt/sdcard/public_key_gateway.der",
-        	//boolean result = crp.verify("/data/public_key_gateway.der",
-        								mw.getAuthenticationResult().getMessage().toByteArray(), 
-        								//operatorKey.getBytes(), 
-        								//operatorKey.getBytes().length, 
-        								operatorId.getBytes(), 
-        								operatorId.getBytes().length, 
-        								"SHA1withRSA");
-        	
-        	System.out.println((result)?"True Gateway":"False Gateway");
-        	
-        	//Toast.makeText(application, (result)?"True Gateway":"False Gateway", Toast.LENGTH_LONG).show();
-        	//System.out.println ("The msg is " + mw.getAuthenticationResult().getMessage().toString());
-        	
-        	logger.info((result)?"True Gateway":"False Gateway");
-        	//ack(true);
-            logger.info("authentication complete inform applications : ");
-            // broadcast login event to apps ...
-            Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-            loginIntent.putExtra("operatorId", operatorId);
-            this.sendBroadcast(loginIntent);
-        	if (mw.getAuthenticationMessage().getType() == AmmoMessages.AuthenticationMessage.Type.SERVER_NONCE)
-        	{     		
-
-        		System.out.println("THE SERVER NONCE " + mw.getAuthenticationMessage().getMessage().toString());
-        		
-        		secMgr.setServerNonce(mw.getAuthenticationMessage().getMessage().toByteArray());
-        		
-       
-
-        		// send the keyExchange ...
-        		AmmoMessages.MessageWrapper.Builder msgW = AmmoMessages.MessageWrapper.newBuilder();
-	            msgW.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
-	            //mw.setSessionUuid(sessionId);
-	          
-	            AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
-	            authreq.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_KEYXCHANGE);
-	            authreq.setMessage(ByteString.copyFrom(secMgr.generateKeyExchange()));
-	
-	            msgW.setAuthenticationMessage(authreq);
-	            
-	            byte[] protocByteBuf = msgW.build().toByteArray();
-	            MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
-	
-	            sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this);
-	            
-	            
-	            // now wait for a second or two and then send the PhoneAuth msg 
-	            try {
-	            	
-					Thread.sleep(3000);
-					
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-
-	        	//send it the phone auth message
-				AmmoMessages.MessageWrapper.Builder phnAuth = AmmoMessages.MessageWrapper.newBuilder();
-	            phnAuth.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
-	            //mw.setSessionUuid(sessionId);
-	          
-	            AmmoMessages.AuthenticationMessage.Builder phnAuthauth = AmmoMessages.AuthenticationMessage.newBuilder();
-	
-	            phnAuthauth.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_PHNAUTH);
-	            phnAuthauth.setMessage(ByteString.copyFrom(secMgr.generatePhoneAuth()));
-
-	        	phnAuth.setAuthenticationMessage(phnAuthauth);
-	            
-	            byte[] phnAuthProtocByteBuf = phnAuth.build().toByteArray();
-	            MsgHeader msgHeaderPhnAuth = MsgHeader.getInstance(phnAuthProtocByteBuf , true);
-	
-	            sendRequest(msgHeaderPhnAuth.size, msgHeaderPhnAuth.checksum, phnAuthProtocByteBuf , this);
-
-	            // compute the master secret ....
-	            secMgr.computeMasterSecret();
-	            
-	            // now wait for a second or two and then send the Phone Finsh msg 
-	            try {
-	            	
-					Thread.sleep(3000);
-					
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-	            // send the phone finish ....
-	            
-				AmmoMessages.MessageWrapper.Builder phnFinish = AmmoMessages.MessageWrapper.newBuilder();
-	            phnFinish.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
-	            //mw.setSessionUuid(sessionId);
-	          
-	            AmmoMessages.AuthenticationMessage.Builder phnFinAuth = AmmoMessages.AuthenticationMessage.newBuilder();
-	
-	            phnFinAuth.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_FINISH);
-	            phnFinAuth.setMessage(ByteString.copyFrom(secMgr.generatePhoneFinish()));
-
-	        	phnFinish.setAuthenticationMessage(phnFinAuth);
-	            
-	            byte[] phnFinProtocByteBuf = phnFinish.build().toByteArray();
-	            MsgHeader msgHeaderPhnFin = MsgHeader.getInstance(phnFinProtocByteBuf , true);
-	
-	            sendRequest(msgHeaderPhnFin.size, msgHeaderPhnFin.checksum, phnFinProtocByteBuf , this);
-	        	return true;
-        	}
-        	else if (mw.getAuthenticationMessage().getType() == AmmoMessages.AuthenticationMessage.Type.SERVER_FINISH)
-        	{
-        		// need to verify the gateway finish message ...
-        		boolean fin_verify = secMgr.verify_GW_finish (mw.getAuthenticationMessage().getMessage().toByteArray());
-        		
-        		if (fin_verify)
-        			System.out.println("Gateway Finish Verified");
-        		else
-        			System.out.println("Gateway Finish Cannot Verify");
-        			
-        	}
-        	
-        	        	
-        }
- */
-        PreferenceManager
-            .getDefaultSharedPreferences(this)
-            .edit()
-            .putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
-            .commit();
-        sessionId = mw.getSessionUuid();
-
-        // the distributor doesn't need to know about authentication results.
-        return true;
-    }
-
-    /**
      * Push requests are set via UDP.
      * (PushRequest := DataMessage)
      *
@@ -603,23 +395,6 @@ implements OnSharedPreferenceChangeListener,
 
         mw.setDataMessage(pushReq);
         return mw;
-    }
-
-    /**
-     * Get response to PushRequest from the gateway.
-     * (PushResponse := PushAcknowledgement)
-     *
-     * @param mw
-     * @return
-     */
-    private boolean receivePushResponse(AmmoMessages.MessageWrapper mw) {
-        logger.info("::receivePushResponse");
-
-        if (mw == null) return false;
-        if (! mw.hasPushAcknowledgement()) return false;
-        PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-
-        return distributor.dispatchPushResponse(pushResp);
     }
 
     /**
@@ -655,21 +430,6 @@ implements OnSharedPreferenceChangeListener,
         return mw;
     }
 
-    /**
-     * Get response to RetrievalRequest, PullResponse, from the gateway.
-     *
-     * @param mw
-     * @return
-     */
-    private boolean receivePullResponse(AmmoMessages.MessageWrapper mw) {
-        logger.info("::receivePullResponse");
-
-        if (mw == null) return false;
-        if (! mw.hasPullResponse()) return false;
-        final AmmoMessages.PullResponse pullResp = mw.getPullResponse();
-
-        return distributor.dispatchRetrievalResponse(pullResp);
-    }
 
     private AmmoMessages.MessageWrapper.Builder buildSubscribeRequest(String mimeType, String query)
     {
@@ -689,15 +449,6 @@ implements OnSharedPreferenceChangeListener,
         return mw;
     }
 
-    private boolean receiveSubscribeResponse(AmmoMessages.MessageWrapper mw) {
-        logger.info("::receiveSubscribeResponse");
-
-        if (mw == null) return false;
-        if (! mw.hasDataMessage()) return false;
-        final AmmoMessages.DataMessage subscribeResp = mw.getDataMessage();
-
-        return distributor.dispatchSubscribeResponse(subscribeResp);
-    }
     // ===========================================================
     // Gateway Communication Methods
     // ===========================================================
@@ -709,13 +460,13 @@ implements OnSharedPreferenceChangeListener,
      *
      * @param outstream
      * @param size
-     * @param checksum
+     * @param payload_checksum
      * @param message
      */
-    private boolean sendRequest(int size, CRC32 checksum, byte[] message, OnSendMessageHandler handler)
+    private boolean sendRequest(AmmoGatewayMessage agm)
     {
         logger.info("::sendGatewayRequest");
-        return this.tcpChannel.sendRequest(size, checksum, message, handler);
+        return this.tcpChannel.sendRequest(agm);
     }
 
     // ===========================================================
@@ -723,85 +474,15 @@ implements OnSharedPreferenceChangeListener,
     // ===========================================================
 
     /**
-     * Store the size and checksum of a data array into a map.
-     * The size and checksum are followed by the content which is a
-     * protocol buffer of type MessageWrapper.
-     *
-     * @param data
-     * @param isLittleEndian
-     * @return
-     */
-    static public class MsgHeader {
-        public final int size;
-        public final CRC32 checksum;
-
-        private MsgHeader(int size, CRC32 crc32) {
-            this.size = size;
-            this.checksum = crc32;
-        }
-
-        static public MsgHeader getInstance(byte[] data, boolean isLittleEndian) {
-            CRC32 crc32 = new CRC32();
-            crc32.update(data);
-            return new MsgHeader(data.length, crc32);
-        }
-    }
-
-    /**
      *  Processes and delivers messages received from the gateway.
      *
      * @param instream
      * @return was the message clean (true) or garbled (false).
      */
-    public boolean deliver(byte[] message, long checksum)
+    public boolean deliver(AmmoGatewayMessage agm)
     {
         logger.info("::deliverGatewayResponse");
-
-        CRC32 crc32 = new CRC32();
-        crc32.update(message);
-        if (crc32.getValue() != checksum) {
-            String msg = "you have received a bad message, the checksums did not match)"+
-            Long.toHexString(crc32.getValue()) +":"+ Long.toHexString(checksum);
-            // Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-            logger.warn(msg);
-            return false;
-        }
-
-        AmmoMessages.MessageWrapper mw = null;
-        try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(message);
-        } catch (InvalidProtocolBufferException ex) {
-            ex.printStackTrace();
-        }
-        if (mw == null)
-        {
-            logger.error( "mw was null!" );
-            return false; // TBD SKN: this was true, why? if we can't parse it then its bad
-        }
-
-        switch (mw.getType()) {
-
-        case DATA_MESSAGE:
-            receiveSubscribeResponse(mw);
-            break;
-
-        case AUTHENTICATION_RESULT:
-        case AUTHENTICATION_MESSAGE:
-            boolean result = receiveAuthenticationResponse(mw);
-            logger.error( "authentication result={}", result );
-            break;
-
-        case PUSH_ACKNOWLEDGEMENT:
-            receivePushResponse(mw);
-            break;
-
-        case PULL_RESPONSE:
-            receivePullResponse(mw);
-            break;
-        default:
-            logger.error( "mw.getType() returned an unexpected type." );
-        }
-        return true;
+        return this.distributor.deliver(agm);
     }
 
     // ===============================================================
@@ -844,17 +525,17 @@ implements OnSharedPreferenceChangeListener,
      * For the following methods there is an expectation that
      * the connection has been pre-verified.
      */
+    /*
     public boolean auth() {
         logger.info("::authenticate");
 
-        /** Message Building */
+        /** Message Building *//*
         AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-        byte[] protocByteBuf = mwb.build().toByteArray();
-        MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
-
-        sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, this);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance(mwb, this);
+        sendRequest(agm);
         return true;
     }
+*/
 
     public boolean dispatchPushRequest(String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchPushRequest");
@@ -863,13 +544,8 @@ implements OnSharedPreferenceChangeListener,
         logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
         AmmoMessages.MessageWrapper.Builder mwb = buildPushRequest(uri, mimeType, data);
         logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
-        byte[] protocByteBuf = mwb.build().toByteArray();
-
-        MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
-        // this.journalChannel.sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
-
-        boolean rc = sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
-        return rc;
+        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        return sendRequest(agm);
     }
 
     public boolean dispatchRetrievalRequest(String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
@@ -877,10 +553,8 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildRetrievalRequest(subscriptionId, mimeType, selection);
-        byte[] protocByteBuf = mwb.build().toByteArray();
-        MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
-
-        return sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        return sendRequest(agm);
     }
 
     public boolean dispatchSubscribeRequest(String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
@@ -888,10 +562,8 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildSubscribeRequest(mimeType, selection);
-        byte[] protocByteBuf = mwb.build().toByteArray();
-        MsgHeader msgHeader = MsgHeader.getInstance(protocByteBuf, true);
-
-        return sendRequest(msgHeader.size, msgHeader.checksum, protocByteBuf, handler);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        return sendRequest(agm);
     }
 
     public void setDistributorServiceCallback(IDistributorService callback) {
@@ -983,8 +655,26 @@ implements OnSharedPreferenceChangeListener,
 
     // The channel lets the NetworkService know that the channel was
     // successfully authorized by calling this method.
-    public void authorizationSucceeded()
+    public void authorizationSucceeded( AmmoGatewayMessage agm )
     {
+        AmmoMessages.MessageWrapper mw = null;
+        try {
+            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
+        } catch (InvalidProtocolBufferException ex) {
+            ex.printStackTrace();
+        }
+        if (mw == null)
+        {
+            logger.error( "mw was null!" );
+        }
+
+        PreferenceManager
+            .getDefaultSharedPreferences(this)
+            .edit()
+            .putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+            .commit();
+        sessionId = mw.getSessionUuid();
+
         logger.trace("authentication complete, repost subscriptions and pending data : ");
         this.distributor.consumerReady();
 

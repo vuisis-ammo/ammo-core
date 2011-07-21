@@ -23,6 +23,7 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 	public void onCreate(Bundle bun) {
 		this.uri = SubscriptionTableSchema.CONTENT_URI;
 		
+		@SuppressWarnings("unused")
 		String[] projection = {SubscriptionTableSchema._ID, 
 				SubscriptionTableSchema.DISPOSITION,
 				SubscriptionTableSchema.URI, 
