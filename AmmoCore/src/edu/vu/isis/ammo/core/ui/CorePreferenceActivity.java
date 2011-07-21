@@ -9,7 +9,6 @@ import edu.vu.isis.ammo.core.MyEditIntegerPreference;
 import edu.vu.isis.ammo.core.MyEditTextPreference;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
-import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
  * View and change the core application preferences.

@@ -1,13 +1,10 @@
 package edu.vu.isis.ammo.core.distributor;
 
-import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
 /**
  * This interface declares different callback methods that will be used by 
  * different services within AmmoCore. 
- * @author Demetri Miller
  *
  */
 public interface IDistributorService {
@@ -19,12 +16,12 @@ public interface IDistributorService {
 	
 	/** Network Service callbacks */
 	public void finishTeardown();
-	public boolean dispatchPushResponse(PushAcknowledgement resp);
-	public boolean dispatchRetrievalResponse(PullResponse resp);
-	public boolean dispatchSubscribeResponse(DataMessage resp);
+
 	/**
 	 * There is no response to a publish unless there is a subscription?
 	 */
 	// public boolean dispatchPublishResponse(PushAcknowledgement resp);
     public void consumerReady();
+    
+    public boolean deliver(AmmoGatewayMessage agm);
 }

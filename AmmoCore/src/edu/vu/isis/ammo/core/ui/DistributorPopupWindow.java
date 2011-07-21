@@ -3,14 +3,12 @@ package edu.vu.isis.ammo.core.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.R;
-import android.content.Context;
 import android.database.Cursor;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
-import android.view.View;
 import android.widget.PopupWindow;
 import android.widget.TextView;
+import edu.vu.isis.ammo.core.R;
 
 
 

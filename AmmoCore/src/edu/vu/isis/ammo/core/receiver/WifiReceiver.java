@@ -14,7 +14,6 @@ import android.content.Intent;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
-import android.util.Log;
 import android.widget.Toast;
 
 /**
@@ -31,8 +30,6 @@ import android.widget.Toast;
  * an important piece of the data sync mechanism because updates to that table
  * will trigger synchronization processes to begin or end.
  * 
- * @author Demetri Miller
- *
  */
 
 public class WifiReceiver extends BroadcastReceiver {

@@ -24,6 +24,7 @@ public class PostalTableViewer extends DistributorTableViewer {
 	public void onCreate(Bundle bun) {
 		this.uri = PostalTableSchema.CONTENT_URI;
 		
+		@SuppressWarnings("unused")
 		String[] projection = {PostalTableSchema._ID, 
 				PostalTableSchema.DISPOSITION,
 				PostalTableSchema.URI, 

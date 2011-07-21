@@ -15,13 +15,11 @@ import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
+import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.LinkedList;
-import java.util.zip.CRC32;
-import java.lang.Long;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +32,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * The long threads are for sending and receiving messages.
  * The short thread is to connect the socket.
  * The sent messages are placed into a queue if the socket is connected.
- *
- * @author phreed
  *
  */
 public class TcpChannel extends NetChannel {
@@ -89,7 +85,11 @@ public class TcpChannel extends NetChannel {
     private SenderQueue mSenderQueue;
 
     private AtomicBoolean mIsAuthorized;
-    private IChannelManager mChannelManager;
+
+    // I made this public to support the hack to get authentication
+    // working before Nilabja's code is ready.  Make it private again
+    // once his stuff is in.
+    public IChannelManager mChannelManager;
     private ISecurityObject mSecurityObject;
 
     private TcpChannel( IChannelManager iChannelManager ) {
@@ -258,14 +258,14 @@ public class TcpChannel extends NetChannel {
     }
 
 
-    public void authorizationSucceeded()
+    public void authorizationSucceeded( AmmoGatewayMessage agm )
     {
         setIsAuthorized( true );
         mSenderQueue.markAsAuthorized();
 
         // Tell the NetworkService that we're authorized and have it
         // notify the apps.
-        mChannelManager.authorizationSucceeded();
+        mChannelManager.authorizationSucceeded( agm );
     }
 
 
@@ -633,8 +633,7 @@ public class TcpChannel extends NetChannel {
                 }
                 this.parent.socket.close();
             } catch (IOException ex) {
-                ex.printStackTrace();
-                logger.error("channel closing without proper socket");
+                logger.error("channel closing without proper socket {}", ex.getStackTrace());
             }
             logger.error("channel closing");
         }
@@ -704,7 +703,9 @@ public class TcpChannel extends NetChannel {
             parent.mReceiver = new ReceiverThread( this, parent, parent.mSocketChannel );
             parent.mReceiver.start();
 
-            parent.getSecurityObject().authorize();
+            // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
+            // just a temporary hack.
+            parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest() );
 
             return true;
         }
@@ -962,10 +963,9 @@ public class TcpChannel extends NetChannel {
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, true );
                 }
-                catch ( Exception e )
+                catch ( Exception ex )
                 {
-                    e.printStackTrace();
-                    logger.warn("sender threw exception");
+                    logger.warn("sender threw exception {}", ex.getStackTrace());
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, false );
                     setSenderState( INetChannel.INTERRUPTED );
