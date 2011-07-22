@@ -32,7 +32,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
-import edu.vu.isis.ammo.core.distributor.IDistributorService;
+import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
@@ -105,7 +105,7 @@ implements OnSharedPreferenceChangeListener,
     public boolean getNetworkingSwitch() { return networkingSwitch; }
     public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
 
-    private IDistributorService distributor;
+    private DistributorService distributor;
 
     // Channels
     private INetChannel tcpChannel = TcpChannel.getInstance(this);
@@ -545,7 +545,7 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance(mwb, this);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(mwb, this);
         sendRequest(agm);
         return true;
     }
@@ -557,7 +557,8 @@ implements OnSharedPreferenceChangeListener,
         logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
         AmmoMessages.MessageWrapper.Builder mwb = buildPushRequest(uri, mimeType, data);
         logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
         return sendRequest(agm);
     }
 
@@ -566,7 +567,7 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildRetrievalRequest(subscriptionId, mimeType, selection);
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
         return sendRequest(agm);
     }
 
@@ -575,11 +576,11 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildSubscribeRequest(mimeType, selection);
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
         return sendRequest(agm);
     }
 
-    public void setDistributorServiceCallback(IDistributorService callback) {
+    public void setDistributorServiceCallback(DistributorService callback) {
         logger.info("::setDistributorServiceCallback");
 
         distributor = callback;

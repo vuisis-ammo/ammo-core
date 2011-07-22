@@ -17,6 +17,7 @@ import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -28,6 +29,8 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.IDistributorService;
 
 /**
  * The DistributorService is responsible for synchronization between the Gateway
@@ -45,7 +48,7 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
  * subclass.
  * 
  */
-public class DistributorService extends Service implements IDistributorService {
+public class DistributorService extends Service {
 
     // ===========================================================
     // Constants
@@ -53,6 +56,10 @@ public class DistributorService extends Service implements IDistributorService {
     private static final Logger logger = LoggerFactory.getLogger(DistributorService.class);
 
     public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH");
+	public static final String BIND = "edu.vu.isis.ammo.core.distributor.DistributorService.BIND";
+	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP";
+	public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED";
+	
 
     @SuppressWarnings("unused")
     private static final int FILE_READ_SIZE = 1024;
@@ -63,7 +70,6 @@ public class DistributorService extends Service implements IDistributorService {
     // Fields
     // ===========================================================
 
-    private IDistributorService callback;
     private Intent networkServiceIntent = new Intent(INetworkService.ACTION);
 
     private INetworkService networkServiceBinder;
@@ -87,7 +93,7 @@ public class DistributorService extends Service implements IDistributorService {
             logger.info("::onServiceConnected - Network Service");
             isNetworkServiceBound = true;
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
-            networkServiceBinder.setDistributorServiceCallback(callback);
+            networkServiceBinder.setDistributorServiceCallback(DistributorService.this);
             
             DistributorService.this.pct.execute(DistributorService.this);
         }
@@ -112,6 +118,29 @@ public class DistributorService extends Service implements IDistributorService {
     private boolean mNetworkConnected = false;
     private boolean mSdCardAvailable = false;
 
+    // ===========================================================
+    // AIDL Implementation
+    // ===========================================================
+
+    public class DistributorServiceAidl extends IDistributorService.Stub {
+        @Override
+        public String makeRequest(AmmoRequest request) throws RemoteException {
+            logger.trace("received data request");
+            return DistributorService.this.pct.distributeRequest(request);
+        }
+
+        @Override
+        public AmmoRequest recoverRequest(String uuid) throws RemoteException {
+            logger.trace("recover data request {}", uuid);
+            return null;
+        }
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        logger.trace("client binding...");
+        return new DistributorServiceAidl();
+    }
 
     // ===========================================================
     // LifeCycle
@@ -188,7 +217,6 @@ public class DistributorService extends Service implements IDistributorService {
         logger.info("::onStartCommand");
         // If we get this intent, unbind from all services 
         // so the service can be stopped.
-        callback = this;
         if (intent != null) {
             String action = intent.getAction();
             if (action != null) {
@@ -242,11 +270,6 @@ public class DistributorService extends Service implements IDistributorService {
         super.onDestroy();
     }
 
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
-
     // ===========================================================
     // IDistributorService implementation
     // ===========================================================
@@ -259,7 +282,7 @@ public class DistributorService extends Service implements IDistributorService {
     private class PostalObserver extends ContentObserver 
     {
         /** Fields */
-        private DistributorService callback;
+        private final DistributorService callback;
 
         public PostalObserver(Handler handler, DistributorService aCallback) {
             super(handler);
@@ -277,7 +300,7 @@ public class DistributorService extends Service implements IDistributorService {
     private class RetrievalObserver extends ContentObserver {
 
         /** Fields */
-        private DistributorService callback;
+        private final DistributorService callback;
 
         public RetrievalObserver(Handler handler, DistributorService aCallback) {
             super(handler);
@@ -295,7 +318,7 @@ public class DistributorService extends Service implements IDistributorService {
     private class SubscriptionObserver extends ContentObserver {
 
         /** Fields */
-        private DistributorService callback;
+        private final DistributorService callback;
 
         public SubscriptionObserver(Handler handler, DistributorService aCallback) {
             super(handler);
@@ -361,7 +384,7 @@ public class DistributorService extends Service implements IDistributorService {
 
 
     public boolean deliver(AmmoGatewayMessage agm) {
-    	return pct.deliver(agm);
+    	return pct.distributeResponse(agm);
     }
    
 }

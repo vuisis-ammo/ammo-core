@@ -291,7 +291,12 @@ public class TcpChannel extends NetChannel {
         else
         {
             logger.info( " delivering to security object" );
-            result = getSecurityObject().deliverMessage( agm );
+            ISecurityObject so = getSecurityObject();
+            if (so == null) {
+                logger.warn("security object not set");
+                return false;
+            }
+            result = so.deliverMessage( agm );
         }
         return result;
     }
@@ -361,7 +366,7 @@ public class TcpChannel extends NetChannel {
 
         mw.setHeartbeat( message );
 
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance(mw, null);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(mw, null);
         sendRequest( agm );
 
         mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
@@ -1008,76 +1013,91 @@ public class TcpChannel extends NetChannel {
             mSocketChannel = iSocketChannel;
         }
 
+        /**
+         * Block on reading from the SocketChannel until we get some data.
+         * Then examine the buffer to see if we have any complete packets.
+         * If we have an error, notify our parent and go into an error state.
+         */
         @Override
         public void run()
         {
             logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
-            // Block on reading from the SocketChannel until we get some data.
-            // Then examine the buffer to see if we have any complete packets.
-            // If we have an error, notify our parent and go into an error state.
-
-            ByteBuffer fill = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
-            fill.order( endian ); // mParent.endian
+           
+            ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
+            bbuf.order( endian ); // mParent.endian
            
             while ( mState != INetChannel.INTERRUPTED ) {
                 try {
-                    int bytesRead =  mSocketChannel.read( fill );
+                    int bytesRead =  mSocketChannel.read( bbuf );
+                    mDestination.resetTimeoutWatchdog();
                     logger.debug( "SocketChannel getting header read bytes={}", bytesRead );
+                    if (bytesRead == 0) continue;
+                    
                     setReceiverState( INetChannel.START );
                     
-                    ByteBuffer drain = fill.duplicate();
-                    drain.flip();
-                    // process all complete headers in the drain
-                    while (true) {
-                        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader(drain);
-                        if (agmb == null) {
-                            fill = drain.compact();
-                            break; 
+                    // prepare to drain buffer
+                    bbuf.flip(); 
+                    for (AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader(bbuf);
+                        agmb != null; agmb = AmmoGatewayMessage.extractHeader(bbuf)) 
+                    {
+                        // if the message size is zero then there may be an error
+                        if (agmb.size() < 1) {
+                            logger.warn("discarding empty message error {}",
+                                    agmb.error());
+                            // TODO cause the reconnection behavior to change based on the error code
+                            continue;
                         }
-                        // if the message is TOO BIG throw away the message
-                        if (agmb.size > MAX_MESSAGE_SIZE) {
-                            int size = agmb.size;
+                        // if the message is TOO BIG then throw away the message
+                        if (agmb.size() > MAX_MESSAGE_SIZE) {
+                            logger.warn("discarding message of size {} with checksum {}", 
+                                    agmb.size(), Long.toHexString(agmb.checksum()));
+                            int size = agmb.size();
                             while (true) {
-                                if (drain.remaining() < size) {
-                                    int rem =  drain.remaining();
+                                if (bbuf.remaining() < size) {
+                                    int rem =  bbuf.remaining();
                                     size -= rem;
-                                    fill = (ByteBuffer) drain.clear();
-                                    bytesRead =  mSocketChannel.read( fill );
-                                    drain = (ByteBuffer) fill.duplicate().flip();
+                                    bbuf.clear();
+                                    bytesRead =  mSocketChannel.read( bbuf );
+                                    bbuf.flip();
                                     continue;
                                 }
-                                fill.position(size);
+                                bbuf.position(size);
                                 break;
                             }
+                            continue;
                         }
                         // extract the payload
-                        byte[] payload = new byte[agmb.size];
-                        int size = agmb.size;
+                        byte[] payload = new byte[agmb.size()];
+                        int size = agmb.size();
                         int offset = 0;
                         while (true) {
-                            if (drain.remaining() < size) {
-                                int rem =  drain.remaining();
-                                drain.get(payload, offset, rem);
+                            if (bbuf.remaining() < size) {
+                                int rem =  bbuf.remaining();
+                                bbuf.get(payload, offset, rem);
                                 offset += rem;
                                 size -= rem;
-                                fill = (ByteBuffer) drain.clear();
-                                bytesRead =  mSocketChannel.read( fill );
-                                drain = (ByteBuffer) fill.duplicate().flip();
+                                bbuf.clear();
+                                bytesRead =  mSocketChannel.read( bbuf );
+                                bbuf.flip();
                                 continue;
                             }
-                            drain.get(payload, offset, size);
+                            bbuf.get(payload, offset, size);
                             
                             AmmoGatewayMessage agm = agmb.payload(payload);
                             setReceiverState( INetChannel.DELIVER );
                             mDestination.deliverMessage( agm );
-                            logger.debug( "processed a message" );
+                            logger.info( "processed a message {}", 
+                                    Long.toHexString(agm.payload_checksum) );
                             break;
                         }
                     }
-                    mDestination.resetTimeoutWatchdog();
+                    // prepare to fill buffer
+                    // if any bytes remain in the buffer they are a partial header
+                    bbuf.compact();
+                    
                 } catch (ClosedChannelException ex) {
-                	logger.warn("receiver threw exception {}", ex.getStackTrace());
+                    logger.warn("receiver threw exception {}", ex.getStackTrace());
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 } catch ( Exception ex ) {
@@ -1099,7 +1119,7 @@ public class TcpChannel extends NetChannel {
 
         public synchronized int getReceiverState() { return mState; }
 
-        private int mState = INetChannel.TAKING; // fixme
+        private int mState = INetChannel.TAKING; // FIXME
         private ConnectorThread mParent;
         private TcpChannel mDestination;
         private SocketChannel mSocketChannel;

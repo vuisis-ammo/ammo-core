@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
@@ -29,6 +31,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -54,50 +57,75 @@ public class DistributorThread extends
 
     // 20 seconds expressed in milliseconds
     private static final int BURP_TIME = 20 * 1000;
-
-    private final PriorityBlockingQueue<AmmoGatewayMessage> queue;
-    
+  
     public DistributorThread() {
         super();
-        this.queue = new PriorityBlockingQueue<AmmoGatewayMessage>();
+        this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(20);
+        this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
+                        new AmmoGatewayMessage.PriorityOrder());
     }
     
     private AtomicBoolean subscriptionDelta = new AtomicBoolean(true);
 
     public void subscriptionChange() {
-        if (this.subscriptionDelta.compareAndSet(false, true)) 
-            synchronized(this) { this.notifyAll(); }
+        this.signal(this.subscriptionDelta);
     }
 
     private AtomicBoolean retrievalDelta = new AtomicBoolean(true);
 
     public void retrievalChange() {
-        if (this.retrievalDelta.compareAndSet(false, true)) 
-            synchronized(this) { this.notifyAll(); }
+        this.signal(this.retrievalDelta);
     }
 
     private AtomicBoolean postalDelta = new AtomicBoolean(true);
 
     public void postalChange() {
-        if (this.postalDelta.compareAndSet(false, true)) 
-            synchronized(this) { this.notifyAll(); }
+        this.signal(this.postalDelta);
     }
     
-    private AtomicBoolean receiptDelta = new AtomicBoolean(false);
-    
-    public boolean deliver(AmmoGatewayMessage agm)
+    /**
+     * for handling client application requests
+     */
+    private AtomicBoolean requestDelta = new AtomicBoolean(true);
+    private final BlockingQueue<AmmoRequest> requestQueue;
+  
+    public String distributeRequest(AmmoRequest request)
     {
-        this.queue.put(agm);
-        if (this.receiptDelta.compareAndSet(false, true)) 
-            synchronized(this) { this.notifyAll(); }
+        try {
+            this.requestQueue.put(request);
+            this.signal(this.requestDelta);
+            return "1234567890";  // FIXME what is a good string to return?
+        } catch (InterruptedException ex) {
+            logger.warn("distribute request {}", ex.getStackTrace());
+        }
+        return null;
+    }
+    
+    /**
+     * for handling gateway responses
+     */
+    private AtomicBoolean responseDelta = new AtomicBoolean(false);
+    private final PriorityBlockingQueue<AmmoGatewayMessage> responseQueue;
+    
+    public boolean distributeResponse(AmmoGatewayMessage agm)
+    {
+        this.responseQueue.put(agm);
+        this.signal(this.responseDelta);
         return true;
+    }
+    
+    private void signal(AtomicBoolean atom) {
+        if (!atom.compareAndSet(false, true)) return;
+        synchronized(this) { this.notifyAll(); }
     }
 
     private boolean isReady() {
         if (this.subscriptionDelta.get()) return true;
         if (this.retrievalDelta.get()) return true;
         if (this.postalDelta.get()) return true;
-        if (this.receiptDelta.get()) return true;
+        
+        if (this.responseDelta.get()) return true;
+        if (this.requestDelta.get()) return true;
         return false;
     }
 
@@ -107,7 +135,9 @@ public class DistributorThread extends
         this.subscriptionDelta.set(true);
         this.retrievalDelta.set(true);
         this.postalDelta.set(true);
-        this.receiptDelta.set(true);
+        
+        this.responseDelta.set(true);
+        this.requestDelta.set(true);
         synchronized(this) { this.notifyAll(); }
     }
 
@@ -149,15 +179,28 @@ public class DistributorThread extends
                         this.processPostalChange(that, resend);
                     }
                 }
-                if (this.receiptDelta.getAndSet(false)) {
-                    while (!this.queue.isEmpty()) {
+                if (this.responseDelta.getAndSet(false)) {
+                    while (!this.responseQueue.isEmpty()) {
                         try {
-                             AmmoGatewayMessage agm = this.queue.take();
+                            AmmoGatewayMessage agm = this.responseQueue.take();
                             for (DistributorService that : them) {
-                                this.processGatewayMessage(that, agm);
+                                this.processResponse(that, agm);
                             }
                         } catch (ClassCastException ex) {
-                            logger.error("queue contains illegal item of class {}", 
+                            logger.error("response queue contains illegal item of class {}", 
+                                    ex.getLocalizedMessage());
+                        }
+                    }
+                }
+                if (this.requestDelta.getAndSet(false)) {
+                    while (!this.requestQueue.isEmpty()) {
+                        try {
+                            AmmoRequest agm = this.requestQueue.take();
+                            for (DistributorService that : them) {
+                                this.processRequest(that, agm);
+                            }
+                        } catch (ClassCastException ex) {
+                            logger.error("request queue contains illegal item of class {}", 
                                     ex.getLocalizedMessage());
                         }
                     }
@@ -738,16 +781,29 @@ public class DistributorThread extends
      * @param instream
      * @return was the message clean (true) or garbled (false).
      */
-    private boolean processGatewayMessage(Context context, AmmoGatewayMessage agm) {
-        logger.info("::deliverGatewayResponse");
+    private boolean processRequest(Context context, AmmoRequest agm) {
+        logger.info("::processRequest");
+        // FIXME bunch of code here
+        return true;
+    }
+    
+    /**
+     *  Processes and delivers messages received from the gateway.
+     *  - Verify the check sum for the payload is correct
+     *  - Parse the payload into a message
+     *  - Receive the message
+     *
+     * @param instream
+     * @return was the message clean (true) or garbled (false).
+     */
+    private boolean processResponse(Context context, AmmoGatewayMessage agm) {
+        logger.info("::processResponse");
 
         CRC32 crc32 = new CRC32();
         crc32.update(agm.payload);
         if (crc32.getValue() != agm.payload_checksum) {
-            String msg = "you have received a bad message, the checksums did not match)"+
-            Long.toHexString(crc32.getValue()) +":"+ Long.toHexString(agm.payload_checksum);
-            // Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-            logger.warn(msg);
+            logger.warn("you have received a bad message, the checksums [{}:{}] did not match",
+                    Long.toHexString(crc32.getValue()), Long.toHexString(agm.payload_checksum));
             return false;
         }
 
@@ -757,8 +813,7 @@ public class DistributorThread extends
         } catch (InvalidProtocolBufferException ex) {
             logger.error("parsing gateway message {}", ex.getStackTrace());
         }
-        if (mw == null)
-        {
+        if (mw == null) {
             logger.error( "mw was null!" );
             return false; // TBD SKN: this was true, why? if we can't parse it then its bad
         }
