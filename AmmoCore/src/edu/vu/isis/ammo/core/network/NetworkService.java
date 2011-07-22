@@ -45,9 +45,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
-import edu.vu.isis.ammo.core.security.AmmoSecurityManager;
-import edu.vu.isis.ammo.core.security.Ammo_Crypto;
-
 /**
  * Network Service is responsible for all networking between the
  * core application and the server. Currently, this service implements a UDP
@@ -114,7 +111,7 @@ implements OnSharedPreferenceChangeListener,
     private IDistributorService distributor;
 
     // Channels
-    private INetChannel tcpChannel = TcpChannel.getInstance(this, getBaseContext());
+    private INetChannel tcpChannel = TcpChannel.getInstance(this);
     private INetChannel journalChannel = JournalChannel.getInstance(this);
 
     private MyBroadcastReceiver myReceiver = null;
@@ -201,6 +198,7 @@ implements OnSharedPreferenceChangeListener,
         mNetlinks.add( WiredNetlink.getInstance( getBaseContext() ));
         mNetlinks.add( PhoneNetlink.getInstance( getBaseContext() ));
 
+        this.tcpChannel.setContext(getBaseContext());
         // no point in enabling the socket until the preferences have been read
         this.tcpChannel.disable();  //
         this.acquirePreferences();

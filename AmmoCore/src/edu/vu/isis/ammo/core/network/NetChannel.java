@@ -1,8 +1,12 @@
 package edu.vu.isis.ammo.core.network;
 
+import android.content.Context;
+
 public abstract class NetChannel implements INetChannel {
 
     
+    protected Context mContext;
+
 
 	// The values in the INetChannel that we are translating here could
     // probably be made into an enum and the translation to strings
@@ -37,5 +41,10 @@ public abstract class NetChannel implements INetChannel {
         default:
             return "Undefined State [" + state +"]";
         }
+    }
+
+    public void setContext (Context context)
+    {
+        mContext = context;
     }
 }

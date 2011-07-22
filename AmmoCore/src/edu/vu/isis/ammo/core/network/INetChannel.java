@@ -64,5 +64,7 @@ public interface INetChannel {
      */
     boolean sendRequest( AmmoGatewayMessage agm );
     String getLocalIpAddress();
-
+    
+    // a setter for the context ... 
+    void setContext (android.content.Context context);
 }

@@ -24,8 +24,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.Context;
-
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -62,8 +60,6 @@ public class TcpChannel extends NetChannel {
     private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
     private boolean isEnabled = true;
     
-    private Context mContext;
-
     private Socket socket = null;
     private ConnectorThread connectorThread;
 
@@ -96,7 +92,7 @@ public class TcpChannel extends NetChannel {
     public IChannelManager mChannelManager;
     private ISecurityObject mSecurityObject;
 
-    private TcpChannel( IChannelManager iChannelManager, Context context ) {
+    private TcpChannel( IChannelManager iChannelManager) {
         super();
         logger.info("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
         this.syncObj = this;
@@ -109,15 +105,14 @@ public class TcpChannel extends NetChannel {
         this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
 
         mSenderQueue = new SenderQueue( this );
-        
-        mContext = context;
     }
+    
 
 
-    public static TcpChannel getInstance( IChannelManager iChannelManager, Context context )
+    public static TcpChannel getInstance( IChannelManager iChannelManager)
     {
         logger.trace("Thread <{}>::getInstance", Thread.currentThread().getId());
-        TcpChannel instance = new TcpChannel( iChannelManager, context );
+        TcpChannel instance = new TcpChannel( iChannelManager);
         return instance;
     }
 

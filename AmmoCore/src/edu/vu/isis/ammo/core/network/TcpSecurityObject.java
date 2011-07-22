@@ -46,10 +46,11 @@ public class TcpSecurityObject implements ISecurityObject,
 
         // Start the authorization process.
 
-        //getPreferences();
+        getPreferences();
         
         if (secMgr == null)
-        	secMgr = new AmmoSecurityManager("DeviceID");
+//        	secMgr = new AmmoSecurityManager("DeviceID");
+        	secMgr = new AmmoSecurityManager(mOperatorId);
 
 
 
@@ -197,7 +198,7 @@ public class TcpSecurityObject implements ISecurityObject,
 	    AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage.newBuilder();
 //	    authreq.setDeviceId(mDeviceId);
 	    // HACKKKKKK
-	    authreq.setDeviceId("DeviceID");
+	    authreq.setDeviceId(mOperatorId);
 	    authreq.setType(AmmoMessages.AuthenticationMessage.Type.CLIENT_NONCE);
 	    authreq.setMessage(ByteString.copyFrom(secMgr.getNonce()));
 	
