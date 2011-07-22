@@ -81,7 +81,8 @@ public class AmmoSecurityManager {
 		this.dump_to_file("/data/data/edu.vu.isis.ammo.core/masterSec", preMasterSecret);
 		
 		keyExchange = 
-			crp_.encrypt_data("/data/public_key_gateway.der", 
+//			crp_.encrypt_data("/data/public_key_gateway.der", 
+			crp_.encrypt_data("/mnt/sdcard/public_key_gateway.der", 
 							  preMasterSecret, 
 							  "RSA", 
 							  "PKCS1Padding");
@@ -93,7 +94,8 @@ public class AmmoSecurityManager {
 	{
 		
 		byte[] data = this.concatBytes(keyExchange, the_client_nonce, the_server_nonce);
-		phoneAuth = crp_.sign("/data/private_key_phone.der", data, data.length, "SHA1withRSA");
+		phoneAuth = crp_.sign("/mnt/sdcard/private_key_phone.der", data, data.length, "SHA1withRSA");
+//		phoneAuth = crp_.sign("/data/private_key_phone.der", data, data.length, "SHA1withRSA");
 		
 		return phoneAuth;
 	}
