@@ -72,8 +72,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public final byte[] payload;
     public final INetworkService.OnSendMessageHandler handler;
 
-
-    
+    public final boolean isMulticast;
+    public final boolean isGateway;
 
     /**
      * @return
@@ -132,53 +132,92 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     }
 
     static public class Builder {
-        public final int size;
-        public final byte priority;
-        public final long payload_checksum;
-        public final INetworkService.OnSendMessageHandler handler;
+        // the size is the intended size, the actual size is that of the payload
+        private int size;
+        public int size() { return this.size; }
+        public Builder size(int val) { this.size = val; return this; }
+    
+        private byte priority;
+        public byte priority() { return this.priority; }
+        public Builder priority(byte val) { this.priority = val; return this; }
+        public Builder priority(int val) { this.priority = (byte)val; return this; }
+        
+        private byte error;
+        public byte error() { return this.error; }
+        public Builder error(byte val) { this.error = val; return this; }
+        public Builder error(int val) { this.error = (byte)val; return this; }
+        
+        private long checksum;
+        public long checksum() { return this.checksum; }
+        public Builder checksum(long val) { this.checksum = val; return this; }
+        
+        private INetworkService.OnSendMessageHandler handler;
+        public INetworkService.OnSendMessageHandler handler() { return this.handler; }
+        public Builder handler(INetworkService.OnSendMessageHandler val) { this.handler = val; return this; }
+        
+        private boolean isMulticast;
+        public boolean isMulticast() { return this.isMulticast; }
+        public Builder isMulticast(boolean val) { this.isMulticast = val; return this; }
+        
+        private boolean isGateway;
+        public boolean isGateway() { return this.isGateway; }
+        public Builder isGateway(boolean val) { this.isGateway = val; return this; }
         
         public AmmoGatewayMessage payload(byte[] val) { 
             if (this.size != val.length)
                 throw new IllegalArgumentException("payload size incorrect");
-            return new AmmoGatewayMessage(this.size, this.payload_checksum, this.priority, val, this.handler);
+            return new AmmoGatewayMessage(this, val);
         }
         
-        private Builder(int size, long checksum, byte priority, 
-                INetworkService.OnSendMessageHandler handler) {    
-            this.size = size;
-            this.priority = priority;
-            this.payload_checksum = checksum;
-            this.handler = handler;
+        /**
+         * Describe the message.
+         * 
+         */
+        private Builder() {
+            this.size = 0;
+            this.priority = PriorityLevel.NORMAL.b();
+            this.checksum = 0;
+            this.handler = null;
         }
     }
    
-    public static AmmoGatewayMessage getInstance(AmmoMessages.MessageWrapper.Builder amb, 
-            INetworkService.OnSendMessageHandler handler) {
-         AmmoMessages.MessageWrapper amw = amb.build();
-         
-         byte[] payload = amw.toByteArray();
-         
-         byte priority = (byte) amw.getMessagePriority();
-        
-        CRC32 crc32 = new CRC32();
-        crc32.update(payload);
-        return new AmmoGatewayMessage(payload.length, crc32.getValue(), (byte) priority, payload, handler);
-    }
-
-    private AmmoGatewayMessage(int size, long checksum, byte priority, byte[] payload, 
-            INetworkService.OnSendMessageHandler handler) {    
-        this.size = size;
+    private AmmoGatewayMessage(Builder builder, byte[] payload) {    
+        this.size = builder.size;
         if (this.size != payload.length)
             throw new IllegalArgumentException("payload size incorrect");
-        this.priority = priority;
-        this.payload_checksum = checksum;
+        this.priority = builder.priority;
+        this.payload_checksum = builder.checksum;
         this.payload = payload;
-        this.handler = handler;
+        this.handler = builder.handler;
+        
+        this.isMulticast = builder.isMulticast;
+        this.isGateway = builder.isGateway;
+    }
+    public static AmmoGatewayMessage newInstance( AmmoMessages.MessageWrapper.Builder mwb,
+            INetworkService.OnSendMessageHandler handler) {
+        byte[] payload = mwb.build().toByteArray();
+    
+        CRC32 crc32 = new CRC32();
+        crc32.update(payload);
+         
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder()
+            .size(payload.length)
+            .checksum(crc32.getValue())
+            .priority(PriorityLevel.NORMAL.v)
+            .handler(handler);
+        return agmb.payload(payload);
     }
     
-    public static AmmoGatewayMessage.Builder getBuilder(int size, long checksum, byte priority,
+    public static AmmoGatewayMessage.Builder newBuilder() {
+        return new AmmoGatewayMessage.Builder();
+    }
+    public static AmmoGatewayMessage.Builder newBuilder(int size, long checksum, byte priority,
             INetworkService.OnSendMessageHandler handler) {
-        return new AmmoGatewayMessage.Builder(size, checksum, (byte) priority, handler);
+        return new AmmoGatewayMessage.Builder()
+             .size(size)
+             .checksum(checksum)
+             .priority(priority)
+             .handler(handler);
     }
     
    
@@ -246,8 +285,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 int priority = drain.get() & BYTE_MASK;
                 logger.debug( "   priority={}", priority );
                 
+                int error = drain.get() & BYTE_MASK;
+                logger.debug( "   error={}", error );
+                
                 // reserved bytes
-                drain.get();  
                 drain.getShort();
                 
                 byte[] checkBytes = new byte[ 4 ];
@@ -265,7 +306,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 if (header_checksum != crc32.getValue()) 
                     continue;
     
-                return AmmoGatewayMessage.getBuilder(size, payload_checksum, (byte)priority, null);
+                return AmmoGatewayMessage.newBuilder()
+                         .size(size)
+                         .checksum(payload_checksum)
+                         .priority(priority)
+                         .error(error);
             }
         } catch (BufferUnderflowException ex) {
             // the data was looking like a header as far as it went
@@ -276,8 +321,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     
     /**
      * AUTH : authentication message only
-     * CTRL : all control type messages, not data messages: subscribe, pull, heartbeat
-     * No data, push, messages should be allowed to use anthing within the AUTH and CTRL span.
+     * CTRL : all control type messages, not data messages: subscribe, pull, heart beat
+     * No data, push, messages should be allowed to use anything within the AUTH and CTRL span.
      * If a data message tries to use a value in that range it should be degraded to FLASH.
      *
      */
@@ -289,6 +334,29 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.v = value;
         }
     }
+    
+    /**
+     * error values for MessageHeader
+     * 
+     * These error codes are for the reasons why the gateway may subsequently disconnect.
+     * If the error code is non-zero, the message size and checksum will be zero.
+     * The headerChecksum is present and is calculated normally.
+     * The key to deciding whether to process the message should be the 
+     * message length and not the error code.
+     */
+    public enum GatewayError {
+       NO_ERROR(0),
+       INVALID_MAGIC_NUMBER(1),
+       INVALID_HEADER_CHECKSUM(2),
+       INVALID_MESSAGE_CHECKSUM(3),
+       MESSAGE_TOO_LARGE(4);
+       public int v;
+       public byte b() { return (byte) this.v; }
+       private GatewayError(int value) {
+           this.v = value;
+       }
+    }
+
     
     /**
      * The four least significant bytes of a long 

@@ -16,29 +16,33 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  *
  */
 public class PreferenceService extends Service {
-	 @Override
-	    public void onCreate() {
-	        super.onCreate();
-	 }
-	 
-	@Override
-	public IBinder onBind(Intent arg0) {
-		return mBinder;
-	}
-	
-	private final IPreferenceService.Stub mBinder = new IPreferenceService.Stub() {
-		
-		@Override
-		public String getOperatorId() throws RemoteException {
-			Log.d("PreferenceService", "::getOperatorId()");
-			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString(IPrefKeys.CORE_OPERATOR_ID, "operator3");
-		}
-		
-		@Override
-		public String getDeviceId() throws RemoteException {
-			return PreferenceManager.getDefaultSharedPreferences(PreferenceService.this).getString(INetPrefKeys.CORE_DEVICE_ID, 
-					UniqueIdentifiers.device(null));
-		}
-	};
+     @Override
+        public void onCreate() {
+            super.onCreate();
+     }
+     
+    @Override
+    public IBinder onBind(Intent arg0) {
+        return mBinder;
+    }
+    
+    private final IPreferenceService.Stub mBinder = new IPreferenceService.Stub() {
+        
+        @Override
+        public String getOperatorId() throws RemoteException {
+            Log.d("PreferenceService", "::getOperatorId()");
+            return PreferenceManager
+                 .getDefaultSharedPreferences(PreferenceService.this)
+                 .getString(IPrefKeys.CORE_OPERATOR_ID, "operator3");
+        }
+        
+        @Override
+        public String getDeviceId() throws RemoteException {
+            return PreferenceManager
+                   .getDefaultSharedPreferences(PreferenceService.this)
+                   .getString(INetPrefKeys.CORE_DEVICE_ID, 
+                      UniqueIdentifiers.device(null));
+        }
+    };
 
 }

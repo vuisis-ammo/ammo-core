@@ -53,11 +53,9 @@ public class TcpSecurityObject implements ISecurityObject,
         	secMgr = new AmmoSecurityManager(mOperatorId);
 
 
-
-
         AmmoMessages.MessageWrapper.Builder builder = getClientNonce ();        
         
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance(builder, this );
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(builder, this );
 
         mChannel.putFromSecurityObject( agm );
         mChannel.finishedPuttingFromSecurityObject();
