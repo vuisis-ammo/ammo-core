@@ -163,10 +163,19 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public boolean isGateway() { return this.isGateway; }
         public Builder isGateway(boolean val) { this.isGateway = val; return this; }
         
-        public AmmoGatewayMessage payload(byte[] val) { 
-            if (this.size != val.length)
+        private byte[] payload;
+        public byte[] payload() { return this.payload; }
+        public Builder payload(byte[] val) { 
+            //if (this.size != val.length)
+            //    throw new IllegalArgumentException("payload size incorrect");
+            //return new AmmoGatewayMessage(this, val);
+        	this.payload = val;
+        	return this;
+        }
+        public AmmoGatewayMessage build() { 
+            if (this.size != this.payload.length)
                 throw new IllegalArgumentException("payload size incorrect");
-            return new AmmoGatewayMessage(this, val);
+            return new AmmoGatewayMessage(this, this.payload);
         }
         
         /**
@@ -193,6 +202,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.isMulticast = builder.isMulticast;
         this.isGateway = builder.isGateway;
     }
+    
     public static AmmoGatewayMessage newInstance( AmmoMessages.MessageWrapper.Builder mwb,
             INetworkService.OnSendMessageHandler handler) {
         byte[] payload = mwb.build().toByteArray();
@@ -201,11 +211,27 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         crc32.update(payload);
          
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder()
+             .payload(payload)
             .size(payload.length)
             .checksum(crc32.getValue())
             .priority(PriorityLevel.NORMAL.v)
             .handler(handler);
-        return agmb.payload(payload);
+        return agmb.build();
+    }
+    
+    public static AmmoGatewayMessage.Builder newBuilder( AmmoMessages.MessageWrapper.Builder mwb,
+            INetworkService.OnSendMessageHandler handler) {
+        byte[] payload = mwb.build().toByteArray();
+    
+        CRC32 crc32 = new CRC32();
+        crc32.update(payload);
+        
+        return AmmoGatewayMessage.newBuilder()
+            .payload(payload)
+            .size(payload.length)
+            .checksum(crc32.getValue())
+            .priority(PriorityLevel.NORMAL.v)
+            .handler(handler);
     }
     
     public static AmmoGatewayMessage.Builder newBuilder() {

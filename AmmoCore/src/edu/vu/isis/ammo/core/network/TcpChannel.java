@@ -1084,7 +1084,7 @@ public class TcpChannel extends NetChannel {
                             }
                             bbuf.get(payload, offset, size);
                             
-                            AmmoGatewayMessage agm = agmb.payload(payload);
+                            AmmoGatewayMessage agm = agmb.payload(payload).build();
                             setReceiverState( INetChannel.DELIVER );
                             mDestination.deliverMessage( agm );
                             logger.info( "processed a message {}", 
