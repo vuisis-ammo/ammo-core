@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,14 +32,13 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
-import edu.vu.isis.ammo.core.distributor.IDistributorService;
+import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -107,7 +105,7 @@ implements OnSharedPreferenceChangeListener,
     public boolean getNetworkingSwitch() { return networkingSwitch; }
     public boolean toggleNetworkingSwitch() { return networkingSwitch = networkingSwitch ? false : true; }
 
-    private IDistributorService distributor;
+    private DistributorService distributor;
 
     // Channels
     private INetChannel tcpChannel = TcpChannel.getInstance(this);
@@ -411,31 +409,6 @@ implements OnSharedPreferenceChangeListener,
     }
 
     /**
-     * Get the session id set by the gateway.
-     *
-     * @param mw
-     * @return
-     */
-    private boolean receiveAuthenticationResponse(AmmoMessages.MessageWrapper mw) {
-        logger.info("::receiveAuthenticationResponse");
-
-        if (mw == null) return false;
-        if (! mw.hasAuthenticationResult()) return false;
-        if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
-            return false;
-        }
-        PreferenceManager
-            .getDefaultSharedPreferences(this)
-            .edit()
-            .putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
-            .commit();
-        sessionId = mw.getSessionUuid();
-
-        // the distributor doesn't need to know about authentication results.
-        return true;
-    }
-
-    /**
      * Push requests are set via UDP.
      * (PushRequest := DataMessage)
      *
@@ -459,23 +432,6 @@ implements OnSharedPreferenceChangeListener,
 
         mw.setDataMessage(pushReq);
         return mw;
-    }
-
-    /**
-     * Get response to PushRequest from the gateway.
-     * (PushResponse := PushAcknowledgement)
-     *
-     * @param mw
-     * @return
-     */
-    private boolean receivePushResponse(AmmoMessages.MessageWrapper mw) {
-        logger.info("::receivePushResponse");
-
-        if (mw == null) return false;
-        if (! mw.hasPushAcknowledgement()) return false;
-        PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-
-        return distributor.dispatchPushResponse(pushResp);
     }
 
     /**
@@ -511,21 +467,6 @@ implements OnSharedPreferenceChangeListener,
         return mw;
     }
 
-    /**
-     * Get response to RetrievalRequest, PullResponse, from the gateway.
-     *
-     * @param mw
-     * @return
-     */
-    private boolean receivePullResponse(AmmoMessages.MessageWrapper mw) {
-        logger.info("::receivePullResponse");
-
-        if (mw == null) return false;
-        if (! mw.hasPullResponse()) return false;
-        final AmmoMessages.PullResponse pullResp = mw.getPullResponse();
-
-        return distributor.dispatchRetrievalResponse(pullResp);
-    }
 
     private AmmoMessages.MessageWrapper.Builder buildSubscribeRequest(String mimeType, String query)
     {
@@ -545,15 +486,6 @@ implements OnSharedPreferenceChangeListener,
         return mw;
     }
 
-    private boolean receiveSubscribeResponse(AmmoMessages.MessageWrapper mw) {
-        logger.info("::receiveSubscribeResponse");
-
-        if (mw == null) return false;
-        if (! mw.hasDataMessage()) return false;
-        final AmmoMessages.DataMessage subscribeResp = mw.getDataMessage();
-
-        return distributor.dispatchSubscribeResponse(subscribeResp);
-    }
     // ===========================================================
     // Gateway Communication Methods
     // ===========================================================
@@ -597,59 +529,7 @@ implements OnSharedPreferenceChangeListener,
         if ( distributor == null )
             return false;
 
-        CRC32 crc32 = new CRC32();
-        crc32.update(agm.payload);
-        if (crc32.getValue() != agm.payload_checksum) {
-            String msg = "you have received a bad message, the checksums did not match)"+
-            Long.toHexString(crc32.getValue()) +":"+ Long.toHexString(agm.payload_checksum);
-            // Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-            logger.warn(msg);
-            return false;
-        }
-
-        AmmoMessages.MessageWrapper mw = null;
-        try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
-        } catch (InvalidProtocolBufferException ex) {
-            ex.printStackTrace();
-        }
-        if (mw == null)
-        {
-            logger.error( "mw was null!" );
-            return false; // TBD SKN: this was true, why? if we can't parse it then its bad
-        }
-
-        switch (mw.getType()) {
-
-        case DATA_MESSAGE:
-            receiveSubscribeResponse(mw);
-            break;
-
-        case AUTHENTICATION_RESULT:
-            boolean result = receiveAuthenticationResponse(mw);
-            logger.error( "authentication result={}", result );
-            break;
-
-        case PUSH_ACKNOWLEDGEMENT:
-            receivePushResponse(mw);
-            break;
-
-        case PULL_RESPONSE:
-            receivePullResponse(mw);
-            break;
-
-        case HEARTBEAT:
-        	break;
-        case AUTHENTICATION_MESSAGE:
-        case SUBSCRIBE_MESSAGE:
-        case PULL_REQUEST:
-        case UNSUBSCRIBE_MESSAGE:
-        	logger.warn( "received an outbound message type {}", mw.getType());
-        	break;
-        default:
-            logger.error( "mw.getType() returned an unexpected type. {}", mw.getType());
-        }
-        return true;
+        return this.distributor.deliver(agm);
     }
 
     // ===============================================================
@@ -698,7 +578,7 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance(mwb, this);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(mwb, this);
         sendRequest(agm);
         return true;
     }
@@ -710,7 +590,8 @@ implements OnSharedPreferenceChangeListener,
         logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
         AmmoMessages.MessageWrapper.Builder mwb = buildPushRequest(uri, mimeType, data);
         logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
         return sendRequest(agm);
     }
 
@@ -719,7 +600,7 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildRetrievalRequest(subscriptionId, mimeType, selection);
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
         return sendRequest(agm);
     }
 
@@ -728,11 +609,11 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildSubscribeRequest(mimeType, selection);
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance( mwb, handler);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
         return sendRequest(agm);
     }
 
-    public void setDistributorServiceCallback(IDistributorService callback) {
+    public void setDistributorServiceCallback(DistributorService callback) {
         logger.info("::setDistributorServiceCallback");
 
         distributor = callback;

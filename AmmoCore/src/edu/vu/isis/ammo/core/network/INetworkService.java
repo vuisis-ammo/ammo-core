@@ -6,7 +6,7 @@ package edu.vu.isis.ammo.core.network;
 
 import java.util.List;
 
-import edu.vu.isis.ammo.core.distributor.IDistributorService;
+import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 
@@ -75,7 +75,7 @@ public interface INetworkService {
      *
      * @param callback
      */
-    void setDistributorServiceCallback(IDistributorService callback);
+    void setDistributorServiceCallback(DistributorService callback);
 
     List<Gateway> getGatewayList();
     List<Netlink> getNetlinkList();
