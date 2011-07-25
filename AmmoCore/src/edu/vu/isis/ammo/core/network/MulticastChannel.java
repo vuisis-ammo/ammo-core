@@ -354,7 +354,7 @@ public class MulticastChannel extends NetChannel
 
         mw.setHeartbeat( message );
 
-        AmmoGatewayMessage agm = AmmoGatewayMessage.getInstance(mw, null);
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(mw, null);
         sendRequest( agm );
 
         mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
@@ -1043,7 +1043,7 @@ public class MulticastChannel extends NetChannel
                     }
 
                     // extract the payload
-                    byte[] payload = new byte[agmb.size];
+                    byte[] payload = new byte[agmb.size()];
                     buf.get( payload, 0, buf.remaining() );
 
                     AmmoGatewayMessage agm = agmb.payload( payload );
