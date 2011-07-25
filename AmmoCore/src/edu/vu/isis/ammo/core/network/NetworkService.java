@@ -111,6 +111,7 @@ implements OnSharedPreferenceChangeListener,
 
     // Channels
     private INetChannel tcpChannel = TcpChannel.getInstance(this);
+    private INetChannel multicastChannel = MulticastChannel.getInstance(this);
     private INetChannel journalChannel = JournalChannel.getInstance(this);
 
     private MyBroadcastReceiver myReceiver = null;
@@ -197,11 +198,24 @@ implements OnSharedPreferenceChangeListener,
         mNetlinks.add( WiredNetlink.getInstance( getBaseContext() ));
         mNetlinks.add( PhoneNetlink.getInstance( getBaseContext() ));
 
+        // FIXME: find the appropriate time to release() the multicast lock.
+        logger.error( "Acquiring multicast lock()" );
+        WifiManager wm = (WifiManager)getSystemService(Context.WIFI_SERVICE);
+        WifiManager.MulticastLock multicastLock = wm.createMulticastLock("mydebuginfo");
+        multicastLock.acquire();
+        logger.error( "...acquired multicast lock()" );
+
+
         // no point in enabling the socket until the preferences have been read
-        this.tcpChannel.disable();  //
+        this.tcpChannel.disable();
+        this.multicastChannel.disable();
         this.acquirePreferences();
         if (this.networkingSwitch && this.gatewayEnabled)
-            this.tcpChannel.enable();   //
+        {
+            this.tcpChannel.enable();
+        }
+        this.multicastChannel.enable();
+        this.multicastChannel.reset(); // This starts the connector thread.
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(this);
@@ -233,16 +247,24 @@ implements OnSharedPreferenceChangeListener,
         final TelephonyManager tm = (TelephonyManager) getBaseContext().getSystemService( Context.TELEPHONY_SERVICE );
         tm.listen( mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE );
 
-        // get updates as they happen
-        //this.phoneReceiver = new PhoneReceiver();
-        //IntentFilter phoneFilter = new IntentFilter( TelephonyManager.ACTION_PHONE_STATE_CHANGED );
-        //getBaseContext().registerReceiver(this.phoneReceiver, phoneFilter);
+        // FIXME: this probably needs to happen differently.  Fred and
+        // I discussed it and we need to add a flag to the intent sent
+        // below so that the receiver knows 
+        // done initializing mcast channel - now fire up the AMMO_LOGIN intent
+        // to force apps to register their subscriptions
+        logger.info( "Forcing applications to register their subscriptions" );
+        // broadcast login event to apps ...
+        Intent loginIntent = new Intent( INetPrefKeys.AMMO_LOGIN );
+        loginIntent.putExtra( "operatorId", operatorId );
+        this.sendBroadcast( loginIntent );
     }
+
 
     @Override
     public void onDestroy() {
         logger.warn("::onDestroy");
         this.tcpChannel.disable();
+        this.multicastChannel.disable();
         this.journalChannel.close();
 
         this.mReceiverRegistrar.unregisterReceiver(this.myReceiver);
@@ -550,6 +572,7 @@ implements OnSharedPreferenceChangeListener,
     {
         logger.info("::sendGatewayRequest");
         return this.tcpChannel.sendRequest(agm);
+        //return this.multicastChannel.sendRequest(agm);
     }
 
     // ===========================================================
@@ -565,6 +588,14 @@ implements OnSharedPreferenceChangeListener,
     public boolean deliver(AmmoGatewayMessage agm)
     {
         logger.info("::deliverGatewayResponse");
+
+        // FIXME: we do this because multicast packets can come in
+        // before the distributor is set.  This test is a workaround,
+        // and we should probably just not create the TcpChannel until
+        // the distributor is connected up.  That change may have
+        // far-reaching effects, so I'll save it for after the demo.
+        if ( distributor == null )
+            return false;
 
         CRC32 crc32 = new CRC32();
         crc32.update(agm.payload);
@@ -606,7 +637,7 @@ implements OnSharedPreferenceChangeListener,
         case PULL_RESPONSE:
             receivePullResponse(mw);
             break;
-            
+
         case HEARTBEAT:
         	break;
         case AUTHENTICATION_MESSAGE:
@@ -635,6 +666,7 @@ implements OnSharedPreferenceChangeListener,
     public void teardown() {
         logger.info("Tearing down NPS");
         this.tcpChannel.disable();
+        this.multicastChannel.disable();
 
         Timer t = new Timer();
         t.schedule(new TimerTask() {
@@ -729,10 +761,12 @@ implements OnSharedPreferenceChangeListener,
                     case AmmoIntents.LINK_UP:
                         logger.info("onReceive: Link UP " + action);
                         tcpChannel.linkUp();
+                        multicastChannel.linkUp();
                         break;
                     case AmmoIntents.LINK_DOWN:
                         logger.info("onReceive: Link DOWN " + action);
                         tcpChannel.linkDown();
+                        multicastChannel.linkDown();
                         break;
                     }
                 }
