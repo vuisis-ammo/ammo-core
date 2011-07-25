@@ -21,7 +21,7 @@ public class MulticastSecurityObject implements ISecurityObject,
     }
 
 
-    public void authorize( AmmoMessages.MessageWrapper.Builder mwb  )
+    public void authorize()
     {
         logger.info( "MulticastSecurityObject::authorize()." );
 

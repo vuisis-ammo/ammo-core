@@ -117,7 +117,7 @@ public class TcpSecurityObject implements ISecurityObject,
         		//send the key Exchange
         		AmmoMessages.MessageWrapper.Builder builder = getKeyExchange();
         		
-	            AmmoGatewayMessage agmout = AmmoGatewayMessage.getInstance(builder, this );
+	            AmmoGatewayMessage agmout = AmmoGatewayMessage.newInstance(builder, this );
 
 	            mChannel.putFromSecurityObject( agmout );
 	            
@@ -134,7 +134,7 @@ public class TcpSecurityObject implements ISecurityObject,
 	        	//send it the phone auth message
         		builder = getPhoneAuth();
         		
-	            agmout = AmmoGatewayMessage.getInstance(builder, this );
+	            agmout = AmmoGatewayMessage.newInstance(builder, this );
 
 	            mChannel.putFromSecurityObject( agmout );
 
@@ -154,7 +154,7 @@ public class TcpSecurityObject implements ISecurityObject,
 	            
         		builder = getPhoneFinish();
         		
-	            agmout = AmmoGatewayMessage.getInstance(builder, this );
+	            agmout = AmmoGatewayMessage.newInstance(builder, this );
 
 	            mChannel.putFromSecurityObject( agmout );
 	            
@@ -170,7 +170,10 @@ public class TcpSecurityObject implements ISecurityObject,
         		if (fin_verify)
         			System.out.println("Gateway Finish Verified");
         		else
+        		{
         			System.out.println("Gateway Finish Cannot Verify");
+        			return false;
+        		}
         			
         	}
         }

@@ -78,7 +78,7 @@ public class AmmoSecurityManager {
 	{
 		generatePreMasterSecret();
 		
-		this.dump_to_file("/data/data/edu.vu.isis.ammo.core/masterSec", preMasterSecret);
+//		this.dump_to_file("/data/data/edu.vu.isis.ammo.core/masterSec", preMasterSecret);
 		
 		keyExchange = 
 //			crp_.encrypt_data("/data/public_key_gateway.der", 
@@ -238,7 +238,7 @@ public class AmmoSecurityManager {
 	{
 		byte[] handshake = concatBytes(this.phoneAuth, this.keyExchange, this.the_client_nonce, this.the_server_nonce);
 		
-		String gateway_id = "MainGateway";
+		String gateway_id = "Gateway1";
 		
 		byte[] content = concatBytes(handshake, gateway_id.getBytes(), masterSecret/*, there needs to be a pad here*/ );
 
