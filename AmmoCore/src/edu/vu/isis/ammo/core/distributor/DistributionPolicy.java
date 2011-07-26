@@ -12,6 +12,9 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
+import org.ardverk.collection.PatriciaTrie;
+import org.ardverk.collection.StringKeyAnalyzer;
+import org.ardverk.collection.Trie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.Attributes;
@@ -42,13 +45,16 @@ import android.content.Context;
 public class DistributionPolicy {
 	private static final Logger logger = LoggerFactory.getLogger(DistributionPolicy.class);
 	
-	public final Map<String, Load> policy;
+	public final Trie<String, Load> policy;
 	public final String policy_file = "distribution_policy.xml";
 	
 	public DistributionPolicy(Context context) {
-		this.policy = new HashMap<String, Load>(20);
-		this.policy.put("xyz", new Load(Scope.GATEWAY));
-		this.policy.put("abc", new Load(Scope.MULTICAST));
+        this.policy = new PatriciaTrie<String, Load>(StringKeyAnalyzer.BYTE);
+        LoadBuilder lb = new LoadBuilder().isGateway(true).isMulticast(true);
+        
+        this.policy.put("application/vnd.com.aterrasys.nevada.", lb.build());
+        
+        this.policy.put("", lb.isMulticast(false).build());
 		
 		try {
 			File file = context.getDir(policy_file, Context.MODE_WORLD_READABLE);
@@ -73,15 +79,30 @@ public class DistributionPolicy {
 	    }
 	}
 	
-
-	enum Scope {
-		MULTICAST, GATEWAY;
+	public Load match(String val) {
+		return this.policy.selectValue(val);
 	}
+	
 	class Load {
-		public final Scope scope;
-		public Load(Scope scope) {
-			this.scope = scope;
+		public final boolean isMulticast;
+		public final boolean isGateway;
+		
+		private Load(LoadBuilder builder) {
+			this.isMulticast = builder.isMulticast();
+			this.isGateway = builder.isGateway();
 		}
+	}
+	
+	class LoadBuilder {
+		private boolean isMulticast;
+		private boolean isGateway;
+		public boolean isMulticast() { return this.isMulticast; }
+		public boolean isGateway() { return this.isGateway; }
+		public LoadBuilder isMulticast(boolean val) {  this.isMulticast = val; return this; }
+		public LoadBuilder isGateway(boolean val) {  this.isGateway = val; return this; }
+		
+		public LoadBuilder() {}
+		public Load build() { return new Load(this); }
 	}
 
 	class PolicyHandler implements ContentHandler {

@@ -148,6 +148,7 @@ public class DistributorService extends Service {
     private IRegisterReceiver mReceiverRegistrar = null;
 
 	private DistributionPolicy policy;
+	public DistributionPolicy policy() { return this.policy; }
 
     // When the service is created, we should setup all services necessary to
     // maintain synchronization (updating player loop,
