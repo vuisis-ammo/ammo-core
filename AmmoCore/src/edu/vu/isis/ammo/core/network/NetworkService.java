@@ -363,6 +363,7 @@ implements OnSharedPreferenceChangeListener,
             logger.info("explicit opererator reset on channel");
             this.networkingSwitch = true;
             this.tcpChannel.reset();
+            this.multicastChannel.reset();
         }
 
         if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
@@ -427,10 +428,19 @@ implements OnSharedPreferenceChangeListener,
      */
     public boolean sendRequest(AmmoGatewayMessage agm)
     {
-        logger.info("::sendGatewayRequest");
-        // agm.setSessionUuid(sessionId);
-        return this.tcpChannel.sendRequest(agm);
-        //return this.multicastChannel.sendRequest(agm);
+        logger.info( "::sendGatewayRequest" );
+        // agm.setSessionUuid( sessionId );
+
+        if ( agm.isMulticast )
+        {
+            logger.info( "   Sending multicast message." );
+            return this.multicastChannel.sendRequest(agm);
+        }
+        else
+        {
+            logger.info( "   Sending message to gateway." );
+            return this.tcpChannel.sendRequest(agm);
+        }
     }
 
     // ===========================================================
@@ -492,7 +502,7 @@ implements OnSharedPreferenceChangeListener,
      */
     public boolean isConnected() {
         logger.info("::isConnected");
-        return tcpChannel.isConnected();
+        return tcpChannel.isConnected() || multicastChannel.isConnected();
     }
 
     /**
