@@ -81,11 +81,11 @@ public class DistributorService extends Service {
     	return this.isNetworkServiceBound; 
     }
     
-    private DistributorThread pct;
+    private DistributorThread distThread;
 
     public void consumerReady() {
         logger.info("::consumer ready : resend old requests");
-        this.pct.resend();
+        this.distThread.resend();
     }
     
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
@@ -95,12 +95,12 @@ public class DistributorService extends Service {
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
             networkServiceBinder.setDistributorServiceCallback(DistributorService.this);
             
-            DistributorService.this.pct.execute(DistributorService.this);
+            DistributorService.this.distThread.execute(DistributorService.this);
         }
 
         public void onServiceDisconnected(ComponentName name) {
             logger.info("::onServiceDisconnected - Network Service");
-            DistributorService.this.pct.cancel(true);
+            DistributorService.this.distThread.cancel(true);
             isNetworkServiceBound = false;
             networkServiceBinder = null;
         }
@@ -126,7 +126,8 @@ public class DistributorService extends Service {
         @Override
         public String makeRequest(AmmoRequest request) throws RemoteException {
             logger.trace("received data request");
-            return DistributorService.this.pct.distributeRequest(request);
+            final String requestId = DistributorService.this.distThread.distributeRequest(request);
+            return requestId;
         }
 
         @Override
@@ -158,7 +159,7 @@ public class DistributorService extends Service {
         logger.info("::onCreate");
 
         // set up the worker thread
-        this.pct = new DistributorThread();
+        this.distThread = new DistributorThread();
         
         // Set this service to observe certain Content Providers.
         // Initialize our content observer.
@@ -298,7 +299,7 @@ public class DistributorService extends Service {
         @Override
         public void onChange(boolean selfChange) {
             logger.info("PostalObserver::onChange : {}", selfChange);
-            this.callback.pct.postalChange();
+            this.callback.distThread.postalChange();
         }
     }
 
@@ -316,7 +317,7 @@ public class DistributorService extends Service {
         @Override
         public void onChange(boolean selfChange) {
             logger.info("RetrievalObserver::onChange : {}", selfChange );
-            this.callback.pct.retrievalChange();
+            this.callback.distThread.retrievalChange();
         }
     }
 
@@ -334,7 +335,7 @@ public class DistributorService extends Service {
         @Override
         public void onChange(boolean selfChange) {
             logger.info("SubscriptionObserver::onChange : {}", selfChange );
-            this.callback.pct.subscriptionChange();
+            this.callback.distThread.subscriptionChange();
         }
     }
 
@@ -389,7 +390,7 @@ public class DistributorService extends Service {
 
 
     public boolean deliver(AmmoGatewayMessage agm) {
-    	return pct.distributeResponse(agm);
+    	return distThread.distributeResponse(agm);
     }
    
 }

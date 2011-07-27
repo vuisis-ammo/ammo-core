@@ -60,16 +60,21 @@ public class DistributionPolicy implements ContentHandler {
             
             reader.setContentHandler(this);
             
-            reader.parse(new InputSource(new InputStreamReader(new FileInputStream(file))));
+            InputSource is = new InputSource(new InputStreamReader(new FileInputStream(file)));
+            reader.parse(is);
             
         } catch (MalformedURLException ex) {
             logger.warn("malformed file name {}", ex.getStackTrace());
+            this.setDefaultRule();
         } catch (ParserConfigurationException ex) {
             logger.warn("parse error {}", ex.getStackTrace());
+            this.setDefaultRule();
         } catch (SAXException ex) {
             logger.warn("sax error {}", ex.getStackTrace());
+            this.setDefaultRule();
         } catch (IOException ex) {
             logger.warn("general io error {}", ex.getStackTrace());
+            this.setDefaultRule();
         }
     }
     
@@ -162,6 +167,10 @@ public class DistributionPolicy implements ContentHandler {
 
         @Override
         public void startDocument() throws SAXException {
+            this.setDefaultRule();
+        }
+        
+        public void setDefaultRule() {
             this.policy.put("application/vnd.com.aterrasys.nevada.", 
                  this.lb.isGateway(true).isMulticast(true).build());
         }
@@ -169,8 +178,11 @@ public class DistributionPolicy implements ContentHandler {
         @Override
         public void startElement(String uri, String localName, String qName,
                 Attributes atts) throws SAXException {
+        	
             if (localName.equals("topic")) {
-                this.policy.put(atts.getValue(uri, "type"),  this.lb
+            	String type = atts.getValue(uri, "type");
+            	if (type == null) return;
+                this.policy.put(type,  this.lb
                     .isGateway(extractBoolean(uri,"isGateway", true, atts))
                     .isMulticast(extractBoolean(uri,"isMulticast", false, atts))
                     .build());
