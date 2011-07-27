@@ -46,7 +46,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * 
  */
 public class AmmoGatewayMessage implements Comparable<Object> {
-    private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
+    private static final Logger logger = LoggerFactory.getLogger( "net.ammogatewaymessage" );
     
     private static final byte[] MAGIC = {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
     

@@ -60,7 +60,7 @@ implements OnSharedPreferenceChangeListener,
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger( NetworkService.class );
+    private static final Logger logger = LoggerFactory.getLogger( "net.service" );
 
     // Local constants
     public static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";

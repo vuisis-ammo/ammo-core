@@ -10,7 +10,7 @@ import android.os.IBinder;
 
 public class EthTrackSvc extends Service {
 	
-private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
+private static final Logger logger = LoggerFactory.getLogger( "net.ethertracking" );
 
 	 @Override	
 	public void onCreate() {

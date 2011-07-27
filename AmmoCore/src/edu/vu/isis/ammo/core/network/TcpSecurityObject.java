@@ -12,7 +12,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class TcpSecurityObject implements ISecurityObject,
                                           INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger( TcpSecurityObject.class );
+    private static final Logger logger = LoggerFactory.getLogger( "security.tcp" );
 
     TcpSecurityObject( TcpChannel iChannel )
     {
