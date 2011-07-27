@@ -431,16 +431,18 @@ implements OnSharedPreferenceChangeListener,
         logger.info( "::sendGatewayRequest" );
         // agm.setSessionUuid( sessionId );
 
-        if ( agm.isMulticast )
-        {
-            logger.info( "   Sending multicast message." );
-            return this.multicastChannel.sendRequest(agm);
-        }
-        else
-        {
-            logger.info( "   Sending message to gateway." );
+        // NOTE: disabling multicast for the weekly build.  Will uncomment this
+        // again after the build goes out.
+        //if ( agm.isMulticast )
+        //{
+        //    logger.info( "   Sending multicast message." );
+        //    return this.multicastChannel.sendRequest(agm);
+        //}
+        //else
+        //{
+        //    logger.info( "   Sending message to gateway." );
             return this.tcpChannel.sendRequest(agm);
-        }
+        //}
     }
 
     // ===========================================================
