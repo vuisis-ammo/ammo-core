@@ -125,9 +125,8 @@ public class DistributorService extends Service {
     public class DistributorServiceAidl extends IDistributorService.Stub {
         @Override
         public String makeRequest(AmmoRequest request) throws RemoteException {
-            logger.trace("received data request");
-            final String requestId = DistributorService.this.distThread.distributeRequest(request);
-            return requestId;
+        	logger.trace("make request {}", request.action.toString());
+            return DistributorService.this.distThread.distributeRequest(request);
         }
 
         @Override
