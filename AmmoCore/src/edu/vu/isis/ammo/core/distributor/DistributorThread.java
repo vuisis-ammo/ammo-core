@@ -98,9 +98,14 @@ extends AsyncTask<DistributorService, Integer, Void>
     public String distributeRequest(AmmoRequest request)
     {
         try {
+        	logger.trace("received request of type {}", 
+        			request.toString());
+        	
+        	// FIXME should we generate the uuid here or earlier?
             this.requestQueue.put(request);
             this.signal(this.requestDelta);
-            return "1234567890";  // FIXME what is a good string to return?
+            return request.uuid();
+            
         } catch (InterruptedException ex) {
             logger.warn("distribute request {}", ex.getStackTrace());
         }

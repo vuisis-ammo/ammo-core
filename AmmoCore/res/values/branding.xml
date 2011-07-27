@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="package_name">edu.vu.isis.ammo.core</string>
-    <string name="app_name">MiddleWare</string>
+    <string name="app_name">OMMA</string>
     
     <color name="branding">#FF00CC00</color>
     <color name="ammo_background">#FF00CC00</color>
