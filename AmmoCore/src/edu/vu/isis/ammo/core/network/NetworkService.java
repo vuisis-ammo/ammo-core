@@ -109,6 +109,7 @@ implements OnSharedPreferenceChangeListener,
 
     // Channels
     private INetChannel tcpChannel = TcpChannel.getInstance(this);
+    private INetChannel multicastChannel = MulticastChannel.getInstance(this);
     private INetChannel journalChannel = JournalChannel.getInstance(this);
 
     private MyBroadcastReceiver myReceiver = null;
@@ -195,11 +196,24 @@ implements OnSharedPreferenceChangeListener,
         mNetlinks.add( WiredNetlink.getInstance( getBaseContext() ));
         mNetlinks.add( PhoneNetlink.getInstance( getBaseContext() ));
 
+        // FIXME: find the appropriate time to release() the multicast lock.
+        logger.error( "Acquiring multicast lock()" );
+        WifiManager wm = (WifiManager)getSystemService(Context.WIFI_SERVICE);
+        WifiManager.MulticastLock multicastLock = wm.createMulticastLock("mydebuginfo");
+        multicastLock.acquire();
+        logger.error( "...acquired multicast lock()" );
+
+
         // no point in enabling the socket until the preferences have been read
-        this.tcpChannel.disable();  //
+        this.tcpChannel.disable();
+        this.multicastChannel.disable();
         this.acquirePreferences();
         if (this.networkingSwitch && this.gatewayEnabled)
-            this.tcpChannel.enable();   //
+        {
+            this.tcpChannel.enable();
+        }
+        this.multicastChannel.enable();
+        this.multicastChannel.reset(); // This starts the connector thread.
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(this);
@@ -231,16 +245,24 @@ implements OnSharedPreferenceChangeListener,
         final TelephonyManager tm = (TelephonyManager) getBaseContext().getSystemService( Context.TELEPHONY_SERVICE );
         tm.listen( mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE );
 
-        // get updates as they happen
-        //this.phoneReceiver = new PhoneReceiver();
-        //IntentFilter phoneFilter = new IntentFilter( TelephonyManager.ACTION_PHONE_STATE_CHANGED );
-        //getBaseContext().registerReceiver(this.phoneReceiver, phoneFilter);
+        // FIXME: this probably needs to happen differently.  Fred and
+        // I discussed it and we need to add a flag to the intent sent
+        // below so that the receiver knows 
+        // done initializing mcast channel - now fire up the AMMO_LOGIN intent
+        // to force apps to register their subscriptions
+        logger.info( "Forcing applications to register their subscriptions" );
+        // broadcast login event to apps ...
+        Intent loginIntent = new Intent( INetPrefKeys.AMMO_LOGIN );
+        loginIntent.putExtra( "operatorId", operatorId );
+        this.sendBroadcast( loginIntent );
     }
+
 
     @Override
     public void onDestroy() {
         logger.warn("::onDestroy");
         this.tcpChannel.disable();
+        this.multicastChannel.disable();
         this.journalChannel.close();
 
         this.mReceiverRegistrar.unregisterReceiver(this.myReceiver);
@@ -339,6 +361,7 @@ implements OnSharedPreferenceChangeListener,
             logger.info("explicit opererator reset on channel");
             this.networkingSwitch = true;
             this.tcpChannel.reset();
+            this.multicastChannel.reset();
         }
 
         if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
@@ -386,83 +409,6 @@ implements OnSharedPreferenceChangeListener,
         return mw;
     }
 
-    /**
-     * Push requests are set via UDP.
-     * (PushRequest := DataMessage)
-     *
-     * @param uri
-     * @param mimeType
-     * @param data
-     * @return
-     */
-    private AmmoMessages.MessageWrapper.Builder buildPushRequest(String uri, String mimeType, byte[] data)
-    {
-        logger.info("::buildPushRequest");
-
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
-        mw.setSessionUuid(sessionId);
-
-        AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder();
-        pushReq.setUri(uri)
-               .setMimeType(mimeType)
-               .setData(ByteString.copyFrom(data));
-
-        mw.setDataMessage(pushReq);
-        return mw;
-    }
-
-    /**
-     * Pull requests are set via UDP.
-     *
-     * @param uri
-     * @param mimeType
-     * @param data
-     * @return
-     */
-    private AmmoMessages.MessageWrapper.Builder buildRetrievalRequest(String uuid, String mimeType, String query)
-    {
-        logger.info("::buildRetrievalRequest");
-
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
-        mw.setSessionUuid(sessionId);
-
-        AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder();
-
-        pushReq.setRequestUid(uuid)
-               .setMimeType(mimeType);
-
-        if (query != null) pushReq.setQuery(query);
-
-        // projection
-        // max_results
-        // start_from_count
-        // live_query
-        // expiration
-
-        mw.setPullRequest(pushReq);
-        return mw;
-    }
-
-
-    private AmmoMessages.MessageWrapper.Builder buildSubscribeRequest(String mimeType, String query)
-    {
-        logger.info("::buildSubscribeRequest");
-
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
-        mw.setSessionUuid(sessionId);
-
-        AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
-
-        subscribeReq.setMimeType(mimeType);
-
-        if (subscribeReq != null) subscribeReq.setQuery(query);
-
-        mw.setSubscribeMessage(subscribeReq);
-        return mw;
-    }
 
     // ===========================================================
     // Gateway Communication Methods
@@ -478,10 +424,21 @@ implements OnSharedPreferenceChangeListener,
      * @param payload_checksum
      * @param message
      */
-    private boolean sendRequest(AmmoGatewayMessage agm)
+    private boolean sendRequest( AmmoGatewayMessage agm )
     {
-        logger.info("::sendGatewayRequest");
-        return this.tcpChannel.sendRequest(agm);
+        logger.info( "::sendGatewayRequest" );
+        // agm.setSessionUuid( sessionId );
+
+        if ( agm.isMulticast )
+        {
+            logger.info( "   Sending multicast message." );
+            return this.multicastChannel.sendRequest(agm);
+        }
+        else
+        {
+            logger.info( "   Sending message to gateway." );
+            return this.tcpChannel.sendRequest(agm);
+        }
     }
 
     // ===========================================================
@@ -497,6 +454,15 @@ implements OnSharedPreferenceChangeListener,
     public boolean deliver(AmmoGatewayMessage agm)
     {
         logger.info("::deliverGatewayResponse");
+
+        // FIXME: we do this because multicast packets can come in
+        // before the distributor is set.  This test is a workaround,
+        // and we should probably just not create the TcpChannel until
+        // the distributor is connected up.  That change may have
+        // far-reaching effects, so I'll save it for after the demo.
+        if ( distributor == null )
+            return false;
+
         return this.distributor.deliver(agm);
     }
 
@@ -514,6 +480,7 @@ implements OnSharedPreferenceChangeListener,
     public void teardown() {
         logger.info("Tearing down NPS");
         this.tcpChannel.disable();
+        this.multicastChannel.disable();
 
         Timer t = new Timer();
         t.schedule(new TimerTask() {
@@ -533,7 +500,7 @@ implements OnSharedPreferenceChangeListener,
      */
     public boolean isConnected() {
         logger.info("::isConnected");
-        return tcpChannel.isConnected();
+        return tcpChannel.isConnected() || multicastChannel.isConnected();
     }
 
     /**
@@ -555,19 +522,55 @@ implements OnSharedPreferenceChangeListener,
 
         Long now = System.currentTimeMillis();
         logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
-        AmmoMessages.MessageWrapper.Builder mwb = buildPushRequest(uri, mimeType, data);
-        logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
         
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
-        return sendRequest(agm);
+        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+ 
+
+        AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder();
+        pushReq.setUri(uri)
+               .setMimeType(mimeType)
+               .setData(ByteString.copyFrom(data));
+
+        mw.setDataMessage(pushReq);
+
+        logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+        
+        if (mimeType.startsWith("application/vnd.com.aterrasys.nevada.")) {
+             agmb.isMulticast(true);
+        } else {
+        	agmb.isMulticast(false);
+        }
+        agmb.isGateway(true);
+        return sendRequest(agmb.build());
     }
 
     public boolean dispatchRetrievalRequest(String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchRetrievalRequest");
 
         /** Message Building */
-        AmmoMessages.MessageWrapper.Builder mwb = buildRetrievalRequest(subscriptionId, mimeType, selection);
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
+
+        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
+        mw.setSessionUuid(sessionId);
+
+        AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder();
+
+        pushReq.setRequestUid(subscriptionId)
+               .setMimeType(mimeType);
+
+        if (selection != null) pushReq.setQuery(selection);
+
+        // projection
+        // max_results
+        // start_from_count
+        // live_query
+        // expiration
+
+        mw.setPullRequest(pushReq);
+       
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
         return sendRequest(agm);
     }
 
@@ -575,8 +578,19 @@ implements OnSharedPreferenceChangeListener,
         logger.info("::dispatchSubscribeRequest");
 
         /** Message Building */
-        AmmoMessages.MessageWrapper.Builder mwb = buildSubscribeRequest(mimeType, selection);
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, handler);
+        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
+        mw.setSessionUuid(sessionId);
+
+        AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
+
+        subscribeReq.setMimeType(mimeType);
+
+        if (subscribeReq != null) subscribeReq.setQuery(selection);
+
+        mw.setSubscribeMessage(subscribeReq);
+       
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
         return sendRequest(agm);
     }
 
@@ -609,10 +623,12 @@ implements OnSharedPreferenceChangeListener,
                     case AmmoIntents.LINK_UP:
                         logger.info("onReceive: Link UP " + action);
                         tcpChannel.linkUp();
+                        multicastChannel.linkUp();
                         break;
                     case AmmoIntents.LINK_DOWN:
                         logger.info("onReceive: Link DOWN " + action);
                         tcpChannel.linkDown();
+                        multicastChannel.linkDown();
                         break;
                     }
                 }

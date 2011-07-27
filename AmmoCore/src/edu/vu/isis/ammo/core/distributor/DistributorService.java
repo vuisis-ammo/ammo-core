@@ -147,6 +147,8 @@ public class DistributorService extends Service {
     // ===========================================================
     private IRegisterReceiver mReceiverRegistrar = null;
 
+	private DistributionPolicy policy;
+
     // When the service is created, we should setup all services necessary to
     // maintain synchronization (updating player loop,
     @Override
@@ -207,6 +209,8 @@ public class DistributorService extends Service {
         mReceiverRegistrar.registerReceiver(mReadyResourceReceiver, mediaFilter);
 
         mReadyResourceReceiver.checkResourceStatus(this);
+        
+        this.policy = new DistributionPolicy(this.getBaseContext());
     }
 
     /**
