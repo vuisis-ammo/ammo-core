@@ -96,11 +96,17 @@ public class TcpSecurityObject implements ISecurityObject,
         }
         
         
-        if (!mw.hasAuthenticationMessage()) return false;
+        if (!mw.hasAuthenticationMessage())
+        {
+          mChannel.authorizationFailed();
+          return false;
+        }
+
         
         
         if (mw.getAuthenticationMessage().getResult() != AmmoMessages.AuthenticationMessage.Status.SUCCESS) 
         {
+            mChannel.authorizationFailed();
             return false;
         }
         else 
@@ -172,6 +178,7 @@ public class TcpSecurityObject implements ISecurityObject,
         		else
         		{
         			System.out.println("Gateway Finish Cannot Verify");
+                                mChannel.authorizationFailed();
         			return false;
         		}
         			

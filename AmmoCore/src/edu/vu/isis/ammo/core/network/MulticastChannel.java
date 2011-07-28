@@ -1046,7 +1046,7 @@ public class MulticastChannel extends NetChannel
                     byte[] payload = new byte[agmb.size()];
                     buf.get( payload, 0, buf.remaining() );
 
-                    AmmoGatewayMessage agm = agmb.payload( payload );
+                    AmmoGatewayMessage agm = agmb.payload( payload ).build();
                     setReceiverState( INetChannel.DELIVER );
                     mDestination.deliverMessage( agm );
                     logger.debug( "processed a message" );
