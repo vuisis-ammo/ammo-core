@@ -18,7 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.ContentResolver;
-import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
@@ -27,9 +26,6 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
-import android.provider.BaseColumns;
-import android.util.Log;
-import android.widget.Toast;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -98,10 +94,10 @@ extends AsyncTask<DistributorService, Integer, Void>
     public String distributeRequest(AmmoRequest request)
     {
         try {
-        	logger.trace("received request of type {}", 
-        			request.toString());
-        	
-        	// FIXME should we generate the uuid here or earlier?
+            logger.trace("received request of type {}", 
+                    request.toString());
+            
+            // FIXME should we generate the uuid here or earlier?
             this.requestQueue.put(request);
             this.signal(this.requestDelta);
             return request.uuid();
@@ -227,7 +223,7 @@ extends AsyncTask<DistributorService, Integer, Void>
             logger.warn("task interrupted {}", ex.getStackTrace());
         }
         // this.publishProgress(values);
-		return null;
+        return null;
     }
 
     @Override
@@ -296,7 +292,7 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append(")");
         POSTAL_RESEND = sb.toString();
     }
-    public void processPostalChange(DistributorService that, boolean resend) {
+    private void processPostalChange(DistributorService that, boolean resend) {
         logger.info("::processPostalChange()");
 
         if (!that.isNetworkServiceBound())
@@ -364,7 +360,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                 case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
                 default:
                     try {
-                        serialized = queryUriForSerializedData(that, rowUri);
+                        serialized = queryUriForSerializedData(that, Uri.parse(rowUri));
                     } catch (IOException e1) {
                         logger.error("invalid row for serialization");
                         continue;
@@ -435,8 +431,20 @@ extends AsyncTask<DistributorService, Integer, Void>
         }
     }
     
-    public void processPostalRequest(DistributorService that, AmmoRequest agm, int st) {
-        logger.info("::processPostalChange()");
+    /**
+     * Used when a new postal request arrives.
+     * It first tries to dispatch the request to the network service.
+     * Regardless of whether that works, the request is recorded for later use.
+     * 
+     * @param that
+     * @param uri
+     * @param mimeType
+     * @param data
+     * @param handler
+     * @return
+     */
+    private void processPostalRequest(DistributorService that, AmmoRequest agm, int st) {
+        logger.info("::processPostalRequest()");
 
         final ContentResolver cr = that.getContentResolver();
 
@@ -452,7 +460,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
         default:
             try {
-                serialized = queryUriForSerializedData(that, "");
+                serialized = queryUriForSerializedData(that, agm.provider);
             } catch (IOException e1) {
                 logger.error("invalid row for serialization");
                 return;
@@ -471,7 +479,6 @@ extends AsyncTask<DistributorService, Integer, Void>
             values.put(PostalTableSchemaBase.URI, agm.provider.toString());
             values.put(PostalTableSchemaBase.SERIALIZE_TYPE, PostalTableSchemaBase.SERIALIZE_TYPE_INDIRECT);
             values.put(PostalTableSchemaBase.EXPIRATION, agm.durability);
-            // System.currentTimeMillis() + (120 * 1000));
             values.put(PostalTableSchemaBase.UNIT, 50);
             values.put(PostalTableSchemaBase.PRIORITY, agm.priority);
             //if (notice != null) 
@@ -537,8 +544,22 @@ extends AsyncTask<DistributorService, Integer, Void>
     }
     
 
-    public boolean dispatchPostalRequest(DistributorService that, String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
-        logger.info("::dispatchPushRequest");
+    /**
+     * dispatch the request to the network service.
+     * It is presumed that the connection to the network service
+     * exists before this method is called.
+     * 
+     * @param that
+     * @param uri
+     * @param mimeType
+     * @param data
+     * @param handler
+     * @return
+     */
+    private boolean dispatchPostalRequest(DistributorService that, String uri, String mimeType, 
+    		byte []data, INetworkService.OnSendMessageHandler handler) 
+    {
+        logger.info("::dispatchPostalRequest");
 
         Long now = System.currentTimeMillis();
         logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
@@ -566,7 +587,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 
     // =========== PUBLICATION ====================
     
-    public void processPublicationChange(DistributorService that, boolean resend) {
+    @SuppressWarnings("unused")
+	private void processPublicationChange(DistributorService that, boolean resend) {
         logger.error("::processPublicationChange : {} : not implemented", resend);
     }
     
@@ -622,7 +644,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         RETRIEVAL_RESEND = sb.toString();
     }
     
-    public void processRetrievalChange(DistributorService that, boolean resend) {
+    private void processRetrievalChange(DistributorService that, boolean resend) {
         logger.info("::processRetrievalChange()");
 
         if (!that.isNetworkServiceBound())
@@ -717,8 +739,8 @@ extends AsyncTask<DistributorService, Integer, Void>
         }
     }
    
-    public void processRetrivalRequest(DistributorService that, AmmoRequest agm) {
-        logger.info("::processPostalChange()");
+    private void processRetrievalRequest(DistributorService that, AmmoRequest agm) {
+        logger.info("::processRetrievalRequest()");
 
         final ContentResolver cr = that.getContentResolver();
         final String mimeType = agm.topic_str;
@@ -732,19 +754,19 @@ extends AsyncTask<DistributorService, Integer, Void>
             values.put(RetrievalTableSchemaBase.URI, agm.payload_byte.toString());
             values.put(RetrievalTableSchemaBase.DISPOSITION, RetrievalTableSchemaBase.DISPOSITION_PENDING);
             //values.put(RetrievalTableSchemaBase.EXPIRATION, expiration.getTimeInMillis());
-        	
+            
             // values.put(RetrievalTableSchemaBase.SELECTION, agm.select_query);
             values.put(RetrievalTableSchemaBase.PROJECTION, "");
             values.put(RetrievalTableSchemaBase.CREATED_DATE, System.currentTimeMillis());
             // if (notice != null) 
-        	//     values.put(RetrievalTableSchemaBase.NOTICE, serializePendingIntent(notice));
-        	
+            //     values.put(RetrievalTableSchemaBase.NOTICE, serializePendingIntent(notice));
+            
             
            
             if ((!that.isNetworkServiceBound())
             || (!that.getNetworkServiceBinder().isConnected())) {
                 values.put(RetrievalTableSchemaBase.DISPOSITION, 
-                		RetrievalTableSchemaBase.DISPOSITION_PENDING);
+                        RetrievalTableSchemaBase.DISPOSITION_PENDING);
                 
                 cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
                 logger.info("no network connection");
@@ -791,7 +813,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 
     
 
-    public boolean dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
+    private boolean dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchRetrievalRequest");
 
         /** Message Building */
@@ -866,7 +888,7 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append(")");
         SUBSCRIPTION_RESEND = sb.toString();
     }
-    public void processSubscriptionChange(DistributorService that, boolean resend) {
+    private void processSubscriptionChange(DistributorService that, boolean resend) {
         logger.info("::processSubscriptionChange()");
 
         if (!that.isNetworkServiceBound())
@@ -961,8 +983,83 @@ extends AsyncTask<DistributorService, Integer, Void>
             pendingCursor.close();
         }
     }
+    
+    
+    private void processSubscribeRequest(DistributorService that, AmmoRequest agm, int st) {
+        logger.info("::processSubscribeRequest()");
 
-    public boolean dispatchSubscribeRequest(DistributorService that, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
+        final ContentResolver cr = that.getContentResolver();
+        final String mimeType = agm.topic_str;
+        
+
+        // Dispatch the message.
+        try {
+            
+            ContentValues values = new ContentValues();
+            values.put(RetrievalTableSchemaBase.MIME, mimeType);
+            values.put(RetrievalTableSchemaBase.URI, agm.payload_byte.toString());
+            values.put(RetrievalTableSchemaBase.DISPOSITION, RetrievalTableSchemaBase.DISPOSITION_PENDING);
+            //values.put(RetrievalTableSchemaBase.EXPIRATION, expiration.getTimeInMillis());
+            
+            // values.put(RetrievalTableSchemaBase.SELECTION, agm.select_query);
+            values.put(RetrievalTableSchemaBase.PROJECTION, "");
+            values.put(RetrievalTableSchemaBase.CREATED_DATE, System.currentTimeMillis());
+            // if (notice != null) 
+            //     values.put(RetrievalTableSchemaBase.NOTICE, serializePendingIntent(notice));
+            
+            
+           
+            if ((!that.isNetworkServiceBound())
+            || (!that.getNetworkServiceBinder().isConnected())) {
+                values.put(RetrievalTableSchemaBase.DISPOSITION, 
+                        RetrievalTableSchemaBase.DISPOSITION_PENDING);
+                
+                cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
+                logger.info("no network connection");
+                return;
+            }
+            
+            values.put(PostalTableSchema.DISPOSITION,
+                    PostalTableSchema.DISPOSITION_QUEUED);
+             final Uri retrievalUri = cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
+            
+             boolean sent = this.dispatchRetrievalRequest(that, 
+                     agm.provider.toString(), mimeType,
+                     agm.select_query.select(),
+                     new INetworkService.OnSendMessageHandler() {
+                         @Override
+                         public boolean ack(boolean status) {
+                             // Update distributor status if
+                             // message dispatch successful.
+                             ContentValues values = new ContentValues();
+
+                             values.put(RetrievalTableSchema.DISPOSITION,
+                                     status ? RetrievalTableSchema.DISPOSITION_SENT
+                                         : RetrievalTableSchema.DISPOSITION_FAIL);
+
+                             int numUpdated = cr.update(
+                                     retrievalUri, values, null,
+                                     null);
+
+                             logger.info("{} rows updated to {} status",
+                                     numUpdated, (status ? "sent" : "pending"));
+                             return false;
+                         }
+                     });
+             if (!sent) {
+                 values.put(RetrievalTableSchema.DISPOSITION,
+                         RetrievalTableSchema.DISPOSITION_PENDING);
+                 cr.update(retrievalUri, values, null, null);
+                 // break; // no point in trying any more
+             }
+        } catch (NullPointerException ex) {
+            logger.warn("NullPointerException, sending to gateway failed");
+        }
+    }
+
+    
+
+    private boolean dispatchSubscribeRequest(DistributorService that, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchSubscribeRequest");
 
         /** Message Building */
@@ -992,9 +1089,9 @@ extends AsyncTask<DistributorService, Integer, Void>
      * @throws IOException
      */
 
-    private synchronized byte[] queryUriForSerializedData(Context context, String uri) throws FileNotFoundException, IOException {
-        Uri rowUri = Uri.parse(uri);
-        Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
+    private synchronized byte[] queryUriForSerializedData(Context context, Uri tuple) 
+    throws FileNotFoundException, IOException {
+        Uri serialUri = Uri.withAppendedPath(tuple, "_serial");
 
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
@@ -1063,10 +1160,10 @@ extends AsyncTask<DistributorService, Integer, Void>
         switch (agm.action){
         case POSTAL: processPostalRequest(that, agm, 1); break;
         case DIRECTED_POSTAL: processPostalRequest(that, agm, 2); break;
-        case PUBLISH:
-        case RETRIEVAL:
-        case SUBSCRIBE:
-        case DIRECTED_SUBSCRIBE:
+        case PUBLISH: break;
+        case RETRIEVAL: processRetrievalRequest(that, agm); break;
+        case SUBSCRIBE: processSubscribeRequest(that, agm, 1); break;
+        case DIRECTED_SUBSCRIBE: processSubscribeRequest(that, agm, 2); break;
         }
         return true;
     }

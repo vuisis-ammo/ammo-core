@@ -213,7 +213,7 @@ public class DistributorService extends Service {
 
         mReadyResourceReceiver.checkResourceStatus(this);
         
-        this.policy = new DistributorPolicy(this.getBaseContext());
+        this.policy = DistributorPolicy.newInstance(this.getBaseContext());
     }
 
     /**

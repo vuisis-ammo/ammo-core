@@ -2,6 +2,7 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
@@ -45,23 +46,41 @@ public class DistributorPolicy implements ContentHandler {
     private static final Logger logger = LoggerFactory.getLogger(DistributorPolicy.class);
     
     public final Trie<String, Load> policy;
-    public final String policy_file = "distribution_policy.xml";
+    public final static String policy_file = "distribution_policy.xml";
     
     private LoadBuilder lb;
     
-    public DistributorPolicy(Context context) {
+    /**
+     * Presume a context specific xml file is present.
+     *  e.g. /data/data/edu.vu.isis.ammo/app_distribution_policy.xml
+     *  
+     * @param context
+     */
+    public static DistributorPolicy newInstance(Context context) {
+        File file = context.getDir(policy_file, Context.MODE_WORLD_READABLE);
+        try {
+            InputSource is = new InputSource(new InputStreamReader(new FileInputStream(file)));
+            return new DistributorPolicy(is);
+        } catch (FileNotFoundException ex) {
+            logger.error("no policy file {}", ex.getStackTrace());
+        }
+        return null;
+    }
+    /**
+     * Load the policy information from an xml file
+     * @param file
+     */
+    public DistributorPolicy(InputSource is ) {
         this.policy = new PatriciaTrie<String, Load>(StringKeyAnalyzer.BYTE);
         this.lb = new LoadBuilder();
         
         try {
-            File file = context.getDir(policy_file, Context.MODE_WORLD_READABLE);
             SAXParserFactory parserFactory=SAXParserFactory.newInstance();
             SAXParser saxParser=parserFactory.newSAXParser();
             XMLReader reader=saxParser.getXMLReader();
             
             reader.setContentHandler(this);
             
-            InputSource is = new InputSource(new InputStreamReader(new FileInputStream(file)));
             reader.parse(is);
             
         } catch (MalformedURLException ex) {
@@ -79,29 +98,39 @@ public class DistributorPolicy implements ContentHandler {
         }
     }
     
-    public DistributorPolicy(Context context, int dummy) {
+    /**
+     * The following constructor is for testing only.
+     * 
+     * @param context
+     * @param dummy
+     */
+    public DistributorPolicy(Context context, int testSetId) {
         this.policy = new PatriciaTrie<String, Load>(StringKeyAnalyzer.BYTE);
         this.lb = new LoadBuilder();
-        this.policy.put("urn:test:domain/trial/both",  
-                this.lb
-                .isGateway(true)
-                .isMulticast(true)
-                .build());
-        this.policy.put("urn:test:domain/trial/gw-only",  
-                this.lb
-                .isGateway(true)
-                .isMulticast(false)
-                .build());
-        this.policy.put("urn:test:domain/trial/mc-only",  
-                this.lb
-                .isGateway(false)
-                .isMulticast(true)
-                .build());
-        this.policy.put("urn:test:domain/trial/neither",  
-                this.lb
-                .isGateway(false)
-                .isMulticast(false)
-                .build());
+        
+        switch (testSetId) {
+        default:
+            this.policy.put("urn:test:domain/trial/both",  
+                    this.lb
+                    .isGateway(true)
+                    .isMulticast(true)
+                    .build());
+            this.policy.put("urn:test:domain/trial/gw-only",  
+                    this.lb
+                    .isGateway(true)
+                    .isMulticast(false)
+                    .build());
+            this.policy.put("urn:test:domain/trial/mc-only",  
+                    this.lb
+                    .isGateway(false)
+                    .isMulticast(true)
+                    .build());
+            this.policy.put("urn:test:domain/trial/neither",  
+                    this.lb
+                    .isGateway(false)
+                    .isMulticast(false)
+                    .build());
+        }
     }
     
     /**
@@ -217,23 +246,23 @@ public class DistributorPolicy implements ContentHandler {
             if (value == null) return def;
             return Boolean.parseBoolean(value);
         }
-		
-		
-		/**
-		 * A helper routine to extract an attribute from the xml element and 
-		 * convert it into a boolean.
-		 * 
-		 * @param uri
-		 * @param attrname
-		 * @param def
-		 * @param atts
-		 * @return
-		 */
-		private int extractInteger(String uri, String attrname, int def, Attributes atts) {
-		    String value = atts.getValue(uri, attrname);
-		    if (value == null) return def;
-		    return Integer.parseInt(value);
-		}
+        
+        
+        /**
+         * A helper routine to extract an attribute from the xml element and 
+         * convert it into a boolean.
+         * 
+         * @param uri
+         * @param attrname
+         * @param def
+         * @param atts
+         * @return
+         */
+        private int extractInteger(String uri, String attrname, int def, Attributes atts) {
+            String value = atts.getValue(uri, attrname);
+            if (value == null) return def;
+            return Integer.parseInt(value);
+        }
 
         @Override
         public void startPrefixMapping(String prefix, String uri)  throws SAXException { }
