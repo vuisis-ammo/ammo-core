@@ -1091,39 +1091,35 @@ extends AsyncTask<DistributorService, Integer, Void>
 
     private synchronized byte[] queryUriForSerializedData(Context context, Uri tuple) 
     throws FileNotFoundException, IOException {
-        Uri serialUri = Uri.withAppendedPath(tuple, "_serial");
-
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        BufferedInputStream bis = null;
-        InputStream instream = null;
-
+        final Uri serialUri = Uri.withAppendedPath(tuple, "_serial");
+        final ByteArrayOutputStream bout = new ByteArrayOutputStream();
+    	final byte[] buffer = new byte[1024];
+        
         try {
+            final BufferedInputStream bis;
+            AssetFileDescriptor afd = null;
             try {
-                // instream = this.getContentResolver().openInputStream(serialUri);
-                AssetFileDescriptor afd = context.getContentResolver()
+            	afd = context.getContentResolver()
                     .openAssetFileDescriptor(serialUri, "r");
                 if (afd == null) {
                     logger.warn("could not acquire file descriptor {}", serialUri);
                     throw new IOException("could not acquire file descriptor "+serialUri);
                 }
-                // afd.createInputStream();
+                final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
 
-                ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-                instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                bis = new BufferedInputStream(instream);
             } catch (IOException ex) {
                 logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
                 bout.close();
+                if (afd != null) afd.close();
                 throw new FileNotFoundException("Unable to create stream");
             }
-            bis = new BufferedInputStream(instream);
 
             for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
                 bout.write(buffer, 0, bytesRead);
             }
             bis.close();
-            instream.close();
             // String bs = bout.toString();
             // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
             byte[] ba = bout.toByteArray();
@@ -1136,12 +1132,8 @@ extends AsyncTask<DistributorService, Integer, Void>
         } catch (IOException ex) {
             logger.error("query URI for serialized data {}", ex.getStackTrace());
         }
-        if (bout != null) {
-            bout.close();
-        }
-        if (bis != null) {
-            bis.close();
-        }
+        if (bout != null) bout.close();
+        
         return null;
     }
     
@@ -1294,14 +1286,14 @@ extends AsyncTask<DistributorService, Integer, Void>
         ContentResolver cr = context.getContentResolver();
 
         try {
-            Uri serialUri = Uri.withAppendedPath(uri, "_serial");
-            OutputStream outstream = cr.openOutputStream(serialUri);
+            final Uri serialUri = Uri.withAppendedPath(uri, "_serial");
+            final OutputStream outstream = cr.openOutputStream(serialUri);
 
             if (outstream == null) {
                 logger.error( "could not open output stream to content provider: {} ",serialUri);
                 return false;
             }
-            ByteString data = resp.getData();
+            final ByteString data = resp.getData();
 
             if (data != null) {
                 outstream.write(data.toByteArray());
@@ -1368,8 +1360,8 @@ extends AsyncTask<DistributorService, Integer, Void>
             tableUriStr = subCursor.getString(subCursor.getColumnIndex(SubscriptionTableSchema.URI));
             subCursor.close();
 
-            Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
-            OutputStream outstream = cr.openOutputStream(tableUri);
+            final Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
+            final OutputStream outstream = cr.openOutputStream(tableUri);
 
             if (outstream == null) {
                 logger.error("the content provider {} is not available", tableUri);
