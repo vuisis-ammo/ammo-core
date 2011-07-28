@@ -226,9 +226,8 @@ extends AsyncTask<DistributorService, Integer, Void>
         } catch (InterruptedException ex) {
             logger.warn("task interrupted {}", ex.getStackTrace());
         }
-
         // this.publishProgress(values);
-        return null;
+		return null;
     }
 
     @Override
@@ -557,7 +556,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
         
-        DistributionPolicy.Load load = that.policy().match(mimeType);
+        DistributorPolicy.Load load = that.policy().match(mimeType);
         agmb.isMulticast(load.isMulticast);
         agmb.isGateway(load.isGateway);
        

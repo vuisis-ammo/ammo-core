@@ -23,6 +23,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
 import android.content.Context;
+import edu.vu.isis.ammo.api.IAmmoRequest;
 
 /**
  * This class provides the base level mapping between distribution 
@@ -40,15 +41,15 @@ import android.content.Context;
  * 
  *
  */
-public class DistributionPolicy implements ContentHandler {
-    private static final Logger logger = LoggerFactory.getLogger(DistributionPolicy.class);
+public class DistributorPolicy implements ContentHandler {
+    private static final Logger logger = LoggerFactory.getLogger(DistributorPolicy.class);
     
     public final Trie<String, Load> policy;
     public final String policy_file = "distribution_policy.xml";
     
     private LoadBuilder lb;
     
-    public DistributionPolicy(Context context) {
+    public DistributorPolicy(Context context) {
         this.policy = new PatriciaTrie<String, Load>(StringKeyAnalyzer.BYTE);
         this.lb = new LoadBuilder();
         
@@ -78,6 +79,31 @@ public class DistributionPolicy implements ContentHandler {
         }
     }
     
+    public DistributorPolicy(Context context, int dummy) {
+        this.policy = new PatriciaTrie<String, Load>(StringKeyAnalyzer.BYTE);
+        this.lb = new LoadBuilder();
+        this.policy.put("urn:test:domain/trial/both",  
+                this.lb
+                .isGateway(true)
+                .isMulticast(true)
+                .build());
+        this.policy.put("urn:test:domain/trial/gw-only",  
+                this.lb
+                .isGateway(true)
+                .isMulticast(false)
+                .build());
+        this.policy.put("urn:test:domain/trial/mc-only",  
+                this.lb
+                .isGateway(false)
+                .isMulticast(true)
+                .build());
+        this.policy.put("urn:test:domain/trial/neither",  
+                this.lb
+                .isGateway(false)
+                .isMulticast(false)
+                .build());
+    }
+    
     /**
      * Find the 'best' key match.
      * The best match is the shortest string which matches the key.
@@ -93,113 +119,123 @@ public class DistributionPolicy implements ContentHandler {
     class Load {
         public final boolean isMulticast;
         public final boolean isGateway;
+        public final int priority;
         
         private Load(LoadBuilder builder) {
             this.isMulticast = builder.isMulticast();
             this.isGateway = builder.isGateway();
+            this.priority = builder.priority();
         }
     }
     
     class LoadBuilder {
         private boolean isMulticast;
-        private boolean isGateway;
         public boolean isMulticast() { return this.isMulticast; }
-        public boolean isGateway() { return this.isGateway; }
         public LoadBuilder isMulticast(boolean val) {  this.isMulticast = val; return this; }
+        
+        private boolean isGateway;
+        public boolean isGateway() { return this.isGateway; }
         public LoadBuilder isGateway(boolean val) {  this.isGateway = val; return this; }
         
+        private int priority;
+        public int priority() { return this.priority; }
+        public LoadBuilder priority(int val) {  this.priority = val; return this; }
+
         public LoadBuilder() {}
         public Load build() { return new Load(this); }
     }
 
 
         @Override
-        public void characters(char[] ch, int start, int length)
-                throws SAXException {
-            // TODO Auto-generated method stub
-            
-        }
+        public void characters(char[] ch, int start, int length) throws SAXException {}
 
         @Override
-        public void endDocument() throws SAXException {
-            // TODO Auto-generated method stub
-            
-        }
+        public void endDocument() throws SAXException {}
 
         @Override
-        public void endElement(String uri, String localName, String qName)
-                throws SAXException {
-            // TODO Auto-generated method stub
-            
-        }
+        public void endElement(String uri, String localName, String qName) throws SAXException {}
 
         @Override
-        public void endPrefixMapping(String prefix) throws SAXException {
-            // TODO Auto-generated method stub
-            
-        }
+        public void endPrefixMapping(String prefix) throws SAXException {}
 
         @Override
-        public void ignorableWhitespace(char[] ch, int start, int length)
-                throws SAXException {
-            // TODO Auto-generated method stub
-            
-        }
+        public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {}
 
         @Override
-        public void processingInstruction(String target, String data)
-                throws SAXException {
-            // TODO Auto-generated method stub
-            
-        }
+        public void processingInstruction(String target, String data) throws SAXException {}
 
         @Override
-        public void setDocumentLocator(Locator locator) {
-            // TODO Auto-generated method stub
-            
-        }
+        public void setDocumentLocator(Locator locator) {}
 
         @Override
-        public void skippedEntity(String name) throws SAXException {
-            // TODO Auto-generated method stub
-            
-        }
+        public void skippedEntity(String name) throws SAXException {}
 
         @Override
         public void startDocument() throws SAXException {
             this.setDefaultRule();
         }
         
+        /**
+         * A rule to catch all patterns which don't match anything else.
+         */
         public void setDefaultRule() {
             this.policy.put("application/vnd.com.aterrasys.nevada.", 
-                 this.lb.isGateway(true).isMulticast(true).build());
+                 this.lb
+                     .isGateway(true)
+                     .isMulticast(true)
+                     .build());
         }
 
         @Override
         public void startElement(String uri, String localName, String qName,
                 Attributes atts) throws SAXException {
-        	
+            
             if (localName.equals("topic")) {
-            	String type = atts.getValue(uri, "type");
-            	if (type == null) return;
-                this.policy.put(type,  this.lb
-                    .isGateway(extractBoolean(uri,"isGateway", true, atts))
-                    .isMulticast(extractBoolean(uri,"isMulticast", false, atts))
-                    .build());
+                String type = atts.getValue(uri, "type");
+                if (type == null) return;
+                this.policy.put(type,  
+                    this.lb
+                        .isGateway(extractBoolean(uri,"isGateway", true, atts))
+                        .isMulticast(extractBoolean(uri,"isMulticast", false, atts))
+                        .priority(extractInteger(uri,"priority", IAmmoRequest.NORMAL_PRIORITY, atts))
+                        .build());
             }
         }
         
+        /**
+         * A helper routine to extract an attribute from the xml element and 
+         * convert it into a boolean.
+         * 
+         * @param uri
+         * @param attrname
+         * @param def
+         * @param atts
+         * @return
+         */
         private boolean extractBoolean(String uri, String attrname, boolean def, Attributes atts) {
             String value = atts.getValue(uri, attrname);
             if (value == null) return def;
             return Boolean.parseBoolean(value);
         }
+		
+		
+		/**
+		 * A helper routine to extract an attribute from the xml element and 
+		 * convert it into a boolean.
+		 * 
+		 * @param uri
+		 * @param attrname
+		 * @param def
+		 * @param atts
+		 * @return
+		 */
+		private int extractInteger(String uri, String attrname, int def, Attributes atts) {
+		    String value = atts.getValue(uri, attrname);
+		    if (value == null) return def;
+		    return Integer.parseInt(value);
+		}
 
         @Override
-        public void startPrefixMapping(String prefix, String uri)
-                throws SAXException {
-            // TODO Auto-generated method stub
-            
-        }
+        public void startPrefixMapping(String prefix, String uri)  throws SAXException { }
     
 }
