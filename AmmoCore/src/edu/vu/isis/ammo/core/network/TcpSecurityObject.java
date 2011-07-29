@@ -21,7 +21,7 @@ import edu.vu.isis.ammo.core.security.AmmoSecurityManager;
 public class TcpSecurityObject implements ISecurityObject,
                                           INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger( TcpSecurityObject.class );
+    private static final Logger logger = LoggerFactory.getLogger( "security.tcp" );
     
     private Context mContext;
     

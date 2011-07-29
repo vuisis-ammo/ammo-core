@@ -33,19 +33,21 @@ import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
 
 /**
- * The DistributorService is responsible for synchronization between the Gateway
- * and individual application databases. The DistributorService will
- * issue calls to the NetworkService for updates and then writes the
+ * The DistributorService is responsible for prioritizing and serializing
+ * requests for data communications between distributed application databases. 
+ * The DistributorService issues calls to the NetworkService for updates and then writes the
  * results to the correct content provider using the deserialization mechanism
  * defined by each content provider.
  * 
  * Any activity or application wishing to send data via the DistributorService
- * should use one of the AmmoDispatcher API methods for communication between
+ * should use one of the AmmoRequest API methods for communication between
  * said application and AmmoCore.
  * 
  * Any activity or application wishing to receive updates when a content
  * provider has been modified can register via a custom ContentObserver
  * subclass.
+ * 
+ * The real work is delegated to the Distributor Thread, which maintains a queue.
  * 
  */
 public class DistributorService extends Service {
@@ -56,10 +58,10 @@ public class DistributorService extends Service {
     private static final Logger logger = LoggerFactory.getLogger(DistributorService.class);
 
     public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH");
-	public static final String BIND = "edu.vu.isis.ammo.core.distributor.DistributorService.BIND";
-	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP";
-	public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED";
-	
+    public static final String BIND = "edu.vu.isis.ammo.core.distributor.DistributorService.BIND";
+    public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP";
+    public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED";
+    
 
     @SuppressWarnings("unused")
     private static final int FILE_READ_SIZE = 1024;
@@ -74,18 +76,18 @@ public class DistributorService extends Service {
 
     private INetworkService networkServiceBinder;
     public INetworkService getNetworkServiceBinder() { 
-    	return this.networkServiceBinder; 
+        return this.networkServiceBinder; 
     }
     private boolean isNetworkServiceBound = false;
     public boolean isNetworkServiceBound() { 
-    	return this.isNetworkServiceBound; 
+        return this.isNetworkServiceBound; 
     }
     
-    private DistributorThread pct;
+    private DistributorThread distThread;
 
     public void consumerReady() {
         logger.info("::consumer ready : resend old requests");
-        this.pct.resend();
+        this.distThread.resend();
     }
     
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
@@ -95,12 +97,12 @@ public class DistributorService extends Service {
             networkServiceBinder = ((NetworkService.MyBinder) service).getService();
             networkServiceBinder.setDistributorServiceCallback(DistributorService.this);
             
-            DistributorService.this.pct.execute(DistributorService.this);
+            DistributorService.this.distThread.execute(DistributorService.this);
         }
 
         public void onServiceDisconnected(ComponentName name) {
             logger.info("::onServiceDisconnected - Network Service");
-            DistributorService.this.pct.cancel(true);
+            DistributorService.this.distThread.cancel(true);
             isNetworkServiceBound = false;
             networkServiceBinder = null;
         }
@@ -125,8 +127,8 @@ public class DistributorService extends Service {
     public class DistributorServiceAidl extends IDistributorService.Stub {
         @Override
         public String makeRequest(AmmoRequest request) throws RemoteException {
-            logger.trace("received data request");
-            return DistributorService.this.pct.distributeRequest(request);
+            logger.trace("make request {}", request.action.toString());
+            return DistributorService.this.distThread.distributeRequest(request);
         }
 
         @Override
@@ -147,7 +149,8 @@ public class DistributorService extends Service {
     // ===========================================================
     private IRegisterReceiver mReceiverRegistrar = null;
 
-	private DistributionPolicy policy;
+    private DistributorPolicy policy;
+    public DistributorPolicy policy() { return this.policy; }
 
     // When the service is created, we should setup all services necessary to
     // maintain synchronization (updating player loop,
@@ -157,7 +160,7 @@ public class DistributorService extends Service {
         logger.info("::onCreate");
 
         // set up the worker thread
-        this.pct = new DistributorThread();
+        this.distThread = new DistributorThread();
         
         // Set this service to observe certain Content Providers.
         // Initialize our content observer.
@@ -210,7 +213,7 @@ public class DistributorService extends Service {
 
         mReadyResourceReceiver.checkResourceStatus(this);
         
-        this.policy = new DistributionPolicy(this.getBaseContext());
+        this.policy = DistributorPolicy.newInstance(this.getBaseContext());
     }
 
     /**
@@ -259,25 +262,27 @@ public class DistributorService extends Service {
     @Override
     public void onDestroy() {
         logger.warn("onDestroy");
-        if (isNetworkServiceBound) {
-            this.unbindService(networkServiceConnection);
-            isNetworkServiceBound = false;
+        if (this.isNetworkServiceBound) {
+            this.unbindService(this.networkServiceConnection);
+            this.isNetworkServiceBound = false;
         }
-        this.stopService(networkServiceIntent);
-        tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
-        wifiReceiver.setInitialized(false);
-        this.getContentResolver().unregisterContentObserver(postalObserver);
-        this.getContentResolver().unregisterContentObserver(retrievalObserver);
-        this.getContentResolver().unregisterContentObserver(subscriptionObserver);
-        this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
+        if (this.networkServiceIntent != null)
+            this.stopService(this.networkServiceIntent);
+        if (this.tm != null) 
+            this.tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
+        if (this.wifiReceiver != null) 
+            this.wifiReceiver.setInitialized(false);
+        if (this.postalObserver != null)
+            this.getContentResolver().unregisterContentObserver(this.postalObserver);
+        if (this.retrievalObserver != null)
+            this.getContentResolver().unregisterContentObserver(this.retrievalObserver);
+        if (this.subscriptionObserver != null)
+            this.getContentResolver().unregisterContentObserver(this.subscriptionObserver);
+        if (this.mReceiverRegistrar != null)
+            this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
 
         super.onDestroy();
     }
-
-    // ===========================================================
-    // IDistributorService implementation
-    // ===========================================================
-
 
     // ===========================================================
     // Content Observer Nested Classes
@@ -297,7 +302,7 @@ public class DistributorService extends Service {
         @Override
         public void onChange(boolean selfChange) {
             logger.info("PostalObserver::onChange : {}", selfChange);
-            this.callback.pct.postalChange();
+            this.callback.distThread.postalChange();
         }
     }
 
@@ -315,7 +320,7 @@ public class DistributorService extends Service {
         @Override
         public void onChange(boolean selfChange) {
             logger.info("RetrievalObserver::onChange : {}", selfChange );
-            this.callback.pct.retrievalChange();
+            this.callback.distThread.retrievalChange();
         }
     }
 
@@ -333,7 +338,7 @@ public class DistributorService extends Service {
         @Override
         public void onChange(boolean selfChange) {
             logger.info("SubscriptionObserver::onChange : {}", selfChange );
-            this.callback.pct.subscriptionChange();
+            this.callback.distThread.subscriptionChange();
         }
     }
 
@@ -388,7 +393,7 @@ public class DistributorService extends Service {
 
 
     public boolean deliver(AmmoGatewayMessage agm) {
-    	return pct.distributeResponse(agm);
+        return distThread.distributeResponse(agm);
     }
    
 }

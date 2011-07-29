@@ -12,7 +12,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class MulticastSecurityObject implements ISecurityObject,
                                                 INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger( MulticastSecurityObject.class );
+    private static final Logger logger = LoggerFactory.getLogger( "security.mcast" );
 
     MulticastSecurityObject( MulticastChannel iChannel )
     {

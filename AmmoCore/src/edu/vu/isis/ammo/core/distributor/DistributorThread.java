@@ -38,6 +38,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PostalTableSchemaBase;
+import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.RetrievalTableSchemaBase;
 import edu.vu.isis.ammo.util.InternetMediaType;
 
 
@@ -47,8 +49,8 @@ import edu.vu.isis.ammo.util.InternetMediaType;
  * 
  */
 @ThreadSafe
-public class DistributorThread extends
-        AsyncTask<DistributorService, Integer, Void> 
+public class DistributorThread 
+extends AsyncTask<DistributorService, Integer, Void> 
 {
     // ===========================================================
     // Constants
@@ -92,9 +94,14 @@ public class DistributorThread extends
     public String distributeRequest(AmmoRequest request)
     {
         try {
+            logger.trace("received request of type {}", 
+                    request.toString());
+            
+            // FIXME should we generate the uuid here or earlier?
             this.requestQueue.put(request);
             this.signal(this.requestDelta);
-            return "1234567890";  // FIXME what is a good string to return?
+            return request.uuid();
+            
         } catch (InterruptedException ex) {
             logger.warn("distribute request {}", ex.getStackTrace());
         }
@@ -141,6 +148,11 @@ public class DistributorThread extends
         synchronized(this) { this.notifyAll(); }
     }
 
+ 
+    /**
+     * The following condition wait holds until
+     * there is some work for the distributor.
+     */
     @Override
     protected Void doInBackground(DistributorService... them) {
         logger.info("::post to network service");
@@ -154,6 +166,7 @@ public class DistributorThread extends
         // condition wait is there something to process?
         try {
             while (true) {
+                
                 synchronized (this) {
                     while (!this.isReady())
                     {
@@ -209,7 +222,6 @@ public class DistributorThread extends
         } catch (InterruptedException ex) {
             logger.warn("task interrupted {}", ex.getStackTrace());
         }
-
         // this.publishProgress(values);
         return null;
     }
@@ -226,6 +238,7 @@ public class DistributorThread extends
 
     private boolean collectGarbage = true;
 
+    // =========== POSTAL ====================
     /**
      * Every time the distributor provider is modified, find out what the
      * changes were and, if necessary, send the data to the server. Be
@@ -279,12 +292,12 @@ public class DistributorThread extends
           .append(")");
         POSTAL_RESEND = sb.toString();
     }
-    public void processPostalChange(DistributorService that, boolean resend) {
+    private void processPostalChange(DistributorService that, boolean resend) {
         logger.info("::processPostalChange()");
 
         if (!that.isNetworkServiceBound())
             return;
-        if (!that.getNetworkServiceBinder().isConnected())
+        if (!that.getNetworkServiceBinder().isConnected()) 
             return;
 
         final ContentResolver cr = that.getContentResolver();
@@ -347,7 +360,7 @@ public class DistributorThread extends
                 case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
                 default:
                     try {
-                        serialized = queryUriForSerializedData(that, rowUri);
+                        serialized = queryUriForSerializedData(that, Uri.parse(rowUri));
                     } catch (IOException e1) {
                         logger.error("invalid row for serialization");
                         continue;
@@ -371,45 +384,44 @@ public class DistributorThread extends
                         @SuppressWarnings("unused")
                         int numUpdated = cr.update(postalUri, values, null, null);
 
-                        boolean dispatchSuccessful = that.getNetworkServiceBinder()
-                                .dispatchPushRequest(
-                                        rowUri.toString(),
-                                        mimeType,
-                                        serialized,
-                                        new INetworkService.OnSendMessageHandler() {
-
-                                            @Override
-                                            public boolean ack(boolean status) {
-
-                                                // Update distributor status
-                                                // if message dispatch
-                                                // successful.
-                                                ContentValues values = new ContentValues();
-
-                                                values.put(PostalTableSchema.DISPOSITION,
-                                                    (status) ? PostalTableSchema.DISPOSITION_SENT
-                                                            : PostalTableSchema.DISPOSITION_FAIL);
-                                                int numUpdated = cr.update(
-                                                        postalUri, values,
-                                                        null, null);
-
-                                                logger.info("Postal: {} rows updated to {}",
-                                                    numUpdated, (status ? "sent" : "failed"));
-
-                                                // if (status) {
-                                                // byte[] notice =
-                                                // cur.getBlob(cur.getColumnIndex(PostalTableSchema.NOTICE));
-                                                // sendPendingIntent(notice);
-                                                // }
-                                                return false;
-                                            }
-                                        });
+                        boolean dispatchSuccessful = 
+                            this.dispatchPostalRequest(that,
+                                rowUri.toString(),
+                                mimeType,
+                                serialized,
+                                new INetworkService.OnSendMessageHandler() {
+    
+                                    @Override
+                                    public boolean ack(boolean status) {
+    
+                                        // Update distributor status
+                                        // if message dispatch
+                                        // successful.
+                                        ContentValues values = new ContentValues();
+    
+                                        values.put(PostalTableSchema.DISPOSITION,
+                                            (status) ? PostalTableSchema.DISPOSITION_SENT
+                                                    : PostalTableSchema.DISPOSITION_FAIL);
+                                        int numUpdated = cr.update(
+                                                postalUri, values,
+                                                null, null);
+    
+                                        logger.info("Postal: {} rows updated to {}",
+                                            numUpdated, (status ? "sent" : "failed"));
+    
+                                        // if (status) {
+                                        // byte[] notice =
+                                        // cur.getBlob(cur.getColumnIndex(PostalTableSchema.NOTICE));
+                                        // sendPendingIntent(notice);
+                                        // }
+                                        return false;
+                                    }
+                                });
                         if (!dispatchSuccessful) {
                             values.put(PostalTableSchema.DISPOSITION,
                                     PostalTableSchema.DISPOSITION_PENDING);
                             cr.update(postalUri, values, null, null);
                         }
-
                     }
                 } catch (NullPointerException ex) {
                     logger.warn("NullPointerException, sending to gateway failed");
@@ -418,7 +430,173 @@ public class DistributorThread extends
             cur.close();
         }
     }
+    
+    /**
+     * Used when a new postal request arrives.
+     * It first tries to dispatch the request to the network service.
+     * Regardless of whether that works, the request is recorded for later use.
+     * 
+     * @param that
+     * @param uri
+     * @param mimeType
+     * @param data
+     * @param handler
+     * @return
+     */
+    private void processPostalRequest(DistributorService that, AmmoRequest agm, int st) {
+        logger.info("::processPostalRequest()");
 
+        final ContentResolver cr = that.getContentResolver();
+
+        String mimeType = agm.topic_str;
+        final byte[] serialized;
+        
+        switch (st) {
+        case PostalTableSchema.SERIALIZE_TYPE_DIRECT:
+            serialized = agm.payload_str.getBytes();
+            break;
+
+        case PostalTableSchema.SERIALIZE_TYPE_INDIRECT:
+        case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
+        default:
+            try {
+                serialized = queryUriForSerializedData(that, agm.provider);
+            } catch (IOException e1) {
+                logger.error("invalid row for serialization");
+                return;
+            }
+        }
+        if (serialized == null) {
+            logger.error("no serialized data produced");
+            return;
+        }
+
+        // Dispatch the message.
+        try {
+             
+            ContentValues values = new ContentValues();
+            values.put(PostalTableSchemaBase.CP_TYPE, mimeType);
+            values.put(PostalTableSchemaBase.URI, agm.provider.toString());
+            values.put(PostalTableSchemaBase.SERIALIZE_TYPE, PostalTableSchemaBase.SERIALIZE_TYPE_INDIRECT);
+            values.put(PostalTableSchemaBase.EXPIRATION, agm.durability);
+            values.put(PostalTableSchemaBase.UNIT, 50);
+            values.put(PostalTableSchemaBase.PRIORITY, agm.priority);
+            //if (notice != null) 
+                //values.put(PostalTableSchemaBase.NOTICE, serializePendingIntent(notice));
+            values.put(PostalTableSchemaBase.CREATED_DATE, System.currentTimeMillis());
+            
+            
+            if ((!that.isNetworkServiceBound())
+            || (!that.getNetworkServiceBinder().isConnected())) {
+                values.put(PostalTableSchemaBase.DISPOSITION, 
+                        PostalTableSchemaBase.DISPOSITION_PENDING);
+                
+                cr.insert(PostalTableSchemaBase.CONTENT_URI, values);
+                logger.info("no network connection");
+                return;
+            }
+            
+            values.put(PostalTableSchema.DISPOSITION,
+                    PostalTableSchema.DISPOSITION_QUEUED);
+            final Uri postalUri = cr.insert(PostalTableSchemaBase.CONTENT_URI, values);
+            
+            boolean success = 
+                this.dispatchPostalRequest(that,
+                    agm.provider.toString(),
+                    mimeType,
+                    serialized,
+                    new INetworkService.OnSendMessageHandler() {
+    
+                        @Override
+                        public boolean ack(boolean status) {
+    
+                            // Update distributor status
+                            // if message dispatch
+                            // successful.
+                            ContentValues values = new ContentValues();
+    
+                            values.put(PostalTableSchema.DISPOSITION,
+                                (status) ? PostalTableSchema.DISPOSITION_SENT
+                                        : PostalTableSchema.DISPOSITION_FAIL);
+                            int numUpdated = cr.update(
+                                    postalUri, values,
+                                    null, null);
+    
+                            logger.info("Postal: {} rows updated to {}",
+                                numUpdated, (status ? "sent" : "failed"));
+    
+                            // if (status) {
+                            // byte[] notice =
+                            // cur.getBlob(cur.getColumnIndex(PostalTableSchema.NOTICE));
+                            // sendPendingIntent(notice);
+                            // }
+                            return false;
+                        }
+                    });
+            if (!success) {
+                values.put(PostalTableSchema.DISPOSITION,
+                        PostalTableSchema.DISPOSITION_PENDING);
+                cr.update(postalUri, values, null, null);
+            }
+        } catch (NullPointerException ex) {
+            logger.warn("NullPointerException, sending to gateway failed");
+        }
+    }
+    
+
+    /**
+     * dispatch the request to the network service.
+     * It is presumed that the connection to the network service
+     * exists before this method is called.
+     * 
+     * @param that
+     * @param uri
+     * @param mimeType
+     * @param data
+     * @param handler
+     * @return
+     */
+    private boolean dispatchPostalRequest(DistributorService that, String uri, String mimeType, 
+    		byte []data, INetworkService.OnSendMessageHandler handler) 
+    {
+        logger.info("::dispatchPostalRequest");
+
+        Long now = System.currentTimeMillis();
+        logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
+        
+        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+ 
+        AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder();
+        pushReq.setUri(uri)
+               .setMimeType(mimeType)
+               .setData(ByteString.copyFrom(data));
+
+        mw.setDataMessage(pushReq);
+
+        logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+        
+        DistributorPolicy.Load load = that.policy().match(mimeType);
+        agmb.isMulticast(load.isMulticast);
+        agmb.isGateway(load.isGateway);
+       
+        return that.getNetworkServiceBinder().sendRequest(agmb.build());
+    }
+    
+
+    // =========== PUBLICATION ====================
+    
+    @SuppressWarnings("unused")
+	private void processPublicationChange(DistributorService that, boolean resend) {
+        logger.error("::processPublicationChange : {} : not implemented", resend);
+    }
+    
+
+
+
+
+     // =========== RETRIEVAL ====================
     /**
      * Each time the enrollment provider is modified, find out what the
      * changes were and if necessary, send the data to the
@@ -466,7 +644,7 @@ public class DistributorThread extends
         RETRIEVAL_RESEND = sb.toString();
     }
     
-    public void processRetrievalChange(DistributorService that, boolean resend) {
+    private void processRetrievalChange(DistributorService that, boolean resend) {
         logger.info("::processRetrievalChange()");
 
         if (!that.isNetworkServiceBound())
@@ -527,29 +705,29 @@ public class DistributorThread extends
                 @SuppressWarnings("unused")
                 int numUpdated = cr.update(retrieveUri, values, null, null);
 
-                boolean sent = that.getNetworkServiceBinder()
-                        .dispatchRetrievalRequest(rowUri.toString(), mime,
-                                selection,
-                                new INetworkService.OnSendMessageHandler() {
-                                    @Override
-                                    public boolean ack(boolean status) {
-                                        // Update distributor status if
-                                        // message dispatch successful.
-                                        ContentValues values = new ContentValues();
+                boolean sent = this.dispatchRetrievalRequest(that, 
+                        rowUri.toString(), mime,
+                        selection,
+                        new INetworkService.OnSendMessageHandler() {
+                            @Override
+                            public boolean ack(boolean status) {
+                                // Update distributor status if
+                                // message dispatch successful.
+                                ContentValues values = new ContentValues();
 
-                                        values.put(RetrievalTableSchema.DISPOSITION,
-                                                status ? RetrievalTableSchema.DISPOSITION_SENT
-                                                    : RetrievalTableSchema.DISPOSITION_FAIL);
+                                values.put(RetrievalTableSchema.DISPOSITION,
+                                        status ? RetrievalTableSchema.DISPOSITION_SENT
+                                            : RetrievalTableSchema.DISPOSITION_FAIL);
 
-                                        int numUpdated = cr.update(
-                                                retrieveUri, values, null,
-                                                null);
+                                int numUpdated = cr.update(
+                                        retrieveUri, values, null,
+                                        null);
 
-                                        logger.info("{} rows updated to {} status",
-                                                numUpdated, (status ? "sent" : "pending"));
-                                        return false;
-                                    }
-                                });
+                                logger.info("{} rows updated to {} status",
+                                        numUpdated, (status ? "sent" : "pending"));
+                                return false;
+                            }
+                        });
                 if (!sent) {
                     values.put(RetrievalTableSchema.DISPOSITION,
                             RetrievalTableSchema.DISPOSITION_PENDING);
@@ -560,7 +738,111 @@ public class DistributorThread extends
             pendingCursor.close();
         }
     }
+   
+    private void processRetrievalRequest(DistributorService that, AmmoRequest agm) {
+        logger.info("::processRetrievalRequest()");
 
+        final ContentResolver cr = that.getContentResolver();
+        final String mimeType = agm.topic_str;
+        
+
+        // Dispatch the message.
+        try {
+            
+            ContentValues values = new ContentValues();
+            values.put(RetrievalTableSchemaBase.MIME, mimeType);
+            values.put(RetrievalTableSchemaBase.URI, agm.payload_byte.toString());
+            values.put(RetrievalTableSchemaBase.DISPOSITION, RetrievalTableSchemaBase.DISPOSITION_PENDING);
+            //values.put(RetrievalTableSchemaBase.EXPIRATION, expiration.getTimeInMillis());
+            
+            // values.put(RetrievalTableSchemaBase.SELECTION, agm.select_query);
+            values.put(RetrievalTableSchemaBase.PROJECTION, "");
+            values.put(RetrievalTableSchemaBase.CREATED_DATE, System.currentTimeMillis());
+            // if (notice != null) 
+            //     values.put(RetrievalTableSchemaBase.NOTICE, serializePendingIntent(notice));
+            
+            
+           
+            if ((!that.isNetworkServiceBound())
+            || (!that.getNetworkServiceBinder().isConnected())) {
+                values.put(RetrievalTableSchemaBase.DISPOSITION, 
+                        RetrievalTableSchemaBase.DISPOSITION_PENDING);
+                
+                cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
+                logger.info("no network connection");
+                return;
+            }
+            
+            values.put(PostalTableSchema.DISPOSITION,
+                    PostalTableSchema.DISPOSITION_QUEUED);
+             final Uri retrievalUri = cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
+            
+             boolean sent = this.dispatchRetrievalRequest(that, 
+                     agm.provider.toString(), mimeType,
+                     agm.select_query.select(),
+                     new INetworkService.OnSendMessageHandler() {
+                         @Override
+                         public boolean ack(boolean status) {
+                             // Update distributor status if
+                             // message dispatch successful.
+                             ContentValues values = new ContentValues();
+
+                             values.put(RetrievalTableSchema.DISPOSITION,
+                                     status ? RetrievalTableSchema.DISPOSITION_SENT
+                                         : RetrievalTableSchema.DISPOSITION_FAIL);
+
+                             int numUpdated = cr.update(
+                                     retrievalUri, values, null,
+                                     null);
+
+                             logger.info("{} rows updated to {} status",
+                                     numUpdated, (status ? "sent" : "pending"));
+                             return false;
+                         }
+                     });
+             if (!sent) {
+                 values.put(RetrievalTableSchema.DISPOSITION,
+                         RetrievalTableSchema.DISPOSITION_PENDING);
+                 cr.update(retrievalUri, values, null, null);
+                 // break; // no point in trying any more
+             }
+        } catch (NullPointerException ex) {
+            logger.warn("NullPointerException, sending to gateway failed");
+        }
+    }
+
+    
+
+    private boolean dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
+        logger.info("::dispatchRetrievalRequest");
+
+        /** Message Building */
+
+        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
+        //mw.setSessionUuid(sessionId);
+
+        AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder();
+
+        pushReq.setRequestUid(subscriptionId)
+               .setMimeType(mimeType);
+
+        if (selection != null) pushReq.setQuery(selection);
+
+        // projection
+        // max_results
+        // start_from_count
+        // live_query
+        // expiration
+
+        mw.setPullRequest(pushReq);
+       
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
+        return that.getNetworkServiceBinder().sendRequest(agm);
+    }
+
+
+    // =========== SUBSCRIBE ====================
     /**
      * Each time the subscription provider is modified, find out what the
      * changes were and if necessary, send the data to the
@@ -606,7 +888,7 @@ public class DistributorThread extends
           .append(")");
         SUBSCRIPTION_RESEND = sb.toString();
     }
-    public void processSubscriptionChange(DistributorService that, boolean resend) {
+    private void processSubscriptionChange(DistributorService that, boolean resend) {
         logger.info("::processSubscriptionChange()");
 
         if (!that.isNetworkServiceBound())
@@ -672,25 +954,25 @@ public class DistributorThread extends
                 @SuppressWarnings("unused")
                 int numUpdated = cr.update(subUri, values, null, null);
 
-                boolean sent = that.getNetworkServiceBinder()
-                        .dispatchSubscribeRequest(mime, selection,
-                                new INetworkService.OnSendMessageHandler() {
-                                    @Override
-                                    public boolean ack(boolean status) {
-                                        // Update distributor status if
-                                        // message dispatch successful.
-                                        ContentValues values = new ContentValues();
-                                        values.put( SubscriptionTableSchema.DISPOSITION,
-                                                        (status) ? SubscriptionTableSchema.DISPOSITION_SENT
-                                                                : SubscriptionTableSchema.DISPOSITION_FAIL);
+                boolean sent = this.dispatchSubscribeRequest(that, 
+                        mime, selection,
+                        new INetworkService.OnSendMessageHandler() {
+                            @Override
+                            public boolean ack(boolean status) {
+                                // Update distributor status if
+                                // message dispatch successful.
+                                ContentValues values = new ContentValues();
+                                values.put( SubscriptionTableSchema.DISPOSITION,
+                                                (status) ? SubscriptionTableSchema.DISPOSITION_SENT
+                                                        : SubscriptionTableSchema.DISPOSITION_FAIL);
 
-                                        int numUpdated = cr.update(subUri, values, null, null);
+                                int numUpdated = cr.update(subUri, values, null, null);
 
-                                        logger.info("Subscription: {} rows updated to {} status ",
-                                                numUpdated, (status ? "sent" : "pending"));
-                                        return true;
-                                    }
-                                });
+                                logger.info("Subscription: {} rows updated to {} status ",
+                                        numUpdated, (status ? "sent" : "pending"));
+                                return true;
+                            }
+                        });
                 if (!sent) {
                     values.put(SubscriptionTableSchema.DISPOSITION,
                             SubscriptionTableSchema.DISPOSITION_PENDING);
@@ -701,10 +983,102 @@ public class DistributorThread extends
             pendingCursor.close();
         }
     }
+    
+    
+    private void processSubscribeRequest(DistributorService that, AmmoRequest agm, int st) {
+        logger.info("::processSubscribeRequest()");
 
-    public void processPublicationChange(DistributorService that, boolean resend) {
-        logger.error("::processPublicationChange : {} : not implemented", resend);
+        final ContentResolver cr = that.getContentResolver();
+        final String mimeType = agm.topic_str;
+        
+
+        // Dispatch the message.
+        try {
+            
+            ContentValues values = new ContentValues();
+            values.put(RetrievalTableSchemaBase.MIME, mimeType);
+            values.put(RetrievalTableSchemaBase.URI, agm.payload_byte.toString());
+            values.put(RetrievalTableSchemaBase.DISPOSITION, RetrievalTableSchemaBase.DISPOSITION_PENDING);
+            //values.put(RetrievalTableSchemaBase.EXPIRATION, expiration.getTimeInMillis());
+            
+            // values.put(RetrievalTableSchemaBase.SELECTION, agm.select_query);
+            values.put(RetrievalTableSchemaBase.PROJECTION, "");
+            values.put(RetrievalTableSchemaBase.CREATED_DATE, System.currentTimeMillis());
+            // if (notice != null) 
+            //     values.put(RetrievalTableSchemaBase.NOTICE, serializePendingIntent(notice));
+            
+            
+           
+            if ((!that.isNetworkServiceBound())
+            || (!that.getNetworkServiceBinder().isConnected())) {
+                values.put(RetrievalTableSchemaBase.DISPOSITION, 
+                        RetrievalTableSchemaBase.DISPOSITION_PENDING);
+                
+                cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
+                logger.info("no network connection");
+                return;
+            }
+            
+            values.put(PostalTableSchema.DISPOSITION,
+                    PostalTableSchema.DISPOSITION_QUEUED);
+             final Uri retrievalUri = cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
+            
+             boolean sent = this.dispatchRetrievalRequest(that, 
+                     agm.provider.toString(), mimeType,
+                     agm.select_query.select(),
+                     new INetworkService.OnSendMessageHandler() {
+                         @Override
+                         public boolean ack(boolean status) {
+                             // Update distributor status if
+                             // message dispatch successful.
+                             ContentValues values = new ContentValues();
+
+                             values.put(RetrievalTableSchema.DISPOSITION,
+                                     status ? RetrievalTableSchema.DISPOSITION_SENT
+                                         : RetrievalTableSchema.DISPOSITION_FAIL);
+
+                             int numUpdated = cr.update(
+                                     retrievalUri, values, null,
+                                     null);
+
+                             logger.info("{} rows updated to {} status",
+                                     numUpdated, (status ? "sent" : "pending"));
+                             return false;
+                         }
+                     });
+             if (!sent) {
+                 values.put(RetrievalTableSchema.DISPOSITION,
+                         RetrievalTableSchema.DISPOSITION_PENDING);
+                 cr.update(retrievalUri, values, null, null);
+                 // break; // no point in trying any more
+             }
+        } catch (NullPointerException ex) {
+            logger.warn("NullPointerException, sending to gateway failed");
+        }
     }
+
+    
+
+    private boolean dispatchSubscribeRequest(DistributorService that, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
+        logger.info("::dispatchSubscribeRequest");
+
+        /** Message Building */
+        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
+        //mw.setSessionUuid(sessionId);
+
+        AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
+
+        subscribeReq.setMimeType(mimeType);
+
+        if (subscribeReq != null) subscribeReq.setQuery(selection);
+
+        mw.setSubscribeMessage(subscribeReq);
+       
+        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
+        return that.getNetworkServiceBinder().sendRequest(agm);
+    }
+
     
     /**
      * Make a specialized query on a specific content provider URI 
@@ -715,9 +1089,9 @@ public class DistributorThread extends
      * @throws IOException
      */
 
-    private synchronized byte[] queryUriForSerializedData(Context context, String uri) throws FileNotFoundException, IOException {
-        Uri rowUri = Uri.parse(uri);
-        Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
+    private synchronized byte[] queryUriForSerializedData(Context context, Uri tuple) 
+    throws FileNotFoundException, IOException {
+        Uri serialUri = Uri.withAppendedPath(tuple, "_serial");
 
         ByteArrayOutputStream bout = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
@@ -781,9 +1155,16 @@ public class DistributorThread extends
      * @param instream
      * @return was the message clean (true) or garbled (false).
      */
-    private boolean processRequest(Context context, AmmoRequest agm) {
+    private boolean processRequest(DistributorService that, AmmoRequest agm) {
         logger.info("::processRequest");
-        // FIXME bunch of code here
+        switch (agm.action){
+        case POSTAL: processPostalRequest(that, agm, 1); break;
+        case DIRECTED_POSTAL: processPostalRequest(that, agm, 2); break;
+        case PUBLISH: break;
+        case RETRIEVAL: processRetrievalRequest(that, agm); break;
+        case SUBSCRIBE: processSubscribeRequest(that, agm, 1); break;
+        case DIRECTED_SUBSCRIBE: processSubscribeRequest(that, agm, 2); break;
+        }
         return true;
     }
     

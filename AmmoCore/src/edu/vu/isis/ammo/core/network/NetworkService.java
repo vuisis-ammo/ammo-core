@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.ardverk.collection.PatriciaTrie;
+import org.ardverk.collection.Trie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +62,7 @@ implements OnSharedPreferenceChangeListener,
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger( NetworkService.class );
+    private static final Logger logger = LoggerFactory.getLogger( "net.service" );
 
     // Local constants
     public static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
@@ -403,7 +405,7 @@ implements OnSharedPreferenceChangeListener,
      * @param payload_checksum
      * @param message
      */
-    private boolean sendRequest( AmmoGatewayMessage agm )
+    public boolean sendRequest(AmmoGatewayMessage agm)
     {
         logger.info( "::sendGatewayRequest" );
         // agm.setSessionUuid( sessionId );
@@ -497,89 +499,6 @@ implements OnSharedPreferenceChangeListener,
         return true;
     }
 */
-
-    public boolean dispatchPushRequest(String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
-        logger.info("::dispatchPushRequest");
-
-        Long now = System.currentTimeMillis();
-        logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
-        
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
- 
-
-        AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder();
-        pushReq.setUri(uri)
-               .setMimeType(mimeType)
-               .setData(ByteString.copyFrom(data));
-
-        mw.setDataMessage(pushReq);
-
-        logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
-        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
-
-
-        if (mimeType.startsWith("application/vnd.com.aterrasys.nevada.")
-           || mimeType.startsWith("application/vnd.edu.vu.isis.ammo.dash.") ) {
- 
-             agmb.isMulticast(true);
-
-        } else {
-
-             agmb.isMulticast(false);
-
-        }
-        agmb.isGateway(true);
-        return sendRequest(agmb.build());
-    }
-
-    public boolean dispatchRetrievalRequest(String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
-        logger.info("::dispatchRetrievalRequest");
-
-        /** Message Building */
-
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
-        mw.setSessionUuid(sessionId);
-
-        AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder();
-
-        pushReq.setRequestUid(subscriptionId)
-               .setMimeType(mimeType);
-
-        if (selection != null) pushReq.setQuery(selection);
-
-        // projection
-        // max_results
-        // start_from_count
-        // live_query
-        // expiration
-
-        mw.setPullRequest(pushReq);
-       
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
-        return sendRequest(agm);
-    }
-
-    public boolean dispatchSubscribeRequest(String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
-        logger.info("::dispatchSubscribeRequest");
-
-        /** Message Building */
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
-        mw.setSessionUuid(sessionId);
-
-        AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
-
-        subscribeReq.setMimeType(mimeType);
-
-        if (subscribeReq != null) subscribeReq.setQuery(selection);
-
-        mw.setSubscribeMessage(subscribeReq);
-       
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
-        return sendRequest(agm);
-    }
 
     public void setDistributorServiceCallback(DistributorService callback) {
         logger.info("::setDistributorServiceCallback");
