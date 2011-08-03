@@ -18,7 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.ContentResolver;
-import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
@@ -27,9 +26,6 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
-import android.provider.BaseColumns;
-import android.util.Log;
-import android.widget.Toast;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -98,10 +94,10 @@ extends AsyncTask<DistributorService, Integer, Void>
     public String distributeRequest(AmmoRequest request)
     {
         try {
-        	logger.trace("received request of type {}", 
-        			request.toString());
-        	
-        	// FIXME should we generate the uuid here or earlier?
+            logger.trace("received request of type {}", 
+                    request.toString());
+            
+            // FIXME should we generate the uuid here or earlier?
             this.requestQueue.put(request);
             this.signal(this.requestDelta);
             return request.uuid();
@@ -226,7 +222,6 @@ extends AsyncTask<DistributorService, Integer, Void>
         } catch (InterruptedException ex) {
             logger.warn("task interrupted {}", ex.getStackTrace());
         }
-
         // this.publishProgress(values);
         return null;
     }
@@ -293,11 +288,13 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append(" IN (")
           .append("'").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
           .append(",")
+          .append("'").append(PostalTableSchema.DISPOSITION_QUEUED).append("'")
+          .append(",")
           .append("'").append(PostalTableSchema.DISPOSITION_FAIL).append("'")
           .append(")");
         POSTAL_RESEND = sb.toString();
     }
-    public void processPostalChange(DistributorService that, boolean resend) {
+    private void processPostalChange(DistributorService that, boolean resend) {
         logger.info("::processPostalChange()");
 
         if (!that.isNetworkServiceBound())
@@ -365,7 +362,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                 case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
                 default:
                     try {
-                        serialized = queryUriForSerializedData(that, rowUri);
+                        serialized = queryUriForSerializedData(that, Uri.parse(rowUri));
                     } catch (IOException e1) {
                         logger.error("invalid row for serialization");
                         continue;
@@ -436,8 +433,20 @@ extends AsyncTask<DistributorService, Integer, Void>
         }
     }
     
-    public void processPostalRequest(DistributorService that, AmmoRequest agm, int st) {
-        logger.info("::processPostalChange()");
+    /**
+     * Used when a new postal request arrives.
+     * It first tries to dispatch the request to the network service.
+     * Regardless of whether that works, the request is recorded for later use.
+     * 
+     * @param that
+     * @param uri
+     * @param mimeType
+     * @param data
+     * @param handler
+     * @return
+     */
+    private void processPostalRequest(DistributorService that, AmmoRequest agm, int st) {
+        logger.info("::processPostalRequest()");
 
         final ContentResolver cr = that.getContentResolver();
 
@@ -453,7 +462,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
         default:
             try {
-                serialized = queryUriForSerializedData(that, "");
+                serialized = queryUriForSerializedData(that, agm.provider);
             } catch (IOException e1) {
                 logger.error("invalid row for serialization");
                 return;
@@ -472,7 +481,6 @@ extends AsyncTask<DistributorService, Integer, Void>
             values.put(PostalTableSchemaBase.URI, agm.provider.toString());
             values.put(PostalTableSchemaBase.SERIALIZE_TYPE, PostalTableSchemaBase.SERIALIZE_TYPE_INDIRECT);
             values.put(PostalTableSchemaBase.EXPIRATION, agm.durability);
-            // System.currentTimeMillis() + (120 * 1000));
             values.put(PostalTableSchemaBase.UNIT, 50);
             values.put(PostalTableSchemaBase.PRIORITY, agm.priority);
             //if (notice != null) 
@@ -538,8 +546,22 @@ extends AsyncTask<DistributorService, Integer, Void>
     }
     
 
-    public boolean dispatchPostalRequest(DistributorService that, String uri, String mimeType, byte []data, INetworkService.OnSendMessageHandler handler) {
-        logger.info("::dispatchPushRequest");
+    /**
+     * dispatch the request to the network service.
+     * It is presumed that the connection to the network service
+     * exists before this method is called.
+     * 
+     * @param that
+     * @param uri
+     * @param mimeType
+     * @param data
+     * @param handler
+     * @return
+     */
+    private boolean dispatchPostalRequest(DistributorService that, String uri, String mimeType, 
+    		byte []data, INetworkService.OnSendMessageHandler handler) 
+    {
+        logger.info("::dispatchPostalRequest");
 
         Long now = System.currentTimeMillis();
         logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
@@ -557,7 +579,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
         
-        DistributionPolicy.Load load = that.policy().match(mimeType);
+        final DistributorPolicy.Load load = that.policy().match(mimeType);
         agmb.isMulticast(load.isMulticast);
         agmb.isGateway(load.isGateway);
        
@@ -567,7 +589,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 
     // =========== PUBLICATION ====================
     
-    public void processPublicationChange(DistributorService that, boolean resend) {
+    @SuppressWarnings("unused")
+	private void processPublicationChange(DistributorService that, boolean resend) {
         logger.error("::processPublicationChange : {} : not implemented", resend);
     }
     
@@ -616,6 +639,8 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append(" IN (")
           .append("'").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'")
           .append(",")
+          .append("'").append(RetrievalTableSchema.DISPOSITION_QUEUED).append("'")
+          .append(",")
           .append("'").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'")
           .append(",")
           .append("'").append(RetrievalTableSchema.DISPOSITION_SENT).append("'")
@@ -623,7 +648,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         RETRIEVAL_RESEND = sb.toString();
     }
     
-    public void processRetrievalChange(DistributorService that, boolean resend) {
+    private void processRetrievalChange(DistributorService that, boolean resend) {
         logger.info("::processRetrievalChange()");
 
         if (!that.isNetworkServiceBound())
@@ -718,8 +743,8 @@ extends AsyncTask<DistributorService, Integer, Void>
         }
     }
    
-    public void processRetrivalRequest(DistributorService that, AmmoRequest agm) {
-        logger.info("::processPostalChange()");
+    private void processRetrievalRequest(DistributorService that, AmmoRequest agm) {
+        logger.info("::processRetrievalRequest()");
 
         final ContentResolver cr = that.getContentResolver();
         final String mimeType = agm.topic_str;
@@ -733,19 +758,19 @@ extends AsyncTask<DistributorService, Integer, Void>
             values.put(RetrievalTableSchemaBase.URI, agm.payload_byte.toString());
             values.put(RetrievalTableSchemaBase.DISPOSITION, RetrievalTableSchemaBase.DISPOSITION_PENDING);
             //values.put(RetrievalTableSchemaBase.EXPIRATION, expiration.getTimeInMillis());
-        	
+            
             // values.put(RetrievalTableSchemaBase.SELECTION, agm.select_query);
             values.put(RetrievalTableSchemaBase.PROJECTION, "");
             values.put(RetrievalTableSchemaBase.CREATED_DATE, System.currentTimeMillis());
             // if (notice != null) 
-        	//     values.put(RetrievalTableSchemaBase.NOTICE, serializePendingIntent(notice));
-        	
+            //     values.put(RetrievalTableSchemaBase.NOTICE, serializePendingIntent(notice));
+            
             
            
             if ((!that.isNetworkServiceBound())
             || (!that.getNetworkServiceBinder().isConnected())) {
                 values.put(RetrievalTableSchemaBase.DISPOSITION, 
-                		RetrievalTableSchemaBase.DISPOSITION_PENDING);
+                        RetrievalTableSchemaBase.DISPOSITION_PENDING);
                 
                 cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
                 logger.info("no network connection");
@@ -792,7 +817,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 
     
 
-    public boolean dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
+    private boolean dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchRetrievalRequest");
 
         /** Message Building */
@@ -816,8 +841,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 
         mw.setPullRequest(pushReq);
        
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
-        return that.getNetworkServiceBinder().sendRequest(agm);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+        agmb.isGateway(true);
+        return that.getNetworkServiceBinder().sendRequest(agmb.build());
     }
 
 
@@ -861,13 +887,15 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append(" IN (")
           .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
           .append(",")
+          .append("'").append(SubscriptionTableSchema.DISPOSITION_QUEUED).append("'")
+          .append(",")
           .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
           .append(",")
           .append("'").append(SubscriptionTableSchema.DISPOSITION_SENT).append("'")
           .append(")");
         SUBSCRIPTION_RESEND = sb.toString();
     }
-    public void processSubscriptionChange(DistributorService that, boolean resend) {
+    private void processSubscriptionChange(DistributorService that, boolean resend) {
         logger.info("::processSubscriptionChange()");
 
         if (!that.isNetworkServiceBound())
@@ -962,8 +990,83 @@ extends AsyncTask<DistributorService, Integer, Void>
             pendingCursor.close();
         }
     }
+    
+    
+    private void processSubscribeRequest(DistributorService that, AmmoRequest agm, int st) {
+        logger.info("::processSubscribeRequest()");
 
-    public boolean dispatchSubscribeRequest(DistributorService that, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
+        final ContentResolver cr = that.getContentResolver();
+        final String mimeType = agm.topic_str;
+        
+
+        // Dispatch the message.
+        try {
+            
+            ContentValues values = new ContentValues();
+            values.put(RetrievalTableSchemaBase.MIME, mimeType);
+            values.put(RetrievalTableSchemaBase.URI, agm.payload_byte.toString());
+            values.put(RetrievalTableSchemaBase.DISPOSITION, RetrievalTableSchemaBase.DISPOSITION_PENDING);
+            //values.put(RetrievalTableSchemaBase.EXPIRATION, expiration.getTimeInMillis());
+            
+            // values.put(RetrievalTableSchemaBase.SELECTION, agm.select_query);
+            values.put(RetrievalTableSchemaBase.PROJECTION, "");
+            values.put(RetrievalTableSchemaBase.CREATED_DATE, System.currentTimeMillis());
+            // if (notice != null) 
+            //     values.put(RetrievalTableSchemaBase.NOTICE, serializePendingIntent(notice));
+            
+            
+           
+            if ((!that.isNetworkServiceBound())
+            || (!that.getNetworkServiceBinder().isConnected())) {
+                values.put(RetrievalTableSchemaBase.DISPOSITION, 
+                        RetrievalTableSchemaBase.DISPOSITION_PENDING);
+                
+                cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
+                logger.info("no network connection");
+                return;
+            }
+            
+            values.put(PostalTableSchema.DISPOSITION,
+                    PostalTableSchema.DISPOSITION_QUEUED);
+             final Uri retrievalUri = cr.insert(RetrievalTableSchemaBase.CONTENT_URI, values);
+            
+             boolean sent = this.dispatchRetrievalRequest(that, 
+                     agm.provider.toString(), mimeType,
+                     agm.select_query.select(),
+                     new INetworkService.OnSendMessageHandler() {
+                         @Override
+                         public boolean ack(boolean status) {
+                             // Update distributor status if
+                             // message dispatch successful.
+                             ContentValues values = new ContentValues();
+
+                             values.put(RetrievalTableSchema.DISPOSITION,
+                                     status ? RetrievalTableSchema.DISPOSITION_SENT
+                                         : RetrievalTableSchema.DISPOSITION_FAIL);
+
+                             int numUpdated = cr.update(
+                                     retrievalUri, values, null,
+                                     null);
+
+                             logger.info("{} rows updated to {} status",
+                                     numUpdated, (status ? "sent" : "pending"));
+                             return false;
+                         }
+                     });
+             if (!sent) {
+                 values.put(RetrievalTableSchema.DISPOSITION,
+                         RetrievalTableSchema.DISPOSITION_PENDING);
+                 cr.update(retrievalUri, values, null, null);
+                 // break; // no point in trying any more
+             }
+        } catch (NullPointerException ex) {
+            logger.warn("NullPointerException, sending to gateway failed");
+        }
+    }
+
+    
+
+    private boolean dispatchSubscribeRequest(DistributorService that, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchSubscribeRequest");
 
         /** Message Building */
@@ -979,8 +1082,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 
         mw.setSubscribeMessage(subscribeReq);
        
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
-        return that.getNetworkServiceBinder().sendRequest(agm);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+        agmb.isGateway(true);
+        return that.getNetworkServiceBinder().sendRequest(agmb.build());
     }
 
     
@@ -993,41 +1097,37 @@ extends AsyncTask<DistributorService, Integer, Void>
      * @throws IOException
      */
 
-    private synchronized byte[] queryUriForSerializedData(Context context, String uri) throws FileNotFoundException, IOException {
-        Uri rowUri = Uri.parse(uri);
-        Uri serialUri = Uri.withAppendedPath(rowUri, "_serial");
-
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        BufferedInputStream bis = null;
-        InputStream instream = null;
-
+    private synchronized byte[] queryUriForSerializedData(Context context, Uri tuple) 
+    throws FileNotFoundException, IOException {
+        final Uri serialUri = Uri.withAppendedPath(tuple, "_serial");
+        final ByteArrayOutputStream bout = new ByteArrayOutputStream();
+    	final byte[] buffer = new byte[1024];
+        
         try {
+            final BufferedInputStream bis;
+            AssetFileDescriptor afd = null;
             try {
-                // instream = this.getContentResolver().openInputStream(serialUri);
-                AssetFileDescriptor afd = context.getContentResolver()
+            	afd = context.getContentResolver()
                     .openAssetFileDescriptor(serialUri, "r");
                 if (afd == null) {
                     logger.warn("could not acquire file descriptor {}", serialUri);
                     throw new IOException("could not acquire file descriptor "+serialUri);
                 }
-                // afd.createInputStream();
+                final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
 
-                ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-                instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                bis = new BufferedInputStream(instream);
             } catch (IOException ex) {
                 logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
                 bout.close();
+                if (afd != null) afd.close();
                 throw new FileNotFoundException("Unable to create stream");
             }
-            bis = new BufferedInputStream(instream);
 
             for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
                 bout.write(buffer, 0, bytesRead);
             }
             bis.close();
-            instream.close();
             // String bs = bout.toString();
             // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
             byte[] ba = bout.toByteArray();
@@ -1040,12 +1140,8 @@ extends AsyncTask<DistributorService, Integer, Void>
         } catch (IOException ex) {
             logger.error("query URI for serialized data {}", ex.getStackTrace());
         }
-        if (bout != null) {
-            bout.close();
-        }
-        if (bis != null) {
-            bis.close();
-        }
+        if (bout != null) bout.close();
+        
         return null;
     }
     
@@ -1064,10 +1160,10 @@ extends AsyncTask<DistributorService, Integer, Void>
         switch (agm.action){
         case POSTAL: processPostalRequest(that, agm, 1); break;
         case DIRECTED_POSTAL: processPostalRequest(that, agm, 2); break;
-        case PUBLISH:
-        case RETRIEVAL:
-        case SUBSCRIBE:
-        case DIRECTED_SUBSCRIBE:
+        case PUBLISH: break;
+        case RETRIEVAL: processRetrievalRequest(that, agm); break;
+        case SUBSCRIBE: processSubscribeRequest(that, agm, 1); break;
+        case DIRECTED_SUBSCRIBE: processSubscribeRequest(that, agm, 2); break;
         }
         return true;
     }
@@ -1106,6 +1202,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         switch (mw.getType()) {
 
         case DATA_MESSAGE:
+        	logger.info("data interest");
             receiveSubscribeResponse(context, mw);
             break;
 
@@ -1115,14 +1212,17 @@ extends AsyncTask<DistributorService, Integer, Void>
             break;
 
         case PUSH_ACKNOWLEDGEMENT:
+        	logger.info("push ack");
             receivePushResponse(context, mw);
             break;
 
         case PULL_RESPONSE:
+        	logger.info("pull response");
             receivePullResponse(context, mw);
             break;
             
         case HEARTBEAT:
+        	logger.info("heartbeat");
             break;
         case AUTHENTICATION_MESSAGE:
         case SUBSCRIBE_MESSAGE:
@@ -1198,14 +1298,14 @@ extends AsyncTask<DistributorService, Integer, Void>
         ContentResolver cr = context.getContentResolver();
 
         try {
-            Uri serialUri = Uri.withAppendedPath(uri, "_serial");
-            OutputStream outstream = cr.openOutputStream(serialUri);
+            final Uri serialUri = Uri.withAppendedPath(uri, "_serial");
+            final OutputStream outstream = cr.openOutputStream(serialUri);
 
             if (outstream == null) {
                 logger.error( "could not open output stream to content provider: {} ",serialUri);
                 return false;
             }
-            ByteString data = resp.getData();
+            final ByteString data = resp.getData();
 
             if (data != null) {
                 outstream.write(data.toByteArray());
@@ -1248,8 +1348,15 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 
     private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw) {
-        if (mw == null) return false;
-        if (! mw.hasDataMessage()) return false;
+        if (mw == null) {
+        	logger.warn("no message");
+            return false;
+        }
+        if (! mw.hasDataMessage()) {
+        	logger.warn("no data in message");
+        	return false;
+        }
+        	
         final AmmoMessages.DataMessage resp = mw.getDataMessage();
 
         logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
@@ -1272,8 +1379,8 @@ extends AsyncTask<DistributorService, Integer, Void>
             tableUriStr = subCursor.getString(subCursor.getColumnIndex(SubscriptionTableSchema.URI));
             subCursor.close();
 
-            Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
-            OutputStream outstream = cr.openOutputStream(tableUri);
+            final Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
+            final OutputStream outstream = cr.openOutputStream(tableUri);
 
             if (outstream == null) {
                 logger.error("the content provider {} is not available", tableUri);

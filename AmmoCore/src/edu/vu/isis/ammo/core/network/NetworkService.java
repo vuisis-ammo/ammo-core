@@ -60,7 +60,7 @@ implements OnSharedPreferenceChangeListener,
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger( NetworkService.class );
+    private static final Logger logger = LoggerFactory.getLogger( "net.service" );
 
     // Local constants
     public static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
@@ -426,23 +426,19 @@ implements OnSharedPreferenceChangeListener,
      * @param payload_checksum
      * @param message
      */
-    public boolean sendRequest(AmmoGatewayMessage agm)
-    {
+    public boolean sendRequest(AmmoGatewayMessage agm) {
         logger.info( "::sendGatewayRequest" );
         // agm.setSessionUuid( sessionId );
 
-        // NOTE: disabling multicast for the weekly build.  Will uncomment this
-        // again after the build goes out.
-        //if ( agm.isMulticast )
-        //{
-        //    logger.info( "   Sending multicast message." );
-        //    return this.multicastChannel.sendRequest(agm);
-        //}
-        //else
-        //{
-        //    logger.info( "   Sending message to gateway." );
-            return this.tcpChannel.sendRequest(agm);
-        //}
+        if ( agm.isMulticast ) {
+            logger.info( "   Sending multicast message." );
+            this.multicastChannel.sendRequest(agm);
+        }
+        if ( agm.isGateway ) {
+            logger.info( "   Sending message to gateway." );
+            this.tcpChannel.sendRequest(agm);
+        }
+        return true;
     }
 
     // ===========================================================
@@ -516,8 +512,9 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(mwb, this);
-        sendRequest(agm);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
+        agmb.isGateway(true);
+        sendRequest(agmb.build());
         return true;
     }
 
