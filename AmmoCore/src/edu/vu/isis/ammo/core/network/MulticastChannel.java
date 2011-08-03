@@ -354,8 +354,9 @@ public class MulticastChannel extends NetChannel
 
         mw.setHeartbeat( message );
 
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(mw, null);
-        sendRequest( agm );
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
+        agmb.isGateway(true);
+        sendRequest( agmb.build() );
 
         mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
         //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );

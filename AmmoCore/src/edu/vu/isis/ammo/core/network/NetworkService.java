@@ -426,21 +426,19 @@ implements OnSharedPreferenceChangeListener,
      * @param payload_checksum
      * @param message
      */
-    public boolean sendRequest(AmmoGatewayMessage agm)
-    {
+    public boolean sendRequest(AmmoGatewayMessage agm) {
         logger.info( "::sendGatewayRequest" );
         // agm.setSessionUuid( sessionId );
 
-        if ( agm.isMulticast )
-        {
+        if ( agm.isMulticast ) {
             logger.info( "   Sending multicast message." );
-            return this.multicastChannel.sendRequest(agm);
+            this.multicastChannel.sendRequest(agm);
         }
-        else
-        {
+        if ( agm.isGateway ) {
             logger.info( "   Sending message to gateway." );
-            return this.tcpChannel.sendRequest(agm);
+            this.tcpChannel.sendRequest(agm);
         }
+        return true;
     }
 
     // ===========================================================
@@ -514,8 +512,9 @@ implements OnSharedPreferenceChangeListener,
 
         /** Message Building */
         AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(mwb, this);
-        sendRequest(agm);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
+        agmb.isGateway(true);
+        sendRequest(agmb.build());
         return true;
     }
 

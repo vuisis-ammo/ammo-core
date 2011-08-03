@@ -288,6 +288,8 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append(" IN (")
           .append("'").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
           .append(",")
+          .append("'").append(PostalTableSchema.DISPOSITION_QUEUED).append("'")
+          .append(",")
           .append("'").append(PostalTableSchema.DISPOSITION_FAIL).append("'")
           .append(")");
         POSTAL_RESEND = sb.toString();
@@ -577,7 +579,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
         
-        DistributorPolicy.Load load = that.policy().match(mimeType);
+        final DistributorPolicy.Load load = that.policy().match(mimeType);
         agmb.isMulticast(load.isMulticast);
         agmb.isGateway(load.isGateway);
        
@@ -636,6 +638,8 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
           .append(" IN (")
           .append("'").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'")
+          .append(",")
+          .append("'").append(RetrievalTableSchema.DISPOSITION_QUEUED).append("'")
           .append(",")
           .append("'").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'")
           .append(",")
@@ -837,8 +841,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 
         mw.setPullRequest(pushReq);
        
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
-        return that.getNetworkServiceBinder().sendRequest(agm);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+        agmb.isGateway(true);
+        return that.getNetworkServiceBinder().sendRequest(agmb.build());
     }
 
 
@@ -881,6 +886,8 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
           .append(" IN (")
           .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
+          .append(",")
+          .append("'").append(SubscriptionTableSchema.DISPOSITION_QUEUED).append("'")
           .append(",")
           .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
           .append(",")
@@ -1075,8 +1082,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 
         mw.setSubscribeMessage(subscribeReq);
        
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
-        return that.getNetworkServiceBinder().sendRequest(agm);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+        agmb.isGateway(true);
+        return that.getNetworkServiceBinder().sendRequest(agmb.build());
     }
 
     
@@ -1194,6 +1202,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         switch (mw.getType()) {
 
         case DATA_MESSAGE:
+        	logger.info("data interest");
             receiveSubscribeResponse(context, mw);
             break;
 
@@ -1203,14 +1212,17 @@ extends AsyncTask<DistributorService, Integer, Void>
             break;
 
         case PUSH_ACKNOWLEDGEMENT:
+        	logger.info("push ack");
             receivePushResponse(context, mw);
             break;
 
         case PULL_RESPONSE:
+        	logger.info("pull response");
             receivePullResponse(context, mw);
             break;
             
         case HEARTBEAT:
+        	logger.info("heartbeat");
             break;
         case AUTHENTICATION_MESSAGE:
         case SUBSCRIBE_MESSAGE:
@@ -1336,8 +1348,15 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 
     private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw) {
-        if (mw == null) return false;
-        if (! mw.hasDataMessage()) return false;
+        if (mw == null) {
+        	logger.warn("no message");
+            return false;
+        }
+        if (! mw.hasDataMessage()) {
+        	logger.warn("no data in message");
+        	return false;
+        }
+        	
         final AmmoMessages.DataMessage resp = mw.getDataMessage();
 
         logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());

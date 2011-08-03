@@ -203,22 +203,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.isGateway = builder.isGateway;
     }
     
-    public static AmmoGatewayMessage newInstance( AmmoMessages.MessageWrapper.Builder mwb,
-            INetworkService.OnSendMessageHandler handler) {
-        byte[] payload = mwb.build().toByteArray();
-    
-        CRC32 crc32 = new CRC32();
-        crc32.update(payload);
-         
-        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder()
-             .payload(payload)
-            .size(payload.length)
-            .checksum(crc32.getValue())
-            .priority(PriorityLevel.NORMAL.v)
-            .handler(handler);
-        return agmb.build();
-    }
-    
     public static AmmoGatewayMessage.Builder newBuilder( AmmoMessages.MessageWrapper.Builder mwb,
             INetworkService.OnSendMessageHandler handler) {
         byte[] payload = mwb.build().toByteArray();
