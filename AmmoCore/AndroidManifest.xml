@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="edu.vu.isis.ammo.core" android:versionCode="1"
-    android:versionName="1.0" android:sharedUserId="edu.vu.isis.ammo">
+    package="edu.vu.isis.ammo.core" android:versionCode="2"
+    android:versionName="1.0.1" android:sharedUserId="edu.vu.isis.ammo">
 
     <application android:icon="@drawable/appl_icon"
        android:name="ApplicationEx"
