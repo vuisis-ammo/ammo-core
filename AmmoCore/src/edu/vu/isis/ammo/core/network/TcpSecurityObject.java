@@ -12,7 +12,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class TcpSecurityObject implements ISecurityObject,
                                           INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger( TcpSecurityObject.class );
+    private static final Logger logger = LoggerFactory.getLogger( "security.tcp" );
 
     TcpSecurityObject( TcpChannel iChannel )
     {
@@ -27,9 +27,10 @@ public class TcpSecurityObject implements ISecurityObject,
 
         // This code is a hack to have authentication work before Nilabja's new
         // code is ready.
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, this );
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mwb, this );
+        agmb.isGateway();
 
-        mChannel.putFromSecurityObject( agm );
+        mChannel.putFromSecurityObject( agmb.build() );
         mChannel.finishedPuttingFromSecurityObject();
     }
 

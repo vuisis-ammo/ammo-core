@@ -8,7 +8,7 @@ package edu.vu.isis.ammo.util;
  * @author Melinda Green - © 2010 Superliminal Software.
  * Free for all uses with attribution.
  */
-public class TrieMap {
+public class TrieMap<V>{
     /*
      * Implementation of a trie tree. (see http://en.wikipedia.org/wiki/Trie)
      * though I made it faster and more compact for long key strings 
@@ -19,13 +19,13 @@ public class TrieMap {
      * Null elements indicate unused, I.E. available slots.
      */
     private Object[] mChars = new Object[256];
-    private Object mPrefixVal; // Used only for values of prefix keys.
+    private V mPrefixVal; // Used only for values of prefix keys.
     
     // Simple container for a string-value pair.
-    private static class Leaf {
+    private static class Leaf<V> {
         public String mStr;
-        public Object mVal;
-        public Leaf(String str, Object val) {
+        public V mVal;
+        public Leaf(String str, V val) {
             mStr = str;
             mVal = val;
         }
@@ -53,9 +53,9 @@ public class TrieMap {
      * @param key may be empty or contain low-order chars 0..255 but must not be null.
      * @param val Your data. Any data class except another TrieMap. Null values erase entries.
      */
-    public void put(String key, Object val) {
+    public void put(String key, V val) {
         assert key != null;
-        assert !(val instanceof TrieMap); // Only we get to store TrieMap nodes. TODO: Allow it.
+        assert !(val instanceof TrieMap<?>); // Only we get to store TrieMap nodes. TODO: Allow it.
         if(key.length() == 0) {
             // All of the original key's chars have been nibbled away 
             // which means this node will store this key as a prefix of other keys.
@@ -68,12 +68,12 @@ public class TrieMap {
             if(val == null) {
                 return; // Don't create a leaf to store a null value.
             }
-            mChars[c] = new Leaf(key, val);
+            mChars[c] = new Leaf<V>(key, val);
             return;
         }
-        if(cObj instanceof TrieMap) {
+        if(cObj instanceof TrieMap<?>) {
             // Collided with an existing sub-branch so nibble a char and recurse.
-            TrieMap childTrie = (TrieMap)cObj;
+            TrieMap<V> childTrie = (TrieMap)cObj;
             childTrie.put(key.substring(1), val);
             if(val == null && childTrie.isEmpty()) {
                 mChars[c] = null; // put() must have erased final entry so prune branch.
@@ -87,8 +87,8 @@ public class TrieMap {
         }
         assert cObj instanceof Leaf;
         // Sprout a new branch to hold the colliding items.
-        Leaf cLeaf = (Leaf)cObj;
-        TrieMap branch = new TrieMap();
+        Leaf<V> cLeaf = (Leaf)cObj;
+        TrieMap<V> branch = new TrieMap<V>();
         branch.put(key.substring(1), val); // Store new value in new subtree.
         branch.put(cLeaf.mStr.substring(1), cLeaf.mVal); // Plus the one we collided with.
         mChars[c] = branch;
@@ -98,7 +98,8 @@ public class TrieMap {
     /**
      * Retrieve a value for a given key or null if not found.
      */
-    public Object get(String key) {
+    @SuppressWarnings("unchecked")
+	public V get(String key) {
         assert key != null;
         if(key.length() == 0) {
             // All of the original key's chars have been nibbled away 
@@ -110,15 +111,15 @@ public class TrieMap {
         if(cVal == null) {
             return null; // Not found.
         }
-        assert cVal instanceof Leaf || cVal instanceof TrieMap;
-        if(cVal instanceof TrieMap) { // Hash collision. Nibble first char, and recurse.
-            return ((TrieMap)cVal).get(key.substring(1));
+        assert cVal instanceof Leaf || cVal instanceof TrieMap<?>;
+        if(cVal instanceof TrieMap<?>) { // Hash collision. Nibble first char, and recurse.
+            return ((TrieMap<V>)cVal).get(key.substring(1));
         }
         if(cVal instanceof Leaf) {
             // cVal contains a user datum, but does the key match its substring?
             Leaf cPair = (Leaf)cVal;
             if(key.equals(cPair.mStr)) {
-                return cPair.mVal; // Return user's data value.
+                return (V) cPair.mVal; // Return user's data value.
             }
         }
         return null; // Not found.
@@ -130,7 +131,7 @@ public class TrieMap {
      */
     public static void main(String[] args) {
         // Insert a bunch of key/value pairs.
-        TrieMap trieMap = new TrieMap();
+        TrieMap<String> trieMap = new TrieMap<String>();
         trieMap.put("123", "456");
         trieMap.put("Java", "rocks");
         trieMap.put("Melinda", "too");

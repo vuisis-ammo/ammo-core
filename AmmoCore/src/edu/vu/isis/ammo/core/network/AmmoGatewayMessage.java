@@ -46,7 +46,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * 
  */
 public class AmmoGatewayMessage implements Comparable<Object> {
-    private static final Logger logger = LoggerFactory.getLogger(TcpChannel.class);
+    private static final Logger logger = LoggerFactory.getLogger( "net.ammogatewaymessage" );
     
     private static final byte[] MAGIC = {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
     
@@ -201,22 +201,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         
         this.isMulticast = builder.isMulticast;
         this.isGateway = builder.isGateway;
-    }
-    
-    public static AmmoGatewayMessage newInstance( AmmoMessages.MessageWrapper.Builder mwb,
-            INetworkService.OnSendMessageHandler handler) {
-        byte[] payload = mwb.build().toByteArray();
-    
-        CRC32 crc32 = new CRC32();
-        crc32.update(payload);
-         
-        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder()
-             .payload(payload)
-            .size(payload.length)
-            .checksum(crc32.getValue())
-            .priority(PriorityLevel.NORMAL.v)
-            .handler(handler);
-        return agmb.build();
     }
     
     public static AmmoGatewayMessage.Builder newBuilder( AmmoMessages.MessageWrapper.Builder mwb,

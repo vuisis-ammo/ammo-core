@@ -34,37 +34,8 @@ public interface INetworkService {
     void teardown();
     boolean isConnected();
 
-    /**
-     * Posting a data item to the gateway for distribution.
-     *
-     * @param uri
-     * @param mimeType
-     * @param data
-     * @return
-     */
-    boolean dispatchPushRequest(String uri, String mimeType, byte []data, OnSendMessageHandler handler);
-
-    /**
-     * Enrolling with the gateway for a data stream.
-     *
-     * @param requestId the uri from the subscription table tuple
-     * @param mimeType the identifier used but the gateway to find what is wanted
-     * @param selection the selection criteria for items of the specified mimeType
-     *
-     * @return was the request posted successfully
-     */
-    boolean dispatchRetrievalRequest(String requestId, String mimeType, String selection, OnSendMessageHandler handler);
-
-    /**
-     * Subscribe with the gateway for a data stream.
-     *
-     * @param mimeType the identifier used but the gateway to find what is wanted
-     * @param selection the selection criteria for items of the specified mimeType
-     *
-     * @return was the request posted successfully
-     */
-    boolean dispatchSubscribeRequest(String mimeType, String selection, OnSendMessageHandler handler);
-
+    public boolean sendRequest(AmmoGatewayMessage agm);
+    
     /**
      * Pass control to the distributor service to handle the message.
      * The network service proxy is responsible for receiving messages from
