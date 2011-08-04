@@ -27,9 +27,10 @@ public class TcpSecurityObject implements ISecurityObject,
 
         // This code is a hack to have authentication work before Nilabja's new
         // code is ready.
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mwb, this );
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mwb, this );
+        agmb.isGateway();
 
-        mChannel.putFromSecurityObject( agm );
+        mChannel.putFromSecurityObject( agmb.build() );
         mChannel.finishedPuttingFromSecurityObject();
     }
 
