@@ -95,8 +95,7 @@ extends AsyncTask<DistributorService, Integer, Void>
     private AtomicBoolean requestDelta = new AtomicBoolean(true);
     private final BlockingQueue<AmmoRequest> requestQueue;
   
-    public String distributeRequest(AmmoRequest request)
-    {
+    public String distributeRequest(AmmoRequest request) {
         try {
             logger.trace("received request of type {}", 
                     request.toString());
