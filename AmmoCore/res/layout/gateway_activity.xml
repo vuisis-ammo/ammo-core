@@ -28,7 +28,6 @@
 	   android:layout_below="@id/version_label"
 		android:layout_width="fill_parent"
 		android:layout_height="fill_parent" 
-		android:layout_weight="1" 
-		android:drawSelectorOnTop="false" />
+		android:layout_weight="1" />
 
 </RelativeLayout>

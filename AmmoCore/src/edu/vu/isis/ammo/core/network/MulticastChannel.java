@@ -99,6 +99,7 @@ public class MulticastChannel extends NetChannel
 
     private MulticastChannel( IChannelManager iChannelManager ) {
         super();
+        
         logger.info("Thread <{}>MulticastChannel::<constructor>", Thread.currentThread().getId());
         this.syncObj = this;
 
@@ -113,6 +114,7 @@ public class MulticastChannel extends NetChannel
         this.connectorThread = new ConnectorThread(this);
         // The thread is start()ed the first time the network disables and
         // reenables it.
+        
     }
 
 
