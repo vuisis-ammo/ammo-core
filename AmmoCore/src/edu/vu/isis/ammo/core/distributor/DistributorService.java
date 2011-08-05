@@ -22,7 +22,9 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.IDistributorService;
+import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
@@ -33,8 +35,6 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
-import edu.vu.isis.ammo.api.AmmoRequest;
-import edu.vu.isis.ammo.api.IDistributorService;
 
 /**
  * The DistributorService is responsible for prioritizing and serializing
@@ -74,7 +74,7 @@ public class DistributorService extends Service {
 
     private final INetworkService DUMMY_NETWORK_SERVICE = new INetworkService() {
 		@Override
-		public List<Gateway> getGatewayList() { return null; }
+		public List<Channel> getGatewayList() { return null; }
 		@Override
 		public List<Netlink> getNetlinkList() { return null; }
 
