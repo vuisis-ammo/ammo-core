@@ -49,7 +49,7 @@ public class CorePreferenceActivity extends PreferenceActivityEx {
 		this.addPreferencesFromResource(R.layout.core_preferences);
 		
 		Resources res = this.getResources();
-	
+		/*
 		mIPAddr = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_IP_ADDR);
 		mIPAddr.setSummaryPrefix(res.getString(R.string.ipaddr_label));
 		mIPAddr.setType(MyEditTextPreference.Type.IP);
@@ -62,7 +62,6 @@ public class CorePreferenceActivity extends PreferenceActivityEx {
 		mSocketTimeout.setSummaryPrefix(res.getString(R.string.socket_timeout_label));
 		mSocketTimeout.setType(MyEditIntegerPreference.Type.TIMEOUT);
 		
-		/*
 		mDeviceId = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_DEVICE_ID);
 		String deviceId = UniqueIdentifiers.device(this);
 		mDeviceId.setDefaultValue(deviceId);
@@ -78,12 +77,12 @@ public class CorePreferenceActivity extends PreferenceActivityEx {
 		mOperatorKey = (MyEditTextPreference) findPreference(INetPrefKeys.CORE_OPERATOR_KEY);
 		mOperatorKey.setSummaryPrefix(res.getString(R.string.operator_key_label));
 		mOperatorKey.setType(MyEditTextPreference.Type.OPERATOR_KEY);
-		*/
+		
 
 		flatLineTime = (MyEditIntegerPreference) findPreference(INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
 		flatLineTime.setSummaryPrefix(res.getString(R.string.net_conn_flat_line_label));
 		flatLineTime.setType(MyEditIntegerPreference.Type.TIMEOUT);
-		
+		*/
 		this.setupViews();
 	}
 	

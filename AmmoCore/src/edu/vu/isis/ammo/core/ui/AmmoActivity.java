@@ -22,15 +22,21 @@ import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TabHost;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 import android.widget.TextView;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
+import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
@@ -45,7 +51,7 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
  * ...registering/unregistering content interest requests.
  *
  */
-public class AmmoActivity extends TabActivityEx
+public class AmmoActivity extends TabActivityEx implements OnItemClickListener
 {
     public static final Logger logger = LoggerFactory.getLogger( AmmoActivity.class );
 
@@ -58,8 +64,8 @@ public class AmmoActivity extends TabActivityEx
     // Fields
     // ===========================================================
 
-    private List<Gateway> gatewayModel = null;
-    private GatewayAdapter gatewayAdapter = null;
+    private List<Channel> channelModel = null;
+    private ChannelAdapter channelAdapter = null;
 
     private List<Netlink> netlinkModel = null;
     private NetlinkAdapter netlinkAdapter = null;
@@ -99,12 +105,12 @@ public class AmmoActivity extends TabActivityEx
 
     private void initializeGatewayAdapter()
     {
-        gatewayModel = networkServiceBinder.getGatewayList();
+        channelModel = networkServiceBinder.getGatewayList();
 
         // set gateway view references
         gatewayList = (ListView)findViewById(R.id.gateway_list);
-        gatewayAdapter = new GatewayAdapter(this, gatewayModel);
-        gatewayList.setAdapter(gatewayAdapter);
+        channelAdapter = new ChannelAdapter(this, channelModel);
+        gatewayList.setAdapter(channelAdapter);
 
         //reset all rows
         for (int ix=0; ix < gatewayList.getChildCount(); ix++)
@@ -152,7 +158,7 @@ public class AmmoActivity extends TabActivityEx
         TabHost.TabSpec spec;  // Reusable TabSpec for each tab
 
         spec = tabHost.newTabSpec("gateway");
-        spec.setIndicator("Gateway", res.getDrawable(R.drawable.gateway_tab));
+        spec.setIndicator("Channels", res.getDrawable(R.drawable.gateway_tab));
         spec.setContent(R.id.gateway_layout);
         getTabHost().addTab(spec);
 
@@ -171,6 +177,7 @@ public class AmmoActivity extends TabActivityEx
         
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
         this.netlinkAdvancedView = prefs.getBoolean("debug_mode", this.netlinkAdvancedView);
+        
     }
 
     @Override
@@ -186,8 +193,9 @@ public class AmmoActivity extends TabActivityEx
                 View row = gatewayList.getChildAt(ix);
                 row.setBackgroundColor(Color.TRANSPARENT);
             }
+            this.gatewayList.setOnItemClickListener(this);
         }
-
+        
         mReceiver = new StatusReceiver();
 
         final IntentFilter statusFilter = new IntentFilter();
@@ -195,8 +203,8 @@ public class AmmoActivity extends TabActivityEx
         statusFilter.addAction( AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE );
         registerReceiver( mReceiver, statusFilter );
 
-        if ( gatewayAdapter != null )
-            gatewayAdapter.notifyDataSetChanged();
+        if ( channelAdapter != null )
+            channelAdapter.notifyDataSetChanged();
         if ( netlinkAdapter != null )
             netlinkAdapter.notifyDataSetChanged();
     }
@@ -220,8 +228,8 @@ public class AmmoActivity extends TabActivityEx
 
             if ( action.equals( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE ))
             {
-                if ( gatewayAdapter != null )
-                    gatewayAdapter.notifyDataSetChanged();
+                if ( channelAdapter != null )
+                    channelAdapter.notifyDataSetChanged();
             }
             else if ( action.equals( AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE ))
             {
@@ -303,7 +311,7 @@ public class AmmoActivity extends TabActivityEx
 
     public void onGatewayElectionToggle(View view) {
         int position = this.gatewayList.getPositionForView(view);
-        Gateway gw = (Gateway) this.gatewayAdapter.getItem(position);
+        Gateway gw = (Gateway) this.channelAdapter.getItem(position);
 
         // get the button's row
         RelativeLayout row = (RelativeLayout)view.getParent();
@@ -320,6 +328,22 @@ public class AmmoActivity extends TabActivityEx
 
         row.refreshDrawableState();
     }
+    
+    public void onMulticastElectionToggle(View view)
+    {
+    	int position = this.gatewayList.getPositionForView(view);
+    	Multicast  mc = (Multicast) this.channelAdapter.getItem(position);
+    	
+    	RelativeLayout row = (RelativeLayout)view.getParent();
+    	ToggleButton button = (ToggleButton)view;
+    	
+    	if(button.isChecked())
+    		mc.enable();
+    	else
+    		mc.disable();
+    	
+    	row.refreshDrawableState();
+    }
 
 
     /*
@@ -331,14 +355,65 @@ public class AmmoActivity extends TabActivityEx
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.edit().putBoolean("debug_mode", this.netlinkAdvancedView).commit();
         this.netlinkAdapter.notifyDataSetChanged();
-        this.gatewayAdapter.notifyDataSetChanged();
+        this.channelAdapter.notifyDataSetChanged();
 
         //ANDROID3.0
-        //There will be bugs. Ideally, when this toggles, we need to
+        //Ideally, when this toggles, we need to
         //refresh the menu. This line will invalidate it so that
         //onPrepareOptionsMenu(...) will be called when the user
         //opens it again.
         //this.activity_menu.invalidateOptionsMenu();
 
     }
+
+	@Override
+	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
+		Channel c = this.channelAdapter.getItem(arg2);
+		
+        logger.trace("::onClick");
+        Intent gatewayIntent = new Intent();
+        if(c.getClass().equals(Gateway.class))
+        {
+        	gatewayIntent.putExtra("IPKEY", INetPrefKeys.CORE_IP_ADDR);
+        	gatewayIntent.putExtra("PORTKEY", INetPrefKeys.CORE_IP_PORT);
+        	gatewayIntent.putExtra("NetConnTimeoutKey", INetPrefKeys.CORE_SOCKET_TIMEOUT);
+        	gatewayIntent.putExtra("ConIdleTimeoutKey", "AMMO_NET_CONN_FLAT_LINE_TIME");
+        }
+        else
+        {
+        	gatewayIntent.putExtra("IPKEY", INetPrefKeys.MULTICAST_IP_ADDRESS);
+        	gatewayIntent.putExtra("PORTKEY", INetPrefKeys.MULTICAST_PORT);
+        	gatewayIntent.putExtra("NetConnTimeoutKey", INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT);
+        	gatewayIntent.putExtra("ConIdleTimeoutKey", INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT);
+        }
+        gatewayIntent.setClass(this, ChannelDetailActivity.class);
+        this.startActivity(gatewayIntent);
+		
+	}
+	
+	public void editPreferences(View v)
+	{
+		ListView lv = (ListView) v.getParent().getParent();
+		int position = lv.getPositionForView((View) v.getParent());
+		Channel c = (Channel) lv.getAdapter().getItem(position);
+        Intent gatewayIntent = new Intent();
+        if(c.getClass().equals(Gateway.class))
+        {
+        	gatewayIntent.putExtra(ChannelDetailActivity.IP, INetPrefKeys.CORE_IP_ADDR);
+        	gatewayIntent.putExtra(ChannelDetailActivity.PORT, INetPrefKeys.CORE_IP_PORT);
+        	gatewayIntent.putExtra(ChannelDetailActivity.NET_CONN, INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
+        	gatewayIntent.putExtra(ChannelDetailActivity.CONN_IDLE, INetPrefKeys.CORE_SOCKET_TIMEOUT);
+        	gatewayIntent.putExtra(ChannelDetailActivity.ENABLED, INetPrefKeys.GATEWAY_SHOULD_USE);
+        }
+        else
+        {
+        	gatewayIntent.putExtra(ChannelDetailActivity.IP, INetPrefKeys.MULTICAST_IP_ADDRESS);
+        	gatewayIntent.putExtra(ChannelDetailActivity.PORT, INetPrefKeys.MULTICAST_PORT);
+        	gatewayIntent.putExtra(ChannelDetailActivity.NET_CONN, INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT);
+        	gatewayIntent.putExtra(ChannelDetailActivity.CONN_IDLE, INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT);
+        	gatewayIntent.putExtra(ChannelDetailActivity.ENABLED, INetPrefKeys.MULTICAST_SHOULD_USE);
+        }
+        gatewayIntent.setClass(this, ChannelDetailActivity.class);
+        this.startActivity(gatewayIntent);
+	}
 }
