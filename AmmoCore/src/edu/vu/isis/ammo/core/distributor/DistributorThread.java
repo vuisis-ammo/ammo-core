@@ -68,7 +68,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         super();
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(20);
         this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
-                        new AmmoGatewayMessage.PriorityOrder());
+                                  new AmmoGatewayMessage.PriorityOrder());
     }
     
     private AtomicBoolean subscriptionDelta = new AtomicBoolean(true);
