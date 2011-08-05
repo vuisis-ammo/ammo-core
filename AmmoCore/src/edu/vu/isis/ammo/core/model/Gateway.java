@@ -4,14 +4,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.preference.PreferenceManager;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.widget.ToggleButton;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
+import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.ui.AmmoActivity;
+import edu.vu.isis.ammo.core.ui.ChannelDetailActivity;
 
 /**
  * The Ammo core is responsible for distributing
@@ -41,9 +51,10 @@ import edu.vu.isis.ammo.core.network.NetworkService;
  *
  * @author phreed
  */
-public class Gateway implements OnSharedPreferenceChangeListener {
+public class Gateway extends Channel implements OnSharedPreferenceChangeListener {
     public static final Logger logger = LoggerFactory.getLogger(Gateway.class);
     // does the operator wish to use this gateway?
+    public static String KEY = "GatewayUiChannel";
     private boolean election;
 
     private void setElection(boolean pred) {
@@ -52,15 +63,19 @@ public class Gateway implements OnSharedPreferenceChangeListener {
         editor.putBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, this.election);
         editor.commit();
     }
+    
+    @Override
     public void enable() { this.setElection(true); }
+    
+    @Override
     public void disable() { this.setElection(false); }
+    
+    @Override
     public void toggle() { this.setElection(!this.election); }
+    
+    @Override
     public boolean isEnabled() { return this.election; }
 
-    // the user selected familiar name
-    private String name;
-    public void setName(String name) { this.name = name; }
-    public String getName() { return this.name; }
 
     // the formal name for this gateway,
     // in the case of a socket it is the "ip:<host ip>:<port>"
@@ -73,24 +88,19 @@ public class Gateway implements OnSharedPreferenceChangeListener {
         return sb.toString();
     }
 
-    private final SharedPreferences prefs;
-    private Context context;
 
     private int[] mStatus = null;
+    @Override
     public synchronized int[] getStatus() { return mStatus; }
     public synchronized void setStatus( int[] status ) { mStatus = status; }
 
     private Gateway(Context context, String name) {
-        this.context = context;
-        this.name = name;
-
-        this.prefs = PreferenceManager.getDefaultSharedPreferences(this.context);
+    	super(context, name);
+    	
         this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, NetworkService.DEFAULT_GATEWAY_HOST);
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT,
                 String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
         this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
-
-        this.prefs.registerOnSharedPreferenceChangeListener(this);
     }
 
 
@@ -133,5 +143,18 @@ public class Gateway implements OnSharedPreferenceChangeListener {
             this.nameListener.onFormalChange(this.nameView, this.getFormal());
             return;
         }
+    }
+    
+    public View getView(View row, LayoutInflater inflater)
+    {
+        
+        row = inflater.inflate(R.layout.gateway_item, null);
+        
+        TextView gateway_name = ((TextView)row.findViewById(R.id.gateway_name));
+        ((TextView)row.findViewById(R.id.channel_type)).setText(Gateway.KEY);
+        gateway_name.setText(this.getName());
+        ((TextView)row.findViewById(R.id.gateway_formal)).setText(this.getFormal());
+		return row;
+    	
     }
 }

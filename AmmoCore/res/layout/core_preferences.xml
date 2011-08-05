@@ -3,7 +3,7 @@
   android:id="@+id/preferences_layout"
  	android:key="first_preferencescreen">
 	
-	<PreferenceCategory android:title="Network Connection Category">
+	<!-- <PreferenceCategory android:title="Network Connection Category">
 		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_IP_ADDRESS" 
 			android:name="IP Address" 
@@ -31,9 +31,9 @@
          android:title="Connection Idle Timeout (seconds)"
          android:summary="Time channel has not seen activity...in seconds"
          android:defaultValue="20" />
-	</PreferenceCategory>
+	</PreferenceCategory> -->
 	
-	<PreferenceCategory android:title="Network Authentication Category" 
+	<PreferenceCategory android:title="Network Authentication" 
 	    android:focusable="false">
 		<!--<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_DEVICE_ID" 

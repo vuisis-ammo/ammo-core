@@ -8,8 +8,7 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.ardverk.collection.PatriciaTrie;
-import org.ardverk.collection.Trie;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +34,9 @@ import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.DistributorService;
+import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
@@ -68,6 +69,11 @@ implements OnSharedPreferenceChangeListener,
     public static final int DEFAULT_FLAT_LINE_TIME = 20; // 20 minutes
     public static final int DEFAULT_SOCKET_TIMEOUT = 3; // 3 seconds
 
+    public static final String DEFAULT_MULTICAST_HOST = "228.1.2.3";
+    public static final String DEFAULT_MULTICAST_PORT = "9982";
+    public static final String DEFAULT_MULTICAST_NET_CONN = "20";
+    public static final String DEFAULT_MULTICAST_IDLE_TIME = "3";
+    
     @SuppressWarnings("unused")
     private static final String NULL_CHAR = "\0";
     @SuppressWarnings("unused")
@@ -191,9 +197,13 @@ implements OnSharedPreferenceChangeListener,
     public void onCreate() {
         super.onCreate();
         logger.info("onCreate");
-
-        mGateways.add( Gateway.getInstance( getBaseContext() ));
-
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefs.registerOnSharedPreferenceChangeListener(this);
+        
+        mChannels.add( Gateway.getInstance( getBaseContext() ));
+        mChannels.add( Multicast.getInstance( getBaseContext() ));
+        
+        
         mNetlinks.add( WifiNetlink.getInstance( getBaseContext() ));
         mNetlinks.add( WiredNetlink.getInstance( getBaseContext() ));
         mNetlinks.add( PhoneNetlink.getInstance( getBaseContext() ));
@@ -217,8 +227,8 @@ implements OnSharedPreferenceChangeListener,
         this.multicastChannel.enable();
         this.multicastChannel.reset(); // This starts the connector thread.
 
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        prefs.registerOnSharedPreferenceChangeListener(this);
+
+        
 
         this.myReceiver = new MyBroadcastReceiver();
 
@@ -301,6 +311,19 @@ implements OnSharedPreferenceChangeListener,
         String flatLineTimeStr = prefs.getString(INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String.valueOf(DEFAULT_FLAT_LINE_TIME));
         long flatLineTime = Integer.valueOf(flatLineTimeStr);
         this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert minutes into milliseconds
+        
+        
+        /*
+         * Multicast
+         */
+        String multicastHost = prefs.getString(INetPrefKeys.MULTICAST_IP_ADDRESS, DEFAULT_MULTICAST_HOST);
+        int multicastPort = Integer.parseInt(prefs.getString(INetPrefKeys.MULTICAST_PORT, DEFAULT_MULTICAST_PORT));
+        long multicastFlatLine = Long.parseLong(prefs.getString(INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT, DEFAULT_MULTICAST_NET_CONN));
+        int multicastIdleTime = Integer.parseInt(prefs.getString(INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT, DEFAULT_MULTICAST_IDLE_TIME));
+        this.multicastChannel.setHost(multicastHost);
+        this.multicastChannel.setPort(multicastPort);
+        this.multicastChannel.setFlatLineTime(multicastFlatLine);
+        this.multicastChannel.setSocketTimeout(multicastIdleTime);
     }
 
     /**
@@ -329,6 +352,7 @@ implements OnSharedPreferenceChangeListener,
             else this.journalChannel.disable();
             return;
         }
+
 
         // handle network authentication group
         if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
@@ -383,6 +407,31 @@ implements OnSharedPreferenceChangeListener,
                 this.tcpChannel.disable();
             }
         }
+        
+        if(key.equals(INetPrefKeys.MULTICAST_SHOULD_USE))
+        {
+        	if(prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true))
+        	{
+        		this.multicastChannel.enable();
+        	}
+        	else
+        	{
+        		this.multicastChannel.disable();
+        	}
+        }
+        
+        if(key.equals(INetPrefKeys.MULTICAST_IP_ADDRESS))
+        {
+        	String ipAddress = prefs.getString(INetPrefKeys.MULTICAST_IP_ADDRESS, DEFAULT_MULTICAST_HOST);
+        	this.multicastChannel.setHost(ipAddress);
+        }
+        if(key.equals(INetPrefKeys.MULTICAST_PORT))
+        {
+        	int port = Integer.parseInt(prefs.getString(INetPrefKeys.MULTICAST_PORT, DEFAULT_MULTICAST_PORT));
+        	this.multicastChannel.setPort(port);
+        }
+        
+        
         return;
     }
 
@@ -648,8 +697,18 @@ implements OnSharedPreferenceChangeListener,
 
     @Override
     public void statusChange(INetChannel channel, int connStatus, int sendStatus, int recvStatus) {
-        // Once we have multiple gateways we'll have to fix this.
-        mGateways.get( 0 ).setStatus( new int[]{connStatus, sendStatus, recvStatus} );
+        // FIXME Once we have multiple gateways we'll have to fix this.   	
+    	// If the channel being updated is a MulticastChannel
+    	if(channel.getClass().equals(MulticastChannel.class))
+    	{
+    		mChannels.get( 1 ).setStatus( new int[]{connStatus, sendStatus, recvStatus} );
+    	}
+    	// Otherwise it is a gateway channel
+    	else
+    	{
+    		mChannels.get( 0 ).setStatus( new int[]{connStatus, sendStatus, recvStatus} );
+    	}
+        
 
         Intent broadcastIntent = new Intent( AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE );
         this.sendBroadcast( broadcastIntent );
@@ -687,12 +746,12 @@ implements OnSharedPreferenceChangeListener,
     }
 
 
-    private List<Gateway> mGateways = new ArrayList<Gateway>();
+    private List<Channel> mChannels = new ArrayList<Channel>();
     private List<Netlink> mNetlinks = new ArrayList<Netlink>();
 
-    public List<Gateway> getGatewayList()
+    public List<Channel> getGatewayList()
     {
-        return mGateways;
+        return mChannels;
     }
 
     public List<Netlink> getNetlinkList()
