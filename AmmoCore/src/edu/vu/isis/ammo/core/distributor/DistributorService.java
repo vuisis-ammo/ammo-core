@@ -1,6 +1,8 @@
 package edu.vu.isis.ammo.core.distributor;
 
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +22,8 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
+import edu.vu.isis.ammo.core.model.Gateway;
+import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
@@ -68,6 +72,25 @@ public class DistributorService extends Service {
     public static final String SERIALIZED_STRING_KEY = "serializedString";
     public static final String SERIALIZED_BYTE_ARRAY_KEY = "serializedByteArray";
 
+    private final INetworkService DUMMY_NETWORK_SERVICE = new INetworkService() {
+		@Override
+		public List<Gateway> getGatewayList() { return null; }
+		@Override
+		public List<Netlink> getNetlinkList() { return null; }
+
+		@Override
+		public boolean isConnected() { return false; }
+
+		@Override
+		public boolean sendRequest(AmmoGatewayMessage agm) { return false; }
+
+		@Override
+		public void setDistributorServiceCallback(DistributorService callback) { }
+
+		@Override
+		public void teardown() {}
+	};
+	
     // ===========================================================
     // Fields
     // ===========================================================
@@ -76,6 +99,9 @@ public class DistributorService extends Service {
 
     private INetworkService networkServiceBinder;
     public INetworkService getNetworkServiceBinder() { 
+    	if (! this.isNetworkServiceBound) {
+    		return DUMMY_NETWORK_SERVICE;
+    	}
         return this.networkServiceBinder; 
     }
     private boolean isNetworkServiceBound = false;
