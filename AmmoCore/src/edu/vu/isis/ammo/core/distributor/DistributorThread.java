@@ -22,9 +22,12 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
+import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
 import android.provider.BaseColumns;
@@ -59,7 +62,7 @@ extends AsyncTask<DistributorService, Integer, Void>
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger(DistributorThread.class);
+    private static final Logger logger = LoggerFactory.getLogger("ammo:dst");
 
     // 20 seconds expressed in milliseconds
     private static final int BURP_TIME = 20 * 1000;
@@ -158,6 +161,8 @@ extends AsyncTask<DistributorService, Integer, Void>
      */
     @Override
     protected Void doInBackground(DistributorService... them) {
+        this.configureListeners(them[0].getContentResolver());
+        
         logger.info("::post to network service");
         if (this.resend.getAndSet(false)) {
             for (DistributorService that : them) {
@@ -591,19 +596,19 @@ extends AsyncTask<DistributorService, Integer, Void>
 
         final ContentResolver resolver = that.getContentResolver();
 
-        String mimeType = agm.topic_str;
+        String mimeType = agm.topic.asString();
         final byte[] serialized;
         
         switch (st) {
         case PostalTableSchema.SERIALIZE_TYPE_DIRECT:
-            serialized = agm.payload_str.getBytes();
+            serialized = agm.payload.asBytes();
             break;
 
         case PostalTableSchema.SERIALIZE_TYPE_INDIRECT:
         case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
         default:
             try {
-                serialized = queryUriForSerializedData(that, agm.provider);
+                serialized = queryUriForSerializedData(that, agm.provider.asUri());
             } catch (IOException e1) {
                 logger.error("invalid row for serialization");
                 return;
@@ -990,14 +995,14 @@ extends AsyncTask<DistributorService, Integer, Void>
         logger.info("::processRetrievalRequest()");
 
         final ContentResolver resolver = that.getContentResolver();
-        final String mimeType = agm.topic_str;
+        final String mimeType = agm.topic.asString();
 
         // Dispatch the message.
         try {
             
             final ContentValues values = new ContentValues();
             values.put(RetrievalTableSchemaBase.MIME, mimeType);
-            values.put(RetrievalTableSchemaBase.URI, agm.payload_byte.toString());
+            values.put(RetrievalTableSchemaBase.URI, agm.payload.asString());
             values.put(RetrievalTableSchemaBase.DISPOSITION, RetrievalTableSchemaBase.DISPOSITION_PENDING);
             //values.put(RetrievalTableSchemaBase.EXPIRATION, expiration.getTimeInMillis());
             
@@ -1040,7 +1045,7 @@ extends AsyncTask<DistributorService, Integer, Void>
             
             boolean sent = this.dispatchRetrievalRequest(that, 
                      agm.provider.toString(), mimeType,
-                     agm.select_query.select(),
+                     agm.select.query.select(),
                      new INetworkService.OnSendMessageHandler() {
                          @Override
                          public boolean ack(boolean status) {
@@ -1361,13 +1366,13 @@ extends AsyncTask<DistributorService, Integer, Void>
         logger.info("::processSubscribeRequest()");
 
         final ContentResolver resolver = that.getContentResolver();
-        final String mimeType = agm.topic_str;
+        final String mimeType = agm.topic.asString();
 
         // Dispatch the message.
         try {
             final ContentValues values = new ContentValues();
             values.put(SubscriptionTableSchemaBase.MIME, mimeType);
-            values.put(SubscriptionTableSchemaBase.URI, agm.payload_byte.toString());
+            values.put(SubscriptionTableSchemaBase.URI, agm.payload.asString());
             values.put(SubscriptionTableSchemaBase.DISPOSITION, SubscriptionTableSchemaBase.DISPOSITION_PENDING);
             // values.put(SubscriptionTableSchemaBase.EXPIRATION, agm.e.getTimeInMillis());
             
@@ -1603,6 +1608,98 @@ extends AsyncTask<DistributorService, Integer, Void>
         return null;
     }
     
+    
+    // ============= OBSERVERS ================ //
+    // Set this service to observe certain Content Providers.
+    // Initialize our content observer.
+    
+    private PostalObserver postalObserver;
+    private RetrievalObserver retrievalObserver;
+    private SubscriptionObserver subscriptionObserver;
+
+    private void configureListeners(ContentResolver cr) {
+        Looper.prepare();
+        
+        postalObserver = new PostalObserver(new Handler(), this);
+        cr.registerContentObserver(
+                PostalTableSchema.CONTENT_URI, true, postalObserver);
+    
+        retrievalObserver = new RetrievalObserver(new Handler(), this);
+        cr.registerContentObserver(
+                RetrievalTableSchema.CONTENT_URI, true, retrievalObserver);
+    
+        subscriptionObserver = new SubscriptionObserver(new Handler(), this);
+        cr.registerContentObserver(
+                SubscriptionTableSchema.CONTENT_URI, true, subscriptionObserver);
+    }
+    
+    public void teardown(ContentResolver cr) {
+        if (this.postalObserver != null)
+            cr.unregisterContentObserver(this.postalObserver);
+        if (this.retrievalObserver != null)
+            cr.unregisterContentObserver(this.retrievalObserver);
+        if (this.subscriptionObserver != null)
+            cr.unregisterContentObserver(this.subscriptionObserver);
+    }
+    
+
+    // ===========================================================
+    // Content Observer Nested Classes
+    // ===========================================================
+
+    private class PostalObserver extends ContentObserver 
+    {
+        /** Fields */
+        private final DistributorThread callback;
+
+        public PostalObserver(Handler handler, DistributorThread aCallback) {
+            super(handler);
+            logger.info("PostalObserver::");
+            this.callback = aCallback;
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            logger.info("PostalObserver::onChange : {}", selfChange);
+            this.callback.postalChange();
+        }
+    }
+
+    private class RetrievalObserver extends ContentObserver {
+
+        /** Fields */
+        private final DistributorThread callback;
+
+        public RetrievalObserver(Handler handler, DistributorThread aCallback) {
+            super(handler);
+            logger.info("RetrievalObserver::");
+            this.callback = aCallback;
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            logger.info("RetrievalObserver::onChange : {}", selfChange );
+            this.callback.retrievalChange();
+        }
+    }
+
+    private class SubscriptionObserver extends ContentObserver {
+
+        /** Fields */
+        private final DistributorThread callback;
+
+        public SubscriptionObserver(Handler handler, DistributorThread aCallback) {
+            super(handler);
+            logger.info("SubscriptionObserver::");
+            this.callback = aCallback;
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            logger.info("SubscriptionObserver::onChange : {}", selfChange );
+            this.callback.subscriptionChange();
+        }
+    }
 
 
 }

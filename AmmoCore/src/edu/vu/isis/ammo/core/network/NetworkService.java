@@ -64,7 +64,7 @@ implements OnSharedPreferenceChangeListener,
     private static final Logger logger = LoggerFactory.getLogger( "net.service" );
 
     // Local constants
-    public static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
+    public static final String DEFAULT_GATEWAY_HOST = "129.59.129.189";
     public static final int DEFAULT_GATEWAY_PORT = 32869;
     public static final int DEFAULT_FLAT_LINE_TIME = 20; // 20 minutes
     public static final int DEFAULT_SOCKET_TIMEOUT = 3; // 3 seconds
