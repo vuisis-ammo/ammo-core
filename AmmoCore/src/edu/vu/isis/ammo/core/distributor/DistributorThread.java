@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
@@ -38,7 +39,9 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
@@ -532,7 +535,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                         @SuppressWarnings("unused")
                         int numUpdated = resolver.update(postalUri, values, null, null);
 
-                        boolean dispatchSuccessful = 
+                        Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
                             this.dispatchPostalRequest(that,
                                 rowUri.toString(),
                                 mimeType,
@@ -565,7 +568,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                                         return false;
                                     }
                                 });
-                        if (!dispatchSuccessful) {
+                        if (!dispatchResult.get(TcpChannel.class)) {
                             values.put(PostalTableSchema.DISPOSITION,
                                     PostalTableSchema.DISPOSITION_PENDING);
                             resolver.update(postalUri, values, null, null);
@@ -646,7 +649,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                     PostalTableSchema.DISPOSITION_QUEUED);
             final Uri postalUri = resolver.insert(PostalTableSchemaBase.CONTENT_URI, values);
             
-            boolean success = 
+            Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
                 this.dispatchPostalRequest(that,
                     agm.provider.toString(),
                     mimeType,
@@ -679,7 +682,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                             return false;
                         }
                     });
-            if (!success) {
+            if (!dispatchResult.get(TcpChannel.class)) {
                 values.put(PostalTableSchema.DISPOSITION,
                         PostalTableSchema.DISPOSITION_PENDING);
                 resolver.update(postalUri, values, null, null);
@@ -702,7 +705,8 @@ extends AsyncTask<DistributorService, Integer, Void>
      * @param handler
      * @return
      */
-    private boolean dispatchPostalRequest(DistributorService that, String uri, String mimeType, 
+    private Map<Class<? extends INetChannel>,Boolean> 
+    dispatchPostalRequest(DistributorService that, String uri, String mimeType, 
             byte []data, INetworkService.OnSendMessageHandler handler) 
     {
         logger.info("::dispatchPostalRequest");
@@ -789,11 +793,12 @@ extends AsyncTask<DistributorService, Integer, Void>
      * @return
      */
     @SuppressWarnings("unused")
-    private boolean dispatchPublicationRequest(DistributorService that, String uri, String mimeType, 
+    private Map<Class<? extends INetChannel>,Boolean> 
+    dispatchPublicationRequest(DistributorService that, String uri, String mimeType, 
             byte []data, INetworkService.OnSendMessageHandler handler) 
     {
         logger.info("::dispatchPublicationRequest");
-        return false;
+        return null;
     }
     /**
      * Get response to PushRequest from the gateway.
@@ -942,7 +947,8 @@ extends AsyncTask<DistributorService, Integer, Void>
                 @SuppressWarnings("unused")
                 final int numUpdated = resolver.update(retrieveUri, values, null, null);
 
-                boolean sent = this.dispatchRetrievalRequest(that, 
+                Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
+                	this.dispatchRetrievalRequest(that, 
                         rowUri.toString(), mime,
                         selection,
                         new INetworkService.OnSendMessageHandler() {
@@ -965,7 +971,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                                 return false;
                             }
                         });
-                if (!sent) {
+                if (!dispatchResult.get(TcpChannel.class)) {
                     values.put(RetrievalTableSchema.DISPOSITION,
                             RetrievalTableSchema.DISPOSITION_PENDING);
                     resolver.update(retrieveUri, values, null, null);
@@ -1043,7 +1049,8 @@ extends AsyncTask<DistributorService, Integer, Void>
             }
             if (! queuable) return;  // cannot send now, maybe later
             
-            boolean sent = this.dispatchRetrievalRequest(that, 
+            Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
+            	this.dispatchRetrievalRequest(that, 
                      agm.provider.toString(), mimeType,
                      agm.select.query.select(),
                      new INetworkService.OnSendMessageHandler() {
@@ -1066,7 +1073,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                              return false;
                          }
                      });
-             if (!sent) {
+            if (!dispatchResult.get(TcpChannel.class)) {
                  values.put(RetrievalTableSchema.DISPOSITION,
                          RetrievalTableSchema.DISPOSITION_PENDING);
                  resolver.update(refUri, values, null, null);
@@ -1087,7 +1094,8 @@ extends AsyncTask<DistributorService, Integer, Void>
      * @return
      */
 
-    private boolean dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
+    private Map<Class<? extends INetChannel>,Boolean> 
+    dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchRetrievalRequest");
 
         /** Message Building */
@@ -1316,7 +1324,8 @@ extends AsyncTask<DistributorService, Integer, Void>
                 @SuppressWarnings("unused")
                 int numUpdated = resolver.update(subUri, values, null, null);
 
-                boolean sent = this.dispatchSubscribeRequest(that, 
+                Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
+                	this.dispatchSubscribeRequest(that, 
                         mime, selection,
                         new INetworkService.OnSendMessageHandler() {
                             @Override
@@ -1335,7 +1344,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                                 return true;
                             }
                         });
-                if (!sent) {
+                if (!dispatchResult.get(TcpChannel.class)) {
                     values.put(SubscriptionTableSchema.DISPOSITION,
                             SubscriptionTableSchema.DISPOSITION_PENDING);
                     resolver.update(subUri, values, null, null);
@@ -1427,7 +1436,8 @@ extends AsyncTask<DistributorService, Integer, Void>
                     SubscriptionTableSchema.DISPOSITION_QUEUED);
              final Uri retrievalUri = resolver.insert(SubscriptionTableSchemaBase.CONTENT_URI, values);
             
-             boolean sent = this.dispatchSubscribeRequest(that, 
+             Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
+            	 this.dispatchSubscribeRequest(that, 
                      agm.provider.toString(), mimeType,
                      new INetworkService.OnSendMessageHandler() {
                          @Override
@@ -1449,7 +1459,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                              return false;
                          }
                      });
-             if (!sent) {
+             if (!dispatchResult.get(TcpChannel.class)) {
                  values.put(SubscriptionTableSchema.DISPOSITION,
                          SubscriptionTableSchema.DISPOSITION_PENDING);
                  resolver.update(retrievalUri, values, null, null);
@@ -1463,7 +1473,8 @@ extends AsyncTask<DistributorService, Integer, Void>
     /**
      * Deliver the subscription request to the network service for processing.
      */
-    private boolean dispatchSubscribeRequest(DistributorService that, String mimeType, 
+    private Map<Class<? extends INetChannel>,Boolean> 
+    dispatchSubscribeRequest(DistributorService that, String mimeType, 
             String selection, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchSubscribeRequest");
 
