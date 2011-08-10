@@ -2,6 +2,7 @@ package edu.vu.isis.ammo.core.distributor;
 
 
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ import edu.vu.isis.ammo.api.IDistributorService;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
@@ -77,7 +79,9 @@ public class DistributorService extends Service {
 		public boolean isConnected() { return false; }
 
 		@Override
-		public boolean sendRequest(AmmoGatewayMessage agm) { return false; }
+		public Map<Class<? extends INetChannel>,Boolean> sendRequest(AmmoGatewayMessage agm) { 
+			return null; 
+		}
 
 		@Override
 		public void setDistributorServiceCallback(DistributorService callback) { }

@@ -48,7 +48,7 @@ public class MulticastSecurityObject implements ISecurityObject,
     }
 
 
-    public boolean ack( boolean status )
+    public boolean ack( Class<? extends INetChannel> clazz, boolean status )
     {
         return true;
     }

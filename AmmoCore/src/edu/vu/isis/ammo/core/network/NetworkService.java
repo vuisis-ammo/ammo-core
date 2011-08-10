@@ -652,7 +652,7 @@ implements OnSharedPreferenceChangeListener,
      * to do something with it in the future.
      */
     @Override
-    public boolean ack( boolean status )
+    public boolean ack( Class<? extends INetChannel> clazz, boolean status )
     {
         return false;
     }

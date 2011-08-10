@@ -543,7 +543,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                                 new INetworkService.OnSendMessageHandler() {
     
                                     @Override
-                                    public boolean ack(boolean status) {
+                                    public boolean ack(Class<? extends INetChannel> clazz, boolean status) {
     
                                         // Update distributor status
                                         // if message dispatch
@@ -657,7 +657,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                     new INetworkService.OnSendMessageHandler() {
     
                         @Override
-                        public boolean ack(boolean status) {
+                        public boolean ack(Class<? extends INetChannel> clazz, boolean status) {
     
                             // Update distributor status
                             // if message dispatch
@@ -948,12 +948,12 @@ extends AsyncTask<DistributorService, Integer, Void>
                 final int numUpdated = resolver.update(retrieveUri, values, null, null);
 
                 Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
-                	this.dispatchRetrievalRequest(that, 
+                    this.dispatchRetrievalRequest(that, 
                         rowUri.toString(), mime,
                         selection,
                         new INetworkService.OnSendMessageHandler() {
                             @Override
-                            public boolean ack(boolean status) {
+                            public boolean ack(Class<? extends INetChannel> clazz, boolean status) {
                                 // Update distributor status if
                                 // message dispatch successful.
                                 ContentValues values = new ContentValues();
@@ -1050,12 +1050,12 @@ extends AsyncTask<DistributorService, Integer, Void>
             if (! queuable) return;  // cannot send now, maybe later
             
             Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
-            	this.dispatchRetrievalRequest(that, 
+                this.dispatchRetrievalRequest(that, 
                      agm.provider.toString(), mimeType,
                      agm.select.query.select(),
                      new INetworkService.OnSendMessageHandler() {
                          @Override
-                         public boolean ack(boolean status) {
+                         public boolean ack(Class<? extends INetChannel> clazz, boolean status) {
                              // Update distributor status if
                              // message dispatch successful.
                              ContentValues values = new ContentValues();
@@ -1268,7 +1268,8 @@ extends AsyncTask<DistributorService, Integer, Void>
         if (collectGarbage) {
              resolver.update(SubscriptionTableSchema.CONTENT_URI, 
                      SUBSCRIPTION_EXPIRIATION_UPDATE,
-                     SUBSCRIPTION_EXPIRATION_CONDITION, new String[]{Long.toString(System.currentTimeMillis())} );
+                     SUBSCRIPTION_EXPIRATION_CONDITION, 
+                     new String[]{Long.toString(System.currentTimeMillis())} );
              resolver.delete(SubscriptionTableSchema.CONTENT_URI, SUBSCRIPTION_GARBAGE, null);
         }
 
@@ -1325,11 +1326,11 @@ extends AsyncTask<DistributorService, Integer, Void>
                 int numUpdated = resolver.update(subUri, values, null, null);
 
                 Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
-                	this.dispatchSubscribeRequest(that, 
+                    this.dispatchSubscribeRequest(that, 
                         mime, selection,
                         new INetworkService.OnSendMessageHandler() {
                             @Override
-                            public boolean ack(boolean status) {
+                            public boolean ack(Class<? extends INetChannel> clazz, boolean status) {
                                 // Update distributor status if
                                 // message dispatch successful.
                                 ContentValues values = new ContentValues();
@@ -1437,11 +1438,11 @@ extends AsyncTask<DistributorService, Integer, Void>
              final Uri retrievalUri = resolver.insert(SubscriptionTableSchemaBase.CONTENT_URI, values);
             
              Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
-            	 this.dispatchSubscribeRequest(that, 
+                 this.dispatchSubscribeRequest(that, 
                      agm.provider.toString(), mimeType,
                      new INetworkService.OnSendMessageHandler() {
                          @Override
-                         public boolean ack(boolean status) {
+                         public boolean ack(Class<? extends INetChannel> clazz, boolean status) {
                              // Update distributor status if
                              // message dispatch successful.
                              ContentValues values = new ContentValues();
