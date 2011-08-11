@@ -1,6 +1,9 @@
 package edu.vu.isis.ammo.core.distributor;
 
 
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,26 +14,24 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
-import android.database.ContentObserver;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.IDistributorService;
+import edu.vu.isis.ammo.core.model.Channel;
+import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
-import edu.vu.isis.ammo.api.AmmoRequest;
-import edu.vu.isis.ammo.api.IDistributorService;
 
 /**
  * The DistributorService is responsible for prioritizing and serializing
@@ -55,7 +56,7 @@ public class DistributorService extends Service {
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger(DistributorService.class);
+    private static final Logger logger = LoggerFactory.getLogger("ammo:ds");
 
     public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH");
     public static final String BIND = "edu.vu.isis.ammo.core.distributor.DistributorService.BIND";
@@ -68,6 +69,28 @@ public class DistributorService extends Service {
     public static final String SERIALIZED_STRING_KEY = "serializedString";
     public static final String SERIALIZED_BYTE_ARRAY_KEY = "serializedByteArray";
 
+    private final INetworkService DUMMY_NETWORK_SERVICE = new INetworkService() {
+		@Override
+		public List<Channel> getGatewayList() { return null; }
+		
+		@Override
+		public List<Netlink> getNetlinkList() { return null; }
+
+		@Override
+		public boolean isConnected() { return false; }
+
+		@Override
+		public Map<Class<? extends INetChannel>,Boolean> sendRequest(AmmoGatewayMessage agm) { 
+			return null; 
+		}
+
+		@Override
+		public void setDistributorServiceCallback(DistributorService callback) { }
+
+		@Override
+		public void teardown() {}
+	};
+	
     // ===========================================================
     // Fields
     // ===========================================================
@@ -76,6 +99,9 @@ public class DistributorService extends Service {
 
     private INetworkService networkServiceBinder;
     public INetworkService getNetworkServiceBinder() { 
+    	if (! this.isNetworkServiceBound) {
+    		return DUMMY_NETWORK_SERVICE;
+    	}
         return this.networkServiceBinder; 
     }
     private boolean isNetworkServiceBound = false;
@@ -107,10 +133,6 @@ public class DistributorService extends Service {
             networkServiceBinder = null;
         }
     };
-
-    private PostalObserver postalObserver;
-    private RetrievalObserver retrievalObserver;
-    private SubscriptionObserver subscriptionObserver;
 
     private TelephonyManager tm;
     private CellPhoneListener cellPhoneListener;
@@ -162,20 +184,6 @@ public class DistributorService extends Service {
         // set up the worker thread
         this.distThread = new DistributorThread();
         
-        // Set this service to observe certain Content Providers.
-        // Initialize our content observer.
-
-        postalObserver = new PostalObserver(new Handler(), this);
-        this.getContentResolver().registerContentObserver(
-                PostalTableSchema.CONTENT_URI, true, postalObserver);
-
-        retrievalObserver = new RetrievalObserver(new Handler(), this);
-        this.getContentResolver().registerContentObserver(
-                RetrievalTableSchema.CONTENT_URI, true, retrievalObserver);
-
-        subscriptionObserver = new SubscriptionObserver(new Handler(), this);
-        this.getContentResolver().registerContentObserver(
-                SubscriptionTableSchema.CONTENT_URI, true, subscriptionObserver);
 
         // Initialize our receivers/listeners.
         /*
@@ -272,75 +280,21 @@ public class DistributorService extends Service {
             this.tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
         if (this.wifiReceiver != null) 
             this.wifiReceiver.setInitialized(false);
-        if (this.postalObserver != null)
-            this.getContentResolver().unregisterContentObserver(this.postalObserver);
-        if (this.retrievalObserver != null)
-            this.getContentResolver().unregisterContentObserver(this.retrievalObserver);
-        if (this.subscriptionObserver != null)
-            this.getContentResolver().unregisterContentObserver(this.subscriptionObserver);
+        
+        if (this.distThread != null) 
+        	this.distThread.teardown(this.getContentResolver());
+        
         if (this.mReceiverRegistrar != null)
             this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
 
         super.onDestroy();
     }
 
-    // ===========================================================
-    // Content Observer Nested Classes
-    // ===========================================================
 
-    private class PostalObserver extends ContentObserver 
-    {
-        /** Fields */
-        private final DistributorService callback;
 
-        public PostalObserver(Handler handler, DistributorService aCallback) {
-            super(handler);
-            logger.info("PostalObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("PostalObserver::onChange : {}", selfChange);
-            this.callback.distThread.postalChange();
-        }
-    }
-
-    private class RetrievalObserver extends ContentObserver {
-
-        /** Fields */
-        private final DistributorService callback;
-
-        public RetrievalObserver(Handler handler, DistributorService aCallback) {
-            super(handler);
-            logger.info("RetrievalObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("RetrievalObserver::onChange : {}", selfChange );
-            this.callback.distThread.retrievalChange();
-        }
-    }
-
-    private class SubscriptionObserver extends ContentObserver {
-
-        /** Fields */
-        private final DistributorService callback;
-
-        public SubscriptionObserver(Handler handler, DistributorService aCallback) {
-            super(handler);
-            logger.info("SubscriptionObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("SubscriptionObserver::onChange : {}", selfChange );
-            this.callback.distThread.subscriptionChange();
-        }
-    }
+    // ================================================
+    // Calls originating from NetworkService
+    // ================================================
 
     /**
      * This broadcast receiver is responsible for determining the best channel
@@ -386,6 +340,8 @@ public class DistributorService extends Service {
             }
         }
     }
+
+
 
     // ================================================
     // Calls originating from NetworkService

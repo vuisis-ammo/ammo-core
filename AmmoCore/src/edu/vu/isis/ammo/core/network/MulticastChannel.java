@@ -6,7 +6,6 @@ package edu.vu.isis.ammo.core.network;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.Socket;
@@ -16,6 +15,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.util.Enumeration;
+import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -57,8 +57,10 @@ public class MulticastChannel extends NetChannel
      * that can be allocated for a TCP socket.
      *
      */
-    private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
-    private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
+    @SuppressWarnings("unused")
+	private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
+    @SuppressWarnings("unused")
+	private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
     private boolean isEnabled = true;
 
     private Socket socket = null;
@@ -81,7 +83,8 @@ public class MulticastChannel extends NetChannel
     private final Object syncObj;
 
     private boolean shouldBeDisabled = false;
-    private long flatLineTime;
+    @SuppressWarnings("unused")
+	private long flatLineTime;
 
     private MulticastSocket mSocket;
     private String mMulticastAddress;
@@ -317,7 +320,7 @@ public class MulticastChannel extends NetChannel
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
                                   boolean status )
     {
-        return handler.ack( status );
+        return handler.ack( MulticastChannel.class, status );
     }
 
     // Called by the ConnectorThread.
@@ -327,7 +330,8 @@ public class MulticastChannel extends NetChannel
     }
 
 
-    private final AtomicLong mTimeOfLastGoodRead = new AtomicLong( 0 );
+    @SuppressWarnings("unused")
+	private final AtomicLong mTimeOfLastGoodRead = new AtomicLong( 0 );
 
 
     // Heartbeat-related members.
@@ -377,8 +381,8 @@ public class MulticastChannel extends NetChannel
     private class ConnectorThread extends Thread {
         private final Logger logger = LoggerFactory.getLogger( "net.mcast.connector" );
 
-        private final String DEFAULT_HOST = "10.0.2.2";
-        private final int DEFAULT_PORT = 32896;
+        // private final String DEFAULT_HOST = "10.0.2.2";
+        // private final int DEFAULT_PORT = 32896;
         private final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
 
         private MulticastChannel parent;

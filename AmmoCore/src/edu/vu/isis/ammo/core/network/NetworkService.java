@@ -4,10 +4,11 @@
 package edu.vu.isis.ammo.core.network;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +27,6 @@ import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
@@ -64,7 +64,7 @@ implements OnSharedPreferenceChangeListener,
     private static final Logger logger = LoggerFactory.getLogger( "net.service" );
 
     // Local constants
-    public static final String DEFAULT_GATEWAY_HOST = "129.59.2.25";
+    public static final String DEFAULT_GATEWAY_HOST = "129.59.129.189";
     public static final int DEFAULT_GATEWAY_PORT = 32869;
     public static final int DEFAULT_FLAT_LINE_TIME = 20; // 20 minutes
     public static final int DEFAULT_SOCKET_TIMEOUT = 3; // 3 seconds
@@ -475,19 +475,21 @@ implements OnSharedPreferenceChangeListener,
      * @param payload_checksum
      * @param message
      */
-    public boolean sendRequest(AmmoGatewayMessage agm) {
+    @Override
+    public Map<Class<? extends INetChannel>,Boolean> sendRequest(AmmoGatewayMessage agm) {
         logger.info( "::sendGatewayRequest" );
         // agm.setSessionUuid( sessionId );
 
+        Map<Class<? extends INetChannel>,Boolean> status = new HashMap<Class<? extends INetChannel>,Boolean>();
         if ( agm.isMulticast ) {
             logger.info( "   Sending multicast message." );
-            this.multicastChannel.sendRequest(agm);
+            status.put(MulticastChannel.class, this.multicastChannel.sendRequest(agm));
         }
         if ( agm.isGateway ) {
             logger.info( "   Sending message to gateway." );
-            this.tcpChannel.sendRequest(agm);
+            status.put(TcpChannel.class, this.tcpChannel.sendRequest(agm));
         }
-        return true;
+        return status;
     }
 
     // ===========================================================
@@ -650,7 +652,7 @@ implements OnSharedPreferenceChangeListener,
      * to do something with it in the future.
      */
     @Override
-    public boolean ack( boolean status )
+    public boolean ack( Class<? extends INetChannel> clazz, boolean status )
     {
         return false;
     }

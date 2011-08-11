@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="edu.vu.isis.ammo.core" android:versionCode="1"
-    android:versionName="1.0" android:sharedUserId="edu.vu.isis.ammo">
+    package="edu.vu.isis.ammo.core" 
+    android:versionCode="@integer/ammo_version_code"
+    android:versionName="@string/ammo_version_name" 
+    android:sharedUserId="edu.vu.isis.ammo">
 
     <application android:icon="@drawable/appl_icon"
        android:name="ApplicationEx"
@@ -80,6 +82,8 @@
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.BIND" />
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP" />
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
+                
+                <action android:name="edu.vu.isis.ammo.api.IDistributorService" />
             </intent-filter>
         </service>
         
