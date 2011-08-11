@@ -72,6 +72,7 @@ public class DistributorService extends Service {
     private final INetworkService DUMMY_NETWORK_SERVICE = new INetworkService() {
 		@Override
 		public List<Channel> getGatewayList() { return null; }
+		
 		@Override
 		public List<Netlink> getNetlinkList() { return null; }
 
