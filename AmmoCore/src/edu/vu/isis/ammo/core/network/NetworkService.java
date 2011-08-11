@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -565,8 +566,11 @@ implements OnSharedPreferenceChangeListener,
         AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
         agmb.isGateway(true);
-        sendRequest(agmb.build());
-        return true;
+        Map<Class<? extends INetChannel>,Boolean> result = sendRequest(agmb.build());
+        for (Entry<Class<? extends INetChannel>,Boolean> entry : result.entrySet()) {
+        	if (entry.getValue() == true) return true;
+        }
+        return false;
     }
 
     public void setDistributorServiceCallback(DistributorService callback) {
