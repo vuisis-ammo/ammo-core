@@ -19,6 +19,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -80,7 +81,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     // Views
     // ===========================================================
 
-    private ListView gatewayList = null;
+    private ChannelListView channelList = null;
     private ListView netlinkList = null;
 
     private INetworkService networkServiceBinder;
@@ -108,14 +109,15 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         channelModel = networkServiceBinder.getGatewayList();
 
         // set gateway view references
-        gatewayList = (ListView)findViewById(R.id.gateway_list);
+        channelList = (ChannelListView)findViewById(R.id.gateway_list);
         channelAdapter = new ChannelAdapter(this, channelModel);
-        gatewayList.setAdapter(channelAdapter);
-
+        channelList.setAdapter(channelAdapter);
+        this.channelList.setOnItemClickListener(this);
+        
         //reset all rows
-        for (int ix=0; ix < gatewayList.getChildCount(); ix++)
+        for (int ix=0; ix < channelList.getChildCount(); ix++)
         {
-            View row = gatewayList.getChildAt(ix);
+            View row = channelList.getChildAt(ix);
             row.setBackgroundColor(Color.TRANSPARENT);
         }
     }
@@ -187,14 +189,14 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         logger.trace("::onStart");
 
         //reset all rows
-        if ( gatewayList != null )
+        if ( channelList != null )
         {
-            for (int ix=0; ix < gatewayList.getChildCount(); ix++)
+            for (int ix=0; ix < channelList.getChildCount(); ix++)
             {
-                View row = gatewayList.getChildAt(ix);
+                View row = channelList.getChildAt(ix);
                 row.setBackgroundColor(Color.TRANSPARENT);
             }
-            this.gatewayList.setOnItemClickListener(this);
+            this.channelList.setOnItemClickListener(this);
         }
         
         mReceiver = new StatusReceiver();
@@ -268,7 +270,6 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         logger.trace("::onOptionsItemSelected");
-
         Intent intent = new Intent();
         switch (item.getItemId()) {
         case DEBUG_MENU:
@@ -311,7 +312,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     }
 
     public void onGatewayElectionToggle(View view) {
-        int position = this.gatewayList.getPositionForView(view);
+        int position = this.channelList.getPositionForView(view);
         Gateway gw = (Gateway) this.channelAdapter.getItem(position);
 
         // get the button's row
@@ -332,7 +333,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     
     public void onMulticastElectionToggle(View view)
     {
-    	int position = this.gatewayList.getPositionForView(view);
+    	int position = this.channelList.getPositionForView(view);
     	Multicast  mc = (Multicast) this.channelAdapter.getItem(position);
     	
     	RelativeLayout row = (RelativeLayout)view.getParent();
@@ -369,7 +370,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
 
 	@Override
 	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-		Channel c = this.channelAdapter.getItem(arg2);
+		/*Channel c = this.channelAdapter.getItem(arg2);
 		
         logger.trace("::onClick");
         Intent gatewayIntent = new Intent();
@@ -389,9 +390,10 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         }
         gatewayIntent.setClass(this, ChannelDetailActivity.class);
         this.startActivity(gatewayIntent);
+		*/
 		
 	}
-	
+
 	public void editPreferences(View v)
 	{
 		ListView lv = (ListView) v.getParent().getParent();
