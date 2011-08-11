@@ -11,7 +11,7 @@ android:layout_height="fill_parent">
 	android:id="@+id/channel_type"
 	android:visibility="invisible"/>
 	    
-	<Button 
+	<!-- <Button 
 	android:id="@+id/set_pref_button"
 	android:layout_width="75sp"
 	android:layout_height="wrap_content"
@@ -19,6 +19,7 @@ android:layout_height="fill_parent">
 	android:layout_alignParentLeft="true"
 	android:layout_alignParentTop="true"
 	android:onClick="editPreferences"/>
+	 -->
     <TextView
     android:id="@+id/multicast_name"
     android:layout_width="wrap_content"

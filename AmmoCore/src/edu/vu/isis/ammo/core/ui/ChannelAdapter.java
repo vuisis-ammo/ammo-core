@@ -12,13 +12,16 @@ import android.content.res.Resources;
 import android.graphics.Color;
 import android.preference.PreferenceManager;
 import android.util.AttributeSet;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnKeyListener;
 import android.view.ViewGroup;
 import android.view.View.OnTouchListener;
 import android.widget.ArrayAdapter;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
@@ -44,7 +47,6 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         this.res = this.parent.getResources();
         this.model = model;
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this.parent);
-        
         if(this.prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, false))
         	this.model.get(1).enable();
         else
@@ -55,6 +57,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         else
         	this.model.get(0).disable();
         
+     
         
     }
 
@@ -66,18 +69,18 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
     	View row = channel.getView(convertView, this.parent.getLayoutInflater());
     	onStatusChange( row, channel.getStatus() );
     	channel.setOnNameChangeListener(this, parent);
-
     	return row;
     }
 
+    
     @Override
     public boolean onTouch(View view, MotionEvent event) {
-        // Only perform this transform on image buttons for now.
+    	Toast.makeText(this.getContext(), "Event: " + event.getAction(), Toast.LENGTH_SHORT).show();
+    	// Only perform this transform on image buttons for now.
         if (view.getClass() != RelativeLayout.class) return false;
-
+        
         RelativeLayout item = (RelativeLayout) view;
         int action = event.getAction();
-
         switch (action) {
         case MotionEvent.ACTION_DOWN:
         case MotionEvent.ACTION_MOVE:
@@ -100,6 +103,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
 
         return false;
     }
+
 
     private boolean onStatusChange(View item, int[] status) {
         if (status == null) return false;
@@ -379,7 +383,6 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         }
         return null;
     }
-    
     
 
 
