@@ -2,6 +2,7 @@ package edu.vu.isis.ammo.core.ui;
 
 import android.content.res.Resources;
 import android.os.Bundle;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.MyEditTextPreference;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
@@ -14,7 +15,7 @@ import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
  * @author phreed
  *
  */
-public class LoggingPreferences extends PreferenceActivityEx {
+public class GeneralPreferences extends PreferenceActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -26,6 +27,7 @@ public class LoggingPreferences extends PreferenceActivityEx {
 	// Fields
 	// ===========================================================
 	private MyEditTextPreference level;
+	private MyEditTextPreference name;
 	
 	// ===========================================================
 	// Lifecycle
@@ -33,13 +35,17 @@ public class LoggingPreferences extends PreferenceActivityEx {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		this.addPreferencesFromResource(R.layout.logging_preferences);
+		this.addPreferencesFromResource(R.xml.general_preferences);
 		
 		Resources res = this.getResources();
 	
 		level = (MyEditTextPreference) findPreference(PREF_LOG_LEVEL);
 		level.setSummaryPrefix(res.getString(R.string.log_level_label));
 		level.setType(MyEditTextPreference.Type.LOG_LEVEL);
+		
+		name = (MyEditTextPreference) this.findPreference(INetPrefKeys.CORE_OPERATOR_ID);
+		name.setSummaryPrefix(res.getString(R.string.operator_id_label));
+		name.setType(MyEditTextPreference.Type.OPERATOR_ID);
 		
 		// System.setProperty(prop, value);
 		// export ANDROID_LOG_TAGS="ActivityManager:I MyApp:D *:S"

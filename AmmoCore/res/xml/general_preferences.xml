@@ -2,6 +2,16 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
 	android:key="second_preferencescreen">
 	
+		<PreferenceCategory android:title="Operator Information">
+		<edu.vu.isis.ammo.core.MyEditTextPreference
+			android:key="CORE_OPERATOR_ID" 
+			android:name="name" 
+			android:title="Operator ID"
+			android:summary="The operator id to use when connecting to the gateway" 
+			android:defaultValue="operator"/>
+
+	</PreferenceCategory>
+	
 	<PreferenceCategory android:title="Logging Category">
 		<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="CORE_LOG_LEVEL" 

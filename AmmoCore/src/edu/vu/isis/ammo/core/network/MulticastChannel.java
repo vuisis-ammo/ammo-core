@@ -26,6 +26,7 @@ import java.lang.Long;
 
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.MulticastLock;
+import android.preference.PreferenceManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,9 +73,10 @@ public class MulticastChannel extends NetChannel
     @SuppressWarnings("unused")
     private int socketTimeout = 5 * 1000; // milliseconds.
 
+    /*
     private String gatewayHost = null;
     private int gatewayPort = -1;
-
+     */
     private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
     private final Object syncObj;
 
@@ -82,9 +84,9 @@ public class MulticastChannel extends NetChannel
     private long flatLineTime;
 
     private MulticastSocket mSocket;
-    private String mMulticastAddress = "228.1.2.3";
+    private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
-    private int mMulticastPort = 1234;
+    private int mMulticastPort;
 
     private SenderQueue mSenderQueue;
 
@@ -188,21 +190,21 @@ public class MulticastChannel extends NetChannel
 
     public boolean setHost(String host) {
         logger.info("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
-        if ( gatewayHost != null && gatewayHost.equals(host) ) return false;
-        this.gatewayHost = host;
+        if ( this.mMulticastAddress != null && this.mMulticastAddress.equals(host) ) return false;
+        this.mMulticastAddress = host;
         this.reset();
         return true;
     }
     public boolean setPort(int port) {
         logger.info("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
-        if (gatewayPort == port) return false;
-        this.gatewayPort = port;
+        if (this.mMulticastPort == port) return false;
+        this.mMulticastPort = port;
         this.reset();
         return true;
     }
 
     public String toString() {
-        return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
+        return "socket: host["+this.mMulticastAddress+"] port["+this.mMulticastPort+"]";
     }
 
     public void linkUp() {
