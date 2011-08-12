@@ -55,9 +55,10 @@ public class TcpSecurityObject implements ISecurityObject,
 
         AmmoMessages.MessageWrapper.Builder builder = getClientNonce ();        
         
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance(builder, this );
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( builder, this );
+        agmb.isGateway();
 
-        mChannel.putFromSecurityObject( agm );
+        mChannel.putFromSecurityObject( agmb.build() );
         mChannel.finishedPuttingFromSecurityObject();
     }
 
@@ -123,9 +124,10 @@ public class TcpSecurityObject implements ISecurityObject,
         		//send the key Exchange
         		AmmoMessages.MessageWrapper.Builder builder = getKeyExchange();
         		
-	            AmmoGatewayMessage agmout = AmmoGatewayMessage.newInstance(builder, this );
+	            AmmoGatewayMessage.Builder agmout = AmmoGatewayMessage.newBuilder(builder, this );
+                    agmout.isGateway();
 
-	            mChannel.putFromSecurityObject( agmout );
+	            mChannel.putFromSecurityObject( agmout.build() );
 	            
 	            // now wait for a second or two and then send the PhoneAuth msg 
 /*	            try {
@@ -140,9 +142,9 @@ public class TcpSecurityObject implements ISecurityObject,
 	        	//send it the phone auth message
         		builder = getPhoneAuth();
         		
-	            agmout = AmmoGatewayMessage.newInstance(builder, this );
+	            agmout = AmmoGatewayMessage.newBuilder(builder, this );
 
-	            mChannel.putFromSecurityObject( agmout );
+	            mChannel.putFromSecurityObject( agmout.build() );
 
 	            // compute the master secret ....
 	            secMgr.computeMasterSecret();
@@ -160,9 +162,9 @@ public class TcpSecurityObject implements ISecurityObject,
 	            
         		builder = getPhoneFinish();
         		
-	            agmout = AmmoGatewayMessage.newInstance(builder, this );
+	            agmout = AmmoGatewayMessage.newBuilder(builder, this );
 
-	            mChannel.putFromSecurityObject( agmout );
+	            mChannel.putFromSecurityObject( agmout.build() );
 	            
 	            mChannel.finishedPuttingFromSecurityObject();
 	            

@@ -20,6 +20,9 @@ public class AmmoSecurityManager {
 	
 	Ammo_Crypto crp_; 
 	
+//	final String AMMO_KEY_ROOT_DIR = "/mnt/sdcard/";
+	final String AMMO_KEY_ROOT_DIR = "/data/";
+	
 	byte the_client_nonce[];
 	
 	byte the_server_nonce[];
@@ -79,10 +82,12 @@ public class AmmoSecurityManager {
 		generatePreMasterSecret();
 		
 //		this.dump_to_file("/data/data/edu.vu.isis.ammo.core/masterSec", preMasterSecret);
-		
+
+		String public_file = AMMO_KEY_ROOT_DIR + "public_key_gateway.der";
 		keyExchange = 
 //			crp_.encrypt_data("/data/public_key_gateway.der", 
-			crp_.encrypt_data("/mnt/sdcard/public_key_gateway.der", 
+//			crp_.encrypt_data("/mnt/sdcard/public_key_gateway.der", 
+			crp_.encrypt_data(public_file, 
 							  preMasterSecret, 
 							  "RSA", 
 							  "PKCS1Padding");
@@ -94,7 +99,10 @@ public class AmmoSecurityManager {
 	{
 		
 		byte[] data = this.concatBytes(keyExchange, the_client_nonce, the_server_nonce);
-		phoneAuth = crp_.sign("/mnt/sdcard/private_key_phone.der", data, data.length, "SHA1withRSA");
+		
+		String pvt_file = AMMO_KEY_ROOT_DIR + "private_key_phone.der";
+		phoneAuth = crp_.sign(pvt_file, data, data.length, "SHA1withRSA");
+//		phoneAuth = crp_.sign("/mnt/sdcard/private_key_phone.der", data, data.length, "SHA1withRSA");
 //		phoneAuth = crp_.sign("/data/private_key_phone.der", data, data.length, "SHA1withRSA");
 		
 		return phoneAuth;
@@ -238,7 +246,7 @@ public class AmmoSecurityManager {
 	{
 		byte[] handshake = concatBytes(this.phoneAuth, this.keyExchange, this.the_client_nonce, this.the_server_nonce);
 		
-		String gateway_id = "Gateway1";
+		String gateway_id = "MainGateway";
 		
 		byte[] content = concatBytes(handshake, gateway_id.getBytes(), masterSecret/*, there needs to be a pad here*/ );
 

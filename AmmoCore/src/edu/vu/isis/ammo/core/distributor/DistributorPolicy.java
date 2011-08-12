@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 
@@ -59,8 +60,16 @@ public class DistributorPolicy implements ContentHandler {
     public static DistributorPolicy newInstance(Context context) {
         File file = context.getDir(policy_file, Context.MODE_WORLD_READABLE);
         try {
-            InputSource is = new InputSource(new InputStreamReader(new FileInputStream(file)));
-            return new DistributorPolicy(is);
+            InputStream fd = new FileInputStream(file);
+            InputSource is = new InputSource(new InputStreamReader(fd));
+            DistributorPolicy policy = new DistributorPolicy(is);
+            try {
+                fd.close();
+            } catch (IOException ex) {
+                logger.error("could not open distributor configuration file {}",
+                        ex.getStackTrace());
+            }
+            return policy;
         } catch (FileNotFoundException ex) {
             logger.error("no policy file {}", ex.getStackTrace());
         }

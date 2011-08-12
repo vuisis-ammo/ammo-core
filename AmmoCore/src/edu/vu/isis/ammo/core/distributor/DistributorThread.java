@@ -288,6 +288,8 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append(" IN (")
           .append("'").append(PostalTableSchema.DISPOSITION_PENDING).append("'")
           .append(",")
+          .append("'").append(PostalTableSchema.DISPOSITION_QUEUED).append("'")
+          .append(",")
           .append("'").append(PostalTableSchema.DISPOSITION_FAIL).append("'")
           .append(")");
         POSTAL_RESEND = sb.toString();
@@ -577,7 +579,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
         
-        DistributorPolicy.Load load = that.policy().match(mimeType);
+        final DistributorPolicy.Load load = that.policy().match(mimeType);
         agmb.isMulticast(load.isMulticast);
         agmb.isGateway(load.isGateway);
        
@@ -636,6 +638,8 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append('"').append(RetrievalTableSchema.DISPOSITION).append('"')
           .append(" IN (")
           .append("'").append(RetrievalTableSchema.DISPOSITION_PENDING).append("'")
+          .append(",")
+          .append("'").append(RetrievalTableSchema.DISPOSITION_QUEUED).append("'")
           .append(",")
           .append("'").append(RetrievalTableSchema.DISPOSITION_FAIL).append("'")
           .append(",")
@@ -837,8 +841,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 
         mw.setPullRequest(pushReq);
        
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
-        return that.getNetworkServiceBinder().sendRequest(agm);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+        agmb.isGateway(true);
+        return that.getNetworkServiceBinder().sendRequest(agmb.build());
     }
 
 
@@ -881,6 +886,8 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append('"').append(SubscriptionTableSchema.DISPOSITION).append('"')
           .append(" IN (")
           .append("'").append(SubscriptionTableSchema.DISPOSITION_PENDING).append("'")
+          .append(",")
+          .append("'").append(SubscriptionTableSchema.DISPOSITION_QUEUED).append("'")
           .append(",")
           .append("'").append(SubscriptionTableSchema.DISPOSITION_FAIL).append("'")
           .append(",")
@@ -1075,8 +1082,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 
         mw.setSubscribeMessage(subscribeReq);
        
-        AmmoGatewayMessage agm = AmmoGatewayMessage.newInstance( mw, handler);
-        return that.getNetworkServiceBinder().sendRequest(agm);
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+        agmb.isGateway(true);
+        return that.getNetworkServiceBinder().sendRequest(agmb.build());
     }
 
     
@@ -1091,39 +1099,35 @@ extends AsyncTask<DistributorService, Integer, Void>
 
     private synchronized byte[] queryUriForSerializedData(Context context, Uri tuple) 
     throws FileNotFoundException, IOException {
-        Uri serialUri = Uri.withAppendedPath(tuple, "_serial");
-
-        ByteArrayOutputStream bout = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        BufferedInputStream bis = null;
-        InputStream instream = null;
-
+        final Uri serialUri = Uri.withAppendedPath(tuple, "_serial");
+        final ByteArrayOutputStream bout = new ByteArrayOutputStream();
+    	final byte[] buffer = new byte[1024];
+        
         try {
+            final BufferedInputStream bis;
+            AssetFileDescriptor afd = null;
             try {
-                // instream = this.getContentResolver().openInputStream(serialUri);
-                AssetFileDescriptor afd = context.getContentResolver()
+            	afd = context.getContentResolver()
                     .openAssetFileDescriptor(serialUri, "r");
                 if (afd == null) {
                     logger.warn("could not acquire file descriptor {}", serialUri);
                     throw new IOException("could not acquire file descriptor "+serialUri);
                 }
-                // afd.createInputStream();
+                final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
 
-                ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-                instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                bis = new BufferedInputStream(instream);
             } catch (IOException ex) {
                 logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
                 bout.close();
+                if (afd != null) afd.close();
                 throw new FileNotFoundException("Unable to create stream");
             }
-            bis = new BufferedInputStream(instream);
 
             for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
                 bout.write(buffer, 0, bytesRead);
             }
             bis.close();
-            instream.close();
             // String bs = bout.toString();
             // logger.info("length of serialized data: ["+bs.length()+"] \n"+bs.substring(0, 256));
             byte[] ba = bout.toByteArray();
@@ -1136,12 +1140,8 @@ extends AsyncTask<DistributorService, Integer, Void>
         } catch (IOException ex) {
             logger.error("query URI for serialized data {}", ex.getStackTrace());
         }
-        if (bout != null) {
-            bout.close();
-        }
-        if (bis != null) {
-            bis.close();
-        }
+        if (bout != null) bout.close();
+        
         return null;
     }
     
@@ -1202,6 +1202,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         switch (mw.getType()) {
 
         case DATA_MESSAGE:
+        	logger.info("data interest");
             receiveSubscribeResponse(context, mw);
             break;
 
@@ -1211,14 +1212,17 @@ extends AsyncTask<DistributorService, Integer, Void>
             break;
 
         case PUSH_ACKNOWLEDGEMENT:
+        	logger.info("push ack");
             receivePushResponse(context, mw);
             break;
 
         case PULL_RESPONSE:
+        	logger.info("pull response");
             receivePullResponse(context, mw);
             break;
             
         case HEARTBEAT:
+        	logger.info("heartbeat");
             break;
         case AUTHENTICATION_MESSAGE:
         case SUBSCRIBE_MESSAGE:
@@ -1294,14 +1298,14 @@ extends AsyncTask<DistributorService, Integer, Void>
         ContentResolver cr = context.getContentResolver();
 
         try {
-            Uri serialUri = Uri.withAppendedPath(uri, "_serial");
-            OutputStream outstream = cr.openOutputStream(serialUri);
+            final Uri serialUri = Uri.withAppendedPath(uri, "_serial");
+            final OutputStream outstream = cr.openOutputStream(serialUri);
 
             if (outstream == null) {
                 logger.error( "could not open output stream to content provider: {} ",serialUri);
                 return false;
             }
-            ByteString data = resp.getData();
+            final ByteString data = resp.getData();
 
             if (data != null) {
                 outstream.write(data.toByteArray());
@@ -1344,8 +1348,15 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 
     private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw) {
-        if (mw == null) return false;
-        if (! mw.hasDataMessage()) return false;
+        if (mw == null) {
+        	logger.warn("no message");
+            return false;
+        }
+        if (! mw.hasDataMessage()) {
+        	logger.warn("no data in message");
+        	return false;
+        }
+        	
         final AmmoMessages.DataMessage resp = mw.getDataMessage();
 
         logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
@@ -1368,8 +1379,8 @@ extends AsyncTask<DistributorService, Integer, Void>
             tableUriStr = subCursor.getString(subCursor.getColumnIndex(SubscriptionTableSchema.URI));
             subCursor.close();
 
-            Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
-            OutputStream outstream = cr.openOutputStream(tableUri);
+            final Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
+            final OutputStream outstream = cr.openOutputStream(tableUri);
 
             if (outstream == null) {
                 logger.error("the content provider {} is not available", tableUri);
