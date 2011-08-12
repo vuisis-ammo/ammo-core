@@ -73,8 +73,9 @@ extends AsyncTask<DistributorService, Integer, Void>
     public DistributorThread() {
         super();
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(20);
-        this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
-                                  new AmmoGatewayMessage.PriorityOrder());
+        this.responseQueue = 
+            new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
+                                         new AmmoGatewayMessage.PriorityOrder());
     }
     
     private AtomicBoolean subscriptionDelta = new AtomicBoolean(true);
@@ -132,7 +133,9 @@ extends AsyncTask<DistributorService, Integer, Void>
     
     private void signal(AtomicBoolean atom) {
         if (!atom.compareAndSet(false, true)) return;
-        synchronized(this) { this.notifyAll(); }
+        synchronized(this) { 
+             this.notifyAll(); 
+        }
     }
 
     private boolean isReady() {
@@ -174,19 +177,14 @@ extends AsyncTask<DistributorService, Integer, Void>
                 this.processPostalChange(that, true);
             }
         }
-        // condition wait is there something to process?
+
         try {
             while (true) {
+                // condition wait, is there something to process?
+                synchronized (this) { while (!this.isReady()) this.wait(BURP_TIME); }
                 
-                synchronized (this) {
-                    while (!this.isReady())
-                    {
-                        logger.info("!this.isReady()");
-                        // this is IMPORTANT don't remove it.
-                        this.wait(BURP_TIME);
-                    }
-                }
                 boolean resend = this.resend.getAndSet(false);
+                logger.info("process requests, resend? {}", resend);
                     
                 if (this.subscriptionDelta.getAndSet(false)) {
                     for (DistributorService that : them) {

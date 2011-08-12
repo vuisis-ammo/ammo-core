@@ -91,7 +91,7 @@ public class NetworkService extends Service implements
 		BLUETOOTH(5), // bluetooth(R)
 		NFC(6), // near field communication
 		IR(7); // infrared
-		public int value;
+		final public int value;
 		private linkTypes(int num) {
 			this.value = num;
 		}
