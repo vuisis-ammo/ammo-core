@@ -48,7 +48,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class AmmoGatewayMessage implements Comparable<Object> {
     private static final Logger logger = LoggerFactory.getLogger( "net.ammogatewaymessage" );
     
-    private static final byte[] MAGIC = {(byte)0xfe, (byte)0xed, (byte)0xbe, (byte)0xef};
+    private static final byte[] MAGIC = { (byte)0xed, (byte)0xbe, (byte)0xef };
+    public static final byte VERSION_1_FULL = (byte)0xfe;
+    public static final byte VERSION_1_TERSE = (byte)0x01;
     
     @SuppressWarnings("unused")
     private static final long INT_MASK = 0x0FFFFFFFFL; // 
@@ -169,8 +171,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             //if (this.size != val.length)
             //    throw new IllegalArgumentException("payload size incorrect");
             //return new AmmoGatewayMessage(this, val);
-        	this.payload = val;
-        	return this;
+            this.payload = val;
+            return this;
         }
         public AmmoGatewayMessage build() { 
             if (this.size != this.payload.length)
@@ -236,37 +238,52 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * Serialize the AmmoMessage for transmission to the gateway.
      * @return
      */
-    public ByteBuffer serialize(ByteOrder endian) {
+    public ByteBuffer serialize(ByteOrder endian, byte version) {
          int total_length = HEADER_LENGTH + this.payload.length;
          ByteBuffer buf = ByteBuffer.allocate( total_length );
          buf.order( endian );
          
-         buf.put(MAGIC[3]);
          buf.put(MAGIC[2]);
          buf.put(MAGIC[1]);
          buf.put(MAGIC[0]);
+         buf.put(version);
          
-         buf.putInt( this.size );
-         logger.debug( "   size={}", this.size );
-         
-         buf.put( this.priority );
-         buf.put((byte) 0x0).put((byte) 0x0).put((byte) 0x0); // three reserved bytes
-         
-         logger.debug( "   payload_checksum={}", this.payload_checksum );
-         buf.put( convertChecksum(this.payload_checksum), 0, 4 );
-         
-         // checksum of header
-         int pos = buf.position();
-         byte[] base = buf.array();
-         CRC32 crc32 = new CRC32();
-         crc32.update(base, 0, pos);
-         buf.put( convertChecksum(crc32.getValue()) );
-        
-         // payload
-         buf.put( this.payload );
-         logger.debug( "   payload={}", this.payload );
-         buf.flip();
-         return buf;
+         switch (version) {
+         case VERSION_1_FULL: {
+             buf.putInt( this.size );
+             logger.debug( "   size={}", this.size );
+             
+             buf.put( this.priority );
+             buf.put((byte) 0x0).put((byte) 0x0).put((byte) 0x0); // three reserved bytes
+             
+             logger.debug( "   payload_checksum={}", this.payload_checksum );
+             buf.put( convertChecksum(this.payload_checksum), 0, 4 );
+             
+             // checksum of header
+             int pos = buf.position();
+             byte[] base = buf.array();
+             CRC32 crc32 = new CRC32();
+             crc32.update(base, 0, pos);
+             buf.put( convertChecksum(crc32.getValue()) );
+            
+             // payload
+             buf.put( this.payload );
+             logger.debug( "   payload={}", this.payload );
+             buf.flip();
+             return buf;
+         }
+         case VERSION_1_TERSE: {
+             // size should be smaller than 254 (one byte)
+             // no priority (nor reserved)
+             // truncated checksum (one byte)
+             // truncated payload checksum (two bytes)
+             // 8 byte header including  magic and version
+             return null; 
+             }
+         default:
+             logger.error("invalid version supplied {}", version);
+             return null;
+         }
     }
    
     /**
@@ -285,42 +302,51 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 drain.mark();
                 int start = drain.arrayOffset() + drain.position();
                 // search for the magic
-                if (drain.get() != MAGIC[3]) continue;
                 if (drain.get() != MAGIC[2]) continue;
                 if (drain.get() != MAGIC[1]) continue;
                 if (drain.get() != MAGIC[0]) continue;
                 
-                int size = drain.getInt();
-                
-                int priority = drain.get() & BYTE_MASK;
-                logger.debug( "   priority={}", priority );
-                
-                int error = drain.get() & BYTE_MASK;
-                logger.debug( "   error={}", error );
-                
-                // reserved bytes
-                drain.getShort();
-                
-                byte[] checkBytes = new byte[ 4 ];
-                
-                drain.get( checkBytes, 0, 4 );
-                logger.debug( "   payload check={}", checkBytes );
-                long payload_checksum = convertChecksum(checkBytes);
-                
-                drain.get( checkBytes, 0, 4 );
-                logger.debug( "   header check={}", checkBytes );
-                long header_checksum = convertChecksum(checkBytes);
-                
-                CRC32 crc32 = new CRC32();
-                crc32.update(drain.array(), start, HEADER_DATA_LENGTH);
-                if (header_checksum != crc32.getValue()) 
-                    continue;
-    
-                return AmmoGatewayMessage.newBuilder()
-                         .size(size)
-                         .checksum(payload_checksum)
-                         .priority(priority)
-                         .error(error);
+                byte version = drain.get();
+                switch (version) {
+                case VERSION_1_FULL: {
+                    int size = drain.getInt();
+                    
+                    int priority = drain.get() & BYTE_MASK;
+                    logger.debug( "   priority={}", priority );
+                    
+                    int error = drain.get() & BYTE_MASK;
+                    logger.debug( "   error={}", error );
+                    
+                    // reserved bytes
+                    drain.getShort();
+                    
+                    byte[] checkBytes = new byte[ 4 ];
+                    
+                    drain.get( checkBytes, 0, 4 );
+                    logger.debug( "   payload check={}", checkBytes );
+                    long payload_checksum = convertChecksum(checkBytes);
+                    
+                    drain.get( checkBytes, 0, 4 );
+                    logger.debug( "   header check={}", checkBytes );
+                    long header_checksum = convertChecksum(checkBytes);
+                    
+                    CRC32 crc32 = new CRC32();
+                    crc32.update(drain.array(), start, HEADER_DATA_LENGTH);
+                    if (header_checksum != crc32.getValue()) 
+                        continue;
+        
+                    return AmmoGatewayMessage.newBuilder()
+                             .size(size)
+                             .checksum(payload_checksum)
+                             .priority(priority)
+                             .error(error);
+                }
+                case VERSION_1_TERSE:
+                    logger.error("valid but not yet implemented");
+                    break;
+                default:
+                    logger.error("apparent magic number but version invalid");
+                }
             }
         } catch (BufferUnderflowException ex) {
             // the data was looking like a header as far as it went
@@ -359,7 +385,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
        INVALID_MAGIC_NUMBER(1),
        INVALID_HEADER_CHECKSUM(2),
        INVALID_MESSAGE_CHECKSUM(3),
-       MESSAGE_TOO_LARGE(4);
+       MESSAGE_TOO_LARGE(4),
+       INVALID_VERSION_NUMBER(5);
+       
        public int v;
        public byte b() { return (byte) this.v; }
        private GatewayError(int value) {
