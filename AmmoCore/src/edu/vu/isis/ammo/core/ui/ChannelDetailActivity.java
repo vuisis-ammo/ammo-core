@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.MyCheckBoxPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference.Type;
@@ -24,20 +25,20 @@ import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
 public class ChannelDetailActivity extends PreferenceActivityEx
 {
 	public static final Logger logger = LoggerFactory.getLogger(ChannelDetailActivity.class);
+	
+	public static final String PREF_TYPE = "preference_type";
 	public static final String IP = "ipKey";
 	public static final String PORT = "portKey";
 	public static final String NET_CONN = "netConnKey";
 	public static final String CONN_IDLE = "connIdleKey";
 	public static final String ENABLED = "enabledKey";
+	
+	public static final int GATEWAY_PREF = 0;
+	public static final int MULTICAST_PREF = 1;
 	// ===========================================================
 	// Fields
 	// ===========================================================
 	
-	private String ipKey = "";
-	private String portKey = "";
-	private String netConnKey = "";
-	private String connIdleKey = "";
-	private String enabledKey = "";
 	// ===========================================================
 	// Views
 	// ===========================================================
@@ -55,50 +56,68 @@ public class ChannelDetailActivity extends PreferenceActivityEx
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		logger.trace("::onCreate");
-		this.addPreferencesFromResource(R.layout.gateway_detail_activity);
-		this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		
-		Intent i = this.getIntent();
-		this.ipKey = i.getStringExtra(ChannelDetailActivity.IP);
-		this.portKey = i.getStringExtra(ChannelDetailActivity.PORT);
-		this.netConnKey = i.getStringExtra(ChannelDetailActivity.NET_CONN);
-		this.connIdleKey = i.getStringExtra(ChannelDetailActivity.CONN_IDLE);
-		this.enabledKey = i.getStringExtra(ChannelDetailActivity.ENABLED);
+		switch(this.getIntent().getIntExtra(PREF_TYPE, GATEWAY_PREF))
+		{
+		case GATEWAY_PREF:
+			this.addPreferencesFromResource(R.xml.gateway_prefs);
+			// IP Preference Setup
+			this.ipPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.CORE_IP_ADDR);
+			this.ipPref.setType(MyEditTextPreference.Type.IP);
+			this.ipPref.refreshSummaryField();
+			
+			// Port Preference Setup
+			this.portPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.CORE_IP_PORT);
+			this.portPref.setType(Type.PORT);
+			this.portPref.refreshSummaryField();
+			
+			// Enabled Preference Setup
+			this.enabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.GATEWAY_SHOULD_USE);
+			this.enabledPref.refreshSummaryField();
+			
+			// Connection Idle Timeout
+			this.connIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.CORE_SOCKET_TIMEOUT);
+			this.connIdlePref.setType(Type.TIMEOUT);
+			this.connIdlePref.refreshSummaryField();
+			
+			// Network Connection Timeout
+			this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
+			this.netConnPref.setType(Type.TIMEOUT);
+			this.netConnPref.refreshSummaryField();
+			break;
+		case MULTICAST_PREF:
+			this.addPreferencesFromResource(R.xml.multicast_prefs);
+			// IP Preference Setup
+			this.ipPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.MULTICAST_IP_ADDRESS);
+			this.ipPref.setType(MyEditTextPreference.Type.IP);
+			this.ipPref.refreshSummaryField();
+			
+			// Port Preference Setup
+			this.portPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_PORT);
+			this.portPref.setType(Type.PORT);
+			this.portPref.refreshSummaryField();
+			
+			// Enabled Preference Setup
+			this.enabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.MULTICAST_SHOULD_USE);
+			this.enabledPref.refreshSummaryField();
+			
+			// Connection Idle Timeout
+			this.connIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT);
+			this.connIdlePref.setType(Type.TIMEOUT);
+			this.connIdlePref.refreshSummaryField();
+			
+			// Network Connection Timeout
+			this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT);
+			this.netConnPref.setType(Type.TIMEOUT);
+			this.netConnPref.refreshSummaryField();
+			break;
+		}
 		
-		// IP Preference Setup
-		this.ipPref = (MyEditTextPreference) this.findPreference("ippref");
-		this.ipPref.setType(MyEditTextPreference.Type.IP);
-		this.ipPref.setKey(this.ipKey);
-		this.ipPref.setText(this.prefs.getString(this.ipKey, "default"));
-		this.ipPref.refreshSummaryField();
+
+	
+				
+
 		
-		
-		// Port Preference Setup
-		this.portPref = (MyEditIntegerPreference) this.findPreference("portpref");
-		this.portPref.setType(Type.PORT);
-		this.portPref.setKey(this.portKey);
-		this.portPref.setText(this.prefs.getString(this.portKey, "default"));
-		this.portPref.refreshSummaryField();
-		
-		// Enabled Preference Setup
-		this.enabledPref = (MyCheckBoxPreference) this.findPreference("enabledpref");
-		this.enabledPref.setKey(this.enabledKey);
-		this.enabledPref.setChecked(this.prefs.getBoolean(this.enabledKey, true));
-		this.enabledPref.refreshSummaryField();
-		
-		// Connection Idle Timeout
-		this.connIdlePref = (MyEditIntegerPreference) this.findPreference("idle_timepref");
-		this.connIdlePref.setType(Type.TIMEOUT);
-		this.connIdlePref.setKey(this.connIdleKey);
-		this.connIdlePref.setText(this.prefs.getString(this.connIdleKey, "10"));
-		this.connIdlePref.refreshSummaryField();
-		
-		// Network Connection Timeout
-		this.netConnPref = (MyEditIntegerPreference) this.findPreference("net_connpref");
-		this.netConnPref.setType(Type.TIMEOUT);
-		this.netConnPref.setKey(this.netConnKey);
-		this.netConnPref.setText(this.prefs.getString(this.netConnKey, "10"));
-		this.netConnPref.refreshSummaryField();
 	}
 	
 	@Override

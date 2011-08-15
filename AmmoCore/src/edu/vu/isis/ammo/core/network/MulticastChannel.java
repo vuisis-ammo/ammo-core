@@ -6,7 +6,6 @@ package edu.vu.isis.ammo.core.network;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.Socket;
@@ -16,16 +15,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.util.Enumeration;
+import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.LinkedList;
-import java.util.zip.CRC32;
-import java.lang.Long;
-
-import android.net.wifi.WifiManager;
-import android.net.wifi.WifiManager.MulticastLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +50,10 @@ public class MulticastChannel extends NetChannel
      * that can be allocated for a TCP socket.
      *
      */
-    private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
-    private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
+    @SuppressWarnings("unused")
+	private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
+    @SuppressWarnings("unused")
+	private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
     private boolean isEnabled = true;
 
     private Socket socket = null;
@@ -72,19 +68,21 @@ public class MulticastChannel extends NetChannel
     @SuppressWarnings("unused")
     private int socketTimeout = 5 * 1000; // milliseconds.
 
+    /*
     private String gatewayHost = null;
     private int gatewayPort = -1;
-
+     */
     private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
     private final Object syncObj;
 
     private boolean shouldBeDisabled = false;
-    private long flatLineTime;
+    @SuppressWarnings("unused")
+	private long flatLineTime;
 
     private MulticastSocket mSocket;
-    private String mMulticastAddress = "228.1.2.3";
+    private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
-    private int mMulticastPort = 1234;
+    private int mMulticastPort;
 
     private SenderQueue mSenderQueue;
 
@@ -188,21 +186,21 @@ public class MulticastChannel extends NetChannel
 
     public boolean setHost(String host) {
         logger.info("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
-        if ( gatewayHost != null && gatewayHost.equals(host) ) return false;
-        this.gatewayHost = host;
+        if ( this.mMulticastAddress != null && this.mMulticastAddress.equals(host) ) return false;
+        this.mMulticastAddress = host;
         this.reset();
         return true;
     }
     public boolean setPort(int port) {
         logger.info("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
-        if (gatewayPort == port) return false;
-        this.gatewayPort = port;
+        if (this.mMulticastPort == port) return false;
+        this.mMulticastPort = port;
         this.reset();
         return true;
     }
 
     public String toString() {
-        return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
+        return "socket: host["+this.mMulticastAddress+"] port["+this.mMulticastPort+"]";
     }
 
     public void linkUp() {
@@ -315,7 +313,7 @@ public class MulticastChannel extends NetChannel
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
                                   boolean status )
     {
-        return handler.ack( status );
+        return handler.ack( MulticastChannel.class, status );
     }
 
     // Called by the ConnectorThread.
@@ -325,7 +323,8 @@ public class MulticastChannel extends NetChannel
     }
 
 
-    private final AtomicLong mTimeOfLastGoodRead = new AtomicLong( 0 );
+    @SuppressWarnings("unused")
+	private final AtomicLong mTimeOfLastGoodRead = new AtomicLong( 0 );
 
 
     // Heartbeat-related members.
@@ -375,8 +374,8 @@ public class MulticastChannel extends NetChannel
     private class ConnectorThread extends Thread {
         private final Logger logger = LoggerFactory.getLogger( "net.mcast.connector" );
 
-        private final String DEFAULT_HOST = "10.0.2.2";
-        private final int DEFAULT_PORT = 32896;
+        // private final String DEFAULT_HOST = "10.0.2.2";
+        // private final int DEFAULT_PORT = 32896;
         private final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
 
         private MulticastChannel parent;
@@ -938,7 +937,7 @@ public class MulticastChannel extends NetChannel
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize( endian );
+                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL);
                     setSenderState( INetChannel.SENDING );
 
                     DatagramPacket packet =

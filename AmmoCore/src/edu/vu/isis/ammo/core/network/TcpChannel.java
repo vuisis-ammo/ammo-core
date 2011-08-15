@@ -309,7 +309,7 @@ public class TcpChannel extends NetChannel {
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
                                   boolean status )
     {
-        return handler.ack( status );
+        return handler.ack( TcpChannel.class, status );
     }
 
     // Called by the ConnectorThread.
@@ -959,7 +959,7 @@ public class TcpChannel extends NetChannel {
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize( endian );
+                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL );
                     setSenderState( INetChannel.SENDING );
                     @SuppressWarnings("unused")
                     int bytesWritten = mSocketChannel.write( buf );

@@ -50,173 +50,172 @@ public class DistributorProvider extends DistributorProviderBase {
 
    @Override
    public boolean onCreate() {
-	   super.onCreate();
+       super.onCreate();
        return true;
    }
 
    @Override
    protected boolean createDatabaseHelper() {
-	  openHelper = new DistributorDatabaseHelper(getContext());
+      openHelper = new DistributorDatabaseHelper(getContext());
       return false;
    }
    
 
-      @Override
-      public Uri insert(Uri uri, ContentValues initialValues) {
-         String insertTable = "";
-         String nullColumnHack = "";
-         Uri tableUri = null;
-	  logger.info("insert: " + uri.toString() );
+  @Override
+  public Uri insert(Uri uri, ContentValues initialValues) {
+     String insertTable = "";
+     String nullColumnHack = "";
+     Uri tableUri = null;
+     logger.info("insert: " + uri.toString() );
 
-         ContentValues values = (initialValues != null) 
-            ? new ContentValues(initialValues)
-            : new ContentValues();
-         
-         /** Validate the requested uri and do default initialization. */
-         switch (uriMatcher.match(uri)) {
-               case POSTAL_SET:
-                  values = this.initializePostalDefaults(values);
-                  insertTable = Tables.POSTAL_TBL;
-                  nullColumnHack = PostalTableSchemaBase.CP_TYPE;
-                  tableUri = PostalTableSchemaBase.CONTENT_URI;
-                  break;
-               
-               case RETRIEVAL_SET:
-                  values = this.initializeRetrievalDefaults(values);
-                  insertTable = Tables.RETRIEVAL_TBL;
-                  nullColumnHack = RetrievalTableSchemaBase.DISPOSITION;
-                  tableUri = RetrievalTableSchemaBase.CONTENT_URI;
-                  break;
-               
-               case PUBLICATION_SET:
-                  values = this.initializePublicationDefaults(values);
-                  insertTable = Tables.PUBLICATION_TBL;
-                  nullColumnHack = PublicationTableSchemaBase.DISPOSITION;
-                  tableUri = PublicationTableSchemaBase.CONTENT_URI;
-                  break;
-               
-               case SUBSCRIPTION_SET:
-                  values = this.initializeSubscriptionDefaults(values);
-                  insertTable = Tables.SUBSCRIPTION_TBL;
-                  nullColumnHack = SubscriptionTableSchemaBase.DISPOSITION;
-                  tableUri = SubscriptionTableSchemaBase.CONTENT_URI;
-                  break;
-               
-            
-         default:
-            throw new IllegalArgumentException("Unknown URI " + uri);
-         }
-         
-         SQLiteDatabase db = openHelper.getWritableDatabase();
+     ContentValues values = (initialValues != null) 
+        ? new ContentValues(initialValues)
+        : new ContentValues();
+     
+     /** Validate the requested uri and do default initialization. */
+     switch (uriMatcher.match(uri)) {
+           case POSTAL_SET:
+              values = this.initializePostalDefaults(values);
+              insertTable = Tables.POSTAL_TBL;
+              nullColumnHack = PostalTableSchemaBase.CP_TYPE;
+              tableUri = PostalTableSchemaBase.CONTENT_URI;
+              break;
+           
+           case RETRIEVAL_SET:
+              values = this.initializeRetrievalDefaults(values);
+              insertTable = Tables.RETRIEVAL_TBL;
+              nullColumnHack = RetrievalTableSchemaBase.DISPOSITION;
+              tableUri = RetrievalTableSchemaBase.CONTENT_URI;
+              break;
+           
+           case PUBLICATION_SET:
+              values = this.initializePublicationDefaults(values);
+              insertTable = Tables.PUBLICATION_TBL;
+              nullColumnHack = PublicationTableSchemaBase.DISPOSITION;
+              tableUri = PublicationTableSchemaBase.CONTENT_URI;
+              break;
+           
+           case SUBSCRIPTION_SET:
+              values = this.initializeSubscriptionDefaults(values);
+              insertTable = Tables.SUBSCRIPTION_TBL;
+              nullColumnHack = SubscriptionTableSchemaBase.DISPOSITION;
+              tableUri = SubscriptionTableSchemaBase.CONTENT_URI;
+              break;
+           
+        
+     default:
+        throw new IllegalArgumentException("Unknown URI " + uri);
+     }
+     
+     SQLiteDatabase db = openHelper.getWritableDatabase();
 
-         long rowID = db.insert(insertTable, nullColumnHack, values);
-         if (rowID < 1) {
-            throw new SQLException("Failed to insert row into " + uri);
-         }
-         Uri playerURI = ContentUris.withAppendedId(tableUri, rowID);
+     long rowID = db.insert(insertTable, nullColumnHack, values);
+     if (rowID < 1) {
+        throw new SQLException("Failed to insert row into " + uri);
+     }
+     Uri playerURI = ContentUris.withAppendedId(tableUri, rowID);
 
-         //getContext().getContentResolver().notifyChange(uri, null);
-	 // TBD SKN - notify change on a row URI, this would still satisfy the broad observers
-	 // by setting their notifyForDescendant to true, and would prevent row observers from
-	 // getting unnecessary events
+     //getContext().getContentResolver().notifyChange(uri, null);
+ // TBD SKN - notify change on a row URI, this would still satisfy the broad observers
+ // by setting their notifyForDescendant to true, and would prevent row observers from
+ // getting unnecessary events
 
-         getContext().getContentResolver().notifyChange(playerURI, null);
-         return playerURI;
-      }
+     getContext().getContentResolver().notifyChange(playerURI, null);
+     return playerURI;
+  }
 
 
-      @Override
-      public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
-         SQLiteDatabase db = openHelper.getWritableDatabase();
-         Uri notifyUri = uri;
-         int count;
-	  logger.debug("update: " + uri.toString() );
+  @Override
+  public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+     SQLiteDatabase db = openHelper.getWritableDatabase();
+     Uri notifyUri = uri;
+     int count;
+     logger.debug("update: " + uri.toString() );
 
-         switch (uriMatcher.match(uri)) {
-               case POSTAL_SET:
-                  logger.debug("POSTAL_SET");
-                  count = db.update(Tables.POSTAL_TBL, values, selection,
-                        selectionArgs);
-                  break;
+     switch (uriMatcher.match(uri)) {
+           case POSTAL_SET:
+              logger.debug("POSTAL_SET");
+              count = db.update(Tables.POSTAL_TBL, values, selection,
+                    selectionArgs);
+              break;
 
-               case POSTAL_ID:
-                  logger.debug("POSTAL_ID");
-                  //  notify on the base URI - without the ID ?
-                  // notifyUri = PostalTableSchemaBase.CONTENT_URI;    --- TBD SKN MOD
-                  String postalID = uri.getPathSegments().get(1);
-                  count = db.update(Tables.POSTAL_TBL, values, PostalTableSchemaBase._ID
-                        + "="
-                        + postalID
-                        + (TextUtils.isEmpty(selection) ? "" 
-                                     : (" AND (" + selection + ')')),
-                        selectionArgs);
-                  break;
-               
-               case RETRIEVAL_SET:
-                  logger.debug("RETRIEVAL_SET");
-                  count = db.update(Tables.RETRIEVAL_TBL, values, selection,
-                        selectionArgs);
-                  break;
+           case POSTAL_ID:
+              logger.debug("POSTAL_ID");
+              //  notify on the base URI - without the ID ?
+              // notifyUri = PostalTableSchemaBase.CONTENT_URI;    --- TBD SKN MOD
+              String postalID = uri.getPathSegments().get(1);
+              count = db.update(Tables.POSTAL_TBL, values, PostalTableSchemaBase._ID
+                    + "="
+                    + postalID
+                    + (TextUtils.isEmpty(selection) ? "" 
+                                 : (" AND (" + selection + ')')),
+                    selectionArgs);
+              break;
+           
+           case RETRIEVAL_SET:
+              logger.debug("RETRIEVAL_SET");
+              count = db.update(Tables.RETRIEVAL_TBL, values, selection,
+                    selectionArgs);
+              break;
 
-               case RETRIEVAL_ID:
-                  logger.debug("RETRIEVAL_ID");
-                  //  notify on the base URI - without the ID ?
-                  // notifyUri = RetrievalTableSchemaBase.CONTENT_URI; 
-                  String retrievalID = uri.getPathSegments().get(1);
-                  count = db.update(Tables.RETRIEVAL_TBL, values, RetrievalTableSchemaBase._ID
-                        + "="
-                        + retrievalID
-                        + (TextUtils.isEmpty(selection) ? "" 
-                                     : (" AND (" + selection + ')')),
-                        selectionArgs);
-                  break;
-               
-               case PUBLICATION_SET:
-                  logger.debug("PUBLICATION_SET");
-                  count = db.update(Tables.PUBLICATION_TBL, values, selection,
-                        selectionArgs);
-                  break;
+           case RETRIEVAL_ID:
+              logger.debug("RETRIEVAL_ID");
+              //  notify on the base URI - without the ID ?
+              // notifyUri = RetrievalTableSchemaBase.CONTENT_URI; 
+              String retrievalID = uri.getPathSegments().get(1);
+              count = db.update(Tables.RETRIEVAL_TBL, values, RetrievalTableSchemaBase._ID
+                    + "="
+                    + retrievalID
+                    + (TextUtils.isEmpty(selection) ? "" 
+                                 : (" AND (" + selection + ')')),
+                    selectionArgs);
+              break;
+           
+           case PUBLICATION_SET:
+              logger.debug("PUBLICATION_SET");
+              count = db.update(Tables.PUBLICATION_TBL, values, selection,
+                    selectionArgs);
+              break;
 
-               case PUBLICATION_ID:
-                  logger.debug("PUBLICATION_ID");
-                  //  notify on the base URI - without the ID ?
-                  // notifyUri = PublicationTableSchemaBase.CONTENT_URI; 
-                  String publicationID = uri.getPathSegments().get(1);
-                  count = db.update(Tables.PUBLICATION_TBL, values, PublicationTableSchemaBase._ID
-                        + "="
-                        + publicationID
-                        + (TextUtils.isEmpty(selection) ? "" 
-                                     : (" AND (" + selection + ')')),
-                        selectionArgs);
-                  break;
-               
-               case SUBSCRIPTION_SET:
-                  logger.debug("SUBSCRIPTION_SET");
-                  count = db.update(Tables.SUBSCRIPTION_TBL, values, selection,
-                        selectionArgs);
-                  break;
+           case PUBLICATION_ID:
+              logger.debug("PUBLICATION_ID");
+              //  notify on the base URI - without the ID ?
+              // notifyUri = PublicationTableSchemaBase.CONTENT_URI; 
+              String publicationID = uri.getPathSegments().get(1);
+              count = db.update(Tables.PUBLICATION_TBL, values, PublicationTableSchemaBase._ID
+                    + "="
+                    + publicationID
+                    + (TextUtils.isEmpty(selection) ? "" 
+                                 : (" AND (" + selection + ')')),
+                    selectionArgs);
+              break;
+           
+           case SUBSCRIPTION_SET:
+              logger.debug("SUBSCRIPTION_SET");
+              count = db.update(Tables.SUBSCRIPTION_TBL, values, selection,
+                    selectionArgs);
+              break;
 
-               case SUBSCRIPTION_ID:
-                  logger.debug("SUBSCRIPTION_ID");
-                  //  notify on the base URI - without the ID ?
-                  // notifyUri = SubscriptionTableSchemaBase.CONTENT_URI; 
-                  String subscriptionID = uri.getPathSegments().get(1);
-                  count = db.update(Tables.SUBSCRIPTION_TBL, values, SubscriptionTableSchemaBase._ID
-                        + "="
-                        + subscriptionID
-                        + (TextUtils.isEmpty(selection) ? "" 
-                                     : (" AND (" + selection + ')')),
-                        selectionArgs);
-                  break;
-               
-            
-         default:
-            throw new IllegalArgumentException("Unknown URI " + uri);
-         }
+           case SUBSCRIPTION_ID:
+              logger.debug("SUBSCRIPTION_ID");
+              //  notify on the base URI - without the ID ?
+              // notifyUri = SubscriptionTableSchemaBase.CONTENT_URI; 
+              String subscriptionID = uri.getPathSegments().get(1);
+              count = db.update(Tables.SUBSCRIPTION_TBL, values, SubscriptionTableSchemaBase._ID
+                    + "="
+                    + subscriptionID
+                    + (TextUtils.isEmpty(selection) ? "" 
+                                 : (" AND (" + selection + ')')),
+                    selectionArgs);
+              break;
+           
+        
+     default:
+        throw new IllegalArgumentException("Unknown URI " + uri);
+     }
 
-         getContext().getContentResolver().notifyChange(notifyUri, null);
-         return count;   
-      }
+     getContext().getContentResolver().notifyChange(notifyUri, null);
+     return count;   
+  }
 
 }
-    
