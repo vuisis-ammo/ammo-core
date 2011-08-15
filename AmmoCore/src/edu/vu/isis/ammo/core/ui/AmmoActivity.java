@@ -19,6 +19,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -56,7 +57,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     public static final Logger logger = LoggerFactory.getLogger( AmmoActivity.class );
 
     private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
-    private static final int LOGGING_MENU = Menu.NONE + 1;
+    private static final int CONFIG_MENU = Menu.NONE + 1;
     private static final int DEBUG_MENU = Menu.NONE + 2;
     private static final int ABOUT_MENU = Menu.NONE + 3;
 
@@ -80,7 +81,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     // Views
     // ===========================================================
 
-    private ListView gatewayList = null;
+    private ChannelListView channelList = null;
     private ListView netlinkList = null;
 
     private INetworkService networkServiceBinder;
@@ -108,14 +109,15 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         channelModel = networkServiceBinder.getGatewayList();
 
         // set gateway view references
-        gatewayList = (ListView)findViewById(R.id.gateway_list);
+        channelList = (ChannelListView)findViewById(R.id.gateway_list);
         channelAdapter = new ChannelAdapter(this, channelModel);
-        gatewayList.setAdapter(channelAdapter);
-
+        channelList.setAdapter(channelAdapter);
+        this.channelList.setOnItemClickListener(this);
+        
         //reset all rows
-        for (int ix=0; ix < gatewayList.getChildCount(); ix++)
+        for (int ix=0; ix < channelList.getChildCount(); ix++)
         {
-            View row = gatewayList.getChildAt(ix);
+            View row = channelList.getChildAt(ix);
             row.setBackgroundColor(Color.TRANSPARENT);
         }
     }
@@ -168,11 +170,12 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         getTabHost().addTab(spec);
 
         intent = new Intent().setClass(this, CorePreferenceActivity.class);
+        /*
         spec = tabHost.newTabSpec("settings");
         spec.setIndicator("Preferences", res.getDrawable(R.drawable.cog_32));
         spec.setContent(intent);
         tabHost.addTab(spec);
-
+		*/
         tabHost.setCurrentTab(0);
         
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -186,14 +189,14 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         logger.trace("::onStart");
 
         //reset all rows
-        if ( gatewayList != null )
+        if ( channelList != null )
         {
-            for (int ix=0; ix < gatewayList.getChildCount(); ix++)
+            for (int ix=0; ix < channelList.getChildCount(); ix++)
             {
-                View row = gatewayList.getChildAt(ix);
+                View row = channelList.getChildAt(ix);
                 row.setBackgroundColor(Color.TRANSPARENT);
             }
-            this.gatewayList.setOnItemClickListener(this);
+            this.channelList.setOnItemClickListener(this);
         }
         
         mReceiver = new StatusReceiver();
@@ -245,7 +248,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         super.onCreateOptionsMenu(menu);
         logger.trace("::onCreateOptionsMenu");
         menu.add(Menu.NONE, VIEW_TABLES_MENU, Menu.NONE, getResources().getString(R.string.view_tables_label));
-        menu.add(Menu.NONE, LOGGING_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
+        menu.add(Menu.NONE, CONFIG_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
         menu.add(Menu.NONE, DEBUG_MENU, Menu.NONE, getResources().getString((!this.netlinkAdvancedView)?(R.string.debug_label):(R.string.user_label)));
         menu.add(Menu.NONE, ABOUT_MENU, Menu.NONE, getResources().getString(R.string.about_label));
 
@@ -267,7 +270,6 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         logger.trace("::onOptionsItemSelected");
-
         Intent intent = new Intent();
         switch (item.getItemId()) {
         case DEBUG_MENU:
@@ -277,8 +279,8 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
             intent.setClass(this, DistributorTabActivity.class);
             this.startActivity(intent);
             return true;
-        case LOGGING_MENU:
-            intent.setClass(this, LoggingPreferences.class);
+        case CONFIG_MENU:
+            intent.setClass(this, GeneralPreferences.class);
             this.startActivity(intent);
             return true;
         case ABOUT_MENU:
@@ -310,7 +312,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     }
 
     public void onGatewayElectionToggle(View view) {
-        int position = this.gatewayList.getPositionForView(view);
+        int position = this.channelList.getPositionForView(view);
         Gateway gw = (Gateway) this.channelAdapter.getItem(position);
 
         // get the button's row
@@ -331,7 +333,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     
     public void onMulticastElectionToggle(View view)
     {
-    	int position = this.gatewayList.getPositionForView(view);
+    	int position = this.channelList.getPositionForView(view);
     	Multicast  mc = (Multicast) this.channelAdapter.getItem(position);
     	
     	RelativeLayout row = (RelativeLayout)view.getParent();
@@ -368,7 +370,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
 
 	@Override
 	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-		Channel c = this.channelAdapter.getItem(arg2);
+		/*Channel c = this.channelAdapter.getItem(arg2);
 		
         logger.trace("::onClick");
         Intent gatewayIntent = new Intent();
@@ -388,9 +390,10 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         }
         gatewayIntent.setClass(this, ChannelDetailActivity.class);
         this.startActivity(gatewayIntent);
+		*/
 		
 	}
-	
+
 	public void editPreferences(View v)
 	{
 		ListView lv = (ListView) v.getParent().getParent();
@@ -399,20 +402,12 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         Intent gatewayIntent = new Intent();
         if(c.getClass().equals(Gateway.class))
         {
-        	gatewayIntent.putExtra(ChannelDetailActivity.IP, INetPrefKeys.CORE_IP_ADDR);
-        	gatewayIntent.putExtra(ChannelDetailActivity.PORT, INetPrefKeys.CORE_IP_PORT);
-        	gatewayIntent.putExtra(ChannelDetailActivity.NET_CONN, INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
-        	gatewayIntent.putExtra(ChannelDetailActivity.CONN_IDLE, INetPrefKeys.CORE_SOCKET_TIMEOUT);
-        	gatewayIntent.putExtra(ChannelDetailActivity.ENABLED, INetPrefKeys.GATEWAY_SHOULD_USE);
+        	gatewayIntent.putExtra(ChannelDetailActivity.PREF_TYPE, ChannelDetailActivity.GATEWAY_PREF);
         }
         else
         {
-        	gatewayIntent.putExtra(ChannelDetailActivity.IP, INetPrefKeys.MULTICAST_IP_ADDRESS);
-        	gatewayIntent.putExtra(ChannelDetailActivity.PORT, INetPrefKeys.MULTICAST_PORT);
-        	gatewayIntent.putExtra(ChannelDetailActivity.NET_CONN, INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT);
-        	gatewayIntent.putExtra(ChannelDetailActivity.CONN_IDLE, INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT);
-        	gatewayIntent.putExtra(ChannelDetailActivity.ENABLED, INetPrefKeys.MULTICAST_SHOULD_USE);
-        }
+        	gatewayIntent.putExtra(ChannelDetailActivity.PREF_TYPE, ChannelDetailActivity.MULTICAST_PREF);
+        }       
         gatewayIntent.setClass(this, ChannelDetailActivity.class);
         this.startActivity(gatewayIntent);
 	}

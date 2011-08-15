@@ -4,19 +4,22 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/gateway_layout" 
     android:layout_width="fill_parent"
-    android:layout_height="fill_parent">
+    android:layout_height="fill_parent"
+    android:nextFocusLeft="@+id/set_pref_button">
 	<TextView 
 	android:layout_width="wrap_content"
 	android:layout_height="wrap_content"
 	android:id="@+id/channel_type"
 	android:visibility="invisible"/>        
-       <Button 
-	android:id="@+id/set_pref_button"
+    <!-- 
+    <Button 
+	android:id="@id/set_pref_button"
 	android:layout_width="75sp"
 	android:layout_height="wrap_content"
 	android:text="Edit"
 	android:layout_alignParentLeft="true" 
 	android:onClick="editPreferences"/>
+	 -->
 <!-- android:visibility="invisible"  -->
     <TextView android:id="@+id/gateway_name" 
         android:layout_width="wrap_content"

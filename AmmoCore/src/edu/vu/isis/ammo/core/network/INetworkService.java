@@ -5,10 +5,10 @@
 package edu.vu.isis.ammo.core.network;
 
 import java.util.List;
+import java.util.Map;
 
 import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.model.Channel;
-import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Netlink;
 
 
@@ -28,14 +28,14 @@ public interface INetworkService {
 
     // Callback interfaces
     interface OnSendMessageHandler {
-        boolean ack(boolean status);
+        boolean ack(Class<? extends INetChannel> clazz, boolean status);
     }
 
     // methods
     void teardown();
     boolean isConnected();
 
-    public boolean sendRequest(AmmoGatewayMessage agm);
+    public Map<Class<? extends INetChannel>,Boolean> sendRequest(AmmoGatewayMessage agm);
     
     /**
      * Pass control to the distributor service to handle the message.
