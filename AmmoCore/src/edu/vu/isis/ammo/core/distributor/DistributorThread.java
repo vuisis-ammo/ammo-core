@@ -1093,7 +1093,8 @@ extends AsyncTask<DistributorService, Integer, Void>
      */
 
     private Map<Class<? extends INetChannel>,Boolean> 
-    dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, String selection, INetworkService.OnSendMessageHandler handler) {
+    dispatchRetrievalRequest(DistributorService that, String subscriptionId, String mimeType, 
+    		String selection, INetworkService.OnSendMessageHandler handler) {
         logger.info("::dispatchRetrievalRequest");
 
         /** Message Building */
