@@ -73,7 +73,8 @@ public class TrieMap<V>{
         }
         if(cObj instanceof TrieMap<?>) {
             // Collided with an existing sub-branch so nibble a char and recurse.
-            TrieMap<V> childTrie = (TrieMap)cObj;
+			@SuppressWarnings("unchecked")
+			TrieMap<V> childTrie = (TrieMap<V>)cObj;
             childTrie.put(key.substring(1), val);
             if(val == null && childTrie.isEmpty()) {
                 mChars[c] = null; // put() must have erased final entry so prune branch.
@@ -85,9 +86,10 @@ public class TrieMap<V>{
             mChars[c] = null; // Null value means to remove any previously stored value.
             return;
         }
-        assert cObj instanceof Leaf;
+        assert cObj instanceof Leaf<?>;
         // Sprout a new branch to hold the colliding items.
-        Leaf<V> cLeaf = (Leaf)cObj;
+        @SuppressWarnings("unchecked")
+		Leaf<V> cLeaf = (Leaf<V>)cObj;
         TrieMap<V> branch = new TrieMap<V>();
         branch.put(key.substring(1), val); // Store new value in new subtree.
         branch.put(cLeaf.mStr.substring(1), cLeaf.mVal); // Plus the one we collided with.
@@ -115,9 +117,9 @@ public class TrieMap<V>{
         if(cVal instanceof TrieMap<?>) { // Hash collision. Nibble first char, and recurse.
             return ((TrieMap<V>)cVal).get(key.substring(1));
         }
-        if(cVal instanceof Leaf) {
+        if(cVal instanceof Leaf<?>) {
             // cVal contains a user datum, but does the key match its substring?
-            Leaf cPair = (Leaf)cVal;
+            Leaf<V> cPair = (Leaf<V>)cVal;
             if(key.equals(cPair.mStr)) {
                 return (V) cPair.mVal; // Return user's data value.
             }

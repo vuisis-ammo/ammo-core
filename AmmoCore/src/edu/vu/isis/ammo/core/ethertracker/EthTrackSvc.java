@@ -22,7 +22,6 @@ import edu.vu.isis.ammo.core.ServiceEx;
 public class EthTrackSvc extends ServiceEx {
 
     private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
-    @SuppressWarnings("unused")
 	private ApplicationEx application;
 
     private boolean mIsLinkUp = false;

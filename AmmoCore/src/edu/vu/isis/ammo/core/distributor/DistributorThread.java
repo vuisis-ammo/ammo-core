@@ -1593,7 +1593,6 @@ extends AsyncTask<DistributorService, Integer, Void>
             } catch (IOException ex) {
                 logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
                 bout.close();
-                if (afd != null) afd.close();
                 throw new FileNotFoundException("Unable to create stream");
             }
 

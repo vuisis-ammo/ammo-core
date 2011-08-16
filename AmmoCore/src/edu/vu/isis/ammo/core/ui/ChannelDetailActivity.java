@@ -3,10 +3,8 @@ package edu.vu.isis.ammo.core.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.MyCheckBoxPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference;
