@@ -371,6 +371,10 @@ public class NetworkService extends Service implements
 	/**
 	 * Reset the local copies of the shared preference. Also indicate that the
 	 * gateway connections are stale will need to be refreshed.
+	 * 
+	 * @param prefs   a sharedPreferencesInterface for accessing and modifying preference data
+	 * @param key     a string to signal which preference to access
+	 *  
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
