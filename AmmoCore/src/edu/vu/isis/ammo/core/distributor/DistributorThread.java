@@ -23,12 +23,9 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
-import android.database.ContentObserver;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
 import android.provider.BaseColumns;
@@ -167,7 +164,6 @@ extends AsyncTask<DistributorService, Integer, Void>
      */
     @Override
     protected Void doInBackground(DistributorService... them) {
-        this.configureListeners(them[0].getContentResolver());
         
         logger.info("::post to network service");
         if (this.resend.getAndSet(false)) {
@@ -402,8 +398,6 @@ extends AsyncTask<DistributorService, Integer, Void>
           .append("'").append(PostalTableSchema.DISPOSITION_SATISFIED).append("'")
           .append(",")
           .append("'").append(PostalTableSchema.DISPOSITION_EXPIRED).append("'")
-        //  .append("'").append(PostalTableSchema.EXPIRATION).append("'")
-        //  .append("<\"").append(Long.valueOf(System.currentTimeMillis())).append("\"");
           .append(")");
         POSTAL_GARBAGE = sb.toString();
         
@@ -430,7 +424,7 @@ extends AsyncTask<DistributorService, Integer, Void>
     private static final ContentValues POSTAL_EXPIRATION_UPDATE;
     static {
         StringBuilder sb = new StringBuilder();
-        sb.append('"').append(PostalTableSchema.CREATED_DATE).append('"')
+        sb.append('"').append(PostalTableSchema.EXPIRATION).append('"')
           .append('<').append('?');
         POSTAL_EXPIRATION_CONDITION = sb.toString();
         
@@ -877,7 +871,7 @@ extends AsyncTask<DistributorService, Integer, Void>
     private static final ContentValues RETRIEVAL_EXPIRATION_UPDATE;
     static {
         StringBuilder sb = new StringBuilder();
-        sb.append('"').append(RetrievalTableSchemaBase.CREATED_DATE).append('"')
+        sb.append('"').append(RetrievalTableSchemaBase.EXPIRATION).append('"')
           .append('<').append('?');
         RETRIEVAL_EXPIRATION_CONDITION = sb.toString();
         
@@ -1248,7 +1242,7 @@ extends AsyncTask<DistributorService, Integer, Void>
     private static final ContentValues SUBSCRIPTION_EXPIRIATION_UPDATE;
     static {
         StringBuilder sb = new StringBuilder();
-        sb.append('"').append(SubscriptionTableSchemaBase.CREATED_DATE).append('"')
+        sb.append('"').append(SubscriptionTableSchemaBase.EXPIRATION).append('"')
           .append('<').append('?');
         SUBSCRIPTION_EXPIRATION_CONDITION = sb.toString();
         
@@ -1618,98 +1612,5 @@ extends AsyncTask<DistributorService, Integer, Void>
         return null;
     }
     
-    
-    // ============= OBSERVERS ================ //
-    // Set this service to observe certain Content Providers.
-    // Initialize our content observer.
-    
-    private PostalObserver postalObserver;
-    private RetrievalObserver retrievalObserver;
-    private SubscriptionObserver subscriptionObserver;
-
-    private void configureListeners(ContentResolver cr) {
-        Looper.prepare();
-        
-        postalObserver = new PostalObserver(new Handler(), this);
-        cr.registerContentObserver(
-                PostalTableSchema.CONTENT_URI, true, postalObserver);
-    
-        retrievalObserver = new RetrievalObserver(new Handler(), this);
-        cr.registerContentObserver(
-                RetrievalTableSchema.CONTENT_URI, true, retrievalObserver);
-    
-        subscriptionObserver = new SubscriptionObserver(new Handler(), this);
-        cr.registerContentObserver(
-                SubscriptionTableSchema.CONTENT_URI, true, subscriptionObserver);
-    }
-    
-    public void teardown(ContentResolver cr) {
-        if (this.postalObserver != null)
-            cr.unregisterContentObserver(this.postalObserver);
-        if (this.retrievalObserver != null)
-            cr.unregisterContentObserver(this.retrievalObserver);
-        if (this.subscriptionObserver != null)
-            cr.unregisterContentObserver(this.subscriptionObserver);
-    }
-    
-
-    // ===========================================================
-    // Content Observer Nested Classes
-    // ===========================================================
-
-    private class PostalObserver extends ContentObserver 
-    {
-        /** Fields */
-        private final DistributorThread callback;
-
-        public PostalObserver(Handler handler, DistributorThread aCallback) {
-            super(handler);
-            logger.info("PostalObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("PostalObserver::onChange : {}", selfChange);
-            this.callback.postalChange();
-        }
-    }
-
-    private class RetrievalObserver extends ContentObserver {
-
-        /** Fields */
-        private final DistributorThread callback;
-
-        public RetrievalObserver(Handler handler, DistributorThread aCallback) {
-            super(handler);
-            logger.info("RetrievalObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("RetrievalObserver::onChange : {}", selfChange );
-            this.callback.retrievalChange();
-        }
-    }
-
-    private class SubscriptionObserver extends ContentObserver {
-
-        /** Fields */
-        private final DistributorThread callback;
-
-        public SubscriptionObserver(Handler handler, DistributorThread aCallback) {
-            super(handler);
-            logger.info("SubscriptionObserver::");
-            this.callback = aCallback;
-        }
-
-        @Override
-        public void onChange(boolean selfChange) {
-            logger.info("SubscriptionObserver::onChange : {}", selfChange );
-            this.callback.subscriptionChange();
-        }
-    }
-
 
 }
