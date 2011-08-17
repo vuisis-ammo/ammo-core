@@ -20,13 +20,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.LinkedList;
-import java.util.zip.CRC32;
-import java.lang.Long;
-
-import android.net.wifi.WifiManager;
-import android.net.wifi.WifiManager.MulticastLock;
-import android.preference.PreferenceManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -944,7 +937,7 @@ public class MulticastChannel extends NetChannel
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize( endian );
+                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL);
                     setSenderState( INetChannel.SENDING );
 
                     DatagramPacket packet =

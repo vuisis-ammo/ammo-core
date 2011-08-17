@@ -959,7 +959,7 @@ public class TcpChannel extends NetChannel {
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize( endian );
+                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL );
                     setSenderState( INetChannel.SENDING );
                     @SuppressWarnings("unused")
                     int bytesWritten = mSocketChannel.write( buf );

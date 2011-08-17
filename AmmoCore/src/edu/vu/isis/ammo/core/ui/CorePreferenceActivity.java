@@ -2,7 +2,6 @@ package edu.vu.isis.ammo.core.ui;
 
 import android.content.res.Resources;
 import android.os.Bundle;
-import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.core.MyCheckBoxPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference;
@@ -15,8 +14,6 @@ import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
  * These are primarily concerned with the management of the 
  * communication channel.
  * 
- * @author phreed
- *
  */
 public class CorePreferenceActivity extends PreferenceActivityEx {
 	// ===========================================================

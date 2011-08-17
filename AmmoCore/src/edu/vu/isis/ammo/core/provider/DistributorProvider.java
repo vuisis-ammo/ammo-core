@@ -128,8 +128,8 @@ public class DistributorProvider extends DistributorProviderBase {
   @Override
   public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
      SQLiteDatabase db = openHelper.getWritableDatabase();
-     Uri notifyUri = uri;
-     int count;
+     final Uri notifyUri = uri;
+     final int count;
      logger.debug("update: " + uri.toString() );
 
      switch (uriMatcher.match(uri)) {
@@ -214,7 +214,8 @@ public class DistributorProvider extends DistributorProviderBase {
         throw new IllegalArgumentException("Unknown URI " + uri);
      }
 
-     getContext().getContentResolver().notifyChange(notifyUri, null);
+     if (count > 0) 
+    	 getContext().getContentResolver().notifyChange(notifyUri, null);
      return count;   
   }
 

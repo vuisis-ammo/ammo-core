@@ -10,13 +10,16 @@ import org.slf4j.LoggerFactory;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.database.ContentObserver;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
@@ -29,6 +32,9 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetworkService;
+import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
+import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
+import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -222,6 +228,8 @@ public class DistributorService extends Service {
         mReadyResourceReceiver.checkResourceStatus(this);
         
         this.policy = DistributorPolicy.newInstance(this.getBaseContext());
+        
+        this.configureObservers(this.getContentResolver());
     }
 
     /**
@@ -260,8 +268,9 @@ public class DistributorService extends Service {
         }
         this.unbindService(networkServiceConnection);
         isNetworkServiceBound = false;
+       
     }
-
+    
     public void finishTeardown() {
         logger.info("service teardown finished");
         this.stopSelf();
@@ -281,8 +290,7 @@ public class DistributorService extends Service {
         if (this.wifiReceiver != null) 
             this.wifiReceiver.setInitialized(false);
         
-        if (this.distThread != null) 
-        	this.distThread.teardown(this.getContentResolver());
+        this.teardownObservers(this.getContentResolver());
         
         if (this.mReceiverRegistrar != null)
             this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
@@ -352,4 +360,95 @@ public class DistributorService extends Service {
         return distThread.distributeResponse(agm);
     }
    
+    
+    // ============= OBSERVERS ================ //
+    // Set this service to observe certain Content Providers.
+    // Initialize our content observer.
+    
+    private PostalObserver postalObserver;
+    private RetrievalObserver retrievalObserver;
+    private SubscriptionObserver subscriptionObserver;
+
+    private void configureObservers(ContentResolver cr) {
+        postalObserver = new PostalObserver(new Handler(), this.distThread);
+        cr.registerContentObserver(
+                PostalTableSchema.CONTENT_URI, true, postalObserver);
+    
+        retrievalObserver = new RetrievalObserver(new Handler(), this.distThread);
+        cr.registerContentObserver(
+                RetrievalTableSchema.CONTENT_URI, true, retrievalObserver);
+    
+        subscriptionObserver = new SubscriptionObserver(new Handler(), this.distThread);
+        cr.registerContentObserver(
+                SubscriptionTableSchema.CONTENT_URI, true, subscriptionObserver);
+    }
+    
+    public void teardownObservers(ContentResolver cr) {
+        if (this.postalObserver != null)
+            cr.unregisterContentObserver(this.postalObserver);
+        if (this.retrievalObserver != null)
+            cr.unregisterContentObserver(this.retrievalObserver);
+        if (this.subscriptionObserver != null)
+            cr.unregisterContentObserver(this.subscriptionObserver);
+    }
+
+
+    // ===========================================================
+    // Content Observer Nested Classes
+    // ===========================================================
+
+    private class PostalObserver extends ContentObserver 
+    {
+        /** Fields */
+        private final DistributorThread callback;
+
+        public PostalObserver(Handler handler, DistributorThread aCallback) {
+            super(handler);
+            logger.info("PostalObserver::");
+            this.callback = aCallback;
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            logger.info("PostalObserver::onChange : {}", selfChange);
+            this.callback.postalChange();
+        }
+    }
+
+    private class RetrievalObserver extends ContentObserver {
+
+        /** Fields */
+        private final DistributorThread callback;
+
+        public RetrievalObserver(Handler handler, DistributorThread aCallback) {
+            super(handler);
+            logger.info("RetrievalObserver::");
+            this.callback = aCallback;
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            logger.info("RetrievalObserver::onChange : {}", selfChange );
+            this.callback.retrievalChange();
+        }
+    }
+
+    private class SubscriptionObserver extends ContentObserver {
+
+        /** Fields */
+        private final DistributorThread callback;
+
+        public SubscriptionObserver(Handler handler, DistributorThread aCallback) {
+            super(handler);
+            logger.info("SubscriptionObserver::");
+            this.callback = aCallback;
+        }
+
+        @Override
+        public void onChange(boolean selfChange) {
+            logger.info("SubscriptionObserver::onChange : {}", selfChange );
+            this.callback.subscriptionChange();
+        }
+    }
+
 }

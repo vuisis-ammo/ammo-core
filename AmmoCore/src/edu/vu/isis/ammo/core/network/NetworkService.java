@@ -91,7 +91,7 @@ public class NetworkService extends Service implements
 		BLUETOOTH(5), // bluetooth(R)
 		NFC(6), // near field communication
 		IR(7); // infrared
-		public int value;
+		final public int value;
 		private linkTypes(int num) {
 			this.value = num;
 		}
@@ -371,6 +371,10 @@ public class NetworkService extends Service implements
 	/**
 	 * Reset the local copies of the shared preference. Also indicate that the
 	 * gateway connections are stale will need to be refreshed.
+	 * 
+	 * @param prefs   a sharedPreferencesInterface for accessing and modifying preference data
+	 * @param key     a string to signal which preference to access
+	 *  
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {

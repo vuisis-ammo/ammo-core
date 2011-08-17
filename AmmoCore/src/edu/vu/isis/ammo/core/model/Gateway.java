@@ -4,24 +4,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.View.OnClickListener;
-import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
-import android.widget.ToggleButton;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.network.NetworkService;
-import edu.vu.isis.ammo.core.ui.AmmoActivity;
-import edu.vu.isis.ammo.core.ui.ChannelDetailActivity;
 
 /**
  * The Ammo core is responsible for distributing
