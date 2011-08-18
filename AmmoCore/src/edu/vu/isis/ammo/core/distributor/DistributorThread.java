@@ -200,9 +200,11 @@ extends AsyncTask<DistributorService, Integer, Void>
                 if (this.responseDelta.getAndSet(false)) {
                     while (!this.responseQueue.isEmpty()) {
                         try {
+			    int count=0;
                             AmmoGatewayMessage agm = this.responseQueue.take();
                             for (DistributorService that : them) {
                                 this.processResponse(that, agm);
+				logger.info("pr {} {}", count++, agm);
                             }
                         } catch (ClassCastException ex) {
                             logger.error("response queue contains illegal item of class {}", 
