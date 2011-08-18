@@ -371,6 +371,10 @@ public class NetworkService extends Service implements
 	/**
 	 * Reset the local copies of the shared preference. Also indicate that the
 	 * gateway connections are stale will need to be refreshed.
+	 * 
+	 * @param prefs   a sharedPreferencesInterface for accessing and modifying preference data
+	 * @param key     a string to signal which preference to access
+	 *  
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
@@ -537,11 +541,13 @@ public class NetworkService extends Service implements
 		// agm.setSessionUuid( sessionId );
 
 		Map<Class<? extends INetChannel>, Boolean> status = new HashMap<Class<? extends INetChannel>, Boolean>();
+		/*
 		if (agm.isMulticast) {
 			logger.info("   Sending multicast message.");
 			status.put(MulticastChannel.class, this.multicastChannel
 					.sendRequest(agm));
 		}
+		*/
 		if (agm.isGateway) {
 			logger.info("   Sending message to gateway.");
 			status.put(TcpChannel.class, this.tcpChannel.sendRequest(agm));

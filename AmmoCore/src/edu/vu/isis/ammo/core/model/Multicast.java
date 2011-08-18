@@ -6,11 +6,7 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.View.OnClickListener;
-import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
-import android.widget.ToggleButton;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
@@ -24,7 +20,7 @@ public class Multicast extends Channel {
 	String port = "port";
 	protected Multicast(Context context, String name) {
 		super(context, name);
-		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_IP_ADDRESS, "228.1.2.3");
+		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_IP_ADDRESS, "228.10.10.90");
 		this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT, "9982");
 		this.election = this.prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true);
 	}

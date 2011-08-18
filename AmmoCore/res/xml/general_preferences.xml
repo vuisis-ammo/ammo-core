@@ -40,25 +40,25 @@
 			android:key="CORE_IP_ADDRESS"
 			android:name="IP Address"
 			android:title="IP Address"
-			android:defaultValue="127.0.0.1"/>
+			android:defaultValue="129.59.129.189"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="CORE_IP_PORT"
 			android:name="Port"
 			android:title="Port"
-			android:defaultValue="9982"/>
+			android:defaultValue="32869"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="AMMO_NET_CONN_FLAT_LINE_TIME"
 			android:name="Network Connection Timeout (s)"
 			android:title="Network Connection Timeout (s)"
-			android:defaultValue="10"/>
+			android:defaultValue="1000"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="CORE_SOCKET_TIMEOUT"
 			android:name="Connection Idle Timeout (s)"
 			android:title="Connection Idle Timeout (s)"
-			android:defaultValue= "10"/>
+			android:defaultValue= "3000"/>
 		
 		</PreferenceScreen>
 		
@@ -78,7 +78,7 @@
 			android:key="MULTICAST_IP_ADDRESS"
 			android:name="IP Address"
 			android:title="IP Address"
-			android:defaultValue="127.0.0.1"/>
+			android:defaultValue="228.10.10.90"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="MULTICAST_PORT"
@@ -90,13 +90,13 @@
 			android:key="MULTICAST_NET_CONN_TIMEOUT"
 			android:name="Network Connection Timeout (s)"
 			android:title="Network Connection Timeout (s)"
-			android:defaultValue="10"/>
+			android:defaultValue="1000"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="MULTICAST_CONN_IDLE_TIMEOUT"
 			android:name="Connection Idle Timeout (s)"
 			android:title="Connection Idle Timeout (s)"
-			android:defaultValue= "10"/>
+			android:defaultValue= "3000"/>
 		
 		</PreferenceScreen>
 	</PreferenceCategory>

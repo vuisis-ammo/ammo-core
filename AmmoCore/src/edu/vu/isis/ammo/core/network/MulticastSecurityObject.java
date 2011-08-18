@@ -54,5 +54,6 @@ public class MulticastSecurityObject implements ISecurityObject,
     }
 
 
-    private MulticastChannel mChannel;
+    @SuppressWarnings("unused")
+	private MulticastChannel mChannel;
 }
