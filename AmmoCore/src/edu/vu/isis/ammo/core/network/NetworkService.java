@@ -541,13 +541,13 @@ public class NetworkService extends Service implements
 		// agm.setSessionUuid( sessionId );
 
 		Map<Class<? extends INetChannel>, Boolean> status = new HashMap<Class<? extends INetChannel>, Boolean>();
-		/*
+		
 		if (agm.isMulticast) {
 			logger.info("   Sending multicast message.");
 			status.put(MulticastChannel.class, this.multicastChannel
 					.sendRequest(agm));
 		}
-		*/
+		
 		if (agm.isGateway) {
 			logger.info("   Sending message to gateway.");
 			status.put(TcpChannel.class, this.tcpChannel.sendRequest(agm));
