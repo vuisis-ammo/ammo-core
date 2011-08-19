@@ -144,7 +144,8 @@ public class NetworkService extends Service implements
 
 	// Channels
 	private INetChannel tcpChannel = TcpChannel.getInstance(this);
-	private INetChannel multicastChannel = MulticastChannel.getInstance(this);
+	//private INetChannel multicastChannel = MulticastChannel.getInstance(this);
+	private INetChannel multicastChannel = SerialChannel.getInstance(this);
 	private INetChannel journalChannel = JournalChannel.getInstance(this);
 
 	private MyBroadcastReceiver myReceiver = null;
