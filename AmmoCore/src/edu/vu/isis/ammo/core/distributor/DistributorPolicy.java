@@ -7,6 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map.Entry;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
@@ -25,7 +28,10 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
 import android.content.Context;
+import android.content.res.Resources.NotFoundException;
+import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
+import edu.vu.isis.ammo.core.R;
 
 /**
  * This class provides the base level mapping between distribution 
@@ -44,236 +50,485 @@ import edu.vu.isis.ammo.api.IAmmoRequest;
  *
  */
 public class DistributorPolicy implements ContentHandler {
-    private static final Logger logger = LoggerFactory.getLogger(DistributorPolicy.class);
-    
-    public final Trie<String, Load> policy;
-    public final static String policy_file = "distribution_policy.xml";
-    
-    private LoadBuilder lb;
-    
-    /**
-     * Presume a context specific xml file is present.
-     *  e.g. /data/data/edu.vu.isis.ammo/app_distribution_policy.xml
-     *  
-     * @param context
-     */
-    public static DistributorPolicy newInstance(Context context) {
-        File file = context.getDir(policy_file, Context.MODE_WORLD_READABLE);
-        try {
-            InputStream fd = new FileInputStream(file);
-            InputSource is = new InputSource(new InputStreamReader(fd));
-            DistributorPolicy policy = new DistributorPolicy(is);
-            try {
-                fd.close();
-            } catch (IOException ex) {
-                logger.error("could not open distributor configuration file {}",
-                        ex.getStackTrace());
-            }
-            return policy;
-        } catch (FileNotFoundException ex) {
-            logger.error("no policy file {}", ex.getStackTrace());
-        }
-        return null;
-    }
-    /**
-     * Load the policy information from an xml file
-     * @param file
-     */
-    public DistributorPolicy(InputSource is ) {
-        this.policy = new PatriciaTrie<String, Load>(StringKeyAnalyzer.BYTE);
-        this.lb = new LoadBuilder();
-        
-        try {
-            SAXParserFactory parserFactory=SAXParserFactory.newInstance();
-            SAXParser saxParser=parserFactory.newSAXParser();
-            XMLReader reader=saxParser.getXMLReader();
-            
-            reader.setContentHandler(this);
-            
-            reader.parse(is);
-            
-        } catch (MalformedURLException ex) {
-            logger.warn("malformed file name {}", ex.getStackTrace());
-            this.setDefaultRule();
-        } catch (ParserConfigurationException ex) {
-            logger.warn("parse error {}", ex.getStackTrace());
-            this.setDefaultRule();
-        } catch (SAXException ex) {
-            logger.warn("sax error {}", ex.getStackTrace());
-            this.setDefaultRule();
-        } catch (IOException ex) {
-            logger.warn("general io error {}", ex.getStackTrace());
-            this.setDefaultRule();
-        }
-    }
-    
-    /**
-     * The following constructor is for testing only.
-     * 
-     * @param context
-     * @param dummy
-     */
-    public DistributorPolicy(Context context, int testSetId) {
-        this.policy = new PatriciaTrie<String, Load>(StringKeyAnalyzer.BYTE);
-        this.lb = new LoadBuilder();
-        
-        switch (testSetId) {
-        default:
-            this.policy.put("urn:test:domain/trial/both",  
-                    this.lb
-                    .isGateway(true)
-                    .isMulticast(true)
-                    .build());
-            this.policy.put("urn:test:domain/trial/gw-only",  
-                    this.lb
-                    .isGateway(true)
-                    .isMulticast(false)
-                    .build());
-            this.policy.put("urn:test:domain/trial/mc-only",  
-                    this.lb
-                    .isGateway(false)
-                    .isMulticast(true)
-                    .build());
-            this.policy.put("urn:test:domain/trial/neither",  
-                    this.lb
-                    .isGateway(false)
-                    .isMulticast(false)
-                    .build());
-        }
-    }
-    
-    /**
-     * Find the 'best' key match.
-     * The best match is the shortest string which matches the key.
-     * 
-     * 
-     * @param key
-     * @return
-     */
-    public Load match(String key) {
-        return this.policy.selectValue(key);
-    }
-    
-    class Load {
-        public final boolean isMulticast;
-        public final boolean isGateway;
-        public final int priority;
-        
-        private Load(LoadBuilder builder) {
-            this.isMulticast = builder.isMulticast();
-            this.isGateway = builder.isGateway();
-            this.priority = builder.priority();
-        }
-    }
-    
-    class LoadBuilder {
-        private boolean isMulticast;
-        public boolean isMulticast() { return this.isMulticast; }
-        public LoadBuilder isMulticast(boolean val) {  this.isMulticast = val; return this; }
-        
-        private boolean isGateway;
-        public boolean isGateway() { return this.isGateway; }
-        public LoadBuilder isGateway(boolean val) {  this.isGateway = val; return this; }
-        
-        private int priority;
-        public int priority() { return this.priority; }
-        public LoadBuilder priority(int val) {  this.priority = val; return this; }
+	private static final Logger logger = LoggerFactory.getLogger("ammo.dp");
 
-        public LoadBuilder() {}
-        public Load build() { return new Load(this); }
-    }
+	public final Trie<String, Topic> policy;
+	public final static String policy_dir = "policy.xml";
+	public final static String policy_file = "distribution_policy.xml";
+
+	private TopicBuilder builder;
+
+	/**
+	 * Presume a context specific xml file is present.
+	 *  e.g. /data/data/edu.vu.isis.ammo/app_distribution_policy.xml
+	 *  
+	 * @param context
+	 */
+	public static DistributorPolicy newInstance(Context context) {
+		final File dir = context.getDir(policy_dir, Context.MODE_WORLD_READABLE);
+		final File file = new File(dir, policy_file);
+
+		InputStream inputStream = null;
+		if (file.exists()) {
+			try {
+				inputStream = new FileInputStream(file);
+			} catch (FileNotFoundException ex) {
+				logger.error("no policy file {} {}", file, ex.getStackTrace());
+			}
+		}
+		else {
+			try {
+				inputStream = context.getResources().openRawResource(R.raw.routing_policy);
+			} catch (NotFoundException ex) {
+				logger.error("asset not available {}", ex.getMessage());
+			}
+		}
+		InputSource is = new InputSource(new InputStreamReader(inputStream));
+		DistributorPolicy policy = new DistributorPolicy(is);
+		try {
+			inputStream.close();
+		} catch (IOException ex) {
+			logger.error("could not close distributor configuration file {}",
+					ex.getStackTrace());
+		}
+		return policy;
+	}
+	/**
+	 * Load the policy information from an xml file
+	 * @param file
+	 */
+	public DistributorPolicy(InputSource is ) {
+		this.policy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.builder = new TopicBuilder();
+
+		if (is == null) {
+			logger.debug("loading default rule");
+			this.setDefaultRule();
+			return;
+		}
+		try {
+			SAXParserFactory parserFactory=SAXParserFactory.newInstance();
+			SAXParser saxParser=parserFactory.newSAXParser();
+			XMLReader reader=saxParser.getXMLReader();
+
+			reader.setContentHandler(this);
+			reader.parse(is);
+
+		} catch (MalformedURLException ex) {
+			logger.warn("malformed file name {}", ex.getStackTrace());
+			this.setDefaultRule();
+		} catch (ParserConfigurationException ex) {
+			logger.warn("parse error {}", ex.getStackTrace());
+			this.setDefaultRule();
+		} catch (SAXException ex) {
+			logger.warn("sax error {}", ex.getStackTrace());
+			this.setDefaultRule();
+		} catch (IOException ex) {
+			logger.warn("general io error {}", ex.getStackTrace());
+			this.setDefaultRule();
+		}
+	
+		logger.info("routing policy:\n {}",this);
+	}
+	
+	@Override
+	public String toString() {
+		final StringBuffer sb = new StringBuffer();
+		for (Entry<String, Topic> entry : this.policy.entrySet()) {
+			sb
+			.append('\n').append(" topic \"").append(entry.getKey()).append('"')
+			.append(entry.getValue() );
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * The following constructor is for testing only.
+	 * 
+	 * @param context
+	 * @param dummy
+	 */
+	public DistributorPolicy(Context context, int testSetId) {
+		this.policy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.builder = new TopicBuilder();
+
+		switch (testSetId) {
+		default:
+			this.setDefaultRule();
+			this.builder.priority(AmmoRequest.PRIORITY_NORMAL);
+			
+			this.builder.type("urn:test:domain/trial/both")
+			.addClause()
+			    .addLiteral(Term.GATEWAY, true)
+			    .addLiteral(Term.MULTICAST, true)
+			.build();
+		}
+	}
 
 
-        @Override
-        public void characters(char[] ch, int start, int length) throws SAXException {}
+	/**
+	 * A rule to catch all patterns which don't match anything else.
+	 */
+	public void setDefaultRule() {
+		this.builder
+		.type("")
+		.priority(AmmoRequest.PRIORITY_NORMAL)
+		.addClause().addLiteral(Term.GATEWAY, true)
+		.build();
+	}
 
-        @Override
-        public void endDocument() throws SAXException {}
+	/**
+	 * Find the 'best' key match.
+	 * The best match is the shortest string which matches the key.
+	 * 
+	 * 
+	 * @param key
+	 * @return
+	 */
+	public Topic match(String key) {
+		return this.policy.selectValue(key);
+	}
 
-        @Override
-        public void endElement(String uri, String localName, String qName) throws SAXException {}
+	private int indent = 0;
+	private String indent() {
+		StringBuilder sb = new StringBuilder();
+		for (int ix = 0; ix < indent; ++ix) sb.append("  ");
+		return sb.toString();
+	}
+	
+	public class Topic {
+		public final Routing routing;
+		public final int priority;
 
-        @Override
-        public void endPrefixMapping(String prefix) throws SAXException {}
+		public Topic(TopicBuilder builder) {
+			this.routing = builder.routing();
+			this.priority = builder.priority();
+		}
+		@Override
+		public String toString() {
+			DistributorPolicy.this.indent++;
+			final String ind = DistributorPolicy.this.indent();
+			
+			final StringBuffer sb = new StringBuffer();
+			sb.append('\n').append(ind).append("priority: ").append(this.priority)
+			  .append('\n').append(ind).append("routing:  ").append(this.routing);
+			DistributorPolicy.this.indent--;
+			return sb.toString();
+		}
+	}
 
-        @Override
-        public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {}
+	public class Routing {
+		public final List<Clause> clauses;
+		public Routing() {
+			this.clauses = new ArrayList<Clause>();
+		}
+		@Override
+		public String toString() {
+			DistributorPolicy.this.indent++;
+			
+			final StringBuffer sb = new StringBuffer();
+			for (Clause clause : this.clauses) { 
+			  sb.append(clause);
+			}
+			DistributorPolicy.this.indent--;
+			return sb.toString();
+		}
+		
+		public void clear() {
+			this.clauses.clear();
+		}
+		private Clause workingClause;
+		public void addClause() {
+			this.workingClause = new Clause();
+			this.clauses.add(this.workingClause);
+		}
+		public void addLiteral(Term term, Boolean condition) {
+			this.workingClause.addLiteral(new Literal(term, condition));
+		}
+	}
 
-        @Override
-        public void processingInstruction(String target, String data) throws SAXException {}
+	public class Clause {
+		public final List<Literal> literals;
+		public Clause() {
+			this.literals = new ArrayList<Literal>();
+		}
+		@Override
+		public String toString() {
+			DistributorPolicy.this.indent++;
+			final String ind = DistributorPolicy.this.indent();
+			
+			final StringBuffer sb = new StringBuffer();
+			sb.append('\n').append(ind).append("clause:");
+			for (Literal literal : this.literals) { 
+			  sb.append(literal);
+			}
+			DistributorPolicy.this.indent--;
+			return sb.toString();
+		}
+		public void addLiteral(Literal literal) {
+			this.literals.add(literal);
+		}
+	}
 
-        @Override
-        public void setDocumentLocator(Locator locator) {}
+	public class Literal {
+		public final Term term;
+		public final boolean condition;
+		public Literal(Term term, boolean condition) {
+			this.term = term;
+			this.condition = condition;
+		}
+		@Override
+		public String toString() {
+			DistributorPolicy.this.indent++;
+			final String ind = DistributorPolicy.this.indent();
+			
+			final StringBuffer sb = new StringBuffer();
+			sb.append('\n').append(ind)
+			  .append("term: ").append(this.term).append(' ')
+			  .append("condition: ").append(this.condition);
+			DistributorPolicy.this.indent--;
+			return sb.toString();
+		}
+	}
 
-        @Override
-        public void skippedEntity(String name) throws SAXException {}
+	public enum Term {
+		MULTICAST, GATEWAY, SERIAL;
+		@Override
+		public String toString() {
+			switch (this) {
+			case MULTICAST: return "M";
+			case GATEWAY: return "G";
+			case SERIAL: return "S";
+			}
+			return "U";
+		}
+	}
 
-        @Override
-        public void startDocument() throws SAXException {
-            this.setDefaultRule();
-        }
-        
-        /**
-         * A rule to catch all patterns which don't match anything else.
-         */
-        public void setDefaultRule() {
-            this.policy.put("application/vnd.com.aterrasys.nevada.", 
-                 this.lb
-                     .isGateway(true)
-                     .isMulticast(true)
-                     .build());
-        }
+	public class TopicBuilder {
 
-        @Override
-        public void startElement(String uri, String localName, String qName,
-                Attributes atts) throws SAXException {
-            
-            if (localName.equals("topic")) {
-                String type = atts.getValue(uri, "type");
-                if (type == null) return;
-                this.policy.put(type,  
-                    this.lb
-                        .isGateway(extractBoolean(uri,"isGateway", true, atts))
-                        .isMulticast(extractBoolean(uri,"isMulticast", false, atts))
-                        .priority(extractInteger(uri,"priority", IAmmoRequest.NORMAL_PRIORITY, atts))
-                        .build());
-            }
-        }
-        
-        /**
-         * A helper routine to extract an attribute from the xml element and 
-         * convert it into a boolean.
-         * 
-         * @param uri
-         * @param attrname
-         * @param def
-         * @param atts
-         * @return
-         */
-        private boolean extractBoolean(String uri, String attrname, boolean def, Attributes atts) {
-            String value = atts.getValue(uri, attrname);
-            if (value == null) return def;
-            return Boolean.parseBoolean(value);
-        }
-        
-        
-        /**
-         * A helper routine to extract an attribute from the xml element and 
-         * convert it into a boolean.
-         * 
-         * @param uri
-         * @param attrname
-         * @param def
-         * @param atts
-         * @return
-         */
-        private int extractInteger(String uri, String attrname, int def, Attributes atts) {
-            String value = atts.getValue(uri, attrname);
-            if (value == null) return def;
-            return Integer.parseInt(value);
-        }
+		public TopicBuilder() {
+			this.routing = new Routing();
+		}
+		public Topic build() { return new Topic(this); }
 
-        @Override
-        public void startPrefixMapping(String prefix, String uri)  throws SAXException { }
-    
+		private int priority;
+		public int priority() { return this.priority; }
+		public TopicBuilder priority(int val) {  this.priority = val; return this; }
+
+
+		private Routing routing;
+		public Routing routing() { return this.routing; }
+		public TopicBuilder newRouting() { 
+			this.routing = new Routing();
+			return this;
+		}
+
+		private String type;
+		public TopicBuilder type(String val) {
+			this.type = val;
+			return this;
+		}
+		public String type() {
+			return this.type;
+		}
+
+		public TopicBuilder addClause() {
+			this.routing.addClause();
+			return this;
+		}
+		public TopicBuilder addLiteral(Term term, Boolean condition) {
+			this.routing.addLiteral(term, condition);
+			return this;
+		}
+	}
+
+
+	@Override
+	public void characters(char[] ch, int start, int length) throws SAXException {}
+
+	@Override
+	public void endDocument() throws SAXException {}
+
+	@Override
+	public void endElement(String uri, String localName, String qName) throws SAXException {
+
+		if (! this.inTopic) { 
+			if (localName.equals("policy")) {
+				return;
+			}
+			logger.error("xml ended prematurely {}", localName);
+		} else {
+			if (! this.inRouting) { 
+				if (localName.equals("topic")) {
+					Topic topic = builder.build();
+					this.policy.put(builder.type(), topic );
+					this.inTopic = false;
+					// logger.trace("add topic: {}", topic);
+					return;
+				}
+			} else {
+				if (localName.equals("description")) {
+					return;
+				}
+				if (! this.inClause){
+					if (localName.equals("routing")) { 
+						this.inRouting = false;
+						return;
+					}
+				} else {
+					if (localName.equals("clause")) {
+						this.inClause = false;
+						return;
+					}
+					if (localName.equals("literal")) {
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	@Override
+	public void endPrefixMapping(String prefix) throws SAXException {}
+
+	@Override
+	public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {}
+
+	@Override
+	public void processingInstruction(String target, String data) throws SAXException {}
+
+	@Override
+	public void setDocumentLocator(Locator locator) {}
+
+	@Override
+	public void skippedEntity(String name) throws SAXException {}
+
+	@Override
+	public void startDocument() throws SAXException {
+		this.setDefaultRule();
+	}
+
+
+	private boolean inTopic = false;
+	private boolean inRouting = false;
+	private boolean inClause = false;
+
+	@Override
+	public void startElement(String uri, String localName, String qName,
+			Attributes atts) throws SAXException {
+
+		if (! this.inTopic) {  
+			if (localName.equals("topic")) {
+				this.inTopic = true;
+				String type = atts.getValue(uri, "type");
+				if (type == null) return;
+				this.builder.type(type);
+				return;
+			}
+			logger.warn("expecting topic: got {}", localName);
+			return;
+		} 
+		if (! this.inRouting) { 
+			if (localName.equals("routing")) { 
+				this.inRouting = true;
+				this.builder.newRouting();
+				return;
+			}
+			if (localName.equals("priority")) {
+				this.builder.priority(extractPriority(uri,"value", 
+						IAmmoRequest.PRIORITY_NORMAL, atts));
+				return;
+			}
+			logger.warn("expecting routing or priority: got {}", localName);
+			return; 
+		}
+		if (! this.inClause){
+			if (localName.equals("clause")) {
+				this.inClause = true;
+				this.builder.addClause();
+				return;
+			}
+			if (localName.equals("description")) {
+				return;
+			}
+			logger.warn("expecting clause or description: got {}", localName);
+			return;
+		}
+
+		if (localName.equals("literal")) {
+			Term term = extractTerm(uri,"term" , Term.GATEWAY, atts);
+			Boolean condition = extractCondition(uri,"condition", true, atts);
+
+			this.builder.addLiteral(term, condition);
+			return;
+		}
+		logger.warn("expecting literal: got {}", localName);
+	}
+
+	/**
+	 * A helper routine to extract an attribute from the xml element and 
+	 * convert it into a boolean.
+	 * 
+	 * @param uri
+	 * @param attrname
+	 * @param def
+	 * @param atts
+	 * @return
+	 */
+	private boolean extractCondition(String uri, String attrname, boolean def, Attributes atts) {
+		String value = atts.getValue(uri, attrname);
+		if (value == null) return def;
+		if (value.equalsIgnoreCase("success")) return true;
+		return Boolean.parseBoolean(value);
+	}
+
+	/**
+	 * A helper routine to extract an attribute from the xml element and 
+	 * convert it into a boolean.
+	 * 
+	 * @param uri
+	 * @param attrname
+	 * @param def
+	 * @param atts
+	 * @return
+	 */
+	private Term extractTerm(String uri, String attrname, Term def, Attributes atts) {
+		String value = atts.getValue(uri, attrname);
+		if (value == null) return def;
+		if (value.equalsIgnoreCase("multicast")) return Term.MULTICAST;
+		if (value.equalsIgnoreCase("serial")) return Term.SERIAL;
+		if (value.equalsIgnoreCase("gateway")) return Term.GATEWAY;
+		logger.error("invalid term {}", value);
+		return null;
+	}
+
+	/**
+	 * A helper routine to extract an attribute from the xml element and 
+	 * convert it into a boolean.
+	 * 
+	 * @param uri
+	 * @param attrname
+	 * @param def
+	 * @param atts
+	 * @return
+	 */
+	private int extractPriority(String uri, String attrname, int def, Attributes atts) {
+		String value = atts.getValue(uri, attrname);
+		if (value == null) return def;
+		if (value.equalsIgnoreCase("default")) return IAmmoRequest.PRIORITY_DEFAULT;
+		if (value.equalsIgnoreCase("background")) return IAmmoRequest.PRIORITY_BACKGROUND;
+		if (value.equalsIgnoreCase("low")) return IAmmoRequest.PRIORITY_LOW;
+		if (value.equalsIgnoreCase("normal")) return IAmmoRequest.PRIORITY_NORMAL;
+		if (value.equalsIgnoreCase("high")) return IAmmoRequest.PRIORITY_HIGH;
+		if (value.equalsIgnoreCase("urgent")) return IAmmoRequest.PRIORITY_URGENT;
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException ex) {
+			return def;
+		}
+	}
+
+	@Override
+	public void startPrefixMapping(String prefix, String uri)  throws SAXException { }
+
 }

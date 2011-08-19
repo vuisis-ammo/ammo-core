@@ -78,18 +78,21 @@ extends AsyncTask<DistributorService, Integer, Void>
     private AtomicBoolean subscriptionDelta = new AtomicBoolean(true);
 
     public void subscriptionChange() {
+    	logger.trace("::subscription change");
         this.signal(this.subscriptionDelta);
     }
 
     private AtomicBoolean retrievalDelta = new AtomicBoolean(true);
 
     public void retrievalChange() {
+    	logger.trace("::subscription change");
         this.signal(this.retrievalDelta);
     }
 
     private AtomicBoolean postalDelta = new AtomicBoolean(true);
 
     public void postalChange() {
+    	logger.trace("::subscription change");
         this.signal(this.postalDelta);
     }
     
@@ -135,19 +138,28 @@ extends AsyncTask<DistributorService, Integer, Void>
         }
     }
 
-    private boolean isReady() {
-        if (this.subscriptionDelta.get()) return true;
-        if (this.retrievalDelta.get()) return true;
-        if (this.postalDelta.get()) return true;
-        
-        if (this.responseDelta.get()) return true;
-        if (this.requestDelta.get()) return true;
-        return false;
+    private boolean isReady(DistributorService[] them) {
+    	CONNECTED: {
+	    	for (DistributorService that : them) {
+	    		if (that.getNetworkServiceBinder().isConnected()) {
+	    			break CONNECTED;
+	    		}
+	    	}
+	    	return false;
+	    }
+	    if (this.subscriptionDelta.get()) return true;
+	    if (this.retrievalDelta.get()) return true;
+	    if (this.postalDelta.get()) return true;
+	
+	    if (this.responseDelta.get()) return true;
+	    if (this.requestDelta.get()) return true;
+	    return false;
     }
 
-    private AtomicBoolean resend = new AtomicBoolean(true);
-    public void resend() {
-        this.resend.set(true);
+    private AtomicBoolean retry = new AtomicBoolean(true);
+    public void retry() {
+    	logger.trace("::resend");
+        this.retry.set(true);
         this.subscriptionDelta.set(true);
         this.retrievalDelta.set(true);
         this.postalDelta.set(true);
@@ -166,8 +178,10 @@ extends AsyncTask<DistributorService, Integer, Void>
     protected Void doInBackground(DistributorService... them) {
         
         logger.info("::post to network service");
-        if (this.resend.getAndSet(false)) {
+        if (this.retry.getAndSet(false)) {
             for (DistributorService that : them) {
+            	if (!that.getNetworkServiceBinder().isConnected()) 
+            		continue;
                 this.processSubscriptionChange(that, true);
                 this.processRetrievalChange(that, true);
                 this.processPostalChange(that, true);
@@ -177,9 +191,9 @@ extends AsyncTask<DistributorService, Integer, Void>
         try {
             while (true) {
                 // condition wait, is there something to process?
-                synchronized (this) { while (!this.isReady()) this.wait(BURP_TIME); }
+                synchronized (this) { while (!this.isReady(them)) this.wait(BURP_TIME); }
                 
-                boolean resend = this.resend.getAndSet(false);
+                boolean resend = this.retry.getAndSet(false);
                 logger.info("process requests, resend? {}", resend);
                     
                 if (this.subscriptionDelta.getAndSet(false)) {
@@ -200,11 +214,9 @@ extends AsyncTask<DistributorService, Integer, Void>
                 if (this.responseDelta.getAndSet(false)) {
                     while (!this.responseQueue.isEmpty()) {
                         try {
-			    int count=0;
                             AmmoGatewayMessage agm = this.responseQueue.take();
                             for (DistributorService that : them) {
                                 this.processResponse(that, agm);
-				logger.info("pr {} {}", count++, agm);
                             }
                         } catch (ClassCastException ex) {
                             logger.error("response queue contains illegal item of class {}", 
@@ -256,7 +268,7 @@ extends AsyncTask<DistributorService, Integer, Void>
      * @return was the message clean (true) or garbled (false).
      */
     private boolean processRequest(DistributorService that, AmmoRequest agm) {
-        logger.info("::processRequest");
+        logger.info("::processRequest {}",agm);
         switch (agm.action){
         case POSTAL: processPostalRequest(that, agm, 1); break;
         case DIRECTED_POSTAL: processPostalRequest(that, agm, 2); break;
@@ -278,7 +290,7 @@ extends AsyncTask<DistributorService, Integer, Void>
      * @return was the message clean (true) or garbled (false).
      */
     private boolean processResponse(Context context, AmmoGatewayMessage agm) {
-        logger.info("::processResponse");
+        logger.info("::processResponse {}", agm);
 
         CRC32 crc32 = new CRC32();
         crc32.update(agm.payload);
@@ -721,11 +733,9 @@ extends AsyncTask<DistributorService, Integer, Void>
         logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
         final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
         
-        final DistributorPolicy.Load load = that.policy().match(mimeType);
-        agmb.isMulticast(load.isMulticast);
-        agmb.isGateway(load.isGateway);
+        final DistributorPolicy.Topic topic = that.policy().match(mimeType);
        
-        return that.getNetworkServiceBinder().sendRequest(agmb.build());
+        return that.getNetworkServiceBinder().sendRequest(agmb.build(), topic);
     }
     
     
@@ -908,7 +918,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                 pendingCursor.close();
                 break; // no more items
             }
-
+           
             for (boolean areMoreItems = pendingCursor.moveToFirst(); areMoreItems;
                  areMoreItems = pendingCursor.moveToNext()) 
             {
@@ -930,9 +940,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 
                 Uri rowUri = Uri.parse(uri);
 
-                if (!that.getNetworkServiceBinder().isConnected()) {
-                    continue;
-                }
                 final Uri retrieveUri = RetrievalTableSchema.getUri(pendingCursor);
                 final ContentValues values = new ContentValues();
                 values.put(RetrievalTableSchema.DISPOSITION,
@@ -1116,7 +1123,7 @@ extends AsyncTask<DistributorService, Integer, Void>
        
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
         agmb.isGateway(true);
-        return that.getNetworkServiceBinder().sendRequest(agmb.build());
+        return that.getNetworkServiceBinder().sendRequest(agmb.build(), null);
     }
     
 
@@ -1489,7 +1496,7 @@ extends AsyncTask<DistributorService, Integer, Void>
        
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
         agmb.isGateway(true);
-        return that.getNetworkServiceBinder().sendRequest(agmb.build());
+        return that.getNetworkServiceBinder().sendRequest(agmb.build(), null);
     }
     
 
