@@ -1059,11 +1059,16 @@ public class SerialChannel extends NetChannel
                     logger.error( "about to read()" );
 
                     int size = inputStream.read( buffer );
-                    if (size < 0 || size < HEADER_SIZE )
+                    if (size < 0 ) //|| size < HEADER_SIZE )
                         continue;
-                    buf.put( buffer, 0, size );
-                    logger.error( "{}...{}", buf.position(), buf.array() );
 
+                    logger.error( "1" );
+                    buf.put( buffer, 0, size );
+                    //logger.error( "asdfasdf {}...{}", buf.position(), buf.array() );
+                    logger.error( "the buffer: {}", buf );
+
+                    if ( buf.position() < AmmoGatewayMessage.HEADER_LENGTH )
+                        continue;
 
                     // logger.error( "finished read()" );
                     // if ( size > 0 )
@@ -1089,7 +1094,7 @@ public class SerialChannel extends NetChannel
                     AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader( buf );
                     if ( agmb == null )
                     {
-                        logger.error( "Deserialization failure. Discarded invalid packet." );
+                        logger.error( "Deserialization failure." );
                         buf.compact();
                         continue;
                     }
@@ -1107,7 +1112,10 @@ public class SerialChannel extends NetChannel
                             buf.clear();
                             int ret = inputStream.read( buffer );
                             if (ret > 0)
+                            {
+                                logger.error( "2" );
                                 buf.put( buffer, 0, ret );
+                            }
                             buf.flip();
                             continue;
                         }
@@ -1118,18 +1126,19 @@ public class SerialChannel extends NetChannel
                         mDestination.deliverMessage( agm );
                         logger.info( "processed a message {}",
                                      Long.toHexString(agm.payload_checksum) );
+                        buf.compact();
                         break;
                     }
                 }
                 catch ( ClosedChannelException ex ) // Should we do an IOException for the serial port instead?
                 {
-                    logger.warn( "receiver threw exception {}", ex.getStackTrace() );
+                    logger.warn( "receiver threw exception 1 {}", ex.getStackTrace() );
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
                 catch ( Exception ex )
                 {
-                    logger.warn( "receiver threw exception {}", ex.getStackTrace() );
+                    logger.warn( "receiver threw exception 2 {}", ex.getStackTrace() );
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
