@@ -40,6 +40,7 @@ import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
+import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -145,8 +146,9 @@ public class NetworkService extends Service implements
 	// Channels
 	private INetChannel tcpChannel = TcpChannel.getInstance(this);
 	//private INetChannel multicastChannel = MulticastChannel.getInstance(this);
-	private INetChannel multicastChannel = SerialChannel.getInstance(this);
+	private INetChannel multicastChannel = MulticastChannel.getInstance(this);
 	private INetChannel journalChannel = JournalChannel.getInstance(this);
+	private SerialChannel serialChannel = SerialChannel.getInstance(this);
 
 	private MyBroadcastReceiver myReceiver = null;
 	private IRegisterReceiver mReceiverRegistrar = new IRegisterReceiver() {
@@ -231,7 +233,9 @@ public class NetworkService extends Service implements
 
 		mChannels.add(Gateway.getInstance(getBaseContext()));
 		mChannels.add(Multicast.getInstance(getBaseContext()));
-
+		mChannels.add(Serial.getInstance(getBaseContext()));
+		
+		
 		mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
 		mNetlinks.add(WiredNetlink.getInstance(getBaseContext()));
 		mNetlinks.add(PhoneNetlink.getInstance(getBaseContext()));
@@ -490,6 +494,36 @@ public class NetworkService extends Service implements
 			this.multicastChannel.setPort(port);
 		}
 
+		if(key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
+			this.serialChannel.setBaudRate(Integer.parseInt(prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600")));
+		}
+		
+		if(key.equals(INetPrefKeys.SERIAL_DEBUG_PERIOD)) {
+			this.serialChannel.setDebugPeriod(Long.parseLong(prefs.getString(INetPrefKeys.SERIAL_DEBUG_PERIOD, "10")));
+		}
+		
+		if(key.equals(INetPrefKeys.SERIAL_DEVICE)) {
+			this.serialChannel.setDevice(prefs.getString(INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0"));
+		}
+		
+		if(key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED)) {
+			this.serialChannel.setReceiverEnabled(prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true));
+		}
+		
+		if(key.equals(INetPrefKeys.SERIAL_SEND_ENABLED)) {
+			this.serialChannel.setSenderEnabled(prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true));
+		}
+		
+		if(key.equals(INetPrefKeys.SERIAL_SHOULD_USE)) {
+			if(prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false))
+				this.serialChannel.enable();
+			else
+				this.serialChannel.disable();
+		}
+		
+		if(key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
+			this.serialChannel.setSlotNumber(Integer.parseInt(prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, "8")));
+		}
 		return;
 	}
 
@@ -764,14 +798,19 @@ public class NetworkService extends Service implements
 	public void statusChange(INetChannel channel, int connStatus,
 			int sendStatus, int recvStatus) {
 		// FIXME Once we have multiple gateways we'll have to fix this.
+		// FIXME MAGIC NUMBERS!
 		// If the channel being updated is a MulticastChannel
 		if (channel.getClass().equals(MulticastChannel.class)) {
 			mChannels.get(1).setStatus(
 					new int[] { connStatus, sendStatus, recvStatus });
 		}
 		// Otherwise it is a gateway channel
-		else {
+		else if(channel.getClass().equals(TcpChannel.class)) {
 			mChannels.get(0).setStatus(
+					new int[] { connStatus, sendStatus, recvStatus });
+		}
+		else if(channel.getClass().equals(SerialChannel.class)) {
+			mChannels.get(2).setStatus(
 					new int[] { connStatus, sendStatus, recvStatus });
 		}
 

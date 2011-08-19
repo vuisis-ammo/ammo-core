@@ -340,6 +340,18 @@ public class SerialChannel extends NetChannel
     private final long mHeartbeatInterval = 10 * 1000; // ms
     private final AtomicLong mNextHeartbeatTime = new AtomicLong( 0 );
 
+	private int baudRate;
+
+	private long debugPeriod;
+
+	private String device;
+
+	private boolean receiverEnabled;
+
+	private int slotNumber;
+
+	private boolean senderEnabled;
+
     // Send a heartbeat packet to the gateway if enough time has elapsed.
     // Note: the way this currently works, the heartbeat can only be sent
     // in intervals that are multiples of the burp time.  This may change
@@ -662,7 +674,7 @@ public class SerialChannel extends NetChannel
                 logger.error( "Tried to create mPort when we already had one." );
             try
             {
-                parent.mPort = new SerialPort( new File("/dev/ttyUSB0"), 9600 );
+                parent.mPort = new SerialPort( new File(device), baudRate );
             }
             catch ( Exception e )
             {
@@ -1150,4 +1162,40 @@ public class SerialChannel extends NetChannel
         }
         return null;
     }
+
+
+	public void setBaudRate(int long1) {
+		this.baudRate = long1;
+		
+	}
+
+
+	public void setDebugPeriod(long long1) {
+		this.debugPeriod = long1;
+		
+	}
+
+
+	public void setDevice(String string) {
+		this.device = string;
+		
+	}
+
+
+	public void setReceiverEnabled(boolean boolean1) {
+		this.receiverEnabled = boolean1;
+		
+	}
+
+
+	public void setSlotNumber(int int1) {
+		this.slotNumber = int1;
+		
+	}
+
+
+	public void setSenderEnabled(boolean boolean1) {
+		this.senderEnabled = boolean1;
+		
+	}
 }

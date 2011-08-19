@@ -22,7 +22,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	// ===========================================================
 	public static final Logger logger = LoggerFactory.getLogger(MyEditIntegerPreference.class);
 	public static enum Type {
-		PORT, TIMEOUT
+		PORT, TIMEOUT, BAUDRATE, SLOT_NUMBER, DEBUG_PERIOD
 	};
 	
 	// ===========================================================
@@ -103,6 +103,29 @@ public class MyEditIntegerPreference extends EditTextPreference {
 				
 				
 			}
+		case BAUDRATE:
+			if(!this.validateBaudrate(uncheckedText)) {
+				Toast.makeText(context, "Invalid Baudrate", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			} else {
+				checkedText = uncheckedText;
+			}
+			
+		case SLOT_NUMBER:
+			if(!this.validateSlotNumber(uncheckedText)) {
+				Toast.makeText(context, "Invalid Slot Number", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			} else {
+				checkedText = uncheckedText;
+			}
+			
+		case DEBUG_PERIOD:
+			if(!this.validateDebugPeriod(uncheckedText)) {
+				Toast.makeText(context, "Invalid Debug Period", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			} else {
+				checkedText = uncheckedText;
+			}
 			
 			
 			break;
@@ -117,6 +140,19 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	
 	
 	
+	private boolean validateDebugPeriod(String uncheckedText) {
+		return Integer.parseInt(uncheckedText) > 0;
+	}
+
+	private boolean validateSlotNumber(String uncheckedText) {
+		int i = Integer.parseInt(uncheckedText);
+		return (i > 0) && (i <=16);
+	}
+
+	private boolean validateBaudrate(String uncheckedText) {
+		return Integer.parseInt(uncheckedText) == 9600;
+	}
+
 	public String getText() {
 		// We should do some bounds checking here based on type of ETP.
 		String value = super.getText();

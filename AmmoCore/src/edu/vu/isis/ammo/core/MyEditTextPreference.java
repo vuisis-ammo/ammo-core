@@ -81,7 +81,7 @@ public class MyEditTextPreference extends EditTextPreference {
 			break;
 	
 		case DEVICE_ID:
-			// checkedText = this.getText();
+			checkedText = this.getText();
 			break;
 			
 		case OPERATOR_ID:
