@@ -1034,9 +1034,10 @@ public class SerialChannel extends NetChannel
             // If this needs to change in the future, this code will need to be
             // revised.
 
-            byte[] raw = new byte[100000]; // FIXME: What is max datagram size?
-            ByteBuffer buf = ByteBuffer.wrap( raw );
+            ByteBuffer buf = ByteBuffer.allocate( 100000 );
             buf.order( endian );
+            buf.clear();
+
             while ( mState != INetChannel.INTERRUPTED )
             {
                 try
@@ -1056,38 +1057,69 @@ public class SerialChannel extends NetChannel
                     byte[] buffer = new byte[34];
                     InputStream inputStream = mPort.getInputStream();
                     logger.error( "about to read()" );
+
                     int size = inputStream.read( buffer );
-                    logger.error( "finished read()" );
+                    if (size < 0 || size < HEADER_SIZE )
+                        continue;
+                    buf.put( buffer, 0, size );
+                    logger.error( "{}...{}", buf.position(), buf.array() );
+
+
+                    // logger.error( "finished read()" );
                     // if ( size > 0 )
                     // {
                     //     logger.debug( "Received:" + new String( buffer, 0, size ));
                     //     //onDataReceived( buffer, size );
                     // }
 
-                    logger.debug( "Received a packet. length={}", size );
+                    // logger.debug( "Received a packet. length={}", size );
 
-                    buf.put( buffer );
-                    //ByteBuffer buf = ByteBuffer.wrap( buffer );
-                    logger.error( "{}...{}", buf.remaining(), buf.array() );
+                    // //ByteBuffer buf = ByteBuffer.wrap( buffer );
+                    // logger.error( "{}...{}", buf.remaining(), buf.array() );
 
-                    // wrap() creates a buffer that is ready to be drained,
-                    // so there is no need to flip() it.
+                    // // wrap() creates a buffer that is ready to be drained,
+                    // // so there is no need to flip() it.
+
+                    // SKN: try to read enough to get one full message worth, then attempt to extract and compact
+
+
+
+                    // extract header
+                    buf.flip();
                     AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader( buf );
-
                     if ( agmb == null )
                     {
                         logger.error( "Deserialization failure. Discarded invalid packet." );
+                        buf.compact();
                         continue;
                     }
 
                     // extract the payload
-                    byte[] payload = new byte[agmb.size()];
-                    buf.get( payload, 0, buf.remaining() );
+                    size = agmb.size();
+                    int offset = 0;
+                    byte[] payload = new byte[size];
+                    while (true) {
+                        if (buf.remaining() < size) {
+                            int rem =  buf.remaining();
+                            buf.get(payload, offset, rem);
+                            offset += rem;
+                            size -= rem;
+                            buf.clear();
+                            int ret = inputStream.read( buffer );
+                            if (ret > 0)
+                                buf.put( buffer, 0, ret );
+                            buf.flip();
+                            continue;
+                        }
+                        buf.get(payload, offset, size);
 
-                    AmmoGatewayMessage agm = agmb.payload( payload ).build();
-                    setReceiverState( INetChannel.DELIVER );
-                    mDestination.deliverMessage( agm );
-                    logger.debug( "processed a message" );
+                        AmmoGatewayMessage agm = agmb.payload(payload).build();
+                        setReceiverState( INetChannel.DELIVER );
+                        mDestination.deliverMessage( agm );
+                        logger.info( "processed a message {}",
+                                     Long.toHexString(agm.payload_checksum) );
+                        break;
+                    }
                 }
                 catch ( ClosedChannelException ex ) // Should we do an IOException for the serial port instead?
                 {
@@ -1120,7 +1152,7 @@ public class SerialChannel extends NetChannel
         private SerialChannel mDestination;
         private SerialPort mPort;
         private final Logger logger
-            = LoggerFactory.getLogger( "net.serial.receiver" );
+        = LoggerFactory.getLogger( "net.serial.receiver" );
     }
 
 
