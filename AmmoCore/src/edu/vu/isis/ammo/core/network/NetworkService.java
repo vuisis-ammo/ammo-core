@@ -609,11 +609,11 @@ public class NetworkService extends Service implements
 
 	/**
 	 * Check to see if there are any open connections.
-	 * 
+	 *
 	 * @return
 	 */
 	public boolean isConnected() {
-		logger.info("::isConnected");
+		//logger.info("::isConnected");
 		return tcpChannel.isConnected() || multicastChannel.isConnected();
 	}
 

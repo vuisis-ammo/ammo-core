@@ -945,7 +945,7 @@ public class SerialChannel extends NetChannel
                     // to send the packet over the SerialPort.
                     // *****************************************************
 
-                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_TERSE );
+                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL );
                     // setSenderState( INetChannel.SENDING );
 
                     // DatagramPacket packet =
