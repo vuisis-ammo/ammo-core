@@ -2,6 +2,7 @@ package edu.vu.isis.ammo.core.ui;
 
 import android.content.res.Resources;
 import android.os.Bundle;
+import android.preference.Preference;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.MyCheckBoxPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference;
@@ -48,6 +49,20 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	private MyEditIntegerPreference connIdlePref;
 
 	private MyEditIntegerPreference netConnPref;
+
+	private MyEditTextPreference devicePref;
+
+	private MyCheckBoxPreference serialUsePref;
+
+	private MyCheckBoxPreference sendingPref;
+
+	private MyCheckBoxPreference receivingPref;
+
+	private MyEditIntegerPreference baudPref;
+
+	private MyEditIntegerPreference slotPref;
+
+	private MyEditIntegerPreference debugPref;
 	
 	// ===========================================================
 	// Lifecycle
@@ -121,6 +136,36 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
 		this.netConnPref.setType(Type.TIMEOUT);
 		this.netConnPref.refreshSummaryField();
+		
+		
+		/*
+		 * Serial Setup
+		 */
+		
+		this.devicePref = (MyEditTextPreference)this.findPreference(INetPrefKeys.SERIAL_DEVICE);
+		this.devicePref.setType(MyEditTextPreference.Type.DEVICE_ID);
+		this.devicePref.refreshSummaryField();
+		
+		this.serialUsePref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SHOULD_USE);
+		this.serialUsePref.refreshSummaryField();
+		
+		this.sendingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SEND_ENABLED);
+		this.sendingPref.refreshSummaryField();
+		
+		this.receivingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_RECEIVE_ENABLED);
+		this.receivingPref.refreshSummaryField();
+		
+		this.baudPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_BAUD_RATE);
+		this.baudPref.setType(Type.BAUDRATE);
+		this.baudPref.refreshSummaryField();
+		
+		this.slotPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_SLOT_NUMBER);
+		this.slotPref.setType(Type.SLOT_NUMBER);
+		this.slotPref.refreshSummaryField();
+		
+		this.debugPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_DEBUG_PERIOD);
+		this.debugPref.setType(Type.DEBUG_PERIOD);
+		this.debugPref.refreshSummaryField();
 		// System.setProperty(prop, value);
 		// export ANDROID_LOG_TAGS="ActivityManager:I MyApp:D *:S"
 			

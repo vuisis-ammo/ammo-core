@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout
+xmlns:android="http://schemas.android.com/apk/res/android"
+android:id="@+id/gateway_layout" 
+android:layout_width="fill_parent"
+android:layout_height="fill_parent">
+    <TextView 
+	android:layout_width="wrap_content"
+	android:layout_height="wrap_content"
+	android:id="@+id/channel_type"
+	android:visibility="invisible"/>
+	    
+    <TextView
+    android:id="@+id/serial_name"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_alignParentTop="true"
+    android:padding="3dip"
+    android:textSize="16dip"
+    android:hint="Name"/>
+
+    <TextView
+    android:id="@+id/serial_device"
+    android:layout_alignParentBottom="true"
+    android:layout_width="wrap_content" 
+    android:layout_height="wrap_content"
+    android:padding="3dip" 
+    android:textSize="16dip" 
+    android:hint="Device" />
+        
+    <TextView android:id="@+id/multicast_status_one"
+    android:layout_alignParentRight="true" 
+    android:layout_alignParentTop="true" 
+    android:layout_width="wrap_content" 
+    android:layout_height="wrap_content"
+    android:padding="3dip" 
+    android:textSize="16dip" 
+    android:hint="Checking status..." />
+        
+    <TextView android:id="@+id/multicast_status_two"
+        android:layout_alignParentRight="true" 
+        android:layout_below="@id/multicast_status_one" 
+        android:layout_width="wrap_content" 
+        android:layout_height="wrap_content"
+        android:padding="3dip" 
+        android:textSize="16dip"
+        android:visibility="invisible" />
+
+
+	
+</RelativeLayout>
