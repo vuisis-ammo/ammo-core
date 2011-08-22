@@ -280,11 +280,7 @@ extends AsyncTask<DistributorService, Integer, Void>
     private boolean processResponse(Context context, AmmoGatewayMessage agm) {
         logger.info("::processResponse");
 
-        CRC32 crc32 = new CRC32();
-        crc32.update(agm.payload);
-        if (crc32.getValue() != agm.payload_checksum) {
-            logger.warn("you have received a bad message, the checksums [{}:{}] did not match",
-                    Long.toHexString(crc32.getValue()), Long.toHexString(agm.payload_checksum));
+        if ( !agm.hasValidChecksum() ) {
             return false;
         }
 

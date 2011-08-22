@@ -937,7 +937,9 @@ public class MulticastChannel extends NetChannel
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL);
+                    ByteBuffer buf = msg.serialize( endian,
+                                                    AmmoGatewayMessage.VERSION_1_TERSE,
+                                                    (byte) 0 );
                     setSenderState( INetChannel.SENDING );
 
                     DatagramPacket packet =
@@ -961,8 +963,7 @@ public class MulticastChannel extends NetChannel
                 }
                 catch ( Exception e )
                 {
-                    e.printStackTrace();
-                    logger.warn("sender threw exception");
+                    logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, false );
                     setSenderState( INetChannel.INTERRUPTED );

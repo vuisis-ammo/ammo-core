@@ -310,7 +310,7 @@ public class JournalChannel extends NetChannel {
 						}
 					}
 					AmmoGatewayMessage msg = queue.take();
-					dos.write(msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL).array());
+					dos.write(msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,(byte)0).array());
 				}
 			} catch (SocketException ex) {
 				ex.printStackTrace();
