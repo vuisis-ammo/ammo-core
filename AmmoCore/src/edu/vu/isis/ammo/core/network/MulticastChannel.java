@@ -686,6 +686,7 @@ public class MulticastChannel extends NetChannel
                                                parent,
                                                parent.mSenderQueue,
                                                parent.mSocket );
+            setIsAuthorized( true );
             parent.mSender.start();
 
             // Create the receiving thread.
@@ -697,7 +698,6 @@ public class MulticastChannel extends NetChannel
             // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
             // just a temporary hack.
             //parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest());
-            setIsAuthorized( true );
             mSenderQueue.markAsAuthorized();
 
             return true;
@@ -829,6 +829,12 @@ public class MulticastChannel extends NetChannel
         }
 
 
+        public synchronized boolean messageIsAvailable()
+        {
+            return mDistQueue.peek() != null;
+        }
+
+
         public synchronized AmmoGatewayMessage take() throws InterruptedException
         {
             logger.info( "taking from SenderQueue" );
@@ -902,6 +908,8 @@ public class MulticastChannel extends NetChannel
             mChannel = iChannel;
             mQueue = iQueue;
             mSocket = iSocket;
+
+            mOffset = /*slotNumber */ 125; // ms
         }
 
 
@@ -924,7 +932,25 @@ public class MulticastChannel extends NetChannel
                 try
                 {
                     setSenderState( INetChannel.TAKING );
-                    msg = mQueue.take(); // The main blocking call
+                    //msg = mQueue.take(); // The main blocking call
+
+                    long currentTime = System.currentTimeMillis();
+
+                    long thisTakeTime = ((long) (currentTime / 2000) * 2000) + mOffset;
+                    if ( thisTakeTime > currentTime )
+                        Thread.sleep( thisTakeTime - currentTime );
+                    else
+                        Thread.sleep( (thisTakeTime + 2000) - currentTime );
+
+                    logger.debug( "Woke up: slot={}, (time, mu-s): {}",
+                                  1 /*slotNumber*/,
+                                  System.nanoTime() / 1000 );
+                    if ( !mQueue.messageIsAvailable() )
+                    {
+                        continue;
+                    }
+                    msg = mQueue.take(); // Will not block
+
                     logger.debug( "Took a message from the send queue" );
                 }
                 catch ( InterruptedException ex )
@@ -989,6 +1015,7 @@ public class MulticastChannel extends NetChannel
         private MulticastChannel mChannel;
         private SenderQueue mQueue;
         private MulticastSocket mSocket;
+        private int mOffset;
         private final Logger logger = LoggerFactory.getLogger( "net.mcast.sender" );
     }
 

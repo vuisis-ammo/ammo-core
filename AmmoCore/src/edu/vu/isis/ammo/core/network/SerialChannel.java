@@ -701,6 +701,7 @@ public class SerialChannel extends NetChannel
                                                parent,
                                                parent.mSenderQueue,
                                                parent.mPort );
+            setIsAuthorized( true );
             parent.mSender.start();
 
             // Create the receiving thread.
@@ -712,7 +713,6 @@ public class SerialChannel extends NetChannel
             // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
             // just a temporary hack.
             //parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest());
-            setIsAuthorized( true );
             mSenderQueue.markAsAuthorized();
 
             return true;
@@ -844,6 +844,12 @@ public class SerialChannel extends NetChannel
         }
 
 
+        public synchronized boolean messageIsAvailable()
+        {
+            return mDistQueue.peek() != null;
+        }
+
+
         public synchronized AmmoGatewayMessage take() throws InterruptedException
         {
             logger.info( "taking from SenderQueue" );
@@ -917,6 +923,8 @@ public class SerialChannel extends NetChannel
             mChannel = iChannel;
             mQueue = iQueue;
             mPort = iPort;
+
+            mOffset = slotNumber * 125; // ms
         }
 
 
@@ -939,7 +947,24 @@ public class SerialChannel extends NetChannel
                 try
                 {
                     setSenderState( INetChannel.TAKING );
-                    msg = mQueue.take(); // The main blocking call
+
+                    long currentTime = System.currentTimeMillis();
+
+                    long thisTakeTime = ((long) (currentTime / 2000) * 2000) + mOffset;
+                    if ( thisTakeTime > currentTime )
+                        Thread.sleep( thisTakeTime - currentTime );
+                    else
+                        Thread.sleep( (thisTakeTime + 2000) - currentTime );
+
+                    logger.debug( "Woke up: slot={}, (time, mu-s): {}",
+                                  slotNumber,
+                                  System.nanoTime() / 1000 );
+                    if ( !mQueue.messageIsAvailable() )
+                    {
+                        continue;
+                    }
+                    msg = mQueue.take(); // Will not block
+
                     logger.debug( "Took a message from the send queue" );
                 }
                 catch ( InterruptedException ex )
@@ -1020,6 +1045,7 @@ public class SerialChannel extends NetChannel
         private SerialChannel mChannel;
         private SenderQueue mQueue;
         private SerialPort mPort;
+        private int mOffset;
         private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
     }
 
