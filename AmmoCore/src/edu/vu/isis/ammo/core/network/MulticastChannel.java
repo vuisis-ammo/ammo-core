@@ -934,17 +934,44 @@ public class MulticastChannel extends NetChannel
                     setSenderState( INetChannel.TAKING );
                     //msg = mQueue.take(); // The main blocking call
 
+                    // Try to sleep until our next take time.
                     long currentTime = System.currentTimeMillis();
+                    long thisRoundTakeTime = ((long) (currentTime / 2000) * 2000) + mOffset;
 
-                    long thisTakeTime = ((long) (currentTime / 2000) * 2000) + mOffset;
-                    if ( thisTakeTime > currentTime )
-                        Thread.sleep( thisTakeTime - currentTime );
+                    long goalTakeTime;
+                    if ( thisRoundTakeTime > currentTime )
+                    {
+                        // We haven't yet reached our take time for this turn,
+                        // so that's our goal.
+                        goalTakeTime = thisRoundTakeTime;
+                    }
                     else
-                        Thread.sleep( (thisTakeTime + 2000) - currentTime );
+                    {
+                        // We've already missed our turn this round, so add
+                        // 2000 ms and wait until the next round.
+                        goalTakeTime = thisRoundTakeTime + 2000;
+                    }
+                    Thread.sleep( goalTakeTime - currentTime );
 
                     logger.debug( "Woke up: slot={}, (time, mu-s): {}",
                                   1 /*slotNumber*/,
                                   System.nanoTime() / 1000 );
+
+                    // Once we wake up, we need to see if we are in our slot.
+                    // Sometimes the sleep() will not wake up on time, and we
+                    // have missed our slot.  If so, don't do a take() and just
+                    // wait until our next slot.
+                    currentTime = System.currentTimeMillis();
+                    if ( currentTime - goalTakeTime > 25 ) // make 25 configurable
+                    {
+                        logger.debug( "Missed slot: attempted={}, current={}",
+                                      goalTakeTime,
+                                      currentTime );
+                        continue;
+                    }
+
+                    // At this point, we've woken up near the start of our window
+                    // and should send a message if one is available.
                     if ( !mQueue.messageIsAvailable() )
                     {
                         continue;
