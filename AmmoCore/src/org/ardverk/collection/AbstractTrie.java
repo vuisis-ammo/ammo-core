@@ -61,8 +61,8 @@ abstract class AbstractTrie<K, V> extends AbstractMap<K, V>
     
     @Override
     public V selectValue(K key) {
-        Map.Entry<K, V> entry = select(key);
-        return entry != null ? entry.getValue() : null;
+        Map.Entry<K, V> entry = this.select(key);
+        return (entry != null) ? entry.getValue() : null;
     }
         
     @Override

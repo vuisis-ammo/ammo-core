@@ -53,7 +53,7 @@ public class DistributorPolicy implements ContentHandler {
 	private static final Logger logger = LoggerFactory.getLogger("ammo.dp");
 
 	public final Trie<String, Topic> policy;
-	public final static String policy_dir = "policy.xml";
+	public final static String policy_dir = "policy";
 	public final static String policy_file = "distribution_policy.xml";
 
 	private TopicBuilder builder;
@@ -197,12 +197,12 @@ public class DistributorPolicy implements ContentHandler {
 	}
 	
 	public class Topic {
-		public final Routing routing;
 		public final int priority;
+		public final Routing routing;
 
 		public Topic(TopicBuilder builder) {
-			this.routing = builder.routing();
 			this.priority = builder.priority();
+			this.routing = builder.routing();
 		}
 		@Override
 		public String toString() {
@@ -237,6 +237,7 @@ public class DistributorPolicy implements ContentHandler {
 		public void clear() {
 			this.clauses.clear();
 		}
+		
 		private Clause workingClause;
 		public void addClause() {
 			this.workingClause = new Clause();
@@ -331,7 +332,7 @@ public class DistributorPolicy implements ContentHandler {
 		public String type() {
 			return this.type;
 		}
-
+		
 		public TopicBuilder addClause() {
 			this.routing.addClause();
 			return this;
@@ -344,126 +345,177 @@ public class DistributorPolicy implements ContentHandler {
 
 
 	@Override
-	public void characters(char[] ch, int start, int length) throws SAXException {}
-
-	@Override
-	public void endDocument() throws SAXException {}
-
-	@Override
-	public void endElement(String uri, String localName, String qName) throws SAXException {
-
-		if (! this.inTopic) { 
-			if (localName.equals("policy")) {
-				return;
-			}
-			logger.error("xml ended prematurely {}", localName);
-		} else {
-			if (! this.inRouting) { 
-				if (localName.equals("topic")) {
-					Topic topic = builder.build();
-					this.policy.put(builder.type(), topic );
-					this.inTopic = false;
-					// logger.trace("add topic: {}", topic);
-					return;
-				}
-			} else {
-				if (localName.equals("description")) {
-					return;
-				}
-				if (! this.inClause){
-					if (localName.equals("routing")) { 
-						this.inRouting = false;
-						return;
-					}
-				} else {
-					if (localName.equals("clause")) {
-						this.inClause = false;
-						return;
-					}
-					if (localName.equals("literal")) {
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	@Override
-	public void endPrefixMapping(String prefix) throws SAXException {}
-
-	@Override
-	public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {}
-
-	@Override
-	public void processingInstruction(String target, String data) throws SAXException {}
-
-	@Override
-	public void setDocumentLocator(Locator locator) {}
-
-	@Override
-	public void skippedEntity(String name) throws SAXException {}
-
-	@Override
 	public void startDocument() throws SAXException {
 		this.setDefaultRule();
 	}
 
+	@Override
+	public void endDocument() throws SAXException {}
 
+
+	private boolean inPolicy = false;
 	private boolean inTopic = false;
+	private boolean inPriority = false;
 	private boolean inRouting = false;
 	private boolean inClause = false;
+	private boolean inLiteral = false;
+	
+	private boolean inDescription = false;
 
 	@Override
 	public void startElement(String uri, String localName, String qName,
 			Attributes atts) throws SAXException {
-
+		if (! this.inPolicy) {  
+			if (localName.equals("policy")) {
+				logger.info("begin 'policy'");
+				this.inPolicy = true;
+				return;
+			}
+			logger.warn("expecting begin 'policy': got {}", localName);
+			return;
+		} 
+		// in policy
 		if (! this.inTopic) {  
 			if (localName.equals("topic")) {
+				logger.info("begin 'topic'");
 				this.inTopic = true;
 				String type = atts.getValue(uri, "type");
 				if (type == null) return;
 				this.builder.type(type);
 				return;
 			}
-			logger.warn("expecting topic: got {}", localName);
+			logger.warn("expecting begin 'topic': got {}", localName);
 			return;
 		} 
-		if (! this.inRouting) { 
+		// in policy/topic
+		if (! this.inDescription && ! this.inPriority && ! this.inRouting) { 
 			if (localName.equals("routing")) { 
+				logger.info("begin 'routing'");
 				this.inRouting = true;
 				this.builder.newRouting();
 				return;
 			}
 			if (localName.equals("priority")) {
+				logger.info("begin 'priority'");
+				this.inPriority = true;
 				this.builder.priority(extractPriority(uri,"value", 
 						IAmmoRequest.PRIORITY_NORMAL, atts));
 				return;
 			}
-			logger.warn("expecting routing or priority: got {}", localName);
+			if (localName.equals("description")) {
+				logger.info("begin topic 'description'");
+				this.inDescription = true;
+				return;
+			}
+			logger.warn("expecting begin 'routing' or 'priority': got {}", localName);
 			return; 
 		}
-		if (! this.inClause){
+		// in policy/topic/routing
+		if (! this.inDescription && ! this.inClause){
 			if (localName.equals("clause")) {
+				logger.info("begin 'clause'");
 				this.inClause = true;
 				this.builder.addClause();
 				return;
 			}
 			if (localName.equals("description")) {
+				logger.info("begin routing 'description'");
+				this.inDescription = true;
+				logger.info("processing route description");
 				return;
 			}
-			logger.warn("expecting clause or description: got {}", localName);
+			logger.warn("expecting begin 'clause' or 'description': got {}", localName);
 			return;
 		}
-
-		if (localName.equals("literal")) {
-			Term term = extractTerm(uri,"term" , Term.GATEWAY, atts);
-			Boolean condition = extractCondition(uri,"condition", true, atts);
-
-			this.builder.addLiteral(term, condition);
-			return;
+		// in policy/topic/routing/clause
+		if (! this.inLiteral) {
+			if (localName.equals("literal")) {
+				logger.info("begin 'literal'");
+				this.inLiteral = true;
+				Term term = extractTerm(uri,"term" , Term.GATEWAY, atts);
+				Boolean condition = extractCondition(uri,"condition", true, atts);
+				this.builder.addLiteral(term, condition);
+				return;
+			}
+			logger.warn("expecting begin 'literal': got {}", localName);
 		}
-		logger.warn("expecting literal: got {}", localName);
+		// in policy/topic/routing/clause/literal
+		logger.warn("expecting <nothing>: got {}", localName);
 	}
+
+	@Override
+	public void endElement(String uri, String localName, String qName) throws SAXException {
+		if (! this.inPolicy) { 
+			logger.error("excess elements {}", localName);
+			return;
+		} 
+		// in policy
+		if (! this.inTopic) { 
+			if (localName.equals("policy")) {
+				logger.info("end 'policy'");
+				this.inPolicy = false;
+				return;
+			}
+			logger.error("topic ended prematurely expecting policy got {}", localName);
+			return;
+		} 
+		// in policy/topic
+		if (! this.inRouting) { 
+			if (localName.equals("topic")) {
+				Topic topic = builder.build();
+				this.policy.put(builder.type(), topic );
+				logger.info("end 'topic'");
+				this.inTopic = false;
+				return;
+			}
+			if (localName.equals("priority")) {
+				logger.info("end 'topic/priority'");
+				this.inPriority = false;
+				return;
+			}
+			if (localName.equals("description")) {
+				logger.info("end 'topic/description'");
+				this.inDescription = false;
+				return;
+			}
+			logger.error("expecting end 'topic' or 'description' got {}", localName);
+			return;
+		} 
+		// in policy/topic/routing
+		if (! this.inClause){
+			if (localName.equals("routing")) { 
+				logger.info("end 'routing'");
+				this.inRouting = false;
+				return;
+			}
+			if (localName.equals("description")) {
+				logger.info("end 'routing/description'");
+				this.inDescription = false;
+				return;
+			}
+			logger.error("expecting end 'routing' or 'description' got {}", localName);
+			return;
+		} 
+		if (! this.inLiteral) {
+			// in policy/topic/routing/clause
+			if (localName.equals("clause")) {
+				logger.info("end 'clause'");
+				this.inClause = false;
+				return;
+			}
+			logger.error("expecting end 'clause' got {}", localName);
+			return;
+		}
+		// in policy/topic/routing/clause/literal
+		if (localName.equals("literal")) {
+			logger.info("end 'literal'");
+			this.inLiteral = false;
+			return;
+		}
+		logger.error("expecting end 'literal' got {}", localName);
+		return;
+	}
+
 
 	/**
 	 * A helper routine to extract an attribute from the xml element and 
@@ -530,5 +582,24 @@ public class DistributorPolicy implements ContentHandler {
 
 	@Override
 	public void startPrefixMapping(String prefix, String uri)  throws SAXException { }
+	
+	@Override
+	public void endPrefixMapping(String prefix) throws SAXException {}
+
+	@Override
+	public void characters(char[] ch, int start, int length) throws SAXException {}
+
+	@Override
+	public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {}
+
+	@Override
+	public void processingInstruction(String target, String data) throws SAXException {}
+
+	@Override
+	public void setDocumentLocator(Locator locator) {}
+
+	@Override
+	public void skippedEntity(String name) throws SAXException {}
+
 
 }

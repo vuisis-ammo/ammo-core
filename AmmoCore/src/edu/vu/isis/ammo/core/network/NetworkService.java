@@ -504,14 +504,13 @@ public class NetworkService extends Service implements
 	public AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
 		logger.info("::buildAuthenticationRequest");
 
-		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
-				.newBuilder();
-		mw
-				.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+		AmmoMessages.MessageWrapper.Builder mw = 
+				AmmoMessages.MessageWrapper.newBuilder();
+		mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
 		mw.setSessionUuid(sessionId);
 
-		AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage
-				.newBuilder();
+		AmmoMessages.AuthenticationMessage.Builder authreq = 
+				AmmoMessages.AuthenticationMessage.newBuilder();
 		authreq.setDeviceId(
 				UniqueIdentifiers.device(this.getApplicationContext()))
 				.setUserId(operatorId).setUserKey(operatorKey);
@@ -562,6 +561,12 @@ public class NetworkService extends Service implements
 		Boolean serialSuccess = null;
 		
 		boolean totalSuccess = true;
+		if (topic == null) {
+			logger.error("no matching routing topic");
+			gatewaySuccess = this.tcpChannel.sendRequest(agm);
+			success.put(TcpChannel.class, gatewaySuccess);
+			return success;
+		} 
 		for (DistributorPolicy.Clause clause : topic.routing.clauses) {
 			boolean clauseSuccess = false;
 			CLAUSE:
@@ -590,6 +595,16 @@ public class NetworkService extends Service implements
 					break;
 				case SERIAL:
 					logger.error("Serial channel not yet implemented");
+					if (serialSuccess == null)
+						serialSuccess = false; 
+					// TODO there is no serial channel at present so it fails by omission
+					
+					if (serialSuccess == literal.condition) {
+						clauseSuccess = true;
+						break CLAUSE;
+					}
+					if (serialSuccess) break;
+					break;
 				}
 			}
 			totalSuccess &= clauseSuccess;
