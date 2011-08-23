@@ -86,7 +86,8 @@ public class DistributorService extends Service {
 		public boolean isConnected() { return false; }
 
 		@Override
-		public Map<Class<? extends INetChannel>,Boolean> sendRequest(AmmoGatewayMessage agm) { 
+		public Map<Class<? extends INetChannel>,Boolean> 
+		sendRequest(AmmoGatewayMessage agm, DistributorPolicy.Topic topic ) { 
 			return null; 
 		}
 
@@ -119,7 +120,7 @@ public class DistributorService extends Service {
 
     public void consumerReady() {
         logger.info("::consumer ready : resend old requests");
-        this.distThread.resend();
+        this.distThread.retry();
     }
     
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
