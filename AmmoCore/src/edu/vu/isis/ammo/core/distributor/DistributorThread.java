@@ -298,6 +298,7 @@ extends AsyncTask<DistributorService, Integer, Void>
         switch (mw.getType()) {
 
         case DATA_MESSAGE:
+        case TERSE_MESSAGE:
             logger.info("data interest");
             receiveSubscriptionResponse(context, mw);
             break;
@@ -316,10 +317,11 @@ extends AsyncTask<DistributorService, Integer, Void>
             logger.info("pull response");
             receiveRetrievalResponse(context, mw);
             break;
-            
+
         case HEARTBEAT:
             logger.info("heartbeat");
             break;
+
         case AUTHENTICATION_MESSAGE:
         case SUBSCRIBE_MESSAGE:
         case PULL_REQUEST:
