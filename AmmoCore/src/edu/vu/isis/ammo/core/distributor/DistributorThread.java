@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -35,6 +36,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
@@ -200,11 +202,11 @@ extends AsyncTask<DistributorService, Integer, Void>
                 if (this.responseDelta.getAndSet(false)) {
                     while (!this.responseQueue.isEmpty()) {
                         try {
-			    int count=0;
+                            int count=0;
                             AmmoGatewayMessage agm = this.responseQueue.take();
                             for (DistributorService that : them) {
                                 this.processResponse(that, agm);
-				logger.info("pr {} {}", count++, agm);
+                                logger.info("pr {} {}", count++, agm);
                             }
                         } catch (ClassCastException ex) {
                             logger.error("response queue contains illegal item of class {}", 
@@ -703,30 +705,59 @@ extends AsyncTask<DistributorService, Integer, Void>
     {
         logger.info("::dispatchPostalRequest");
 
+        final DistributorPolicy.Load load = that.policy().match(mimeType);
+
         final Long now = System.currentTimeMillis();
         logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
-        
-        final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
- 
-        final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder();
-        pushReq.setUri(uri)
-               .setMimeType(mimeType)
-               .setData(ByteString.copyFrom(data));
 
-        mw.setDataMessage(pushReq);
+        Map<Class<? extends INetChannel>,Boolean> result = new HashMap<Class<? extends INetChannel>,Boolean>();
+        Map<Class<? extends INetChannel>,Boolean> result1 = new HashMap<Class<? extends INetChannel>,Boolean>();
+        Map<Class<? extends INetChannel>,Boolean> result2 = new HashMap<Class<? extends INetChannel>,Boolean>();
 
-        logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
-        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
-        
-        final DistributorPolicy.Load load = that.policy().match(mimeType);
-        agmb.isMulticast(load.isMulticast);
-        agmb.isGateway(load.isGateway);
-       
-        return that.getNetworkServiceBinder().sendRequest(agmb.build());
+        if (load.isGateway || load.isMulticast) {
+            final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+            mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+
+            final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder();
+            pushReq.setUri(uri)
+                .setMimeType(mimeType)
+                .setData(ByteString.copyFrom(data));
+
+            mw.setDataMessage(pushReq);
+
+            logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
+            final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+
+            agmb.isMulticast(load.isMulticast);
+            agmb.isGateway(load.isGateway);
+
+            result1 = that.getNetworkServiceBinder().sendRequest(agmb.build());
+        }
+        if (load.isSerialChannel) {
+            final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+            mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
+
+            final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage.newBuilder();
+            pushReq.setData(ByteString.copyFrom(data));
+            pushReq.setMimeType( AmmoMimeTypes.mimeIds.get(mimeType) );
+
+            mw.setTerseMessage(pushReq);
+
+            logger.debug("Finished wrap build @ time {}...difference of {} ms \n",System.currentTimeMillis(), System.currentTimeMillis()-now);
+            final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+
+            agmb.isSerialChannel(load.isSerialChannel);
+
+            result2 = that.getNetworkServiceBinder().sendRequest(agmb.build());
+        }
+
+        result.putAll(result1);
+        result.putAll(result2);
+
+        return result;
     }
-    
-    
+
+
     /**
      * Get response to PushRequest from the gateway.
      * This should be seen in response to a post passing
@@ -1503,15 +1534,24 @@ extends AsyncTask<DistributorService, Integer, Void>
             logger.warn("no message");
             return false;
         }
-        if (! mw.hasDataMessage()) {
+        if (! mw.hasDataMessage() && !mw.hasTerseMessage() ) {
             logger.warn("no data in message");
             return false;
         }
-            
-        final AmmoMessages.DataMessage resp = mw.getDataMessage();
 
-        logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
-        String mime = resp.getMimeType();
+        String mime = null;
+        com.google.protobuf.ByteString data = null;
+        if ( mw.hasDataMessage() ) {
+            final AmmoMessages.DataMessage resp = mw.getDataMessage();
+            mime = resp.getMimeType();
+            data = resp.getData();
+        } else {
+            final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
+            mime = AmmoMimeTypes.mimeTypes.get( resp.getMimeType() );
+            data = resp.getData();
+        }
+
+        logger.info("::dispatchSubscribeResponse : {}", mime );
         final ContentResolver resolver = context.getContentResolver();
         String tableUriStr = null;
 
@@ -1537,7 +1577,7 @@ extends AsyncTask<DistributorService, Integer, Void>
                 logger.error("the content provider {} is not available", tableUri);
                 return false;
             }
-            outstream.write(resp.getData().toByteArray());
+            outstream.write(data.toByteArray());
             outstream.flush();
             outstream.close();
             return true;
@@ -1550,9 +1590,9 @@ extends AsyncTask<DistributorService, Integer, Void>
         } catch (IOException ex) {
             logger.warn("could not write to the content provider {}", ex.getLocalizedMessage());
             return false;
-        } 
+        }
     }
-    
+
 
     // =============== UTILITY METHODS ======================== //
     

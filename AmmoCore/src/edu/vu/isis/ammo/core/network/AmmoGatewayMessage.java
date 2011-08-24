@@ -84,6 +84,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public final INetworkService.OnSendMessageHandler handler;
 
     public final boolean isMulticast;
+    public final boolean isSerialChannel;
     public final boolean isGateway;
 
     /**
@@ -176,6 +177,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public boolean isMulticast() { return this.isMulticast; }
         public Builder isMulticast(boolean val) { this.isMulticast = val; return this; }
 
+        private boolean isSerialChannel;
+        public boolean isSerialChannel() { return this.isSerialChannel; }
+        public Builder isSerialChannel(boolean val) { this.isSerialChannel = val; return this; }
+
         private boolean isGateway;
         public boolean isGateway() { return this.isGateway; }
         public Builder isGateway(boolean val) { this.isGateway = val; return this; }
@@ -219,6 +224,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.handler = builder.handler;
 
         this.isMulticast = builder.isMulticast;
+        this.isSerialChannel = builder.isSerialChannel;
         this.isGateway = builder.isGateway;
     }
 

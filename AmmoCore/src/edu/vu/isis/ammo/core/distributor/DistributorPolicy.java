@@ -119,25 +119,35 @@ public class DistributorPolicy implements ContentHandler {
         
         switch (testSetId) {
         default:
-            this.policy.put("urn:test:domain/trial/both",  
+            this.policy.put("urn:test:domain/trial/all",  
                     this.lb
                     .isGateway(true)
                     .isMulticast(true)
+                    .isSerialChannel(true)
                     .build());
             this.policy.put("urn:test:domain/trial/gw-only",  
                     this.lb
                     .isGateway(true)
                     .isMulticast(false)
+                    .isSerialChannel(false)
                     .build());
             this.policy.put("urn:test:domain/trial/mc-only",  
                     this.lb
                     .isGateway(false)
                     .isMulticast(true)
+                    .isSerialChannel(false)
+                    .build());
+            this.policy.put("urn:test:domain/trial/sc-only",  
+                    this.lb
+                    .isGateway(false)
+                    .isMulticast(false)
+                    .isSerialChannel(true)
                     .build());
             this.policy.put("urn:test:domain/trial/neither",  
                     this.lb
                     .isGateway(false)
                     .isMulticast(false)
+                    .isSerialChannel(false)
                     .build());
         }
     }
@@ -156,11 +166,13 @@ public class DistributorPolicy implements ContentHandler {
     
     class Load {
         public final boolean isMulticast;
+        public final boolean isSerialChannel;
         public final boolean isGateway;
         public final int priority;
         
         private Load(LoadBuilder builder) {
             this.isMulticast = builder.isMulticast();
+            this.isSerialChannel = builder.isSerialChannel();
             this.isGateway = builder.isGateway();
             this.priority = builder.priority();
         }
@@ -170,6 +182,10 @@ public class DistributorPolicy implements ContentHandler {
         private boolean isMulticast;
         public boolean isMulticast() { return this.isMulticast; }
         public LoadBuilder isMulticast(boolean val) {  this.isMulticast = val; return this; }
+        
+        private boolean isSerialChannel;
+        public boolean isSerialChannel() { return this.isSerialChannel; }
+        public LoadBuilder isSerialChannel(boolean val) {  this.isSerialChannel = val; return this; }
         
         private boolean isGateway;
         public boolean isGateway() { return this.isGateway; }
@@ -221,6 +237,7 @@ public class DistributorPolicy implements ContentHandler {
                  this.lb
                      .isGateway(true)
                      .isMulticast(true)
+                     .isSerialChannel(true)
                      .build());
         }
 
@@ -235,6 +252,8 @@ public class DistributorPolicy implements ContentHandler {
                     this.lb
                         .isGateway(extractBoolean(uri,"isGateway", true, atts))
                         .isMulticast(extractBoolean(uri,"isMulticast", false, atts))
+                        // defaulting to true for testing only; revert to false afterward
+                        .isSerialChannel(extractBoolean(uri,"isSerialChannel", true, atts))
                         .priority(extractInteger(uri,"priority", IAmmoRequest.NORMAL_PRIORITY, atts))
                         .build());
             }
