@@ -410,7 +410,7 @@ public class DistributorService extends Service {
 
         @Override
         public void onChange(boolean selfChange) {
-            logger.info("PostalObserver::onChange : {}", selfChange);
+            logger.info("PostalObserver::onChange : selfChange={}", selfChange);
             this.callback.postalChange();
         }
     }

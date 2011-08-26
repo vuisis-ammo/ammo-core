@@ -123,6 +123,7 @@ public class SerialChannel extends NetChannel
         // The thread is start()ed the first time the network disables and
         // reenables it.
 
+        //slotNumber = (int) System.currentTimeMillis() % 15;
     }
 
 
@@ -340,17 +341,17 @@ public class SerialChannel extends NetChannel
     private final long mHeartbeatInterval = 10 * 1000; // ms
     private final AtomicLong mNextHeartbeatTime = new AtomicLong( 0 );
 
-	private int baudRate;
+    private int baudRate;
 
-	private long debugPeriod;
+    private long debugPeriod;
 
-	private String device;
+    private String device;
 
-	private boolean receiverEnabled;
+    private boolean receiverEnabled;
 
-	private int slotNumber;
+    private int slotNumber;
 
-	private boolean senderEnabled;
+    private boolean senderEnabled;
 
     // Send a heartbeat packet to the gateway if enough time has elapsed.
     // Note: the way this currently works, the heartbeat can only be sent
@@ -601,26 +602,26 @@ public class SerialChannel extends NetChannel
                         break;
 
                     case NetChannel.CONNECTED:
-                        {
-                            this.parent.statusChange();
-                            try {
-                                synchronized (this.state) {
-                                    while (this.isConnected()) // this is IMPORTANT don't remove it.
-                                    {
-                                        parent.sendHeartbeatIfNeeded();
+                    {
+                        this.parent.statusChange();
+                        try {
+                            synchronized (this.state) {
+                                while (this.isConnected()) // this is IMPORTANT don't remove it.
+                                {
+                                    parent.sendHeartbeatIfNeeded();
 
-                                        // wait for somebody to change the connection status
-                                        this.state.wait(BURP_TIME);
-                                    }
+                                    // wait for somebody to change the connection status
+                                    this.state.wait(BURP_TIME);
                                 }
-                            } catch (InterruptedException ex) {
-                                logger.warn("connection intentionally disabled {}", this.state );
-                                this.state.set(NetChannel.STALE);
-                                break MAINTAIN_CONNECTION;
                             }
-                            this.parent.statusChange();
+                        } catch (InterruptedException ex) {
+                            logger.warn("connection intentionally disabled {}", this.state );
+                            this.state.set(NetChannel.STALE);
+                            break MAINTAIN_CONNECTION;
                         }
-                        break;
+                        this.parent.statusChange();
+                    }
+                    break;
                     default:
                         try {
                             long attempt = this.getAttempt();
@@ -675,6 +676,7 @@ public class SerialChannel extends NetChannel
             try
             {
                 parent.mPort = new SerialPort( new File(device), baudRate );
+                //parent.mPort = new SerialPort( new File("/dev/ttyUSB0"), baudRate );
             }
             catch ( Exception e )
             {
@@ -948,17 +950,44 @@ public class SerialChannel extends NetChannel
                 {
                     setSenderState( INetChannel.TAKING );
 
+                    // Try to sleep until our next take time.
                     long currentTime = System.currentTimeMillis();
+                    long thisRoundTakeTime = ((long) (currentTime / 2000) * 2000) + mOffset;
 
-                    long thisTakeTime = ((long) (currentTime / 2000) * 2000) + mOffset;
-                    if ( thisTakeTime > currentTime )
-                        Thread.sleep( thisTakeTime - currentTime );
+                    long goalTakeTime;
+                    if ( thisRoundTakeTime > currentTime )
+                    {
+                        // We haven't yet reached our take time for this turn,
+                        // so that's our goal.
+                        goalTakeTime = thisRoundTakeTime;
+                    }
                     else
-                        Thread.sleep( (thisTakeTime + 2000) - currentTime );
+                    {
+                        // We've already missed our turn this round, so add
+                        // 2000 ms and wait until the next round.
+                        goalTakeTime = thisRoundTakeTime + 2000;
+                    }
+                    Thread.sleep( goalTakeTime - currentTime );
 
+
+                    // Once we wake up, we need to see if we are in our slot.
+                    // Sometimes the sleep() will not wake up on time, and we
+                    // have missed our slot.  If so, don't do a take() and just
+                    // wait until our next slot.
+                    currentTime = System.currentTimeMillis();
                     logger.debug( "Woke up: slot={}, (time, mu-s): {}",
                                   slotNumber,
-                                  System.nanoTime() / 1000 );
+                                  currentTime );
+                    if ( currentTime - goalTakeTime > 25 ) // make 25 configurable
+                    {
+                        logger.debug( "Missed slot: attempted={}, current={}",
+                                      goalTakeTime,
+                                      currentTime );
+                        continue;
+                    }
+
+                    // At this point, we've woken up near the start of our window
+                    // and should send a message if one is available.
                     if ( !mQueue.messageIsAvailable() )
                     {
                         continue;
@@ -1018,8 +1047,7 @@ public class SerialChannel extends NetChannel
                 }
                 catch ( Exception e )
                 {
-                    e.printStackTrace();
-                    logger.warn("sender threw exception");
+                    logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, false );
                     setSenderState( INetChannel.INTERRUPTED );
@@ -1202,7 +1230,7 @@ public class SerialChannel extends NetChannel
         private SerialChannel mDestination;
         private SerialPort mPort;
         private final Logger logger
-        = LoggerFactory.getLogger( "net.serial.receiver" );
+            = LoggerFactory.getLogger( "net.serial.receiver" );
     }
 
 
@@ -1234,38 +1262,34 @@ public class SerialChannel extends NetChannel
     }
 
 
-	public void setBaudRate(int long1) {
-		this.baudRate = long1;
-		
-	}
+    public void setBaudRate(int long1) {
+        this.baudRate = long1;
+    }
 
 
-	public void setDebugPeriod(long long1) {
-		this.debugPeriod = long1;
-		
-	}
+    public void setDebugPeriod(long long1) {
+        this.debugPeriod = long1;
+    }
 
 
-	public void setDevice(String string) {
-		this.device = string;
-		
-	}
+    public void setDevice(String string) {
+        logger.error( "Device set to {}", string );
+        this.device = string;
+    }
 
 
-	public void setReceiverEnabled(boolean boolean1) {
-		this.receiverEnabled = boolean1;
-		
-	}
+    public void setReceiverEnabled(boolean boolean1) {
+        this.receiverEnabled = boolean1;
+    }
 
 
-	public void setSlotNumber(int int1) {
-		this.slotNumber = int1;
-		
-	}
+    public void setSlotNumber(int int1) {
+        logger.error( "Slot set to {}", int1 );
+        this.slotNumber = int1;
+    }
 
 
-	public void setSenderEnabled(boolean boolean1) {
-		this.senderEnabled = boolean1;
-		
-	}
+    public void setSenderEnabled(boolean boolean1) {
+        this.senderEnabled = boolean1;
+    }
 }

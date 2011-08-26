@@ -200,7 +200,7 @@ public class NetworkService extends Service implements
 	 * In order for the service to be shutdown cleanly the 'serviceStart()'
 	 * method may be used to prepare_for_stop, it will be stopped shortly and it
 	 * needs to have some things done before that happens.
-	 * 
+	 *
 	 * When the user changes the configuration 'startService()' is run to change
 	 * the settings.
 	 */
@@ -234,8 +234,8 @@ public class NetworkService extends Service implements
 		mChannels.add(Gateway.getInstance(getBaseContext()));
 		mChannels.add(Multicast.getInstance(getBaseContext()));
 		mChannels.add(Serial.getInstance(getBaseContext()));
-		
-		
+
+
 		mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
 		mNetlinks.add(WiredNetlink.getInstance(getBaseContext()));
 		mNetlinks.add(PhoneNetlink.getInstance(getBaseContext()));
@@ -251,12 +251,16 @@ public class NetworkService extends Service implements
 		// no point in enabling the socket until the preferences have been read
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
+        this.serialChannel.disable();
 		this.acquirePreferences();
 		if (this.networkingSwitch && this.gatewayEnabled) {
 			this.tcpChannel.enable();
 		}
 		this.multicastChannel.enable();
 		this.multicastChannel.reset(); // This starts the connector thread.
+
+        this.serialChannel.enable();
+        this.serialChannel.reset(); // This starts the connector thread.
 
 		this.myReceiver = new MyBroadcastReceiver();
 
@@ -371,15 +375,37 @@ public class NetworkService extends Service implements
 		this.multicastChannel.setPort(multicastPort);
 		this.multicastChannel.setFlatLineTime(multicastFlatLine);
 		this.multicastChannel.setSocketTimeout(multicastIdleTime);
+
+		/*
+		 * SerialChannel
+		 */
+        this.serialChannel.setBaudRate( Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600") ));
+        this.serialChannel.setDebugPeriod( Long.parseLong(
+            prefs.getString(INetPrefKeys.SERIAL_DEBUG_PERIOD, "10") ));
+        this.serialChannel.setDevice(
+            prefs.getString(INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0") );
+        this.serialChannel.setReceiverEnabled(
+            prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true) );
+        this.serialChannel.setSenderEnabled(
+            prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true) );
+
+        if ( prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false) )
+            this.serialChannel.enable();
+        else
+            this.serialChannel.disable();
+
+        this.serialChannel.setSlotNumber(Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, "8")));
 	}
 
 	/**
 	 * Reset the local copies of the shared preference. Also indicate that the
 	 * gateway connections are stale will need to be refreshed.
-	 * 
+	 *
 	 * @param prefs   a sharedPreferencesInterface for accessing and modifying preference data
 	 * @param key     a string to signal which preference to access
-	 *  
+	 *
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
@@ -453,6 +479,7 @@ public class NetworkService extends Service implements
 			this.networkingSwitch = true;
 			this.tcpChannel.reset();
 			this.multicastChannel.reset();
+			this.serialChannel.reset();
 		}
 
 		if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
@@ -497,30 +524,30 @@ public class NetworkService extends Service implements
 		if(key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
 			this.serialChannel.setBaudRate(Integer.parseInt(prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600")));
 		}
-		
+
 		if(key.equals(INetPrefKeys.SERIAL_DEBUG_PERIOD)) {
 			this.serialChannel.setDebugPeriod(Long.parseLong(prefs.getString(INetPrefKeys.SERIAL_DEBUG_PERIOD, "10")));
 		}
-		
+
 		if(key.equals(INetPrefKeys.SERIAL_DEVICE)) {
 			this.serialChannel.setDevice(prefs.getString(INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0"));
 		}
-		
+
 		if(key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED)) {
 			this.serialChannel.setReceiverEnabled(prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true));
 		}
-		
+
 		if(key.equals(INetPrefKeys.SERIAL_SEND_ENABLED)) {
 			this.serialChannel.setSenderEnabled(prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true));
 		}
-		
+
 		if(key.equals(INetPrefKeys.SERIAL_SHOULD_USE)) {
 			if(prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false))
 				this.serialChannel.enable();
 			else
 				this.serialChannel.disable();
 		}
-		
+
 		if(key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
 			this.serialChannel.setSlotNumber(Integer.parseInt(prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, "8")));
 		}
@@ -561,9 +588,9 @@ public class NetworkService extends Service implements
 
 	/**
 	 * Used to send a message to the android gateway plugin.
-	 * 
+	 *
 	 * This takes an argument indicating the carrier type [udp, tcp, journal].
-	 * 
+	 *
 	 * @param outstream
 	 * @param size
 	 * @param payload_checksum
@@ -602,7 +629,7 @@ public class NetworkService extends Service implements
 
 	/**
 	 * Processes and delivers messages received from the gateway.
-	 * 
+	 *
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
@@ -635,6 +662,7 @@ public class NetworkService extends Service implements
 		logger.info("Tearing down NPS");
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
+		this.serialChannel.disable();
 
 		Timer t = new Timer();
 		t.schedule(new TimerTask() {
@@ -654,7 +682,9 @@ public class NetworkService extends Service implements
 	 */
 	public boolean isConnected() {
 		//logger.info("::isConnected");
-		return tcpChannel.isConnected() || multicastChannel.isConnected();
+		return (   tcpChannel.isConnected()
+                || multicastChannel.isConnected()
+                || serialChannel.isConnected() );
 	}
 
 	/**
@@ -691,7 +721,7 @@ public class NetworkService extends Service implements
 	/**
 	 * This should handle the link state behavior. This is really the main job
 	 * of the Network service; matching up links with channels.
-	 * 
+	 *
 	 */
 	private class MyBroadcastReceiver extends BroadcastReceiver {
 		@Override

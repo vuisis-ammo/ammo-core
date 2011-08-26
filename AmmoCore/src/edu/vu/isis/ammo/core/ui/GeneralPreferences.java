@@ -143,7 +143,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		 */
 		
 		this.devicePref = (MyEditTextPreference)this.findPreference(INetPrefKeys.SERIAL_DEVICE);
-		this.devicePref.setType(MyEditTextPreference.Type.DEVICE_ID);
+		//this.devicePref.setType(MyEditTextPreference.Type.DEVICE_ID);
 		this.devicePref.refreshSummaryField();
 		
 		this.serialUsePref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SHOULD_USE);
