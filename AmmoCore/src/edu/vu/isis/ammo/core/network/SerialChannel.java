@@ -1263,11 +1263,13 @@ public class SerialChannel extends NetChannel
 
 
     public void setBaudRate(int long1) {
+        logger.error( "Baud rate set to {}", long1 );
         this.baudRate = long1;
     }
 
 
     public void setDebugPeriod(long long1) {
+        logger.error( "Debug period set to {}", long1 );
         this.debugPeriod = long1;
     }
 
@@ -1279,6 +1281,7 @@ public class SerialChannel extends NetChannel
 
 
     public void setReceiverEnabled(boolean boolean1) {
+        logger.error( "Receiver enabled set to {}", boolean1 );
         this.receiverEnabled = boolean1;
     }
 
@@ -1290,6 +1293,7 @@ public class SerialChannel extends NetChannel
 
 
     public void setSenderEnabled(boolean boolean1) {
+        logger.error( "Sender enabled set to {}", boolean1 );
         this.senderEnabled = boolean1;
     }
 }
