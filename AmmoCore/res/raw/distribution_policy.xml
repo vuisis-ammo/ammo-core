@@ -42,6 +42,18 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      </routing>
   </topic>
   
+  <topic type="application/vnd.edu.vu.isis.ammo.sms.">
+     <description>
+     </description>
+     <priority value="normal"/>
+     <routing>
+	     <clause>
+	        <literal term="multicast" condition="true"/>
+	        <literal term="gateway" condition="true"/>
+	     </clause>
+     </routing>
+  </topic>
+  
     <topic type="@L">
      <description>
       PLI : location, for terse messages

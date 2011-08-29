@@ -78,7 +78,7 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		else {
 			try {
-				inputStream = context.getResources().openRawResource(R.raw.routing_policy);
+				inputStream = context.getResources().openRawResource(R.raw.distribution_policy);
 			} catch (NotFoundException ex) {
 				logger.error("asset not available {}", ex.getMessage());
 			}

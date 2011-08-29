@@ -166,19 +166,28 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public boolean isGateway() { return this.isGateway; }
         public Builder isGateway(boolean val) { this.isGateway = val; return this; }
         
-        private byte[] payload;
-        public byte[] payload() { return this.payload; }
+        private byte[] payload_serialized;
+        public byte[] payload() { 
+        	return this.payload_serialized; 
+        }
         public Builder payload(byte[] val) { 
             //if (this.size != val.length)
             //    throw new IllegalArgumentException("payload size incorrect");
-            //return new AmmoGatewayMessage(this, val);
+            this.payload_serialized = val;
+            return this;
+        }
+        private AmmoMessages payload;
+        public AmmoMessages payload(Class<?> clazz) { 
+        	return this.payload; 
+        }
+        public Builder payload(AmmoMessages val) { 
             this.payload = val;
             return this;
         }
         public AmmoGatewayMessage build() { 
-            if (this.size != this.payload.length)
+            if (this.size != this.payload_serialized.length)
                 throw new IllegalArgumentException("payload size incorrect");
-            return new AmmoGatewayMessage(this, this.payload);
+            return new AmmoGatewayMessage(this, this.payload_serialized);
         }
         
         /**
