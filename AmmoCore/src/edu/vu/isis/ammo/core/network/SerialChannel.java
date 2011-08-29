@@ -1237,31 +1237,6 @@ public class SerialChannel extends NetChannel
 
     // ********** UTILITY METHODS ****************
 
-    /**
-     * A routine to get the local ip address
-     * TODO use this someplace
-     *
-     * @return
-     */
-    public String getLocalIpAddress() {
-        logger.trace("Thread <{}>::getLocalIpAddress", Thread.currentThread().getId());
-        try {
-            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
-                NetworkInterface intf = en.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress()) {
-                        return inetAddress.getHostAddress().toString();
-                    }
-                }
-            }
-        } catch (SocketException ex) {
-            logger.error( ex.toString());
-        }
-        return null;
-    }
-
-
     public void setBaudRate(int long1) {
         logger.error( "Baud rate set to {}", long1 );
         this.baudRate = long1;
@@ -1295,5 +1270,28 @@ public class SerialChannel extends NetChannel
     public void setSenderEnabled(boolean boolean1) {
         logger.error( "Sender enabled set to {}", boolean1 );
         this.senderEnabled = boolean1;
+    }
+
+
+    //
+    // A routine to get the local ip address
+    // TODO use this someplace
+    //
+    public String getLocalIpAddress() {
+        logger.trace("Thread <{}>::getLocalIpAddress", Thread.currentThread().getId());
+        try {
+            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                NetworkInterface intf = en.nextElement();
+                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                    InetAddress inetAddress = enumIpAddr.nextElement();
+                    if (!inetAddress.isLoopbackAddress()) {
+                        return inetAddress.getHostAddress().toString();
+                    }
+                }
+            }
+        } catch (SocketException ex) {
+            logger.error( ex.toString());
+        }
+        return null;
     }
 }
