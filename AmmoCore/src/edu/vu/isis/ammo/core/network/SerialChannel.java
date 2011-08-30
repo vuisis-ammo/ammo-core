@@ -1037,7 +1037,7 @@ public class SerialChannel extends NetChannel
 
                     // Disabling this to test receiving of messages, since we have no
                     // channelization yet for the 152s.
-                    //outputStream.write( buf.array() );
+                    outputStream.write( buf.array() );
 
                     logger.info( "Wrote packet to SerialPort." );
 

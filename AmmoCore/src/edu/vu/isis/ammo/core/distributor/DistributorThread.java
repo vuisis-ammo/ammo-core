@@ -92,6 +92,7 @@ extends AsyncTask<DistributorService, Integer, Void>
     private AtomicBoolean postalDelta = new AtomicBoolean(true);
 
     public void postalChange() {
+        logger.error( "Calling DistributorThread::signal() on postalDelta" );
         this.signal(this.postalDelta);
     }
     
@@ -125,6 +126,7 @@ extends AsyncTask<DistributorService, Integer, Void>
     
     public boolean distributeResponse(AmmoGatewayMessage agm)
     {
+        logger.error( "Calling DistributorThread::signal() on distributeResponse" );
         this.responseQueue.put(agm);
         this.signal(this.responseDelta);
         return true;
@@ -195,11 +197,13 @@ extends AsyncTask<DistributorService, Integer, Void>
                     }
                 }
                 if (this.postalDelta.getAndSet(false)) {
+                    logger.error( "*** iterating to call processPostalChange()" );
                     for (DistributorService that : them) {
                         this.processPostalChange(that, resend);
                     }
                 }
                 if (this.responseDelta.getAndSet(false)) {
+                    logger.error( "*** iterating to call proces Response Delta" );
                     while (!this.responseQueue.isEmpty()) {
                         try {
                             int count=0;
@@ -1572,6 +1576,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 
             final Uri tableUri = Uri.withAppendedPath(Uri.parse(tableUriStr),"_serial");
             final OutputStream outstream = resolver.openOutputStream(tableUri);
+
+            logger.error( "tableUri: {}", tableUri );
 
             if (outstream == null) {
                 logger.error("the content provider {} is not available", tableUri);
