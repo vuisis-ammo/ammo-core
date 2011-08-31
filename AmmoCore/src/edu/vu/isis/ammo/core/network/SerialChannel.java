@@ -974,14 +974,18 @@ public class SerialChannel extends NetChannel
                     // have missed our slot.  If so, don't do a take() and just
                     // wait until our next slot.
                     currentTime = System.currentTimeMillis();
-                    logger.debug( "Woke up: slot={}, (time, mu-s): {}",
+                    logger.debug( "Woke up: slotNumber={}, (time, mu-s)={}, jitter={}",
+                                 new Object[] {
                                   slotNumber,
-                                  currentTime );
+                                  currentTime,
+                                  currentTime - goalTakeTime } );
                     if ( currentTime - goalTakeTime > 25 ) // make 25 configurable
                     {
-                        logger.debug( "Missed slot: attempted={}, current={}",
-                                      goalTakeTime,
-                                      currentTime );
+                        logger.debug( "Missed slot: attempted={}, current={}, jitter={}",
+                                      new Object[] {
+                                          goalTakeTime,
+                                          currentTime,
+                                          currentTime - goalTakeTime } );
                         continue;
                     }
 
@@ -1107,7 +1111,7 @@ public class SerialChannel extends NetChannel
             // If this needs to change in the future, this code will need to be
             // revised.
 
-            ByteBuffer buf = ByteBuffer.allocate( 100000 );
+            ByteBuffer buf = ByteBuffer.allocate( 1024 );
             buf.order( endian );
             buf.clear();
 
@@ -1132,13 +1136,20 @@ public class SerialChannel extends NetChannel
                     logger.error( "about to read()" );
 
                     int size = inputStream.read( buffer );
+                    // FIXME: this is probably not correct error handling for the serial port.
                     if (size < 0 ) //|| size < HEADER_SIZE )
                         continue;
 
                     logger.error( "1" );
+
+                    long currentTime = System.currentTimeMillis();
+                    long startOfRound = ((long) (currentTime / 2000) * 2000);
+                    long currentSlot = (currentTime - startOfRound) / 125;
+                    logger.debug( "Read {} bytes in slot {} (header)", size, currentSlot );
+
                     buf.put( buffer, 0, size );
                     //logger.error( "asdfasdf {}...{}", buf.position(), buf.array() );
-                    logger.error( "the buffer: {}", buf );
+                    //logger.error( "the buffer: {}", buf );
 
                     if ( buf.position() < AmmoGatewayMessage.HEADER_LENGTH )
                         continue;
@@ -1186,7 +1197,10 @@ public class SerialChannel extends NetChannel
                             int ret = inputStream.read( buffer );
                             if (ret > 0)
                             {
-                                logger.error( "2" );
+                                currentTime = System.currentTimeMillis();
+                                startOfRound = ((long) (currentTime / 2000) * 2000);
+                                currentSlot = (currentTime - startOfRound) / 125;
+                                logger.debug( "Read {} bytes in slot {} (payload)", size, currentSlot );
                                 buf.put( buffer, 0, ret );
                             }
                             buf.flip();
