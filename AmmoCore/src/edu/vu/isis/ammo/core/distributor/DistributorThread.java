@@ -566,11 +566,11 @@ extends AsyncTask<DistributorService, Integer, Void>
                                         return false;
                                     }
                                 });
-                        if (!dispatchResult.get(TcpChannel.class)) {
-                            values.put(PostalTableSchema.DISPOSITION,
-                                    PostalTableSchema.DISPOSITION_PENDING);
-                            resolver.update(postalUri, values, null, null);
-                        }
+                        // if (!dispatchResult.get(TcpChannel.class)) {
+                        //     values.put(PostalTableSchema.DISPOSITION,
+                        //             PostalTableSchema.DISPOSITION_PENDING);
+                        //     resolver.update(postalUri, values, null, null);
+                        // }
                     }
                 } catch (NullPointerException ex) {
                     logger.warn("NullPointerException, sending to gateway failed");
@@ -999,11 +999,11 @@ extends AsyncTask<DistributorService, Integer, Void>
                                 return false;
                             }
                         });
-                if (!dispatchResult.get(TcpChannel.class)) {
-                    values.put(RetrievalTableSchema.DISPOSITION,
-                            RetrievalTableSchema.DISPOSITION_PENDING);
-                    resolver.update(retrieveUri, values, null, null);
-                }
+                // if (!dispatchResult.get(TcpChannel.class)) {
+                //     values.put(RetrievalTableSchema.DISPOSITION,
+                //             RetrievalTableSchema.DISPOSITION_PENDING);
+                //     resolver.update(retrieveUri, values, null, null);
+                // }
             }
             pendingCursor.close();
         }
@@ -1101,12 +1101,12 @@ extends AsyncTask<DistributorService, Integer, Void>
                              return false;
                          }
                      });
-            if (!dispatchResult.get(TcpChannel.class)) {
-                 values.put(RetrievalTableSchema.DISPOSITION,
-                         RetrievalTableSchema.DISPOSITION_PENDING);
-                 resolver.update(refUri, values, null, null);
-                 // break; // no point in trying any more
-             }
+            // if (!dispatchResult.get(TcpChannel.class)) {
+            //      values.put(RetrievalTableSchema.DISPOSITION,
+            //              RetrievalTableSchema.DISPOSITION_PENDING);
+            //      resolver.update(refUri, values, null, null);
+            //      // break; // no point in trying any more
+            //  }
         } catch (NullPointerException ex) {
             logger.warn("NullPointerException, sending to gateway failed");
         }
@@ -1374,12 +1374,12 @@ extends AsyncTask<DistributorService, Integer, Void>
                                 return true;
                             }
                         });
-                if (!dispatchResult.get(TcpChannel.class)) {
-                    values.put(SubscriptionTableSchema.DISPOSITION,
-                            SubscriptionTableSchema.DISPOSITION_PENDING);
-                    resolver.update(subUri, values, null, null);
-                    // break; // no point in trying any more
-                }
+                // if (!dispatchResult.get(TcpChannel.class)) {
+                //     values.put(SubscriptionTableSchema.DISPOSITION,
+                //             SubscriptionTableSchema.DISPOSITION_PENDING);
+                //     resolver.update(subUri, values, null, null);
+                //     // break; // no point in trying any more
+                // }
             }
             pendingCursor.close();
         }
@@ -1489,12 +1489,12 @@ extends AsyncTask<DistributorService, Integer, Void>
                              return false;
                          }
                      });
-             if (!dispatchResult.get(TcpChannel.class)) {
-                 values.put(SubscriptionTableSchema.DISPOSITION,
-                         SubscriptionTableSchema.DISPOSITION_PENDING);
-                 resolver.update(retrievalUri, values, null, null);
-                 // break; // no point in trying any more
-             }
+             // if (!dispatchResult.get(TcpChannel.class)) {
+             //     values.put(SubscriptionTableSchema.DISPOSITION,
+             //             SubscriptionTableSchema.DISPOSITION_PENDING);
+             //     resolver.update(retrievalUri, values, null, null);
+             //     // break; // no point in trying any more
+             // }
         } catch (NullPointerException ex) {
             logger.warn("NullPointerException, sending to gateway failed");
         }

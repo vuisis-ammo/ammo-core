@@ -121,6 +121,8 @@ public class NetworkService extends Service implements
 
 	// Determine if the connection is enabled
 	private boolean gatewayEnabled = true;
+    private boolean multicastEnabled = true;
+    private boolean serialEnabled = true;
 	// for providing networking support
 	// should this be using IPv6?
 	private boolean networkingSwitch = true;
@@ -256,11 +258,14 @@ public class NetworkService extends Service implements
 		if (this.networkingSwitch && this.gatewayEnabled) {
 			this.tcpChannel.enable();
 		}
-		this.multicastChannel.enable();
-		this.multicastChannel.reset(); // This starts the connector thread.
-
-        this.serialChannel.enable();
-        this.serialChannel.reset(); // This starts the connector thread.
+		if (this.networkingSwitch && this.multicastEnabled) {
+            this.multicastChannel.enable();
+            this.multicastChannel.reset(); // This starts the connector thread.
+        }
+		if (this.networkingSwitch && this.serialEnabled) {
+            this.serialChannel.enable();
+            this.serialChannel.reset(); // This starts the connector thread.
+        }
 
 		this.myReceiver = new MyBroadcastReceiver();
 
@@ -361,6 +366,7 @@ public class NetworkService extends Service implements
 		/*
 		 * Multicast
 		 */
+        multicastEnabled = prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, false);
 		String multicastHost = prefs.getString(
 				INetPrefKeys.MULTICAST_IP_ADDRESS, DEFAULT_MULTICAST_HOST);
 		int multicastPort = Integer.parseInt(prefs.getString(
@@ -379,6 +385,7 @@ public class NetworkService extends Service implements
 		/*
 		 * SerialChannel
 		 */
+        serialEnabled = prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false);
         this.serialChannel.setBaudRate( Integer.parseInt(
             prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600") ));
         this.serialChannel.setDebugPeriod( Long.parseLong(
@@ -389,12 +396,6 @@ public class NetworkService extends Service implements
             prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true) );
         this.serialChannel.setSenderEnabled(
             prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true) );
-
-        if ( prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false) )
-            this.serialChannel.enable();
-        else
-            this.serialChannel.disable();
-
         this.serialChannel.setSlotNumber(Integer.parseInt(
             prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, "8")));
 	}
@@ -494,20 +495,19 @@ public class NetworkService extends Service implements
 		}
 
 		if (key.equals(INetPrefKeys.GATEWAY_SHOULD_USE)) {
-			if (prefs.getBoolean(key, true)) {
-
+            gatewayEnabled = prefs.getBoolean(key, true);
+			if ( gatewayEnabled )
 				this.tcpChannel.enable();
-			} else {
+			else
 				this.tcpChannel.disable();
-			}
 		}
 
 		if (key.equals(INetPrefKeys.MULTICAST_SHOULD_USE)) {
-			if (prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true)) {
+            multicastEnabled = prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true);
+			if ( multicastEnabled )
 				this.multicastChannel.enable();
-			} else {
+			else
 				this.multicastChannel.disable();
-			}
 		}
 
 		if (key.equals(INetPrefKeys.MULTICAST_IP_ADDRESS)) {
@@ -542,7 +542,8 @@ public class NetworkService extends Service implements
 		}
 
 		if(key.equals(INetPrefKeys.SERIAL_SHOULD_USE)) {
-			if(prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false))
+            serialEnabled = prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false);
+			if ( serialEnabled )
 				this.serialChannel.enable();
 			else
 				this.serialChannel.disable();
@@ -587,41 +588,54 @@ public class NetworkService extends Service implements
 	// ===========================================================
 
 	/**
-	 * Used to send a message to the android gateway plugin.
+	 * Used to send a message.
 	 *
-	 * This takes an argument indicating the carrier type [udp, tcp, journal].
+	 * This takes as an argument the AmmoGatewayMessage to be sent.
 	 *
-	 * @param outstream
-	 * @param size
-	 * @param payload_checksum
-	 * @param message
+	 * @param AmmoGatewayMessage
 	 */
 	@Override
-	public Map<Class<? extends INetChannel>, Boolean> sendRequest(
-			AmmoGatewayMessage agm) {
-		logger.info("::sendGatewayRequest");
+	public Map<Class<? extends INetChannel>, Boolean>
+    sendRequest( AmmoGatewayMessage agm )
+    {
+		logger.info("::sendRequest");
 		// agm.setSessionUuid( sessionId );
 
-		Map<Class<? extends INetChannel>, Boolean> status = new HashMap<Class<? extends INetChannel>, Boolean>();
+		Map<Class<? extends INetChannel>, Boolean> status
+            = new HashMap<Class<? extends INetChannel>, Boolean>();
 
-		if (agm.isMulticast) {
-			logger.info("   Sending multicast message.");
-			status.put( MulticastChannel.class,
-                       this.multicastChannel.sendRequest(agm));
+		if ( agm.isMulticast ) {
+            if ( multicastChannel.isConnected() ) {
+                logger.info("   Sending multicast message.");
+                status.put( MulticastChannel.class,
+                            this.multicastChannel.sendRequest(agm));
+            } else {
+                status.put( MulticastChannel.class, false );
+            }
 		}
 
-		if (agm.isSerialChannel) {
-			logger.info("   Sending serialport message.");
-			status.put( SerialChannel.class,
-                        this.serialChannel.sendRequest(agm) );
+		if ( agm.isSerialChannel ) {
+            if ( serialChannel.isConnected() ) {
+                logger.info( "   Sending serialport message." );
+                status.put( SerialChannel.class,
+                            this.serialChannel.sendRequest(agm) );
+            } else {
+                status.put( SerialChannel.class, false );
+            }
 		}
 
-		if (agm.isGateway) {
-			logger.info("   Sending message to gateway.");
-			status.put(TcpChannel.class, this.tcpChannel.sendRequest(agm));
+		if ( agm.isGateway ) {
+            if ( tcpChannel.isConnected() ) {
+                logger.info("   Sending message to gateway.");
+                status.put( TcpChannel.class,
+                            this.tcpChannel.sendRequest(agm) );
+            } else {
+                status.put( TcpChannel.class, false );
+            }
 		}
 		return status;
 	}
+
 
 	// ===========================================================
 	// Helper classes

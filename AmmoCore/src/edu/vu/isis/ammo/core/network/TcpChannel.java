@@ -124,37 +124,31 @@ public class TcpChannel extends NetChannel {
      */
     public boolean isEnabled() { return this.isEnabled; }
 
-    public boolean enable() {
+
+    public void enable() {
         logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
         synchronized (this.syncObj) {
-            if (this.isEnabled == true)
-                return false;
-            this.isEnabled = true;
-
-            // if (! this.connectorThread.isAlive()) this.connectorThread.start();
-
-            logger.warn("::enable - Setting the state to STALE");
-            this.shouldBeDisabled = false;
-            this.connectorThread.state.set(NetChannel.STALE);
+            if ( !this.isEnabled ) {
+                this.isEnabled = true;
+                logger.warn("::enable - Setting the state to STALE");
+                this.shouldBeDisabled = false;
+                this.connectorThread.state.set(NetChannel.STALE);
+            }
         }
-        return true;
     }
 
-    public boolean disable() {
+
+    public void disable() {
         logger.trace("Thread <{}>::disable", Thread.currentThread().getId());
         synchronized (this.syncObj) {
-            if (this.isEnabled == false)
-                return false;
-            this.isEnabled = false;
-            logger.warn("::disable - Setting the state to DISABLED");
-            this.shouldBeDisabled = true;
-            this.connectorThread.state.set(NetChannel.DISABLED);
-
-            //          this.connectorThread.stop();
+            if ( this.isEnabled ) {
+                this.isEnabled = false;
+                logger.warn("::disable - Setting the state to DISABLED");
+                this.shouldBeDisabled = true;
+                this.connectorThread.state.set(NetChannel.DISABLED);
+            }
         }
-        return true;
     }
-
 
 
     public boolean close() { return false; }

@@ -42,8 +42,8 @@ public interface INetChannel {
 
     boolean isConnected();
     boolean isEnabled();
-    boolean enable();
-    boolean disable(); // From TcpChannel
+    void enable();
+    void disable(); // From TcpChannel
     boolean close(); // From JournalChannel
     boolean setConnectTimeout(int value);
     boolean setSocketTimeout(int value);
