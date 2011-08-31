@@ -1024,7 +1024,7 @@ public class SerialChannel extends NetChannel
                     //                         mChannel.mMulticastPort );
                     // logger.debug( "Sending datagram packet. length={}", packet.getLength() );
 
-                    logger.debug( "...{}", buf.array() );
+                    //logger.debug( "...{}", buf.array() );
                     // logger.debug( "...{}", buf.remaining() );
                     // logger.debug( "...{}", mChannel.mMulticastGroup );
                     // logger.debug( "...{}", mChannel.mMulticastPort );
@@ -1038,8 +1038,13 @@ public class SerialChannel extends NetChannel
                     // Disabling this to test receiving of messages, since we have no
                     // channelization yet for the 152s.
                     outputStream.write( buf.array() );
+                    logger.info( "sent message size={}, checksum={}, data:{}",
+                                 new Object[] {
+                                     msg.size,
+                                     Long.toHexString(msg.payload_checksum),
+                                     msg.payload } );
 
-                    logger.info( "Wrote packet to SerialPort." );
+                    //logger.info( "Wrote packet to SerialPort." );
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
@@ -1193,8 +1198,11 @@ public class SerialChannel extends NetChannel
                         AmmoGatewayMessage agm = agmb.payload(payload).build();
                         setReceiverState( INetChannel.DELIVER );
                         mDestination.deliverMessage( agm );
-                        logger.info( "processed a message {}",
-                                     Long.toHexString(agm.payload_checksum) );
+                        logger.info( "received message size={}, checksum={}, data:{}",
+                                     new Object[] {
+                                         agm.size,
+                                         Long.toHexString(agm.payload_checksum),
+                                         agm.payload } );
                         buf.compact();
                         break;
                     }

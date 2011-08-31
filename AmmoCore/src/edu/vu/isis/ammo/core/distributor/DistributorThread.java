@@ -680,11 +680,12 @@ extends AsyncTask<DistributorService, Integer, Void>
                             return false;
                         }
                     });
-            if (!dispatchResult.get(TcpChannel.class)) {
-                values.put(PostalTableSchema.DISPOSITION,
-                        PostalTableSchema.DISPOSITION_PENDING);
-                resolver.update(postalUri, values, null, null);
-            }
+            // TBD SKN - Fred, can we remove this OR does this have other implications ...
+            // if (!dispatchResult.get(TcpChannel.class)) {
+            //     values.put(PostalTableSchema.DISPOSITION,
+            //             PostalTableSchema.DISPOSITION_PENDING);
+            //     resolver.update(postalUri, values, null, null);
+            // }
         } catch (NullPointerException ex) {
             logger.warn("NullPointerException, sending to gateway failed");
         }
