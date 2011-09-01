@@ -22,8 +22,6 @@ import android.widget.Toast;
 import android.widget.AdapterView.OnItemSelectedListener;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatcher;
-import edu.vu.isis.ammo.dash.provider.IncidentSchema;
-import edu.vu.isis.ammo.dash.provider.IncidentSchema.EventTableSchema;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
@@ -115,13 +113,8 @@ public class Subscribe extends ActivityEx implements OnClickListener {
     	
     	
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-        	uri = Uri.parse(parent.getItemAtPosition(pos).toString());
-        	
-        	if (uri.equals(IncidentSchema.EventTableSchema.CONTENT_URI)) {
-        		mime = EventTableSchema.CONTENT_TOPIC + "_" + uid;
-        	} else {
-        		mime = MIME_OBJECT + "_" + uid;
-        	}
+        	uri = Uri.parse(parent.getItemAtPosition(pos).toString());  	
+        	mime = MIME_OBJECT + "_" + uid;
 	        Toast.makeText(parent.getContext(), 
 	    		  "The content uri is " + uri, 
 	    		  Toast.LENGTH_SHORT).show();
