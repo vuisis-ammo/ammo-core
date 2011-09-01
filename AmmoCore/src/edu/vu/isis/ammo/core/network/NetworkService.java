@@ -34,6 +34,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
@@ -503,14 +504,13 @@ public class NetworkService extends Service implements
 	public AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
 		logger.info("::buildAuthenticationRequest");
 
-		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
-				.newBuilder();
-		mw
-				.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+		AmmoMessages.MessageWrapper.Builder mw = 
+				AmmoMessages.MessageWrapper.newBuilder();
+		mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
 		mw.setSessionUuid(sessionId);
 
-		AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage
-				.newBuilder();
+		AmmoMessages.AuthenticationMessage.Builder authreq = 
+				AmmoMessages.AuthenticationMessage.newBuilder();
 		authreq.setDeviceId(
 				UniqueIdentifiers.device(this.getApplicationContext()))
 				.setUserId(operatorId).setUserKey(operatorKey);
@@ -529,31 +529,93 @@ public class NetworkService extends Service implements
 	 * 
 	 * This takes an argument indicating the carrier type [udp, tcp, journal].
 	 * 
+	 * The policies are processed in "short circuit" disjunctive normal form.
+	 * Each clause is evaluated there results are 'anded' together, hence disjunction. 
+	 * Within a clause each literal is handled in order until one matches
+	 * its prescribed condition, effecting a short circuit conjunction.
+	 * (It is short circuit as only the first literal to be true is evaluated.)
+	 * 
+	 * In order for a topic to evaluate to success all of its clauses must evaluate true.
+	 * In order for a clause to be true at least (exactly) one of its literals must succeed.
+	 * A literal is true if the condition of the term matches the 
+	 * 'condition' attribute for the term.   
+     * 
+     * @see scripts/tests/distribution_policy.xml for an example.
+     * 
 	 * @param outstream
 	 * @param size
 	 * @param payload_checksum
 	 * @param message
 	 */
 	@Override
-	public Map<Class<? extends INetChannel>, Boolean> sendRequest(
-			AmmoGatewayMessage agm) {
+	public Map<Class<? extends INetChannel>, Boolean> 
+	sendRequest(AmmoGatewayMessage agm, DistributorPolicy.Topic topic) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
 
-		Map<Class<? extends INetChannel>, Boolean> status = new HashMap<Class<? extends INetChannel>, Boolean>();
+		Map<Class<? extends INetChannel>, Boolean> success = 
+				new HashMap<Class<? extends INetChannel>, Boolean>();
 		
-		if (agm.isMulticast) {
-			logger.info("   Sending multicast message.");
-			status.put(MulticastChannel.class, this.multicastChannel
-					.sendRequest(agm));
-		}
+		Boolean multicastSuccess = null;
+		Boolean gatewaySuccess = null;
+		Boolean serialSuccess = null;
 		
-		if (agm.isGateway) {
-			logger.info("   Sending message to gateway.");
-			status.put(TcpChannel.class, this.tcpChannel.sendRequest(agm));
+		boolean totalSuccess = true;
+		if (topic == null) {
+			logger.error("no matching routing topic");
+			gatewaySuccess = this.tcpChannel.sendRequest(agm);
+			success.put(TcpChannel.class, gatewaySuccess);
+			return success;
+		} 
+		for (DistributorPolicy.Clause clause : topic.routing.clauses) {
+			boolean clauseSuccess = false;
+			CLAUSE:
+			for (DistributorPolicy.Literal literal : clause.literals) {
+				switch (literal.term){
+				case MULTICAST:
+					logger.info("   Sending multicast message.");
+					if (multicastSuccess == null) 
+					    multicastSuccess = this.multicastChannel.sendRequest(agm);
+					
+					if (multicastSuccess == literal.condition) {
+						clauseSuccess = true;
+						break CLAUSE;
+					}
+					break;
+				case GATEWAY:
+					logger.info("   Sending message to gateway.");
+					if (gatewaySuccess == null) 
+						gatewaySuccess = this.tcpChannel.sendRequest(agm);
+					
+					if (gatewaySuccess == literal.condition) {
+						clauseSuccess = true;
+						break CLAUSE;
+					}
+					if (gatewaySuccess) break;
+					break;
+				case SERIAL:
+					logger.error("Serial channel not yet implemented");
+					if (serialSuccess == null)
+						serialSuccess = false; 
+					// TODO there is no serial channel at present so it fails by omission
+					
+					if (serialSuccess == literal.condition) {
+						clauseSuccess = true;
+						break CLAUSE;
+					}
+					if (serialSuccess) break;
+					break;
+				}
+			}
+			totalSuccess &= clauseSuccess;
 		}
-		return status;
+		success.put(TotalChannel.class, totalSuccess);
+		success.put(MulticastChannel.class, multicastSuccess);
+		success.put(TcpChannel.class, gatewaySuccess);
+		
+		return success;
 	}
+	abstract public class TotalChannel implements INetChannel {}
 
 	// ===========================================================
 	// Helper classes
@@ -566,7 +628,7 @@ public class NetworkService extends Service implements
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	public boolean deliver(AmmoGatewayMessage agm) {
-		logger.info("::deliverGatewayResponse");
+		logger.info("::deliverGatewayResponse {}", agm);
 
 		// FIXME: we do this because multicast packets can come in
 		// before the distributor is set. This test is a workaround,
@@ -612,8 +674,9 @@ public class NetworkService extends Service implements
 	 * @return
 	 */
 	public boolean isConnected() {
-		logger.info("::isConnected");
-		return tcpChannel.isConnected() || multicastChannel.isConnected();
+		boolean any = tcpChannel.isConnected() || multicastChannel.isConnected();
+		logger.info("::isConnected ? {}", any );
+		return any;
 	}
 
 	/**
@@ -628,10 +691,9 @@ public class NetworkService extends Service implements
 		AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb,
 				this);
 		agmb.isGateway(true);
-		Map<Class<? extends INetChannel>, Boolean> result = sendRequest(agmb
-				.build());
-		for (Entry<Class<? extends INetChannel>, Boolean> entry : result
-				.entrySet()) {
+		Map<Class<? extends INetChannel>, Boolean> result = 
+				sendRequest(agmb.build(), null);
+		for (Entry<Class<? extends INetChannel>, Boolean> entry : result.entrySet()) {
 			if (entry.getValue() == true)
 				return true;
 		}
