@@ -5,12 +5,16 @@ package edu.vu.isis.ammo.core.ui;
 
 import java.util.Calendar;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -21,7 +25,7 @@ import android.widget.Spinner;
 import android.widget.Toast;
 import android.widget.AdapterView.OnItemSelectedListener;
 import edu.vu.isis.ammo.IPrefKeys;
-import edu.vu.isis.ammo.api.AmmoDispatcher;
+import edu.vu.isis.ammo.api.AmmoDispatch;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
@@ -30,10 +34,11 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  * This activity provides the operator a direct way of subscribing to content of interest.
  * He enters the subscription fields directly.
  * 
- * @author phreed
- *
+ * This is to be used primarily for testing (move to AmmoCoreTestDummy?)
  */
 public class Subscribe extends ActivityEx implements OnClickListener {
+	private static final Logger logger = LoggerFactory.getLogger("ammo:api-d");
+	
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -44,7 +49,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	// Fields
 	// ===========================================================
 	private Spinner interestSpinner;
-	private AmmoDispatcher ad = null;
+	private AmmoDispatch ad = null;
 	private MyOnItemSelectedListener selectionListener = null;
 	private Button btnSubscribe;
 	private String uid;
@@ -53,7 +58,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	public void onCreate(Bundle savedInstanceState) {
 	    super.onCreate(savedInstanceState);
 	    setContentView(R.layout.subscribe);
-	    ad = AmmoDispatcher.getInstance(this);
+	    this.ad = AmmoDispatch.newInstance(this);
 
 	    interestSpinner = (Spinner) findViewById(R.id.subscribe_uri);
 	    ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
@@ -93,7 +98,12 @@ public class Subscribe extends ActivityEx implements OnClickListener {
             	cr.insert(SubscriptionTableSchema.CONTENT_URI, values);
             	
             	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();
-            	ad.subscribe(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");	
+            	try {
+					ad.subscribe(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");
+				} catch (RemoteException ex) {
+					logger.warn("ammo distributor not yet active {}",
+							ex.getLocalizedMessage());
+				}	
         	} else {
         		Toast.makeText(Subscribe.this, "Already subscribed to this content", Toast.LENGTH_SHORT).show();
         	}
