@@ -66,6 +66,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		name = (MyEditTextPreference) this.findPreference(INetPrefKeys.CORE_OPERATOR_ID);
 		name.setSummaryPrefix(res.getString(R.string.operator_id_label));
 		name.setType(MyEditTextPreference.Type.OPERATOR_ID);
+		name.refreshSummaryField();
 		
 		/*
 		 * Multicast Setup
