@@ -1618,10 +1618,12 @@ extends AsyncTask<DistributorService, Integer, Void>
 		final Uri serialUri = Uri.withAppendedPath(tupleUri, "_serial");
 		final Cursor tupleCursor = resolver.query(serialUri, null, null, null, null);
 		if (tupleCursor == null) return null;
-		if (tupleCursor.getCount() < 1) return null;
+		
+		if (! tupleCursor.moveToFirst()) return null;
 		if (tupleCursor.getColumnCount() < 1) return null;
-
-		final byte[] tuple = tupleCursor.getString(0).getBytes();
+		
+		final String tupleString = tupleCursor.getString(0);
+		final byte[] tuple = tupleString.getBytes();
 		if (tupleCursor.getColumnCount() < 2) {
 			// allow to not be null terminated
 			return tuple;

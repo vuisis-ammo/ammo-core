@@ -11,7 +11,7 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="gateway" condition="true"/>
+	        <literal term="gateway" condition="success"/>
 	     </clause>
      </routing>
   </topic>
@@ -22,8 +22,8 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="true"/>
-	        <literal term="gateway" condition="true"/>
+	        <literal term="multicast" condition="success"/>
+	        <literal term="gateway" condition="success"/>
 	     </clause>
      </routing>
   </topic>
@@ -34,10 +34,10 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="true"/>
+	        <literal term="multicast" condition="success"/>
 	     </clause>
 	     <clause>
-	        <literal term="gateway" condition="true"/>
+	        <literal term="gateway" condition="success"/>
 	     </clause>
      </routing>
   </topic>
