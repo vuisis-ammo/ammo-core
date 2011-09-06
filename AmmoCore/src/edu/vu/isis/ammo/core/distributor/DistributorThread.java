@@ -275,8 +275,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 	private boolean processRequest(DistributorService that, AmmoRequest agm) {
 		logger.info("::processRequest {}",agm);
 		switch (agm.action){
-		case POSTAL: processPostalRequest(that, agm, 1); break;
-		case DIRECTED_POSTAL: processPostalRequest(that, agm, 2); break;
+		case POSTAL: processPostalRequest(that, agm); break;
+		case DIRECTED_POSTAL: processPostalRequest(that, agm); break;
 		case PUBLISH: break;
 		case RETRIEVAL: processRetrievalRequest(that, agm); break;
 		case SUBSCRIBE: processSubscribeRequest(that, agm, 1); break;
@@ -605,7 +605,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @param handler
 	 * @return
 	 */
-	private void processPostalRequest(DistributorService that, AmmoRequest agm, int st) {
+	private void processPostalRequest(DistributorService that, AmmoRequest agm) {
 		logger.info("::processPostalRequest()");
 
 		final ContentResolver resolver = that.getContentResolver();
@@ -613,14 +613,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 		String mimeType = agm.topic.asString();
 		final byte[] serialized;
 
-		switch (st) {
-		case PostalTableSchema.SERIALIZE_TYPE_DIRECT:
+		if (agm.payload.hasContent()) {
 			serialized = agm.payload.asBytes();
-			break;
-
-		case PostalTableSchema.SERIALIZE_TYPE_INDIRECT:
-		case PostalTableSchema.SERIALIZE_TYPE_DEFERRED:
-		default:
+		} else {
 			try {
 				serialized = serializeFromUri(that.getContentResolver(), agm.provider.asUri(), logger);
 			} catch (IOException e1) {
@@ -952,6 +947,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 				@SuppressWarnings("unused")
 				final int numUpdated = resolver.update(retrieveUri, values, null, null);
 
+				@SuppressWarnings("unused")
 				Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
 						this.dispatchRetrievalRequest(that, 
 								rowUri.toString(), mime,
@@ -1056,6 +1052,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			}
 			if (! queuable) return;  // cannot send now, maybe later
 
+			@SuppressWarnings("unused")
 			Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
 					this.dispatchRetrievalRequest(that, 
 							agm.provider.toString(), mimeType,
@@ -1314,6 +1311,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 				@SuppressWarnings("unused")
 				int numUpdated = resolver.update(subUri, values, null, null);
 
+				@SuppressWarnings("unused")
 				Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
 						this.dispatchSubscribeRequest(that, 
 								mime, selection,
@@ -1428,6 +1426,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					SubscriptionTableSchema.DISPOSITION_QUEUED);
 			final Uri retrievalUri = resolver.insert(SubscriptionTableSchemaBase.CONTENT_URI, values);
 
+			@SuppressWarnings("unused")
 			Map<Class<? extends INetChannel>,Boolean> dispatchResult = 
 					this.dispatchSubscribeRequest(that, 
 							agm.provider.toString(), mimeType,
@@ -1618,11 +1617,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 			throws FileNotFoundException, IOException {
 		final Uri serialUri = Uri.withAppendedPath(tupleUri, "_serial");
 		final Cursor tupleCursor = resolver.query(serialUri, null, null, null, null);
-		if (tupleCursor.getCount() < 1) 
-			return null;
-
-		if (tupleCursor.getColumnCount() < 1) 
-			return null;
+		if (tupleCursor == null) return null;
+		if (tupleCursor.getCount() < 1) return null;
+		if (tupleCursor.getColumnCount() < 1) return null;
 
 		final byte[] tuple = tupleCursor.getString(0).getBytes();
 		if (tupleCursor.getColumnCount() < 2) {
