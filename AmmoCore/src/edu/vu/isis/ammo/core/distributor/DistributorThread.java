@@ -44,6 +44,7 @@ import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
@@ -315,9 +316,13 @@ extends AsyncTask<DistributorService, Integer, Void>
 			logger.error( "mw was null!" );
 			return false; // TBD SKN: this was true, why? if we can't parse it then its bad
 		}
-
+        final MessageType mtype = mw.getType();
+        if (mtype == MessageType.HEARTBEAT) {
+			logger.info("heartbeat");
+			return true;
+        }
+        
 		switch (mw.getType()) {
-
 		case DATA_MESSAGE:
 			logger.info("data interest");
 			receiveSubscriptionResponse(context, mw);
@@ -338,9 +343,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 			receiveRetrievalResponse(context, mw);
 			break;
 
-		case HEARTBEAT:
-			logger.info("heartbeat");
-			break;
 		case AUTHENTICATION_MESSAGE:
 		case SUBSCRIBE_MESSAGE:
 		case PULL_REQUEST:

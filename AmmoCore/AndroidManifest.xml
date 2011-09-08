@@ -83,7 +83,7 @@
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP" />
                 <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
                 
-                <action android:name="edu.vu.isis.ammo.api.IDistributorService" />
+                <action android:name="edu.vu.isis.ammo.api.MAKE_REQUEST" />
             </intent-filter>
         </service>
         
