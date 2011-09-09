@@ -5,7 +5,6 @@
 package edu.vu.isis.ammo.core.network;
 
 import java.util.List;
-import java.util.Map;
 
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorService;
@@ -36,8 +35,7 @@ public interface INetworkService {
     void teardown();
     boolean isConnected();
 
-    public Map<Class<? extends INetChannel>,Boolean> 
-    sendRequest(AmmoGatewayMessage agm, DistributorPolicy.Topic topic );
+    public boolean sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic );
     
     /**
      * Pass control to the distributor service to handle the message.

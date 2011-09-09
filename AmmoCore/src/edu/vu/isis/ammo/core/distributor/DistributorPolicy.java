@@ -52,6 +52,9 @@ import edu.vu.isis.ammo.core.R;
 public class DistributorPolicy implements ContentHandler {
 	private static final Logger logger = LoggerFactory.getLogger("ammo.dp");
 
+	public static final String DEFAULT = "_default_";
+	public static final String TOTAL = "_total_";
+	
 	public final Trie<String, Topic> policy;
 	public final static String policy_dir = "policy";
 	public final static String policy_file = "distribution_policy.xml";
@@ -159,8 +162,8 @@ public class DistributorPolicy implements ContentHandler {
 			
 			this.builder.type("urn:test:domain/trial/both")
 			.addClause()
-			    .addLiteral(Term.GATEWAY, true)
-			    .addLiteral(Term.MULTICAST, true)
+			    .addLiteral("gateway", true)
+			    .addLiteral("multicast", true)
 			.build();
 		}
 	}
@@ -173,7 +176,7 @@ public class DistributorPolicy implements ContentHandler {
 		this.builder
 		.type("")
 		.priority(AmmoRequest.PRIORITY_NORMAL)
-		.addClause().addLiteral(Term.GATEWAY, true)
+		.addClause().addLiteral("gateway", true)
 		.build();
 	}
 
@@ -243,7 +246,7 @@ public class DistributorPolicy implements ContentHandler {
 			this.workingClause = new Clause();
 			this.clauses.add(this.workingClause);
 		}
-		public void addLiteral(Term term, Boolean condition) {
+		public void addLiteral(String term, Boolean condition) {
 			this.workingClause.addLiteral(new Literal(term, condition));
 		}
 	}
@@ -272,9 +275,9 @@ public class DistributorPolicy implements ContentHandler {
 	}
 
 	public class Literal {
-		public final Term term;
+		public final String term;
 		public final boolean condition;
-		public Literal(Term term, boolean condition) {
+		public Literal(String term, boolean condition) {
 			this.term = term;
 			this.condition = condition;
 		}
@@ -289,19 +292,6 @@ public class DistributorPolicy implements ContentHandler {
 			  .append("condition: ").append(this.condition);
 			DistributorPolicy.this.indent--;
 			return sb.toString();
-		}
-	}
-
-	public enum Term {
-		MULTICAST, GATEWAY, SERIAL;
-		@Override
-		public String toString() {
-			switch (this) {
-			case MULTICAST: return "M";
-			case GATEWAY: return "G";
-			case SERIAL: return "S";
-			}
-			return "U";
 		}
 	}
 
@@ -337,7 +327,7 @@ public class DistributorPolicy implements ContentHandler {
 			this.routing.addClause();
 			return this;
 		}
-		public TopicBuilder addLiteral(Term term, Boolean condition) {
+		public TopicBuilder addLiteral(String term, Boolean condition) {
 			this.routing.addLiteral(term, condition);
 			return this;
 		}
@@ -432,7 +422,7 @@ public class DistributorPolicy implements ContentHandler {
 			if (localName.equals("literal")) {
 				logger.info("begin 'literal'");
 				this.inLiteral = true;
-				Term term = extractTerm(uri,"term" , Term.GATEWAY, atts);
+				String term = extractTerm(uri,"term" , "gateway", atts);
 				Boolean condition = extractCondition(uri,"condition", true, atts);
 				this.builder.addLiteral(term, condition);
 				return;
@@ -544,14 +534,10 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param atts
 	 * @return
 	 */
-	private Term extractTerm(String uri, String attrname, Term def, Attributes atts) {
+	private String extractTerm(String uri, String attrname, String def, Attributes atts) {
 		String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
-		if (value.equalsIgnoreCase("multicast")) return Term.MULTICAST;
-		if (value.equalsIgnoreCase("serial")) return Term.SERIAL;
-		if (value.equalsIgnoreCase("gateway")) return Term.GATEWAY;
-		logger.error("invalid term {}", value);
-		return null;
+		return value;
 	}
 
 	/**

@@ -77,7 +77,7 @@ public class DistributorProvider extends DistributorProviderBase {
            case POSTAL_SET:
               values = this.initializePostalDefaults(values);
               insertTable = Tables.POSTAL_TBL;
-              nullColumnHack = PostalTableSchemaBase.CP_TYPE;
+              nullColumnHack = PostalTableSchemaBase.TOPIC;
               tableUri = PostalTableSchemaBase.CONTENT_URI;
               break;
            

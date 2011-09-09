@@ -87,7 +87,7 @@ public class PostalDistributorTableViewAdapter extends DistributorTableViewAdapt
 		
 		// set the mime-type / topic
 		TextView tttv = (TextView)v.findViewById(R.id.distributor_table_view_item_topic);
-		tttv.setText(cursor.getString(cursor.getColumnIndex(PostalTableSchema.CP_TYPE)));
+		tttv.setText(cursor.getString(cursor.getColumnIndex(PostalTableSchema.TOPIC)));
 		
 	}
 	

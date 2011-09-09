@@ -11,7 +11,7 @@ public class PostalTableViewer extends DistributorTableViewer {
 	private TextView tvLabel;
 	
 	static protected final String[] fromItemLayout = new String[] {
-		PostalTableSchema.URI,
+		PostalTableSchema.PROVIDER,
 		// PostalTableSchema.PROJECTION ,
 		// PostalTableSchema.SELECTION ,
 		// PostalTableSchema.ARGS ,
@@ -27,7 +27,7 @@ public class PostalTableViewer extends DistributorTableViewer {
 		@SuppressWarnings("unused")
 		String[] projection = {PostalTableSchema._ID, 
 				PostalTableSchema.DISPOSITION,
-				PostalTableSchema.URI, 
+				PostalTableSchema.PROVIDER, 
 				PostalTableSchema.CREATED_DATE};
 		
 		Cursor cursor = this.managedQuery(this.uri, null, null, null, 

@@ -144,9 +144,11 @@ public class NetworkService extends Service implements
 	private DistributorService distributor;
 
 	// Channels
-	private INetChannel tcpChannel = TcpChannel.getInstance(this);
-	private INetChannel multicastChannel = MulticastChannel.getInstance(this);
-	private INetChannel journalChannel = JournalChannel.getInstance(this);
+	final private INetChannel tcpChannel = TcpChannel.getInstance(this);
+	final private INetChannel multicastChannel = MulticastChannel.getInstance(this);
+	final private INetChannel journalChannel = JournalChannel.getInstance(this);
+	
+	final private Map<String,INetChannel> mChannelMap = new HashMap<String,INetChannel>();
 
 	private MyBroadcastReceiver myReceiver = null;
 	private IRegisterReceiver mReceiverRegistrar = new IRegisterReceiver() {
@@ -229,6 +231,11 @@ public class NetworkService extends Service implements
 				.getDefaultSharedPreferences(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
 
+		mChannelMap.put("default", this.tcpChannel);
+		mChannelMap.put("gateway", this.tcpChannel);
+		mChannelMap.put("default", this.multicastChannel);
+		mChannelMap.put("default", this.journalChannel);
+		 
 		mChannels.add(Gateway.getInstance(getBaseContext()));
 		mChannels.add(Multicast.getInstance(getBaseContext()));
 
@@ -527,20 +534,8 @@ public class NetworkService extends Service implements
 	/**
 	 * Used to send a message to the android gateway plugin.
 	 * 
-	 * This takes an argument indicating the carrier type [udp, tcp, journal].
+	 * This takes an argument indicating the channel type [tcpchannel, multicast, journal].
 	 * 
-	 * The policies are processed in "short circuit" disjunctive normal form.
-	 * Each clause is evaluated there results are 'anded' together, hence disjunction. 
-	 * Within a clause each literal is handled in order until one matches
-	 * its prescribed condition, effecting a short circuit conjunction.
-	 * (It is short circuit as only the first literal to be true is evaluated.)
-	 * 
-	 * In order for a topic to evaluate to success all of its clauses must evaluate true.
-	 * In order for a clause to be true at least (exactly) one of its literals must succeed.
-	 * A literal is true if the condition of the term matches the 
-	 * 'condition' attribute for the term.   
-     * 
-     * @see scripts/tests/distribution_policy.xml for an example.
      * 
 	 * @param outstream
 	 * @param size
@@ -548,73 +543,12 @@ public class NetworkService extends Service implements
 	 * @param message
 	 */
 	@Override
-	public Map<Class<? extends INetChannel>, Boolean> 
-	sendRequest(AmmoGatewayMessage agm, DistributorPolicy.Topic topic) {
+	public boolean sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
-
-		Map<Class<? extends INetChannel>, Boolean> success = 
-				new HashMap<Class<? extends INetChannel>, Boolean>();
-		
-		Boolean multicastSuccess = null;
-		Boolean gatewaySuccess = null;
-		Boolean serialSuccess = null;
-		
-		boolean totalSuccess = true;
-		if (topic == null) {
-			logger.error("no matching routing topic");
-			gatewaySuccess = this.tcpChannel.sendRequest(agm);
-			success.put(TcpChannel.class, gatewaySuccess);
-			return success;
-		} 
-		for (DistributorPolicy.Clause clause : topic.routing.clauses) {
-			boolean clauseSuccess = false;
-			CLAUSE:
-			for (DistributorPolicy.Literal literal : clause.literals) {
-				switch (literal.term){
-				case MULTICAST:
-					logger.info("   Sending multicast message.");
-					if (multicastSuccess == null) 
-					    multicastSuccess = this.multicastChannel.sendRequest(agm);
-					
-					if (multicastSuccess == literal.condition) {
-						clauseSuccess = true;
-						break CLAUSE;
-					}
-					break;
-				case GATEWAY:
-					logger.info("   Sending message to gateway.");
-					if (gatewaySuccess == null) 
-						gatewaySuccess = this.tcpChannel.sendRequest(agm);
-					
-					if (gatewaySuccess == literal.condition) {
-						clauseSuccess = true;
-						break CLAUSE;
-					}
-					if (gatewaySuccess) break;
-					break;
-				case SERIAL:
-					logger.error("Serial channel not yet implemented");
-					if (serialSuccess == null)
-						serialSuccess = false; 
-					// TODO there is no serial channel at present so it fails by omission
-					
-					if (serialSuccess == literal.condition) {
-						clauseSuccess = true;
-						break CLAUSE;
-					}
-					if (serialSuccess) break;
-					break;
-				}
-			}
-			totalSuccess &= clauseSuccess;
-		}
-		success.put(TotalChannel.class, totalSuccess);
-		success.put(MulticastChannel.class, multicastSuccess);
-		success.put(TcpChannel.class, gatewaySuccess);
-		
-		return success;
+		return mChannelMap.get("channel").sendRequest(agm);
 	}
+	
 	abstract public class TotalChannel implements INetChannel {}
 
 	// ===========================================================
@@ -688,16 +622,9 @@ public class NetworkService extends Service implements
 
 		/** Message Building */
 		AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-		AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb,
-				this);
+		AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
 		agmb.isGateway(true);
-		Map<Class<? extends INetChannel>, Boolean> result = 
-				sendRequest(agmb.build(), null);
-		for (Entry<Class<? extends INetChannel>, Boolean> entry : result.entrySet()) {
-			if (entry.getValue() == true)
-				return true;
-		}
-		return false;
+		return sendRequest(agmb.build(), DistributorPolicy.DEFAULT, null);
 	}
 
 	public void setDistributorServiceCallback(DistributorService callback) {
