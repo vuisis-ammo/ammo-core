@@ -607,7 +607,7 @@ public class SerialChannel extends NetChannel
                             synchronized (this.state) {
                                 while (this.isConnected()) // this is IMPORTANT don't remove it.
                                 {
-                                    parent.sendHeartbeatIfNeeded();
+                                    //parent.sendHeartbeatIfNeeded();
 
                                     // wait for somebody to change the connection status
                                     this.state.wait(BURP_TIME);
@@ -675,7 +675,6 @@ public class SerialChannel extends NetChannel
             try
             {
                 parent.mPort = new SerialPort( new File(device), baudRate );
-                //parent.mPort = new SerialPort( new File("/dev/ttyUSB0"), baudRate );
             }
             catch ( Exception e )
             {
@@ -1009,11 +1008,6 @@ public class SerialChannel extends NetChannel
 
                 try
                 {
-                    // *****************************************************
-                    // FIXME: replace the following code with the code
-                    // to send the packet over the SerialPort.
-                    // *****************************************************
-
                     ByteBuffer buf = msg.serialize( endian,
                                                     AmmoGatewayMessage.VERSION_1_TERSE,
                                                     (byte) slotNumber );
@@ -1036,11 +1030,14 @@ public class SerialChannel extends NetChannel
                     // Sandeep: this is the new code.
                     OutputStream outputStream = mPort.getOutputStream();
 
-                    //outputStream.write( "Hello, world!".getBytes() );
-
                     // Disabling this to test receiving of messages, since we have no
                     // channelization yet for the 152s.
                     outputStream.write( buf.array() );
+                    outputStream.flush();
+
+                    // mPort.write( buf, buf.position() ); // new version
+
+
                     logger.info( "sent message size={}, checksum={}, data:{}",
                                  new Object[] {
                                      msg.size,
@@ -1145,7 +1142,11 @@ public class SerialChannel extends NetChannel
                     long currentTime = System.currentTimeMillis();
                     long startOfRound = ((long) (currentTime / 2000) * 2000);
                     long currentSlot = (currentTime - startOfRound) / 125;
-                    logger.debug( "Read {} bytes in slot {} (header)", size, currentSlot );
+                    logger.debug( "Read {} bytes in slot {} (header) at {}",
+                                 new Object[] {
+                                      size,
+                                      currentSlot,
+                                      currentTime } );
 
                     buf.put( buffer, 0, size );
                     //logger.error( "asdfasdf {}...{}", buf.position(), buf.array() );
@@ -1200,7 +1201,11 @@ public class SerialChannel extends NetChannel
                                 currentTime = System.currentTimeMillis();
                                 startOfRound = ((long) (currentTime / 2000) * 2000);
                                 currentSlot = (currentTime - startOfRound) / 125;
-                                logger.debug( "Read {} bytes in slot {} (payload)", size, currentSlot );
+                                logger.debug( "Read {} bytes in slot {} (payload) at {}",
+                                              new Object[] {
+                                                  size,
+                                                  currentSlot,
+                                                  currentTime } );
                                 buf.put( buffer, 0, ret );
                             }
                             buf.flip();
