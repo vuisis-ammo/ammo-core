@@ -8,7 +8,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -218,12 +220,25 @@ public class DistributorPolicy implements ContentHandler {
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
+		
+		public Map<String, Boolean> makeRouteMap() {
+			return this.routing.makeMap();
+		}
 	}
 
 	public class Routing {
 		public final List<Clause> clauses;
 		public Routing() {
 			this.clauses = new ArrayList<Clause>();
+		}
+		public Map<String, Boolean> makeMap() {
+			final Map<String,Boolean> map = new HashMap<String,Boolean>();
+		    for (Clause clause : this.clauses) {
+		    	for (Literal literal : clause.literals) {
+		    	    map.put(literal.term, null);
+		    	}
+		    }
+			return map;
 		}
 		@Override
 		public String toString() {

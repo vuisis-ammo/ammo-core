@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.RemoteException;
@@ -19,15 +18,16 @@ import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
-import android.widget.AdapterView.OnItemSelectedListener;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatch;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**
@@ -92,10 +92,10 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         	ContentResolver cr = this.getContentResolver();
         	if (entryDoesNotExist(cr, selectedUri)) {
         		ContentValues values = new ContentValues();
-            	values.put(SubscriptionTableSchema.URI, selectedUri.toString());
-            	values.put(SubscriptionTableSchema.MIME, selectedMime);
-            	values.put(SubscriptionTableSchema.DISPOSITION, SubscriptionTableSchema.DISPOSITION_PENDING);
-            	cr.insert(SubscriptionTableSchema.CONTENT_URI, values);
+            	values.put(SubscribeTableSchema.PROVIDER.cv(), selectedUri.toString());
+            	values.put(SubscribeTableSchema.TOPIC.cv(), selectedMime);
+            	values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
+            	// cr.insert(SubscribeTableSchema.CONTENT_URI, values);
             	
             	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();
             	try {
@@ -111,10 +111,11 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	}
 	
 	private boolean entryDoesNotExist(ContentResolver cr, Uri selectedUri) {
-		String[] projection = {SubscriptionTableSchema.URI, SubscriptionTableSchema._ID};
-		String selection = SubscriptionTableSchema.URI + " LIKE \"" + selectedUri.toString() + "\"";
-		Cursor c = cr.query(SubscriptionTableSchema.CONTENT_URI, projection, selection, null, null);
-		return (c.getCount() == 0);
+		// String[] projection = {SubscribeTableSchema.PROVIDER.n, SubscribeTableSchema._ID};
+		String selection = SubscribeTableSchema.PROVIDER.q() + " LIKE \"" + selectedUri.toString() + "\"";
+		// Cursor c = cr.query(SubscribeTableSchema.CONTENT_URI, projection, selection, null, null);
+		//return (c.getCount() == 0);
+		return false;
 	}
 	
 	private class MyOnItemSelectedListener implements OnItemSelectedListener {

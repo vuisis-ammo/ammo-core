@@ -4,23 +4,23 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import edu.vu.isis.ammo.core.distributor.DistributorThread.ChannelState;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.PostalTableSchema;
 
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteDatabase.CursorFactory;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
-import android.os.Environment;
 import android.provider.BaseColumns;
 import android.text.TextUtils;
+import edu.vu.isis.ammo.core.distributor.DistributorThread.ChannelState;
 
 /**
  * The Distributor Store Object is managed by the distributor thread.
@@ -37,13 +37,14 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger(DistributorDataStore.class);
+	public static final int VERSION = 11;
 
 	// ===========================================================
 	// Fields
 	// ===========================================================
 	private final Context context;
 	private SQLiteDatabase db;
-	private MyHelper helper;
+	private final MyHelper helper;
 	// ===========================================================
 	// Schema
 	// ===========================================================
@@ -70,35 +71,40 @@ public class DistributorDataStore {
 	 * The rule for disposition rows is cascade delete.
 	 */
 	public enum Tables {
-		POSTAL("postal"),
-		PUBLISH("publication"),
-		RETRIEVAL("retrieval"),
-		SUBSCRIBE("subscription"),
-		DISPOSAL("disposition"),
-		CHANNEL("channel");
+		POSTAL(1, "postal"),
+		PUBLISH(2, "publication"),
+		RETRIEVAL(3, "retrieval"),
+		SUBSCRIBE(4, "subscription"),
+		DISPOSAL(5, "disposition"),
+		CHANNEL(6, "channel");
 
+		final public int o;
 		final public String n;
 
-		private Tables(String name) {
+		private Tables(int ordinal, String name) {
+			this.o = ordinal;
 			this.n = name;
 		}
 
-		public static final int VERSION = 7;
 		public static final String NAME = "distributor.db";
 
-		public String quote() {
+		public String q() {
 			return new StringBuilder().append('"').append(this.n).append('"').toString();
+		}
+		public String qv() {
+			return new StringBuilder().append('\'').append(this.n).append('\'').toString();
 		}
 		/**
 		 * Produce string builders of the form...
 		 * CREATE TABLE "<table-name>" ( <row defs> );
 		 *
 		 */
-		public StringBuilder sqlCreate(StringBuilder sb) {
-			StringBuilder wrap = new StringBuilder();
-			return wrap.append("CREATE TABLE ")
-					.append('"').append(this.n).append('"')
-					.append(" (").append(sb).append(");");
+		public String sqlCreate(String fields) {
+			return new StringBuilder()
+			.append("CREATE TABLE ")
+			.append('"').append(this.n).append('"')
+			.append(" (").append(fields).append(");")
+			.toString();
 		}
 
 		/**
@@ -106,11 +112,15 @@ public class DistributorDataStore {
 		 * DROP TABLE "<table-name>";
 		 *
 		 */
-		public StringBuilder sqlDrop(StringBuilder sb) {
-			StringBuilder wrap = new StringBuilder();
-			return wrap.append("DROP TABLE ")
-					.append('"').append(this.n).append('"')
-					.append(" (").append(sb).append(");");
+		public String sqlDrop() {
+			return new StringBuilder()
+			.append("DROP TABLE ")
+			.append('"').append(this.n).append('"')
+			.append(";")
+			.toString();
+		}
+		public String cv() {
+			return this.n;
 		}
 	};
 
@@ -143,7 +153,7 @@ public class DistributorDataStore {
 		 * '<field-ordinal-value>';
 		 *
 		 */
-		public String val() {
+		public String quote() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
 		}
 		public static SerializeType byOrdinal(int serialType) {
@@ -156,6 +166,15 @@ public class DistributorDataStore {
 				return DEFERRED;
 			}
 			throw new IllegalArgumentException("unknown SerialType "+Integer.toString(serialType));
+		}
+		public String cv() {
+			return String.valueOf(this.o);
+		}
+		static public SerializeType getInstance(String ordinal) {
+			return SerializeType.values()[Integer.parseInt(ordinal)];
+		}
+		static public SerializeType getInstance(int ordinal) {
+			return SerializeType.values()[ordinal];
 		}
 	};
 
@@ -182,13 +201,14 @@ public class DistributorDataStore {
 			this.o = ordinal;
 			this.t = title;
 		}
-		/**
-		 * Produce string of the form...
-		 * '<field-ordinal-value>';
-		 *
-		 */
-		public String val() {
+		public String q() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
+		}
+		public String cv() {
+			return String.valueOf(this.o);
+		}
+		static public DisposalState getInstance(String ordinal) {
+			return DisposalState.values()[Integer.parseInt(ordinal)];
 		}
 	};
 
@@ -214,8 +234,14 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * '<field-ordinal-value>';
 		 */
-		public String val() {
+		public String quote() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
+		}
+		public String cv() {
+			return String.valueOf(this.o);
+		}
+		static public ContinuityType getInstance(String ordinal) {
+			return ContinuityType.values()[Integer.parseInt(ordinal)];
 		}
 	};
 
@@ -241,8 +267,48 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * '<field-ordinal-value>';
 		 */
-		public String val() {
+		public String quote() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
+		}
+		public String cv() {
+			return String.valueOf(this.o);
+		}
+		static public PriorityType getInstance(String ordinal) {
+			return PriorityType.values()[Integer.parseInt(ordinal)];
+		}
+	}
+
+	/** 
+	 * Description: Indicates if the uri indicates a table or whether the data has been preserialized.
+	 *     DIRECT : the serialized data is found in the data field (or a suitable file).
+	 *     INDIRECT : the serialized data is obtained from the named uri.
+	 *     DEFERRED : the same as INDIRECT but the serialization doesn't happen until the data is sent.
+	 * <P>Type: EXCLUSIVE</P> 
+	 */
+	public enum SeriaizeType {
+		DIRECT(1, "DIRECT"),
+		INDIRECT(2, "INDIRECT"),
+		DEFERRED(3, "DEFERRED");
+
+		final public int o;
+		final public String t;
+
+		private SeriaizeType(int ordinal, String title) {
+			this.o = ordinal;
+			this.t = title;
+		}
+		/**
+		 * Produce string of the form...
+		 * '<field-ordinal-value>';
+		 */
+		public String quote() {
+			return new StringBuilder().append("'").append(this.o).append("'").toString();
+		}
+		public String cv() {
+			return String.valueOf(this.o);
+		}
+		static public SeriaizeType getInstance(String ordinal) {
+			return SeriaizeType.values()[Integer.parseInt(ordinal)];
 		}
 	}
 
@@ -270,6 +336,39 @@ public class DistributorDataStore {
 		}
 	};
 
+	private static final String POSTAL_GARBAGE = new StringBuilder()
+	.append(PostalTableSchema.DISPOSITION.q())
+	.append(" IN (")
+	.append(DisposalState.SATISFIED.q()).append(",")
+	.append(DisposalState.EXPIRED.q()).append(")")
+	.toString();
+
+	private static final String POSTAL_RESEND = new StringBuilder()
+	.append(PostalTableSchema.DISPOSITION.q())
+	.append(" IN (")
+	.append(DisposalState.PENDING.q()).append(",")
+	.append(DisposalState.QUEUED.q()).append(",")
+	.append(DisposalState.FAIL.q()).append(")")
+	.toString();
+
+	private static final String POSTAL_SEND = new StringBuilder()
+	.append(PostalTableSchema.DISPOSITION.q())
+	.append(" IN (")
+	.append(DisposalState.PENDING.q()).append(")")
+	.toString();
+
+	private static final String POSTAL_EXPIRATION_CONDITION; 
+	private static final ContentValues POSTAL_EXPIRATION_UPDATE;
+	static {
+		POSTAL_EXPIRATION_CONDITION = new StringBuilder()
+		.append('"').append(PostalTableSchema.EXPIRATION.n).append('"')
+		.append('<').append('?')
+		.toString();
+
+		POSTAL_EXPIRATION_UPDATE = new ContentValues();
+		POSTAL_EXPIRATION_UPDATE.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.EXPIRED.cv());
+	}
+
 	public enum PostalTableSchema  {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
@@ -279,7 +378,7 @@ public class DistributorDataStore {
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
 
-		CP_TYPE("cp_type", "TEXT"),
+		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
 		PROVIDER("provider", "TEXT"),
@@ -291,7 +390,7 @@ public class DistributorDataStore {
 		PRIORITY("priority", "INTEGER"),
 		// What order should this message be sent. Negative priorities indicated less than normal.
 
-		SERIALIZE_TYPE("serialize_type", "INTEGER"),
+		ORDER("serialize_type", "INTEGER"),
 
 		DISPOSITION("disposition", "INTEGER"),
 		// The current best guess of the status of the request.
@@ -332,10 +431,13 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * "<field-name>"
 		 */
-		public StringBuilder quote(StringBuilder sb) {
-			if (sb == null) sb = new StringBuilder();
-			return sb
-			.append('"').append(this.n).append('"');
+		public String q() {
+			return new StringBuilder()
+			.append('"').append(this.n).append('"')
+			.toString();
+		}
+		public String cv() {
+			return String.valueOf(this.n);
 		}
 	};
 
@@ -402,10 +504,13 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * "<field-name>"
 		 */
-		public StringBuilder quote(StringBuilder sb) {
-			if (sb == null) sb = new StringBuilder();
-			return sb
-			.append('"').append(this.n).append('"');
+		public String quote() {
+			return new StringBuilder()
+			.append('"').append(this.n).append('"')
+			.toString();
+		}
+		public String cv() {
+			return String.valueOf(this.n);
 		}
 	}
 
@@ -429,6 +534,49 @@ public class DistributorDataStore {
 		}
 	};
 
+
+	private static final String RETRIEVAL_GARBAGE;
+	private static final String RETRIEVAL_SEND;
+	private static final String RETRIEVAL_RESEND;
+
+	static {
+		RETRIEVAL_GARBAGE = new StringBuilder()
+		.append(RetrievalTableSchema.DISPOSITION.q())
+		.append(" IN (")
+		.append(DisposalState.SATISFIED.q()).append(",")
+		.append(DisposalState.EXPIRED.q()).append(")")
+		.toString();
+
+		RETRIEVAL_SEND = new StringBuilder()
+		.append(RetrievalTableSchema.DISPOSITION.q())
+		.append(" IN (")
+		.append(DisposalState.PENDING).append(",")
+		.append(DisposalState.FAIL).append(")")
+		.toString();
+
+		RETRIEVAL_RESEND = new StringBuilder()
+		.append(RetrievalTableSchema.DISPOSITION.q())
+		.append(" IN (")
+		.append(DisposalState.PENDING.q()).append(",")
+		.append(DisposalState.QUEUED.q()).append(",")
+		.append(DisposalState.FAIL.q()).append(",")
+		.append(DisposalState.SENT.q()).append(")")
+		.toString();
+	}
+
+	private static final String RETRIEVAL_EXPIRATION_CONDITION; 
+	private static final ContentValues RETRIEVAL_EXPIRATION_UPDATE;
+	static {
+		RETRIEVAL_EXPIRATION_CONDITION = new StringBuilder()
+		.append(RetrievalTableSchema.EXPIRATION.q())
+		.append('<').append('?')
+		.toString();
+
+		RETRIEVAL_EXPIRATION_UPDATE= new ContentValues();
+		RETRIEVAL_EXPIRATION_UPDATE.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.EXPIRED.cv());
+	}
+
+
 	public enum RetrievalTableSchema {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
@@ -438,7 +586,7 @@ public class DistributorDataStore {
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
 
-		DATA_TYPE("data_type", "TEXT"),
+		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
 		PROVIDER("provider", "TEXT"),
@@ -510,10 +658,13 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * "<field-name>"
 		 */
-		public StringBuilder quote(StringBuilder sb) {
-			if (sb == null) sb = new StringBuilder();
-			return sb
-			.append('"').append(this.n).append('"');
+		public String q() {
+			return new StringBuilder()
+			.append('"').append(this.n).append('"')
+			.toString();
+		}
+		public String cv() {
+			return String.valueOf(this.n);
 		}
 	};
 
@@ -537,6 +688,56 @@ public class DistributorDataStore {
 			SubscribeTable.PROJECTION_MAP.put(field.n, field.n);
 		}
 	}
+	static final private String SELECT_SUBSCRIPTION_URI;
+	static final private String SELECT_SUBSCRIPTION_TYPE;
+	static final private String SELECT_SUBSCRIPTION_URI_TYPE;
+	static {
+		SELECT_SUBSCRIPTION_URI = "\""+SubscribeTableSchema.PROVIDER.n +"\"=?";
+		SELECT_SUBSCRIPTION_TYPE = "\"" + SubscribeTableSchema.TOPIC.n + "\"=?";
+		SELECT_SUBSCRIPTION_URI_TYPE = SELECT_SUBSCRIPTION_URI + " AND " + SELECT_SUBSCRIPTION_TYPE;
+	}
+
+	private static final String SUBSCRIPTION_GARBAGE;
+	private static final String SUBSCRIPTION_RESEND;
+	private static final String SUBSCRIPTION_SEND;
+
+	static {
+		SUBSCRIPTION_GARBAGE = new StringBuilder()
+		.append(SubscribeTableSchema.DISPOSITION.q())
+		.append(" IN (")
+		.append(DisposalState.EXPIRED.q()).append(")")
+		.toString();
+
+		SUBSCRIPTION_SEND = new StringBuilder()
+		.append(SubscribeTableSchema.DISPOSITION.q())
+		.append(" IN (")
+		.append(DisposalState.PENDING.q()).append(",")
+		.append(DisposalState.FAIL.q()).append(")")           
+		.toString();
+
+		SUBSCRIPTION_RESEND = new StringBuilder()
+		.append(SubscribeTableSchema.DISPOSITION.q())
+		.append(" IN (")
+		.append(DisposalState.PENDING.q()).append(",")
+		.append(DisposalState.QUEUED.q()).append(",")
+		.append(DisposalState.FAIL.q()).append(",")
+		.append(DisposalState.SENT.q()).append(")")
+		.toString();
+	}
+
+	private static final String SUBSCRIPTION_EXPIRATION_CONDITION; 
+	private static final ContentValues SUBSCRIPTION_EXPIRIATION_UPDATE;
+	static {
+		StringBuilder sb = new StringBuilder();
+		sb.append('"').append(SubscribeTableSchema.EXPIRATION).append('"')
+		.append('<').append('?');
+		SUBSCRIPTION_EXPIRATION_CONDITION = sb.toString();
+
+		SUBSCRIPTION_EXPIRIATION_UPDATE= new ContentValues();
+		SUBSCRIPTION_EXPIRIATION_UPDATE.put(SubscribeTableSchema.DISPOSITION.cv(),
+				DisposalState.EXPIRED.cv());
+	}
+
 
 	public enum SubscribeTableSchema {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
@@ -547,7 +748,7 @@ public class DistributorDataStore {
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
 
-		DATA_TYPE("data_type", "TEXT"),
+		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
 		PROVIDER("provider", "TEXT"),
@@ -595,7 +796,15 @@ public class DistributorDataStore {
 		public StringBuilder quote(StringBuilder sb) {
 			if (sb == null) sb = new StringBuilder();
 			return sb
-			.append('"').append(this.n).append('"');
+					.append('"').append(this.n).append('"');
+		}
+		public String q() {
+			return new StringBuilder()
+			.append('"').append(this.n).append('"')
+			.toString();
+		}
+		public String cv() {
+			return String.valueOf(this.n);
 		}
 	}
 
@@ -659,10 +868,13 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * "<field-name>"
 		 */
-		public StringBuilder quote(StringBuilder sb) {
-			if (sb == null) sb = new StringBuilder();
-			return sb
-			.append('"').append(this.n).append('"');
+		public String q() {
+			return new StringBuilder()
+			.append('"').append(this.n).append('"')
+			.toString();
+		}
+		public String cv() {
+			return String.valueOf(this.n);
 		}
 	}
 
@@ -721,10 +933,13 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * "<field-name>"
 		 */
-		public StringBuilder quote(StringBuilder sb) {
-			if (sb == null) sb = new StringBuilder();
-			return sb
-			.append('"').append(this.n).append('"');
+		public String q() {
+			return new StringBuilder()
+			.append('"').append(this.n).append('"')
+			.toString();
+		}
+		public String cv() {
+			return String.valueOf(this.n);
 		}
 	}
 
@@ -745,7 +960,7 @@ public class DistributorDataStore {
 
 	public DistributorDataStore(Context context) {
 		this.context = context;
-		this.helper = new MyHelper(this.context);
+		this.helper = new MyHelper(this.context, Tables.NAME, null, VERSION);
 
 		// ========= INITIALIZE CONSTANTS ========
 		this.applDir = context.getDir("support", Context.MODE_PRIVATE);
@@ -772,13 +987,17 @@ public class DistributorDataStore {
 
 		this.applTempDir = new File(this.applDir, "tmp");
 		this.applTempDir.mkdir();
+
+		this.openWrite();
 	}
 
 	public DistributorDataStore openRead() {
+		if (this.db != null && this.db.isOpen()) this.db.close();
 		this.db = this.helper.getReadableDatabase();
 		return this;
 	}
 	public DistributorDataStore openWrite() {
+		if (this.db != null && this.db.isOpen()) this.db.close();
 		this.db = this.helper.getWritableDatabase();
 		return this;
 	}
@@ -809,28 +1028,23 @@ public class DistributorDataStore {
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: PostalTable.DEFAULT_SORT_ORDER);
 	}
-	
 
-	private static final String POSTAL_STATUS_QUERY;
-	static {
-		 final StringBuilder sb = new StringBuilder()
-		.append("SELECT * ")
-		.append(" FROM ").append(Tables.POSTAL.quote()).append(" AS p ")
-		.append(" WHERE EXISTS SELECT * ")
-		.append(" FROM ").append(Tables.DISPOSAL.quote()).append(" AS d ")
-		.append(" INNER JOIN ").append(Tables.CHANNEL.quote()).append(" AS c ")
-		.append(" ON d.").append(DisposalTableSchema.CHANNEL).append("=c.").append(ChannelTableSchema.NAME)
-		.append(" WHERE p.").append(PostalTableSchema._ID).append("=d.").append(DisposalTableSchema.PARENT)
-		.append("   AND d").append(DisposalTableSchema.STATE).append(" IN (");
-		POSTAL_STATUS_QUERY = sb.toString();
-		
-	}
+	private static final String POSTAL_STATUS_QUERY = new StringBuilder()
+	.append(" SELECT ").append(" * ")
+	.append(" FROM ").append(Tables.POSTAL.q()).append(" AS p ")
+	.append(" WHERE EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
+	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
+	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
+	.append(" WHERE p.").append(PostalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
+	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.POSTAL.qv())
+	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
+	.append("   AND d.").append(DisposalTableSchema.STATE.q())
+	.append(" IN (").append(DisposalState.PENDING.q()).append("));")
+	.toString();
+
 	public Cursor queryPostalReady(boolean resend) {
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-		
-		final Cursor cursor = db.rawQuery(POSTAL_STATUS_QUERY, null);
-		
-		return cursor;
+		return db.rawQuery(POSTAL_STATUS_QUERY, null);
 	}
 
 	public Cursor queryPublish(String[] projection, String selection,
@@ -861,6 +1075,24 @@ public class DistributorDataStore {
 						: RetrievalTable.DEFAULT_SORT_ORDER);
 	}
 
+	private static final String RETRIEVAL_STATUS_QUERY = new StringBuilder()
+	.append(" SELECT ").append(" * ")
+	.append(" FROM ").append(Tables.RETRIEVAL.q()).append(" AS p ")
+	.append(" WHERE EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
+	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
+	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
+	.append(" WHERE p.").append(RetrievalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
+	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.RETRIEVAL.qv())
+	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
+	.append("   AND d.").append(DisposalTableSchema.STATE.q())
+	.append(" IN (").append(DisposalState.PENDING.q()).append("));")
+	.toString();
+
+	public Cursor queryRetrievalReady(boolean resend) {
+		return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
+	}
+
 	public Cursor querySubscribe(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -875,6 +1107,25 @@ public class DistributorDataStore {
 						: SubscribeTable.DEFAULT_SORT_ORDER);
 	}
 
+	private static final String SUBSCRIBE_STATUS_QUERY = new StringBuilder()
+	.append(" SELECT ").append(" * ")
+	.append(" FROM ").append(Tables.SUBSCRIBE.q()).append(" AS p ")
+	.append(" WHERE EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
+	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
+	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
+	.append(" WHERE p.").append(SubscribeTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
+	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.SUBSCRIBE.qv())
+	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
+	.append("   AND d.").append(DisposalTableSchema.STATE.q())
+	.append(" IN (").append(DisposalState.PENDING.q()).append("));")
+	.toString();
+
+	public Cursor querySubscribeReady(boolean resend) {
+		return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
+	}
+
+
 
 	public Cursor queryDisposal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
@@ -885,28 +1136,29 @@ public class DistributorDataStore {
 
 		// Get the database and run the query.
 		SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, selection, selectionArgs, null, null,
+		return qb.query(this.db, projection, selection, selectionArgs, null, null,
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: DisposalTable.DEFAULT_SORT_ORDER);
 	}
-	
-	private static final String DISPOSAL_STATUS_QUERY;
-	static {
-		DISPOSAL_STATUS_QUERY = new StringBuilder()
-		.append("SELECT * ")
-		.append(" FROM ").append(Tables.DISPOSAL.quote()).append(" AS d ")
-		.append(" INNER JOIN ").append(Tables.CHANNEL.quote()).append(" AS c ")
-		.append(" ON d.").append(DisposalTableSchema.CHANNEL).append("=c.").append(ChannelTableSchema.NAME)
-		.append(" WHERE d.").append(DisposalTableSchema.PARENT).append("=?.")
-		.append("   AND d.").append(DisposalTableSchema.TYPE).append("=?")
-		.append(';')
-		.toString();
-	}
+
+	private static final String DISPOSAL_STATUS_QUERY = new StringBuilder()
+	.append("SELECT * ")
+	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
+	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
+	.append(" ON d.").append(DisposalTableSchema.CHANNEL).append("=c.").append(ChannelTableSchema.NAME)
+	.append(" WHERE d.").append(DisposalTableSchema.PARENT).append("=?.")
+	.append("   AND d.").append(DisposalTableSchema.TYPE).append("=?")
+	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
+	.append("   AND d.").append(DisposalTableSchema.STATE.q())
+	.append(" IN (").append(DisposalState.PENDING.q()).append("));")
+	.append(';')
+	.toString();
+
 	public Cursor queryDisposalReady(int parent, String type) {
 		return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(parent), type});
 	}
 
-	
+
 	/**
 	 * Upsert is a portmanteau of update and insert, thus,
 	 * if a record with a matching key exists then update
@@ -914,6 +1166,13 @@ public class DistributorDataStore {
 	 */
 	public long upsertPostal(ContentValues cv) {
 		return this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
+	}
+	public long upsertPostal(ContentValues cv, Map<String,Boolean> status) {
+		long key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
+		for (Entry<String,Boolean> entry : status.entrySet()) {
+			upsertDisposalByParent(key, Tables.POSTAL, entry.getKey(), entry.getValue());
+		}
+		return key;
 	}
 
 	public long upsertPublish(ContentValues cv) {
@@ -927,23 +1186,46 @@ public class DistributorDataStore {
 	 *
 	 */
 	public long upsertSubscribe(ContentValues cv) {
-		
+
 		return this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
 	}
-	
+
 	public long upsertDisposal(ContentValues cv) {
 		return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.STATE.n, cv);
 	}
-	
-	public long upsertChannel(String name, ChannelState state) {
-		final ContentValues cv = new ContentValues();
-		cv.put(ChannelTableSchema.NAME.n, name);
-		cv.put(ChannelTableSchema.STATE.n, state.ordinal());
+	static final private String DISPOSAL_UPDATE_CLAUSE = new StringBuilder()
+	.append(DisposalTableSchema.PARENT.q()).append("=?").append(" AND ")
+	.append(DisposalTableSchema.CHANNEL.q()).append("=?").toString();
 
-		final int count = this.db.update(Tables.CHANNEL.n, cv,
-				ChannelTableSchema.NAME.quote(null).append("=?").toString(), new String[]{name} );
-		if (count > 0) return 0;
-		return this.db.insert(Tables.CHANNEL.n, ChannelTableSchema.STATE.n, cv);
+	public void upsertDisposalByParent(long id, Tables type, Map<String,Boolean> status) {
+		for (Entry<String,Boolean> entry : status.entrySet()) {
+			upsertDisposalByParent(id, type, entry.getKey(), entry.getValue());
+		}
+	}
+	public void upsertDisposalByParent(long id, Tables type, String channel, Boolean status) {
+		final String typeVal = type.cv();
+
+		final ContentValues cv = new ContentValues();
+		cv.put(DisposalTableSchema.TYPE.cv(), typeVal);
+		cv.put(DisposalTableSchema.PARENT.cv(), id);
+		cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
+		cv.put(DisposalTableSchema.STATE.cv(), status);
+
+		final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
+				DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, channel } );
+		if (updateCount > 0) return;
+		this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.STATE.n, cv);
+	}
+
+	public void upsertChannelByName(String channel, ChannelState status) {
+		final ContentValues cv = new ContentValues();
+		cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
+		cv.put(DisposalTableSchema.STATE.cv(), status.cv());
+
+		final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
+				DISPOSAL_UPDATE_CLAUSE, new String[]{ channel } );
+		if (updateCount > 0) return;
+		this.db.insert(Tables.CHANNEL.n, ChannelTableSchema.NAME.n, cv);
 	}
 
 	/**
@@ -953,42 +1235,26 @@ public class DistributorDataStore {
 	public long updatePostalByKey(Integer id, ContentValues cv) {
 		return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
 	}
-	public long updatePostal(ContentValues cv, String selection, String[] selArgs) {
-		return this.db.update(Tables.POSTAL.n, cv, selection, selArgs);
-	}
-
 
 	public long updatePublishByKey(Integer id, ContentValues cv) {
 		return this.db.update(Tables.PUBLISH.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
 	}
-	public long updatePublish(ContentValues cv, String selection, String[] selArgs) {
-		return this.db.update(Tables.PUBLISH.n, cv, selection, selArgs);
-	}
-
 
 	public long updateRetrievalByKey(Integer id, ContentValues cv) {
 		return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
 	}
-	public long updateRetrieval(ContentValues cv, String selection, String[] selArgs) {
-		return this.db.update(Tables.RETRIEVAL.n, cv, selection, selArgs);
-	}
-
 
 	public long updateSubscribeByKey(Integer id, ContentValues cv) {
 		return this.db.update(Tables.SUBSCRIBE.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
 	}
-	public long updateSubscribe(ContentValues cv, String selection, String[] selArgs) {
-		return this.db.update(Tables.SUBSCRIBE.n, cv, selection, selArgs);
-	}
-
 
 
 	/** Insert method helper */
 	public ContentValues initializePostalDefaults(ContentValues values) {
 		Long now = Long.valueOf(System.currentTimeMillis());
 
-		if (!values.containsKey(PostalTableSchema.CP_TYPE.n)) {
-			values.put(PostalTableSchema.CP_TYPE.n,"unknown");
+		if (!values.containsKey(PostalTableSchema.TOPIC.n)) {
+			values.put(PostalTableSchema.TOPIC.n,"unknown");
 		}
 		if (!values.containsKey(PostalTableSchema.PROVIDER.n)) {
 			values.put(PostalTableSchema.PROVIDER.n,"unknown");
@@ -999,8 +1265,8 @@ public class DistributorDataStore {
 		if (!values.containsKey(PostalTableSchema.PRIORITY.n)) {
 			values.put(PostalTableSchema.PRIORITY.n, PriorityType.NORMAL.o);
 		}
-		if (!values.containsKey(PostalTableSchema.SERIALIZE_TYPE.n)) {
-			values.put(PostalTableSchema.SERIALIZE_TYPE.n,
+		if (!values.containsKey(PostalTableSchema.ORDER.n)) {
+			values.put(PostalTableSchema.ORDER.n,
 					SerializeType.INDIRECT.o);
 		}
 		if (!values.containsKey(PostalTableSchema.DISPOSITION.n)) {
@@ -1072,8 +1338,8 @@ public class DistributorDataStore {
 		if (!values.containsKey(RetrievalTableSchema.PROVIDER.n)) {
 			values.put(RetrievalTableSchema.PROVIDER.n, "unknown");
 		}
-		if (!values.containsKey(RetrievalTableSchema.DATA_TYPE.n)) {
-			values.put(RetrievalTableSchema.DATA_TYPE.n, "unknown");
+		if (!values.containsKey(RetrievalTableSchema.TOPIC.n)) {
+			values.put(RetrievalTableSchema.TOPIC.n, "unknown");
 		}
 		if (!values.containsKey(RetrievalTableSchema.PROJECTION.n)) {
 			values.put(RetrievalTableSchema.PROJECTION.n, "");
@@ -1118,8 +1384,8 @@ public class DistributorDataStore {
 		if (!values.containsKey(SubscribeTableSchema.PROVIDER.n)) {
 			values.put(SubscribeTableSchema.PROVIDER.n, "unknown");
 		}
-		if (!values.containsKey(SubscribeTableSchema.DATA_TYPE.n)) {
-			values.put(SubscribeTableSchema.DATA_TYPE.n, "unknown");
+		if (!values.containsKey(SubscribeTableSchema.TOPIC.n)) {
+			values.put(SubscribeTableSchema.TOPIC.n, "unknown");
 		}
 
 		if (!values.containsKey(SubscribeTableSchema.SELECTION.n)) {
@@ -1268,9 +1534,8 @@ public class DistributorDataStore {
 		// ===========================================================
 		// Constructors
 		// ===========================================================
-		public MyHelper(Context context) {
-			super(context, DistributorDataStore.Tables.NAME, null,
-					DistributorDataStore.Tables.VERSION);
+		public MyHelper(Context context, String name, CursorFactory factory, int version) {
+			super(context, name, factory, version);
 		}
 
 		// ===========================================================
@@ -1282,57 +1547,82 @@ public class DistributorDataStore {
 			logger.info("Bootstrapping database");
 
 			try {
-				StringBuilder sb = new StringBuilder();
+				final StringBuilder sb = new StringBuilder();
 				for (PostalTableSchema field : PostalTableSchema.values()) {
 					if(sb.length() != 0)
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Tables.POSTAL.sqlCreate(sb).toString());
+				db.execSQL(Tables.POSTAL.sqlCreate(sb.toString()).toString());
 
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
 
 			try {
-				StringBuilder sb = new StringBuilder();
+				final StringBuilder sb = new StringBuilder();
 				for (PublishTableSchema field : PublishTableSchema.values()) {
 					if(sb.length() != 0)
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Tables.PUBLISH.sqlCreate(sb).toString());
+				db.execSQL(Tables.PUBLISH.sqlCreate(sb.toString()).toString());
 
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
 
 			try {
-				StringBuilder sb = new StringBuilder();
+				final StringBuilder sb = new StringBuilder();
 				for (RetrievalTableSchema field : RetrievalTableSchema.values()) {
 					if(sb.length() != 0)
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Tables.RETRIEVAL.sqlCreate(sb).toString());
+				db.execSQL(Tables.RETRIEVAL.sqlCreate(sb.toString()).toString());
 
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
 
 			try {
-				StringBuilder sb = new StringBuilder();
+				final StringBuilder sb = new StringBuilder();
 				for (SubscribeTableSchema field : SubscribeTableSchema.values()) {
 					if(sb.length() != 0)
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Tables.SUBSCRIBE.sqlCreate(sb).toString());
+				db.execSQL(Tables.SUBSCRIBE.sqlCreate(sb.toString()).toString());
 
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
 
+			try {
+				final StringBuilder sb = new StringBuilder();
+				for (DisposalTableSchema field : DisposalTableSchema.values()) {
+					if(sb.length() != 0)
+						sb.append(",");
+					sb.append(field.addfield());
+				}
+				db.execSQL(Tables.DISPOSAL.sqlCreate(sb.toString()).toString());
+
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+
+			try {
+				final StringBuilder sb = new StringBuilder();
+				for (ChannelTableSchema field : ChannelTableSchema.values()) {
+					if(sb.length() != 0)
+						sb.append(",");
+					sb.append(field.addfield());
+				}
+				db.execSQL(Tables.CHANNEL.sqlCreate(sb.toString()).toString());
+
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
 			// create views, triggers, indices and preload
 		}
 
@@ -1341,13 +1631,15 @@ public class DistributorDataStore {
 			logger.warn("Upgrading database from version {} to {} which will destroy all old data",
 					oldVersion, newVersion);
 			for (Tables table : Tables.values()) {
-				db.execSQL(table.sqlDrop(new StringBuilder()).toString());
+				try {
+					db.execSQL(table.sqlDrop().toString());
+				} catch (SQLiteException ex) {
+					logger.warn("defective database being dropped {}", ex.getLocalizedMessage());
+				}
 			}
 			onCreate(db);
 		}
 
 	}
-
-
 
 }

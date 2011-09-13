@@ -49,7 +49,7 @@ public class TcpSecurityObject implements ISecurityObject,
     }
 
 
-    public boolean ack( Class<? extends INetChannel> clazz, boolean status )
+    public boolean ack( String channel, boolean status )
     {
         return true;
     }

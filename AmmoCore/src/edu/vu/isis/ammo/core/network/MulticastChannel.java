@@ -313,7 +313,7 @@ public class MulticastChannel extends NetChannel
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
                                   boolean status )
     {
-        return handler.ack( MulticastChannel.class, status );
+        return handler.ack( "MulticastChannel", status );
     }
 
     // Called by the ConnectorThread.

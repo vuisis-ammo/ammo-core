@@ -118,12 +118,12 @@ public class DistributorService extends Service {
 	public boolean deliver(AmmoGatewayMessage agm) {
 		return distThread.distributeResponse(agm);
 	}
-	
+
 	public void consumerReady() {
 		logger.info("::consumer ready : resend old requests");
 		this.distThread.retry();
 	}
-	
+
 	private ServiceConnection networkServiceConnection = new ServiceConnection() {
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			logger.info("::onServiceConnected - Network Service");
@@ -190,7 +190,7 @@ public class DistributorService extends Service {
 		logger.info("::onCreate");
 
 		// set up the worker thread
-		this.distThread = new DistributorThread(this.getBaseContext());
+		this.distThread = new DistributorThread(this.getApplicationContext());
 
 		// Initialize our receivers/listeners.
 		/*
@@ -247,9 +247,13 @@ public class DistributorService extends Service {
 					return START_NOT_STICKY;
 				}
 				if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {
-					final AmmoRequest request = intent.getParcelableExtra("request");
-					final String result = this.distThread.distributeRequest(request);
-					logger.info("distributing {}", result);
+					try {
+						final AmmoRequest request = intent.getParcelableExtra("request");
+						final String result = this.distThread.distributeRequest(request);
+						logger.info("distributing {}", result);
+					} catch (ArrayIndexOutOfBoundsException ex) {
+						logger.error("could not unmarshall the ammo request parcel");
+					}
 					return START_NOT_STICKY;
 				}
 			}

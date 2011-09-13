@@ -28,7 +28,7 @@ public interface INetworkService {
 
     // Callback interfaces
     interface OnSendMessageHandler {
-        boolean ack(Class<? extends INetChannel> clazz, boolean status);
+        boolean ack(String channel, boolean status);
     }
 
     // methods
