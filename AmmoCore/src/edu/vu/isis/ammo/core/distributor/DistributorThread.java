@@ -950,6 +950,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		// Dispatch the message.
 		try {
 			final String topic = agm.topic.asString();
+			final DistributorPolicy.Topic policy = that.policy().match(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
@@ -961,7 +962,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 			if (!that.getNetworkServiceBinder().isConnected()) {
 				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
-				this.store.upsertRetrieval(values);
+				this.store.upsertRetrieval(values, policy.makeRouteMap());
 				logger.info("no network connection");
 				return;
 			}
@@ -969,9 +970,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 			values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
-				final DistributorPolicy.Topic policy = that.policy().match(topic);
-				final long id = this.store.upsertRetrieval(values);
-				
+				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
+
 				final Map<String,Boolean> dispatchResult = 
 						this.dispatchRetrievalRequest(that,
 								agm.provider.toString(),
@@ -1178,6 +1178,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		// Dispatch the message.
 		try {
 			final String topic = agm.topic.asString();
+			final DistributorPolicy.Topic policy = that.policy().match(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
@@ -1188,7 +1189,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 			if (!that.getNetworkServiceBinder().isConnected()) {
 				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
-				this.store.upsertSubscribe(values);
+				this.store.upsertSubscribe(values, policy.makeRouteMap());
 				logger.info("no network connection");
 				return;
 			}
@@ -1196,8 +1197,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
-				final DistributorPolicy.Topic policy = that.policy().match(topic);
-				final long id = this.store.upsertSubscribe(values);
+				final long id = this.store.upsertSubscribe(values, policy.makeRouteMap());
 				final Map<String,Boolean> dispatchResult = 
 						this.dispatchSubscribeRequest(that,
 								agm.select.toString(),

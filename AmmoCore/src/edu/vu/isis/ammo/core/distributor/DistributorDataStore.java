@@ -36,8 +36,8 @@ public class DistributorDataStore {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private final static Logger logger = LoggerFactory.getLogger(DistributorDataStore.class);
-	public static final int VERSION = 11;
+	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
+	public static final int VERSION = 12;
 
 	// ===========================================================
 	// Fields
@@ -470,7 +470,7 @@ public class DistributorDataStore {
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
 
-		DATA_TYPE("data_type", "TEXT"),
+		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
 		PROVIDER("provider", "TEXT"),
@@ -504,7 +504,7 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * "<field-name>"
 		 */
-		public String quote() {
+		public String q() {
 			return new StringBuilder()
 			.append('"').append(this.n).append('"')
 			.toString();
@@ -793,11 +793,6 @@ public class DistributorDataStore {
 		 * Produce string of the form...
 		 * "<field-name>"
 		 */
-		public StringBuilder quote(StringBuilder sb) {
-			if (sb == null) sb = new StringBuilder();
-			return sb
-					.append('"').append(this.n).append('"');
-		}
 		public String q() {
 			return new StringBuilder()
 			.append('"').append(this.n).append('"')
@@ -991,6 +986,7 @@ public class DistributorDataStore {
 		this.openWrite();
 	}
 
+
 	public DistributorDataStore openRead() {
 		if (this.db != null && this.db.isOpen()) this.db.close();
 		this.db = this.helper.getReadableDatabase();
@@ -1164,30 +1160,115 @@ public class DistributorDataStore {
 	 * if a record with a matching key exists then update
 	 * otherwise insert.
 	 */
-	public long upsertPostal(ContentValues cv) {
-		return this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
-	}
+
+	static final private String POSTAL_UPDATE_CLAUSE = new StringBuilder()
+	.append(PostalTableSchema.TOPIC.q()).append("=?")
+	.append(" AND ").append(PostalTableSchema.PROVIDER.q()).append("=?")
+	.toString();
+	
 	public long upsertPostal(ContentValues cv, Map<String,Boolean> status) {
-		long key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
+		final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
+		final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
+
+		final long key;
+		final String[] updateArgs = new String[]{ topic, provider };
+		if (0 < this.db.update(Tables.POSTAL.n, cv, POSTAL_UPDATE_CLAUSE, updateArgs )) {
+			final Cursor cursor = this.db.query(Tables.POSTAL.n, 
+					new String[]{PostalTableSchema._ID.n},
+					POSTAL_UPDATE_CLAUSE, updateArgs, null, null, null);
+			cursor.moveToFirst();
+			key = cursor.getInt(0); // we only asked for one column so it better be it.
+			cursor.close();
+		} else {
+		   key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
+		}
 		for (Entry<String,Boolean> entry : status.entrySet()) {
 			upsertDisposalByParent(key, Tables.POSTAL, entry.getKey(), entry.getValue());
 		}
 		return key;
 	}
 
-	public long upsertPublish(ContentValues cv) {
-		return this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
+	static final private String PUBLISH_UPDATE_CLAUSE = new StringBuilder()
+	.append(PublishTableSchema.TOPIC.q()).append("=?")
+	.append(" AND ").append(PublishTableSchema.PROVIDER.q()).append("=?")
+	.toString();
+	
+	public long upsertPublish(ContentValues cv, Map<String,Boolean> status) {
+		final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
+		final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
+
+		final long key;
+		final String[] updateArgs = new String[]{ topic, provider };
+		if (0 < this.db.update(Tables.PUBLISH.n, cv, PUBLISH_UPDATE_CLAUSE, updateArgs )) {
+			final Cursor cursor = this.db.query(Tables.PUBLISH.n, 
+					new String[]{PublishTableSchema._ID.n},
+					PUBLISH_UPDATE_CLAUSE, updateArgs, null, null, null);
+			cursor.moveToFirst();
+			key = cursor.getInt(0); // we only asked for one column so it better be it.
+			cursor.close();
+		} else {
+		   key = this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
+		}
+		for (Entry<String,Boolean> entry : status.entrySet()) {
+			upsertDisposalByParent(key, Tables.PUBLISH, entry.getKey(), entry.getValue());
+		}
+		return key;
 	}
 
-	public long upsertRetrieval(ContentValues cv) {
-		return this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
+	static final private String RETRIEVAL_UPDATE_CLAUSE = new StringBuilder()
+	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
+	.append(" AND ").append(RetrievalTableSchema.PROVIDER.q()).append("=?")
+	.toString();
+	
+	public long upsertRetrieval(ContentValues cv, Map<String,Boolean> status) {
+		final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
+		final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
+
+		final long key;
+		final String[] updateArgs = new String[]{ topic, provider };
+		if (0 < this.db.update(Tables.RETRIEVAL.n, cv, RETRIEVAL_UPDATE_CLAUSE, updateArgs )) {
+			final Cursor cursor = this.db.query(Tables.RETRIEVAL.n, 
+					new String[]{RetrievalTableSchema._ID.n},
+					RETRIEVAL_UPDATE_CLAUSE, updateArgs, null, null, null);
+			cursor.moveToFirst();
+			key = cursor.getInt(0); // we only asked for one column so it better be it.
+			cursor.close();
+		} else {
+		   key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
+		}
+		for (Entry<String,Boolean> entry : status.entrySet()) {
+			upsertDisposalByParent(key, Tables.RETRIEVAL, entry.getKey(), entry.getValue());
+		}
+		return key;
 	}
 	/**
 	 *
 	 */
-	public long upsertSubscribe(ContentValues cv) {
+	static final private String SUBSCRIBE_UPDATE_CLAUSE = new StringBuilder()
+	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
+	.append(" AND ").append(SubscribeTableSchema.PROVIDER.q()).append("=?")
+	.toString();
+	
+	public long upsertSubscribe(ContentValues cv, Map<String,Boolean> status) {
+		final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
+		final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
 
-		return this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
+		final long key;
+		final String[] updateArgs = new String[]{ topic, provider };
+		if (0 < this.db.update(Tables.SUBSCRIBE.n, cv, SUBSCRIBE_UPDATE_CLAUSE, updateArgs )) {
+			final Cursor cursor = this.db.query(Tables.SUBSCRIBE.n, 
+					new String[]{SubscribeTableSchema._ID.n},
+				SUBSCRIBE_UPDATE_CLAUSE, updateArgs, null, null, null);
+			cursor.moveToFirst();
+			key = cursor.getInt(0); // we only asked for one column so it better be it.
+			cursor.close();
+		} else {
+		   key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
+		}
+		for (Entry<String,Boolean> entry : status.entrySet()) {
+			upsertDisposalByParent(key, Tables.SUBSCRIBE, entry.getKey(), entry.getValue());
+		}
+		return key;
 	}
 
 	public long upsertDisposal(ContentValues cv) {
@@ -1218,14 +1299,17 @@ public class DistributorDataStore {
 	}
 
 	public void upsertChannelByName(String channel, ChannelState status) {
+		DistributorDataStore.upsertChannelByName(this.db, channel, status);
+	}
+	static private void upsertChannelByName(SQLiteDatabase db, String channel, ChannelState status) {
 		final ContentValues cv = new ContentValues();
-		cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
-		cv.put(DisposalTableSchema.STATE.cv(), status.cv());
+		cv.put(ChannelTableSchema.NAME.cv(), channel);
+		cv.put(ChannelTableSchema.STATE.cv(), status.cv());
 
-		final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
+		final int updateCount = db.update(Tables.CHANNEL.n, cv, 
 				DISPOSAL_UPDATE_CLAUSE, new String[]{ channel } );
 		if (updateCount > 0) return;
-		this.db.insert(Tables.CHANNEL.n, ChannelTableSchema.NAME.n, cv);
+		db.insert(Tables.CHANNEL.n, ChannelTableSchema.NAME.n, cv);
 	}
 
 	/**
@@ -1306,8 +1390,8 @@ public class DistributorDataStore {
 		if (!values.containsKey(PublishTableSchema.PROVIDER.n)) {
 			values.put(PublishTableSchema.PROVIDER.n, "unknown");
 		}
-		if (!values.containsKey(PublishTableSchema.DATA_TYPE.n)) {
-			values.put(PublishTableSchema.DATA_TYPE.n, "unknown");
+		if (!values.containsKey(PublishTableSchema.TOPIC.n)) {
+			values.put(PublishTableSchema.TOPIC.n, "unknown");
 		}
 		if (!values.containsKey(PublishTableSchema.EXPIRATION.n)) {
 			values.put(PublishTableSchema.EXPIRATION.n, now);
@@ -1623,7 +1707,19 @@ public class DistributorDataStore {
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
-			// create views, triggers, indices and preload
+
+
+			// === PRELOAD ======
+			/**
+			 * This is really only for testing.
+			 * 
+			 */
+			DistributorDataStore.upsertChannelByName(db, "multicast", ChannelState.ACTIVE);
+			DistributorDataStore.upsertChannelByName(db, "gateway",  ChannelState.ACTIVE);
+
+			// === VIEWS ======
+
+			// === INDICIES ======
 		}
 
 		@Override
