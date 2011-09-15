@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <!--
-  put the file in /data/data/edu.vu.isis.ammo.core/
+  put the file in /data/data/edu.vu.isis.ammo.core/app_policy
 
-adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distribution_policy.xml
+adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml
 -->
 <policy>
   <topic type="">
@@ -11,7 +11,7 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="gateway" condition="success"/>
+	        <literal term="gateway" condition="success" encoding="verbose"/>
 	     </clause>
      </routing>
   </topic>
@@ -22,8 +22,8 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="success"/>
-	        <literal term="gateway" condition="success"/>
+	        <literal term="multicast" condition="success" encoding="verbose"/>
+	        <literal term="gateway" condition="success" encoding="verbose"/>
 	     </clause>
      </routing>
   </topic>
@@ -34,10 +34,10 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="success"/>
+	        <literal term="multicast" condition="success" encoding="verbose"/>
 	     </clause>
 	     <clause>
-	        <literal term="gateway" condition="success"/>
+	        <literal term="gateway" condition="success" encoding="verbose"/>
 	     </clause>
      </routing>
   </topic>
@@ -48,8 +48,8 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="true"/>
-	        <literal term="gateway" condition="true"/>
+	        <literal term="multicast" condition="true" encoding="verbose"/>
+	        <literal term="gateway" condition="true" encoding="verbose"/>
 	     </clause>
      </routing>
   </topic>
@@ -61,11 +61,11 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="false"/>
-	        <literal term="serial" condition="true"/>
+	        <literal term="multicast" condition="false" encoding="verbose"/>
+	        <literal term="serial" condition="true" encoding="terse" />
 	     </clause>
 	     <clause>
-	        <literal term="gateway" condition="true"/>
+	        <literal term="gateway" condition="true" encoding="verbose" />
 	     </clause>
      </routing>
   </topic>
@@ -77,12 +77,12 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_distributi
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="false"/>
-	        <literal term="serial" condition="true"/>
+	        <literal term="multicast" condition="false" encoding="verbose"/>
+	        <literal term="serial" condition="true" encoding="terse"/>
 	     </clause>
 	     <clause>
-	        <literal term="gateway" condition="true"/>
-	        <literal term="serial" condition="false"/>
+	        <literal term="gateway" condition="true" encoding="verbose"/>
+	        <literal term="serial" condition="false" encoding="terse"/>
 	     </clause>
      </routing>
   </topic>

@@ -8,7 +8,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -82,6 +84,7 @@ public class DistributorPolicy implements ContentHandler {
 			}
 		}
 		else {
+			logger.warn("no policy file {}, using default instead", file);
 			try {
 				inputStream = context.getResources().openRawResource(R.raw.distribution_policy);
 			} catch (NotFoundException ex) {
@@ -164,8 +167,8 @@ public class DistributorPolicy implements ContentHandler {
 			
 			this.builder.type("urn:test:domain/trial/both")
 			.addClause()
-			    .addLiteral("gateway", true)
-			    .addLiteral("multicast", true)
+			    .addLiteral("gateway", true, Encoding.getDefault())
+			    .addLiteral("multicast", true, Encoding.getDefault())
 			.build();
 		}
 	}
@@ -178,7 +181,7 @@ public class DistributorPolicy implements ContentHandler {
 		this.builder
 		.type("")
 		.priority(AmmoRequest.PRIORITY_NORMAL)
-		.addClause().addLiteral("gateway", true)
+		.addClause().addLiteral("gateway", true, Encoding.getDefault())
 		.build();
 	}
 
@@ -261,8 +264,8 @@ public class DistributorPolicy implements ContentHandler {
 			this.workingClause = new Clause();
 			this.clauses.add(this.workingClause);
 		}
-		public void addLiteral(String term, Boolean condition) {
-			this.workingClause.addLiteral(new Literal(term, condition));
+		public void addLiteral(String term, Boolean condition, Encoding encoding) {
+			this.workingClause.addLiteral(new Literal(term, condition, encoding));
 		}
 	}
 
@@ -289,12 +292,71 @@ public class DistributorPolicy implements ContentHandler {
 		}
 	}
 
+	/**
+	 * Encoding is an indicator to the distributor as to how to encode/decode requests.
+	 * Encoding is stored as an array, where the first is the encoding of the 
+	 */
+	public static class Encoding implements Iterable<Encoding.Type> {
+		public enum Type {
+		TERSE, VERBOSE;
+		}
+		final private Type[] list;
+
+		private Encoding(Type...types) {
+			this.list = types;
+		}
+		public static Encoding getDefault() {
+			return new Encoding(Type.VERBOSE);
+		}
+		public static Encoding newInstance(Type...types) {
+			return new Encoding(types);
+		}
+		@Override
+		public Iterator<Type> iterator() {
+			return Arrays.asList(this.list).iterator();
+		}
+		public Type[] asArray() {
+			return this.list;
+		}
+		public Type getPayload() {
+			switch (this.list.length){
+			case 0: return Type.VERBOSE;
+			}
+			return this.list[0];
+		}
+		public Type getMessage() {
+			switch (this.list.length){
+			case 0: return Type.VERBOSE;
+			case 1: return this.list[0];
+			}
+			return this.list[1];
+		}
+		public Type getHeader() {
+			switch (this.list.length){
+			case 0: return Type.VERBOSE;
+			case 1: return this.list[0];
+			case 2: return this.list[1];
+			}
+			return this.list[2];
+		}
+		public String getPayloadSuffix() {
+			switch (getPayload()) {
+			case VERBOSE: return "_verbose";
+			case TERSE: return "_terse";
+	        default: return "_verbose";
+			}
+		}
+	}
+	
 	public class Literal {
 		public final String term;
 		public final boolean condition;
-		public Literal(String term, boolean condition) {
+		public final Encoding encoding;
+		
+		public Literal(String term, boolean condition, Encoding encoding) {
 			this.term = term;
 			this.condition = condition;
+			this.encoding = encoding;
 		}
 		@Override
 		public String toString() {
@@ -342,8 +404,8 @@ public class DistributorPolicy implements ContentHandler {
 			this.routing.addClause();
 			return this;
 		}
-		public TopicBuilder addLiteral(String term, Boolean condition) {
-			this.routing.addLiteral(term, condition);
+		public TopicBuilder addLiteral(String term, Boolean condition, Encoding encoding) {
+			this.routing.addLiteral(term, condition, encoding);
 			return this;
 		}
 	}
@@ -437,9 +499,10 @@ public class DistributorPolicy implements ContentHandler {
 			if (localName.equals("literal")) {
 				logger.info("begin 'literal'");
 				this.inLiteral = true;
-				String term = extractTerm(uri,"term" , "gateway", atts);
-				Boolean condition = extractCondition(uri,"condition", true, atts);
-				this.builder.addLiteral(term, condition);
+				final String term = extractTerm(uri,"term" , "gateway", atts);
+				final Boolean condition = extractCondition(uri,"condition", true, atts);
+				final Encoding encoding = extractEncoding(uri,"encoding", Encoding.getDefault(), atts);
+				this.builder.addLiteral(term, condition, encoding);
 				return;
 			}
 			logger.warn("expecting begin 'literal': got {}", localName);
@@ -533,10 +596,30 @@ public class DistributorPolicy implements ContentHandler {
 	 * @return
 	 */
 	private boolean extractCondition(String uri, String attrname, boolean def, Attributes atts) {
-		String value = atts.getValue(uri, attrname);
+		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
 		if (value.equalsIgnoreCase("success")) return true;
 		return Boolean.parseBoolean(value);
+	}
+	
+	/**
+	 * A helper routine to extract an attribute from the xml element and 
+	 * convert it into a boolean.
+	 * 
+	 * @param uri
+	 * @param attrname
+	 * @param def
+	 * @param atts
+	 * @return
+	 */
+	private Encoding extractEncoding(String uri, String attrname, Encoding def, Attributes atts) {
+		final String value = atts.getValue(uri, attrname);
+		if (value == null) return def;
+		if (value.equalsIgnoreCase("verbose")) 
+			return Encoding.newInstance( Encoding.Type.VERBOSE, Encoding.Type.VERBOSE, Encoding.Type.VERBOSE);
+		if (value.equalsIgnoreCase("verbose")) 
+			return  Encoding.newInstance( Encoding.Type.TERSE, Encoding.Type.TERSE, Encoding.Type.TERSE );
+		return def;
 	}
 
 	/**

@@ -37,7 +37,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
-	public static final int VERSION = 12;
+	public static final int VERSION = 13;
 
 	// ===========================================================
 	// Fields
@@ -384,6 +384,9 @@ public class DistributorDataStore {
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
 
+		PAYLOAD("payload", "TEXT"),
+		// The payload instead of content provider
+
 		NOTICE("notice", "BLOB"),
 		// A description of what is to be done when various state-transition occur.
 
@@ -550,8 +553,8 @@ public class DistributorDataStore {
 		RETRIEVAL_SEND = new StringBuilder()
 		.append(RetrievalTableSchema.DISPOSITION.q())
 		.append(" IN (")
-		.append(DisposalState.PENDING).append(",")
-		.append(DisposalState.FAIL).append(")")
+		.append(DisposalState.PENDING.q()).append(",")
+		.append(DisposalState.FAIL.q()).append(")")
 		.toString();
 
 		RETRIEVAL_RESEND = new StringBuilder()

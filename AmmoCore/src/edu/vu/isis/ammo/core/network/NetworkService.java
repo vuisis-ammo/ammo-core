@@ -546,7 +546,8 @@ public class NetworkService extends Service implements
 	public boolean sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
-		return mChannelMap.get("channel").sendRequest(agm);
+		if (! mChannelMap.containsKey(channel)) return false;
+		return mChannelMap.get(channel).sendRequest(agm);
 	}
 	
 	abstract public class TotalChannel implements INetChannel {}

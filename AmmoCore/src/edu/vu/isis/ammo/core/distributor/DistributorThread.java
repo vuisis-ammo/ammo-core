@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.ContentResolver;
-import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
@@ -35,25 +34,25 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
-import android.provider.BaseColumns;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.type.Payload;
+import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTable;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Literal;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
-import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
-import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.util.InternetMediaType;
@@ -237,9 +236,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 			for (DistributorService that : them) {
 				if (!that.getNetworkServiceBinder().isConnected()) 
 					continue;
-				this.processSubscriptionChange(that, true);
-				this.processRetrievalChange(that, true);
-				this.processPostalChange(that, true);
+				this.processSubscribeTable(that, true);
+				this.processRetrievalTable(that, true);
+				this.processPostalTable(that, true);
 			}
 		}
 
@@ -352,10 +351,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 		}
 		 */
 		// we could do a priming query to determine if there are any candidates
-		this.processPostalChange(that, resend);
-		this.processPublicationChange(that, resend);
-		this.processRetrievalChange(that, resend);
-		this.processSubscriptionChange(that, resend);
+		this.processPostalTable(that, resend);
+		this.processPublishTable(that, resend);
+		this.processRetrievalTable(that, resend);
+		this.processSubscribeTable(that, resend);
 	}
 
 	/**
@@ -376,16 +375,17 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 */
 	private Map<String, Boolean> 
 	dispatchRequest(DistributorService that, 
-			AmmoGatewayMessage agmb, DistributorPolicy.Topic topic, Map<String, Boolean> status) {
+			RequestSerializer serializer, DistributorPolicy.Topic topic, Map<String, Boolean> status) {
 
 		logger.info("::sendGatewayRequest");
 		if (status == null) status = new HashMap<String, Boolean>();
 
 		Boolean ruleSuccess = status.get(DistributorPolicy.TOTAL);
 		if (ruleSuccess == null) ruleSuccess = Boolean.FALSE;
-
+	
 		if (topic == null) {
 			logger.error("no matching routing topic");
+			final AmmoGatewayMessage agmb = serializer.act(Encoding.getDefault());
 			Boolean actualCondition =
 					that.getNetworkServiceBinder().sendRequest(agmb, DistributorPolicy.DEFAULT, topic);
 			status.put(DistributorPolicy.DEFAULT, actualCondition);
@@ -399,8 +399,11 @@ extends AsyncTask<DistributorService, Integer, Void>
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
 				final boolean goalCondition = literal.condition;
-				Boolean actualCondition = status.get(term);
-				if (actualCondition == null) {
+				final Boolean actualCondition;
+				if (status.containsKey(term)) {
+					actualCondition = status.get(term);
+				} else {
+					final AmmoGatewayMessage agmb = serializer.act(literal.encoding);
 					actualCondition = that.getNetworkServiceBinder().sendRequest(agmb, term, topic);
 					status.put(term, actualCondition);
 				} 
@@ -454,11 +457,11 @@ extends AsyncTask<DistributorService, Integer, Void>
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 			logger.info("data interest");
-			receiveSubscriptionResponse(context, mw);
+			receiveSubscribeResponse(context, mw);
 			break;
 
 		case AUTHENTICATION_RESULT:
-			boolean result = receiveAuthenticationResponse(context, mw);
+			boolean result = receiveAuthenticateResponse(context, mw);
 			logger.error( "authentication result={}", result );
 			break;
 
@@ -493,8 +496,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @param mw
 	 * @return
 	 */
-	private boolean receiveAuthenticationResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("::receiveAuthenticationResponse");
+	private boolean receiveAuthenticateResponse(Context context, AmmoMessages.MessageWrapper mw) {
+		logger.info("::receiveAuthenticateResponse");
 
 		if (mw == null) return false;
 		if (! mw.hasAuthenticationResult()) return false;
@@ -518,11 +521,92 @@ extends AsyncTask<DistributorService, Integer, Void>
 	// =========== POSTAL ====================
 
 	/**
+	 * Used when a new postal request arrives.
+	 * It first tries to dispatch the request to the network service.
+	 * Regardless of whether that works, the request is recorded for later use.
+	 * 
+	 * @param that
+	 * @param uri
+	 * @param mimeType
+	 * @param data
+	 * @param handler
+	 * @return
+	 */
+	private void processPostalRequest(final DistributorService that, AmmoRequest ar) {
+		logger.info("::processPostalRequest()");
+
+		// Dispatch the message.
+		try {
+			final String topic = ar.topic.asString();
+			final DistributorPolicy.Topic policy = that.policy().match(topic);
+
+			final ContentValues values = new ContentValues();
+			values.put(PostalTableSchema.TOPIC.cv(), topic);
+			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
+			values.put(PostalTableSchema.EXPIRATION.cv(), ar.durability);
+			values.put(PostalTableSchema.UNIT.cv(), 50);
+			values.put(PostalTableSchema.PRIORITY.cv(), ar.priority);
+			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
+
+			if (!that.getNetworkServiceBinder().isConnected()) {
+				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
+				long key = this.store.upsertPostal(values, policy.makeRouteMap());
+				logger.info("no network connection, added {}", key);
+				return;
+			}
+
+			final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
+			serializer.setSerializer( new RequestSerializer.OnSerialize() {
+				@Override
+				public byte[] run(Encoding encode) {
+					if (serializer.payload.hasContent()) {
+						return serializer.payload.asBytes();
+					} else {
+						try {
+							return DistributorThread.serializeFromUri(that.getContentResolver(), 
+									serializer.provider.asUri(), encode, logger);
+						} catch (IOException e1) {
+							logger.error("invalid row for serialization");
+							return null;
+						}
+					}			
+				}
+			});
+			
+			values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
+			// We synchronize on the store to avoid a race between dispatch and queuing
+			synchronized (this.store) {
+				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
+				final Map<String,Boolean> dispatchResult = 
+						this.dispatchPostalRequest(that,
+								ar.provider.toString(),
+								topic, policy, null, serializer,
+								new INetworkService.OnSendMessageHandler() {
+
+							@Override
+							public boolean ack(String channel, boolean status) {
+								synchronized (DistributorThread.this.store) {
+									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
+								}
+								return false;
+							}
+						});
+				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
+			}
+
+		} catch (NullPointerException ex) {
+			logger.warn("NullPointerException, sending to gateway failed");
+		}
+	}
+
+
+	/**
 	 * Check for requests whose delivery policy has not been fully satisfied
 	 * and for which there is, now, an available channel.
 	 */
-	private void processPostalChange(DistributorService that, boolean resend) {
-		logger.info("::processPostalChange()");
+	private void processPostalTable(final DistributorService that, boolean resend) {
+		logger.info("::processPostalTable()");
 
 		if (!that.getNetworkServiceBinder().isConnected()) 
 			return;
@@ -534,7 +618,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 				moreItems = pending.moveToNext()) 
 		{
 			final int id = pending.getInt(pending.getColumnIndex(PostalTableSchema._ID.n));
-			final String provider = pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n));
+			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n)));
+			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
 
 			logger.debug("serializing: " + provider);
@@ -542,42 +627,40 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 			final String mimeType = InternetMediaType.getInst(topic).setType("application").toString();
 
-			/*
-			 * FIXME
-			 * This serialization code should be deferred as long as possible as it 
-			 * could be expensive.
-			 */
-			byte[] serialized;
+			final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
 			final int serialType = pending.getInt(pending.getColumnIndex(PostalTableSchema.ORDER.n));
+			serializer.setSerializer( new RequestSerializer.OnSerialize() {
+				@Override
+				public byte[] run(Encoding encode) {
 
-			switch (SerializeType.getInstance(serialType)) {
-			case DIRECT:
-				int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
+					switch (SerializeType.getInstance(serialType)) {
+					case DIRECT:
+						int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
 
-				if (!pending.isNull(dataColumnIndex)) {
-					String data = pending.getString(dataColumnIndex);
-					serialized = data.getBytes();
-				} else {
-					// TODO handle the case where data is null
-					// that signifies there is a file containing the data
-					serialized = null;
+						if (!pending.isNull(dataColumnIndex)) {
+							String data = pending.getString(dataColumnIndex);
+							return data.getBytes();
+						} else {
+							// TODO handle the case where data is null
+							// that signifies there is a file containing the data
+							;
+						}
+						break;
+
+					case INDIRECT:
+					case DEFERRED:
+					default:
+						try {
+							return serializeFromUri(that.getContentResolver(), 
+									serializer.provider.asUri(), encode, logger);
+						} catch (IOException e1) {
+							logger.error("invalid row for serialization");
+						}
+					}
+					logger.error("no serialized data produced");
+					return null;
 				}
-				break;
-
-			case INDIRECT:
-			case DEFERRED:
-			default:
-				try {
-					serialized = serializeFromUri(that.getContentResolver(), Uri.parse(provider), logger);
-				} catch (IOException e1) {
-					logger.error("invalid row for serialization");
-					continue;
-				}
-			}
-			if (serialized == null) {
-				logger.error("no serialized data produced");
-				continue;
-			}
+			});
 
 			final DistributorPolicy.Topic policy = that.policy().match(topic);
 			final Map<String,Boolean> status = new HashMap<String,Boolean>();
@@ -607,7 +690,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					final Map<String,Boolean> dispatchResult = 
 							this.dispatchPostalRequest(that,
 									provider.toString(),
-									mimeType, policy, status, serialized,
+									mimeType, policy, status, serializer,
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
@@ -636,6 +719,70 @@ extends AsyncTask<DistributorService, Integer, Void>
 	}
 
 	/**
+	 * dispatch the request to the network service.
+	 * It is presumed that the connection to the network service
+	 * exists before this method is called.
+	 * 
+	 * @param that
+	 * @param uri
+	 * @param msgType
+	 * @param data
+	 * @param handler
+	 * @return
+	 */
+	private Map<String,Boolean> 
+	dispatchPostalRequest(final DistributorService that, final String uri, 
+			final String msgType,
+			final DistributorPolicy.Topic policy, final Map<String,Boolean> status,
+			final RequestSerializer serializer, final INetworkService.OnSendMessageHandler handler)  {
+		logger.info("::dispatchPostalRequest");
+
+		final Long now = System.currentTimeMillis();
+		logger.debug("Building MessageWrapper @ time {}", now);
+
+		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+		mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+	
+		serializer.setAction(new RequestSerializer.OnReady() {
+			@Override
+			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+				final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder()
+						.setUri(uri)
+						.setMimeType(msgType)
+						.setData(ByteString.copyFrom(serialized));
+				mw.setDataMessage(pushReq);
+
+				logger.debug("Finished wrap build @ time {}...difference of {} ms \n",
+						System.currentTimeMillis(), System.currentTimeMillis()-now);
+				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+				return agmb.build();
+			}
+		});	
+		return this.dispatchRequest(that, serializer, policy, status);
+	}
+
+
+	/**
+	 * Get response to PushRequest from the gateway.
+	 * This should be seen in response to a post passing
+	 * through transition for which a notice has been requested.
+	 *
+	 * @param mw
+	 * @return
+	 */
+	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw) {
+		logger.info("::receivePostalResponse");
+
+		if (mw == null) return false;
+		if (! mw.hasPushAcknowledgement()) return false;
+		// PushAcknowledgement pushResp = mw.getPushAcknowledgement();
+		return true;
+	}
+
+
+	// =========== PUBLICATION ====================
+
+	/**
 	 * Used when a new postal request arrives.
 	 * It first tries to dispatch the request to the network service.
 	 * Regardless of whether that works, the request is recorded for later use.
@@ -647,8 +794,75 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @param handler
 	 * @return
 	 */
-	private void processPostalRequest(DistributorService that, AmmoRequest agm) {
-		logger.info("::processPostalRequest()");
+	@SuppressWarnings("unused")
+	private void processPublishRequest(DistributorService that, AmmoRequest agm, int st) {
+		logger.info("::processPublicationRequest()");
+	}
+
+	@SuppressWarnings("unused")
+	private void processPublishTable(DistributorService that, boolean resend) {
+		logger.error("::processPublishTable : {} : not implemented", resend);
+	}
+
+	/**
+	 * dispatch the request to the network service.
+	 * It is presumed that the connection to the network service
+	 * exists before this method is called.
+	 * 
+	 * @param that
+	 * @param uri
+	 * @param mimeType
+	 * @param data
+	 * @param handler
+	 * @return
+	 */
+	@SuppressWarnings("unused")
+	private Map<String,Boolean> 
+	dispatchPublishRequest(DistributorService that, String uri, String mimeType, 
+			Map<String,Boolean> status,
+			byte []data, INetworkService.OnSendMessageHandler handler) {
+		logger.info("::dispatchPublishRequest");
+		return null;
+	}
+	/**
+	 * Get response to PushRequest from the gateway.
+	 * This should be seen in response to a post passing
+	 * through transition for which a notice has been requested.
+	 *
+	 * @param mw
+	 * @return
+	 */
+	@SuppressWarnings("unused")
+	private boolean receivePublishResponse(Context context, AmmoMessages.MessageWrapper mw) {
+		logger.info("::receivePublishResponse");
+
+		if (mw == null) return false;
+		if (! mw.hasPushAcknowledgement()) return false;
+		// PushAcknowledgement pushResp = mw.getPushAcknowledgement();
+		return true;
+	}
+
+
+	// =========== RETRIEVAL ====================
+
+
+	/**
+	 * Process the subscription request.
+	 * There are two parts:
+	 * 1) checking to see if the network service is accepting requests 
+	 *    and sending the request if it is
+	 * 2) placing the request in the table.
+	 * 
+	 * The second step must be done first, so as to avoid a race to update
+	 * the status of the request.
+	 * The handling of insert v. update is also handled here.
+	 * 
+	 * @param that
+	 * @param agm
+	 * @param st
+	 */
+	private void processRetrievalRequest(DistributorService that, AmmoRequest agm) {
+		logger.info("::processRetrievalRequest()");
 
 		// Dispatch the message.
 		try {
@@ -656,45 +870,29 @@ extends AsyncTask<DistributorService, Integer, Void>
 			final DistributorPolicy.Topic policy = that.policy().match(topic);
 
 			final ContentValues values = new ContentValues();
-			values.put(PostalTableSchema.TOPIC.cv(), topic);
-			values.put(PostalTableSchema.PROVIDER.cv(), agm.provider.cv());
-			values.put(PostalTableSchema.ORDER.cv(), agm.order.cv());
-			values.put(PostalTableSchema.EXPIRATION.cv(), agm.durability);
-			values.put(PostalTableSchema.UNIT.cv(), 50);
-			values.put(PostalTableSchema.PRIORITY.cv(), agm.priority);
-			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
+			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
+			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());
+			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.durability);
+			values.put(RetrievalTableSchema.UNIT.cv(), 50);
+			values.put(RetrievalTableSchema.PRIORITY.cv(), agm.priority);
+			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
 			if (!that.getNetworkServiceBinder().isConnected()) {
-				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
-				long key = this.store.upsertPostal(values, policy.makeRouteMap());
+				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
+				this.store.upsertRetrieval(values, policy.makeRouteMap());
 				logger.info("no network connection");
 				return;
 			}
 
-			final byte[] serialized;
-			if (agm.payload.hasContent()) {
-				serialized = agm.payload.asBytes();
-			} else {
-				try {
-					serialized = serializeFromUri(that.getContentResolver(), agm.provider.asUri(), logger);
-				} catch (IOException e1) {
-					logger.error("invalid row for serialization");
-					return;
-				}
-			}
-			if (serialized == null) {
-				logger.error("no serialized data produced");
-				return;
-			}
-			values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
+			values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
-				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
+				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
 				final Map<String,Boolean> dispatchResult = 
-						this.dispatchPostalRequest(that,
+						this.dispatchRetrievalRequest(that,
 								agm.provider.toString(),
+								agm.select.toString(),
 								topic, policy, null,
-								serialized,
 								new INetworkService.OnSendMessageHandler() {
 
 							@Override
@@ -713,128 +911,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 		}
 	}
 
-
-	/**
-	 * dispatch the request to the network service.
-	 * It is presumed that the connection to the network service
-	 * exists before this method is called.
-	 * 
-	 * @param that
-	 * @param uri
-	 * @param msgType
-	 * @param data
-	 * @param handler
-	 * @return
-	 */
-	private Map<String,Boolean> 
-	dispatchPostalRequest(DistributorService that, String uri, String msgType,
-			DistributorPolicy.Topic policy, Map<String,Boolean> status,
-			byte []data, INetworkService.OnSendMessageHandler handler)  {
-		logger.info("::dispatchPostalRequest");
-
-		final Long now = System.currentTimeMillis();
-		logger.debug("Building MessageWrapper: data size {} @ time {}", data.length, now);
-
-		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-		mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
-
-		final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder()
-				.setUri(uri)
-				.setMimeType(msgType)
-				.setData(ByteString.copyFrom(data));
-
-		mw.setDataMessage(pushReq);
-
-		logger.debug("Finished wrap build @ time {}...difference of {} ms \n",
-				System.currentTimeMillis(), System.currentTimeMillis()-now);
-		final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
-		return this.dispatchRequest(that, agmb.build(), policy, status);
-	}
-
-
-	/**
-	 * Get response to PushRequest from the gateway.
-	 * This should be seen in response to a post passing
-	 * through transition for which a notice has been requested.
-	 *
-	 * @param mw
-	 * @return
-	 */
-	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("::receivePushResponse");
-
-		if (mw == null) return false;
-		if (! mw.hasPushAcknowledgement()) return false;
-		// PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-		return true;
-	}
-
-
-	// =========== PUBLICATION ====================
-
-	@SuppressWarnings("unused")
-	private void processPublicationChange(DistributorService that, boolean resend) {
-		logger.error("::processPublicationChange : {} : not implemented", resend);
-	}
-
-	/**
-	 * Used when a new postal request arrives.
-	 * It first tries to dispatch the request to the network service.
-	 * Regardless of whether that works, the request is recorded for later use.
-	 * 
-	 * @param that
-	 * @param uri
-	 * @param mimeType
-	 * @param data
-	 * @param handler
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private void processPublicationRequest(DistributorService that, AmmoRequest agm, int st) {
-		logger.info("::processPublicationRequest()");
-	}
-
-	/**
-	 * dispatch the request to the network service.
-	 * It is presumed that the connection to the network service
-	 * exists before this method is called.
-	 * 
-	 * @param that
-	 * @param uri
-	 * @param mimeType
-	 * @param data
-	 * @param handler
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private Map<String,Boolean> 
-	dispatchPublicationRequest(DistributorService that, String uri, String mimeType, 
-			Map<String,Boolean> status,
-			byte []data, INetworkService.OnSendMessageHandler handler) 
-			{
-		logger.info("::dispatchPublicationRequest");
-		return null;
-			}
-	/**
-	 * Get response to PushRequest from the gateway.
-	 * This should be seen in response to a post passing
-	 * through transition for which a notice has been requested.
-	 *
-	 * @param mw
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private boolean receivePublicationResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("::receivePublicationResponse");
-
-		if (mw == null) return false;
-		if (! mw.hasPushAcknowledgement()) return false;
-		// PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-		return true;
-	}
-
-
-	// =========== RETRIEVAL ====================
 	/**
 	 * Each time the enrollment provider is modified, find out what the
 	 * changes were and if necessary, send the data to the
@@ -847,8 +923,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Garbage collect items which are expired.
 	 */
 
-	private void processRetrievalChange(DistributorService that, boolean resend) {
-		logger.info("::processRetrievalChange()");
+	private void processRetrievalTable(DistributorService that, boolean resend) {
+		logger.info("::processRetrievalTable()");
 
 		final Cursor pending = this.store.queryRetrievalReady(resend);
 
@@ -930,72 +1006,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 
 	/**
-	 * Process the subscription request.
-	 * There are two parts:
-	 * 1) checking to see if the network service is accepting requests 
-	 *    and sending the request if it is
-	 * 2) placing the request in the table.
-	 * 
-	 * The second step must be done first, so as to avoid a race to update
-	 * the status of the request.
-	 * The handling of insert v. update is also handled here.
-	 * 
-	 * @param that
-	 * @param agm
-	 * @param st
-	 */
-	private void processRetrievalRequest(DistributorService that, AmmoRequest agm) {
-		logger.info("::processRetrievalRequest()");
-
-		// Dispatch the message.
-		try {
-			final String topic = agm.topic.asString();
-			final DistributorPolicy.Topic policy = that.policy().match(topic);
-
-			final ContentValues values = new ContentValues();
-			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
-			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());
-			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.durability);
-			values.put(RetrievalTableSchema.UNIT.cv(), 50);
-			values.put(RetrievalTableSchema.PRIORITY.cv(), agm.priority);
-			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
-
-			if (!that.getNetworkServiceBinder().isConnected()) {
-				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
-				this.store.upsertRetrieval(values, policy.makeRouteMap());
-				logger.info("no network connection");
-				return;
-			}
-
-			values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
-			// We synchronize on the store to avoid a race between dispatch and queuing
-			synchronized (this.store) {
-				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
-
-				final Map<String,Boolean> dispatchResult = 
-						this.dispatchRetrievalRequest(that,
-								agm.provider.toString(),
-								agm.select.toString(),
-								topic, policy, null,
-								new INetworkService.OnSendMessageHandler() {
-
-							@Override
-							public boolean ack(String channel, boolean status) {
-								synchronized (DistributorThread.this.store) {
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
-								}
-								return false;
-							}
-						});
-				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
-			}
-
-		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed");
-		}
-	}
-
-	/**
 	 * The retrieval request is sent to 
 	 * @param that
 	 * @param retrievalId
@@ -1006,18 +1016,18 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 */
 
 	private Map<String,Boolean> 
-	dispatchRetrievalRequest(DistributorService that, String retrievalId, String selection,  
+	dispatchRetrievalRequest(final DistributorService that, String retrievalId, String selection,  
 			String topic, DistributorPolicy.Topic policy, Map<String,Boolean> status,
-			INetworkService.OnSendMessageHandler handler) {
+			final INetworkService.OnSendMessageHandler handler) {
 		logger.info("::dispatchRetrievalRequest");
 
 		/** Message Building */
 
-		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
 		//mw.setSessionUuid(sessionId);
 
-		AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
+		final AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
 				.setRequestUid(retrievalId)
 				.setMimeType(topic);
 
@@ -1031,8 +1041,15 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 		mw.setPullRequest(pushReq);
 
-		AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
-		return this.dispatchRequest(that, agmb.build(), policy, status);
+		final RequestSerializer serializer = RequestSerializer.newInstance();
+		serializer.setAction(new RequestSerializer.OnReady() {
+			@Override
+			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+				return agmb.build();
+			}
+		});	
+		return this.dispatchRequest(that, serializer, policy, status);
 	}
 
 
@@ -1063,6 +1080,71 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 
 	// =========== SUBSCRIBE ====================
+
+
+	/**
+	 * Process the subscription request.
+	 * There are two parts:
+	 * 1) checking to see if the network service is accepting requests 
+	 *    and sending the request if it is
+	 * 2) placing the request in the table.
+	 * 
+	 * The second step must be done first, so as to avoid a race to update
+	 * the status of the request.
+	 * The handling of insert v. update is also handled here.
+	 * 
+	 * @param that
+	 * @param agm
+	 * @param st
+	 */
+	private void processSubscribeRequest(DistributorService that, AmmoRequest agm, int st) {
+		logger.info("::processSubscribeRequest()");
+
+		// Dispatch the message.
+		try {
+			final String topic = agm.topic.asString();
+			final DistributorPolicy.Topic policy = that.policy().match(topic);
+
+			final ContentValues values = new ContentValues();
+			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
+			values.put(SubscribeTableSchema.PROVIDER.cv(), agm.provider.cv());
+			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.durability);
+			values.put(SubscribeTableSchema.PRIORITY.cv(), agm.priority);
+			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
+
+			if (!that.getNetworkServiceBinder().isConnected()) {
+				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
+				this.store.upsertSubscribe(values, policy.makeRouteMap());
+				logger.info("no network connection");
+				return;
+			}
+
+			values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
+			// We synchronize on the store to avoid a race between dispatch and queuing
+			synchronized (this.store) {
+				final long id = this.store.upsertSubscribe(values, policy.makeRouteMap());
+				final Map<String,Boolean> dispatchResult = 
+						this.dispatchSubscribeRequest(that,
+								agm.select.toString(),
+								topic, policy, null,
+								new INetworkService.OnSendMessageHandler() {
+
+							@Override
+							public boolean ack(String channel, boolean status) {
+								synchronized (DistributorThread.this.store) {
+									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
+								}
+								return false;
+							}
+						});
+				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
+			}
+
+		} catch (NullPointerException ex) {
+			logger.warn("NullPointerException, sending to gateway failed");
+		}
+	}
+
 	/**
 	 * Each time the subscription provider is modified, find out what the
 	 * changes were and if necessary, send the data to the
@@ -1075,8 +1157,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Garbage collect items which are expired.
 	 */
 
-	private void processSubscriptionChange(DistributorService that, boolean resend) {
-		logger.info("::processSubscribeChange()");
+	private void processSubscribeTable(DistributorService that, boolean resend) {
+		logger.info("::processSubscribeTable()");
 
 		final Cursor pending = this.store.querySubscribeReady(resend);
 
@@ -1156,77 +1238,13 @@ extends AsyncTask<DistributorService, Integer, Void>
 		pending.close();
 	}
 
-
-	/**
-	 * Process the subscription request.
-	 * There are two parts:
-	 * 1) checking to see if the network service is accepting requests 
-	 *    and sending the request if it is
-	 * 2) placing the request in the table.
-	 * 
-	 * The second step must be done first, so as to avoid a race to update
-	 * the status of the request.
-	 * The handling of insert v. update is also handled here.
-	 * 
-	 * @param that
-	 * @param agm
-	 * @param st
-	 */
-	private void processSubscribeRequest(DistributorService that, AmmoRequest agm, int st) {
-		logger.info("::processSubscribeRequest()");
-
-		// Dispatch the message.
-		try {
-			final String topic = agm.topic.asString();
-			final DistributorPolicy.Topic policy = that.policy().match(topic);
-
-			final ContentValues values = new ContentValues();
-			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
-			values.put(SubscribeTableSchema.PROVIDER.cv(), agm.provider.cv());
-			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.durability);
-			values.put(SubscribeTableSchema.PRIORITY.cv(), agm.priority);
-			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
-
-			if (!that.getNetworkServiceBinder().isConnected()) {
-				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
-				this.store.upsertSubscribe(values, policy.makeRouteMap());
-				logger.info("no network connection");
-				return;
-			}
-
-			values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
-			// We synchronize on the store to avoid a race between dispatch and queuing
-			synchronized (this.store) {
-				final long id = this.store.upsertSubscribe(values, policy.makeRouteMap());
-				final Map<String,Boolean> dispatchResult = 
-						this.dispatchSubscribeRequest(that,
-								agm.select.toString(),
-								topic, policy, null,
-								new INetworkService.OnSendMessageHandler() {
-
-							@Override
-							public boolean ack(String channel, boolean status) {
-								synchronized (DistributorThread.this.store) {
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
-								}
-								return false;
-							}
-						});
-				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
-			}
-
-		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed");
-		}
-	}
-
 	/**
 	 * Deliver the subscription request to the network service for processing.
 	 */
 	private Map<String,Boolean> 
-	dispatchSubscribeRequest(DistributorService that, String topic, 
+	dispatchSubscribeRequest(final DistributorService that, String topic, 
 			String selection, DistributorPolicy.Topic policy, Map<String,Boolean> status,
-			INetworkService.OnSendMessageHandler handler) {
+			final INetworkService.OnSendMessageHandler handler) {
 		logger.info("::dispatchSubscribeRequest");
 
 		/** Message Building */
@@ -1234,26 +1252,34 @@ extends AsyncTask<DistributorService, Integer, Void>
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
 		//mw.setSessionUuid(sessionId);
 
-		AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
-
+		final AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
 		subscribeReq.setMimeType(topic);
 
 		if (subscribeReq != null) subscribeReq.setQuery(selection);
 
 		mw.setSubscribeMessage(subscribeReq);
-		AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
-		return this.dispatchRequest(that, agmb.build(), policy, status);
+		
+		final RequestSerializer serializer = RequestSerializer.newInstance();
+		serializer.setAction(new RequestSerializer.OnReady() {
+			@Override
+			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+				return agmb.build();
+			}
+		});	
+		return this.dispatchRequest(that, serializer, policy, status);
 	}
 
 
 	/**
-	 * Update the content providers as appropriate. These are typically received
-	 * in response to subscriptions.
+	 * Update the content providers as appropriate. 
+	 * These are typically received in response to subscriptions.
+	 * In other words these replies are postal messages which have been redirected.
 	 * 
 	 * The subscribing uri isn't sent with the subscription to the gateway
 	 * therefore it needs to be recovered from the subscription table.
 	 */
-	private boolean receiveSubscriptionResponse(Context context, AmmoMessages.MessageWrapper mw) {
+	private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw) {
 		if (mw == null) {
 			logger.warn("no message");
 			return false;
@@ -1346,9 +1372,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 	/**
 	 * @see deserializeToUri with which this method is symmetric.
 	 */
-	private static synchronized byte[] serializeFromUri(final ContentResolver resolver, final Uri tupleUri, final Logger logger) 
+	private static synchronized byte[] serializeFromUri(final ContentResolver resolver, 
+			final Uri tupleUri, final DistributorPolicy.Encoding encoding, final Logger logger) 
 			throws FileNotFoundException, IOException {
-		final Uri serialUri = Uri.withAppendedPath(tupleUri, "_serial");
+		final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
 		final Cursor tupleCursor;
 		try {
 			tupleCursor = resolver.query(serialUri, null, null, null, null);
