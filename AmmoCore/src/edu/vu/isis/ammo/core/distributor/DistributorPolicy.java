@@ -341,9 +341,9 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		public String getPayloadSuffix() {
 			switch (getPayload()) {
-			case VERBOSE: return "_verbose";
-			case TERSE: return "_terse";
-	        default: return "_verbose";
+			case VERBOSE: return "_serial/verbose";
+			case TERSE: return "_serial/terse";
+	        default: return "_serial/";
 			}
 		}
 	}

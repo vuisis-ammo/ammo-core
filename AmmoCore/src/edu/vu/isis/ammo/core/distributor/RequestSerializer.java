@@ -1,13 +1,8 @@
 package edu.vu.isis.ammo.core.distributor;
 
-import java.io.IOException;
-
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Literal;
-import edu.vu.isis.ammo.core.distributor.RequestSerializer.OnReady;
-import edu.vu.isis.ammo.core.distributor.RequestSerializer.OnSerialize;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
 /**

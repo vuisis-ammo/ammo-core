@@ -564,7 +564,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 						return serializer.payload.asBytes();
 					} else {
 						try {
-							return DistributorThread.serializeFromUri(that.getContentResolver(), 
+							return DistributorThread.serializeFromProvider(that.getContentResolver(), 
 									serializer.provider.asUri(), encode, logger);
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization");
@@ -651,7 +651,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					case DEFERRED:
 					default:
 						try {
-							return serializeFromUri(that.getContentResolver(), 
+							return serializeFromProvider(that.getContentResolver(), 
 									serializer.provider.asUri(), encode, logger);
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization");
@@ -1069,7 +1069,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 		final ContentResolver resolver = context.getContentResolver();
 		final Uri provider = Uri.parse(uriStr);
 
-		DistributorThread.deserializeToUri(resolver, provider, resp.getData().toByteArray(), logger);
+		// FIXME how to control de-serializing
+		DistributorThread.deserializeToProvider(resolver, provider, resp.getData().toByteArray(), logger);
 
 		// This update/delete the retrieval request, it is fulfilled.
 
@@ -1316,7 +1317,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Note the deserializeToUri and serializeFromUri are symmetric, any change to one 
 	 * will necessitate a corresponding change to the other.
 	 */  
-	private static synchronized boolean deserializeToUri(ContentResolver resolver, Uri uri, byte[] data, Logger logger) {
+	private static synchronized boolean deserializeToProvider(ContentResolver resolver, Uri uri, byte[] data, Logger logger) {
 		final Uri tupleUri = Uri.withAppendedPath(uri, "_deserial");
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
 
@@ -1372,7 +1373,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	/**
 	 * @see deserializeToUri with which this method is symmetric.
 	 */
-	private static synchronized byte[] serializeFromUri(final ContentResolver resolver, 
+	private static synchronized byte[] serializeFromProvider(final ContentResolver resolver, 
 			final Uri tupleUri, final DistributorPolicy.Encoding encoding, final Logger logger) 
 			throws FileNotFoundException, IOException {
 		final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
