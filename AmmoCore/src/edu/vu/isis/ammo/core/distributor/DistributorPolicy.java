@@ -298,7 +298,7 @@ public class DistributorPolicy implements ContentHandler {
 	 */
 	public static class Encoding implements Iterable<Encoding.Type> {
 		public enum Type {
-		TERSE, VERBOSE;
+		TERSE, VERBOSE, CUSTOM;
 		}
 		final private Type[] list;
 
@@ -341,8 +341,9 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		public String getPayloadSuffix() {
 			switch (getPayload()) {
-			case VERBOSE: return "_serial/verbose";
-			case TERSE: return "_serial/terse";
+			case VERBOSE: return "";
+			case TERSE: return "";
+			case CUSTOM: return "_serial/";
 	        default: return "_serial/";
 			}
 		}

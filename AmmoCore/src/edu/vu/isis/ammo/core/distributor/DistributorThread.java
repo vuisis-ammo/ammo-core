@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -22,6 +23,9 @@ import java.util.zip.CRC32;
 
 import net.jcip.annotations.ThreadSafe;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +54,6 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Literal;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -382,7 +385,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 		Boolean ruleSuccess = status.get(DistributorPolicy.TOTAL);
 		if (ruleSuccess == null) ruleSuccess = Boolean.FALSE;
-	
+
 		if (topic == null) {
 			logger.error("no matching routing topic");
 			final AmmoGatewayMessage agmb = serializer.act(Encoding.getDefault());
@@ -516,6 +519,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	}
 
 
+	@SuppressWarnings("unused")
 	private boolean collectGarbage = true;
 
 	// =========== POSTAL ====================
@@ -573,7 +577,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					}			
 				}
 			});
-			
+
 			values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
@@ -742,7 +746,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
-	
+
 		serializer.setAction(new RequestSerializer.OnReady() {
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
@@ -799,7 +803,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 		logger.info("::processPublicationRequest()");
 	}
 
-	@SuppressWarnings("unused")
 	private void processPublishTable(DistributorService that, boolean resend) {
 		logger.error("::processPublishTable : {} : not implemented", resend);
 	}
@@ -922,7 +925,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * 
 	 * Garbage collect items which are expired.
 	 */
-
 	private void processRetrievalTable(DistributorService that, boolean resend) {
 		logger.info("::processRetrievalTable()");
 
@@ -938,16 +940,16 @@ extends AsyncTask<DistributorService, Integer, Void>
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
 			// String disposition =
 			// pendingCursor.getString(pendingCursor.getColumnIndex(RetrievalTableSchema.DISPOSITION));
+			@SuppressWarnings("unused")
 			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
 			// int expiration =
 			// pendingCursor.getInt(pendingCursor.getColumnIndex(RetrievalTableSchema.EXPIRATION));
 			// long createdDate =
 			// pendingCursor.getLong(pendingCursor.getColumnIndex(RetrievalTableSchema.CREATED_DATE));
 
-			Uri rowUri = Uri.parse(provider);
-
 			@SuppressWarnings("unused")
-			//final int numUpdated = resolver.update(retrieveUri, values, null, null);
+			final Uri rowUri = Uri.parse(provider);
+
 			final Map<String,Boolean> status = new HashMap<String,Boolean>();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
@@ -971,7 +973,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 					values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 					@SuppressWarnings("unused")
-					long numUpdated = this.store.updatePostalByKey(id, values);
+					final long numUpdated = this.store.updatePostalByKey(id, values);
 
 					final Map<String,Boolean> dispatchResult = 
 							this.dispatchPostalRequest(that,
@@ -1173,16 +1175,16 @@ extends AsyncTask<DistributorService, Integer, Void>
 			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
 			// String disposition =
 			// pendingCursor.getString(pendingCursor.getColumnIndex(SubscribeTableSchema.DISPOSITION));
+			@SuppressWarnings("unused")
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
 			// int expiration =
 			// pendingCursor.getInt(pendingCursor.getColumnIndex(SubscribeTableSchema.EXPIRATION));
 			// long createdDate =
 			// pendingCursor.getLong(pendingCursor.getColumnIndex(SubscribeTableSchema.CREATED_DATE));
 
-			Uri rowUri = Uri.parse(provider);
-
 			@SuppressWarnings("unused")
-			//final int numUpdated = resolver.update(retrieveUri, values, null, null);
+			final Uri rowUri = Uri.parse(provider);
+
 			final Map<String,Boolean> status = new HashMap<String,Boolean>();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
@@ -1259,7 +1261,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		if (subscribeReq != null) subscribeReq.setQuery(selection);
 
 		mw.setSubscribeMessage(subscribeReq);
-		
+
 		final RequestSerializer serializer = RequestSerializer.newInstance();
 		serializer.setAction(new RequestSerializer.OnReady() {
 			@Override
@@ -1290,11 +1292,13 @@ extends AsyncTask<DistributorService, Integer, Void>
 			return false;
 		}
 		final AmmoMessages.DataMessage resp = mw.getDataMessage();
-		final ContentResolver resolver = context.getContentResolver();
+		// final ContentResolver resolver = context.getContentResolver();
 
 		logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
-		String mime = resp.getMimeType();
-		String tableUriStr = null;
+		@SuppressWarnings("unused")
+		final String mime = resp.getMimeType();
+		@SuppressWarnings("unused")
+		final String tableUriStr = null;
 		return true;
 	}
 
@@ -1317,18 +1321,20 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Note the deserializeToUri and serializeFromUri are symmetric, any change to one 
 	 * will necessitate a corresponding change to the other.
 	 */  
-	private static synchronized boolean deserializeToProvider(ContentResolver resolver, Uri uri, byte[] data, Logger logger) {
+	private static synchronized boolean deserializeToProvider(final ContentResolver resolver, Uri uri, byte[] data, Logger logger) {
 		final Uri tupleUri = Uri.withAppendedPath(uri, "_deserial");
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
+
+		// FIXME encoding should be obtained from the input somehow
+		final Encoding.Type encoding = Encoding.Type.CUSTOM; 
 
 		int position = 0;
 		for (; position < data.length; position++) {
 			if (position == (data.length-1)) { // last byte
 				final ContentValues cv = new ContentValues();
-				final byte[] name = new byte[position];
-				System.arraycopy(data, 0, name, 0, position);
-				cv.put("data", new String(data));
-				resolver.insert(tupleUri, cv);
+				final byte[] payload = new byte[position];
+				System.arraycopy(data, 0, payload, 0, position);
+				deserializeToProviderByEncoding(resolver, uri, encoding, payload, logger);
 				return true;
 			}
 			if (data[position] == 0x0) {
@@ -1370,12 +1376,48 @@ extends AsyncTask<DistributorService, Integer, Void>
 		return true;
 	}
 
+	private static Uri deserializeToProviderByEncoding(final ContentResolver resolver, Uri provider, 
+			Encoding.Type encoding, byte[] data, Logger logger) {
+		final String payload = new String(data);
+
+		switch (encoding) {
+		case VERBOSE: 
+		case TERSE:
+		{
+			JSONObject input;
+			try {
+				input = (JSONObject) new JSONTokener(payload).nextValue();
+				final ContentValues cv = new ContentValues();
+				for (@SuppressWarnings("unchecked")
+				Iterator<String> iter = input.keys(); iter.hasNext();) {
+					final String key = iter.next();
+					cv.put(key, input.getString(key));
+				}
+				return resolver.insert(provider, cv);
+			} catch (JSONException ex) {
+				logger.warn("invalid JSON content {}", ex.getStackTrace());
+			}
+		}
+		case CUSTOM:
+		default:
+		{
+			final ContentValues cv = new ContentValues();
+			cv.put("data", payload);
+			return resolver.insert(provider, cv);
+		}
+		}
+	}
+
+
 	/**
 	 * @see deserializeToUri with which this method is symmetric.
 	 */
 	private static synchronized byte[] serializeFromProvider(final ContentResolver resolver, 
 			final Uri tupleUri, final DistributorPolicy.Encoding encoding, final Logger logger) 
-			throws FileNotFoundException, IOException {
+					throws FileNotFoundException, IOException {
+
+		// ========= Serialize the non-blob data ===============
+
 		final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
 		final Cursor tupleCursor;
 		try {
@@ -1389,10 +1431,42 @@ extends AsyncTask<DistributorService, Integer, Void>
 		if (! tupleCursor.moveToFirst()) return null;
 		if (tupleCursor.getColumnCount() < 1) return null;
 
-		final String tupleString = tupleCursor.getString(0);
-		final byte[] tuple = tupleString.getBytes();
-		if (tupleCursor.getColumnCount() < 2) {
-			// allow to not be null terminated
+		final byte[] tuple;
+
+		switch (encoding.getPayload()) {
+		case VERBOSE: 
+		case TERSE:
+		{
+			final JSONObject json = new JSONObject();
+			tupleCursor.moveToFirst();
+
+			final List<String> fieldNameList = new ArrayList<String>();
+			fieldNameList.add("_serial");
+			for (final String name : tupleCursor.getColumnNames()) {
+				final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
+				if (value.length() < 1) continue;
+				try {
+					json.put(name, value);
+				} catch (JSONException ex) {
+					logger.warn("invalid content provider {}", ex.getStackTrace());
+				}
+			}
+			tuple = json.toString().getBytes();
+		}
+		break;
+		case CUSTOM:
+		default:
+		{
+			final String tupleString = tupleCursor.getString(0);
+			tuple = tupleString.getBytes();
+		}
+		}
+		tupleCursor.close(); 
+
+		// ========= Serialize the blob data (if any) ===============
+
+		final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
+		if (tupleCursor.getColumnCount() < 1) {
 			return tuple;
 		}
 
@@ -1404,7 +1478,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		final List<String> fieldNameList = new ArrayList<String>(blobCount);
 		final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
 		final byte[] buffer = new byte[1024]; 
-		for (int ix=1; ix < tupleCursor.getColumnCount(); ix++) {
+		for (int ix=0; ix < tupleCursor.getColumnCount(); ix++) {
 			final String fieldName = tupleCursor.getColumnName(ix);
 			fieldNameList.add(fieldName);
 
@@ -1446,6 +1520,5 @@ extends AsyncTask<DistributorService, Integer, Void>
 		}
 		return bigTuple.toByteArray();
 	}
-
 
 }
