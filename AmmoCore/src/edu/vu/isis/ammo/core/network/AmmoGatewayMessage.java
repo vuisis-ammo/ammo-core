@@ -130,7 +130,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 		sb.append("[addr=").append(this.hashCode()).append(" ");
 		sb.append("size=").append(this.size).append(" ");
 		sb.append("priority=").append(this.priority).append(" ");
-		sb.append("payload checksum=").append(Long.toHexString(this.payload_checksum)).append(" ]");
+		sb.append("checksum=").append(Long.toHexString(this.payload_checksum)).append(" ]");
 		return sb.toString();
 	}
 
