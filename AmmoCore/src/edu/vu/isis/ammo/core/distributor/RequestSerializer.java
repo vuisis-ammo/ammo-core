@@ -1,5 +1,8 @@
 package edu.vu.isis.ammo.core.distributor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
@@ -11,7 +14,8 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
  *
  */
 public class RequestSerializer {
-	
+	private static final Logger logger = LoggerFactory.getLogger("ammo:serializer");
+
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
 	}
@@ -21,8 +25,8 @@ public class RequestSerializer {
 
 	public final Provider provider;
 	public final Payload payload;
-	private OnReady action;
-	private OnSerialize onSerialize;
+	private OnReady readyActor;
+	private OnSerialize serializeActor;
 	private AmmoGatewayMessage terse;
 	private AmmoGatewayMessage json;
 
@@ -31,6 +35,20 @@ public class RequestSerializer {
 		this.payload = payload;
 		this.terse = null;
 		this.json = null;
+		this.readyActor = new RequestSerializer.OnReady() {
+			@Override
+			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+				logger.info("ready actor not defined {}", encode);
+				return null;
+			}
+		};	
+		this.serializeActor = new RequestSerializer.OnSerialize() {
+			@Override
+			public byte[] run(Encoding encode) {
+				logger.info("serialize actor not defined {}", encode);
+				return null;
+			}
+		};
 	}
 
 	public static RequestSerializer newInstance() {
@@ -44,24 +62,24 @@ public class RequestSerializer {
 		switch (encode.getPayload()) {
 		case JSON: 
 			if (this.json != null) return this.json;
-			final byte[] jsonBytes = this.onSerialize.run(encode);
-			this.json = this.action.run(encode, jsonBytes);
+			final byte[] jsonBytes = this.serializeActor.run(encode);
+			this.json = this.readyActor.run(encode, jsonBytes);
 			return this.json;
 		case TERSE: 
 			if (this.terse == null) return this.terse;
-			final byte[] terseBytes = this.onSerialize.run(encode);
-			this.terse = this.action.run(encode, terseBytes);
+			final byte[] terseBytes = this.serializeActor.run(encode);
+			this.terse = this.readyActor.run(encode, terseBytes);
 			return this.terse;
 		}
 		return null;
 	}
 
 	public void setAction(OnReady action) {
-		this.action = action;
+		this.readyActor = action;
 	}
 
 	public void setSerializer(OnSerialize onSerialize) {
-		this.onSerialize = onSerialize;
+		this.serializeActor = onSerialize;
 	}
 
 

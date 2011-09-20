@@ -634,14 +634,6 @@ public class DistributorDataStore {
 			SubscribeTable.PROJECTION_MAP.put(field.n, field.n);
 		}
 	}
-	static final private String SELECT_SUBSCRIPTION_URI;
-	static final private String SELECT_SUBSCRIPTION_TYPE;
-	static final private String SELECT_SUBSCRIPTION_URI_TYPE;
-	static {
-		SELECT_SUBSCRIPTION_URI = "\""+SubscribeTableSchema.PROVIDER.n +"\"=?";
-		SELECT_SUBSCRIPTION_TYPE = "\"" + SubscribeTableSchema.TOPIC.n + "\"=?";
-		SELECT_SUBSCRIPTION_URI_TYPE = SELECT_SUBSCRIPTION_URI + " AND " + SELECT_SUBSCRIPTION_TYPE;
-	}
 
 	public enum SubscribeTableSchema {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
@@ -1188,7 +1180,7 @@ public class DistributorDataStore {
 			key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
 		}
 		for (Entry<String,Boolean> entry : status.entrySet()) {
-			upsertDisposalByParent(key, Tables.SUBSCRIBE, entry.getKey(), entry.getValue());
+			this.upsertDisposalByParent(key, Tables.SUBSCRIBE, entry.getKey(), entry.getValue());
 		}
 		return key;
 	}
@@ -1214,7 +1206,8 @@ public class DistributorDataStore {
 		cv.put(DisposalTableSchema.TYPE.cv(), typeVal);
 		cv.put(DisposalTableSchema.PARENT.cv(), id);
 		cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
-		cv.put(DisposalTableSchema.STATE.cv(), (status) ? DisposalState.QUEUED.o : DisposalState.FAIL.o);
+		cv.put(DisposalTableSchema.STATE.cv(), (status == null || status) 
+				? DisposalState.QUEUED.o : DisposalState.FAIL.o);
 
 		final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
 				DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, channel } );

@@ -611,7 +611,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed");
+			logger.warn("NullPointerException, sending to gateway failed {}",
+					ex.getStackTrace());
 		}
 	}
 
@@ -1139,8 +1140,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 				final long id = this.store.upsertSubscribe(values, policy.makeRouteMap());
 				final Map<String,Boolean> dispatchResult = 
 						this.dispatchSubscribeRequest(that,
-								agm.select.toString(),
-								topic, policy, null,
+								topic, agm.select.toString(),
+								policy, null,
 								new INetworkService.OnSendMessageHandler() {
 
 							@Override
@@ -1155,7 +1156,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed");
+			logger.warn("NullPointerException, sending to gateway failed {}",
+					ex.getStackTrace());
 		}
 	}
 
@@ -1342,10 +1344,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 		int position = 0;
 		for (; position < data.length; position++) {
 			if (position == (data.length-1)) { // last byte
-				final ContentValues cv = new ContentValues();
 				final byte[] payload = new byte[position];
 				System.arraycopy(data, 0, payload, 0, position);
-				deserializeToProviderByEncoding(resolver, uri, encoding, payload, logger);
+				DistributorThread.deserializeToProviderByEncoding(resolver, uri, encoding, payload, logger);
 				return true;
 			}
 			if (data[position] == 0x0) {
