@@ -1039,11 +1039,17 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.POSTAL.qv())
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(DisposalState.PENDING.q()).append("));")
+	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
+	.append(')') // close exists clause
 	.toString();
 
 	public Cursor queryPostalReady(boolean resend) {
-		return db.rawQuery(POSTAL_STATUS_QUERY, null);
+		try {
+			return db.rawQuery(POSTAL_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
 	}
 
 	public Cursor queryPublish(String[] projection, String selection,
@@ -1085,11 +1091,17 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.RETRIEVAL.qv())
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(DisposalState.PENDING.q()).append("));")
+	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
+	.append(')') // close exists clause
 	.toString();
 
 	public Cursor queryRetrievalReady(boolean resend) {
-		return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
+		try {
+			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
 	}
 
 	public Cursor querySubscribe(String[] projection, String selection,
@@ -1117,11 +1129,17 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.SUBSCRIBE.qv())
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(DisposalState.PENDING.q()).append("));")
+	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
+	.append(')') // close exists clause
 	.toString();
 
 	public Cursor querySubscribeReady(boolean resend) {
-		return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
+		try {
+			return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
 	}
 
 
@@ -1144,17 +1162,21 @@ public class DistributorDataStore {
 	.append("SELECT * ")
 	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
 	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
-	.append(" ON d.").append(DisposalTableSchema.CHANNEL).append("=c.").append(ChannelTableSchema.NAME)
-	.append(" WHERE d.").append(DisposalTableSchema.PARENT).append("=?.")
-	.append("   AND d.").append(DisposalTableSchema.TYPE).append("=?")
+	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
+	.append(" WHERE d.").append(DisposalTableSchema.PARENT.q()).append("=? ")
+	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=? ")
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(DisposalState.PENDING.q()).append("));")
-	.append(';')
+	.append(" IN (").append(DisposalState.PENDING.q()).append(")")
 	.toString();
 
 	public Cursor queryDisposalReady(int parent, String type) {
-		return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(parent), type});
+		try {
+			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(parent), type});
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
 	}
 
 
@@ -1168,7 +1190,7 @@ public class DistributorDataStore {
 	.append(PostalTableSchema.TOPIC.q()).append("=?")
 	.append(" AND ").append(PostalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
-	
+
 	public long upsertPostal(ContentValues cv, Map<String,Boolean> status) {
 		final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
@@ -1183,7 +1205,7 @@ public class DistributorDataStore {
 			key = cursor.getInt(0); // we only asked for one column so it better be it.
 			cursor.close();
 		} else {
-		   key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
+			key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
 		}
 		for (Entry<String,Boolean> entry : status.entrySet()) {
 			upsertDisposalByParent(key, Tables.POSTAL, entry.getKey(), entry.getValue());
@@ -1195,7 +1217,7 @@ public class DistributorDataStore {
 	.append(PublishTableSchema.TOPIC.q()).append("=?")
 	.append(" AND ").append(PublishTableSchema.PROVIDER.q()).append("=?")
 	.toString();
-	
+
 	public long upsertPublish(ContentValues cv, Map<String,Boolean> status) {
 		final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
@@ -1210,7 +1232,7 @@ public class DistributorDataStore {
 			key = cursor.getInt(0); // we only asked for one column so it better be it.
 			cursor.close();
 		} else {
-		   key = this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
+			key = this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
 		}
 		for (Entry<String,Boolean> entry : status.entrySet()) {
 			upsertDisposalByParent(key, Tables.PUBLISH, entry.getKey(), entry.getValue());
@@ -1222,7 +1244,7 @@ public class DistributorDataStore {
 	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
 	.append(" AND ").append(RetrievalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
-	
+
 	public long upsertRetrieval(ContentValues cv, Map<String,Boolean> status) {
 		final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
@@ -1237,7 +1259,7 @@ public class DistributorDataStore {
 			key = cursor.getInt(0); // we only asked for one column so it better be it.
 			cursor.close();
 		} else {
-		   key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
+			key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
 		}
 		for (Entry<String,Boolean> entry : status.entrySet()) {
 			upsertDisposalByParent(key, Tables.RETRIEVAL, entry.getKey(), entry.getValue());
@@ -1251,7 +1273,7 @@ public class DistributorDataStore {
 	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
 	.append(" AND ").append(SubscribeTableSchema.PROVIDER.q()).append("=?")
 	.toString();
-	
+
 	public long upsertSubscribe(ContentValues cv, Map<String,Boolean> status) {
 		final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
@@ -1261,12 +1283,12 @@ public class DistributorDataStore {
 		if (0 < this.db.update(Tables.SUBSCRIBE.n, cv, SUBSCRIBE_UPDATE_CLAUSE, updateArgs )) {
 			final Cursor cursor = this.db.query(Tables.SUBSCRIBE.n, 
 					new String[]{SubscribeTableSchema._ID.n},
-				SUBSCRIBE_UPDATE_CLAUSE, updateArgs, null, null, null);
+					SUBSCRIBE_UPDATE_CLAUSE, updateArgs, null, null, null);
 			cursor.moveToFirst();
 			key = cursor.getInt(0); // we only asked for one column so it better be it.
 			cursor.close();
 		} else {
-		   key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
+			key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
 		}
 		for (Entry<String,Boolean> entry : status.entrySet()) {
 			upsertDisposalByParent(key, Tables.SUBSCRIBE, entry.getKey(), entry.getValue());

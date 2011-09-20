@@ -298,7 +298,7 @@ public class DistributorPolicy implements ContentHandler {
 	 */
 	public static class Encoding implements Iterable<Encoding.Type> {
 		public enum Type {
-		TERSE, VERBOSE, CUSTOM;
+		TERSE, JSON, CUSTOM;
 		}
 		final private Type[] list;
 
@@ -306,7 +306,7 @@ public class DistributorPolicy implements ContentHandler {
 			this.list = types;
 		}
 		public static Encoding getDefault() {
-			return new Encoding(Type.VERBOSE);
+			return new Encoding(Type.JSON);
 		}
 		public static Encoding newInstance(Type...types) {
 			return new Encoding(types);
@@ -320,20 +320,20 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		public Type getPayload() {
 			switch (this.list.length){
-			case 0: return Type.VERBOSE;
+			case 0: return Type.JSON;
 			}
 			return this.list[0];
 		}
 		public Type getMessage() {
 			switch (this.list.length){
-			case 0: return Type.VERBOSE;
+			case 0: return Type.JSON;
 			case 1: return this.list[0];
 			}
 			return this.list[1];
 		}
 		public Type getHeader() {
 			switch (this.list.length){
-			case 0: return Type.VERBOSE;
+			case 0: return Type.JSON;
 			case 1: return this.list[0];
 			case 2: return this.list[1];
 			}
@@ -341,11 +341,19 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		public String getPayloadSuffix() {
 			switch (getPayload()) {
-			case VERBOSE: return "";
+			case JSON: return "";
 			case TERSE: return "";
 			case CUSTOM: return "_serial/";
 	        default: return "_serial/";
 			}
+		}
+		@Override
+		public String toString() {
+			final StringBuilder sb = new StringBuilder().append('[');
+			for( final Type type : this.list) {
+				sb.append(type.name()).append(',');
+			}
+			return sb.append(']').toString();
 		}
 	}
 	
@@ -617,7 +625,7 @@ public class DistributorPolicy implements ContentHandler {
 		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
 		if (value.equalsIgnoreCase("verbose")) 
-			return Encoding.newInstance( Encoding.Type.VERBOSE, Encoding.Type.VERBOSE, Encoding.Type.VERBOSE);
+			return Encoding.newInstance( Encoding.Type.JSON, Encoding.Type.JSON, Encoding.Type.JSON);
 		if (value.equalsIgnoreCase("verbose")) 
 			return  Encoding.newInstance( Encoding.Type.TERSE, Encoding.Type.TERSE, Encoding.Type.TERSE );
 		return def;

@@ -24,13 +24,13 @@ public class RequestSerializer {
 	private OnReady action;
 	private OnSerialize onSerialize;
 	private AmmoGatewayMessage terse;
-	private AmmoGatewayMessage verbose;
+	private AmmoGatewayMessage json;
 
 	private RequestSerializer(Provider provider, Payload payload) {
 		this.provider = provider;
 		this.payload = payload;
 		this.terse = null;
-		this.verbose = null;
+		this.json = null;
 	}
 
 	public static RequestSerializer newInstance() {
@@ -42,11 +42,11 @@ public class RequestSerializer {
 
 	public AmmoGatewayMessage act(Encoding encode) {
 		switch (encode.getPayload()) {
-		case VERBOSE: 
-			if (this.verbose != null) return this.verbose;
-			final byte[] verboseBytes = this.onSerialize.run(encode);
-			this.verbose = this.action.run(encode, verboseBytes);
-			return this.verbose;
+		case JSON: 
+			if (this.json != null) return this.json;
+			final byte[] jsonBytes = this.onSerialize.run(encode);
+			this.json = this.action.run(encode, jsonBytes);
+			return this.json;
 		case TERSE: 
 			if (this.terse == null) return this.terse;
 			final byte[] terseBytes = this.onSerialize.run(encode);

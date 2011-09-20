@@ -571,7 +571,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 							return DistributorThread.serializeFromProvider(that.getContentResolver(), 
 									serializer.provider.asUri(), encode, logger);
 						} catch (IOException e1) {
-							logger.error("invalid row for serialization");
+							logger.error("invalid row for serialization {}",
+									e1.getLocalizedMessage());
 							return null;
 						}
 					}			
@@ -1381,7 +1382,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		final String payload = new String(data);
 
 		switch (encoding) {
-		case VERBOSE: 
+		case JSON: 
 		case TERSE:
 		{
 			JSONObject input;
@@ -1434,7 +1435,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		final byte[] tuple;
 
 		switch (encoding.getPayload()) {
-		case VERBOSE: 
+		case JSON: 
 		case TERSE:
 		{
 			final JSONObject json = new JSONObject();
@@ -1444,7 +1445,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			fieldNameList.add("_serial");
 			for (final String name : tupleCursor.getColumnNames()) {
 				final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
-				if (value.length() < 1) continue;
+				if (value == null || value.length() < 1) continue;
 				try {
 					json.put(name, value);
 				} catch (JSONException ex) {
@@ -1466,23 +1467,30 @@ extends AsyncTask<DistributorService, Integer, Void>
 		// ========= Serialize the blob data (if any) ===============
 
 		final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
-		if (tupleCursor.getColumnCount() < 1) {
-			return tuple;
+		final Cursor blobCursor;
+		try {
+			blobCursor = resolver.query(blobUri, null, null, null, null);
+		} catch(IllegalArgumentException ex) {
+			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+			return null;
 		}
+		if (blobCursor == null) return tuple;
+		if (! blobCursor.moveToFirst()) return tuple;
+		if (blobCursor.getColumnCount() < 1) return tuple;
 
 		final ByteArrayOutputStream bigTuple = new ByteArrayOutputStream();
-		bigTuple.write(tuple);
+		bigTuple.write(tuple); // copy over tuple there
 		bigTuple.write(0x0);
 
-		final int blobCount = tupleCursor.getColumnCount();
+		final int blobCount = blobCursor.getColumnCount();
 		final List<String> fieldNameList = new ArrayList<String>(blobCount);
 		final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
 		final byte[] buffer = new byte[1024]; 
-		for (int ix=0; ix < tupleCursor.getColumnCount(); ix++) {
-			final String fieldName = tupleCursor.getColumnName(ix);
+		for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
+			final String fieldName = blobCursor.getColumnName(ix);
 			fieldNameList.add(fieldName);
 
-			final Uri fieldUri = Uri.parse(tupleCursor.getString(ix));    
+			final Uri fieldUri = Uri.parse(blobCursor.getString(ix));    
 			try {
 				final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
 				if (afd == null) {
@@ -1518,6 +1526,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			bigTuple.write(bb.array());
 			bigTuple.write(fieldBlob.toByteArray());
 		}
+		blobCursor.close();
 		return bigTuple.toByteArray();
 	}
 
