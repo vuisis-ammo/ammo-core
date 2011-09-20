@@ -117,13 +117,13 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 	{
 		struct termios cfg;
 		LOGD("Configuring serial port");
-		if (tcgetattr(fd, &cfg))
-		{
-			LOGE("tcgetattr() failed");
-			close(fd);
-			/* TODO: throw an exception */
-			return NULL;
-		}
+		/* if (tcgetattr(fd, &cfg)) */
+		/* { */
+		/* 	LOGE("tcgetattr() failed"); */
+		/* 	close(fd); */
+		/* 	/\* TODO: throw an exception *\/ */
+		/* 	return NULL; */
+		/* } */
 
 		//cfmakeraw(&cfg);
 				
@@ -149,25 +149,32 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 			19-- character size mask
 			20-- 8 bits
 			21-- enable follwing output processing
-		*/
+		/* *\/ */
 			    
-		//		   1      2      3      4     5      6     7    8     9    10
-		cfg.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IXOFF|IXANY);
-		//                11
-		cfg.c_oflag &= ~OPOST;
-		//		  12    13     14    15    16
-    		cfg.c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN);
-		//		   17     18     19		
-		cfg.c_cflag &= ~(PARENB|CSTOPB|CSIZE);
-		//              20
-		cfg.c_cflag |= CS8;
-		//		  21
-		cfg.c_cflag |= CRTSCTS;
+		/* //		   1      2      3      4     5      6     7    8     9    10 */
+		/* cfg.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IXOFF|IXANY); */
+		/* //                11 */
+		/* cfg.c_oflag &= ~OPOST; */
+		/* //		  12    13     14    15    16 */
+    	/* 	cfg.c_lflag &= ~(ECHO|ECHONL|ICANON|ISIG|IEXTEN); */
+		/* //		   17     18     19		 */
+		/* cfg.c_cflag &= ~(PARENB|CSTOPB|CSIZE); */
+		/* //              20 */
+		/* cfg.c_cflag |= CS8; */
+		/* //		  21 */
+		/* cfg.c_cflag |= CRTSCTS; */
 
 
-		cfsetispeed(&cfg, speed);
-		cfsetospeed(&cfg, speed);
+		/* cfsetispeed(&cfg, speed); */
+		/* cfsetospeed(&cfg, speed); */
 
+        bzero( &cfg, sizeof(cfg) );
+        config.c_cflag = B9600 | CRTSCTS  | CS8 | CLOCAL | CREAD;
+        config.c_iflag = IGNPAR | ICRNL;
+        config.c_oflag = 0;
+        config.c_cc[VMIN] = 1;
+
+        tcflush( fd, TCIFLUSH );
 		if (tcsetattr(fd, TCSANOW, &cfg))
 		{
 			LOGE("tcsetattr() failed");
