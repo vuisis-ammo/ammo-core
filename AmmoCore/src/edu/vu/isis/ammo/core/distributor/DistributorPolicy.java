@@ -33,6 +33,7 @@ import org.xml.sax.XMLReader;
 
 import android.content.Context;
 import android.content.res.Resources.NotFoundException;
+import android.net.Uri;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.core.R;
@@ -345,6 +346,14 @@ public class DistributorPolicy implements ContentHandler {
 			case TERSE: return "";
 			case CUSTOM: return "_serial/";
 	        default: return "_serial/";
+			}
+		}
+		public Uri extendProvider(Uri provider) {
+			switch (getPayload()) {
+			case JSON: return provider;
+			case TERSE: return provider;
+			case CUSTOM: return Uri.withAppendedPath(provider, "_serial/");
+	        default: return Uri.withAppendedPath(provider, "_serial/");
 			}
 		}
 		@Override

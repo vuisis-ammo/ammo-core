@@ -34,6 +34,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteException;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
@@ -129,20 +130,20 @@ extends AsyncTask<DistributorService, Integer, Void>
 	public void onChannelChange(String name, ChannelAction state) {
 		if (this.channelStatus.get(name).equals(state)) return;
 		this.channelStatus.put(name, state);
-		
+
 		switch (state) {
 		case INACTIVE:
 			this.store.upsertChannelByName(name, ChannelState.INACTIVE);
 			logger.trace("::channel deactivated");
 			return;
-			
+
 		case ACTIVE:
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
 			logger.trace("::channel activated");
 			if (!channelDelta.compareAndSet(false, true)) return;
 			this.signal();
 			return;
-			
+
 		case REPAIR: 
 			// same as ACTIVE but cause failed items to be reprocessed
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
@@ -1339,7 +1340,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
 
 		// FIXME encoding should be obtained from the input somehow
-		final Encoding.Type encoding = Encoding.Type.CUSTOM; 
+		final Encoding encoding = Encoding.getDefault();
 
 		int position = 0;
 		for (; position < data.length; position++) {
@@ -1389,16 +1390,14 @@ extends AsyncTask<DistributorService, Integer, Void>
 	}
 
 	private static Uri deserializeToProviderByEncoding(final ContentResolver resolver, Uri provider, 
-			Encoding.Type encoding, byte[] data, Logger logger) {
+			Encoding encoding, byte[] data, Logger logger) {
 		final String payload = new String(data);
 
-		switch (encoding) {
+		switch (encoding.getPayload()) {
 		case JSON: 
 		case TERSE:
-		{
-			JSONObject input;
 			try {
-				input = (JSONObject) new JSONTokener(payload).nextValue();
+				final JSONObject input = (JSONObject) new JSONTokener(payload).nextValue();
 				final ContentValues cv = new ContentValues();
 				for (@SuppressWarnings("unchecked")
 				Iterator<String> iter = input.keys(); iter.hasNext();) {
@@ -1407,15 +1406,19 @@ extends AsyncTask<DistributorService, Integer, Void>
 				}
 				return resolver.insert(provider, cv);
 			} catch (JSONException ex) {
-				logger.warn("invalid JSON content {}", ex.getStackTrace());
+				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+			} catch (SQLiteException ex) {
+				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
 			}
-		}
+			return null;
 		case CUSTOM:
 		default:
 		{
+			// FIXME write to the custom provider address
+			final Uri customProvider = encoding.extendProvider(provider);
 			final ContentValues cv = new ContentValues();
 			cv.put("data", payload);
-			return resolver.insert(provider, cv);
+			return resolver.insert(customProvider, cv);
 		}
 		}
 	}
