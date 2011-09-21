@@ -165,7 +165,12 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         spec.setIndicator("Link Status", res.getDrawable(R.drawable.netlink_32));
         spec.setContent(R.id.netlink_layout);
         getTabHost().addTab(spec);
-
+        
+        spec = tabHost.newTabSpec("message_queue");
+        spec.setIndicator("Message Queue", res.getDrawable(R.drawable.mailbox_icon));
+        spec.setContent(new Intent("edu.vu.isis.ammo.core.ui.MessageQueueActivity.LAUNCH"));
+        getTabHost().addTab(spec);
+        
         intent = new Intent().setClass(this, CorePreferenceActivity.class);
         /*
         spec = tabHost.newTabSpec("settings");

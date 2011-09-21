@@ -58,8 +58,6 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-    	
-
     	Channel channel = this.model.get(position);
     	View row = channel.getView(convertView, this.parent.getLayoutInflater());
     	onStatusChange( row, channel.getStatus() );

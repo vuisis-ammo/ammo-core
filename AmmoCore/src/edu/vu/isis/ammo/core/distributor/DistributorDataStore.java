@@ -1077,6 +1077,21 @@ public class DistributorDataStore {
 	.append(" IN (").append(DisposalState.PENDING.q()).append(")")
 	.toString();
 
+	public Cursor queryChannel(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+		qb.setTables(Tables.CHANNEL.n);
+		qb.setProjectionMap(ChannelTable.PROJECTION_MAP);
+
+		// Get the database and run the query.
+		return qb.query(this.db, projection, selection, selectionArgs, null, null,
+				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+						: ChannelTable.DEFAULT_SORT_ORDER);
+	}
+	
+	
+	
 	/**
 	 * Upsert is a portmanteau of update and insert, thus,
 	 * if a record with a matching key exists then update
