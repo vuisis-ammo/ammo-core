@@ -71,7 +71,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public static final int HEADER_DATA_LENGTH_TERSE =
           4 // magic
         + 2 // message size
-        + 2; // payload checksum
+        + 2 // payload checksum
+        + 8; // We added a timestamp for testing and debugging.
+
 
     // These are equal because the terse form doesn't use a header checksum.
     public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH;
@@ -317,6 +319,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             logger.debug( "   payload_checksum={}", this.payload_checksum );
             buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
+            long nowInMillis = System.currentTimeMillis();
+            buf.putLong( nowInMillis );
+
             // payload
             buf.put( this.payload );
             logger.debug( "   payload={}", this.payload );
@@ -395,6 +400,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     checkBytes[3] = 0;
                     logger.debug( "   payload check={}", checkBytes );
                     long payload_checksum = convertChecksum(checkBytes);
+
+                    drain.getLong();
 
                     return AmmoGatewayMessage.newBuilder()
                             .size(size)
