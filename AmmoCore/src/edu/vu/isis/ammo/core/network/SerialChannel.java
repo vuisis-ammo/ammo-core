@@ -910,6 +910,7 @@ public class SerialChannel extends NetChannel
         private SerialChannel mChannel;
     }
 
+
     ///////////////////////////////////////////////////////////////////////////
     //
     class SenderThread extends Thread
@@ -937,8 +938,9 @@ public class SerialChannel extends NetChannel
         {
             logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
-            // Block on reading from the queue until we get a message to send.
-            // Then send it on the socket channel. Upon getting a socket error,
+            // Sleep until our slot in the round.  If, upon waking, we find that
+            // we are in the right slot, check to see if a packet is available
+            // to be sent and, if so, send it. Upon getting a serial port error,
             // notify our parent and go into an error state.
 
             while ( mState != INetChannel.INTERRUPTED )
@@ -1012,39 +1014,17 @@ public class SerialChannel extends NetChannel
                                                     AmmoGatewayMessage.VERSION_1_TERSE,
                                                     (byte) slotNumber );
 
-                    // setSenderState( INetChannel.SENDING );
+                    setSenderState( INetChannel.SENDING );
 
-                    // DatagramPacket packet =
-                    //     new DatagramPacket( buf.array(),
-                    //                         buf.remaining(),
-                    //                         mChannel.mMulticastGroup,
-                    //                         mChannel.mMulticastPort );
-                    // logger.debug( "Sending datagram packet. length={}", packet.getLength() );
-
-                    //logger.debug( "...{}", buf.array() );
-                    // logger.debug( "...{}", buf.remaining() );
-                    // logger.debug( "...{}", mChannel.mMulticastGroup );
-                    // logger.debug( "...{}", mChannel.mMulticastPort );
-                    // mPort.send( packet ); // old channel code
-
-                    // Sandeep: this is the new code.
                     OutputStream outputStream = mPort.getOutputStream();
-
-                    // Disabling this to test receiving of messages, since we have no
-                    // channelization yet for the 152s.
                     outputStream.write( buf.array() );
                     outputStream.flush();
-
-                    // mPort.write( buf, buf.position() ); // new version
-
 
                     logger.info( "sent message size={}, checksum={}, data:{}",
                                  new Object[] {
                                      msg.size,
                                      Long.toHexString(msg.payload_checksum),
                                      msg.payload } );
-
-                    //logger.info( "Wrote packet to SerialPort." );
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
@@ -1094,6 +1074,7 @@ public class SerialChannel extends NetChannel
             mParent = iParent;
             mDestination = iDestination;
             mPort = iPort;
+            mInputStream = mPort.getInputStream();
         }
 
         @Override
@@ -1104,141 +1085,159 @@ public class SerialChannel extends NetChannel
             // Block on reading from the SerialPort until we get some data.
             // If we get an error, notify our parent and go into an error state.
 
-            // This code assumes that each datagram contained exactly one message.
-            // If this needs to change in the future, this code will need to be
-            // revised.
+            // NOTE: We found that our reads were less reliable when reading more than
+            // one byte at a time using the standard stream and ByteBuffer patterns.
+            // Reading one byte at a time in the code below is intentional.
 
-            ByteBuffer buf = ByteBuffer.allocate( 1024 );
-            buf.order( endian );
-            buf.clear();
-
-            while ( mState != INetChannel.INTERRUPTED )
+            try
             {
-                try
-                {
-                    //DatagramPacket packet = new DatagramPacket( raw, raw.length );
-                    logger.debug( "Calling receive() on the SerialPort." );
+                final byte first = (byte) 0xef;
+                final byte second = (byte) 0xbe;
+                final byte third = (byte) 0xed;
 
+                byte[] buf_header = new byte[ 32 ];// AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE ];
+                ByteBuffer header = ByteBuffer.wrap( buf_header );
+                header.order( endian );
+
+                int state = 0;
+                byte c = 0;
+                AmmoGatewayMessage.Builder agmb = null;
+
+                while ( mState != INetChannel.INTERRUPTED )
+                {
                     setReceiverState( INetChannel.START );
 
-                    // *****************************************************
-                    // FIXME: replace the following code with the code
-                    // to receive the packet from the SerialPort.
-                    // *****************************************************
-                    //mPort.receive( packet );
-
-                    // Sandeep: this is the new code
-                    byte[] buffer = new byte[34];
-                    InputStream inputStream = mPort.getInputStream();
-                    logger.error( "about to read()" );
-
-                    int size = inputStream.read( buffer );
-                    // FIXME: this is probably not correct error handling for the serial port.
-                    if (size < 0 ) //|| size < HEADER_SIZE )
-                        continue;
-
-                    logger.error( "1" );
-
-                    long currentTime = System.currentTimeMillis();
-                    long startOfRound = ((long) (currentTime / 2000) * 2000);
-                    long currentSlot = (currentTime - startOfRound) / 125;
-                    logger.debug( "Read {} bytes in slot {} (header) at {}",
-                                 new Object[] {
-                                      size,
-                                      currentSlot,
-                                      currentTime } );
-
-                    buf.put( buffer, 0, size );
-                    //logger.error( "asdfasdf {}...{}", buf.position(), buf.array() );
-                    //logger.error( "the buffer: {}", buf );
-
-                    if ( buf.position() < AmmoGatewayMessage.HEADER_LENGTH )
-                        continue;
-
-                    // logger.error( "finished read()" );
-                    // if ( size > 0 )
-                    // {
-                    //     logger.debug( "Received:" + new String( buffer, 0, size ));
-                    //     //onDataReceived( buffer, size );
-                    // }
-
-                    // logger.debug( "Received a packet. length={}", size );
-
-                    // //ByteBuffer buf = ByteBuffer.wrap( buffer );
-                    // logger.error( "{}...{}", buf.remaining(), buf.array() );
-
-                    // // wrap() creates a buffer that is ready to be drained,
-                    // // so there is no need to flip() it.
-
-                    // SKN: try to read enough to get one full message worth, then attempt to extract and compact
-
-
-
-                    // extract header
-                    buf.flip();
-                    AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader( buf );
-                    if ( agmb == null )
+                    switch ( state )
                     {
-                        logger.error( "Deserialization failure." );
-                        buf.compact();
-                        continue;
-                    }
-
-                    // extract the payload
-                    size = agmb.size();
-                    int offset = 0;
-                    byte[] payload = new byte[size];
-                    while (true) {
-                        if (buf.remaining() < size) {
-                            int rem =  buf.remaining();
-                            buf.get(payload, offset, rem);
-                            offset += rem;
-                            size -= rem;
-                            buf.clear();
-                            int ret = inputStream.read( buffer );
-                            if (ret > 0)
-                            {
-                                currentTime = System.currentTimeMillis();
-                                startOfRound = ((long) (currentTime / 2000) * 2000);
-                                currentSlot = (currentTime - startOfRound) / 125;
-                                logger.debug( "Read {} bytes in slot {} (payload) at {}",
-                                              new Object[] {
-                                                  size,
-                                                  currentSlot,
-                                                  currentTime } );
-                                buf.put( buffer, 0, ret );
-                            }
-                            buf.flip();
-                            continue;
-                        }
-                        buf.get(payload, offset, size);
-
-                        AmmoGatewayMessage agm = agmb.payload(payload).build();
-                        setReceiverState( INetChannel.DELIVER );
-                        mDestination.deliverMessage( agm );
-                        logger.info( "received message size={}, checksum={}, data:{}",
-                                     new Object[] {
-                                         agm.size,
-                                         Long.toHexString(agm.payload_checksum),
-                                         agm.payload } );
-                        buf.compact();
+                    case 0:
+                        logger.debug( "Waiting for magic." );
+                        c = readAByte();
+                        if ( c == first )
+                            state = c;
                         break;
+
+                    case first:
+                        c = readAByte();
+                        if ( c == second || c == first )
+                            state = c;
+                        else
+                            state = 0;
+                        break;
+
+                    case second:
+                        c = readAByte();
+                        if ( c == third )
+                            state = 1;
+                        else if ( c == 0xef )
+                            state = c;
+                        else
+                            state = 0;
+                        break;
+
+                    case 1:
+                        {
+                            long currentTime = System.currentTimeMillis();
+                            long startOfRound = ((long) (currentTime / 2000) * 2000);
+                            long currentSlot = (currentTime - startOfRound) / 125;
+                            logger.debug( "Read magic sequence in slot {} at {}",
+                                          currentSlot,
+                                          currentTime );
+
+                            // Set these in buf_header, since extractHeader() expects them.
+                            buf_header[0] = first;
+                            buf_header[1] = second;
+                            buf_header[2] = third;
+
+                            // For some unknown reason, this was writing past the end of the
+                            // array when length=16. It may have been ant not recompiling things
+                            // properly.  Look into it when I have time.
+                            for ( int i = 0; i < 13; ++i )
+                            {
+                                c = readAByte();
+                                buf_header[i+3] = c;
+                            }
+                            logger.debug( " Received terse header, reading payload " );
+
+                            agmb = AmmoGatewayMessage.extractHeader( header );
+                            if ( agmb == null )
+                            {
+                                logger.error( "Deserialization failure." );
+                                state = 0;
+                            }
+                            else
+                            {
+                                state = 2;
+                            }
+                        }
+                        break;
+
+                    case 2:
+                        {
+                            int payload_size = agmb.size();
+                            byte[] buf_payload = new byte[ payload_size ];
+
+                            for ( int i = 0; i < payload_size; ++i )
+                            {
+                                c = readAByte();
+                                buf_payload[i] = c;
+                            }
+
+                            AmmoGatewayMessage agm = agmb.payload( buf_payload ).build();
+
+                            long currentTime = System.currentTimeMillis();
+                            long startOfRound = ((long) (currentTime / 2000) * 2000);
+                            long currentSlot = (currentTime - startOfRound) / 125;
+                            logger.debug( "Finished reading payload in slot {} at {}",
+                                          currentSlot,
+                                          currentTime );
+                            logger.info( "received message size={}, checksum={}, data:{}",
+                                         new Object[] {
+                                             agm.size,
+                                             Long.toHexString(agm.payload_checksum),
+                                             agm.payload } );
+
+                            setReceiverState( INetChannel.DELIVER );
+                            mDestination.deliverMessage( agm );
+
+                            header.clear();
+                            setReceiverState( INetChannel.START );
+                            state = 0;
+                        }
+                        break;
+
+                    default:
+                        logger.debug( "Unknown value for state variable" );
                     }
-                }
-                catch ( ClosedChannelException ex ) // Should we do an IOException for the serial port instead?
-                {
-                    logger.warn( "receiver threw exception 1 {}", ex.getStackTrace() );
-                    setReceiverState( INetChannel.INTERRUPTED );
-                    mParent.socketOperationFailed();
-                }
-                catch ( Exception ex )
-                {
-                    logger.warn( "receiver threw exception 2 {}", ex.getStackTrace() );
-                    setReceiverState( INetChannel.INTERRUPTED );
-                    mParent.socketOperationFailed();
                 }
             }
+            catch ( IOException ex )
+            {
+                logger.warn( "receiver threw an IOException {}", ex.getStackTrace() );
+                setReceiverState( INetChannel.INTERRUPTED );
+                mParent.socketOperationFailed();
+            }
+            catch ( Exception ex )
+            {
+                logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
+                setReceiverState( INetChannel.INTERRUPTED );
+                mParent.socketOperationFailed();
+            }
         }
+
+
+        private byte readAByte() throws IOException
+        {
+            //logger.debug( "Calling receive() on the SerialPort." );
+            int val = mInputStream.read();
+            if ( val == -1 )
+            {
+                logger.debug( "The serial port returned -1 from read()." );
+                throw new IOException();
+            }
+            //logger.debug( "{}", Integer.toHexString(val) );
+            return (byte) val;
+        }
+
 
         private void setReceiverState( int iState )
         {
@@ -1255,6 +1254,7 @@ public class SerialChannel extends NetChannel
         private ConnectorThread mParent;
         private SerialChannel mDestination;
         private SerialPort mPort;
+        private InputStream mInputStream;
         private final Logger logger
             = LoggerFactory.getLogger( "net.serial.receiver" );
     }
