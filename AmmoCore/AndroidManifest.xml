@@ -131,7 +131,7 @@
 			android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider"
 			android:permission="edu.vu.isis.ammo.permission.MAKE_REQUEST" />
 		<provider android:name=".provider.DistributorProvider"
-			android:authorities="edu.vu.isis.ammo.core.provider.channelprovider"/>
+			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
 		
 	</application>
 

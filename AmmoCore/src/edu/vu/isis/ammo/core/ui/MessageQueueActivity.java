@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import android.app.Activity;
 import android.database.Cursor;
+import android.net.Uri;
 import android.os.Bundle;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
@@ -23,8 +24,16 @@ public class MessageQueueActivity extends Activity {
         setupView();
         setOnClickListeners();
         
-        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.DISPOSAL.n), null, null, null, null);
+        String tableName = DistributorDataStore.Tables.DISPOSAL.n;
+        Uri uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n);
+        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n), null, null, null, null);
         logger.info("message{}", c);
+        
+        
+        while(c.moveToNext()) {
+        	String channelName = c.getString(c.getColumnIndex(DistributorDataStore.ChannelTableSchema.NAME.n));
+        	logger.debug(channelName);
+        }
 	}
 	
 	// ===============================================
