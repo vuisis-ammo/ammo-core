@@ -2,8 +2,6 @@ package edu.vu.isis.ammo.core.network;
 
 public abstract class NetChannel implements INetChannel {
 
-    
-
 	// The values in the INetChannel that we are translating here could
     // probably be made into an enum and the translation to strings
     // would be handled for us.
@@ -37,5 +35,12 @@ public abstract class NetChannel implements INetChannel {
         default:
             return "Undefined State [" + state +"]";
         }
+    }
+    
+    // a string uniquely naming the channel
+    final public String name;
+    
+    protected NetChannel(String name) {
+    	this.name = name;
     }
 }

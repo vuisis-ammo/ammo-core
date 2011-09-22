@@ -78,6 +78,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 	public final boolean isGateway;
 
 	/**
+	 * This is used by PriorityBlockingQueue() to prioritize it contents.
 	 * @return
 	 * a negative integer if this instance is less than another; 
 	 * a positive integer if this instance is greater than another; 

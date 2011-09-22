@@ -17,7 +17,7 @@ import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -80,20 +80,20 @@ public class TcpChannel extends NetChannel {
 
     private boolean shouldBeDisabled = false;
     private long flatLineTime;
-    SocketChannel mSocketChannel;
+    private SocketChannel mSocketChannel;
 
-    private SenderQueue mSenderQueue;
+    private final SenderQueue mSenderQueue;
 
-    private AtomicBoolean mIsAuthorized;
+    private final AtomicBoolean mIsAuthorized;
 
     // I made this public to support the hack to get authentication
     // working before Nilabja's code is ready.  Make it private again
     // once his stuff is in.
-    public IChannelManager mChannelManager;
+    public final IChannelManager mChannelManager;
     private ISecurityObject mSecurityObject;
 
-    private TcpChannel( IChannelManager iChannelManager ) {
-        super();
+    private TcpChannel(String name, IChannelManager iChannelManager ) {
+        super(name);
         logger.info("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
         this.syncObj = this;
 
@@ -107,14 +107,12 @@ public class TcpChannel extends NetChannel {
         mSenderQueue = new SenderQueue( this );
     }
 
-
-    public static TcpChannel getInstance( IChannelManager iChannelManager )
+    public static TcpChannel getInstance(String name, IChannelManager iChannelManager )
     {
         logger.trace("Thread <{}>::getInstance", Thread.currentThread().getId());
-        TcpChannel instance = new TcpChannel( iChannelManager );
+        final TcpChannel instance = new TcpChannel(name, iChannelManager );
         return instance;
     }
-
 
     public boolean isConnected() { return this.connectorThread.isConnected(); }
 
@@ -265,7 +263,7 @@ public class TcpChannel extends NetChannel {
 
         // Tell the NetworkService that we're authorized and have it
         // notify the apps.
-        mChannelManager.authorizationSucceeded( agm );
+        mChannelManager.authorizationSucceeded(this, agm );
     }
 
 
@@ -282,7 +280,7 @@ public class TcpChannel extends NetChannel {
     {
         logger.error( "In deliverMessage() {} ", agm );
 
-        boolean result;
+        final boolean result;
         if ( mIsAuthorized.get() )
         {
             logger.info( " delivering to channel manager" );
@@ -357,18 +355,18 @@ public class TcpChannel extends NetChannel {
         logger.warn( "Sending a heartbeat. t={}", nowInMillis );
 
         // Create a heartbeat message and call the method to send it.
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
         mw.setType( AmmoMessages.MessageWrapper.MessageType.HEARTBEAT );
         mw.setMessagePriority(AmmoGatewayMessage.PriorityLevel.FLASH.v);
 
-        AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
+        final AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
         message.setSequenceNumber( nowInMillis ); // Just for testing
 
         mw.setHeartbeat( message );
 
-        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
+        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
         agmb.isGateway(true);
-        sendRequest( agmb.build() );
+        this.sendRequest( agmb.build() );
 
         mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
         //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
@@ -806,7 +804,8 @@ public class TcpChannel extends NetChannel {
             mChannel = iChannel;
 
             setIsAuthorized( false );
-            mDistQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( 20 );
+            // mDistQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( 20 );
+            mDistQueue = new PriorityBlockingQueue<AmmoGatewayMessage>( 20 );
             mAuthQueue = new LinkedList<AmmoGatewayMessage>();
         }
 

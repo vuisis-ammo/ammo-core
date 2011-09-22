@@ -36,7 +36,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
-	public static final int VERSION = 13;
+	public static final int VERSION = 14;
 
 	// ===========================================================
 	// Fields
@@ -1239,9 +1239,9 @@ public class DistributorDataStore {
 	 * @param name
 	 * @return the number of failed items updated
 	 */
-	public int upsertDisposalStateByChannel(String channel) {
+	public int upsertDisposalStateByChannel(String channel, DisposalState newState) {
 		final ContentValues cv = new ContentValues();
-		cv.put(DisposalTableSchema.STATE.cv(), DisposalState.PENDING.o); // null indicates not attempted
+		cv.put(DisposalTableSchema.STATE.cv(), newState.o); // null indicates not attempted
 		return this.db.update(Tables.DISPOSAL.n, cv, DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
 	}
 	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
@@ -1742,12 +1742,6 @@ public class DistributorDataStore {
 
 
 			// === PRELOAD ======
-			/**
-			 * This is really only for testing.
-			 * 
-			 */
-			DistributorDataStore.upsertChannelByName(db, "multicast", ChannelState.ACTIVE);
-			DistributorDataStore.upsertChannelByName(db, "gateway",  ChannelState.ACTIVE);
 
 			// === VIEWS ======
 

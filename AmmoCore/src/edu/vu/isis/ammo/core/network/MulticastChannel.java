@@ -17,7 +17,7 @@ import java.nio.channels.ClosedChannelException;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -56,7 +56,7 @@ public class MulticastChannel extends NetChannel
 	private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
     private boolean isEnabled = true;
 
-    private Socket socket = null;
+    private final Socket socket = null;
     private ConnectorThread connectorThread;
 
     // New threads
@@ -77,7 +77,7 @@ public class MulticastChannel extends NetChannel
 
     private boolean shouldBeDisabled = false;
     @SuppressWarnings("unused")
-	private long flatLineTime;
+	private final long flatLineTime;
 
     private MulticastSocket mSocket;
     private String mMulticastAddress;
@@ -86,17 +86,17 @@ public class MulticastChannel extends NetChannel
 
     private SenderQueue mSenderQueue;
 
-    private AtomicBoolean mIsAuthorized;
+    private final AtomicBoolean mIsAuthorized;
 
     // I made this public to support the hack to get authentication
     // working before Nilabja's code is ready.  Make it private again
     // once his stuff is in.
-    public IChannelManager mChannelManager;
+    public final IChannelManager mChannelManager;
     private ISecurityObject mSecurityObject;
 
 
-    private MulticastChannel( IChannelManager iChannelManager ) {
-        super();
+    private MulticastChannel(String name, IChannelManager iChannelManager ) {
+        super(name);
         
         logger.info("Thread <{}>MulticastChannel::<constructor>", Thread.currentThread().getId());
         this.syncObj = this;
@@ -116,15 +116,14 @@ public class MulticastChannel extends NetChannel
     }
 
 
-    public static MulticastChannel getInstance( IChannelManager iChannelManager )
+    public static MulticastChannel getInstance(String name, IChannelManager iChannelManager )
     {
         logger.trace("Thread <{}> MulticastChannel::getInstance()",
                      Thread.currentThread().getId());
-        MulticastChannel instance = new MulticastChannel( iChannelManager );
+        MulticastChannel instance = new MulticastChannel(name, iChannelManager );
         return instance;
     }
-
-
+ 
     public boolean isConnected() { return this.connectorThread.isConnected(); }
 
     /**
@@ -163,8 +162,6 @@ public class MulticastChannel extends NetChannel
         }
         return true;
     }
-
-
 
     public boolean close() { return false; }
 
@@ -274,7 +271,7 @@ public class MulticastChannel extends NetChannel
 
         // Tell the NetworkService that we're authorized and have it
         // notify the apps.
-        mChannelManager.authorizationSucceeded( agm );
+        mChannelManager.authorizationSucceeded(this, agm );
     }
 
 
@@ -784,7 +781,8 @@ public class MulticastChannel extends NetChannel
             mChannel = iChannel;
 
             setIsAuthorized( false );
-            mDistQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( 20 );
+            // mDistQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( 20 );
+            mDistQueue = new PriorityBlockingQueue<AmmoGatewayMessage>( 20 );
             mAuthQueue = new LinkedList<AmmoGatewayMessage>();
         }
 

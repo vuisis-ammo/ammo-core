@@ -62,6 +62,28 @@ public class DistributorService extends Service {
 	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP";
 	public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED";
 
+	/**
+	 * The channel status map
+	 * It should not be changed by the main thread.
+	 */
+	public enum ChannelChange {
+		ACTIVATE(1), DEACTIVATE(2), REPAIR(3);
+
+		public int o; // ordinal
+
+		private ChannelChange(int o) {
+			this.o = o;
+		}
+		public int cv() {
+			return this.o;
+		}
+		static public ChannelChange getInstance(int ordinal) {
+			return ChannelChange.values()[ordinal];
+		}
+		public String q() {
+			return new StringBuilder().append("'").append(this.o).append("'").toString();
+		}
+	}
 
 	@SuppressWarnings("unused")
 	private static final int FILE_READ_SIZE = 1024;
@@ -119,9 +141,9 @@ public class DistributorService extends Service {
 		return distThread.distributeResponse(agm);
 	}
 
-	public void consumerReady() {
-		logger.info("::consumer ready : resend old requests");
-		this.distThread.retry();
+	public void onChannelChange(String name, ChannelChange change) {
+		logger.info("channel changed its status, re-evaluate");
+		this.distThread.onChannelChange(name, change);
 	}
 
 	private ServiceConnection networkServiceConnection = new ServiceConnection() {
