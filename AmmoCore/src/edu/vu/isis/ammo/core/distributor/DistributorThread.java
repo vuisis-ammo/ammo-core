@@ -56,6 +56,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.distributor.DistributorService.ChannelChange;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -85,29 +86,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 */
 	final private DistributorDataStore store;
 
-	/**
-	 * The channel status map
-	 * It should not be changed by the main thread.
-	 */
-	public enum ChannelAction {
-		ACTIVE(1), INACTIVE(2), REPAIR(3);
-
-		public int o; // ordinal
-
-		private ChannelAction(int o) {
-			this.o = o;
-		}
-		public int cv() {
-			return this.o;
-		}
-		static public ChannelAction getInstance(int ordinal) {
-			return ChannelAction.values()[ordinal];
-		}
-		public String q() {
-			return new StringBuilder().append("'").append(this.o).append("'").toString();
-		}
-	}
-
 	public DistributorThread(Context context) {
 		super();
 		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(20);
@@ -124,20 +102,20 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Channels going off-line are uninteresting so no signal.
 	 */
 	private AtomicBoolean channelDelta = new AtomicBoolean(true);
-	private ConcurrentMap<String, ChannelAction> channelStatus = 
-			new ConcurrentHashMap<String, ChannelAction>();
+	private ConcurrentMap<String, ChannelChange> channelStatus = 
+			new ConcurrentHashMap<String, ChannelChange>();
 
-	public void onChannelChange(String name, ChannelAction state) {
-		if (this.channelStatus.get(name).equals(state)) return;
-		this.channelStatus.put(name, state);
+	public void onChannelChange(String name, ChannelChange change) {
+		if (this.channelStatus.get(name).equals(change)) return;
+		this.channelStatus.put(name, change);
 
-		switch (state) {
-		case INACTIVE:
+		switch (change) {
+		case DEACTIVATE:
 			this.store.upsertChannelByName(name, ChannelState.INACTIVE);
 			logger.trace("::channel deactivated");
 			return;
 
-		case ACTIVE:
+		case ACTIVATE:
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
 			logger.trace("::channel activated");
 			if (!channelDelta.compareAndSet(false, true)) return;
@@ -145,7 +123,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			return;
 
 		case REPAIR: 
-			// same as ACTIVE but cause failed items to be reprocessed
+			// similar as ACTIVATE but causes failed items to be reprocessed
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
 			logger.trace("::channel activated");
 			this.store.upsertDisposalStateByChannel(name);

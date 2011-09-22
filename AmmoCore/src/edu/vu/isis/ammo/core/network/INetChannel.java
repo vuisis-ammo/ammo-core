@@ -1,9 +1,5 @@
 package edu.vu.isis.ammo.core.network;
 
-import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
-
-
-
 /**
  * The NetChannel is some mechanism for establishing a network connection
  * over which requests will be sent to "the cloud".
@@ -52,7 +48,7 @@ public interface INetChannel {
     void setFlatLineTime(long flatLineTime);
     boolean setHost(String host);
     boolean setPort(int port);
-
+    
     String toString();
     void linkUp();
     void linkDown();

@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +35,7 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorService;
+import edu.vu.isis.ammo.core.distributor.DistributorService.ChannelChange;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
@@ -54,8 +54,8 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  * event driven notifications.
  */
 public class NetworkService extends Service implements
-		OnSharedPreferenceChangeListener, INetworkService,
-		INetworkService.OnSendMessageHandler, IChannelManager {
+OnSharedPreferenceChangeListener, INetworkService,
+INetworkService.OnSendMessageHandler, IChannelManager {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -71,11 +71,6 @@ public class NetworkService extends Service implements
 	public static final String DEFAULT_MULTICAST_PORT = "9982";
 	public static final String DEFAULT_MULTICAST_NET_CONN = "20";
 	public static final String DEFAULT_MULTICAST_IDLE_TIME = "3";
-
-	@SuppressWarnings("unused")
-	private static final String NULL_CHAR = "\0";
-	@SuppressWarnings("unused")
-	private static final int UDP_BUFFER_SIZE = 4096;
 
 	public static enum NPSReturnCode {
 		NO_CONNECTION, SOCKET_EXCEPTION, UNKNOWN, BAD_MESSAGE, OK
@@ -144,11 +139,11 @@ public class NetworkService extends Service implements
 	private DistributorService distributor;
 
 	// Channels
-	final private INetChannel tcpChannel = TcpChannel.getInstance(this);
-	final private INetChannel multicastChannel = MulticastChannel.getInstance(this);
-	final private INetChannel journalChannel = JournalChannel.getInstance(this);
-	
-	final private Map<String,INetChannel> mChannelMap = new HashMap<String,INetChannel>();
+	final private NetChannel tcpChannel = TcpChannel.getInstance("gateway", this);
+	final private NetChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
+	final private NetChannel journalChannel = JournalChannel.getInstance("journal", this);
+
+	final private Map<String,NetChannel> mChannelMap = new HashMap<String,NetChannel>();
 
 	private MyBroadcastReceiver myReceiver = null;
 	private IRegisterReceiver mReceiverRegistrar = new IRegisterReceiver() {
@@ -232,12 +227,12 @@ public class NetworkService extends Service implements
 		prefs.registerOnSharedPreferenceChangeListener(this);
 
 		mChannelMap.put("default", this.tcpChannel);
-		mChannelMap.put("gateway", this.tcpChannel);
-		mChannelMap.put("default", this.multicastChannel);
-		mChannelMap.put("default", this.journalChannel);
-		 
-		mChannels.add(Gateway.getInstance(getBaseContext()));
-		mChannels.add(Multicast.getInstance(getBaseContext()));
+		mChannelMap.put(this.tcpChannel.name, this.tcpChannel);
+		mChannelMap.put(this.multicastChannel.name, this.multicastChannel);
+		mChannelMap.put(this.journalChannel.name, this.journalChannel);
+
+		mChannels.put(this.tcpChannel.name, Gateway.getInstance(getBaseContext()));
+		mChannels.put(this.multicastChannel.name, Multicast.getInstance(getBaseContext()));
 
 		mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
 		mNetlinks.add(WiredNetlink.getInstance(getBaseContext()));
@@ -270,13 +265,13 @@ public class NetworkService extends Service implements
 		networkFilter.addAction(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
 		networkFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 		networkFilter
-				.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
+		.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
 		networkFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
 		networkFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
 		networkFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
 
 		this.mReceiverRegistrar
-				.registerReceiver(this.myReceiver, networkFilter);
+		.registerReceiver(this.myReceiver, networkFilter);
 
 		mListener = new PhoneStateListener() {
 			public void onDataConnectionStateChanged(int state) {
@@ -350,7 +345,7 @@ public class NetworkService extends Service implements
 
 		String flatLineTimeStr = prefs.getString(
 				INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String
-						.valueOf(DEFAULT_FLAT_LINE_TIME));
+				.valueOf(DEFAULT_FLAT_LINE_TIME));
 		long flatLineTime = Integer.valueOf(flatLineTimeStr);
 		this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert
 		// minutes
@@ -397,7 +392,7 @@ public class NetworkService extends Service implements
 		if (key.equals(INetPrefKeys.CORE_IP_PORT)) {
 			int gatewayPort = Integer.valueOf(prefs.getString(
 					INetPrefKeys.CORE_IP_PORT, String
-							.valueOf(DEFAULT_GATEWAY_PORT)));
+					.valueOf(DEFAULT_GATEWAY_PORT)));
 			this.tcpChannel.setPort(gatewayPort);
 			return;
 		}
@@ -437,7 +432,7 @@ public class NetworkService extends Service implements
 		if (key.equals(INetPrefKeys.CORE_SOCKET_TIMEOUT)) {
 			Integer timeout = Integer.valueOf(prefs.getString(
 					INetPrefKeys.CORE_SOCKET_TIMEOUT, String
-							.valueOf(DEFAULT_SOCKET_TIMEOUT)));
+					.valueOf(DEFAULT_SOCKET_TIMEOUT)));
 			this.tcpChannel.setSocketTimeout(timeout.intValue() * 1000); // convert
 			// seconds
 			// into
@@ -461,7 +456,7 @@ public class NetworkService extends Service implements
 		if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
 			long flatLineTime = Integer.valueOf(prefs.getString(
 					INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String
-							.valueOf(DEFAULT_FLAT_LINE_TIME)));
+					.valueOf(DEFAULT_FLAT_LINE_TIME)));
 			this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert
 			// from
 			// minutes
@@ -536,7 +531,7 @@ public class NetworkService extends Service implements
 	 * 
 	 * This takes an argument indicating the channel type [tcpchannel, multicast, journal].
 	 * 
-     * 
+	 * 
 	 * @param outstream
 	 * @param size
 	 * @param payload_checksum
@@ -549,7 +544,7 @@ public class NetworkService extends Service implements
 		if (! mChannelMap.containsKey(channel)) return false;
 		return mChannelMap.get(channel).sendRequest(agm);
 	}
-	
+
 	abstract public class TotalChannel implements INetChannel {}
 
 	// ===========================================================
@@ -676,9 +671,9 @@ public class NetworkService extends Service implements
 			} else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)
 					|| WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)
 					|| WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION
-							.equals(action)
+					.equals(action)
 					|| WifiManager.SUPPLICANT_STATE_CHANGED_ACTION
-							.equals(action)) {
+					.equals(action)) {
 				logger.warn("WIFI state changed");
 				mNetlinks.get(linkTypes.WIRED.value).updateStatus();
 				mNetlinks.get(linkTypes.WIFI.value).updateStatus();
@@ -717,25 +712,29 @@ public class NetworkService extends Service implements
 
 	// The channel lets the NetworkService know that the channel was
 	// successfully authorized by calling this method.
-	public void authorizationSucceeded(AmmoGatewayMessage agm) {
+	public void authorizationSucceeded(NetChannel channel, AmmoGatewayMessage agm) {
 		// HACK! Fixme
-		AmmoMessages.MessageWrapper mw = null;
+		final AmmoMessages.MessageWrapper mw;
 		try {
 			mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
 		} catch (InvalidProtocolBufferException ex) {
-			ex.printStackTrace();
+			logger.error("parsing payload failed {}", ex.getLocalizedMessage());
+			return;
 		}
 		if (mw == null) {
 			logger.error("mw was null!");
+			return;
 		}
 
-		PreferenceManager.getDefaultSharedPreferences(this).edit().putBoolean(
-				INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true).commit();
+		PreferenceManager
+		.getDefaultSharedPreferences(this)
+		.edit()
+		.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+		.commit();
 		sessionId = mw.getSessionUuid();
 
-		logger
-				.trace("authentication complete, repost subscriptions and pending data : ");
-		this.distributor.consumerReady();
+		logger.trace("authentication complete, repost subscriptions and pending data : ");
+		this.distributor.onChannelChange(channel.name, ChannelChange.ACTIVATE);
 
 		logger.info("authentication complete inform applications : ");
 		// broadcast login event to apps ...
@@ -745,32 +744,27 @@ public class NetworkService extends Service implements
 	}
 
 	/**
-	 * Deal with the status of the connection changing. Report the status to the
-	 * application who acts as a broker.
+	 * Deal with the status of the connection changing. 
+	 * Report the status to the application who acts as a broker.
 	 */
-
 	@Override
-	public void statusChange(INetChannel channel, int connStatus,
+	public void statusChange(NetChannel channel, int connStatus,
 			int sendStatus, int recvStatus) {
 		// FIXME Once we have multiple gateways we'll have to fix this.
 		// If the channel being updated is a MulticastChannel
-		if (channel.getClass().equals(MulticastChannel.class)) {
-			mChannels.get(1).setStatus(
-					new int[] { connStatus, sendStatus, recvStatus });
-		}
-		// Otherwise it is a gateway channel
-		else {
-			mChannels.get(0).setStatus(
-					new int[] { connStatus, sendStatus, recvStatus });
-		}
+		mChannels.get(channel.name)
+		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
+		
+		this.distributor.onChannelChange(channel.name, ChannelChange.DEACTIVATE);
+		// channel is ACTIVATED by authenticate
 
-		Intent broadcastIntent = new Intent(
+		final Intent broadcastIntent = new Intent(
 				AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
 		this.sendBroadcast(broadcastIntent);
 	}
 
 	private void netlinkStatusChanged() {
-		Intent broadcastIntent = new Intent(
+		final Intent broadcastIntent = new Intent(
 				AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE);
 		sendBroadcast(broadcastIntent);
 	}
@@ -791,11 +785,11 @@ public class NetworkService extends Service implements
 		return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
 	}
 
-	private List<Channel> mChannels = new ArrayList<Channel>();
-	private List<Netlink> mNetlinks = new ArrayList<Netlink>();
+	private final Map<String, Channel> mChannels = new HashMap<String, Channel>();
+	private final List<Netlink> mNetlinks = new ArrayList<Netlink>();
 
 	public List<Channel> getGatewayList() {
-		return mChannels;
+		return new ArrayList<Channel>(mChannels.values());
 	}
 
 	public List<Netlink> getNetlinkList() {

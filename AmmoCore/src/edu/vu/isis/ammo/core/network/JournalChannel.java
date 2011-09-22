@@ -53,8 +53,8 @@ public class JournalChannel extends NetChannel {
 	public boolean toggleJournalSwitch() { return journalingSwitch = journalingSwitch ? false : true; }
 	
 	
-	private JournalChannel(NetworkService driver) {
-		super();
+	private JournalChannel(String name, NetworkService driver) {
+		super(name);
 		logger.trace("::<constructor>");
 		this.syncObj = this;
 		this.isStale = true;
@@ -62,10 +62,10 @@ public class JournalChannel extends NetChannel {
 		JournalChannel.isConnected = false;
 	}
 	
-	public static JournalChannel getInstance(NetworkService driver) {
+	public static JournalChannel getInstance(String name, NetworkService driver) {
 		logger.trace("::getInstance");
 		synchronized (JournalChannel.isConnected) {
-			JournalChannel instance = new JournalChannel(driver);
+			JournalChannel instance = new JournalChannel(name, driver);
 			
 			instance.senderThread = instance.new SenderThread(instance);
 			return instance;

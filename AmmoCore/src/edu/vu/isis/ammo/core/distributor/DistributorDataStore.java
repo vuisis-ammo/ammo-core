@@ -36,7 +36,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
-	public static final int VERSION = 13;
+	public static final int VERSION = 14;
 
 	// ===========================================================
 	// Fields
@@ -1742,12 +1742,6 @@ public class DistributorDataStore {
 
 
 			// === PRELOAD ======
-			/**
-			 * This is really only for testing.
-			 * 
-			 */
-			DistributorDataStore.upsertChannelByName(db, "multicast", ChannelState.ACTIVE);
-			DistributorDataStore.upsertChannelByName(db, "gateway",  ChannelState.ACTIVE);
 
 			// === VIEWS ======
 
