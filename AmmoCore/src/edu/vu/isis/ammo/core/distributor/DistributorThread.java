@@ -117,18 +117,18 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 		case ACTIVATE:
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-			logger.trace("::channel activated");
+			this.store.upsertDisposalStateByChannel(name, DisposalState.PENDING);
 			if (!channelDelta.compareAndSet(false, true)) return;
 			this.signal();
+			logger.trace("::channel activated");
 			return;
 
 		case REPAIR: 
-			// similar as ACTIVATE but causes failed items to be reprocessed
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-			logger.trace("::channel activated");
-			this.store.upsertDisposalStateByChannel(name);
+			this.store.upsertDisposalStateByChannel(name, DisposalState.PENDING);
 			if (!channelDelta.compareAndSet(false, true)) return;
 			this.signal();
+			logger.trace("::channel repaired");
 			return;
 		} 
 	}

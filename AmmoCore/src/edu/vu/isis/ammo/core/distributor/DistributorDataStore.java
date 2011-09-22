@@ -1239,9 +1239,9 @@ public class DistributorDataStore {
 	 * @param name
 	 * @return the number of failed items updated
 	 */
-	public int upsertDisposalStateByChannel(String channel) {
+	public int upsertDisposalStateByChannel(String channel, DisposalState newState) {
 		final ContentValues cv = new ContentValues();
-		cv.put(DisposalTableSchema.STATE.cv(), DisposalState.PENDING.o); // null indicates not attempted
+		cv.put(DisposalTableSchema.STATE.cv(), newState.o); // null indicates not attempted
 		return this.db.update(Tables.DISPOSAL.n, cv, DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
 	}
 	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
