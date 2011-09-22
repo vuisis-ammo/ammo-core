@@ -13,6 +13,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.SQLException;
+import android.database.sqlite.SQLiteConstraintException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.database.sqlite.SQLiteException;
@@ -36,7 +37,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
-	public static final int VERSION = 14;
+	public static final int VERSION = 17;
 
 	// ===========================================================
 	// Fields
@@ -71,10 +72,10 @@ public class DistributorDataStore {
 	 */
 	public enum Tables {
 		POSTAL(1, "postal"),
-		PUBLISH(2, "publication"),
+		PUBLISH(2, "publish"),
 		RETRIEVAL(3, "retrieval"),
-		SUBSCRIBE(4, "subscription"),
-		DISPOSAL(5, "disposition"),
+		SUBSCRIBE(4, "subscribe"),
+		DISPOSAL(5, "disposal"),
 		CHANNEL(6, "channel");
 
 		final public int o;
@@ -93,7 +94,10 @@ public class DistributorDataStore {
 		}
 		// The quoted table name as a value
 		public String qv() {
-			return new StringBuilder().append('\'').append(this.n).append('\'').toString();
+			return new StringBuilder().append('\'').append(this.cv()).append('\'').toString();
+		}
+		public String cv() {
+			return String.valueOf(this.o);
 		}
 		// The quoted index name
 		public String qIndex() {
@@ -124,9 +128,7 @@ public class DistributorDataStore {
 			.append(";")
 			.toString();
 		}
-		public String cv() {
-			return this.n;
-		}
+		
 	};
 
 
@@ -936,7 +938,7 @@ public class DistributorDataStore {
 	.append(')') // close exists clause
 	.toString();
 
-	public Cursor queryPostalReady(boolean resend) {
+	public Cursor queryPostalReady() {
 		try {
 			return db.rawQuery(POSTAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
@@ -988,7 +990,7 @@ public class DistributorDataStore {
 	.append(')') // close exists clause
 	.toString();
 
-	public Cursor queryRetrievalReady(boolean resend) {
+	public Cursor queryRetrievalReady() {
 		try {
 			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
@@ -1026,7 +1028,7 @@ public class DistributorDataStore {
 	.append(')') // close exists clause
 	.toString();
 
-	public Cursor querySubscribeReady(boolean resend) {
+	public Cursor querySubscribeReady() {
 		try {
 			return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
@@ -1089,9 +1091,9 @@ public class DistributorDataStore {
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: ChannelTable.DEFAULT_SORT_ORDER);
 	}
-	
-	
-	
+
+
+
 	/**
 	 * Upsert is a portmanteau of update and insert, thus,
 	 * if a record with a matching key exists then update
@@ -1119,8 +1121,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String POSTAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(PostalTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ").append(PostalTableSchema.PROVIDER.q()).append("=?")
+	.append(PostalTableSchema.TOPIC.q()).append("=?").append(" AND ")
+	.append(PostalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
 	public long upsertPublish(ContentValues cv, Map<String,Boolean> status) {
@@ -1145,8 +1147,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String PUBLISH_UPDATE_CLAUSE = new StringBuilder()
-	.append(PublishTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ").append(PublishTableSchema.PROVIDER.q()).append("=?")
+	.append(PublishTableSchema.TOPIC.q()).append("=?").append(" AND ")
+	.append(PublishTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
 	public long upsertRetrieval(ContentValues cv, Map<String,Boolean> status) {
@@ -1171,8 +1173,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String RETRIEVAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ").append(RetrievalTableSchema.PROVIDER.q()).append("=?")
+	.append(RetrievalTableSchema.TOPIC.q()).append("=?").append(" AND ")
+	.append(RetrievalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
 	/**
@@ -1200,8 +1202,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String SUBSCRIBE_UPDATE_CLAUSE = new StringBuilder()
-	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ").append(SubscribeTableSchema.PROVIDER.q()).append("=?")
+	.append(SubscribeTableSchema.TOPIC.q()).append("=?").append(" AND ")
+	.append(SubscribeTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
 
@@ -1209,12 +1211,16 @@ public class DistributorDataStore {
 		return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.STATE.n, cv);
 	}
 
-	public void upsertDisposalByParent(long id, Tables type, Map<String,Boolean> status) {
+	public long[] upsertDisposalByParent(long id, Tables type, Map<String,Boolean> status) {
+		final long[] idArray = new long[status.size()];
+		int ix = 0;
 		for (Entry<String,Boolean> entry : status.entrySet()) {
-			upsertDisposalByParent(id, type, entry.getKey(), entry.getValue());
+			idArray[ix] = upsertDisposalByParent(id, type, entry.getKey(), entry.getValue());
+			ix++;
 		}
+		return idArray;
 	}
-	public void upsertDisposalByParent(long id, Tables type, String channel, Boolean status) {
+	public long upsertDisposalByParent(long id, Tables type, String channel, Boolean status) {
 		final String typeVal = type.cv();
 
 		final ContentValues cv = new ContentValues();
@@ -1225,11 +1231,24 @@ public class DistributorDataStore {
 				? DisposalState.QUEUED.o : DisposalState.FAIL.o);
 
 		final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
-				DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, channel } );
-		if (updateCount > 0) return;
-		this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.STATE.n, cv);
+				DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel } );
+		if (updateCount > 0) {
+			final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalTableSchema._ID.n}, 
+					DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel },
+					null, null, null);
+		    final int rowCount = cursor.getCount();
+		    if (rowCount > 1) {
+		    	logger.error("you have a duplicates {} {}", rowCount, cv);
+		    }
+		    cursor.moveToFirst();
+			final long key = cursor.getInt(0); // we only asked for one column so it better be it.
+			cursor.close();
+			return key;
+		}
+		return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.TYPE.n, cv);
 	}
 	static final private String DISPOSAL_UPDATE_CLAUSE = new StringBuilder()
+	.append(DisposalTableSchema.TYPE.q()).append("=?").append(" AND ")
 	.append(DisposalTableSchema.PARENT.q()).append("=?").append(" AND ")
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?").toString();
 
@@ -1245,7 +1264,7 @@ public class DistributorDataStore {
 		return this.db.update(Tables.DISPOSAL.n, cv, DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
 	}
 	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
-	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
+	.append(DisposalTableSchema.CHANNEL.q()).append("=?").append(" AND ")
 	.append(DisposalTableSchema.STATE.q())
 	.append(" IN ( ").append(DisposalState.FAIL.q()).append(')')
 	.toString();
@@ -1472,7 +1491,7 @@ public class DistributorDataStore {
 	.append('"').append(PostalTableSchema.EXPIRATION.n).append('"')
 	.append('<').append('?')
 	.toString();
-	
+
 	private static final ContentValues POSTAL_EXPIRATION_UPDATE;
 	static {
 		POSTAL_EXPIRATION_UPDATE = new ContentValues();
@@ -1488,7 +1507,7 @@ public class DistributorDataStore {
 		SQLiteDatabase db = this.helper.getWritableDatabase();
 		return db.delete(Tables.PUBLISH.n, null, null);
 	}
-	
+
 	public int deleteRetrieval(String selection, String[] selectionArgs) {
 		SQLiteDatabase db = this.helper.getWritableDatabase();
 		return db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
@@ -1500,24 +1519,24 @@ public class DistributorDataStore {
 	}
 
 	private static final String RETRIEVAL_GARBAGE  = new StringBuilder()
-		.append(RetrievalTableSchema.DISPOSITION.q())
-		.append(" IN (")
-		.append(DisposalState.SATISFIED.q()).append(",")
-		.append(DisposalState.EXPIRED.q()).append(")")
-		.toString();
+	.append(RetrievalTableSchema.DISPOSITION.q())
+	.append(" IN (")
+	.append(DisposalState.SATISFIED.q()).append(",")
+	.append(DisposalState.EXPIRED.q()).append(")")
+	.toString();
 
 	private static final String RETRIEVAL_EXPIRATION_CONDITION = new StringBuilder()
 	.append(RetrievalTableSchema.EXPIRATION.q())
 	.append('<').append('?')
 	.toString();
-	
+
 	private static final ContentValues RETRIEVAL_EXPIRATION_UPDATE;
 	static {
 		RETRIEVAL_EXPIRATION_UPDATE= new ContentValues();
 		RETRIEVAL_EXPIRATION_UPDATE.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.EXPIRED.cv());
 	}
 
-	
+
 	public int deleteSubscribe(String selection, String[] selectionArgs) {
 		SQLiteDatabase db = this.helper.getWritableDatabase();
 		return db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
@@ -1528,15 +1547,15 @@ public class DistributorDataStore {
 		return db.delete(Tables.SUBSCRIBE.n, SUBSCRIPTION_GARBAGE, null);
 	}
 	private static final String SUBSCRIPTION_GARBAGE = new StringBuilder()
-		.append(SubscribeTableSchema.DISPOSITION.q())
-		.append(" IN (")
-		.append(DisposalState.EXPIRED.q()).append(")")
-		.toString();
+	.append(SubscribeTableSchema.DISPOSITION.q())
+	.append(" IN (")
+	.append(DisposalState.EXPIRED.q()).append(")")
+	.toString();
 
 	private static final String SUBSCRIPTION_EXPIRATION_CONDITION = new StringBuilder()
-	 .append('"').append(SubscribeTableSchema.EXPIRATION).append('"')
+	.append('"').append(SubscribeTableSchema.EXPIRATION).append('"')
 	.append('<').append('?').toString();
-	
+
 	private static final ContentValues SUBSCRIPTION_EXPIRIATION_UPDATE;
 	static {
 		SUBSCRIPTION_EXPIRIATION_UPDATE= new ContentValues();
@@ -1715,11 +1734,12 @@ public class DistributorDataStore {
 
 				// === INDICIES ======
 				db.execSQL(new StringBuilder()
-				.append("CREATE UNIQUE INDEX ")
+				.append("CREATE UNIQUE INDEX ") 
 				.append(Tables.DISPOSAL.qIndex())
 				.append(" ON ").append(Tables.DISPOSAL.q())
 				.append(" ( ").append(DisposalTableSchema.TYPE.q())
 				.append(" , ").append(DisposalTableSchema.PARENT.q())
+				.append(" , ").append(DisposalTableSchema.CHANNEL.q())
 				.append(" ) ")
 				.toString() );
 

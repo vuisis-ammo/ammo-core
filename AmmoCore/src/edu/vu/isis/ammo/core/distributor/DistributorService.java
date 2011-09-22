@@ -69,7 +69,7 @@ public class DistributorService extends Service {
 	public enum ChannelChange {
 		ACTIVATE(1), DEACTIVATE(2), REPAIR(3);
 
-		public int o; // ordinal
+		final public int o; // ordinal
 
 		private ChannelChange(int o) {
 			this.o = o;
@@ -294,7 +294,7 @@ public class DistributorService extends Service {
 	public void notifyAmmoReady(Intent intent, int flags, int startId) {
 		logger.info("Forcing applications to register their subscriptions");
 		// broadcast login event to apps ...
-		Intent loginIntent = new Intent(IPrefKeys.AMMO_READY);
+		final Intent loginIntent = new Intent(IPrefKeys.AMMO_READY);
 		//loginIntent.putExtra("operatorId", operatorId);
 		this.sendBroadcast(loginIntent);
 	}

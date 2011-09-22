@@ -36,6 +36,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  */
 public class TcpChannel extends NetChannel {
     private static final Logger logger = LoggerFactory.getLogger( "net.tcp" );
+    private static final boolean DEBUG = true;
 
     private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
     
@@ -114,7 +115,9 @@ public class TcpChannel extends NetChannel {
         return instance;
     }
 
-    public boolean isConnected() { return this.connectorThread.isConnected(); }
+    public boolean isConnected() { 
+    	return this.connectorThread.isConnected(); 
+    }
 
     /**
      * Was the status changed as a result of enabling the connection.
@@ -189,7 +192,9 @@ public class TcpChannel extends NetChannel {
     }
 
     public String toString() {
-        return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
+        return new StringBuilder().append("channel ").append(super.toString())
+        		.append("socket: host[").append(this.gatewayHost).append("] ")
+        		.append("port[").append(this.gatewayPort).append("]").toString();
     }
 
     public void linkUp() {
@@ -600,7 +605,7 @@ public class TcpChannel extends NetChannel {
                                         if ( parent.hasWatchdogExpired() )
                                         {
                                             //logger.warn( "Watchdog timer expired!!" );
-                                            failure( getAttempt() );
+                                            if (!DEBUG) failure( getAttempt() );
                                         }
                                     }
                                 }
@@ -629,10 +634,11 @@ public class TcpChannel extends NetChannel {
 
             } catch (Exception ex) {
                 this.state.set(NetChannel.EXCEPTION);
+                logger.error("channel exception {} \n {}", ex.getLocalizedMessage(), ex.getStackTrace());
             }
             try {
                 if (this.parent.socket == null) {
-                    logger.error("channel closing without active socket");
+                    logger.error("channel closing without active socket}");
                     return;
                 }
                 this.parent.socket.close();

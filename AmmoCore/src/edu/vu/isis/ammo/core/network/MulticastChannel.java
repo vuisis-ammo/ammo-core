@@ -613,7 +613,7 @@ public class MulticastChannel extends NetChannel
                 }
 
             } catch (Exception ex) {
-                ex.printStackTrace();
+                logger.warn("failed to run multicast {}", ex.getLocalizedMessage());
                 this.state.set(NetChannel.EXCEPTION);
             }
             try {
