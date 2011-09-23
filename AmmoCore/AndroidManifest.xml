@@ -8,7 +8,8 @@
 	-->
 
 	<permission android:name="edu.vu.isis.ammo.permission.MAKE_REQUEST"
-		android:label="@string/make_request_label" android:description="@string/make_request_desc"
+		android:label="@string/make_request_label" 
+		android:description="@string/make_request_desc"
 		android:protectionLevel="dangerous" />
 
 	<application android:icon="@drawable/appl_icon"
@@ -86,7 +87,10 @@
 		</service>
 
 		<service android:enabled="true" android:name=".distributor.DistributorService"
-			android:exported="true" android:permission="edu.vu.isis.ammo.permission.MAKE_REQUEST">
+			android:exported="true" >
+			<!-- 
+			android:permission="edu.vu.isis.ammo.permission.MAKE_REQUEST">
+			 -->
 			<intent-filter>
 				<action
 					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH" />
@@ -108,13 +112,6 @@
 
 		</service>
 
-		<service android:enabled="true" android:name=".CorePreferenceService"
-			android:exported="true">
-			<intent-filter>
-				<action android:name="edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH" />
-			</intent-filter>
-		</service>
-
 		<service android:name=".ethertracker.EthTrackSvc">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.startatboot.EthTrackSvc" />
@@ -128,8 +125,8 @@
 			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
 		-->
 		<provider android:name=".provider.PreferenceProvider"
-			android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider"
-			android:permission="edu.vu.isis.ammo.permission.MAKE_REQUEST" />
+			android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider" />
+			
 		<provider android:name=".provider.DistributorProvider"
 			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
 		

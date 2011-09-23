@@ -76,7 +76,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger("ammo:dst");
+	private static final Logger logger = LoggerFactory.getLogger("ammo-dst");
 
 	// 20 seconds expressed in milliseconds
 	private static final int BURP_TIME = 20 * 1000;
@@ -93,6 +93,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 				new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
 						new AmmoGatewayMessage.PriorityOrder());
 		this.store = new DistributorDataStore(context);
+		logger.debug("constructed");
 	}
 
 	/**
@@ -192,7 +193,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 */
 	private boolean isReady(DistributorService[] them) {
 		if (! isNetworkServiceConnected(them)) return false;
-
+		
 		if (this.channelDelta.get()) return true;
 
 		if (! this.responseQueue.isEmpty()) return true;
@@ -209,7 +210,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	@Override
 	protected Void doInBackground(DistributorService... them) {
 
-		logger.info("::post to network service");
+		logger.info("started");
 
 		for (final DistributorService that : them) {
 			if (!that.getNetworkServiceBinder().isConnected()) 
@@ -228,12 +229,14 @@ extends AsyncTask<DistributorService, Integer, Void>
 				}
 				while (this.isReady(them)) {
 					if (this.channelDelta.getAndSet(false)) {
+						logger.trace("channel change");
 						for (DistributorService that : them) {
 							this.processChannelChange(that);						
 						}
 					}
 
 					if (!this.responseQueue.isEmpty()) {
+						logger.trace("processing response {}", this.responseQueue.size());
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
 							for (DistributorService that : them) {
@@ -246,6 +249,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					}
 
 					if (!this.requestQueue.isEmpty()) {
+						logger.trace("processing request {}", this.requestQueue.size());
 						try {
 							final AmmoRequest agm = this.requestQueue.take();
 							for (DistributorService that : them) {
@@ -453,7 +457,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		case SUBSCRIBE_MESSAGE:
 		case PULL_REQUEST:
 		case UNSUBSCRIBE_MESSAGE:
-			logger.warn( "received an outbound message type {}", mw.getType());
+			logger.warn( "received message type {}", mw.getType());
 			break;
 		default:
 			logger.error( "mw.getType() returned an unexpected type. {}", mw.getType());
