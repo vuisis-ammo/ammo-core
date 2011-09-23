@@ -147,20 +147,20 @@ public class DistributorService extends Service {
 	}
 
 	private ServiceConnection networkServiceConnection = new ServiceConnection() {
+		final DistributorService parent = DistributorService.this;
+		
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			logger.info("::onServiceConnected - Network Service");
-			isNetworkServiceBound = true;
-			networkServiceBinder = ((NetworkService.MyBinder) service).getService();
-			networkServiceBinder.setDistributorServiceCallback(DistributorService.this);
-
-			DistributorService.this.distThread.execute(DistributorService.this);
+			parent.networkServiceBinder = ((NetworkService.MyBinder) service).getService();
+			parent.isNetworkServiceBound = true;
+			parent.distThread.execute(DistributorService.this);
+			parent.networkServiceBinder.setDistributorServiceCallback(DistributorService.this);
 		}
-
 		public void onServiceDisconnected(ComponentName name) {
 			logger.info("::onServiceDisconnected - Network Service");
-			DistributorService.this.distThread.cancel(true);
-			isNetworkServiceBound = false;
-			networkServiceBinder = null;
+			parent.distThread.cancel(true);
+			parent.isNetworkServiceBound = false;
+			parent.networkServiceBinder = null;
 		}
 	};
 
