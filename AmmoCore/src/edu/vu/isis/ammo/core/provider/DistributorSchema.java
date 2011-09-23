@@ -21,6 +21,9 @@ public class DistributorSchema implements BaseColumns, BaseDateColumns {
 	
 	  /**
 	    * The content:// style URL for this table
+	    * This Uri is a Map containing all table Uris contained in the distributor database.
+	    * The map is indexed by DistributorSchema.Tables.<TABLE_NAME>.n where n is the 
+	    * name of the enum declared in Tables.
 	    */
 	   public static final Map<String, Uri> CONTENT_URI;
 	   //= 
