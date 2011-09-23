@@ -33,6 +33,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.ApplicationEx;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.distributor.DistributorService.ChannelChange;
@@ -249,12 +250,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		// no point in enabling the socket until the preferences have been read
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
-		
+
 		if (this.networkingSwitch && this.gatewayEnabled) {
 			this.tcpChannel.enable();
 		}
 		this.multicastChannel.enable();
-		
+
 
 		this.myReceiver = new MyBroadcastReceiver();
 
@@ -303,7 +304,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("::setDistributorServiceCallback");
 
 		this.distributor = callback;
-		
+
 		this.acquirePreferences();
 		this.multicastChannel.reset(); 
 	}
@@ -552,10 +553,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @param message
 	 */
 	@Override
-	public boolean sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic) {
+	public DisposalState sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
-		if (! mChannelMap.containsKey(channel)) return false;
+		if (! mChannelMap.containsKey(channel)) return DisposalState.FAIL;
 		return mChannelMap.get(channel).sendRequest(agm);
 	}
 
@@ -634,7 +635,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		final AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
 		final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
 		agmb.isGateway(true);
-		return sendRequest(agmb.build(), DistributorPolicy.DEFAULT, null);
+		switch (sendRequest(agmb.build(), DistributorPolicy.DEFAULT, null)) {
+		case SENT:
+		case SATISFIED:
+		case QUEUED:
+			return true;
+		default:
+			return false;
+		}
 	}
 
 
@@ -712,7 +720,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * it in the future.
 	 */
 	@Override
-	public boolean ack(String channel, boolean status) {
+	public boolean ack(String channel, DisposalState status) {
 		return false;
 	}
 
@@ -760,7 +768,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		// If the channel being updated is a MulticastChannel
 		mChannels.get(channel.name)
 		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
-		
+
 		this.distributor.onChannelChange(channel.name, ChannelChange.DEACTIVATE);
 		// channel is ACTIVATED by authenticate
 

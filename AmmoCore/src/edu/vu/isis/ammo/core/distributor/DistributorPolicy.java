@@ -37,6 +37,7 @@ import android.net.Uri;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 /**
  * This class provides the base level mapping between distribution 
@@ -227,7 +228,7 @@ public class DistributorPolicy implements ContentHandler {
 			return sb.toString();
 		}
 		
-		public Map<String, Boolean> makeRouteMap() {
+		public Map<String, DisposalState> makeRouteMap() {
 			return this.routing.makeMap();
 		}
 	}
@@ -237,8 +238,8 @@ public class DistributorPolicy implements ContentHandler {
 		public Routing() {
 			this.clauses = new ArrayList<Clause>();
 		}
-		public Map<String, Boolean> makeMap() {
-			final Map<String,Boolean> map = new HashMap<String,Boolean>();
+		public Map<String, DisposalState> makeMap() {
+			final Map<String,DisposalState> map = new HashMap<String,DisposalState>();
 		    for (Clause clause : this.clauses) {
 		    	for (Literal literal : clause.literals) {
 		    	    map.put(literal.term, null);

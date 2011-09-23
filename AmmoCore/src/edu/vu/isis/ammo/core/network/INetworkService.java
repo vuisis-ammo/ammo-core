@@ -6,6 +6,7 @@ package edu.vu.isis.ammo.core.network;
 
 import java.util.List;
 
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.model.Channel;
@@ -28,14 +29,14 @@ public interface INetworkService {
 
     // Callback interfaces
     interface OnSendMessageHandler {
-        boolean ack(String channel, boolean status);
+    	boolean ack(String channel, DisposalState status);
     }
 
     // methods
     void teardown();
     boolean isConnected();
 
-    public boolean sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic );
+    public DisposalState sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic );
     
     /**
      * Pass control to the distributor service to handle the message.

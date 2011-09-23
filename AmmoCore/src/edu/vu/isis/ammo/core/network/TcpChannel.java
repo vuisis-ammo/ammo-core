@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -309,7 +310,7 @@ public class TcpChannel extends NetChannel {
 	 *  Also, follows the delegation pattern.
 	 */
 	private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-			boolean status )
+			DisposalState status )
 	{
 		return handler.ack( "TcpChannel", status );
 	}
@@ -789,7 +790,7 @@ public class TcpChannel extends NetChannel {
 	 * @param agm AmmoGatewayMessage
 	 * @return
 	 */
-	public boolean sendRequest( AmmoGatewayMessage agm )
+	public DisposalState sendRequest( AmmoGatewayMessage agm )
 	{
 		return mSenderQueue.putFromDistributor( agm );
 	}
@@ -822,7 +823,7 @@ public class TcpChannel extends NetChannel {
 
 		// In the new design, aren't we supposed to let the
 		// NetworkService know if the outgoing queue is full or not?
-		public boolean putFromDistributor( AmmoGatewayMessage iMessage )
+		public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
 		{
 			try
 			{
@@ -832,9 +833,9 @@ public class TcpChannel extends NetChannel {
 			}
 			catch ( InterruptedException e )
 			{
-				return false;
+				return DisposalState.FAIL;
 			}
-			return true;
+			return DisposalState.QUEUED;
 		}
 
 
@@ -908,7 +909,7 @@ public class TcpChannel extends NetChannel {
 			while ( msg != null )
 			{
 				if ( msg.handler != null )
-					mChannel.ackToHandler( msg.handler, false );
+					mChannel.ackToHandler( msg.handler, DisposalState.PENDING );
 				msg = mDistQueue.poll();
 			}
 
@@ -977,13 +978,13 @@ public class TcpChannel extends NetChannel {
 
 					// legitimately sent to gateway.
 					if ( msg.handler != null )
-						mChannel.ackToHandler( msg.handler, true );
+						mChannel.ackToHandler( msg.handler, DisposalState.SENT );
 				}
 				catch ( Exception ex )
 				{
 					logger.warn("sender threw exception {}", ex.getStackTrace());
 					if ( msg.handler != null )
-						mChannel.ackToHandler( msg.handler, false );
+						mChannel.ackToHandler( msg.handler, DisposalState.FAIL );
 					setSenderState( INetChannel.INTERRUPTED );
 					mParent.socketOperationFailed();
 				}

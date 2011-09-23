@@ -9,6 +9,8 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.network.INetworkService;
+
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -228,6 +230,23 @@ public class DistributorDataStore {
 		}
 		static public DisposalState getInstance(String ordinal) {
 			return DisposalState.values()[Integer.parseInt(ordinal)];
+		}
+		/**
+		 * This method indicates if the goal has been met.
+		 */
+		public boolean goalReached(boolean goalCondition) {
+			switch (this) {
+			case SENT:
+			case SATISFIED:
+				return goalCondition ? true : false;
+			case FAIL:
+				return goalCondition ? false : true;
+			}
+			return false;
+		}
+		public DisposalState and(boolean clauseSuccess) {
+			if (clauseSuccess) return this;
+			return DisposalState.SATISFIED;
 		}
 	};
 
@@ -1099,7 +1118,7 @@ public class DistributorDataStore {
 	 * if a record with a matching key exists then update
 	 * otherwise insert.
 	 */
-	public long upsertPostal(ContentValues cv, Map<String,Boolean> status) {
+	public long upsertPostal(ContentValues cv, Map<String, DisposalState> status) {
 		final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
 
@@ -1115,7 +1134,7 @@ public class DistributorDataStore {
 		} else {
 			key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
 		}
-		for (Entry<String,Boolean> entry : status.entrySet()) {
+		for (Entry<String,DisposalState> entry : status.entrySet()) {
 			upsertDisposalByParent(key, Tables.POSTAL, entry.getKey(), entry.getValue());
 		}
 		return key;
@@ -1125,7 +1144,7 @@ public class DistributorDataStore {
 	.append(PostalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
-	public long upsertPublish(ContentValues cv, Map<String,Boolean> status) {
+	public long upsertPublish(ContentValues cv, Map<String,DisposalState> status) {
 		final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
 
@@ -1141,7 +1160,7 @@ public class DistributorDataStore {
 		} else {
 			key = this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
 		}
-		for (Entry<String,Boolean> entry : status.entrySet()) {
+		for (Entry<String,DisposalState> entry : status.entrySet()) {
 			upsertDisposalByParent(key, Tables.PUBLISH, entry.getKey(), entry.getValue());
 		}
 		return key;
@@ -1151,7 +1170,7 @@ public class DistributorDataStore {
 	.append(PublishTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
-	public long upsertRetrieval(ContentValues cv, Map<String,Boolean> status) {
+	public long upsertRetrieval(ContentValues cv, Map<String,DisposalState> status) {
 		final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
 
@@ -1167,7 +1186,7 @@ public class DistributorDataStore {
 		} else {
 			key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
 		}
-		for (Entry<String,Boolean> entry : status.entrySet()) {
+		for (Entry<String,DisposalState> entry : status.entrySet()) {
 			upsertDisposalByParent(key, Tables.RETRIEVAL, entry.getKey(), entry.getValue());
 		}
 		return key;
@@ -1180,7 +1199,7 @@ public class DistributorDataStore {
 	/**
 	 *
 	 */
-	public long upsertSubscribe(ContentValues cv, Map<String,Boolean> status) {
+	public long upsertSubscribe(ContentValues cv, Map<String,DisposalState> status) {
 		final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
 
@@ -1196,7 +1215,7 @@ public class DistributorDataStore {
 		} else {
 			key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
 		}
-		for (Entry<String,Boolean> entry : status.entrySet()) {
+		for (Entry<String,DisposalState> entry : status.entrySet()) {
 			this.upsertDisposalByParent(key, Tables.SUBSCRIBE, entry.getKey(), entry.getValue());
 		}
 		return key;
@@ -1211,24 +1230,24 @@ public class DistributorDataStore {
 		return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.STATE.n, cv);
 	}
 
-	public long[] upsertDisposalByParent(long id, Tables type, Map<String,Boolean> status) {
+	public long[] upsertDisposalByParent(long id, Tables type, 
+			Map<String, DisposalState> status) {
 		final long[] idArray = new long[status.size()];
 		int ix = 0;
-		for (Entry<String,Boolean> entry : status.entrySet()) {
+		for (Entry<String,DisposalState> entry : status.entrySet()) {
 			idArray[ix] = upsertDisposalByParent(id, type, entry.getKey(), entry.getValue());
 			ix++;
 		}
 		return idArray;
 	}
-	public long upsertDisposalByParent(long id, Tables type, String channel, Boolean status) {
+	public long upsertDisposalByParent(long id, Tables type, String channel, DisposalState status) {
 		final String typeVal = type.cv();
 
 		final ContentValues cv = new ContentValues();
 		cv.put(DisposalTableSchema.TYPE.cv(), typeVal);
 		cv.put(DisposalTableSchema.PARENT.cv(), id);
 		cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
-		cv.put(DisposalTableSchema.STATE.cv(), (status == null || status) 
-				? DisposalState.QUEUED.o : DisposalState.FAIL.o);
+		cv.put(DisposalTableSchema.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
 
 		final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
 				DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel } );

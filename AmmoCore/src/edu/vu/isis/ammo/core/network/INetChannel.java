@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.core.network;
 
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+
 /**
  * The NetChannel is some mechanism for establishing a network connection
  * over which requests will be sent to "the cloud".
@@ -60,7 +62,7 @@ public interface INetChannel {
      * @param req
      * @return
      */
-    boolean sendRequest( AmmoGatewayMessage agm );
+    DisposalState sendRequest( AmmoGatewayMessage agm );
     String getLocalIpAddress();
 
 }

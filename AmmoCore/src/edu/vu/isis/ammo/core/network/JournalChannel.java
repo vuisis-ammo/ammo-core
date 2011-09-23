@@ -17,6 +17,8 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+
 import android.os.AsyncTask;
 import android.os.Environment;
 
@@ -236,20 +238,20 @@ public class JournalChannel extends NetChannel {
 	 * @param message
 	 * @return
 	 */
-	public boolean sendRequest(AmmoGatewayMessage agm) 
+	public DisposalState sendRequest(AmmoGatewayMessage agm) 
 	{
 		synchronized (this.syncObj) {
 			logger.trace("::sendGatewayRequest");
 			if (! JournalChannel.isConnected) {
 				this.tryConnect(false);
-				return false;
+				return DisposalState.FAIL;
 			}
 			try {
 				this.sendQueue.put(agm);
 			} catch (InterruptedException e) {
-				return false;
+				return DisposalState.FAIL;
 			}
-			return true;
+			return DisposalState.SENT;
 		}
 	}
 	

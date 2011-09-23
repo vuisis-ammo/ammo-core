@@ -23,6 +23,7 @@ import android.telephony.TelephonyManager;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -101,9 +102,9 @@ public class DistributorService extends Service {
 		public boolean isConnected() { return false; }
 
 		@Override
-		public boolean 
+		public DisposalState 
 		sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic ) {
-			return false;
+			return DisposalState.FAIL;
 		}
 
 		@Override

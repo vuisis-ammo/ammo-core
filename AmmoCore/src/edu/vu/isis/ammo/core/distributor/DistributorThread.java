@@ -174,19 +174,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 	}
 
 	/**
-	 * If any of the distributor services are connected then true.
-	 * There will in all likelyhood be only one such service so this
-	 * is overkill but...
-	 */
-	private boolean isNetworkServiceConnected(DistributorService... them) {
-		for (final DistributorService that : them) {
-			if (that.getNetworkServiceBinder().isConnected()) {
-				return true;
-			}
-		}
-		return false;
-	}
-	/**
 	 * Check to see if there is any work for the thread to do.
 	 * If there are no network connections then nothing can be distributed, so no work.
 	 * Either incoming requests, responses, or a channel has been activated.
@@ -349,20 +336,20 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * 
 	 * @see scripts/tests/distribution_policy.xml for an example.
 	 */
-	private Map<String, Boolean> 
+	private Map<String, DisposalState> 
 	dispatchRequest(DistributorService that, 
-			RequestSerializer serializer, DistributorPolicy.Topic topic, Map<String, Boolean> status) {
+			RequestSerializer serializer, DistributorPolicy.Topic topic, Map<String, DisposalState> status) {
 
 		logger.info("::sendGatewayRequest");
-		if (status == null) status = new HashMap<String, Boolean>();
+		if (status == null) status = new HashMap<String, DisposalState>();
 
-		Boolean ruleSuccess = status.get(DistributorPolicy.TOTAL);
-		if (ruleSuccess == null) ruleSuccess = Boolean.FALSE;
+		DisposalState ruleSuccess = status.get(DistributorPolicy.TOTAL);
+		if (ruleSuccess == null) ruleSuccess = DisposalState.PENDING;
 
 		if (topic == null) {
 			logger.error("no matching routing topic");
 			final AmmoGatewayMessage agmb = serializer.act(Encoding.getDefault());
-			Boolean actualCondition =
+			final DisposalState actualCondition =
 					that.getNetworkServiceBinder().sendRequest(agmb, DistributorPolicy.DEFAULT, topic);
 			status.put(DistributorPolicy.DEFAULT, actualCondition);
 			status.put(DistributorPolicy.TOTAL, actualCondition);
@@ -375,7 +362,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
 				final boolean goalCondition = literal.condition;
-				final Boolean actualCondition;
+				final DisposalState actualCondition;
 				if (status.containsKey(term)) {
 					actualCondition = status.get(term);
 				} else {
@@ -383,12 +370,12 @@ extends AsyncTask<DistributorService, Integer, Void>
 					actualCondition = that.getNetworkServiceBinder().sendRequest(agmb, term, topic);
 					status.put(term, actualCondition);
 				} 
-				if (goalCondition == actualCondition) {
+				if (actualCondition.goalReached(goalCondition)) {
 					clauseSuccess = true;
 					break;
 				}
 			}
-			ruleSuccess &= clauseSuccess;
+			ruleSuccess = ruleSuccess.and(clauseSuccess);
 		}
 		status.put(DistributorPolicy.TOTAL, ruleSuccess);
 		return status;
@@ -557,18 +544,18 @@ extends AsyncTask<DistributorService, Integer, Void>
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
-				final Map<String,Boolean> dispatchResult = 
+				final Map<String,DisposalState> dispatchResult = 
 						this.dispatchPostalRequest(that,
 								ar.provider.toString(),
 								topic, policy, null, serializer,
 								new INetworkService.OnSendMessageHandler() {
 
 							@Override
-							public boolean ack(String channel, boolean status) {
+							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
 									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
 								}
-								return false;
+								return true;
 							}
 						});
 				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
@@ -643,7 +630,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			});
 
 			final DistributorPolicy.Topic policy = that.policy().match(topic);
-			final Map<String,Boolean> status = new HashMap<String,Boolean>();
+			final Map<String, DisposalState> status = new HashMap<String,DisposalState>();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -651,7 +638,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					status.put(channel, (state > 0));
+					status.put(channel, DisposalState.values()[state]);
 				}
 			}
 			// Dispatch the request.
@@ -667,24 +654,22 @@ extends AsyncTask<DistributorService, Integer, Void>
 					@SuppressWarnings("unused")
 					long numUpdated = this.store.updatePostalByKey(id, values);
 
-					final Map<String,Boolean> dispatchResult = 
+					final Map<String,DisposalState> dispatchResult = 
 							this.dispatchPostalRequest(that,
 									provider.toString(),
 									mimeType, policy, status, serializer,
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
-								public boolean ack(String clazz, boolean status) {
+								public boolean ack(String clazz, DisposalState status) {
 
 									ContentValues values = new ContentValues();
 
-									values.put(PostalTableSchema.DISPOSITION.cv(),
-											(status) ? DisposalState.SENT.cv()
-													: DisposalState.FAIL.cv());
+									values.put(PostalTableSchema.DISPOSITION.cv(), status.cv());
 									long numUpdated = DistributorThread.this.store.updatePostalByKey(id, values);
 
 									logger.info("Postal: {} rows updated to {}",
-											numUpdated, (status ? "sent" : "failed"));
+											numUpdated, status);
 
 									return false;
 								}
@@ -710,10 +695,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @param handler
 	 * @return
 	 */
-	private Map<String,Boolean> 
+	private Map<String,DisposalState> 
 	dispatchPostalRequest(final DistributorService that, final String uri, 
 			final String msgType,
-			final DistributorPolicy.Topic policy, final Map<String,Boolean> status,
+			final DistributorPolicy.Topic policy, final Map<String,DisposalState> status,
 			final RequestSerializer serializer, final INetworkService.OnSendMessageHandler handler)  {
 		logger.info("::dispatchPostalRequest");
 
@@ -867,7 +852,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
-				final Map<String,Boolean> dispatchResult = 
+				final Map<String,DisposalState> dispatchResult = 
 						this.dispatchRetrievalRequest(that,
 								agm.provider.toString(),
 								agm.select.toString(),
@@ -875,7 +860,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 								new INetworkService.OnSendMessageHandler() {
 
 							@Override
-							public boolean ack(String channel, boolean status) {
+							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
 									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
 								}
@@ -926,7 +911,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			@SuppressWarnings("unused")
 			final Uri rowUri = Uri.parse(provider);
 
-			final Map<String,Boolean> status = new HashMap<String,Boolean>();
+			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -934,7 +919,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					status.put(channel, (state > 0));
+					status.put(channel, DisposalState.values()[state]);
 				}
 			}
 
@@ -951,24 +936,22 @@ extends AsyncTask<DistributorService, Integer, Void>
 					@SuppressWarnings("unused")
 					final long numUpdated = this.store.updatePostalByKey(id, values);
 
-					final Map<String,Boolean> dispatchResult = 
+					final Map<String,DisposalState> dispatchResult = 
 							this.dispatchPostalRequest(that,
 									provider.toString(),
 									topic, policy, status, null,
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
-								public boolean ack(String clazz, boolean status) {
+								public boolean ack(String clazz, DisposalState status) {
 
 									ContentValues values = new ContentValues();
 
-									values.put(PostalTableSchema.DISPOSITION.cv(),
-											(status) ? DisposalState.SENT.cv()
-													: DisposalState.FAIL.cv());
+									values.put(PostalTableSchema.DISPOSITION.cv(), status.cv());
 									long numUpdated = DistributorThread.this.store.updatePostalByKey(id, values);
 
 									logger.info("Postal: {} rows updated to {}",
-											numUpdated, (status ? "sent" : "failed"));
+											numUpdated, status);
 
 									return false;
 								}
@@ -993,9 +976,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @return
 	 */
 
-	private Map<String,Boolean> 
+	private Map<String,DisposalState> 
 	dispatchRetrievalRequest(final DistributorService that, String retrievalId, String selection,  
-			String topic, DistributorPolicy.Topic policy, Map<String,Boolean> status,
+			String topic, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
 		logger.info("::dispatchRetrievalRequest");
 
@@ -1102,18 +1085,18 @@ extends AsyncTask<DistributorService, Integer, Void>
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertSubscribe(values, policy.makeRouteMap());
-				final Map<String,Boolean> dispatchResult = 
+				final Map<String,DisposalState> dispatchResult = 
 						this.dispatchSubscribeRequest(that,
 								topic, agm.select.toString(),
 								policy, null,
 								new INetworkService.OnSendMessageHandler() {
 
 							@Override
-							public boolean ack(String channel, boolean status) {
+							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
 									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
 								}
-								return false;
+								return true;
 							}
 						});
 				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
@@ -1162,7 +1145,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			@SuppressWarnings("unused")
 			final Uri rowUri = Uri.parse(provider);
 
-			final Map<String,Boolean> status = new HashMap<String,Boolean>();
+			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -1170,7 +1153,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					status.put(channel, (state > 0));
+					status.put(channel, DisposalState.values()[state]);
 				}
 			}
 
@@ -1187,26 +1170,24 @@ extends AsyncTask<DistributorService, Integer, Void>
 					@SuppressWarnings("unused")
 					long numUpdated = this.store.updatePostalByKey(id, values);
 
-					final Map<String,Boolean> dispatchResult = 
+					final Map<String,DisposalState> dispatchResult = 
 							this.dispatchPostalRequest(that,
 									provider.toString(),
 									topic, policy, status, null,
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
-								public boolean ack(String clazz, boolean status) {
+								public boolean ack(String clazz, DisposalState status) {
 
-									ContentValues values = new ContentValues();
+									final ContentValues values = new ContentValues();
 
-									values.put(PostalTableSchema.DISPOSITION.cv(),
-											(status) ? DisposalState.SENT.cv()
-													: DisposalState.FAIL.cv());
+									values.put(PostalTableSchema.DISPOSITION.cv(), status.cv());
 									long numUpdated = DistributorThread.this.store.updatePostalByKey(id, values);
 
 									logger.info("Postal: {} rows updated to {}",
-											numUpdated, (status ? "sent" : "failed"));
+											numUpdated, status);
 
-									return false;
+									return true;
 								}
 							});
 					this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
@@ -1221,9 +1202,9 @@ extends AsyncTask<DistributorService, Integer, Void>
 	/**
 	 * Deliver the subscription request to the network service for processing.
 	 */
-	private Map<String,Boolean> 
+	private Map<String,DisposalState> 
 	dispatchSubscribeRequest(final DistributorService that, String topic, 
-			String selection, DistributorPolicy.Topic policy, Map<String,Boolean> status,
+			String selection, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
 		logger.info("::dispatchSubscribeRequest");
 
