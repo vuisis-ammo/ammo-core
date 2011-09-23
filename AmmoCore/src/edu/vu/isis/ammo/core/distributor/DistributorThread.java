@@ -192,8 +192,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Either incoming requests, responses, or a channel has been activated.
 	 */
 	private boolean isReady(DistributorService[] them) {
-		if (! isNetworkServiceConnected(them)) return false;
-		
 		if (this.channelDelta.get()) return true;
 
 		if (! this.responseQueue.isEmpty()) return true;
