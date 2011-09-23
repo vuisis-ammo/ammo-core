@@ -26,12 +26,12 @@ public class MessageQueueActivity extends Activity {
         
         String tableName = DistributorDataStore.Tables.DISPOSAL.n;
         Uri uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n);
-        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n), null, null, null, null);
+        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.DISPOSAL.n), null, null, null, null);
         logger.info("message{}", c);
         
         
         while(c.moveToNext()) {
-        	String channelName = c.getString(c.getColumnIndex(DistributorDataStore.ChannelTableSchema.NAME.n));
+        	String channelName = c.getString(c.getColumnIndex(DistributorDataStore.DisposalTableSchema.CHANNEL.n));
         	logger.debug(channelName);
         }
 	}
