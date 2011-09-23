@@ -4,8 +4,10 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
+import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class RetrievalTableViewer extends DistributorTableViewer {
 
@@ -23,7 +25,7 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		//this.uri = RetrievalTableSchema.CONTENT_URI;
+		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.RETRIEVAL.n);
 		
 		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 RetrievalTableSchema._ID + " DESC");

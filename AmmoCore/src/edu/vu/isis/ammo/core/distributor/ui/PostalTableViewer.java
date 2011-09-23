@@ -4,7 +4,9 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
+import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class PostalTableViewer extends DistributorTableViewer {
 
@@ -22,7 +24,7 @@ public class PostalTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		//this.uri = PostalTableSchema.CONTENT_URI;
+		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.POSTAL.n);
 		
 		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 PostalTableSchema._ID + " DESC");

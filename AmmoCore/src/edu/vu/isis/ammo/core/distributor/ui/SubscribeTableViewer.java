@@ -4,8 +4,10 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class SubscribeTableViewer extends DistributorTableViewer {
 
@@ -22,7 +24,7 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 
 	@Override 
 	public void onCreate(Bundle bun) {
-		//this.uri = SubscribeTableSchema.CONTENT_URI;
+		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.SUBSCRIBE.n);
 		
 		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 SubscribeTableSchema._ID + " DESC");
