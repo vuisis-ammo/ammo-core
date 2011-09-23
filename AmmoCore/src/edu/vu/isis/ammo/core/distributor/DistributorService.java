@@ -153,8 +153,8 @@ public class DistributorService extends Service {
 			logger.info("::onServiceConnected - Network Service");
 			parent.networkServiceBinder = ((NetworkService.MyBinder) service).getService();
 			parent.isNetworkServiceBound = true;
-			parent.distThread.execute(DistributorService.this);
 			parent.networkServiceBinder.setDistributorServiceCallback(DistributorService.this);
+			parent.distThread.execute(DistributorService.this);
 		}
 		public void onServiceDisconnected(ComponentName name) {
 			logger.info("::onServiceDisconnected - Network Service");

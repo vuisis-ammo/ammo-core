@@ -408,7 +408,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	private boolean processResponse(Context context, AmmoGatewayMessage agm) {
 		logger.info("::processResponse {}", agm);
 
-		CRC32 crc32 = new CRC32();
+		final CRC32 crc32 = new CRC32();
 		crc32.update(agm.payload);
 		if (crc32.getValue() != agm.payload_checksum) {
 			logger.warn("you have received a bad message, the checksums [{}:{}] did not match",
@@ -416,11 +416,12 @@ extends AsyncTask<DistributorService, Integer, Void>
 			return false;
 		}
 
-		AmmoMessages.MessageWrapper mw = null;
+		final AmmoMessages.MessageWrapper mw;
 		try {
 			mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
 		} catch (InvalidProtocolBufferException ex) {
 			logger.error("parsing gateway message {}", ex.getStackTrace());
+			return false;
 		}
 		if (mw == null) {
 			logger.error( "mw was null!" );
