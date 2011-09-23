@@ -166,10 +166,14 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         spec.setContent(R.id.netlink_layout);
         getTabHost().addTab(spec);
         
+        /* 
+         * Commented out for NTCNIE branch
+         * 
         spec = tabHost.newTabSpec("message_queue");
         spec.setIndicator("Message Queue", res.getDrawable(R.drawable.mailbox_icon));
         spec.setContent(new Intent("edu.vu.isis.ammo.core.ui.MessageQueueActivity.LAUNCH"));
         getTabHost().addTab(spec);
+        */
         
         intent = new Intent().setClass(this, CorePreferenceActivity.class);
         /*
