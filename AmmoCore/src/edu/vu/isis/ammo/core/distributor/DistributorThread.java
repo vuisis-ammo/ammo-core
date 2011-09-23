@@ -1093,8 +1093,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 			if (!that.getNetworkServiceBinder().isConnected()) {
 				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
-				this.store.upsertSubscribe(values, policy.makeRouteMap());
-				logger.info("no network connection");
+				long key = this.store.upsertSubscribe(values, policy.makeRouteMap());
+				logger.info("no network connection, added {}", key);
 				return;
 			}
 

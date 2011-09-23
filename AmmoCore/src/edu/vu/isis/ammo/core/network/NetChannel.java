@@ -1,6 +1,7 @@
 package edu.vu.isis.ammo.core.network;
 
 public abstract class NetChannel implements INetChannel {
+	protected static final boolean HEARTBEAT_ENABLED = false;
 
 	// The values in the INetChannel that we are translating here could
     // probably be made into an enum and the translation to strings

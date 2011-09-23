@@ -332,8 +332,10 @@ public class MulticastChannel extends NetChannel
     // Note: the way this currently works, the heartbeat can only be sent
     // in intervals that are multiples of the burp time.  This may change
     // later if I can eliminate some of the wait()s.
-    private void sendHeartbeatIfNeeded()
+    @SuppressWarnings("unused")
+	private void sendHeartbeatIfNeeded()
     {
+    	if (! HEARTBEAT_ENABLED) return;
         //logger.warn( "In sendHeartbeatIfNeeded()." );
 
         long nowInMillis = System.currentTimeMillis();
@@ -343,16 +345,16 @@ public class MulticastChannel extends NetChannel
         logger.warn( "Sending a heartbeat. t={}", nowInMillis );
 
         // Create a heartbeat message and call the method to send it.
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+        final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
         mw.setType( AmmoMessages.MessageWrapper.MessageType.HEARTBEAT );
         mw.setMessagePriority(AmmoGatewayMessage.PriorityLevel.FLASH.v);
 
-        AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
+        final AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
         message.setSequenceNumber( nowInMillis ); // Just for testing
 
         mw.setHeartbeat( message );
 
-        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
+        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
         agmb.isGateway(true);
         sendRequest( agmb.build() );
 
@@ -584,7 +586,6 @@ public class MulticastChannel extends NetChannel
                                     while (this.isConnected()) // this is IMPORTANT don't remove it.
                                     {
                                         parent.sendHeartbeatIfNeeded();
-
                                         // wait for somebody to change the connection status
                                         this.state.wait(BURP_TIME);
                                     }
