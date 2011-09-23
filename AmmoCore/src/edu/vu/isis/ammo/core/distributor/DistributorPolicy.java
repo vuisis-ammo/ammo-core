@@ -76,12 +76,13 @@ public class DistributorPolicy implements ContentHandler {
 		final File dir = context.getDir(policy_dir, Context.MODE_WORLD_READABLE);
 		final File file = new File(dir, policy_file);
 
-		InputStream inputStream = null;
+		final InputStream inputStream;
 		if (file.exists()) {
 			try {
 				inputStream = new FileInputStream(file);
 			} catch (FileNotFoundException ex) {
 				logger.error("no policy file {} {}", file, ex.getStackTrace());
+				return null;
 			}
 		}
 		else {
@@ -90,6 +91,7 @@ public class DistributorPolicy implements ContentHandler {
 				inputStream = context.getResources().openRawResource(R.raw.distribution_policy);
 			} catch (NotFoundException ex) {
 				logger.error("asset not available {}", ex.getMessage());
+				return null;
 			}
 		}
 		InputSource is = new InputSource(new InputStreamReader(inputStream));
@@ -116,9 +118,9 @@ public class DistributorPolicy implements ContentHandler {
 			return;
 		}
 		try {
-			SAXParserFactory parserFactory=SAXParserFactory.newInstance();
-			SAXParser saxParser=parserFactory.newSAXParser();
-			XMLReader reader=saxParser.getXMLReader();
+			final SAXParserFactory parserFactory=SAXParserFactory.newInstance();
+			final SAXParser saxParser=parserFactory.newSAXParser();
+			final XMLReader reader=saxParser.getXMLReader();
 
 			reader.setContentHandler(this);
 			reader.parse(is);
@@ -200,7 +202,7 @@ public class DistributorPolicy implements ContentHandler {
 
 	private int indent = 0;
 	private String indent() {
-		StringBuilder sb = new StringBuilder();
+		final StringBuilder sb = new StringBuilder();
 		for (int ix = 0; ix < indent; ++ix) sb.append("  ");
 		return sb.toString();
 	}
@@ -282,7 +284,7 @@ public class DistributorPolicy implements ContentHandler {
 			
 			final StringBuffer sb = new StringBuffer();
 			sb.append('\n').append(ind).append("clause:");
-			for (Literal literal : this.literals) { 
+			for (final Literal literal : this.literals) { 
 			  sb.append(literal);
 			}
 			DistributorPolicy.this.indent--;
@@ -452,7 +454,7 @@ public class DistributorPolicy implements ContentHandler {
 			Attributes atts) throws SAXException {
 		if (! this.inPolicy) {  
 			if (localName.equals("policy")) {
-				logger.info("begin 'policy'");
+				logger.debug("begin 'policy'");
 				this.inPolicy = true;
 				return;
 			}
@@ -462,7 +464,7 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy
 		if (! this.inTopic) {  
 			if (localName.equals("topic")) {
-				logger.info("begin 'topic'");
+				logger.debug("begin 'topic'");
 				this.inTopic = true;
 				String type = atts.getValue(uri, "type");
 				if (type == null) return;
@@ -475,20 +477,20 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy/topic
 		if (! this.inDescription && ! this.inPriority && ! this.inRouting) { 
 			if (localName.equals("routing")) { 
-				logger.info("begin 'routing'");
+				logger.debug("begin 'routing'");
 				this.inRouting = true;
 				this.builder.newRouting();
 				return;
 			}
 			if (localName.equals("priority")) {
-				logger.info("begin 'priority'");
+				logger.debug("begin 'priority'");
 				this.inPriority = true;
 				this.builder.priority(extractPriority(uri,"value", 
 						IAmmoRequest.PRIORITY_NORMAL, atts));
 				return;
 			}
 			if (localName.equals("description")) {
-				logger.info("begin topic 'description'");
+				logger.debug("begin topic 'description'");
 				this.inDescription = true;
 				return;
 			}
@@ -498,15 +500,15 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy/topic/routing
 		if (! this.inDescription && ! this.inClause){
 			if (localName.equals("clause")) {
-				logger.info("begin 'clause'");
+				logger.debug("begin 'clause'");
 				this.inClause = true;
 				this.builder.addClause();
 				return;
 			}
 			if (localName.equals("description")) {
-				logger.info("begin routing 'description'");
+				logger.debug("begin routing 'description'");
 				this.inDescription = true;
-				logger.info("processing route description");
+				logger.debug("processing route description");
 				return;
 			}
 			logger.warn("expecting begin 'clause' or 'description': got {}", localName);
@@ -515,7 +517,7 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy/topic/routing/clause
 		if (! this.inLiteral) {
 			if (localName.equals("literal")) {
-				logger.info("begin 'literal'");
+				logger.debug("begin 'literal'");
 				this.inLiteral = true;
 				final String term = extractTerm(uri,"term" , "gateway", atts);
 				final Boolean condition = extractCondition(uri,"condition", true, atts);
@@ -538,7 +540,7 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy
 		if (! this.inTopic) { 
 			if (localName.equals("policy")) {
-				logger.info("end 'policy'");
+				logger.debug("end 'policy'");
 				this.inPolicy = false;
 				return;
 			}
@@ -550,17 +552,17 @@ public class DistributorPolicy implements ContentHandler {
 			if (localName.equals("topic")) {
 				Topic topic = builder.build();
 				this.policy.put(builder.type(), topic );
-				logger.info("end 'topic'");
+				logger.debug("end 'topic'");
 				this.inTopic = false;
 				return;
 			}
 			if (localName.equals("priority")) {
-				logger.info("end 'topic/priority'");
+				logger.debug("end 'topic/priority'");
 				this.inPriority = false;
 				return;
 			}
 			if (localName.equals("description")) {
-				logger.info("end 'topic/description'");
+				logger.debug("end 'topic/description'");
 				this.inDescription = false;
 				return;
 			}
@@ -570,12 +572,12 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy/topic/routing
 		if (! this.inClause){
 			if (localName.equals("routing")) { 
-				logger.info("end 'routing'");
+				logger.debug("end 'routing'");
 				this.inRouting = false;
 				return;
 			}
 			if (localName.equals("description")) {
-				logger.info("end 'routing/description'");
+				logger.debug("end 'routing/description'");
 				this.inDescription = false;
 				return;
 			}
@@ -585,7 +587,7 @@ public class DistributorPolicy implements ContentHandler {
 		if (! this.inLiteral) {
 			// in policy/topic/routing/clause
 			if (localName.equals("clause")) {
-				logger.info("end 'clause'");
+				logger.debug("end 'clause'");
 				this.inClause = false;
 				return;
 			}
@@ -594,7 +596,7 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		// in policy/topic/routing/clause/literal
 		if (localName.equals("literal")) {
-			logger.info("end 'literal'");
+			logger.debug("end 'literal'");
 			this.inLiteral = false;
 			return;
 		}
@@ -651,7 +653,7 @@ public class DistributorPolicy implements ContentHandler {
 	 * @return
 	 */
 	private String extractTerm(String uri, String attrname, String def, Attributes atts) {
-		String value = atts.getValue(uri, attrname);
+		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
 		return value;
 	}
@@ -667,7 +669,7 @@ public class DistributorPolicy implements ContentHandler {
 	 * @return
 	 */
 	private int extractPriority(String uri, String attrname, int def, Attributes atts) {
-		String value = atts.getValue(uri, attrname);
+		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
 		if (value.equalsIgnoreCase("default")) return IAmmoRequest.PRIORITY_DEFAULT;
 		if (value.equalsIgnoreCase("background")) return IAmmoRequest.PRIORITY_BACKGROUND;

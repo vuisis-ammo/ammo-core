@@ -92,7 +92,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 	 */
 	@Override
 	public int compareTo(Object another) {
-		if (another instanceof AmmoGatewayMessage) 
+		if (!(another instanceof AmmoGatewayMessage)) 
 			throw new ClassCastException("does not compare with AmmoGatewayMessage");
 
 		AmmoGatewayMessage that = (AmmoGatewayMessage) another;

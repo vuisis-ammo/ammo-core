@@ -249,12 +249,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		// no point in enabling the socket until the preferences have been read
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
-		this.acquirePreferences();
+		
 		if (this.networkingSwitch && this.gatewayEnabled) {
 			this.tcpChannel.enable();
 		}
 		this.multicastChannel.enable();
-		this.multicastChannel.reset(); // This starts the connector thread.
+		
 
 		this.myReceiver = new MyBroadcastReceiver();
 
@@ -294,6 +294,18 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
 		loginIntent.putExtra("operatorId", operatorId);
 		this.sendBroadcast(loginIntent);
+	}
+	/**
+	 *  There is now someplace to send the received messages, namely the distributor.
+	 *  The channels should not be started until the distributor is active.
+	 */	
+	public void setDistributorServiceCallback(DistributorService callback) {
+		logger.info("::setDistributorServiceCallback");
+
+		this.distributor = callback;
+		
+		this.acquirePreferences();
+		this.multicastChannel.reset(); 
 	}
 
 	@Override
@@ -449,8 +461,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
 			logger.info("explicit opererator reset on channel");
 			this.networkingSwitch = true;
-			this.tcpChannel.reset();
-			this.multicastChannel.reset();
+			if (this.distributor != null) {
+				this.tcpChannel.reset();
+				this.multicastChannel.reset();
+			}
 		}
 
 		if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
@@ -506,12 +520,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
 		logger.info("::buildAuthenticationRequest");
 
-		AmmoMessages.MessageWrapper.Builder mw = 
+		final AmmoMessages.MessageWrapper.Builder mw = 
 				AmmoMessages.MessageWrapper.newBuilder();
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
 		mw.setSessionUuid(sessionId);
 
-		AmmoMessages.AuthenticationMessage.Builder authreq = 
+		final AmmoMessages.AuthenticationMessage.Builder authreq = 
 				AmmoMessages.AuthenticationMessage.newBuilder();
 		authreq.setDeviceId(
 				UniqueIdentifiers.device(this.getApplicationContext()))
@@ -605,7 +619,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 */
 	public boolean isConnected() {
 		boolean any = tcpChannel.isConnected() || multicastChannel.isConnected();
-		logger.info("::isConnected ? {}", any );
+		logger.debug("::isConnected ? {}", any );
 		return any;
 	}
 
@@ -617,20 +631,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("::authenticate");
 
 		/** Message Building */
-		AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-		AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
+		final AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
+		final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
 		agmb.isGateway(true);
 		return sendRequest(agmb.build(), DistributorPolicy.DEFAULT, null);
 	}
 
-	public void setDistributorServiceCallback(DistributorService callback) {
-		logger.info("::setDistributorServiceCallback");
-
-		distributor = callback;
-		// there is now someplace to send the received messages.
-		// connectChannels(false); // was true - why should we reconnect if a
-		// distributor call back changes
-	}
 
 	/**
 	 * This should handle the link state behavior. This is really the main job

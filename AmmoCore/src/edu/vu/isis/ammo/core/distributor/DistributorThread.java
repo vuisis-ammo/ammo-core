@@ -106,7 +106,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			new ConcurrentHashMap<String, ChannelChange>();
 
 	public void onChannelChange(String name, ChannelChange change) {
-		if (this.channelStatus.get(name).equals(change)) return;
+		if (change.equals(this.channelStatus.get(name))) return;
 		this.channelStatus.put(name, change);
 
 		switch (change) {
@@ -178,7 +178,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * is overkill but...
 	 */
 	private boolean isNetworkServiceConnected(DistributorService... them) {
-		for (DistributorService that : them) {
+		for (final DistributorService that : them) {
 			if (that.getNetworkServiceBinder().isConnected()) {
 				return true;
 			}
@@ -201,20 +201,6 @@ extends AsyncTask<DistributorService, Integer, Void>
 	}
 
 	/**
-	 * Some of the previously sent messages should be resent
-	 * Specifically those which failed to be sent even though
-	 * the channels appeared to be in good shape.
-	 */
-	private AtomicBoolean retry = new AtomicBoolean(true);
-
-	public void retry() {
-		logger.trace("::resend");
-		this.retry.set(true);
-		this.signal();
-	}
-
-
-	/**
 	 * The following condition wait holds until
 	 * there is some work for the distributor.
 	 * 
@@ -224,14 +210,13 @@ extends AsyncTask<DistributorService, Integer, Void>
 	protected Void doInBackground(DistributorService... them) {
 
 		logger.info("::post to network service");
-		if (this.retry.getAndSet(false)) {
-			for (DistributorService that : them) {
-				if (!that.getNetworkServiceBinder().isConnected()) 
-					continue;
-				this.processSubscribeTable(that, true);
-				this.processRetrievalTable(that, true);
-				this.processPostalTable(that, true);
-			}
+
+		for (final DistributorService that : them) {
+			if (!that.getNetworkServiceBinder().isConnected()) 
+				continue;
+			this.processSubscribeTable(that);
+			this.processRetrievalTable(that);
+			this.processPostalTable(that);
 		}
 
 		try {
@@ -242,18 +227,15 @@ extends AsyncTask<DistributorService, Integer, Void>
 						this.wait(BURP_TIME); 
 				}
 				while (this.isReady(them)) {
-					boolean resend = this.retry.getAndSet(false);
-					logger.info("process requests, resend? {}", resend);
-
 					if (this.channelDelta.getAndSet(false)) {
 						for (DistributorService that : them) {
-							this.processChannelChange(that, resend);						
+							this.processChannelChange(that);						
 						}
 					}
 
 					if (!this.responseQueue.isEmpty()) {
 						try {
-							AmmoGatewayMessage agm = this.responseQueue.take();
+							final AmmoGatewayMessage agm = this.responseQueue.take();
 							for (DistributorService that : them) {
 								this.processResponse(that, agm);
 							}
@@ -265,7 +247,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 					if (!this.requestQueue.isEmpty()) {
 						try {
-							AmmoRequest agm = this.requestQueue.take();
+							final AmmoRequest agm = this.requestQueue.take();
 							for (DistributorService that : them) {
 								this.processRequest(that, agm);
 							}
@@ -324,7 +306,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * This makes use of the disposition table and the channel status map.
 	 * 
 	 */
-	private void processChannelChange(DistributorService that, boolean resend) {
+	private void processChannelChange(DistributorService that) {
 		logger.info("::processPostalChange()");
 
 		if (!that.getNetworkServiceBinder().isConnected()) 
@@ -343,10 +325,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 		}
 		 */
 		// we could do a priming query to determine if there are any candidates
-		this.processPostalTable(that, resend);
-		this.processPublishTable(that, resend);
-		this.processRetrievalTable(that, resend);
-		this.processSubscribeTable(that, resend);
+		this.processPostalTable(that);
+		this.processPublishTable(that);
+		this.processRetrievalTable(that);
+		this.processSubscribeTable(that);
 	}
 
 	/**
@@ -600,13 +582,13 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Check for requests whose delivery policy has not been fully satisfied
 	 * and for which there is, now, an available channel.
 	 */
-	private void processPostalTable(final DistributorService that, boolean resend) {
+	private void processPostalTable(final DistributorService that) {
 		logger.info("::processPostalTable()");
 
 		if (!that.getNetworkServiceBinder().isConnected()) 
 			return;
 
-		final Cursor pending = this.store.queryPostalReady(resend);
+		final Cursor pending = this.store.queryPostalReady();
 
 		// Iterate over each row serializing its data and sending it.
 		for (boolean moreItems = pending.moveToFirst(); moreItems; 
@@ -794,8 +776,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 		logger.info("::processPublicationRequest()");
 	}
 
-	private void processPublishTable(DistributorService that, boolean resend) {
-		logger.error("::processPublishTable : {} : not implemented", resend);
+	private void processPublishTable(DistributorService that) {
+		logger.error("::processPublishTable : not implemented");
 	}
 
 	/**
@@ -916,10 +898,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * 
 	 * Garbage collect items which are expired.
 	 */
-	private void processRetrievalTable(DistributorService that, boolean resend) {
+	private void processRetrievalTable(DistributorService that) {
 		logger.info("::processRetrievalTable()");
 
-		final Cursor pending = this.store.queryRetrievalReady(resend);
+		final Cursor pending = this.store.queryRetrievalReady();
 
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems;
 				areMoreItems = pending.moveToNext()) 
@@ -1152,10 +1134,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Garbage collect items which are expired.
 	 */
 
-	private void processSubscribeTable(DistributorService that, boolean resend) {
+	private void processSubscribeTable(DistributorService that) {
 		logger.info("::processSubscribeTable()");
 
-		final Cursor pending = this.store.querySubscribeReady(resend);
+		final Cursor pending = this.store.querySubscribeReady();
 
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems;
 				areMoreItems = pending.moveToNext()) 
