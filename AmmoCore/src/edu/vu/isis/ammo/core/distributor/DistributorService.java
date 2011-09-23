@@ -55,7 +55,7 @@ public class DistributorService extends Service {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger("ammo:ds");
+	private static final Logger logger = LoggerFactory.getLogger("ammo-ds");
 
 	public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH");
 	public static final String BIND = "edu.vu.isis.ammo.core.distributor.DistributorService.BIND";

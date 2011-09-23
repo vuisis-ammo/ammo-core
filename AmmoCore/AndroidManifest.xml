@@ -71,6 +71,14 @@
 				<category android:name="android.intent.category.HOME" />
 			</intent-filter>
 		</receiver>
+		
+		<receiver android:name=".receiver.PackageInstalledReceiver">
+			<intent-filter>
+				<action android:name="android.intent.action.PACKAGE_ADDED" />
+				<action android:name="android.intent.action.PACKAGE_REMOVED" />
+    			<data android:scheme="package" />
+			</intent-filter>
+		</receiver>
 
 		<!-- ========== SERVICE SECTION ================= -->
 		<!--
@@ -80,8 +88,7 @@
 		<service android:enabled="true" android:name=".network.NetworkService">
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.ACTION" />
-				<action
-					android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
+				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
 				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP" />
 			</intent-filter>
 		</service>
