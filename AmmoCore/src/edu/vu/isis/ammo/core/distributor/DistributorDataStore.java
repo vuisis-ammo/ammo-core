@@ -9,13 +9,10 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.network.INetworkService;
-
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.SQLException;
-import android.database.sqlite.SQLiteConstraintException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.database.sqlite.SQLiteException;
@@ -905,12 +902,12 @@ public class DistributorDataStore {
 
 
 	public DistributorDataStore openRead() {
-		if (this.db != null && this.db.isOpen()) this.db.close();
+		if (this.db != null && this.db.isReadOnly()) return this;
 		this.db = this.helper.getReadableDatabase();
 		return this;
 	}
 	public DistributorDataStore openWrite() {
-		if (this.db != null && this.db.isOpen()) this.db.close();
+		if (this.db != null && this.db.isOpen() && ! this.db.isReadOnly()) this.db.close();
 		this.db = this.helper.getWritableDatabase();
 		return this;
 	}
@@ -930,13 +927,13 @@ public class DistributorDataStore {
 	 */
 	public Cursor queryPostal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.POSTAL.n);
 		qb.setProjectionMap(PostalTable.PROJECTION_MAP);
 
 		// Get the database and run the query.
-		SQLiteDatabase db = this.helper.getReadableDatabase();
+		final SQLiteDatabase db = this.helper.getReadableDatabase();
 		return qb.query(db, projection, selection, selectionArgs, null, null,
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: PostalTable.DEFAULT_SORT_ORDER);
@@ -968,13 +965,13 @@ public class DistributorDataStore {
 
 	public Cursor queryPublish(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.PUBLISH.n);
 		qb.setProjectionMap(PublishTable.PROJECTION_MAP);
 
 		// Get the database and run the query.
-		SQLiteDatabase db = this.helper.getReadableDatabase();
+		final SQLiteDatabase db = this.helper.getReadableDatabase();
 		return qb.query(db, projection, selection, selectionArgs, null, null,
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: PublishTable.DEFAULT_SORT_ORDER);
@@ -982,13 +979,13 @@ public class DistributorDataStore {
 
 	public Cursor queryRetrieval(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.RETRIEVAL.n);
 		qb.setProjectionMap(RetrievalTable.PROJECTION_MAP);
 
 		// Get the database and run the query.
-		SQLiteDatabase db = this.helper.getReadableDatabase();
+		final SQLiteDatabase db = this.helper.getReadableDatabase();
 		return qb.query(db, projection, selection, selectionArgs, null, null,
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: RetrievalTable.DEFAULT_SORT_ORDER);
@@ -1020,13 +1017,13 @@ public class DistributorDataStore {
 
 	public Cursor querySubscribe(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.SUBSCRIBE.n);
 		qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
 
 		// Get the database and run the query.
-		SQLiteDatabase db = this.helper.getReadableDatabase();
+		final SQLiteDatabase db = this.helper.getReadableDatabase();
 		return qb.query(db, projection, selection, selectionArgs, null, null,
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: SubscribeTable.DEFAULT_SORT_ORDER);
@@ -1060,7 +1057,7 @@ public class DistributorDataStore {
 
 	public Cursor queryDisposal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.DISPOSAL.n);
 		qb.setProjectionMap(DisposalTable.PROJECTION_MAP);
@@ -1100,7 +1097,7 @@ public class DistributorDataStore {
 
 	public Cursor queryChannel(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.CHANNEL.n);
 		qb.setProjectionMap(ChannelTable.PROJECTION_MAP);
@@ -1491,11 +1488,11 @@ public class DistributorDataStore {
 	 */
 
 	public int deletePostal(String selection, String[] selectionArgs) {
-		SQLiteDatabase db = this.helper.getWritableDatabase();
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		return db.delete(Tables.POSTAL.n, selection, selectionArgs);
 	}
 	public int deletePostalGarbage() {
-		SQLiteDatabase db = this.helper.getWritableDatabase();
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		db.update(Tables.POSTAL.n, POSTAL_EXPIRATION_UPDATE, POSTAL_EXPIRATION_CONDITION, null);
 		return db.delete(Tables.POSTAL.n, POSTAL_GARBAGE, null);
 	}
@@ -1518,21 +1515,21 @@ public class DistributorDataStore {
 	}
 
 	public int deletePublish(String selection, String[] selectionArgs) {
-		SQLiteDatabase db = this.helper.getWritableDatabase();
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		db.update(Tables.POSTAL.n, POSTAL_EXPIRATION_UPDATE, POSTAL_EXPIRATION_CONDITION, null);
 		return db.delete(Tables.PUBLISH.n, selection, selectionArgs);
 	}
 	public int deletePublishGarbage() {
-		SQLiteDatabase db = this.helper.getWritableDatabase();
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		return db.delete(Tables.PUBLISH.n, null, null);
 	}
 
 	public int deleteRetrieval(String selection, String[] selectionArgs) {
-		SQLiteDatabase db = this.helper.getWritableDatabase();
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		return db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
 	}
 	public int deleteRetrievalGarbage() {
-		SQLiteDatabase db = this.helper.getWritableDatabase();
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		db.update(Tables.POSTAL.n, RETRIEVAL_EXPIRATION_UPDATE, RETRIEVAL_EXPIRATION_CONDITION, null);
 		return db.delete(Tables.RETRIEVAL.n, RETRIEVAL_GARBAGE, null);
 	}
@@ -1557,11 +1554,11 @@ public class DistributorDataStore {
 
 
 	public int deleteSubscribe(String selection, String[] selectionArgs) {
-		SQLiteDatabase db = this.helper.getWritableDatabase();
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		return db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
 	}
 	public int deleteSubscribeGarbage() {
-		SQLiteDatabase db = this.helper.getWritableDatabase();
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		db.update(Tables.POSTAL.n, SUBSCRIPTION_EXPIRIATION_UPDATE, SUBSCRIPTION_EXPIRATION_CONDITION, null);
 		return db.delete(Tables.SUBSCRIBE.n, SUBSCRIPTION_GARBAGE, null);
 	}

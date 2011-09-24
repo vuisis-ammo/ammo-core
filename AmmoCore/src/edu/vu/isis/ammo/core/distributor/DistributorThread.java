@@ -221,7 +221,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					}
 
 					if (!this.responseQueue.isEmpty()) {
-						logger.trace("processing response {}", this.responseQueue.size());
+						logger.trace("processing response, remaining {}", this.responseQueue.size());
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
 							for (DistributorService that : them) {
@@ -234,7 +234,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					}
 
 					if (!this.requestQueue.isEmpty()) {
-						logger.trace("processing request {}", this.requestQueue.size());
+						logger.trace("processing request, remaining {}", this.requestQueue.size());
 						try {
 							final AmmoRequest agm = this.requestQueue.take();
 							for (DistributorService that : them) {
@@ -391,7 +391,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	private boolean processResponse(Context context, AmmoGatewayMessage agm) {
-		logger.info("::processResponse {}", agm);
+		logger.info("::processResponse");
 
 		final CRC32 crc32 = new CRC32();
 		crc32.update(agm.payload);
@@ -589,10 +589,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
 
-			logger.debug("serializing: " + provider);
-			logger.debug("rowUriType: " + topic);
-
-			final String mimeType = InternetMediaType.getInst(topic).setType("application").toString();
+			logger.debug("serializing: {} as {}",provider,topic);
 
 			final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
 			final int serialType = pending.getInt(pending.getColumnIndex(PostalTableSchema.ORDER.n));
@@ -657,7 +654,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					final Map<String,DisposalState> dispatchResult = 
 							this.dispatchPostalRequest(that,
 									provider.toString(),
-									mimeType, policy, status, serializer,
+									topic, policy, status, serializer,
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
@@ -1268,7 +1265,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		// FIXME DESERIALIZER
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
 		this.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray(), logger);
-		
+
 		// this.store.upsertDisposalByParent(id, type, channel, status);
 		return true;
 	}
@@ -1279,7 +1276,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	// =============== UTILITY METHODS ======================== //
 
 	/**
-	 * The data is serialized in the following form...
+	 * The JSON serialization is in the following form...
 	 * serialized tuple : A list of non-null bytes which serialize the tuple, 
 	 *   this is provided/supplied to the ammo enabled content provider via insert/query.
 	 *   The serialized tuple may be null terminated or the byte array may simply end.
@@ -1294,92 +1291,84 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Note the deserializeToUri and serializeFromUri are symmetric, any change to one 
 	 * will necessitate a corresponding change to the other.
 	 */  
-	private synchronized boolean deserializeToProvider(final ContentResolver resolver, 
-			Uri uri, Encoding encoding, byte[] data, Logger logger) {
-		final Uri tupleUri = Uri.withAppendedPath(uri, "_deserial");
+	private synchronized Uri deserializeToProvider(final ContentResolver resolver, 
+			Uri provider, Encoding encoding, byte[] data, Logger logger) {
+		final Uri updateTuple = Uri.withAppendedPath(provider, "_deserial");
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
-
-		int position = 0;
-		for (; position < data.length; position++) {
-			if (position == (data.length-1)) { // last byte
-				final byte[] payload = new byte[position];
-				System.arraycopy(data, 0, payload, 0, position);
-				this.deserializeToProviderByEncoding(resolver, uri, encoding, payload, logger);
-				return true;
-			}
-			if (data[position] == 0x0) {
-				final ContentValues cv = new ContentValues();
-				final byte[] name = new byte[position];
-				System.arraycopy(data, 0, name, 0, position);
-				cv.put("data", new String(data));
-				resolver.insert(tupleUri, cv);
-				break;
-			}
-		}
-
-		int start = position; 
-		int length = 0;
-		while (position < data.length) {
-			if (data[position] != 0x0) { position++; length++; continue; }
-			final String fieldName = new String(data, start, length);
-
-			dataBuff.position(position);
-			final int dataLength = dataBuff.getInt();
-			start = dataBuff.position();
-			final byte[] blob = new byte[dataLength];
-			System.arraycopy(data, start, blob, 0, dataLength);
-			final Uri fieldUri = Uri.withAppendedPath(tupleUri, fieldName);
-			OutputStream outstream;
-			try {
-				outstream = resolver.openOutputStream(fieldUri);
-				if (outstream == null) {
-					logger.error( "could not open output stream to content provider: {} ",fieldUri);
-					return false;
-				}
-				outstream.write(blob);
-			} catch (FileNotFoundException ex) {
-				logger.error( "blob file not found: {} {}",fieldUri, ex.getStackTrace());
-			} catch (IOException ex) {
-				logger.error( "error writing blob file: {} {}",fieldUri, ex.getStackTrace());
-			}
-		}	
-		return true;
-	}
-
-	private Uri deserializeToProviderByEncoding(final ContentResolver resolver, Uri provider, 
-			Encoding encoding, byte[] data, Logger logger) {
-		final String payload = new String(data);
-
+        
 		switch (encoding.getPayload()) {
 		case JSON: 
 		case TERSE:
-			try {
-				final JSONObject input = (JSONObject) new JSONTokener(payload).nextValue();
-				final ContentValues cv = new ContentValues();
-				for (@SuppressWarnings("unchecked")
-				Iterator<String> iter = input.keys(); iter.hasNext();) {
-					final String key = iter.next();
-					cv.put(key, input.getString(key));
+		{
+			int position = 0;
+			for (; position < data.length || data[position] == (byte)0x0; position++) {
+				if (position == (data.length-1)) { // last byte
+					final int length = position+1;
+					final byte[] payload = new byte[length];
+					System.arraycopy(data, 0, payload, 0, length);
+					try {
+						final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
+						final ContentValues cv = new ContentValues();
+						for (@SuppressWarnings("unchecked")
+						Iterator<String> iter = input.keys(); iter.hasNext();) {
+							final String key = iter.next();
+							cv.put(key, input.getString(key));
+						}
+						return resolver.insert(provider, cv);
+					} catch (JSONException ex) {
+						logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+						return null;
+					} catch (SQLiteException ex) {
+						logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
+						return null;
+					}
 				}
-				return resolver.insert(provider, cv);
-			} catch (JSONException ex) {
-				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
-			} catch (SQLiteException ex) {
-				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
 			}
-			return null;
+			final ContentValues cv = new ContentValues();
+			final byte[] name = new byte[position];
+			System.arraycopy(data, 0, name, 0, position);
+			cv.put("data", new String(data));
+			final Uri insertTuple = resolver.insert(updateTuple, cv);
+
+			// process the blobs
+			int start = position; 
+			int length = 0;
+			while (position < data.length) {
+				if (data[position] != 0x0) { position++; length++; continue; }
+				final String fieldName = new String(data, start, length);
+
+				dataBuff.position(position);
+				final int dataLength = dataBuff.getInt();
+				start = dataBuff.position();
+				final byte[] blob = new byte[dataLength];
+				System.arraycopy(data, start, blob, 0, dataLength);
+				final Uri fieldUri = Uri.withAppendedPath(updateTuple, fieldName);			
+				try {
+					final OutputStream outstream = resolver.openOutputStream(fieldUri);
+					if (outstream == null) {
+						logger.error( "could not open output stream to content provider: {} ",fieldUri);
+						return null;
+					}
+					outstream.write(blob);
+				} catch (FileNotFoundException ex) {
+					logger.error( "blob file not found: {} {}",fieldUri, ex.getStackTrace());
+				} catch (IOException ex) {
+					logger.error( "error writing blob file: {} {}",fieldUri, ex.getStackTrace());
+				}
+			}	
+			return insertTuple;
+		}
 		case CUSTOM:
 		default:
 		{
 			// FIXME write to the custom provider address
 			final Uri customProvider = encoding.extendProvider(provider);
 			final ContentValues cv = new ContentValues();
-			cv.put("data", payload);
+			cv.put("data", data);
 			return resolver.insert(customProvider, cv);
 		}
 		}
 	}
-
 
 	/**
 	 * @see deserializeToUri with which this method is symmetric.

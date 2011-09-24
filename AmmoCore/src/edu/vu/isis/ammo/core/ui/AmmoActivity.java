@@ -42,7 +42,7 @@ import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 /**
- * The principle activity for the ammo core application.
+ * The principle activity for ammo core.
  * Provides a means for...
  * ...changing the user preferences.
  * ...checking delivery status of various messages.
