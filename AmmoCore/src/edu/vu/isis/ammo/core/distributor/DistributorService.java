@@ -143,7 +143,7 @@ public class DistributorService extends Service {
 	}
 
 	public void onChannelChange(String name, ChannelChange change) {
-		logger.info("channel changed its status, re-evaluate");
+		logger.info("channel {} changed its status to {}", name, change);
 		this.distThread.onChannelChange(name, change);
 	}
 

@@ -60,7 +60,7 @@ public class DistributorPolicy implements ContentHandler {
 
 	public static final String DEFAULT = "_default_";
 	public static final String TOTAL = "_total_";
-	
+
 	public final Trie<String, Topic> policy;
 	public final static String policy_dir = "policy";
 	public final static String policy_file = "distribution_policy.xml";
@@ -139,10 +139,10 @@ public class DistributorPolicy implements ContentHandler {
 			logger.warn("general io error {}", ex.getStackTrace());
 			this.setDefaultRule();
 		}
-	
+
 		logger.info("routing policy:\n {}",this);
 	}
-	
+
 	@Override
 	public String toString() {
 		final StringBuffer sb = new StringBuffer();
@@ -168,11 +168,11 @@ public class DistributorPolicy implements ContentHandler {
 		default:
 			this.setDefaultRule();
 			this.builder.priority(AmmoRequest.PRIORITY_NORMAL);
-			
+
 			this.builder.type("urn:test:domain/trial/both")
 			.addClause()
-			    .addLiteral("gateway", true, Encoding.getDefault())
-			    .addLiteral("multicast", true, Encoding.getDefault())
+			.addLiteral("gateway", true, Encoding.getDefault())
+			.addLiteral("multicast", true, Encoding.getDefault())
 			.build();
 		}
 	}
@@ -207,7 +207,7 @@ public class DistributorPolicy implements ContentHandler {
 		for (int ix = 0; ix < indent; ++ix) sb.append("  ");
 		return sb.toString();
 	}
-	
+
 	public class Topic {
 		public final int priority;
 		public final Routing routing;
@@ -220,14 +220,14 @@ public class DistributorPolicy implements ContentHandler {
 		public String toString() {
 			DistributorPolicy.this.indent++;
 			final String ind = DistributorPolicy.this.indent();
-			
+
 			final StringBuffer sb = new StringBuffer();
 			sb.append('\n').append(ind).append("priority: ").append(this.priority)
-			  .append('\n').append(ind).append("routing:  ").append(this.routing);
+			.append('\n').append(ind).append("routing:  ").append(this.routing);
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
-		
+
 		public Map<String, DisposalState> makeRouteMap() {
 			return this.routing.makeMap();
 		}
@@ -240,29 +240,29 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		public Map<String, DisposalState> makeMap() {
 			final Map<String,DisposalState> map = new HashMap<String,DisposalState>();
-		    for (Clause clause : this.clauses) {
-		    	for (Literal literal : clause.literals) {
-		    	    map.put(literal.term, null);
-		    	}
-		    }
+			for (Clause clause : this.clauses) {
+				for (Literal literal : clause.literals) {
+					map.put(literal.term, null);
+				}
+			}
 			return map;
 		}
 		@Override
 		public String toString() {
 			DistributorPolicy.this.indent++;
-			
+
 			final StringBuffer sb = new StringBuffer();
 			for (Clause clause : this.clauses) { 
-			  sb.append(clause);
+				sb.append(clause);
 			}
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
-		
+
 		public void clear() {
 			this.clauses.clear();
 		}
-		
+
 		private Clause workingClause;
 		public void addClause() {
 			this.workingClause = new Clause();
@@ -282,11 +282,11 @@ public class DistributorPolicy implements ContentHandler {
 		public String toString() {
 			DistributorPolicy.this.indent++;
 			final String ind = DistributorPolicy.this.indent();
-			
+
 			final StringBuffer sb = new StringBuffer();
 			sb.append('\n').append(ind).append("clause:");
 			for (final Literal literal : this.literals) { 
-			  sb.append(literal);
+				sb.append(literal);
 			}
 			DistributorPolicy.this.indent--;
 			return sb.toString();
@@ -302,7 +302,7 @@ public class DistributorPolicy implements ContentHandler {
 	 */
 	public static class Encoding implements Iterable<Encoding.Type> {
 		public enum Type {
-		TERSE, JSON, CUSTOM;
+			TERSE, JSON, CUSTOM;
 		}
 		final private Type[] list;
 
@@ -348,7 +348,7 @@ public class DistributorPolicy implements ContentHandler {
 			case JSON: return "";
 			case TERSE: return "";
 			case CUSTOM: return "_serial/";
-	        default: return "_serial/";
+			default: return "_serial/";
 			}
 		}
 		public Uri extendProvider(Uri provider) {
@@ -356,7 +356,7 @@ public class DistributorPolicy implements ContentHandler {
 			case JSON: return provider;
 			case TERSE: return provider;
 			case CUSTOM: return Uri.withAppendedPath(provider, "_serial/");
-	        default: return Uri.withAppendedPath(provider, "_serial/");
+			default: return Uri.withAppendedPath(provider, "_serial/");
 			}
 		}
 		@Override
@@ -367,13 +367,25 @@ public class DistributorPolicy implements ContentHandler {
 			}
 			return sb.append(']').toString();
 		}
+		public static Encoding getInstanceByName(String...encoding) {
+			final Type[] typeArray = new Type[encoding.length];
+			for (int ix = 0; ix < encoding.length; ix++) {
+				final String typeStr = encoding[ix];
+
+				for (final Type type : Encoding.Type.values()) {
+					if (! type.name().equalsIgnoreCase(typeStr)) continue;
+					typeArray[ix] = type;
+				}
+			}
+			return new Encoding(typeArray);
+		}
 	}
-	
+
 	public class Literal {
 		public final String term;
 		public final boolean condition;
 		public final Encoding encoding;
-		
+
 		public Literal(String term, boolean condition, Encoding encoding) {
 			this.term = term;
 			this.condition = condition;
@@ -383,11 +395,11 @@ public class DistributorPolicy implements ContentHandler {
 		public String toString() {
 			DistributorPolicy.this.indent++;
 			final String ind = DistributorPolicy.this.indent();
-			
+
 			final StringBuffer sb = new StringBuffer();
 			sb.append('\n').append(ind)
-			  .append("term: ").append(this.term).append(' ')
-			  .append("condition: ").append(this.condition);
+			.append("term: ").append(this.term).append(' ')
+			.append("condition: ").append(this.condition);
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
@@ -420,7 +432,7 @@ public class DistributorPolicy implements ContentHandler {
 		public String type() {
 			return this.type;
 		}
-		
+
 		public TopicBuilder addClause() {
 			this.routing.addClause();
 			return this;
@@ -447,7 +459,7 @@ public class DistributorPolicy implements ContentHandler {
 	private boolean inRouting = false;
 	private boolean inClause = false;
 	private boolean inLiteral = false;
-	
+
 	private boolean inDescription = false;
 
 	@Override
@@ -622,7 +634,7 @@ public class DistributorPolicy implements ContentHandler {
 		if (value.equalsIgnoreCase("success")) return true;
 		return Boolean.parseBoolean(value);
 	}
-	
+
 	/**
 	 * A helper routine to extract an attribute from the xml element and 
 	 * convert it into a boolean.
@@ -687,7 +699,7 @@ public class DistributorPolicy implements ContentHandler {
 
 	@Override
 	public void startPrefixMapping(String prefix, String uri)  throws SAXException { }
-	
+
 	@Override
 	public void endPrefixMapping(String prefix) throws SAXException {}
 

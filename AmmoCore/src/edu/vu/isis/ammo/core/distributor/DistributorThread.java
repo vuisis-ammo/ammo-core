@@ -144,7 +144,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			logger.trace("received request of type {}", 
 					request.toString());
 
-			// FIXME should we generate the uuid here or earlier?
+			// TODO should we generate the uuid here or earlier?
 			this.requestQueue.put(request);
 			this.signal();
 			return request.uuid();
@@ -714,6 +714,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 				final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder()
 						.setUri(uri)
 						.setMimeType(msgType)
+						.setEncoding(encode.getPayload().name())
 						.setData(ByteString.copyFrom(serialized));
 				mw.setDataMessage(pushReq);
 
@@ -1031,10 +1032,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 		final Uri provider = Uri.parse(uriStr);
 
 		// FIXME how to control de-serializing
-		DistributorThread.deserializeToProvider(resolver, provider, resp.getData().toByteArray(), logger);
+		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
+		this.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray(), logger);
 
 		// This update/delete the retrieval request, it is fulfilled.
-
 		// this.store.upsertDisposalByParent(id, type, channel, status);
 
 		return true;
@@ -1252,13 +1253,27 @@ extends AsyncTask<DistributorService, Integer, Void>
 		final AmmoMessages.DataMessage resp = mw.getDataMessage();
 		// final ContentResolver resolver = context.getContentResolver();
 
-		logger.info("::dispatchSubscribeResponse : {} : {}", resp.getMimeType(), resp.getUri());
-		@SuppressWarnings("unused")
-		final String mime = resp.getMimeType();
-		@SuppressWarnings("unused")
-		final String tableUriStr = null;
+		logger.info("::dispatchSubscribeResponse : {} : {}",
+				resp.getMimeType(), resp.getUri());
+		final String topic = resp.getMimeType();
+		final Cursor cursor = this.store.querySubscribe(new String[]{SubscribeTableSchema.PROVIDER.n}, 
+				SUSCRIBE_QUERY, new String[]{ topic }, null);
+		if (cursor.getCount() < 1) {
+			logger.error("received a message for which there is no subscription {}", topic);
+			return false;
+		}
+		cursor.moveToFirst();
+		final String uriString = cursor.getString(0);  // only asked for one so it better be it.
+		final Uri provider = Uri.parse(uriString);
+		// FIXME DESERIALIZER
+		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
+		this.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray(), logger);
+		
+		// this.store.upsertDisposalByParent(id, type, channel, status);
 		return true;
 	}
+	static private final String SUSCRIBE_QUERY = new StringBuilder()
+	.append(SubscribeTableSchema.TOPIC.q()).append("=? ").toString();
 
 
 	// =============== UTILITY METHODS ======================== //
@@ -1279,19 +1294,17 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Note the deserializeToUri and serializeFromUri are symmetric, any change to one 
 	 * will necessitate a corresponding change to the other.
 	 */  
-	private static synchronized boolean deserializeToProvider(final ContentResolver resolver, Uri uri, byte[] data, Logger logger) {
+	private synchronized boolean deserializeToProvider(final ContentResolver resolver, 
+			Uri uri, Encoding encoding, byte[] data, Logger logger) {
 		final Uri tupleUri = Uri.withAppendedPath(uri, "_deserial");
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
-
-		// FIXME encoding should be obtained from the input somehow
-		final Encoding encoding = Encoding.getDefault();
 
 		int position = 0;
 		for (; position < data.length; position++) {
 			if (position == (data.length-1)) { // last byte
 				final byte[] payload = new byte[position];
 				System.arraycopy(data, 0, payload, 0, position);
-				DistributorThread.deserializeToProviderByEncoding(resolver, uri, encoding, payload, logger);
+				this.deserializeToProviderByEncoding(resolver, uri, encoding, payload, logger);
 				return true;
 			}
 			if (data[position] == 0x0) {
@@ -1333,7 +1346,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		return true;
 	}
 
-	private static Uri deserializeToProviderByEncoding(final ContentResolver resolver, Uri provider, 
+	private Uri deserializeToProviderByEncoding(final ContentResolver resolver, Uri provider, 
 			Encoding encoding, byte[] data, Logger logger) {
 		final String payload = new String(data);
 
