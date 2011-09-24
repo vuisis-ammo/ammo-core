@@ -414,39 +414,39 @@ extends AsyncTask<DistributorService, Integer, Void>
 		}
 		final MessageType mtype = mw.getType();
 		if (mtype == MessageType.HEARTBEAT) {
-			logger.info("heartbeat");
+			logger.trace("heartbeat");
 			return true;
 		}
 
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
-			logger.info("data interest");
-			receiveSubscribeResponse(context, mw);
+			final boolean subscribeResult = receiveSubscribeResponse(context, mw);
+			logger.debug("subscribe reply {}", subscribeResult);
 			break;
 
 		case AUTHENTICATION_RESULT:
-			boolean result = receiveAuthenticateResponse(context, mw);
-			logger.error( "authentication result={}", result );
+			final boolean result = receiveAuthenticateResponse(context, mw);
+			logger.debug( "authentication result={}", result );
 			break;
 
 		case PUSH_ACKNOWLEDGEMENT:
-			logger.info("push ack");
-			receivePostalResponse(context, mw);
+			final boolean postalResult = receivePostalResponse(context, mw);
+			logger.debug("post acknowledgement {}", postalResult);
 			break;
 
 		case PULL_RESPONSE:
-			logger.info("pull response");
-			receiveRetrievalResponse(context, mw);
+			final boolean retrieveResult = receiveRetrievalResponse(context, mw);
+			logger.debug("retrieve response {}", retrieveResult);
 			break;
 
 		case AUTHENTICATION_MESSAGE:
 		case SUBSCRIBE_MESSAGE:
 		case PULL_REQUEST:
 		case UNSUBSCRIBE_MESSAGE:
-			logger.warn( "received message type {}", mw.getType());
+			logger.debug( "{} message, no processing", mw.getType());
 			break;
 		default:
-			logger.error( "mw.getType() returned an unexpected type. {}", mw.getType());
+			logger.error( "unexpected resply type. {}", mw.getType());
 		}
 		return true;
 	}
@@ -1030,8 +1030,8 @@ extends AsyncTask<DistributorService, Integer, Void>
 
 		// FIXME how to control de-serializing
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		this.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray(), logger);
-
+		final Uri tuple = this.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray(), logger);
+        logger.debug("tuple upserted {}", tuple);
 		// This update/delete the retrieval request, it is fulfilled.
 		// this.store.upsertDisposalByParent(id, type, channel, status);
 
@@ -1262,7 +1262,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 		cursor.moveToFirst();
 		final String uriString = cursor.getString(0);  // only asked for one so it better be it.
 		final Uri provider = Uri.parse(uriString);
-		// FIXME DESERIALIZER
+		
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
 		this.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray(), logger);
 
@@ -1310,7 +1310,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 						final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
 						final ContentValues cv = new ContentValues();
 						for (@SuppressWarnings("unchecked")
-						Iterator<String> iter = input.keys(); iter.hasNext();) {
+						final Iterator<String> iter = input.keys(); iter.hasNext();) {
 							final String key = iter.next();
 							cv.put(key, input.getString(key));
 						}
