@@ -115,7 +115,7 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 
 	/* Configure device */
 	{
-		struct termios cfg;
+		struct termios config;
 		LOGD("Configuring serial port");
 		/* if (tcgetattr(fd, &cfg)) */
 		/* { */
@@ -168,14 +168,14 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 		/* cfsetispeed(&cfg, speed); */
 		/* cfsetospeed(&cfg, speed); */
 
-        bzero( &cfg, sizeof(cfg) );
+        memset( &config, 0, sizeof(config) );
         config.c_cflag = B9600 | CRTSCTS  | CS8 | CLOCAL | CREAD;
         config.c_iflag = IGNPAR | ICRNL;
         config.c_oflag = 0;
         config.c_cc[VMIN] = 1;
 
         tcflush( fd, TCIFLUSH );
-		if (tcsetattr(fd, TCSANOW, &cfg))
+		if (tcsetattr(fd, TCSANOW, &config))
 		{
 			LOGE("tcsetattr() failed");
 			close(fd);
