@@ -2,14 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 	package="edu.vu.isis.ammo.core" android:versionName="@string/ammo_version_name"
 	android:sharedUserId="edu.vu.isis.ammo">
-	<!--
-		the version code is set via the 'version.code' variable in the ant
-		script
-	-->
+	<!-- the version code is set via the 'version.code' variable in the ant 
+		script -->
 
 	<permission android:name="edu.vu.isis.ammo.permission.MAKE_REQUEST"
-		android:label="@string/make_request_label" 
-		android:description="@string/make_request_desc"
+		android:label="@string/make_request_label" android:description="@string/make_request_desc"
 		android:protectionLevel="dangerous" />
 
 	<application android:icon="@drawable/appl_icon"
@@ -71,33 +68,27 @@
 				<category android:name="android.intent.category.HOME" />
 			</intent-filter>
 		</receiver>
-		
+
 		<receiver android:name=".receiver.PackageInstalledReceiver">
 			<intent-filter>
 				<action android:name="android.intent.action.PACKAGE_ADDED" />
 				<action android:name="android.intent.action.PACKAGE_REMOVED" />
-    			<data android:scheme="package" />
+				<data android:scheme="package" />
 			</intent-filter>
 		</receiver>
 
 		<!-- ========== SERVICE SECTION ================= -->
-		<!--
-			Services are started by the .receiver.StartUpReceiver should
-			android:persistent be used?
-		-->
-		<service android:enabled="true" android:name=".network.NetworkService">
+		<!-- Services are started by the .receiver.StartUpReceiver should android:persistent 
+			be used? -->
+		<service android:enabled="true" 
+		         android:name=".AmmoService"
+		         android:exported="true" >
 			<intent-filter>
 				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.ACTION" />
-				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
+				<action
+					android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
 				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP" />
 			</intent-filter>
-		</service>
-
-		<service android:enabled="true" android:name=".distributor.DistributorService"
-			android:exported="true" >
-			<!-- 
-			android:permission="edu.vu.isis.ammo.permission.MAKE_REQUEST">
-			 -->
 			<intent-filter>
 				<action
 					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH" />
@@ -127,16 +118,13 @@
 		</service>
 
 		<!-- ========== PROVIDER SECTION ================= -->
-		<!--
-			<provider android:name=".provider.DistributorProvider"
-			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
-		-->
+		<!-- <provider android:name=".provider.DistributorProvider" android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/> -->
 		<provider android:name=".provider.PreferenceProvider"
 			android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider" />
-			
+
 		<provider android:name=".provider.DistributorProvider"
-			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
-		
+			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider" />
+
 	</application>
 
 	<uses-sdk android:minSdkVersion="8" />

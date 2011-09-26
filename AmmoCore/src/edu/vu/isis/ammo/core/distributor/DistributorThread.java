@@ -47,6 +47,8 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
@@ -56,13 +58,10 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.distributor.DistributorService.ChannelChange;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
-import edu.vu.isis.ammo.util.InternetMediaType;
-
 
 /**
  * The distributor service runs in the ui thread.
@@ -71,7 +70,7 @@ import edu.vu.isis.ammo.util.InternetMediaType;
  */
 @ThreadSafe
 public class DistributorThread 
-extends AsyncTask<DistributorService, Integer, Void> 
+extends AsyncTask<AmmoService, Integer, Void> 
 {
 	// ===========================================================
 	// Constants
@@ -178,7 +177,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * If there are no network connections then nothing can be distributed, so no work.
 	 * Either incoming requests, responses, or a channel has been activated.
 	 */
-	private boolean isReady(DistributorService[] them) {
+	private boolean isReady(AmmoService[] them) {
 		if (this.channelDelta.get()) return true;
 
 		if (! this.responseQueue.isEmpty()) return true;
@@ -193,12 +192,12 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * The method tries to be fair processing the requests in 
 	 */
 	@Override
-	protected Void doInBackground(DistributorService... them) {
+	protected Void doInBackground(AmmoService... them) {
 
 		logger.info("started");
 
-		for (final DistributorService that : them) {
-			if (!that.getNetworkServiceBinder().isConnected()) 
+		for (final AmmoService that : them) {
+			if (!that.isConnected()) 
 				continue;
 			this.processSubscribeTable(that);
 			this.processRetrievalTable(that);
@@ -215,7 +214,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 				while (this.isReady(them)) {
 					if (this.channelDelta.getAndSet(false)) {
 						logger.trace("channel change");
-						for (DistributorService that : them) {
+						for (AmmoService that : them) {
 							this.processChannelChange(that);						
 						}
 					}
@@ -224,7 +223,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 						logger.trace("processing response, remaining {}", this.responseQueue.size());
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
-							for (DistributorService that : them) {
+							for (AmmoService that : them) {
 								this.processResponse(that, agm);
 							}
 						} catch (ClassCastException ex) {
@@ -237,7 +236,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 						logger.trace("processing request, remaining {}", this.requestQueue.size());
 						try {
 							final AmmoRequest agm = this.requestQueue.take();
-							for (DistributorService that : them) {
+							for (AmmoService that : them) {
 								this.processRequest(that, agm);
 							}
 						} catch (ClassCastException ex) {
@@ -277,7 +276,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	private boolean processRequest(DistributorService that, AmmoRequest agm) {
+	private boolean processRequest(AmmoService that, AmmoRequest agm) {
 		logger.info("::processRequest {}",agm);
 		switch (agm.action){
 		case POSTAL: processPostalRequest(that, agm); break;
@@ -295,10 +294,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * This makes use of the disposition table and the channel status map.
 	 * 
 	 */
-	private void processChannelChange(DistributorService that) {
+	private void processChannelChange(AmmoService that) {
 		logger.info("::processPostalChange()");
 
-		if (!that.getNetworkServiceBinder().isConnected()) 
+		if (!that.isConnected()) 
 			return;
 		/*
 		if (collectGarbage) {
@@ -337,7 +336,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @see scripts/tests/distribution_policy.xml for an example.
 	 */
 	private Map<String, DisposalState> 
-	dispatchRequest(DistributorService that, 
+	dispatchRequest(AmmoService that, 
 			RequestSerializer serializer, DistributorPolicy.Topic topic, Map<String, DisposalState> status) {
 
 		logger.info("::sendGatewayRequest");
@@ -350,7 +349,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			logger.error("no matching routing topic");
 			final AmmoGatewayMessage agmb = serializer.act(Encoding.getDefault());
 			final DisposalState actualCondition =
-					that.getNetworkServiceBinder().sendRequest(agmb, DistributorPolicy.DEFAULT, topic);
+					that.sendRequest(agmb, DistributorPolicy.DEFAULT, topic);
 			status.put(DistributorPolicy.DEFAULT, actualCondition);
 			status.put(DistributorPolicy.TOTAL, actualCondition);
 			return status;
@@ -367,7 +366,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 					actualCondition = status.get(term);
 				} else {
 					final AmmoGatewayMessage agmb = serializer.act(literal.encoding);
-					actualCondition = that.getNetworkServiceBinder().sendRequest(agmb, term, topic);
+					actualCondition = that.sendRequest(agmb, term, topic);
 					status.put(term, actualCondition);
 				} 
 				if (actualCondition.goalReached(goalCondition)) {
@@ -497,7 +496,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @param handler
 	 * @return
 	 */
-	private void processPostalRequest(final DistributorService that, AmmoRequest ar) {
+	private void processPostalRequest(final AmmoService that, AmmoRequest ar) {
 		logger.info("::processPostalRequest()");
 
 		// Dispatch the message.
@@ -514,7 +513,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			values.put(PostalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			if (!that.getNetworkServiceBinder().isConnected()) {
+			if (!that.isConnected()) {
 				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
 				long key = this.store.upsertPostal(values, policy.makeRouteMap());
 				logger.info("no network connection, added {}", key);
@@ -572,10 +571,10 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Check for requests whose delivery policy has not been fully satisfied
 	 * and for which there is, now, an available channel.
 	 */
-	private void processPostalTable(final DistributorService that) {
+	private void processPostalTable(final AmmoService that) {
 		logger.info("::processPostalTable()");
 
-		if (!that.getNetworkServiceBinder().isConnected()) 
+		if (!that.isConnected()) 
 			return;
 
 		final Cursor pending = this.store.queryPostalReady();
@@ -640,7 +639,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			}
 			// Dispatch the request.
 			try {
-				if (!that.getNetworkServiceBinder().isConnected()) {
+				if (!that.isConnected()) {
 					logger.info("no network connection");
 					continue;
 				} 
@@ -693,7 +692,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @return
 	 */
 	private Map<String,DisposalState> 
-	dispatchPostalRequest(final DistributorService that, final String uri, 
+	dispatchPostalRequest(final AmmoService that, final String uri, 
 			final String msgType,
 			final DistributorPolicy.Topic policy, final Map<String,DisposalState> status,
 			final RequestSerializer serializer, final INetworkService.OnSendMessageHandler handler)  {
@@ -758,11 +757,11 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @return
 	 */
 	@SuppressWarnings("unused")
-	private void processPublishRequest(DistributorService that, AmmoRequest agm, int st) {
+	private void processPublishRequest(AmmoService that, AmmoRequest agm, int st) {
 		logger.info("::processPublicationRequest()");
 	}
 
-	private void processPublishTable(DistributorService that) {
+	private void processPublishTable(AmmoService that) {
 		logger.error("::processPublishTable : not implemented");
 	}
 
@@ -780,7 +779,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 */
 	@SuppressWarnings("unused")
 	private Map<String,Boolean> 
-	dispatchPublishRequest(DistributorService that, String uri, String mimeType, 
+	dispatchPublishRequest(AmmoService that, String uri, String mimeType, 
 			Map<String,Boolean> status,
 			byte []data, INetworkService.OnSendMessageHandler handler) {
 		logger.info("::dispatchPublishRequest");
@@ -823,7 +822,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @param agm
 	 * @param st
 	 */
-	private void processRetrievalRequest(DistributorService that, AmmoRequest agm) {
+	private void processRetrievalRequest(AmmoService that, AmmoRequest agm) {
 		logger.info("::processRetrievalRequest()");
 
 		// Dispatch the message.
@@ -839,7 +838,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			values.put(RetrievalTableSchema.PRIORITY.cv(), agm.priority);
 			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			if (!that.getNetworkServiceBinder().isConnected()) {
+			if (!that.isConnected()) {
 				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
 				this.store.upsertRetrieval(values, policy.makeRouteMap());
 				logger.info("no network connection");
@@ -884,7 +883,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * 
 	 * Garbage collect items which are expired.
 	 */
-	private void processRetrievalTable(DistributorService that) {
+	private void processRetrievalTable(AmmoService that) {
 		logger.info("::processRetrievalTable()");
 
 		final Cursor pending = this.store.queryRetrievalReady();
@@ -922,7 +921,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			}
 
 			try {
-				if (!that.getNetworkServiceBinder().isConnected()) {
+				if (!that.isConnected()) {
 					logger.info("no network connection");
 					continue;
 				} 
@@ -975,7 +974,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 */
 
 	private Map<String,DisposalState> 
-	dispatchRetrievalRequest(final DistributorService that, String retrievalId, String selection,  
+	dispatchRetrievalRequest(final AmmoService that, String retrievalId, String selection,  
 			String topic, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
 		logger.info("::dispatchRetrievalRequest");
@@ -1057,7 +1056,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * @param agm
 	 * @param st
 	 */
-	private void processSubscribeRequest(DistributorService that, AmmoRequest agm, int st) {
+	private void processSubscribeRequest(AmmoService that, AmmoRequest agm, int st) {
 		logger.info("::processSubscribeRequest()");
 
 		// Dispatch the message.
@@ -1072,7 +1071,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			values.put(SubscribeTableSchema.PRIORITY.cv(), agm.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			if (!that.getNetworkServiceBinder().isConnected()) {
+			if (!that.isConnected()) {
 				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
 				long key = this.store.upsertSubscribe(values, policy.makeRouteMap());
 				logger.info("no network connection, added {}", key);
@@ -1118,7 +1117,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Garbage collect items which are expired.
 	 */
 
-	private void processSubscribeTable(DistributorService that) {
+	private void processSubscribeTable(AmmoService that) {
 		logger.info("::processSubscribeTable()");
 
 		final Cursor pending = this.store.querySubscribeReady();
@@ -1156,7 +1155,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 			}
 
 			try {
-				if (!that.getNetworkServiceBinder().isConnected()) {
+				if (!that.isConnected()) {
 					logger.info("no network connection");
 					continue;
 				} 
@@ -1201,7 +1200,7 @@ extends AsyncTask<DistributorService, Integer, Void>
 	 * Deliver the subscription request to the network service for processing.
 	 */
 	private Map<String,DisposalState> 
-	dispatchSubscribeRequest(final DistributorService that, String topic, 
+	dispatchSubscribeRequest(final AmmoService that, String topic, 
 			String selection, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
 		logger.info("::dispatchSubscribeRequest");

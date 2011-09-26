@@ -30,6 +30,7 @@ import android.widget.TabHost;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.api.AmmoIntents;
+import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Channel;
@@ -37,7 +38,6 @@ import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetworkService;
-import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
@@ -84,20 +84,18 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     private INetworkService networkServiceBinder;
 
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
+    	final private AmmoActivity parent = AmmoActivity.this;
+    	
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.info("::onServiceConnected - Network Service");
-            networkServiceBinder = ((NetworkService.MyBinder) service).getService();
+            final AmmoService.DistributorServiceAidl binder = (AmmoService.DistributorServiceAidl) service;
+            parent.networkServiceBinder = binder.getService();
             initializeGatewayAdapter();
             initializeNetlinkAdapter();
         }
-
         public void onServiceDisconnected(ComponentName name) {
             logger.info("::onServiceDisconnected - Network Service");
-            networkServiceBinder = null;
-            // FIXME: what to do here if the NS goes away?
-            // Change the model for the adapters to an empty list.
-            // This situation should probably never happen, but we should
-            // handle it properly anyway.
+            parent.networkServiceBinder = null;
         }
     };
 
@@ -140,7 +138,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         this.setContentView(R.layout.ammo_activity);
 
         // Get a reference to the NetworkService.
-        Intent networkServiceIntent = new Intent(this, NetworkService.class);
+        Intent networkServiceIntent = new Intent(this, AmmoService.class);
         boolean result = bindService( networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE );
         if ( !result )
             logger.error( "AmmoActivity failed to bind to the NetworkService!" );

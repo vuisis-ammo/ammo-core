@@ -1,7 +1,7 @@
 /**
  *
  */
-package edu.vu.isis.ammo.core.network;
+package edu.vu.isis.ammo.core;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,9 +20,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
+import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
-import android.os.Binder;
+import android.os.Environment;
 import android.os.IBinder;
+import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
@@ -32,11 +34,11 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
-import edu.vu.isis.ammo.core.ApplicationEx;
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.IDistributorService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
-import edu.vu.isis.ammo.core.distributor.DistributorService;
-import edu.vu.isis.ammo.core.distributor.DistributorService.ChannelChange;
+import edu.vu.isis.ammo.core.distributor.DistributorThread;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
@@ -44,7 +46,17 @@ import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.core.network.IChannelManager;
+import edu.vu.isis.ammo.core.network.INetChannel;
+import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.network.JournalChannel;
+import edu.vu.isis.ammo.core.network.MulticastChannel;
+import edu.vu.isis.ammo.core.network.NetChannel;
+import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
+import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -53,14 +65,37 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  * application and the server. Currently, this service implements a UDP
  * connection for periodic data updates and a long-polling TCP connection for
  * event driven notifications.
+ * 
+ * 
+ * The AmmoService is responsible for prioritizing and serializing
+ * requests for data communications between distributed application databases. 
+ * The AmmoService issues calls to the NetworkService for updates and then writes the
+ * results to the correct content provider using the deserialization mechanism
+ * defined by each content provider.
+ * 
+ * Any activity or application wishing to send data via the AmmoService
+ * should use one of the AmmoRequest API methods for communication between
+ * said application and AmmoCore.
+ * 
+ * Any activity or application wishing to receive updates when a content
+ * provider has been modified can register via a custom ContentObserver
+ * subclass.
+ * 
+ * The real work is delegated to the Distributor Thread, which maintains a queue.
+ * 
  */
-public class NetworkService extends Service implements
+public class AmmoService extends Service implements
 OnSharedPreferenceChangeListener, INetworkService,
 INetworkService.OnSendMessageHandler, IChannelManager {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger("net.service");
+	private static final Logger logger = LoggerFactory.getLogger("ammo-service");
+
+	public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
+	public static final String BIND = "edu.vu.isis.ammo.core.distributor.AmmoService.BIND";
+	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.AmmoService.PREPARE_FOR_STOP";
+	public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.AmmoService.SEND_SERIALIZED";
 
 	// Local constants
 	public static final String DEFAULT_GATEWAY_HOST = "129.59.129.189";
@@ -73,6 +108,29 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public static final String DEFAULT_MULTICAST_NET_CONN = "20";
 	public static final String DEFAULT_MULTICAST_IDLE_TIME = "3";
 
+	/**
+	 * The channel status map
+	 * It should not be changed by the main thread.
+	 */
+	public enum ChannelChange {
+		ACTIVATE(1), DEACTIVATE(2), REPAIR(3);
+
+		final public int o; // ordinal
+
+		private ChannelChange(int o) {
+			this.o = o;
+		}
+		public int cv() {
+			return this.o;
+		}
+		static public ChannelChange getInstance(int ordinal) {
+			return ChannelChange.values()[ordinal];
+		}
+		public String q() {
+			return new StringBuilder().append("'").append(this.o).append("'").toString();
+		}
+	}
+	
 	public static enum NPSReturnCode {
 		NO_CONNECTION, SOCKET_EXCEPTION, UNKNOWN, BAD_MESSAGE, OK
 	};
@@ -102,6 +160,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 
 	// Interfaces
+	
 
 	// ===========================================================
 	// Fields
@@ -137,8 +196,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return networkingSwitch = networkingSwitch ? false : true;
 	}
 
-	private DistributorService distributor;
-
 	// Channels
 	final private NetChannel tcpChannel = TcpChannel.getInstance("gateway", this);
 	final private NetChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
@@ -146,27 +203,63 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	final private Map<String,NetChannel> mChannelMap = new HashMap<String,NetChannel>();
 
-	private MyBroadcastReceiver myReceiver = null;
-	private IRegisterReceiver mReceiverRegistrar = new IRegisterReceiver() {
-		@Override
-		public Intent registerReceiver(final BroadcastReceiver aReceiver,
-				final IntentFilter aFilter) {
-			return NetworkService.this.registerReceiver(aReceiver, aFilter);
-		}
+	private NetworkBroadcastReceiver myNetworkReceiver = null;
+	
+	private DistributorThread distThread;
 
+	public void onChannelChange(String name, ChannelChange change) {
+		logger.info("channel {} changed its status to {}", name, change);
+		this.distThread.onChannelChange(name, change);
+	}
+	
+
+	private TelephonyManager tm;
+	private CellPhoneListener cellPhoneListener;
+	private WifiReceiver wifiReceiver;
+
+	private ReadyBroadcastReceiver mReadyResourceReceiver = null;
+	private boolean mNetworkConnected = false;
+	private boolean mSdCardAvailable = false;
+
+	// ===========================================================
+	// AIDL Implementation
+	// ===========================================================
+
+	public class DistributorServiceAidl extends IDistributorService.Stub {
 		@Override
-		public void unregisterReceiver(final BroadcastReceiver aReceiver) {
-			NetworkService.this.unregisterReceiver(aReceiver);
+		public String makeRequest(AmmoRequest request) throws RemoteException {
+			logger.trace("make request {}", request.action.toString());
+			return AmmoService.this.distThread.distributeRequest(request);
 		}
-	};
+		@Override
+		public AmmoRequest recoverRequest(String uuid) throws RemoteException {
+			logger.trace("recover data request {}", uuid);
+			return null;
+		}
+		
+		public AmmoService getService() {
+			logger.trace("MyBinder::getService");
+			return AmmoService.this;
+		}
+	}
+
+	@Override
+	public IBinder onBind(Intent intent) {
+		logger.trace("client binding...");
+		return new DistributorServiceAidl();
+	}
 
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
 
-	private final IBinder binder = new MyBinder();
-
 	private ApplicationEx application;
+	
+	private IRegisterReceiver mReceiverRegistrar = null;
+
+	private DistributorPolicy policy;
+	public DistributorPolicy policy() { return this.policy; }
+
 
 	@SuppressWarnings("unused")
 	private ApplicationEx getApplicationEx() {
@@ -175,21 +268,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return this.application;
 	}
 
-	public class MyBinder extends Binder {
-		public NetworkService getService() {
-			logger.trace("MyBinder::getService");
-			return NetworkService.this;
-		}
-	}
-
-	/**
-	 * Class for clients to access. This service always runs in the same process
-	 * as its clients. So no inter-*process* communication is needed.
-	 */
-	@Override
-	public IBinder onBind(Intent arg0) {
-		logger.trace("MyBinder::onBind {}", Thread.currentThread().toString());
-		return binder;
+	public void notifyAmmoReady(Intent intent, int flags, int startId) {
+		logger.info("Forcing applications to register their subscriptions");
+		// broadcast login event to apps ...
+		final Intent loginIntent = new Intent(IPrefKeys.AMMO_READY);
+		//loginIntent.putExtra("operatorId", operatorId);
+		this.sendBroadcast(loginIntent);
 	}
 
 	/**
@@ -202,13 +286,32 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 */
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		logger.info("::onStartCommand");
-		if (intent.getAction().equals(NetworkService.PREPARE_FOR_STOP)) {
-			logger.debug("Preparing to stop NPS");
-			this.teardown();
-			this.stopSelf();
-			return START_NOT_STICKY;
-		}
+		logger.info("::onStartCommand {}", intent);
+		// If we get this intent, unbind from all services 
+		// so the service can be stopped.
+		if (intent != null) {
+			final String action = intent.getAction();
+			if (action != null) {
+				if (action.equals(AmmoService.PREPARE_FOR_STOP)) {
+					this.teardown();
+					this.stopSelf();
+					return START_NOT_STICKY;
+				}
+				if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {
+					try {
+						final AmmoRequest request = intent.getParcelableExtra("request");
+						final String result = this.distThread.distributeRequest(request);
+						logger.info("distributing {}", result);
+					} catch (ArrayIndexOutOfBoundsException ex) {
+						logger.error("could not unmarshall the ammo request parcel");
+					}
+					return START_NOT_STICKY;
+				}
+			}
+			logger.info("::onStartCommand {}", intent);
+		} 
+		notifyAmmoReady(intent, flags, startId);
+		
 		logger.info("started");
 		return START_STICKY;
 	}
@@ -222,8 +325,51 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		logger.info("onCreate");
-		SharedPreferences prefs = PreferenceManager
+		logger.info("::onCreate");
+
+		// set up the worker thread
+		this.distThread = new DistributorThread(this.getApplicationContext());
+
+		// Initialize our receivers/listeners.
+		/*
+         wifiReceiver = new WifiReceiver();
+         cellPhoneListener = new CellPhoneListener(this);
+         tm = (TelephonyManager) this .getSystemService(Context.TELEPHONY_SERVICE);
+         tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_DATA_ACTIVITY | PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+		 */
+
+		// Listen for changes to resource availability
+		this.mReadyResourceReceiver = new ReadyBroadcastReceiver();
+		this.mReceiverRegistrar = new IRegisterReceiver() {
+			@Override
+			public Intent registerReceiver(final BroadcastReceiver aReceiver, final IntentFilter aFilter) {
+				return AmmoService.this.registerReceiver(aReceiver, aFilter);
+			}
+
+			@Override
+			public void unregisterReceiver(final BroadcastReceiver aReceiver) {
+				AmmoService.this.unregisterReceiver(aReceiver);
+			}
+		};
+		final IntentFilter readyFilter = new IntentFilter();
+
+		readyFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
+		readyFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+		mReceiverRegistrar.registerReceiver(mReadyResourceReceiver, readyFilter);
+
+		final IntentFilter mediaFilter = new IntentFilter();
+
+		mediaFilter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+		mediaFilter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+		mediaFilter.addDataScheme("file");
+		mReceiverRegistrar.registerReceiver(mReadyResourceReceiver, mediaFilter);
+
+		mReadyResourceReceiver.checkResourceStatus(this);
+
+		this.policy = DistributorPolicy.newInstance(this.getBaseContext());
+		
+
+		final SharedPreferences prefs = PreferenceManager
 				.getDefaultSharedPreferences(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
 
@@ -255,9 +401,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			this.tcpChannel.enable();
 		}
 		this.multicastChannel.enable();
+		
+	
 
-
-		this.myReceiver = new MyBroadcastReceiver();
+		this.myNetworkReceiver = new NetworkBroadcastReceiver();
 
 		final IntentFilter networkFilter = new IntentFilter();
 		networkFilter.addAction(INetworkService.ACTION_RECONNECT);
@@ -265,14 +412,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		networkFilter.addAction(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
 		networkFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
-		networkFilter
-		.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
+		networkFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
 		networkFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
 		networkFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
 		networkFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
 
-		this.mReceiverRegistrar
-		.registerReceiver(this.myReceiver, networkFilter);
+		this.mReceiverRegistrar.registerReceiver(this.myNetworkReceiver, networkFilter);
 
 		mListener = new PhoneStateListener() {
 			public void onDataConnectionStateChanged(int state) {
@@ -295,18 +440,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
 		loginIntent.putExtra("operatorId", operatorId);
 		this.sendBroadcast(loginIntent);
-	}
-	/**
-	 *  There is now someplace to send the received messages, namely the distributor.
-	 *  The channels should not be started until the distributor is active.
-	 */	
-	public void setDistributorServiceCallback(DistributorService callback) {
-		logger.info("::setDistributorServiceCallback");
-
-		this.distributor = callback;
-
+		
 		this.acquirePreferences();
 		this.multicastChannel.reset(); 
+
 	}
 
 	@Override
@@ -315,8 +452,18 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
 		this.journalChannel.close();
+		
+		if (this.tm != null) 
+			this.tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
+		
+		if (this.wifiReceiver != null) 
+			this.wifiReceiver.setInitialized(false);
 
-		this.mReceiverRegistrar.unregisterReceiver(this.myReceiver);
+		if (this.mReceiverRegistrar != null) {
+			this.mReceiverRegistrar.unregisterReceiver(this.myNetworkReceiver);
+			this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
+		}
+
 		super.onDestroy();
 	}
 
@@ -335,20 +482,15 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.journalingSwitch = prefs.getBoolean(
 				INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
 
-		this.gatewayEnabled = prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE,
-				true);
+		this.gatewayEnabled = prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
 		this.networkingSwitch = prefs.getBoolean(
 				INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 
-		this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID,
-				this.deviceId);
-		this.operatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID,
-				this.operatorId);
-		this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY,
-				this.operatorKey);
+		this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
+		this.operatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, this.operatorId);
+		this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
 
-		String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR,
-				DEFAULT_GATEWAY_HOST);
+		String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
 		this.tcpChannel.setHost(gatewayHostname);
 
 		String gatewayPortStr = prefs.getString(INetPrefKeys.CORE_IP_PORT,
@@ -397,8 +539,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("::onSharedPreferenceChanged {}", key);
 
 		if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
-			String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR,
-					DEFAULT_GATEWAY_HOST);
+			String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
 			this.tcpChannel.setHost(gatewayHostname);
 			return;
 		}
@@ -427,16 +568,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			return;
 		}
 		if (key.equals(IPrefKeys.CORE_OPERATOR_ID)) {
-			operatorId = prefs
-					.getString(IPrefKeys.CORE_OPERATOR_ID, operatorId);
+			operatorId = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, operatorId);
 			if (this.isConnected())
 				this.auth(); // TBD SKN: this should really do a setStale rather
 			// than just authenticate
 			return;
 		}
 		if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
-			operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY,
-					operatorKey);
+			operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, operatorKey);
 			if (this.isConnected())
 				this.auth();
 			return;
@@ -462,10 +601,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
 			logger.info("explicit opererator reset on channel");
 			this.networkingSwitch = true;
-			if (this.distributor != null) {
-				this.tcpChannel.reset();
-				this.multicastChannel.reset();
-			}
+		
+			this.tcpChannel.reset();
+			this.multicastChannel.reset();
 		}
 
 		if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
@@ -481,7 +619,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		if (key.equals(INetPrefKeys.GATEWAY_SHOULD_USE)) {
 			if (prefs.getBoolean(key, true)) {
-
 				this.tcpChannel.enable();
 			} else {
 				this.tcpChannel.disable();
@@ -573,17 +710,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	public boolean deliver(AmmoGatewayMessage agm) {
-		logger.info("::deliverGatewayResponse {}", agm);
-
-		// FIXME: we do this because multicast packets can come in
-		// before the distributor is set. This test is a workaround,
-		// and we should probably just not create the TcpChannel until
-		// the distributor is connected up. That change may have
-		// far-reaching effects, so I'll save it for after the demo.
-		if (distributor == null)
-			return false;
-
-		return this.distributor.deliver(agm);
+		return distThread.distributeResponse(agm);
 	}
 
 	// ===============================================================
@@ -607,7 +734,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			// Stop this service
 			@Override
 			public void run() {
-				distributor.finishTeardown();
+				AmmoService.this.stopSelf();
 				stopSelf();
 			}
 		}, 1000);
@@ -646,12 +773,110 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 
 
+
+
+	/**
+	 * This routine is called when a message is successfully sent or when it is
+	 * discarded. It is currently unused, but we may want to do something with
+	 * it in the future.
+	 */
+	@Override
+	public boolean ack(String channel, DisposalState status) {
+		return false;
+	}
+
+	// The channel lets the NetworkService know that the channel was
+	// successfully authorized by calling this method.
+	public void authorizationSucceeded(NetChannel channel, AmmoGatewayMessage agm) {
+		// HACK! Fixme
+		final AmmoMessages.MessageWrapper mw;
+		try {
+			mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
+		} catch (InvalidProtocolBufferException ex) {
+			logger.error("parsing payload failed {}", ex.getLocalizedMessage());
+			return;
+		}
+		if (mw == null) {
+			logger.error("mw was null!");
+			return;
+		}
+
+		PreferenceManager
+		.getDefaultSharedPreferences(this)
+		.edit()
+		.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+		.commit();
+		sessionId = mw.getSessionUuid();
+
+		logger.trace("authentication complete, repost subscriptions and pending data : ");
+		this.onChannelChange(channel.name, ChannelChange.ACTIVATE);
+
+		logger.info("authentication complete inform applications : ");
+		// broadcast login event to apps ...
+		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		loginIntent.putExtra("operatorId", operatorId);
+		this.sendBroadcast(loginIntent);
+	}
+
+	/**
+	 * Deal with the status of the connection changing. 
+	 * Report the status to the application who acts as a broker.
+	 */
+	@Override
+	public void statusChange(NetChannel channel, int connStatus,
+			int sendStatus, int recvStatus) {
+		logger.debug("status change");
+		
+		mChannels.get(channel.name)
+		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
+
+		this.onChannelChange(channel.name, ChannelChange.DEACTIVATE);
+		// channel is ACTIVATED by authenticate
+
+		final Intent broadcastIntent = new Intent(
+				AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
+		this.sendBroadcast(broadcastIntent);
+	}
+
+	private void netlinkStatusChanged() {
+		final Intent broadcastIntent = new Intent(
+				AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE);
+		sendBroadcast(broadcastIntent);
+	}
+
+	public boolean isWiredLinkUp() {
+		return mNetlinks.get(linkTypes.WIRED.value).isLinkUp();
+	}
+
+	public boolean isWifiLinkUp() {
+		return mNetlinks.get(linkTypes.WIFI.value).isLinkUp();
+	}
+
+	public boolean is3GLinkUp() {
+		return mNetlinks.get(linkTypes.MOBILE_3G.value).isLinkUp();
+	}
+
+	public boolean isAnyLinkUp() {
+		return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
+	}
+
+	private final Map<String, Channel> mChannels = new HashMap<String, Channel>();
+	private final List<Netlink> mNetlinks = new ArrayList<Netlink>();
+
+	public List<Channel> getGatewayList() {
+		return new ArrayList<Channel>(mChannels.values());
+	}
+
+	public List<Netlink> getNetlinkList() {
+		return mNetlinks;
+	}
+	
 	/**
 	 * This should handle the link state behavior. This is really the main job
 	 * of the Network service; matching up links with channels.
 	 * 
 	 */
-	private class MyBroadcastReceiver extends BroadcastReceiver {
+	private class NetworkBroadcastReceiver extends BroadcastReceiver {
 		@Override
 		public void onReceive(final Context context, final Intent aIntent) {
 			final String action = aIntent.getAction();
@@ -713,100 +938,47 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			return;
 		}
 	}
-
+	
 	/**
-	 * This routine is called when a message is successfully sent or when it is
-	 * discarded. It is currently unused, but we may want to do something with
-	 * it in the future.
+	
 	 */
-	@Override
-	public boolean ack(String channel, DisposalState status) {
-		return false;
-	}
+	private class ReadyBroadcastReceiver extends BroadcastReceiver {
 
-	// The channel lets the NetworkService know that the channel was
-	// successfully authorized by calling this method.
-	public void authorizationSucceeded(NetChannel channel, AmmoGatewayMessage agm) {
-		// HACK! Fixme
-		final AmmoMessages.MessageWrapper mw;
-		try {
-			mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
-		} catch (InvalidProtocolBufferException ex) {
-			logger.error("parsing payload failed {}", ex.getLocalizedMessage());
-			return;
-		}
-		if (mw == null) {
-			logger.error("mw was null!");
-			return;
+		@Override
+		public void onReceive(final Context aContext, final Intent aIntent) {
+
+			final String action = aIntent.getAction();
+
+			logger.info("::onReceive: {}", action);
+			checkResourceStatus(aContext);
+
+			if (Intent.ACTION_MEDIA_MOUNTED.equals(action)) {
+			}
 		}
 
-		PreferenceManager
-		.getDefaultSharedPreferences(this)
-		.edit()
-		.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
-		.commit();
-		sessionId = mw.getSessionUuid();
+		public void checkResourceStatus(final Context aContext) { //
+			logger.info("::checkResourceStatus");
+			{ 
+				final WifiManager wm = (WifiManager) aContext.getSystemService(Context.WIFI_SERVICE);
+				final int wifiState = wm.getWifiState(); // TODO check for permission or catch error
+				logger.info("wifi state={}", wifiState);
 
-		logger.trace("authentication complete, repost subscriptions and pending data : ");
-		this.distributor.onChannelChange(channel.name, ChannelChange.ACTIVATE);
+				final TelephonyManager tm = (TelephonyManager) aContext.getSystemService(
+						Context.TELEPHONY_SERVICE);
+				final int dataState = tm.getDataState(); // TODO check for permission or catch error
+				logger.info("telephone data state={}", dataState);
 
-		logger.info("authentication complete inform applications : ");
-		// broadcast login event to apps ...
-		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-		loginIntent.putExtra("operatorId", operatorId);
-		this.sendBroadcast(loginIntent);
-	}
+				mNetworkConnected = wifiState == WifiManager.WIFI_STATE_ENABLED
+						|| dataState == TelephonyManager.DATA_CONNECTED;
+				logger.info("mConnected={}", mNetworkConnected);
+			} 
+			{
+				final String state = Environment.getExternalStorageState();
 
-	/**
-	 * Deal with the status of the connection changing. 
-	 * Report the status to the application who acts as a broker.
-	 */
-	@Override
-	public void statusChange(NetChannel channel, int connStatus,
-			int sendStatus, int recvStatus) {
-		// FIXME Once we have multiple gateways we'll have to fix this.
-		// If the channel being updated is a MulticastChannel
-		mChannels.get(channel.name)
-		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
-
-		this.distributor.onChannelChange(channel.name, ChannelChange.DEACTIVATE);
-		// channel is ACTIVATED by authenticate
-
-		final Intent broadcastIntent = new Intent(
-				AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
-		this.sendBroadcast(broadcastIntent);
-	}
-
-	private void netlinkStatusChanged() {
-		final Intent broadcastIntent = new Intent(
-				AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE);
-		sendBroadcast(broadcastIntent);
-	}
-
-	public boolean isWiredLinkUp() {
-		return mNetlinks.get(linkTypes.WIRED.value).isLinkUp();
-	}
-
-	public boolean isWifiLinkUp() {
-		return mNetlinks.get(linkTypes.WIFI.value).isLinkUp();
-	}
-
-	public boolean is3GLinkUp() {
-		return mNetlinks.get(linkTypes.MOBILE_3G.value).isLinkUp();
-	}
-
-	public boolean isAnyLinkUp() {
-		return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
-	}
-
-	private final Map<String, Channel> mChannels = new HashMap<String, Channel>();
-	private final List<Netlink> mNetlinks = new ArrayList<Netlink>();
-
-	public List<Channel> getGatewayList() {
-		return new ArrayList<Channel>(mChannels.values());
-	}
-
-	public List<Netlink> getNetlinkList() {
-		return mNetlinks;
+				logger.info("sdcard state={}", state);
+				mSdCardAvailable = Environment.MEDIA_MOUNTED.equals(state);
+				logger.info("mSdcardAvailable={}", mSdCardAvailable);
+			}
+		}
 	}
 }

@@ -8,7 +8,6 @@ import java.util.List;
 
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
-import edu.vu.isis.ammo.core.distributor.DistributorService;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Netlink;
 
@@ -37,18 +36,6 @@ public interface INetworkService {
     boolean isConnected();
 
     public DisposalState sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic );
-    
-    /**
-     * Pass control to the distributor service to handle the message.
-     * The network service proxy is responsible for receiving messages from
-     * multiple channels but not for processing them.
-     *
-     * The only processing is to determine which type of message has been
-     * received and passing it to the distributor service.
-     *
-     * @param callback
-     */
-    void setDistributorServiceCallback(DistributorService callback);
 
     List<Channel> getGatewayList();
     List<Netlink> getNetlinkList();
