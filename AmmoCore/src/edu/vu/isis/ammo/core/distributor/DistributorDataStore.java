@@ -1223,10 +1223,6 @@ public class DistributorDataStore {
 	.toString();
 
 
-	public long upsertDisposal(ContentValues cv) {
-		return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.STATE.n, cv);
-	}
-
 	public long[] upsertDisposalByParent(long id, Tables type, 
 			Map<String, DisposalState> status) {
 		final long[] idArray = new long[status.size()];
@@ -1286,18 +1282,18 @@ public class DistributorDataStore {
 	.toString();
 
 	public void upsertChannelByName(String channel, ChannelState status) {
-		DistributorDataStore.upsertChannelByName(this.db, channel, status);
-	}
-	static private void upsertChannelByName(SQLiteDatabase db, String channel, ChannelState status) {
-		final ContentValues cv = new ContentValues();
-		cv.put(ChannelTableSchema.NAME.cv(), channel);
+		final ContentValues cv = new ContentValues();		
 		cv.put(ChannelTableSchema.STATE.cv(), status.cv());
 
-		final int updateCount = db.update(Tables.CHANNEL.n, cv, 
-				DISPOSAL_UPDATE_CLAUSE, new String[]{ channel } );
+		final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
+				CHANNEL_UPDATE_CLAUSE, new String[]{ channel } );
 		if (updateCount > 0) return;
+		
+		cv.put(ChannelTableSchema.NAME.cv(), channel);
 		db.insert(Tables.CHANNEL.n, ChannelTableSchema.NAME.n, cv);
 	}
+	static final private String CHANNEL_UPDATE_CLAUSE = new StringBuilder()
+	.append(ChannelTableSchema.NAME.q()).append("=?").toString();
 
 	/**
 	 * Update an object represented in the database.
