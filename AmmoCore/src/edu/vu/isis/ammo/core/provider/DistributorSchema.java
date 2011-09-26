@@ -35,6 +35,11 @@ public class DistributorSchema implements BaseColumns, BaseDateColumns {
 		   }
 	   }
 	   
+	   /**
+	    * Special URI that when queried, returns a cursor to the number of 
+	    * queued messages per channel (where each channel is in a separate row)
+	    */
+	   
 	   
 	   /**
 	    * The MIME type of {@link #CONTENT_URI} providing a directory

@@ -37,5 +37,4 @@ public class PackageInstalledReceiver extends BroadcastReceiver {
 			context.sendBroadcast(i);
 		}
 	}
-
 }

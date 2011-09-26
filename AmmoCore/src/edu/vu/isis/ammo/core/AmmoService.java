@@ -329,7 +329,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		// set up the worker thread
 		this.distThread = new DistributorThread(this.getApplicationContext());
-
+		this.distThread.execute(this);
 		// Initialize our receivers/listeners.
 		/*
          wifiReceiver = new WifiReceiver();

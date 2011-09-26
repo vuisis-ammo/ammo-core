@@ -18,12 +18,18 @@ public class DistributorProvider extends ContentProvider {
 	// =================================
 	// Constants
 	// =================================
+	private static final int GATEWAY_GROUP = 1000;
+	private static final int MULTICAST_GROUP = 1001;
+	
 	private static final UriMatcher uriMatcher;
 	   static {
 		   uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
 		   for (Tables table : Tables.values()) {
 			   uriMatcher.addURI(DistributorSchema.AUTHORITY, table.n, table.ordinal());
 		   }
+		   
+		   // Special Uri's for querying 
+		   // uriMatcher.addURI(DistributorSchema.AUTHORITY, Tables.DISPOSAL.n+"/group", code)
 	   }
 	
 	// =================================
@@ -78,6 +84,9 @@ public class DistributorProvider extends ContentProvider {
 			c = dds.queryChannel(projection, selection, selectionArgs, sortOrder);
 			break;
 		default:
+			// If we get here, it's a special uri and should be matched differently.
+			
+			
 			c = null;
 		}
 		
