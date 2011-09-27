@@ -1181,7 +1181,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 									return true;
 								}
 							});
-					this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
+					this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
 				logger.warn("NullPointerException, sending to gateway failed");
@@ -1292,7 +1292,6 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		switch (encoding.getPayload()) {
 		case JSON: 
-		case TERSE:
 		{
 			int position = 0;
 			for (; position < data.length || data[position] == (byte)0x0; position++) {
@@ -1352,6 +1351,11 @@ extends AsyncTask<AmmoService, Integer, Void>
 			}	
 			return insertTuple;
 		}
+		case TERSE: 
+		{
+			logger.error("terse deserialization not implemented");
+			return null;
+		}
 		// TODO as with the serializer the CUSTOM section will presume for the
 		// content provider the existence of a SyncAdaptor
 		case CUSTOM:
@@ -1376,7 +1380,6 @@ extends AsyncTask<AmmoService, Integer, Void>
 		logger.trace("serializing using encoding {}", encoding);
 		switch (encoding.getPayload()) {
 		case JSON: 
-		case TERSE:
 		{
 			logger.trace("Serialize the non-blob data");
 
@@ -1484,6 +1487,11 @@ extends AsyncTask<AmmoService, Integer, Void>
 			return finalTuple;
 		}
 		
+		case TERSE: 
+		{
+			logger.error("terse serialization not implemented");
+			return null;
+		}
 		// TODO custom still needs a lot of work
 		// It will presume the presence of a SyncAdaptor for the content provider.
 		case CUSTOM:
