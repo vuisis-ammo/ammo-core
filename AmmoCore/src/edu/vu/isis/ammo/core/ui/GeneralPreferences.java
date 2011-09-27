@@ -38,6 +38,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	private MyCheckBoxPreference mcEnabledPref;
 	private MyEditIntegerPreference mcConnIdlePref;
 	private MyEditIntegerPreference mcNetConnPref;
+	private MyEditIntegerPreference mcTTLPref;
 
 	private MyEditTextPreference ipPref;
 
@@ -93,8 +94,13 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.mcNetConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT);
 		this.mcNetConnPref.setType(Type.TIMEOUT);
 		this.mcNetConnPref.refreshSummaryField();
-		
-		
+
+		// Network Connection Timeout
+		this.mcTTLPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_TTL);
+		this.mcTTLPref.setType(Type.TTL);
+		this.mcTTLPref.refreshSummaryField();
+
+
 		/*
 		 * Gateway Setup
 		 */
