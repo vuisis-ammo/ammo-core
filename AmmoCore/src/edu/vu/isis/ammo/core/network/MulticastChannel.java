@@ -19,6 +19,7 @@ import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
@@ -84,6 +85,7 @@ public class MulticastChannel extends NetChannel
     private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
     private int mMulticastPort;
+    private AtomicInteger mMulticastTTL;
 
     private SenderQueue mSenderQueue;
 
@@ -98,11 +100,12 @@ public class MulticastChannel extends NetChannel
 
     private MulticastChannel(String name, IChannelManager iChannelManager ) {
         super(name);
-        
+
         logger.info("Thread <{}>MulticastChannel::<constructor>", Thread.currentThread().getId());
         this.syncObj = this;
 
         mIsAuthorized = new AtomicBoolean( false );
+        mMulticastTTL = new AtomicInteger( 1 );
 
         mChannelManager = iChannelManager;
 
@@ -110,10 +113,9 @@ public class MulticastChannel extends NetChannel
 
         mSenderQueue = new SenderQueue( this );
 
-        this.connectorThread = new ConnectorThread(this);
         // The thread is start()ed the first time the network disables and
         // reenables it.
-        
+        this.connectorThread = new ConnectorThread(this);
     }
 
 
@@ -189,12 +191,18 @@ public class MulticastChannel extends NetChannel
         this.reset();
         return true;
     }
+
     public boolean setPort(int port) {
         logger.info("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
         if (this.mMulticastPort == port) return false;
         this.mMulticastPort = port;
         this.reset();
         return true;
+    }
+
+    public void setTTL( int ttl ) {
+        logger.info("Thread <{}>::setTTL {}", Thread.currentThread().getId(), ttl);
+        this.mMulticastTTL.set( ttl );
     }
 
     public String toString() {
@@ -951,6 +959,8 @@ public class MulticastChannel extends NetChannel
                     logger.debug( "...{}", buf.remaining() );
                     logger.debug( "...{}", mChannel.mMulticastGroup );
                     logger.debug( "...{}", mChannel.mMulticastPort );
+
+                    mSocket.setTimeToLive( mChannel.mMulticastTTL.get() );
                     mSocket.send( packet );
 
                     logger.info( "Wrote packet to MulticastSocket." );

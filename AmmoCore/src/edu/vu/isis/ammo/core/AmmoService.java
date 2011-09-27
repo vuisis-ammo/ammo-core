@@ -107,6 +107,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public static final String DEFAULT_MULTICAST_PORT = "9982";
 	public static final String DEFAULT_MULTICAST_NET_CONN = "20";
 	public static final String DEFAULT_MULTICAST_IDLE_TIME = "3";
+	public static final String DEFAULT_MULTICAST_TTL = "1";
 
 	/**
 	 * The channel status map
@@ -198,7 +199,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	// Channels
 	final private NetChannel tcpChannel = TcpChannel.getInstance("gateway", this);
-	final private NetChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
+	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
 	final private NetChannel journalChannel = JournalChannel.getInstance("journal", this);
 
 	final private Map<String,NetChannel> mChannelMap = new HashMap<String,NetChannel>();
@@ -520,10 +521,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		int multicastIdleTime = Integer.parseInt(prefs.getString(
 				INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT,
 				DEFAULT_MULTICAST_IDLE_TIME));
+		int multicastTTL = Integer.parseInt(prefs.getString(
+				INetPrefKeys.MULTICAST_TTL,
+				DEFAULT_MULTICAST_TTL));
 		this.multicastChannel.setHost(multicastHost);
 		this.multicastChannel.setPort(multicastPort);
 		this.multicastChannel.setFlatLineTime(multicastFlatLine);
 		this.multicastChannel.setSocketTimeout(multicastIdleTime);
+		this.multicastChannel.setTTL(multicastTTL);
 	}
 
 	/**
@@ -638,10 +643,17 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					INetPrefKeys.MULTICAST_IP_ADDRESS, DEFAULT_MULTICAST_HOST);
 			this.multicastChannel.setHost(ipAddress);
 		}
+
 		if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
 			int port = Integer.parseInt(prefs.getString(
 					INetPrefKeys.MULTICAST_PORT, DEFAULT_MULTICAST_PORT));
 			this.multicastChannel.setPort(port);
+		}
+
+		if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
+			int ttl = Integer.parseInt(prefs.getString(
+					INetPrefKeys.MULTICAST_TTL, DEFAULT_MULTICAST_TTL));
+			this.multicastChannel.setTTL(ttl);
 		}
 
 		return;

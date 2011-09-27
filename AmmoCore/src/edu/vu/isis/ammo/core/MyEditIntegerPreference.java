@@ -22,7 +22,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	// ===========================================================
 	public static final Logger logger = LoggerFactory.getLogger(MyEditIntegerPreference.class);
 	public static enum Type {
-		PORT, TIMEOUT
+		PORT, TIMEOUT, TTL
 	};
 	
 	// ===========================================================
@@ -105,6 +105,12 @@ public class MyEditIntegerPreference extends EditTextPreference {
 			}
 			
 			
+			break;
+		case TTL:
+			if (!this.validateTTL(uncheckedText)) {
+				Toast.makeText(context, "Invalid TTL value", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			}
 			break;
 		default:
 			// do nothing.
@@ -197,7 +203,27 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		
 		return returnValue;
 	}
-	
+
+	/**
+	 * Check that the TTL value supplied is appropriate (1 <= ttl <= 255)
+	 *
+	 * @param ttl
+	 * @return
+	 */
+	public boolean validateTTL(String ttl) {
+		try {
+			int ttlAsInt = Integer.valueOf(ttl);
+			if (ttlAsInt < 1)
+                return false;
+			if (ttlAsInt > 255)
+                return false;
+			return true;
+		} catch (NumberFormatException e) {
+			logger.debug("Invalid TTL number");
+			return false;
+		}
+	}
+
 	@Override 
 	protected void onDialogClosed (boolean positiveResult) {
 		super.onDialogClosed(positiveResult);
