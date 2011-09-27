@@ -39,6 +39,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
+import android.util.Log;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -562,7 +563,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		} catch (NullPointerException ex) {
 			logger.warn("NullPointerException, sending to gateway failed {}",
-					ex.getStackTrace());
+				    ex.getStackTrace() );
 		}
 	}
 
@@ -714,8 +715,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 						.setData(ByteString.copyFrom(serialized));
 				mw.setDataMessage(pushReq);
 
-				logger.debug("Finished wrap build @ time {}...difference of {} ms \n",
-						System.currentTimeMillis(), System.currentTimeMillis()-now);
+				logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
+					     System.currentTimeMillis()-now, serialized.length);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
 				return agmb.build();
 			}
@@ -808,7 +809,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 
 	/**
-	 * Process the subscription request.
+	 * Process the retrieval request.
 	 * There are two parts:
 	 * 1) checking to see if the network service is accepting requests 
 	 *    and sending the request if it is
@@ -823,7 +824,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processRetrievalRequest(AmmoService that, AmmoRequest agm) {
-		logger.info("::processRetrievalRequest()");
+	    logger.info("::processRetrievalRequest() {} {}", agm.topic.toString(), agm.provider.toString() );
 
 		// Dispatch the message.
 		try {
@@ -833,6 +834,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final ContentValues values = new ContentValues();
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
 			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());
+			values.put(RetrievalTableSchema.SELECTION.cv(), agm.select.toString());
 			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.durability);
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
 			values.put(RetrievalTableSchema.PRIORITY.cv(), agm.priority);
@@ -859,16 +861,16 @@ extends AsyncTask<AmmoService, Integer, Void>
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
+									DistributorThread.this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
 								}
 								return false;
 							}
 						});
-				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
+				this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed");
+		    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 		}
 	}
 
@@ -893,7 +895,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		{
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
-			final int id = pending.getInt(pending.getColumnIndex(PostalTableSchema._ID.n));
+			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
 			final String provider = pending.getString(pending.getColumnIndex(RetrievalTableSchema.PROVIDER.cv()));
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
 			// String disposition =
@@ -908,9 +910,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 			@SuppressWarnings("unused")
 			final Uri rowUri = Uri.parse(provider);
 
+
 			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
+				final Cursor channelCursor = this.store.queryDisposalReady(id,"retrieval");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -929,14 +932,14 @@ extends AsyncTask<AmmoService, Integer, Void>
 					final ContentValues values = new ContentValues();
 					final DistributorPolicy.Topic policy = that.policy().match(topic);
 
-					values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
+					values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 					@SuppressWarnings("unused")
-					final long numUpdated = this.store.updatePostalByKey(id, values);
+					final long numUpdated = this.store.updateRetrievalByKey(id, values);
 
 					final Map<String,DisposalState> dispatchResult = 
-							this.dispatchPostalRequest(that,
-									provider.toString(),
-									topic, policy, status, null,
+							this.dispatchRetrievalRequest(that,
+										      provider.toString(), selection,
+									topic, policy, status,
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
@@ -944,10 +947,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 									ContentValues values = new ContentValues();
 
-									values.put(PostalTableSchema.DISPOSITION.cv(), status.cv());
-									long numUpdated = DistributorThread.this.store.updatePostalByKey(id, values);
+									values.put(RetrievalTableSchema.DISPOSITION.cv(), status.cv());
+									long numUpdated = DistributorThread.this.store.updateRetrievalByKey(id, values);
 
-									logger.info("Postal: {} rows updated to {}",
+									logger.info("Retrieval: {} rows updated to {}",
 											numUpdated, status);
 
 									return false;
@@ -956,7 +959,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("NullPointerException, sending to gateway failed");
+			    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 			}
 		}
 		pending.close();
@@ -977,37 +980,41 @@ extends AsyncTask<AmmoService, Integer, Void>
 	dispatchRetrievalRequest(final AmmoService that, String retrievalId, String selection,  
 			String topic, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
-		logger.info("::dispatchRetrievalRequest");
+	    logger.info("::dispatchRetrievalRequest {}", topic);
 
-		/** Message Building */
+	    /** Message Building */
 
-		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
-		//mw.setSessionUuid(sessionId);
+	    final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+	    mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
+	    //mw.setSessionUuid(sessionId);
 
-		final AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
-				.setRequestUid(retrievalId)
-				.setMimeType(topic);
+	    final AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
+		.setRequestUid(retrievalId)
+		.setMimeType(topic);
 
-		if (selection != null) pushReq.setQuery(selection);
+	    if (selection != null) pushReq.setQuery(selection);
 
-		// projection
-		// max_results
-		// start_from_count
-		// live_query
-		// expiration
-
+	    // projection
+	    // max_results
+	    // start_from_count
+	    // live_query
+	    // expiration
+	    try {
 		mw.setPullRequest(pushReq);
-
 		final RequestSerializer serializer = RequestSerializer.newInstance();
 		serializer.setAction(new RequestSerializer.OnReady() {
 			@Override
-			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
-				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
-				return agmb.build();
+			    public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+			    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+			    return agmb.build();
 			}
-		});	
+		    });	
 		return this.dispatchRequest(that, serializer, policy, status);
+	    } catch (com.google.protobuf.UninitializedMessageException ex) {
+		logger.warn("Failed to marshal the message: {}", ex.getStackTrace() );
+	    }
+	    return status;
+		
 	}
 
 
@@ -1057,7 +1064,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processSubscribeRequest(AmmoService that, AmmoRequest agm, int st) {
-		logger.info("::processSubscribeRequest()");
+	    logger.info("::processSubscribeRequest() {}", agm.topic.toString() );
 
 		// Dispatch the message.
 		try {
@@ -1067,6 +1074,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final ContentValues values = new ContentValues();
 			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
 			values.put(SubscribeTableSchema.PROVIDER.cv(), agm.provider.cv());
+			values.put(SubscribeTableSchema.SELECTION.cv(), agm.select.toString());
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.durability);
 			values.put(SubscribeTableSchema.PRIORITY.cv(), agm.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
@@ -1091,12 +1099,12 @@ extends AsyncTask<AmmoService, Integer, Void>
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
+									DistributorThread.this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
 								}
 								return true;
 							}
 						});
-				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
+				this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
@@ -1127,7 +1135,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		{
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
-			final int id = pending.getInt(pending.getColumnIndex(PostalTableSchema._ID.n));
+			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
 			final String provider = pending.getString(pending.getColumnIndex(SubscribeTableSchema.PROVIDER.cv()));
 			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
 			// String disposition =
@@ -1144,7 +1152,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
+				final Cursor channelCursor = this.store.queryDisposalReady(id,"subscribe");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -1163,14 +1171,14 @@ extends AsyncTask<AmmoService, Integer, Void>
 					final ContentValues values = new ContentValues();
 					final DistributorPolicy.Topic policy = that.policy().match(topic);
 
-					values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
+					values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 					@SuppressWarnings("unused")
-					long numUpdated = this.store.updatePostalByKey(id, values);
+					long numUpdated = this.store.updateSubscribeByKey(id, values);
 
 					final Map<String,DisposalState> dispatchResult = 
-							this.dispatchPostalRequest(that,
-									provider.toString(),
-									topic, policy, status, null,
+							this.dispatchSubscribeRequest(that,
+										      topic, selection,
+										      policy, status, 
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
@@ -1178,19 +1186,19 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 									final ContentValues values = new ContentValues();
 
-									values.put(PostalTableSchema.DISPOSITION.cv(), status.cv());
-									long numUpdated = DistributorThread.this.store.updatePostalByKey(id, values);
+									values.put(SubscribeTableSchema.DISPOSITION.cv(), status.cv());
+									long numUpdated = DistributorThread.this.store.updateSubscribeByKey(id, values);
 
-									logger.info("Postal: {} rows updated to {}",
+									logger.info("Subscribe: {} rows updated to {}",
 											numUpdated, status);
 
 									return true;
 								}
 							});
-					this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
+					this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("NullPointerException, sending to gateway failed");
+			    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 			}
 		}
 		pending.close();
@@ -1203,7 +1211,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	dispatchSubscribeRequest(final AmmoService that, String topic, 
 			String selection, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
-		logger.info("::dispatchSubscribeRequest");
+	    logger.info("::dispatchSubscribeRequest {}", topic);
 
 		/** Message Building */
 		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
@@ -1395,7 +1403,6 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		switch (encoding.getPayload()) {
 		case JSON: 
-		case TERSE:
 		{
 			final JSONObject json = new JSONObject();
 			tupleCursor.moveToFirst();
@@ -1414,6 +1421,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			tuple = json.toString().getBytes();
 		}
 		break;
+		case TERSE:
 		case CUSTOM:
 		default:
 		{
@@ -1445,11 +1453,12 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final List<String> fieldNameList = new ArrayList<String>(blobCount);
 		final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
 		final byte[] buffer = new byte[1024]; 
-		for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
+		for (int ix=0; ix < blobCount; ix++) {
 			final String fieldName = blobCursor.getColumnName(ix);
 			fieldNameList.add(fieldName);
-
-			final Uri fieldUri = Uri.parse(blobCursor.getString(ix));    
+			
+			final Uri fieldUri = blobUri; // Uri.parse( blobCursor.getString(ix)  );    
+			logger.warn("Blob processing: fieldname={}, fieldUri={}", fieldName,  fieldUri );
 			try {
 				final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
 				if (afd == null) {
@@ -1462,15 +1471,18 @@ extends AsyncTask<AmmoService, Integer, Void>
 				final BufferedInputStream bis = new BufferedInputStream(instream);
 				final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
 				for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+				    logger.warn("Blob bytesRead={}", bytesRead );
 					fieldBlob.write(buffer, 0, bytesRead);
 				}
 				bis.close();
 				fieldBlobList.add(fieldBlob);
 
 			} catch (IOException ex) {
-				logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
+				logger.warn("unable to create stream {} {}",serialUri, ex.getStackTrace());
 				bigTuple.close();
 				throw new FileNotFoundException("Unable to create stream");
+			} catch (NullPointerException nx) {
+			    nx.printStackTrace();
 			}
 		}
 		for (int ix=0; ix < blobCount; ix++) {
