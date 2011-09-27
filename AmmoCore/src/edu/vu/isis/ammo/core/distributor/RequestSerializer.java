@@ -37,7 +37,7 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
  *
  */
 public class RequestSerializer {
-	private static final Logger logger = LoggerFactory.getLogger("ammo:serializer");
+	private static final Logger logger = LoggerFactory.getLogger("ammo:serial");
 
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
