@@ -507,7 +507,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					} else {
 						try {
 							return RequestSerializer.serializeFromProvider(that.getContentResolver(), 
-									serializer.provider.asUri(), encode, logger);
+									serializer.provider.asUri(), encode);
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization {}",
 									e1.getLocalizedMessage());
@@ -593,7 +593,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					default:
 						try {
 							return RequestSerializer.serializeFromProvider(that.getContentResolver(), 
-									serializer.provider.asUri(), encode, logger);
+									serializer.provider.asUri(), encode);
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization");
 						}
@@ -1013,7 +1013,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		// FIXME how to control de-serializing
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		final Uri tuple = RequestSerializer.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray(), logger);
+		final Uri tuple = RequestSerializer.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray());
 		logger.debug("tuple upserted {}", tuple);
 		// This update/delete the retrieval request, it is fulfilled.
 		// this.store.upsertDisposalByParent(id, type, channel, status);
@@ -1248,7 +1248,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final Uri provider = Uri.parse(uriString);
 
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		RequestSerializer.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray(), logger);
+		RequestSerializer.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray());
 
 		// this.store.upsertDisposalByParent(id, type, channel, status);
 		return true;

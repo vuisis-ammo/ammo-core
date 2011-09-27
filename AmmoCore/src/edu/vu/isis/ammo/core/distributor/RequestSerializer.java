@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
@@ -37,7 +38,7 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
  *
  */
 public class RequestSerializer {
-	private static final Logger logger = LoggerFactory.getLogger("ammo:serial");
+	private static final Logger logger = LoggerFactory.getLogger("ammo-serial");
 
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
@@ -109,8 +110,8 @@ public class RequestSerializer {
 	/**
 	 * @see deserializeToUri with which this method is symmetric.
 	 */
-	public static synchronized byte[] serializeFromProvider(final ContentResolver resolver, 
-			final Uri tupleUri, final DistributorPolicy.Encoding encoding, final Logger logger) 
+	public static byte[] serializeFromProvider(final ContentResolver resolver, 
+			final Uri tupleUri, final DistributorPolicy.Encoding encoding) 
 					throws FileNotFoundException, IOException {
 
 		logger.trace("serializing using encoding {}", encoding);
@@ -271,58 +272,61 @@ public class RequestSerializer {
 	 * Note the deserializeToUri and serializeFromUri are symmetric, any change to one 
 	 * will necessitate a corresponding change to the other.
 	 */  
-	public static synchronized Uri deserializeToProvider(final ContentResolver resolver, 
-			Uri provider, Encoding encoding, byte[] data, Logger logger) {
+	public static Uri deserializeToProvider(final ContentResolver resolver, 
+			final Uri provider, final Encoding encoding, final byte[] data) {
+		
 		logger.debug("deserialize message");
-		final Uri updateTuple = Uri.withAppendedPath(provider, "_deserial");
+		
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
 
 		switch (encoding.getPayload()) {
 		case JSON: 
 		{
 			int position = 0;
-			for (; position < data.length || data[position] == (byte)0x0; position++) {
-				if (position == (data.length-1)) { // last byte
-					final int length = position+1;
-					final byte[] payload = new byte[length];
-					System.arraycopy(data, 0, payload, 0, length);
-					try {
-						final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
-						final ContentValues cv = new ContentValues();
-						for (@SuppressWarnings("unchecked")
-						final Iterator<String> iter = input.keys(); iter.hasNext();) {
-							final String key = iter.next();
-							cv.put(key, input.getString(key));
-						}
-						return resolver.insert(provider, cv);
-					} catch (JSONException ex) {
-						logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
-						return null;
-					} catch (SQLiteException ex) {
-						logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
-						return null;
-					}
+			for (; position < data.length && data[position] != (byte)0x0; position++) {}
+
+			final int length = position;
+			final byte[] payload = new byte[length];
+			System.arraycopy(data, 0, payload, 0, length);
+			final Uri tupleUri;
+			try {
+				final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
+				final ContentValues cv = new ContentValues();
+				for (@SuppressWarnings("unchecked")
+				final Iterator<String> iter = input.keys(); iter.hasNext();) {
+					final String key = iter.next();
+					cv.put(key, input.getString(key));
 				}
-			}
-			final ContentValues cv = new ContentValues();
-			final byte[] name = new byte[position];
-			System.arraycopy(data, 0, name, 0, position);
-			cv.put("data", new String(data));
-			final Uri insertTuple = resolver.insert(updateTuple, cv);
+				tupleUri = resolver.insert(provider, cv);
+
+			} catch (JSONException ex) {
+				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+				return null;
+			} catch (SQLiteException ex) {
+				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
+				return null;
+			}		
+			if (position == data.length) return tupleUri;
 
 			// process the blobs
-			int start = position; 
-			int length = 0;
+			final long tupleId = ContentUris.parseId(tupleUri);
+			final Uri.Builder uriBuilder = provider.buildUpon();
+			final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
+			
+			position++; // move past the null terminator
+			int start = position;
+			int nameLength = 0;
 			while (position < data.length) {
-				if (data[position] != 0x0) { position++; length++; continue; }
-				final String fieldName = new String(data, start, length);
+				if (data[position] != 0x0) { position++; nameLength++; continue; }
+				final String fieldName = new String(data, start, nameLength);
 
+				position++; // move past the null
 				dataBuff.position(position);
 				final int dataLength = dataBuff.getInt();
 				start = dataBuff.position();
 				final byte[] blob = new byte[dataLength];
 				System.arraycopy(data, start, blob, 0, dataLength);
-				final Uri fieldUri = Uri.withAppendedPath(updateTuple, fieldName);			
+				final Uri fieldUri = updateTuple.appendPath(fieldName).build();			
 				try {
 					final OutputStream outstream = resolver.openOutputStream(fieldUri);
 					if (outstream == null) {
@@ -330,13 +334,14 @@ public class RequestSerializer {
 						return null;
 					}
 					outstream.write(blob);
+					outstream.close();
 				} catch (FileNotFoundException ex) {
 					logger.error( "blob file not found: {} {}",fieldUri, ex.getStackTrace());
 				} catch (IOException ex) {
 					logger.error( "error writing blob file: {} {}",fieldUri, ex.getStackTrace());
 				}
 			}	
-			return insertTuple;
+			return tupleUri;
 		}
 		case TERSE: 
 		{
