@@ -98,8 +98,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.AmmoService.SEND_SERIALIZED";
 
 	// Local constants
-	public static final String DEFAULT_GATEWAY_HOST = "129.59.129.189";
-	public static final int DEFAULT_GATEWAY_PORT = 32869;
+	public static final String DEFAULT_GATEWAY_HOST = "129.59.129.191";
+	public static final int DEFAULT_GATEWAY_PORT = 33289;
 	public static final int DEFAULT_FLAT_LINE_TIME = 20; // 20 minutes
 	public static final int DEFAULT_SOCKET_TIMEOUT = 3; // 3 seconds
 
