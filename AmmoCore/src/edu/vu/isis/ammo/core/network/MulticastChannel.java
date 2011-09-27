@@ -19,6 +19,7 @@ import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
@@ -84,6 +85,7 @@ public class MulticastChannel extends NetChannel
     private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
     private int mMulticastPort;
+    private AtomicInteger mMulticastTTL;
 
     private SenderQueue mSenderQueue;
 
@@ -98,11 +100,12 @@ public class MulticastChannel extends NetChannel
 
     private MulticastChannel(String name, IChannelManager iChannelManager ) {
         super(name);
-        
+
         logger.info("Thread <{}>MulticastChannel::<constructor>", Thread.currentThread().getId());
         this.syncObj = this;
 
         mIsAuthorized = new AtomicBoolean( false );
+        mMulticastTTL = new AtomicInteger( 1 );
 
         mChannelManager = iChannelManager;
 
@@ -110,10 +113,9 @@ public class MulticastChannel extends NetChannel
 
         mSenderQueue = new SenderQueue( this );
 
-        this.connectorThread = new ConnectorThread(this);
         // The thread is start()ed the first time the network disables and
         // reenables it.
-        
+        this.connectorThread = new ConnectorThread(this);
     }
 
 
@@ -189,12 +191,18 @@ public class MulticastChannel extends NetChannel
         this.reset();
         return true;
     }
+
     public boolean setPort(int port) {
         logger.info("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
         if (this.mMulticastPort == port) return false;
         this.mMulticastPort = port;
         this.reset();
         return true;
+    }
+
+    public void setTTL( int ttl ) {
+        logger.info("Thread <{}>::setTTL {}", Thread.currentThread().getId(), ttl);
+        this.mMulticastTTL.set( ttl );
     }
 
     public String toString() {
@@ -336,7 +344,6 @@ public class MulticastChannel extends NetChannel
     @SuppressWarnings("unused")
 	private void sendHeartbeatIfNeeded()
     {
-    	if (! HEARTBEAT_ENABLED) return;
         //logger.warn( "In sendHeartbeatIfNeeded()." );
 
         long nowInMillis = System.currentTimeMillis();
@@ -424,13 +431,12 @@ public class MulticastChannel extends NetChannel
             }
             public synchronized void set(int state) {
                 logger.info("Thread <{}>State::set", Thread.currentThread().getId());
-                switch (state) {
-                case STALE:
-                    this.reset();
-                    return;
+                if ( state == STALE ) {
+					this.reset();
+                } else {
+                    this.value = state;
+                    this.notifyAll();
                 }
-                this.value = state;
-                this.notifyAll();
             }
             public synchronized int get() { return this.value; }
 
@@ -516,12 +522,14 @@ public class MulticastChannel extends NetChannel
                         try {
                             synchronized (this.state) {
                                 logger.info("this.state.get() = {}", this.state.get());
+                                this.parent.statusChange();
+                                disconnect();
 
-                                while (this.state.get() == NetChannel.DISABLED) // this is IMPORTANT don't remove it.
+                                // Wait for a link interface.
+                                while (this.state.get() == NetChannel.DISABLED)
                                 {
-                                    this.parent.statusChange();
-                                    this.state.wait(BURP_TIME);   // wait for a link interface
                                     logger.info("Looping in Disabled");
+                                    this.state.wait(BURP_TIME);
                                 }
                             }
                         } catch (InterruptedException ex) {
@@ -586,7 +594,9 @@ public class MulticastChannel extends NetChannel
                                 synchronized (this.state) {
                                     while (this.isConnected()) // this is IMPORTANT don't remove it.
                                     {
-                                        parent.sendHeartbeatIfNeeded();
+                                        if ( HEARTBEAT_ENABLED )
+                                            parent.sendHeartbeatIfNeeded();
+
                                         // wait for somebody to change the connection status
                                         this.state.wait(BURP_TIME);
                                     }
@@ -951,6 +961,8 @@ public class MulticastChannel extends NetChannel
                     logger.debug( "...{}", buf.remaining() );
                     logger.debug( "...{}", mChannel.mMulticastGroup );
                     logger.debug( "...{}", mChannel.mMulticastPort );
+
+                    mSocket.setTimeToLive( mChannel.mMulticastTTL.get() );
                     mSocket.send( packet );
 
                     logger.info( "Wrote packet to MulticastSocket." );

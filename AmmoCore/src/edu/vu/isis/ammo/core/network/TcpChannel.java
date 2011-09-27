@@ -438,13 +438,12 @@ public class TcpChannel extends NetChannel {
 			}
 			public synchronized void set(int state) {
 				logger.info("Thread <{}>State::set", Thread.currentThread().getId());
-				switch (state) {
-				case STALE:
+                if ( state == STALE ) {
 					this.reset();
-					return;
-				}
-				this.value = state;
-				this.notifyAll();
+                } else {
+                    this.value = state;
+                    this.notifyAll();
+                }
 			}
 			public synchronized int get() { return this.value; }
 
@@ -530,12 +529,14 @@ public class TcpChannel extends NetChannel {
 						try {
 							synchronized (this.state) {
 								logger.info("this.state.get() = {}", this.state.get());
+                                this.parent.statusChange();
+                                disconnect();
 
-								while (this.state.get() == NetChannel.DISABLED) // this is IMPORTANT don't remove it.
+                                // Wait for a link interface.
+								while (this.state.get() == NetChannel.DISABLED)
 								{
-									this.parent.statusChange();
-									this.state.wait(BURP_TIME);   // wait for a link interface
 									logger.info("Looping in Disabled");
+									this.state.wait(BURP_TIME);
 								}
 							}
 						} catch (InterruptedException ex) {
@@ -594,19 +595,33 @@ public class TcpChannel extends NetChannel {
 						break;
 
 					case NetChannel.CONNECTED:
-					{
-						this.parent.statusChange();
-						synchronized (this.state) {                          	
-							while (this.isConnected()) {// this is IMPORTANT don't remove it.
-								if (this.waitTakePulse(parent)) continue;
-								logger.warn("connection intentionally disabled {}", this.state );
-								this.state.set(NetChannel.STALE);
-								break MAINTAIN_CONNECTION;
-							}
-						}
-						this.parent.statusChange();
-					}
-					break;
+                        {
+                            this.parent.statusChange();
+                            try {
+                                synchronized (this.state) {
+                                    while (this.isConnected())
+                                    {
+                                        if ( HEARTBEAT_ENABLED )
+                                            parent.sendHeartbeatIfNeeded();
+
+                                        // wait for somebody to change the connection status
+                                        this.state.wait(BURP_TIME);
+
+                                        if ( HEARTBEAT_ENABLED && parent.hasWatchdogExpired() )
+                                        {
+                                            logger.warn( "Watchdog timer expired!!" );
+                                            failure( getAttempt() );
+                                        }
+                                    }
+                                }
+                            } catch (InterruptedException ex) {
+                                logger.warn("connection intentionally disabled {}", this.state );
+                                this.state.set(NetChannel.STALE);
+                                break MAINTAIN_CONNECTION;
+                            }
+                            this.parent.statusChange();
+                        }
+                        break;
 					default:
 						try {
 							long attempt = this.getAttempt();
@@ -638,21 +653,6 @@ public class TcpChannel extends NetChannel {
 			logger.error("channel closing");
 		}
 
-		@SuppressWarnings("unused")
-		private boolean waitTakePulse(TcpChannel parent) {   
-			try {
-				if (HEARTBEAT_ENABLED) parent.sendHeartbeatIfNeeded();
-				this.state.wait(BURP_TIME);   // wait for somebody to change the connection status
-				if (HEARTBEAT_ENABLED && parent.hasWatchdogExpired() )
-				{
-					logger.warn( "Watchdog timer expired!!" );
-					failure( getAttempt() );
-				}
-				return true;
-			} catch (InterruptedException ex) {
-				return false;
-			}
-		}
 
 		private boolean connect()
 		{

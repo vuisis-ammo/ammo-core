@@ -1,17 +1,7 @@
 package edu.vu.isis.ammo.core.distributor;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,21 +13,15 @@ import java.util.zip.CRC32;
 
 import net.jcip.annotations.ThreadSafe;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteException;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
 
 import com.google.protobuf.ByteString;
@@ -522,8 +506,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 						return serializer.payload.asBytes();
 					} else {
 						try {
-							return DistributorThread.serializeFromProvider(that.getContentResolver(), 
-									serializer.provider.asUri(), encode, logger);
+							return RequestSerializer.serializeFromProvider(that.getContentResolver(), 
+									serializer.provider.asUri(), encode);
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization {}",
 									e1.getLocalizedMessage());
@@ -556,7 +540,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		} catch (NullPointerException ex) {
 			logger.warn("NullPointerException, sending to gateway failed {}",
-					ex.getStackTrace());
+				    ex.getStackTrace() );
 		}
 	}
 
@@ -608,8 +592,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 					case DEFERRED:
 					default:
 						try {
-							return serializeFromProvider(that.getContentResolver(), 
-									serializer.provider.asUri(), encode, logger);
+							return RequestSerializer.serializeFromProvider(that.getContentResolver(), 
+									serializer.provider.asUri(), encode);
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization");
 						}
@@ -708,8 +692,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 						.setData(ByteString.copyFrom(serialized));
 				mw.setDataMessage(pushReq);
 
-				logger.debug("Finished wrap build @ time {}...difference of {} ms \n",
-						System.currentTimeMillis(), System.currentTimeMillis()-now);
+				logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
+					     System.currentTimeMillis()-now, serialized.length);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
 				return agmb.build();
 			}
@@ -802,7 +786,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 
 	/**
-	 * Process the subscription request.
+	 * Process the retrieval request.
 	 * There are two parts:
 	 * 1) checking to see if the network service is accepting requests 
 	 *    and sending the request if it is
@@ -817,7 +801,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processRetrievalRequest(AmmoService that, AmmoRequest agm) {
-		logger.info("::processRetrievalRequest()");
+	    logger.info("::processRetrievalRequest() {} {}", agm.topic.toString(), agm.provider.toString() );
 
 		// Dispatch the message.
 		try {
@@ -827,6 +811,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final ContentValues values = new ContentValues();
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
 			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());
+			values.put(RetrievalTableSchema.SELECTION.cv(), agm.select.toString());
 			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.durability);
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
 			values.put(RetrievalTableSchema.PRIORITY.cv(), agm.priority);
@@ -853,16 +838,16 @@ extends AsyncTask<AmmoService, Integer, Void>
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
+									DistributorThread.this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
 								}
 								return false;
 							}
 						});
-				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
+				this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed");
+		    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 		}
 	}
 
@@ -887,12 +872,12 @@ extends AsyncTask<AmmoService, Integer, Void>
 		{
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
-			final int id = pending.getInt(pending.getColumnIndex(PostalTableSchema._ID.n));
+			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
 			final String provider = pending.getString(pending.getColumnIndex(RetrievalTableSchema.PROVIDER.cv()));
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
 			// String disposition =
 			// pendingCursor.getString(pendingCursor.getColumnIndex(RetrievalTableSchema.DISPOSITION));
-			@SuppressWarnings("unused")
+	
 			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
 			// int expiration =
 			// pendingCursor.getInt(pendingCursor.getColumnIndex(RetrievalTableSchema.EXPIRATION));
@@ -902,9 +887,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 			@SuppressWarnings("unused")
 			final Uri rowUri = Uri.parse(provider);
 
+
 			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
+				final Cursor channelCursor = this.store.queryDisposalReady(id,"retrieval");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -923,14 +909,14 @@ extends AsyncTask<AmmoService, Integer, Void>
 					final ContentValues values = new ContentValues();
 					final DistributorPolicy.Topic policy = that.policy().match(topic);
 
-					values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
+					values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 					@SuppressWarnings("unused")
-					final long numUpdated = this.store.updatePostalByKey(id, values);
+					final long numUpdated = this.store.updateRetrievalByKey(id, values);
 
 					final Map<String,DisposalState> dispatchResult = 
-							this.dispatchPostalRequest(that,
-									provider.toString(),
-									topic, policy, status, null,
+							this.dispatchRetrievalRequest(that,
+										      provider.toString(), selection,
+									topic, policy, status,
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
@@ -938,10 +924,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 									ContentValues values = new ContentValues();
 
-									values.put(PostalTableSchema.DISPOSITION.cv(), status.cv());
-									long numUpdated = DistributorThread.this.store.updatePostalByKey(id, values);
+									values.put(RetrievalTableSchema.DISPOSITION.cv(), status.cv());
+									long numUpdated = DistributorThread.this.store.updateRetrievalByKey(id, values);
 
-									logger.info("Postal: {} rows updated to {}",
+									logger.info("Retrieval: {} rows updated to {}",
 											numUpdated, status);
 
 									return false;
@@ -950,7 +936,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("NullPointerException, sending to gateway failed");
+			    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 			}
 		}
 		pending.close();
@@ -971,37 +957,41 @@ extends AsyncTask<AmmoService, Integer, Void>
 	dispatchRetrievalRequest(final AmmoService that, String retrievalId, String selection,  
 			String topic, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
-		logger.info("::dispatchRetrievalRequest");
+	    logger.info("::dispatchRetrievalRequest {}", topic);
 
-		/** Message Building */
+	    /** Message Building */
 
-		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
-		//mw.setSessionUuid(sessionId);
+	    final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+	    mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
+	    //mw.setSessionUuid(sessionId);
 
-		final AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
-				.setRequestUid(retrievalId)
-				.setMimeType(topic);
+	    final AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
+		.setRequestUid(retrievalId)
+		.setMimeType(topic);
 
-		if (selection != null) pushReq.setQuery(selection);
+	    if (selection != null) pushReq.setQuery(selection);
 
-		// projection
-		// max_results
-		// start_from_count
-		// live_query
-		// expiration
-
+	    // projection
+	    // max_results
+	    // start_from_count
+	    // live_query
+	    // expiration
+	    try {
 		mw.setPullRequest(pushReq);
-
 		final RequestSerializer serializer = RequestSerializer.newInstance();
 		serializer.setAction(new RequestSerializer.OnReady() {
 			@Override
-			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
-				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
-				return agmb.build();
+			    public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+			    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+			    return agmb.build();
 			}
-		});	
+		    });	
 		return this.dispatchRequest(that, serializer, policy, status);
+	    } catch (com.google.protobuf.UninitializedMessageException ex) {
+		logger.warn("Failed to marshal the message: {}", ex.getStackTrace() );
+	    }
+	    return status;
+		
 	}
 
 
@@ -1023,7 +1013,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		// FIXME how to control de-serializing
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		final Uri tuple = this.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray(), logger);
+		final Uri tuple = RequestSerializer.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray());
 		logger.debug("tuple upserted {}", tuple);
 		// This update/delete the retrieval request, it is fulfilled.
 		// this.store.upsertDisposalByParent(id, type, channel, status);
@@ -1051,7 +1041,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processSubscribeRequest(AmmoService that, AmmoRequest agm, int st) {
-		logger.info("::processSubscribeRequest()");
+	    logger.info("::processSubscribeRequest() {}", agm.topic.toString() );
 
 		// Dispatch the message.
 		try {
@@ -1061,6 +1051,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final ContentValues values = new ContentValues();
 			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
 			values.put(SubscribeTableSchema.PROVIDER.cv(), agm.provider.cv());
+			values.put(SubscribeTableSchema.SELECTION.cv(), agm.select.toString());
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.durability);
 			values.put(SubscribeTableSchema.PRIORITY.cv(), agm.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
@@ -1085,12 +1076,12 @@ extends AsyncTask<AmmoService, Integer, Void>
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
+									DistributorThread.this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
 								}
 								return true;
 							}
 						});
-				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
+				this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
@@ -1126,7 +1117,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
 			// String disposition =
 			// pendingCursor.getString(pendingCursor.getColumnIndex(SubscribeTableSchema.DISPOSITION));
-			@SuppressWarnings("unused")
+	
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
 			// int expiration =
 			// pendingCursor.getInt(pendingCursor.getColumnIndex(SubscribeTableSchema.EXPIRATION));
@@ -1138,7 +1129,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
+				final Cursor channelCursor = this.store.queryDisposalReady(id,"subscribe");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -1163,8 +1154,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 					final Map<String,DisposalState> dispatchResult = 
 							this.dispatchSubscribeRequest(that,
-									provider.toString(),
-									topic, policy, status, 
+										      topic, selection,
+										      policy, status, 
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
@@ -1181,10 +1172,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 									return true;
 								}
 							});
-					this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
+					this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("NullPointerException, sending to gateway failed");
+			    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 			}
 		}
 		pending.close();
@@ -1197,7 +1188,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	dispatchSubscribeRequest(final AmmoService that, String topic, 
 			String selection, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
-		logger.info("::dispatchSubscribeRequest");
+	    logger.info("::dispatchSubscribeRequest {}", topic);
 
 		/** Message Building */
 		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
@@ -1257,7 +1248,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final Uri provider = Uri.parse(uriString);
 
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		this.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray(), logger);
+		RequestSerializer.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray());
 
 		// this.store.upsertDisposalByParent(id, type, channel, status);
 		return true;
@@ -1267,247 +1258,5 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 
 	// =============== UTILITY METHODS ======================== //
-
-	/**
-	 * The JSON serialization is in the following form...
-	 * serialized tuple : A list of non-null bytes which serialize the tuple, 
-	 *   this is provided/supplied to the ammo enabled content provider via insert/query.
-	 *   The serialized tuple may be null terminated or the byte array may simply end.
-	 * field blobs : A list of name:value pairs where name is the field name and value is 
-	 *   the field's data blob associated with that field.
-	 *   There may be more than one field blob.
-	 *   
-	 *   field name : A null terminated name, 
-	 *   field data length : A 4 byte big-endian length, indicating the number of bytes in the data blob.
-	 *   field data blob : A set of bytes whose size is that of the field data length
-	 *   
-	 * Note the deserializeToUri and serializeFromUri are symmetric, any change to one 
-	 * will necessitate a corresponding change to the other.
-	 */  
-	private synchronized Uri deserializeToProvider(final ContentResolver resolver, 
-			Uri provider, Encoding encoding, byte[] data, Logger logger) {
-		logger.debug("deserialize message");
-		final Uri updateTuple = Uri.withAppendedPath(provider, "_deserial");
-		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
-
-		switch (encoding.getPayload()) {
-		case JSON: 
-		case TERSE:
-		{
-			int position = 0;
-			for (; position < data.length || data[position] == (byte)0x0; position++) {
-				if (position == (data.length-1)) { // last byte
-					final int length = position+1;
-					final byte[] payload = new byte[length];
-					System.arraycopy(data, 0, payload, 0, length);
-					try {
-						final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
-						final ContentValues cv = new ContentValues();
-						for (@SuppressWarnings("unchecked")
-						final Iterator<String> iter = input.keys(); iter.hasNext();) {
-							final String key = iter.next();
-							cv.put(key, input.getString(key));
-						}
-						return resolver.insert(provider, cv);
-					} catch (JSONException ex) {
-						logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
-						return null;
-					} catch (SQLiteException ex) {
-						logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
-						return null;
-					}
-				}
-			}
-			final ContentValues cv = new ContentValues();
-			final byte[] name = new byte[position];
-			System.arraycopy(data, 0, name, 0, position);
-			cv.put("data", new String(data));
-			final Uri insertTuple = resolver.insert(updateTuple, cv);
-
-			// process the blobs
-			int start = position; 
-			int length = 0;
-			while (position < data.length) {
-				if (data[position] != 0x0) { position++; length++; continue; }
-				final String fieldName = new String(data, start, length);
-
-				dataBuff.position(position);
-				final int dataLength = dataBuff.getInt();
-				start = dataBuff.position();
-				final byte[] blob = new byte[dataLength];
-				System.arraycopy(data, start, blob, 0, dataLength);
-				final Uri fieldUri = Uri.withAppendedPath(updateTuple, fieldName);			
-				try {
-					final OutputStream outstream = resolver.openOutputStream(fieldUri);
-					if (outstream == null) {
-						logger.error( "could not open output stream to content provider: {} ",fieldUri);
-						return null;
-					}
-					outstream.write(blob);
-				} catch (FileNotFoundException ex) {
-					logger.error( "blob file not found: {} {}",fieldUri, ex.getStackTrace());
-				} catch (IOException ex) {
-					logger.error( "error writing blob file: {} {}",fieldUri, ex.getStackTrace());
-				}
-			}	
-			return insertTuple;
-		}
-		// TODO as with the serializer the CUSTOM section will presume for the
-		// content provider the existence of a SyncAdaptor
-		case CUSTOM:
-		default:
-		{
-			// FIXME write to the custom provider address
-			final Uri customProvider = encoding.extendProvider(provider);
-			final ContentValues cv = new ContentValues();
-			cv.put("data", data);
-			return resolver.insert(customProvider, cv);
-		}
-		}
-	}
-
-	/**
-	 * @see deserializeToUri with which this method is symmetric.
-	 */
-	private static synchronized byte[] serializeFromProvider(final ContentResolver resolver, 
-			final Uri tupleUri, final DistributorPolicy.Encoding encoding, final Logger logger) 
-					throws FileNotFoundException, IOException {
-
-		logger.trace("serializing using encoding {}", encoding);
-		switch (encoding.getPayload()) {
-		case JSON: 
-		case TERSE:
-		{
-			logger.trace("Serialize the non-blob data");
-
-			final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
-			final Cursor tupleCursor;
-			try {
-				tupleCursor = resolver.query(serialUri, null, null, null, null);
-			} catch(IllegalArgumentException ex) {
-				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-				return null;
-			}
-			if (tupleCursor == null) return null;
-
-			if (! tupleCursor.moveToFirst()) return null;
-			if (tupleCursor.getColumnCount() < 1) return null;
-
-			final byte[] tuple;
-			final JSONObject json = new JSONObject();
-			tupleCursor.moveToFirst();
-
-			final List<String> fieldNameList = new ArrayList<String>();
-			fieldNameList.add("_serial");
-			for (final String name : tupleCursor.getColumnNames()) {
-				final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
-				if (value == null || value.length() < 1) continue;
-				try {
-					json.put(name, value);
-				} catch (JSONException ex) {
-					logger.warn("invalid content provider {}", ex.getStackTrace());
-				}
-			}
-			tuple = json.toString().getBytes();
-			tupleCursor.close(); 
-
-			logger.trace("Serialize the blob data (if any)");
-
-			logger.trace("getting the names of the blob fields");
-			final Uri blobUri = Uri.withAppendedPath(tupleUri, "/_blob");
-			final Cursor blobCursor;
-			try {
-				blobCursor = resolver.query(blobUri, null, null, null, null);
-			} catch(IllegalArgumentException ex) {
-				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-				return null;
-			}
-			if (blobCursor == null) return tuple;
-			if (! blobCursor.moveToFirst()) return tuple;
-			if (blobCursor.getColumnCount() < 1) return tuple;
-
-			logger.trace("getting the blob fields");
-			final int blobCount = blobCursor.getColumnCount();
-			final List<String> blobFieldNameList = new ArrayList<String>(blobCount);
-			final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
-			final byte[] buffer = new byte[1024]; 
-			for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
-				final String fieldName = blobCursor.getColumnName(ix);
-				logger.trace("processing blob {}", fieldName);
-				blobFieldNameList.add(fieldName);
-
-				final Uri fieldUri = Uri.parse(blobCursor.getString(ix));    
-				try {
-					final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
-					if (afd == null) {
-						logger.warn("could not acquire file descriptor {}", serialUri);
-						throw new IOException("could not acquire file descriptor "+fieldUri);
-					}
-					final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-					final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-					final BufferedInputStream bis = new BufferedInputStream(instream);
-					final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
-					for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-						fieldBlob.write(buffer, 0, bytesRead);
-					}
-					bis.close();
-					fieldBlobList.add(fieldBlob);
-
-				} catch (IOException ex) {
-					logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
-					throw new FileNotFoundException("Unable to create stream");
-				}
-			}
-
-			logger.trace("loading larger tuple buffer");
-			final ByteArrayOutputStream bigTuple = new ByteArrayOutputStream();
-
-			bigTuple.write(tuple); 
-			bigTuple.write(0x0);
-
-			for (int ix=0; ix < blobCount; ix++) {
-				final String fieldName = blobFieldNameList.get(ix);
-				bigTuple.write(fieldName.getBytes());
-				bigTuple.write(0x0);
-
-				final ByteArrayOutputStream fieldBlob = fieldBlobList.get(ix);
-				final ByteBuffer bb = ByteBuffer.allocate(4);
-				bb.order(ByteOrder.BIG_ENDIAN); 
-				bb.putInt(fieldBlob.size());
-				bigTuple.write(bb.array());
-				bigTuple.write(fieldBlob.toByteArray());
-			}
-			blobCursor.close();
-			final byte[] finalTuple = bigTuple.toByteArray();
-			bigTuple.close();
-			return finalTuple;
-		}
-		
-		// TODO custom still needs a lot of work
-		// It will presume the presence of a SyncAdaptor for the content provider.
-		case CUSTOM:
-		default:
-		{
-			final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
-			final Cursor tupleCursor;
-			try {
-				tupleCursor = resolver.query(serialUri, null, null, null, null);
-			} catch(IllegalArgumentException ex) {
-				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-				return null;
-			}
-			if (tupleCursor == null) return null;
-
-			if (! tupleCursor.moveToFirst()) return null;
-			if (tupleCursor.getColumnCount() < 1) return null;
-
-			tupleCursor.moveToFirst();
-
-			final String tupleString = tupleCursor.getString(0);
-			return tupleString.getBytes();
-		}
-		}
-	}
 
 }
