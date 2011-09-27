@@ -842,7 +842,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		mChannels.get(channel.name)
 		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
 
-		this.onChannelChange(channel.name, ChannelChange.DEACTIVATE);
+		// TBD needs mapping from channel status to "ACTIVATE/DEACTIVATE"
+		
+		this.onChannelChange(channel.name,
+				     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
+				     ChannelChange.ACTIVATE : ChannelChange.DEACTIVATE);
 		// channel is ACTIVATED by authenticate
 
 		final Intent broadcastIntent = new Intent(

@@ -344,7 +344,6 @@ public class MulticastChannel extends NetChannel
     @SuppressWarnings("unused")
 	private void sendHeartbeatIfNeeded()
     {
-    	if (! HEARTBEAT_ENABLED) return;
         //logger.warn( "In sendHeartbeatIfNeeded()." );
 
         long nowInMillis = System.currentTimeMillis();
@@ -524,6 +523,7 @@ public class MulticastChannel extends NetChannel
                             synchronized (this.state) {
                                 logger.info("this.state.get() = {}", this.state.get());
                                 this.parent.statusChange();
+                                disconnect();
 
                                 // Wait for a link interface.
                                 while (this.state.get() == NetChannel.DISABLED)
@@ -594,7 +594,9 @@ public class MulticastChannel extends NetChannel
                                 synchronized (this.state) {
                                     while (this.isConnected()) // this is IMPORTANT don't remove it.
                                     {
-                                        parent.sendHeartbeatIfNeeded();
+                                        if ( HEARTBEAT_ENABLED )
+                                            parent.sendHeartbeatIfNeeded();
+
                                         // wait for somebody to change the connection status
                                         this.state.wait(BURP_TIME);
                                     }
