@@ -524,6 +524,7 @@ public class MulticastChannel extends NetChannel
                             synchronized (this.state) {
                                 logger.info("this.state.get() = {}", this.state.get());
                                 this.parent.statusChange();
+                                disconnect();
 
                                 // Wait for a link interface.
                                 while (this.state.get() == NetChannel.DISABLED)
