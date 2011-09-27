@@ -438,13 +438,12 @@ public class TcpChannel extends NetChannel {
 			}
 			public synchronized void set(int state) {
 				logger.info("Thread <{}>State::set", Thread.currentThread().getId());
-				switch (state) {
-				case STALE:
+                if ( state == STALE ) {
 					this.reset();
-					return;
-				}
-				this.value = state;
-				this.notifyAll();
+                } else {
+                    this.value = state;
+                    this.notifyAll();
+                }
 			}
 			public synchronized int get() { return this.value; }
 
@@ -530,12 +529,13 @@ public class TcpChannel extends NetChannel {
 						try {
 							synchronized (this.state) {
 								logger.info("this.state.get() = {}", this.state.get());
+                                this.parent.statusChange();
 
-								while (this.state.get() == NetChannel.DISABLED) // this is IMPORTANT don't remove it.
+                                // Wait for a link interface.
+								while (this.state.get() == NetChannel.DISABLED)
 								{
-									this.parent.statusChange();
-									this.state.wait(BURP_TIME);   // wait for a link interface
 									logger.info("Looping in Disabled");
+									this.state.wait(BURP_TIME);
 								}
 							}
 						} catch (InterruptedException ex) {
