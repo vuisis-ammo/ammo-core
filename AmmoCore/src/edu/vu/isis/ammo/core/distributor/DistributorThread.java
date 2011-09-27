@@ -263,6 +263,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	@Override
 	protected void onPostExecute(Void result) {
 		super.onPostExecute(result);
+		logger.error("distribution thread finishing {}", result);
 	}
 
 
@@ -293,27 +294,20 @@ extends AsyncTask<AmmoService, Integer, Void>
 	/**
 	 * Check to see if the active channels can be used to send a request.
 	 * This makes use of the disposition table and the channel status map.
-	 * 
 	 */
 	private void processChannelChange(AmmoService that) {
 		logger.info("::processPostalChange()");
 
 		if (!that.isConnected()) 
 			return;
-		/*
-		if (collectGarbage) {
-			this.store.updatePostal( 
-					POSTAL_EXPIRATION_UPDATE,
-					POSTAL_EXPIRATION_CONDITION, new String[]{Long.toString(System.currentTimeMillis())} );
-			this.store.deletePostal(POSTAL_GARBAGE, (String[]) null);
 
-			this.store.updateRetrieval( 
-					RETRIEVAL_EXPIRATION_UPDATE,
-					RETRIEVAL_EXPIRATION_CONDITION, new String[]{Long.toString(System.currentTimeMillis())} );
-			this.store.deletePostal(RETRIEVAL_GARBAGE, (String[]) null);
-		}
-		 */
 		// we could do a priming query to determine if there are any candidates
+
+		this.store.deletePostalGarbage();
+		this.store.deletePublishGarbage();
+		this.store.deleteRetrievalGarbage();
+		this.store.deleteSubscribeGarbage();	
+
 		this.processPostalTable(that);
 		this.processPublishTable(that);
 		this.processRetrievalTable(that);
@@ -648,8 +642,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 					final ContentValues values = new ContentValues();
 
 					values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
-					@SuppressWarnings("unused")
 					long numUpdated = this.store.updatePostalByKey(id, values);
+					logger.debug("updated {} postal items", numUpdated);
 
 					final Map<String,DisposalState> dispatchResult = 
 							this.dispatchPostalRequest(that,
@@ -1037,7 +1031,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		// FIXME how to control de-serializing
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
 		final Uri tuple = this.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray(), logger);
-        logger.debug("tuple upserted {}", tuple);
+		logger.debug("tuple upserted {}", tuple);
 		// This update/delete the retrieval request, it is fulfilled.
 		// this.store.upsertDisposalByParent(id, type, channel, status);
 
@@ -1269,7 +1263,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		cursor.moveToFirst();
 		final String uriString = cursor.getString(0);  // only asked for one so it better be it.
 		final Uri provider = Uri.parse(uriString);
-		
+
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
 		this.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray(), logger);
 
@@ -1300,9 +1294,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */  
 	private synchronized Uri deserializeToProvider(final ContentResolver resolver, 
 			Uri provider, Encoding encoding, byte[] data, Logger logger) {
+		logger.debug("deserialize message");
 		final Uri updateTuple = Uri.withAppendedPath(provider, "_deserial");
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
-        
+
 		switch (encoding.getPayload()) {
 		case JSON: 
 		case TERSE:
@@ -1365,6 +1360,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 			}	
 			return insertTuple;
 		}
+		// TODO as with the serializer the CUSTOM section will presume for the
+		// content provider the existence of a SyncAdaptor
 		case CUSTOM:
 		default:
 		{
@@ -1384,26 +1381,26 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final Uri tupleUri, final DistributorPolicy.Encoding encoding, final Logger logger) 
 					throws FileNotFoundException, IOException {
 
-		// ========= Serialize the non-blob data ===============
-
-		final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
-		final Cursor tupleCursor;
-		try {
-			tupleCursor = resolver.query(serialUri, null, null, null, null);
-		} catch(IllegalArgumentException ex) {
-			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-			return null;
-		}
-		if (tupleCursor == null) return null;
-
-		if (! tupleCursor.moveToFirst()) return null;
-		if (tupleCursor.getColumnCount() < 1) return null;
-
-		final byte[] tuple;
-
+		logger.trace("serializing using encoding {}", encoding);
 		switch (encoding.getPayload()) {
 		case JSON: 
 		{
+			logger.trace("Serialize the non-blob data");
+
+			final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
+			final Cursor tupleCursor;
+			try {
+				tupleCursor = resolver.query(serialUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+				return null;
+			}
+			if (tupleCursor == null) return null;
+
+			if (! tupleCursor.moveToFirst()) return null;
+			if (tupleCursor.getColumnCount() < 1) return null;
+
+			final byte[] tuple;
 			final JSONObject json = new JSONObject();
 			tupleCursor.moveToFirst();
 
@@ -1419,86 +1416,105 @@ extends AsyncTask<AmmoService, Integer, Void>
 				}
 			}
 			tuple = json.toString().getBytes();
+			tupleCursor.close(); 
+
+			logger.trace("Serialize the blob data (if any)");
+
+			logger.trace("getting the names of the blob fields");
+			final Uri blobUri = Uri.withAppendedPath(tupleUri, "/_blob");
+			final Cursor blobCursor;
+			try {
+				blobCursor = resolver.query(blobUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+				return null;
+			}
+			if (blobCursor == null) return tuple;
+			if (! blobCursor.moveToFirst()) return tuple;
+			if (blobCursor.getColumnCount() < 1) return tuple;
+
+			logger.trace("getting the blob fields");
+			final int blobCount = blobCursor.getColumnCount();
+			final List<String> blobFieldNameList = new ArrayList<String>(blobCount);
+			final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
+			final byte[] buffer = new byte[1024]; 
+			for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
+				final String fieldName = blobCursor.getColumnName(ix);
+				logger.trace("processing blob {}", fieldName);
+				blobFieldNameList.add(fieldName);
+
+				final Uri fieldUri = Uri.parse(blobCursor.getString(ix));    
+				try {
+					final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
+					if (afd == null) {
+						logger.warn("could not acquire file descriptor {}", serialUri);
+						throw new IOException("could not acquire file descriptor "+fieldUri);
+					}
+					final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+
+					final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+					final BufferedInputStream bis = new BufferedInputStream(instream);
+					final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
+					for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+						fieldBlob.write(buffer, 0, bytesRead);
+					}
+					bis.close();
+					fieldBlobList.add(fieldBlob);
+
+				} catch (IOException ex) {
+					logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
+					throw new FileNotFoundException("Unable to create stream");
+				}
+			}
+
+			logger.trace("loading larger tuple buffer");
+			final ByteArrayOutputStream bigTuple = new ByteArrayOutputStream();
+
+			bigTuple.write(tuple); 
+			bigTuple.write(0x0);
+
+			for (int ix=0; ix < blobCount; ix++) {
+				final String fieldName = blobFieldNameList.get(ix);
+				bigTuple.write(fieldName.getBytes());
+				bigTuple.write(0x0);
+
+				final ByteArrayOutputStream fieldBlob = fieldBlobList.get(ix);
+				final ByteBuffer bb = ByteBuffer.allocate(4);
+				bb.order(ByteOrder.BIG_ENDIAN); 
+				bb.putInt(fieldBlob.size());
+				bigTuple.write(bb.array());
+				bigTuple.write(fieldBlob.toByteArray());
+			}
+			blobCursor.close();
+			final byte[] finalTuple = bigTuple.toByteArray();
+			bigTuple.close();
+			return finalTuple;
 		}
-		break;
-		case TERSE:
+		
+		// TODO custom still needs a lot of work
+		// It will presume the presence of a SyncAdaptor for the content provider.
 		case CUSTOM:
 		default:
 		{
-			final String tupleString = tupleCursor.getString(0);
-			tuple = tupleString.getBytes();
-		}
-		}
-		tupleCursor.close(); 
-
-		// ========= Serialize the blob data (if any) ===============
-
-		final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
-		final Cursor blobCursor;
-		try {
-			blobCursor = resolver.query(blobUri, null, null, null, null);
-		} catch(IllegalArgumentException ex) {
-			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-			return null;
-		}
-		if (blobCursor == null) return tuple;
-		if (! blobCursor.moveToFirst()) return tuple;
-		if (blobCursor.getColumnCount() < 1) return tuple;
-
-		final ByteArrayOutputStream bigTuple = new ByteArrayOutputStream();
-		bigTuple.write(tuple); // copy over tuple there
-		bigTuple.write(0x0);
-
-		final int blobCount = blobCursor.getColumnCount();
-		final List<String> fieldNameList = new ArrayList<String>(blobCount);
-		final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
-		final byte[] buffer = new byte[1024]; 
-		for (int ix=0; ix < blobCount; ix++) {
-			final String fieldName = blobCursor.getColumnName(ix);
-			fieldNameList.add(fieldName);
-			
-			final Uri fieldUri = blobUri; // Uri.parse( blobCursor.getString(ix)  );    
-			logger.warn("Blob processing: fieldname={}, fieldUri={}", fieldName,  fieldUri );
+			final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
+			final Cursor tupleCursor;
 			try {
-				final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
-				if (afd == null) {
-					logger.warn("could not acquire file descriptor {}", serialUri);
-					throw new IOException("could not acquire file descriptor "+fieldUri);
-				}
-				final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-				final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-				final BufferedInputStream bis = new BufferedInputStream(instream);
-				final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
-				for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-				    logger.warn("Blob bytesRead={}", bytesRead );
-					fieldBlob.write(buffer, 0, bytesRead);
-				}
-				bis.close();
-				fieldBlobList.add(fieldBlob);
-
-			} catch (IOException ex) {
-				logger.warn("unable to create stream {} {}",serialUri, ex.getStackTrace());
-				bigTuple.close();
-				throw new FileNotFoundException("Unable to create stream");
-			} catch (NullPointerException nx) {
-			    nx.printStackTrace();
+				tupleCursor = resolver.query(serialUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+				return null;
 			}
-		}
-		for (int ix=0; ix < blobCount; ix++) {
-			final String fieldName = fieldNameList.get(ix);
-			bigTuple.write(fieldName.getBytes());
-			bigTuple.write(0x0);
+			if (tupleCursor == null) return null;
 
-			final ByteArrayOutputStream fieldBlob = fieldBlobList.get(ix);
-			final ByteBuffer bb = ByteBuffer.allocate(4);
-			bb.order(ByteOrder.BIG_ENDIAN); 
-			bb.putInt(fieldBlob.size());
-			bigTuple.write(bb.array());
-			bigTuple.write(fieldBlob.toByteArray());
+			if (! tupleCursor.moveToFirst()) return null;
+			if (tupleCursor.getColumnCount() < 1) return null;
+
+			tupleCursor.moveToFirst();
+
+			final String tupleString = tupleCursor.getString(0);
+			return tupleString.getBytes();
 		}
-		blobCursor.close();
-		return bigTuple.toByteArray();
+		}
 	}
 
 }
