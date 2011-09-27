@@ -274,9 +274,9 @@ public class RequestSerializer {
 	 */  
 	public static Uri deserializeToProvider(final ContentResolver resolver, 
 			final Uri provider, final Encoding encoding, final byte[] data) {
-		
+
 		logger.debug("deserialize message");
-		
+
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
 
 		switch (encoding.getPayload()) {
@@ -312,20 +312,30 @@ public class RequestSerializer {
 			final long tupleId = ContentUris.parseId(tupleUri);
 			final Uri.Builder uriBuilder = provider.buildUpon();
 			final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
-			
-			position++; // move past the null terminator
-			int start = position;
-			int nameLength = 0;
-			while (position < data.length) {
-				if (data[position] != 0x0) { position++; nameLength++; continue; }
-				final String fieldName = new String(data, start, nameLength);
 
-				position++; // move past the null
+			position++; // move past the null terminator
+			dataBuff.position(position);
+			while (dataBuff.position() < data.length) {
+				// get the field name
+				final int nameStart = dataBuff.position();
+				int nameLength;
+				for (nameLength=0; position < data.length; nameLength++, position++) {
+					if (data[position] == 0x0) break;
+				}
+				final String fieldName = new String(data, nameStart, nameLength);
+				position++; // move past the null			
 				dataBuff.position(position);
 				final int dataLength = dataBuff.getInt();
-				start = dataBuff.position();
+
+				if (dataLength > dataBuff.remaining()) {
+					logger.error("payload size is wrong {} {}", 
+							dataLength, data.length);
+					return null;
+				}
 				final byte[] blob = new byte[dataLength];
-				System.arraycopy(data, start, blob, 0, dataLength);
+				final int blobStart = dataBuff.position();
+				System.arraycopy(data, blobStart, blob, 0, dataLength);
+				dataBuff.position(blobStart+dataLength);
 				final Uri fieldUri = updateTuple.appendPath(fieldName).build();			
 				try {
 					final OutputStream outstream = resolver.openOutputStream(fieldUri);
