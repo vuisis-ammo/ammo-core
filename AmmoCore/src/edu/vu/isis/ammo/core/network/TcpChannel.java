@@ -12,6 +12,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
@@ -683,10 +684,26 @@ public class TcpChannel extends NetChannel {
 				@SuppressWarnings("unused")
 				boolean result = parent.mSocketChannel.finishConnect();
 			}
+			catch ( AsynchronousCloseException ex ) {
+				logger.warn( "connection to {}:{} {} async close failure: {}",
+						new Object[]{ipaddr, port, 
+						    ex.getLocalizedMessage()});
+				parent.mSocketChannel = null;
+				return false;
+			}
+			catch ( ClosedChannelException ex ) {
+				logger.warn( "connection to {}:{} {} closed channel failure: {}",
+						new Object[]{ipaddr, port, 
+						    ex.getLocalizedMessage()});
+				parent.mSocketChannel = null;
+				return false;
+			}
 			catch ( Exception e )
 			{
-				logger.warn( "connection to {}:{} failed: " + e.getLocalizedMessage(),
-						ipaddr, port );
+				logger.warn( "connection to {}:{} {} failed: {}",
+						new Object[]{ipaddr, port, 
+						    e.getClass().getName(),
+						    e.getLocalizedMessage()});
 				parent.mSocketChannel = null;
 				return false;
 			}
