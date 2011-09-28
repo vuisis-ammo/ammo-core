@@ -99,8 +99,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.mcTTLPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_TTL);
 		this.mcTTLPref.setType(Type.TTL);
 		this.mcTTLPref.refreshSummaryField();
-
-
+		
 		/*
 		 * Gateway Setup
 		 */
