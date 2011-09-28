@@ -1261,6 +1261,15 @@ extends AsyncTask<AmmoService, Integer, Void>
 	static private final String SUSCRIBE_QUERY = new StringBuilder()
 	.append(SubscribeTableSchema.TOPIC.q()).append("=? ").toString();
 
+	/**
+	 * Clear the contents of tables in preparation for reloading them.
+	 * This is predominantly *not* for postal which should persist.
+	 */
+	public void clearTables() {
+		this.store.purgeRetrieval();
+		this.store.purgeSubscribe();
+	}
+
 
 	// =============== UTILITY METHODS ======================== //
 

@@ -1579,7 +1579,6 @@ public class DistributorDataStore {
 		db.update(Tables.POSTAL.n, RETRIEVAL_EXPIRATION_UPDATE, RETRIEVAL_EXPIRATION_CONDITION, null);
 		return db.delete(Tables.RETRIEVAL.n, RETRIEVAL_GARBAGE, null);
 	}
-
 	private static final String RETRIEVAL_GARBAGE  = new StringBuilder()
 	.append(RetrievalTableSchema.DISPOSITION.q())
 	.append(" IN (")
@@ -1597,6 +1596,21 @@ public class DistributorDataStore {
 		RETRIEVAL_EXPIRATION_UPDATE= new ContentValues();
 		RETRIEVAL_EXPIRATION_UPDATE.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.EXPIRED.cv());
 	}
+	
+	/**
+	 * purge all records from the retrieval table and cascade to the disposal table.
+	 * @return
+	 */
+	public int purgeRetrieval() {
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
+		db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.RETRIEVAL.qv()});
+		return db.delete(Tables.RETRIEVAL.n, null, null);
+	}
+	private static final String DISPOSAL_PURGE = new StringBuilder()
+	.append(DisposalTableSchema.TYPE.q())
+	.append('=').append('?')
+	.toString();
+
 
 
 	public int deleteSubscribe(String selection, String[] selectionArgs) {
@@ -1623,6 +1637,16 @@ public class DistributorDataStore {
 		SUBSCRIPTION_EXPIRIATION_UPDATE= new ContentValues();
 		SUBSCRIPTION_EXPIRIATION_UPDATE.put(SubscribeTableSchema.DISPOSITION.cv(),
 				DisposalState.EXPIRED.cv());
+	}
+	
+	/**
+	 * purge all records from the subscribe table and cascade to the disposal table.
+	 * @return
+	 */
+	public int purgeSubscribe() {
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
+		db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.SUBSCRIBE.qv()});
+		return db.delete(Tables.SUBSCRIBE.n, null, null);
 	}
 
 	public final File applDir;
