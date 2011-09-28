@@ -3,6 +3,8 @@
  */
 package edu.vu.isis.ammo.core.network;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -1060,6 +1062,8 @@ public class MulticastChannel extends NetChannel
             // If this needs to change in the future, this code will need to be
             // revised.
 
+            List<InetAddress> addresses = getLocalIpAddresses();
+
             byte[] raw = new byte[100000]; // FIXME: What is max datagram size?
             while ( getReceiverState() != INetChannel.INTERRUPTED )
             {
@@ -1069,8 +1073,15 @@ public class MulticastChannel extends NetChannel
                     logger.debug( "Calling receive() on the MulticastSocket." );
 
                     setReceiverState( INetChannel.START );
+
                     mSocket.receive( packet );
                     logger.debug( "Received a packet. length={}", packet.getLength() );
+                    logger.debug( "source IP={}", packet.getAddress() );
+                    if ( addresses.contains( packet.getAddress() ))
+                    {
+                        logger.error( "Discarding packet from self." );
+                        continue;
+                    }
 
                     ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
                                                       packet.getOffset(),
@@ -1133,27 +1144,30 @@ public class MulticastChannel extends NetChannel
 
     // ********** UTILITY METHODS ****************
 
-    /**
-     * A routine to get the local ip address
-     * TODO use this someplace
-     *
-     * @return
-     */
-    public String getLocalIpAddress() {
-        logger.trace("Thread <{}>::getLocalIpAddress", Thread.currentThread().getId());
-        try {
-            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+
+    // A routine to get all local IP addresses
+    //
+    public List<InetAddress> getLocalIpAddresses()
+    {
+        List<InetAddress> addresses = new ArrayList<InetAddress>();
+        try
+        {
+            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();)
+            {
                 NetworkInterface intf = en.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();)
+                {
                     InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress()) {
-                        return inetAddress.getHostAddress().toString();
-                    }
+                    addresses.add( inetAddress );
+                    logger.error( "address: {}", inetAddress );
                 }
             }
-        } catch (SocketException ex) {
+        }
+        catch (SocketException ex)
+        {
             logger.error( ex.toString());
         }
-        return null;
+
+        return addresses;
     }
 }
