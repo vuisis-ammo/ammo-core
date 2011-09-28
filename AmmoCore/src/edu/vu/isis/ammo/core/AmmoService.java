@@ -269,14 +269,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return this.application;
 	}
 
-	public void notifyAmmoReady(Intent intent, int flags, int startId) {
-		logger.info("Forcing applications to register their subscriptions");
-		// broadcast login event to apps ...
-		final Intent loginIntent = new Intent(IPrefKeys.AMMO_READY);
-		//loginIntent.putExtra("operatorId", this.operatorId);
-		this.sendBroadcast(loginIntent);
-	}
-
 	/**
 	 * In order for the service to be shutdown cleanly the 'serviceStart()'
 	 * method may be used to prepare_for_stop, it will be stopped shortly and it
@@ -315,7 +307,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			}
 			logger.info("::onStartCommand {}", intent);
 		} 
-		notifyAmmoReady(intent, flags, startId);
 		
 		logger.info("started");
 		return START_STICKY;
@@ -445,7 +436,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 	
 	/* FIXME: this probably needs to happen differently. 
-	 Fred and Demitri discussed it and we need to add a flag to the intent sent
+	 Fred and Demetri discussed it and we need to add a flag to the intent sent
 	 below so that the receiver knows done initializing mcast channel
 	 - now fire up the AMMO_LOGIN intent to force apps to register their subscriptions
 	 */
