@@ -1137,7 +1137,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String POSTAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(PostalTableSchema.TOPIC.q()).append("=?").append(" AND ")
+	.append(PostalTableSchema.TOPIC.q()).append("=?")
+	.append(" AND ")
 	.append(PostalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
@@ -1163,7 +1164,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String PUBLISH_UPDATE_CLAUSE = new StringBuilder()
-	.append(PublishTableSchema.TOPIC.q()).append("=?").append(" AND ")
+	.append(PublishTableSchema.TOPIC.q()).append("=?")
+	.append(" AND ")
 	.append(PublishTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
@@ -1189,7 +1191,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String RETRIEVAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(RetrievalTableSchema.TOPIC.q()).append("=?").append(" AND ")
+	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
+	.append(" AND ")
 	.append(RetrievalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
@@ -1218,7 +1221,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String SUBSCRIBE_UPDATE_CLAUSE = new StringBuilder()
-	.append(SubscribeTableSchema.TOPIC.q()).append("=?").append(" AND ")
+	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
+	.append(" AND ")
 	.append(SubscribeTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
@@ -1260,26 +1264,12 @@ public class DistributorDataStore {
 		return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.TYPE.n, cv);
 	}
 	static final private String DISPOSAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append("=?").append(" AND ")
-	.append(DisposalTableSchema.PARENT.q()).append("=?").append(" AND ")
+	.append(DisposalTableSchema.TYPE.q()).append("=?")
+	.append(" AND ")
+	.append(DisposalTableSchema.PARENT.q()).append("=?")
+	.append(" AND ")
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?").toString();
 
-	/**
-	 * This is related to upsertChannelByName() inasmuch as it 
-	 * resets the failed state to pending.
-	 * @param name
-	 * @return the number of failed items updated
-	 */
-	public int upsertDisposalStateByChannel(String channel, DisposalState newState) {
-		final ContentValues cv = new ContentValues();
-		cv.put(DisposalTableSchema.STATE.cv(), newState.o); // null indicates not attempted
-		return this.db.update(Tables.DISPOSAL.n, cv, DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
-	}
-	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
-	.append(DisposalTableSchema.CHANNEL.q()).append("=?").append(" AND ")
-	.append(DisposalTableSchema.STATE.q())
-	.append(" IN ( ").append(DisposalState.FAIL.q()).append(')')
-	.toString();
 
 	public void upsertChannelByName(String channel, ChannelState status) {
 		final ContentValues cv = new ContentValues();		
@@ -1294,6 +1284,66 @@ public class DistributorDataStore {
 	}
 	static final private String CHANNEL_UPDATE_CLAUSE = new StringBuilder()
 	.append(ChannelTableSchema.NAME.q()).append("=?").toString();
+
+	/**
+	 * These are related to upsertChannelByName() inasmuch as it 
+	 * resets the failed state to pending.
+	 * @param name
+	 * @return the number of failed items updated
+	 */
+	static final private ContentValues DISPOSAL_PENDING_VALUES;
+	static {
+		DISPOSAL_PENDING_VALUES = new ContentValues();
+		DISPOSAL_PENDING_VALUES.put(DisposalTableSchema.STATE.cv(), DisposalState.PENDING.o); 
+	}
+	
+	/**
+	 * When a channel is deactivated all of its subscriptions and 
+	 * retrievals will need to be re-done on re-connect.
+	 * @param channel
+	 * @return
+	 */
+	public int deactivateDisposalStateByChannel(String channel) {
+		return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
+				DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
+	}	
+	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
+	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
+	.append(" AND ")
+	.append(DisposalTableSchema.TYPE.q()).append(" IN ( ")
+	.append(Tables.SUBSCRIBE.qv()).append(',')
+	.append(Tables.RETRIEVAL.qv()).append(')')
+	.append(" AND ")
+	.append(DisposalTableSchema.STATE.q())
+	.append(" NOT IN ( ").append(DisposalState.FAIL.q()).append(')')
+	.toString();
+	
+	/**
+	 * When a channel is activated nothing really needs to be done.
+	 * This method is provided as a place holder.
+	 * 
+	 * @param channel
+	 * @return
+	 */
+	public int activateDisposalStateByChannel(String channel) {
+		return -1;
+	}
+	
+	/** 
+	 * When a channel is repaired it any failed requests may be retried.
+	 * @param channel
+	 * @return
+	 */
+	public int repairDisposalStateByChannel(String channel) {
+		return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
+				DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
+	}
+	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
+	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
+	.append(" AND ")
+	.append(DisposalTableSchema.STATE.q())
+	.append(" IN ( ").append(DisposalState.FAIL.q()).append(')')
+	.toString();
 
 	/**
 	 * Update an object represented in the database.

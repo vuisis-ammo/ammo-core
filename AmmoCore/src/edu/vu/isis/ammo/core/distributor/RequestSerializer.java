@@ -108,8 +108,22 @@ public class RequestSerializer {
 
 
 	/**
-	 * @see deserializeToUri with which this method is symmetric.
-	 */
+	 * The JSON serialization is in the following form...
+	 * serialized tuple : A list of non-null bytes which serialize the tuple, 
+	 *   this is provided/supplied to the ammo enabled content provider via insert/query.
+	 *   The serialized tuple may be null terminated or the byte array may simply end.
+	 * field blobs : A list of name:value pairs where name is the field name and value is 
+	 *   the field's data blob associated with that field.
+	 *   There may be multiple field blobs.
+	 *   
+	 *   field name : A null terminated name, 
+	 *   field data length : A 4 byte big-endian length, indicating the number of bytes in the data blob.
+	 *   field data blob : A set of bytes whose quantity is that of the field data length
+	 *   
+	 * Note the serializeFromProvider and serializeFromProvider are symmetric, 
+	 * any change to one will necessitate a corresponding change to the other.
+	 */  
+	
 	public static byte[] serializeFromProvider(final ContentResolver resolver, 
 			final Uri tupleUri, final DistributorPolicy.Encoding encoding) 
 					throws FileNotFoundException, IOException {
@@ -255,23 +269,9 @@ public class RequestSerializer {
 		}
 	}
 
-
 	/**
-	 * The JSON serialization is in the following form...
-	 * serialized tuple : A list of non-null bytes which serialize the tuple, 
-	 *   this is provided/supplied to the ammo enabled content provider via insert/query.
-	 *   The serialized tuple may be null terminated or the byte array may simply end.
-	 * field blobs : A list of name:value pairs where name is the field name and value is 
-	 *   the field's data blob associated with that field.
-	 *   There may be more than one field blob.
-	 *   
-	 *   field name : A null terminated name, 
-	 *   field data length : A 4 byte big-endian length, indicating the number of bytes in the data blob.
-	 *   field data blob : A set of bytes whose size is that of the field data length
-	 *   
-	 * Note the deserializeToUri and serializeFromUri are symmetric, any change to one 
-	 * will necessitate a corresponding change to the other.
-	 */  
+	 * @see serializeFromProvider with which this method is symmetric.
+	 */
 	public static Uri deserializeToProvider(final ContentResolver resolver, 
 			final Uri provider, final Encoding encoding, final byte[] data) {
 

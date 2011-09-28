@@ -96,12 +96,13 @@ extends AsyncTask<AmmoService, Integer, Void>
 		switch (change) {
 		case DEACTIVATE:
 			this.store.upsertChannelByName(name, ChannelState.INACTIVE);
+			this.store.deactivateDisposalStateByChannel(name);
 			logger.trace("::channel deactivated");
 			return;
 
 		case ACTIVATE:
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-			this.store.upsertDisposalStateByChannel(name, DisposalState.PENDING);
+			this.store.activateDisposalStateByChannel(name);
 			if (!channelDelta.compareAndSet(false, true)) return;
 			this.signal();
 			logger.trace("::channel activated");
@@ -109,7 +110,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		case REPAIR: 
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-			this.store.upsertDisposalStateByChannel(name, DisposalState.PENDING);
+			this.store.repairDisposalStateByChannel(name);
 			if (!channelDelta.compareAndSet(false, true)) return;
 			this.signal();
 			logger.trace("::channel repaired");
