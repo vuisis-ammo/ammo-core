@@ -197,7 +197,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return networkingSwitch = networkingSwitch ? false : true;
 	}
 
-	// Channels
+	// Network Channels
 	final private NetChannel tcpChannel = TcpChannel.getInstance("gateway", this);
 	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
 	final private NetChannel journalChannel = JournalChannel.getInstance("journal", this);
@@ -273,7 +273,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("Forcing applications to register their subscriptions");
 		// broadcast login event to apps ...
 		final Intent loginIntent = new Intent(IPrefKeys.AMMO_READY);
-		//loginIntent.putExtra("operatorId", operatorId);
+		//loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
 	}
 
@@ -431,20 +431,23 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				.getSystemService(Context.TELEPHONY_SERVICE);
 		tm.listen(mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE);
 
-		// FIXME: this probably needs to happen differently. Fred and
-		// I discussed it and we need to add a flag to the intent sent
-		// below so that the receiver knows
-		// done initializing mcast channel - now fire up the AMMO_LOGIN intent
-		// to force apps to register their subscriptions
+		this.refresh(); // refresh subscribe and retrieval tables
+	}
+	
+	/* FIXME: this probably needs to happen differently. 
+	 Fred and Demitri discussed it and we need to add a flag to the intent sent
+	 below so that the receiver knows done initializing mcast channel
+	 - now fire up the AMMO_LOGIN intent to force apps to register their subscriptions
+	 */
+	private void refresh() {	
 		logger.info("Forcing applications to register their subscriptions");
 		// broadcast login event to apps ...
-		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-		loginIntent.putExtra("operatorId", operatorId);
-		this.sendBroadcast(loginIntent);
-		
+		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
 		this.acquirePreferences();
+		
+		loginIntent.putExtra("operatorId", this.operatorId);
+		this.sendBroadcast(loginIntent);
 		this.multicastChannel.reset(); 
-
 	}
 
 	@Override
@@ -573,14 +576,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			return;
 		}
 		if (key.equals(IPrefKeys.CORE_OPERATOR_ID)) {
-			operatorId = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, operatorId);
+			this.operatorId = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, this.operatorId);
 			if (this.isConnected())
 				this.auth(); // TBD SKN: this should really do a setStale rather
 			// than just authenticate
 			return;
 		}
 		if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
-			operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, operatorKey);
+			this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
 			if (this.isConnected())
 				this.auth();
 			return;
@@ -679,7 +682,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				AmmoMessages.AuthenticationMessage.newBuilder();
 		authreq.setDeviceId(
 				UniqueIdentifiers.device(this.getApplicationContext()))
-				.setUserId(operatorId).setUserKey(operatorKey);
+				.setUserId(this.operatorId).setUserKey(this.operatorKey);
 
 		mw.setAuthenticationMessage(authreq);
 		mw.setMessagePriority(AmmoGatewayMessage.PriorityLevel.AUTH.v);
@@ -826,7 +829,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("authentication complete inform applications : ");
 		// broadcast login event to apps ...
 		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-		loginIntent.putExtra("operatorId", operatorId);
+		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
 	}
 
