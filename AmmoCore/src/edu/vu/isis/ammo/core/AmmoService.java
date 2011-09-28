@@ -308,6 +308,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					}
 					return START_NOT_STICKY;
 				}
+				if (action.equals("edu.vu.isis.ammo.AMMO_HARD_RESET")) {
+					this.refresh();
+					return START_NOT_STICKY;
+				}
 			}
 			logger.info("::onStartCommand {}", intent);
 		} 
@@ -431,6 +435,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				.getSystemService(Context.TELEPHONY_SERVICE);
 		tm.listen(mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE);
 
+		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		this.acquirePreferences();
+		
+		loginIntent.putExtra("operatorId", this.operatorId);
+		this.sendBroadcast(loginIntent);
+		
 		this.refresh(); // refresh subscribe and retrieval tables
 	}
 	
@@ -441,8 +451,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 */
 	private void refresh() {	
 		logger.info("Forcing applications to register their subscriptions");
+		
+		this.distThread.clearTables();
+		
 		// broadcast login event to apps ...
-		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_READY);
 		this.acquirePreferences();
 		
 		loginIntent.putExtra("operatorId", this.operatorId);

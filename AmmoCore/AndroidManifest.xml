@@ -88,8 +88,7 @@
 				<action
 					android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
 				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP" />
-			</intent-filter>
-			<intent-filter>
+			
 				<action
 					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH" />
 				<action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.BIND" />
@@ -99,6 +98,7 @@
 					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
 
 				<action android:name="edu.vu.isis.ammo.api.MAKE_REQUEST" />
+				<action android:name="edu.vu.isis.ammo.AMMO_HARD_RESET" />
 			</intent-filter>
 		</service>
 
