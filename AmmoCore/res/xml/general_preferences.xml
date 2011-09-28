@@ -40,13 +40,13 @@
 			android:key="CORE_IP_ADDRESS"
 			android:name="IP Address"
 			android:title="IP Address"
-			android:defaultValue="129.59.129.189"/>
+			android:defaultValue="129.59.129.191"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="CORE_IP_PORT"
 			android:name="Port"
 			android:title="Port"
-			android:defaultValue="32869"/>
+			android:defaultValue="33289"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="AMMO_NET_CONN_FLAT_LINE_TIME"
