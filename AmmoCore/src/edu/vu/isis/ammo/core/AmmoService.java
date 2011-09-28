@@ -435,6 +435,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				.getSystemService(Context.TELEPHONY_SERVICE);
 		tm.listen(mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE);
 
+		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		this.acquirePreferences();
+		
+		loginIntent.putExtra("operatorId", this.operatorId);
+		this.sendBroadcast(loginIntent);
+		
 		this.refresh(); // refresh subscribe and retrieval tables
 	}
 	
