@@ -57,6 +57,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     private static final int CONFIG_MENU = Menu.NONE + 1;
     private static final int DEBUG_MENU = Menu.NONE + 2;
     private static final int ABOUT_MENU = Menu.NONE + 3;
+    private static final int RESET_MENU = Menu.NONE + 4;
 
     // ===========================================================
     // Fields
@@ -255,6 +256,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         menu.add(Menu.NONE, CONFIG_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
         menu.add(Menu.NONE, DEBUG_MENU, Menu.NONE, getResources().getString((!this.netlinkAdvancedView)?(R.string.debug_label):(R.string.user_label)));
         menu.add(Menu.NONE, ABOUT_MENU, Menu.NONE, getResources().getString(R.string.about_label));
+        menu.add(Menu.NONE, RESET_MENU, Menu.NONE, "Hard Reset");
 
         //ANDROID3.0
         //Store the reference to the menu so we can use it in the toggle
@@ -275,24 +277,33 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     public boolean onOptionsItemSelected(MenuItem item) {
         logger.trace("::onOptionsItemSelected");
         Intent intent = new Intent();
+        boolean returnValue = true;
         switch (item.getItemId()) {
         case DEBUG_MENU:
             toggleMode();
-            return true;
+            break;
         case VIEW_TABLES_MENU:
             intent.setClass(this, DistributorTabActivity.class);
             this.startActivity(intent);
-            return true;
+            break;
         case CONFIG_MENU:
             intent.setClass(this, GeneralPreferences.class);
             this.startActivity(intent);
-            return true;
+            break;
         case ABOUT_MENU:
             intent.setClass(this, AboutActivity.class);
             this.startActivity(intent);
-                return true;
+            break;
+        case RESET_MENU:
+        	intent.setAction("edu.vu.isis.ammo.AMMO_HARD_RESET");
+        	intent.setClass(this, AmmoService.class);
+        	this.startService(intent);
+        	break;
+        default:
+        		returnValue = false;
         }
-        return false;
+        
+        return returnValue;
     }
 
     @Override
