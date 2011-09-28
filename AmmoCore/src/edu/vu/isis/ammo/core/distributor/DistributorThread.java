@@ -1245,6 +1245,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				SUSCRIBE_QUERY, new String[]{ topic }, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no subscription {}", topic);
+			cursor.close();
 			return false;
 		}
 		cursor.moveToFirst();
