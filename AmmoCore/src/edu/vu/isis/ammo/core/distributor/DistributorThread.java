@@ -615,6 +615,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
 					status.put(channel, DisposalState.values()[state]);
 				}
+				channelCursor.close();
 			}
 			// Dispatch the request.
 			try {
@@ -899,6 +900,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
 					status.put(channel, DisposalState.values()[state]);
 				}
+				channelCursor.close();
 			}
 
 			try {
@@ -1138,6 +1140,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
 					status.put(channel, DisposalState.values()[state]);
 				}
+				channelCursor.close();
 			}
 
 			try {
@@ -1246,6 +1249,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		}
 		cursor.moveToFirst();
 		final String uriString = cursor.getString(0);  // only asked for one so it better be it.
+		cursor.close();
 		final Uri provider = Uri.parse(uriString);
 
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
