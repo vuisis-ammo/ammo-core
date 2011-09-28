@@ -721,13 +721,8 @@ public class MulticastChannel extends NetChannel
             {
                 mIsConnected.set( false );
 
-                if ( mSender != null )
-                    mSender.interrupt();
-                if ( mReceiver != null )
-                    mReceiver.interrupt();
-
-                mSenderQueue.reset();
-
+                // Have to close the socket first unless we convert to
+                // an interruptible datagram socket.
                 if ( parent.mSocket != null )
                 {
                     logger.debug( "Closing MulticastSocket." );
@@ -737,11 +732,30 @@ public class MulticastChannel extends NetChannel
                     parent.mSocket = null;
                 }
 
+ 				if ( mSender != null ) {
+                    logger.debug( "interrupting SenderThread" );
+					mSender.interrupt();
+                }
+				if ( mReceiver != null ) {
+                    logger.debug( "interrupting ReceiverThread" );
+					mReceiver.interrupt();
+                }
+
+                // We need to wait here until the threads have stopped.
+                logger.debug( "calling join() on SenderThread" );
+                mSender.join();
+                logger.debug( "calling join() on ReceiverThread" );
+                mReceiver.join();
+
+                parent.mSender = null;
+                parent.mReceiver = null;
+
+                logger.debug( "resetting SenderQueue" );
+                mSenderQueue.reset();
+
                 setIsAuthorized( false );
 
                 parent.setSecurityObject( null );
-                parent.mSender = null;
-                parent.mReceiver = null;
             }
             catch ( Exception e )
             {
@@ -942,6 +956,15 @@ public class MulticastChannel extends NetChannel
                     logger.debug( "interrupted taking messages from send queue: {}",
                                   ex.getLocalizedMessage() );
                     setSenderState( INetChannel.INTERRUPTED );
+                    mParent.socketOperationFailed();
+                    break;
+                }
+                catch ( Exception e )
+                {
+                    e.printStackTrace();
+                    logger.warn("sender threw exception while take()ing");
+                    setSenderState( INetChannel.INTERRUPTED );
+                    mParent.socketOperationFailed();
                     break;
                 }
 
@@ -971,6 +994,13 @@ public class MulticastChannel extends NetChannel
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, DisposalState.QUEUED );
                 }
+                catch ( SocketException ex )
+                {
+                    logger.debug( "sender caught SocketException" );
+                    setSenderState( INetChannel.INTERRUPTED );
+                    mParent.socketOperationFailed();
+                    break;
+                }
                 catch ( Exception e )
                 {
                     e.printStackTrace();
@@ -979,6 +1009,7 @@ public class MulticastChannel extends NetChannel
                         mChannel.ackToHandler( msg.handler, DisposalState.FAIL );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
+                    break;
                 }
             }
         }
@@ -1030,7 +1061,7 @@ public class MulticastChannel extends NetChannel
             // revised.
 
             byte[] raw = new byte[100000]; // FIXME: What is max datagram size?
-            while ( mState != INetChannel.INTERRUPTED )
+            while ( getReceiverState() != INetChannel.INTERRUPTED )
             {
                 try
                 {
@@ -1067,7 +1098,7 @@ public class MulticastChannel extends NetChannel
                 }
                 catch ( ClosedChannelException ex )
                 {
-                    logger.warn( "receiver threw exception {}", ex.getStackTrace() );
+                    logger.warn( "receiver threw ClosedChannelException {}", ex.getStackTrace() );
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }

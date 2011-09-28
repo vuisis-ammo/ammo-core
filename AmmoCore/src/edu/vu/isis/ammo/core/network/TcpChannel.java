@@ -734,10 +734,14 @@ public class TcpChannel extends NetChannel {
 			{
 				mIsConnected.set( false );
 
-				if ( mSender != null )
+				if ( mSender != null ) {
+                    logger.debug( "interrupting SenderThread" );
 					mSender.interrupt();
-				if ( mReceiver != null )
+                }
+				if ( mReceiver != null ) {
+                    logger.debug( "interrupting ReceiverThread" );
 					mReceiver.interrupt();
+                }
 
 				mSenderQueue.reset();
 
