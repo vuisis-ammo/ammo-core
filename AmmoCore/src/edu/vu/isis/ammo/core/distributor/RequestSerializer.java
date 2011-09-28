@@ -298,7 +298,10 @@ public class RequestSerializer {
 					cv.put(key, input.getString(key));
 				}
 				tupleUri = resolver.insert(provider, cv);
-
+				if (tupleUri == null) {
+					logger.warn("could not insert {} into {}", cv, provider);
+					return null;
+				}
 			} catch (JSONException ex) {
 				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
 				return null;
