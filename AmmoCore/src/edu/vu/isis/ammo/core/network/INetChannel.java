@@ -63,6 +63,6 @@ public interface INetChannel {
      * @return
      */
     DisposalState sendRequest( AmmoGatewayMessage agm );
-    String getLocalIpAddress();
+    //String getLocalIpAddress();
 
 }
