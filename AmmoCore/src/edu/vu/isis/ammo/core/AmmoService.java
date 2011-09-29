@@ -442,11 +442,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		
 		// broadcast login event to apps ...
 		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_READY);
+		loginIntent.addCategory(INetPrefKeys.RESET_CATEGORY);
+		
 		this.acquirePreferences();
+		this.multicastChannel.reset(); 
 		
 		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
-		this.multicastChannel.reset(); 
 	}
 
 	@Override

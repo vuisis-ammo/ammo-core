@@ -28,13 +28,14 @@ public class PackageInstalledReceiver extends BroadcastReceiver {
 	@Override
 	public void onReceive(Context context, Intent intent) {
 		logger.debug("onReceive{}", intent.getAction());
-		String action = intent.getAction();
-		String data = intent.getDataString();
+		final String action = intent.getAction();
+		final String packageName = intent.getDataString();
 		
 		// If this is an ammo package, broadcast an intent that the Ammo is ready.  
-		if (action.equalsIgnoreCase("android.intent.action.PACKAGE_ADDED") && data.contains("ammo")) {
-			Intent i = new Intent(IPrefKeys.AMMO_READY);
-			context.sendBroadcast(i);
+		if (action.equalsIgnoreCase("android.intent.action.PACKAGE_ADDED") && packageName.contains("ammo")) {
+			final Intent readyIntent = new Intent(IPrefKeys.AMMO_READY);
+			readyIntent.addCategory(packageName);
+			context.sendBroadcast(readyIntent);
 		}
 	}
 }
