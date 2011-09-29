@@ -208,11 +208,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	
 	private DistributorThread distThread;
 
-	public void onChannelChange(String name, ChannelChange change) {
-		logger.info("channel {} changed its status to {}", name, change);
-		this.distThread.onChannelChange(name, change);
-	}
-	
 
 	private TelephonyManager tm;
 	private CellPhoneListener cellPhoneListener;
@@ -827,8 +822,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		.commit();
 		sessionId = mw.getSessionUuid();
 
-		logger.trace("authentication complete, repost subscriptions and pending data : ");
-		this.onChannelChange(channel.name, ChannelChange.ACTIVATE);
+		logger.trace("authentication complete, repost subscriptions and pending data {}", channel);
+		this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.ACTIVATE);
 
 		logger.info("authentication complete inform applications : ");
 		// broadcast login event to apps ...
@@ -851,7 +846,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		// TBD needs mapping from channel status to "ACTIVATE/DEACTIVATE"
 		
-		this.onChannelChange(channel.name,
+		this.distThread.onChannelChange(this.getBaseContext(), channel.name, 
 				     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
 				     ChannelChange.ACTIVATE : ChannelChange.DEACTIVATE);
 		// channel is ACTIVATED by authenticate

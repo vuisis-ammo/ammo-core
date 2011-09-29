@@ -1298,8 +1298,10 @@ public class DistributorDataStore {
 	}
 	
 	/**
-	 * When a channel is deactivated all of its subscriptions and 
-	 * retrievals will need to be re-done on re-connect.
+	 * When a channel is deactivated all of its subscriptions  
+	 * will need to be re-done on re-connect.
+         * Retrievals and postals won't have this problem,
+         * TODO unless they are queued.
 	 * @param channel
 	 * @return
 	 */
@@ -1311,8 +1313,7 @@ public class DistributorDataStore {
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
 	.append(" AND ")
 	.append(DisposalTableSchema.TYPE.q()).append(" IN ( ")
-	.append(Tables.SUBSCRIBE.qv()).append(',')
-	.append(Tables.RETRIEVAL.qv()).append(')')
+	.append(Tables.SUBSCRIBE.qv()).append(')')
 	.append(" AND ")
 	.append(DisposalTableSchema.STATE.q())
 	.append(" NOT IN ( ").append(DisposalState.FAIL.q()).append(')')

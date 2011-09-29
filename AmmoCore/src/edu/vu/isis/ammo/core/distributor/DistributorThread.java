@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -89,7 +90,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	private ConcurrentMap<String, ChannelChange> channelStatus = 
 			new ConcurrentHashMap<String, ChannelChange>();
 
-	public void onChannelChange(String name, ChannelChange change) {
+	public void onChannelChange(final Context context, final String name, final ChannelChange change) {
 		if (change.equals(this.channelStatus.get(name))) return;
 		this.channelStatus.put(name, change);
 
@@ -103,6 +104,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		case ACTIVATE:
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
 			this.store.activateDisposalStateByChannel(name);
+                        this.announceChannelActive(context, name);
 			if (!channelDelta.compareAndSet(false, true)) return;
 			this.signal();
 			logger.trace("::channel activated");
@@ -111,12 +113,22 @@ extends AsyncTask<AmmoService, Integer, Void>
 		case REPAIR: 
 			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
 			this.store.repairDisposalStateByChannel(name);
+                        this.announceChannelActive(context, name);
 			if (!channelDelta.compareAndSet(false, true)) return;
 			this.signal();
 			logger.trace("::channel repaired");
 			return;
 		} 
 	}
+
+        private void announceChannelActive(final Context context, final String name) {
+                logger.trace("inform applications to retrieve more data");
+
+                // broadcast login event to apps ...
+                final Intent loginIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
+                loginIntent.putExtra("channel", name);
+                context.sendBroadcast(loginIntent);
+        }
 
 	/**
 	 * Contains client application requests
