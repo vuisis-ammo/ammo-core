@@ -7,11 +7,14 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/dis
 <policy>
   <topic type="">
      <description>
+Generally requests should be sent over the gateway, unless it isn't
+available then local multicast delivery should be used.
      </description>
      <priority value="normal"/>
      <routing>
 	     <clause>
 	        <literal term="gateway" condition="success" encoding="verbose"/>
+            <literal term="multicast" condition="success" encoding="verbose"/>
 	     </clause>
      </routing>
   </topic>
@@ -22,34 +25,36 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/dis
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="success" encoding="verbose"/>
 	        <literal term="gateway" condition="success" encoding="verbose"/>
+	        <literal term="multicast" condition="success" encoding="verbose"/>
 	     </clause>
      </routing>
   </topic>
 
-  <topic type="ammo/edu.vu.isis.ammo.">
-     <description>
-     </description>
-     <priority value="normal"/>
-     <routing>
-	     <clause>
-	        <literal term="multicast" condition="success" encoding="verbose"/>
-	     </clause>
-	     <clause>
-	        <literal term="gateway" condition="success" encoding="verbose"/>
-	     </clause>
-     </routing>
-  </topic>
-  
   <topic type="ammo/edu.vu.isis.ammo.sms.">
      <description>
      </description>
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="true" encoding="verbose"/>
 	        <literal term="gateway" condition="true" encoding="verbose"/>
+	        <literal term="multicast" condition="true" encoding="verbose"/>
+	     </clause>
+     </routing>
+  </topic>
+
+  <topic type="example/both.">
+     <description>
+This example illustrates the case where the requests 
+should be sent over both channels.
+     </description>
+     <priority value="normal"/>
+     <routing>
+	     <clause>
+	        <literal term="multicast" condition="success" encoding="verbose"/>
+	     </clause>
+	     <clause>
+	        <literal term="gateway" condition="success" encoding="verbose"/>
 	     </clause>
      </routing>
   </topic>
