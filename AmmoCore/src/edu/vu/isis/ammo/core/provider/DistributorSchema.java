@@ -51,7 +51,7 @@ public class DistributorSchema implements BaseColumns, BaseDateColumns {
 	    * A mime type used for publisher subscriber.
 	    */
 	   public static final String CONTENT_TOPIC =
-	      "application/vnd.edu.vu.isis.ammo.core.distributor";
+	      "ammo/edu.vu.isis.ammo.core.distributor";
 	   
 	   /**
 	    * The MIME type of a {@link #CONTENT_URI} sub-directory of a single media entry.

@@ -16,7 +16,7 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/dis
      </routing>
   </topic>
 
-  <topic type="application/vnd.com.aterrasys.">
+  <topic type="ammo/com.aterrasys.">
      <description>
      </description>
      <priority value="normal"/>
@@ -28,7 +28,7 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/dis
      </routing>
   </topic>
 
-  <topic type="application/vnd.edu.vu.isis.ammo.">
+  <topic type="ammo/edu.vu.isis.ammo.">
      <description>
      </description>
      <priority value="normal"/>
@@ -42,7 +42,7 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/dis
      </routing>
   </topic>
   
-  <topic type="application/vnd.edu.vu.isis.ammo.sms.">
+  <topic type="ammo/edu.vu.isis.ammo.sms.">
      <description>
      </description>
      <priority value="normal"/>

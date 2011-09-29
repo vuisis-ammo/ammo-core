@@ -43,7 +43,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	// Constants
 	// ===========================================================
 	public static final String LAUNCH = "edu.vu.isis.ammo.core.Subscribe.LAUNCH";
-	public static final String MIME_OBJECT = "application/vnd.edu.vu.isis.ammo.map.object";
+	public static final String MIME_OBJECT = "ammo/edu.vu.isis.ammo.map.object";
 	
 	// ===========================================================
 	// Fields
