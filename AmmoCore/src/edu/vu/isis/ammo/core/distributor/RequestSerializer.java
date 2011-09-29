@@ -11,6 +11,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.lang.IllegalArgumentException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -308,6 +309,9 @@ public class RequestSerializer {
 			} catch (SQLiteException ex) {
 				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
 				return null;
+			} catch (IllegalArgumentException ex) {
+			    logger.warn("bad provider or values: {}", ex.getLocalizedMessage());
+			    return null;
 			}		
 			if (position == data.length) return tupleUri;
 
