@@ -845,6 +845,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
+				
 				final Map<String,DisposalState> dispatchResult = 
 						this.dispatchRetrievalRequest(that,
 								uuid, topic, select, policy, null,

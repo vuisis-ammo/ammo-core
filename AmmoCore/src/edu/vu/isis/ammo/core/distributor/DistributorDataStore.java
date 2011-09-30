@@ -36,7 +36,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
-	public static final int VERSION = 17;
+	public static final int VERSION = 18;
 
 	// ===========================================================
 	// Fields
@@ -1174,11 +1174,12 @@ public class DistributorDataStore {
 	.toString();
 
 	public long upsertRetrieval(ContentValues cv, Map<String,DisposalState> status) {
+		final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
 		final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
 
 		final long key;
-		final String[] updateArgs = new String[]{ topic, provider };
+		final String[] updateArgs = new String[]{ uuid, topic, provider };
 		if (0 < this.db.update(Tables.RETRIEVAL.n, cv, RETRIEVAL_UPDATE_CLAUSE, updateArgs )) {
 			final Cursor cursor = this.db.query(Tables.RETRIEVAL.n, 
 					new String[]{RetrievalTableSchema._ID.n},
@@ -1195,6 +1196,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String RETRIEVAL_UPDATE_CLAUSE = new StringBuilder()
+	.append(RetrievalTableSchema.UUID.q()).append("=?")
+	.append(" AND ")
 	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
 	.append(" AND ")
 	.append(RetrievalTableSchema.PROVIDER.q()).append("=?")
