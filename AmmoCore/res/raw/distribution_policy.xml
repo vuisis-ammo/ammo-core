@@ -13,8 +13,21 @@ available then local multicast delivery should be used.
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="gateway" condition="success" encoding="verbose"/>
-            <literal term="multicast" condition="success" encoding="verbose"/>
+	        <literal term="gateway" condition="success" encoding="json"/>
+            <literal term="multicast" condition="success" encoding="json"/>
+	     </clause>
+     </routing>
+  </topic>
+  
+   <topic type="ammo/edu.vu.isis.ammo.">
+     <description>
+The ammo applications.
+     </description>
+     <priority value="normal"/>
+     <routing>
+	     <clause>
+	        <literal term="gateway" condition="success" encoding="json"/>
+            <literal term="multicast" condition="success" encoding="json"/>
 	     </clause>
      </routing>
   </topic>
@@ -25,8 +38,8 @@ available then local multicast delivery should be used.
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="gateway" condition="success" encoding="verbose"/>
-	        <literal term="multicast" condition="success" encoding="verbose"/>
+	        <literal term="gateway" condition="success" encoding="json"/>
+	        <literal term="multicast" condition="success" encoding="json"/>
 	     </clause>
      </routing>
   </topic>
@@ -37,8 +50,8 @@ available then local multicast delivery should be used.
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="gateway" condition="true" encoding="verbose"/>
-	        <literal term="multicast" condition="true" encoding="verbose"/>
+	        <literal term="gateway" condition="true" encoding="json"/>
+	        <literal term="multicast" condition="true" encoding="json"/>
 	     </clause>
      </routing>
   </topic>
@@ -51,10 +64,10 @@ should be sent over both channels.
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="success" encoding="verbose"/>
+	        <literal term="multicast" condition="success" encoding="json"/>
 	     </clause>
 	     <clause>
-	        <literal term="gateway" condition="success" encoding="verbose"/>
+	        <literal term="gateway" condition="success" encoding="json"/>
 	     </clause>
      </routing>
   </topic>
@@ -66,11 +79,11 @@ should be sent over both channels.
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="false" encoding="verbose"/>
+	        <literal term="multicast" condition="false" encoding="json"/>
 	        <literal term="serial" condition="true" encoding="terse" />
 	     </clause>
 	     <clause>
-	        <literal term="gateway" condition="true" encoding="verbose" />
+	        <literal term="gateway" condition="true" encoding="json" />
 	     </clause>
      </routing>
   </topic>
@@ -82,11 +95,11 @@ should be sent over both channels.
      <priority value="normal"/>
      <routing>
 	     <clause>
-	        <literal term="multicast" condition="false" encoding="verbose"/>
+	        <literal term="multicast" condition="false" encoding="json"/>
 	        <literal term="serial" condition="true" encoding="terse"/>
 	     </clause>
 	     <clause>
-	        <literal term="gateway" condition="true" encoding="verbose"/>
+	        <literal term="gateway" condition="true" encoding="json"/>
 	        <literal term="serial" condition="false" encoding="terse"/>
 	     </clause>
      </routing>

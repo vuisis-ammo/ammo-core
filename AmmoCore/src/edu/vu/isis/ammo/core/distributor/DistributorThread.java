@@ -16,7 +16,6 @@ import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -819,13 +818,17 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		// Dispatch the message.
 		try {
+			final String uuid = agm.uuid();
 			final String topic = agm.topic.asString();
+			final String select = agm.select.toString();
 			final DistributorPolicy.Topic policy = that.policy().match(topic);
 
 			final ContentValues values = new ContentValues();
+			values.put(RetrievalTableSchema.UUID.cv(), uuid);
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
-			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());
-			values.put(RetrievalTableSchema.SELECTION.cv(), agm.select.toString());
+			values.put(RetrievalTableSchema.SELECTION.cv(), select);
+			
+			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());		
 			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.durability);
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
 			values.put(RetrievalTableSchema.PRIORITY.cv(), agm.priority);
@@ -842,11 +845,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
+				
 				final Map<String,DisposalState> dispatchResult = 
 						this.dispatchRetrievalRequest(that,
-								agm.provider.toString(),
-								agm.select.toString(),
-								topic, policy, null,
+								uuid, topic, select, policy, null,
 								new INetworkService.OnSendMessageHandler() {
 
 							@Override
@@ -887,21 +889,6 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
-			final String provider = pending.getString(pending.getColumnIndex(RetrievalTableSchema.PROVIDER.cv()));
-			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
-			// String disposition =
-			// pendingCursor.getString(pendingCursor.getColumnIndex(RetrievalTableSchema.DISPOSITION));
-	
-			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
-			// int expiration =
-			// pendingCursor.getInt(pendingCursor.getColumnIndex(RetrievalTableSchema.EXPIRATION));
-			// long createdDate =
-			// pendingCursor.getLong(pendingCursor.getColumnIndex(RetrievalTableSchema.CREATED_DATE));
-
-			@SuppressWarnings("unused")
-			final Uri rowUri = Uri.parse(provider);
-
-
 			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"retrieval");
@@ -914,7 +901,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 				}
 				channelCursor.close();
 			}
-
+			
+			final String uuid = pending.getString(pending.getColumnIndex(RetrievalTableSchema.UUID.cv()));
+			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));		
+			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
 			try {
 				if (!that.isConnected()) {
 					logger.info("no network connection");
@@ -930,8 +920,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 					final Map<String,DisposalState> dispatchResult = 
 							this.dispatchRetrievalRequest(that,
-										      provider.toString(), selection,
-									topic, policy, status,
+									uuid, topic, selection,
+									policy, status,
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
@@ -969,8 +959,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */
 
 	private Map<String,DisposalState> 
-	dispatchRetrievalRequest(final AmmoService that, String retrievalId, String selection,  
-			String topic, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
+	dispatchRetrievalRequest(final AmmoService that, String retrievalId, String topic, String selection,  
+			DistributorPolicy.Topic policy, Map<String,DisposalState> status,
 			final INetworkService.OnSendMessageHandler handler) {
 	    logger.info("::dispatchRetrievalRequest {}", topic);
 
@@ -1016,25 +1006,42 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param mw
 	 * @return
 	 */
-	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("::receiveRetrievalResponse");
-
+	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw) {	
 		if (mw == null) return false;
 		if (! mw.hasPullResponse()) return false;
+		logger.info("::receiveRetrievalResponse");
+
 		final AmmoMessages.PullResponse resp = mw.getPullResponse();
-		final String uriStr = resp.getRequestUid(); 
-		final ContentResolver resolver = context.getContentResolver();
-		final Uri provider = Uri.parse(uriStr);
-
-		// FIXME how to control de-serializing
+			
+		// find the provider to use
+		final String uuid = resp.getRequestUid(); 
+		final String topic = resp.getMimeType();
+		final Cursor cursor = this.store.queryRetrieval(
+				new String[]{RetrievalTableSchema.PROVIDER.n}, 
+				RETRIEVAL_QUERY, new String[]{uuid, topic }, null);
+		if (cursor.getCount() < 1) {
+			logger.error("received a message for which there is no retrieval {}", topic);
+			cursor.close();
+			return false;
+		}
+		cursor.moveToFirst();
+		final String uriString = cursor.getString(0);  // only asked for one so it better be it.
+		cursor.close();
+		final Uri provider = Uri.parse(uriString);
+		
+		// update the actual provider
+		
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		final Uri tuple = RequestSerializer.deserializeToProvider(resolver, provider, encoding, resp.getData().toByteArray());
+		final Uri tuple = RequestSerializer.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray());
 		logger.debug("tuple upserted {}", tuple);
-		// This update/delete the retrieval request, it is fulfilled.
-		// this.store.upsertDisposalByParent(id, type, channel, status);
-
+		
 		return true;
 	}
+	static private final String RETRIEVAL_QUERY = new StringBuilder()
+	.append(RetrievalTableSchema.UUID.q()).append("=? ")
+	.append(RetrievalTableSchema.TOPIC.q()).append("=? ")
+	.toString();
+
 
 
 	// =========== SUBSCRIBE ====================
@@ -1128,19 +1135,9 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
-			final String provider = pending.getString(pending.getColumnIndex(SubscribeTableSchema.PROVIDER.cv()));
 			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
-			// String disposition =
-			// pendingCursor.getString(pendingCursor.getColumnIndex(SubscribeTableSchema.DISPOSITION));
-	
+			
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
-			// int expiration =
-			// pendingCursor.getInt(pendingCursor.getColumnIndex(SubscribeTableSchema.EXPIRATION));
-			// long createdDate =
-			// pendingCursor.getLong(pendingCursor.getColumnIndex(SubscribeTableSchema.CREATED_DATE));
-
-			@SuppressWarnings("unused")
-			final Uri rowUri = Uri.parse(provider);
 
 			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
 			{
@@ -1268,11 +1265,11 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
 		RequestSerializer.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray());
 
-		// this.store.upsertDisposalByParent(id, type, channel, status);
 		return true;
 	}
 	static private final String SUSCRIBE_QUERY = new StringBuilder()
-	.append(SubscribeTableSchema.TOPIC.q()).append("=? ").toString();
+	.append(SubscribeTableSchema.TOPIC.q()).append("=? ")
+	.toString();
 
 	/**
 	 * Clear the contents of tables in preparation for reloading them.
