@@ -237,16 +237,24 @@ public class MulticastChannel extends NetChannel
             this.connectorThread.reset();
         }
     }
-    private void statusChange()
-    {
-        int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
-        int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
 
-        mChannelManager.statusChange( this,
-                                      this.connectorThread.state.value,
-                                      senderState,
-                                      receiverState );
-    }
+
+	private void statusChange()
+	{
+		int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
+		int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
+
+        try {
+            mChannelManager.statusChange( this,
+                                          this.connectorThread.state.value,
+                                          senderState,
+                                          receiverState );
+        } catch ( Exception e ) {
+            logger.error( "Exception thrown in statusChange() {} \n {}",
+                          e.getLocalizedMessage(),
+                          e.getStackTrace());
+        }
+	}
 
 
     private synchronized void setSecurityObject( ISecurityObject iSecurityObject )
