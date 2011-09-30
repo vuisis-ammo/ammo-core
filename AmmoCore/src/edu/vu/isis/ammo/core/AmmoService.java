@@ -828,10 +828,17 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.ACTIVATE);
 
 		logger.info("authentication complete inform applications : ");
+		// TBD SKN - this should not be sent now ...
 		// broadcast login event to apps ...
 		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
 		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
+
+		// broadcast gateway connected to apps ...
+		loginIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
+		loginIntent.putExtra("channel", channel.name);
+		this.sendBroadcast(loginIntent);
+
 	}
 
 	/**

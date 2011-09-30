@@ -122,10 +122,13 @@ extends AsyncTask<AmmoService, Integer, Void>
         private void announceChannelActive(final Context context, final String name) {
                 logger.trace("inform applications to retrieve more data");
 
-                // broadcast login event to apps ...
-                final Intent loginIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
-                loginIntent.putExtra("channel", name);
-                context.sendBroadcast(loginIntent);
+		// TBD SKN --- the channel activates repeatedly due to status change
+		//         --- do not use this to generate ammo_connected intent
+		//         --- generate ammo_connected after gateway authenticated
+                // // broadcast login event to apps ...
+                // final Intent loginIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
+                // loginIntent.putExtra("channel", name);
+                // context.sendBroadcast(loginIntent);
         }
 
 	/**
@@ -300,7 +303,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		this.store.deletePostalGarbage();
 		this.store.deletePublishGarbage();
 		this.store.deleteRetrievalGarbage();
-		this.store.deleteSubscribeGarbage();	
+		//		this.store.deleteSubscribeGarbage();	
 
 		this.processPostalTable(that);
 		this.processPublishTable(that);
@@ -1014,7 +1017,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				new String[]{RetrievalTableSchema.PROVIDER.n}, 
 				uuid, topic, null);
 		if (cursor.getCount() < 1) {
-			logger.error("received a message for which there is no retrieval {}", topic);
+		    logger.error("received a message for which there is no retrieval {} {}", topic, uuid);
 			cursor.close();
 			return false;
 		}
