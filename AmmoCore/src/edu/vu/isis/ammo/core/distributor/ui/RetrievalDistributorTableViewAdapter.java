@@ -38,14 +38,12 @@ public class RetrievalDistributorTableViewAdapter extends DistributorTableViewAd
 		// Setup hashmap.
 		dispositionStateMap.put(DisposalState.EXPIRED.o, "Disposition Expired");
 		dispositionStateMap.put(DisposalState.FAIL.o, "Disposition Failed");
-		dispositionStateMap.put(DisposalState.JOURNAL.o, "Disposition Journal");
 		dispositionStateMap.put(DisposalState.PENDING.o, "Disposition Pending");
 		dispositionStateMap.put(DisposalState.QUEUED.o, "Disposition Queued");
 		dispositionStateMap.put(DisposalState.SENT.o, "Disposition Sent");
 		
 		dispositionColorMap.put(DisposalState.EXPIRED.o, Color.LTGRAY);
 		dispositionColorMap.put(DisposalState.FAIL.o, Color.RED);
-		dispositionColorMap.put(DisposalState.JOURNAL.o, Color.MAGENTA);
 		dispositionColorMap.put(DisposalState.PENDING.o, Color.rgb(255, 149, 28));
 		dispositionColorMap.put(DisposalState.QUEUED.o, Color.CYAN);
 		dispositionColorMap.put(DisposalState.SENT.o, Color.GREEN);

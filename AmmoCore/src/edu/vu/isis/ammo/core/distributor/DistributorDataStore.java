@@ -36,7 +36,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
-	public static final int VERSION = 18;
+	public static final int VERSION = 19;
 
 	// ===========================================================
 	// Fields
@@ -203,14 +203,18 @@ public class DistributorDataStore {
 		}
 	}
 
+	/**
+	 * There is an order to the states.
+	 * Bad states have a lower value and good states higher.
+	 * Additionally they are represented as bits.
+	 */
 	public enum DisposalState {
-		PENDING(1, "PENDING"),
-		QUEUED(2, "QUEUED"),
-		SENT(3, "SENT"),
-		JOURNAL(4, "JOURNAL"),
-		FAIL(5, "FAIL"),
-		EXPIRED(6, "EXPIRED"),
-		SATISFIED(7, "SATISFIED");
+		FAIL(0x01, "FAIL"),
+		EXPIRED(0x02, "EXPIRED"),
+		PENDING(0x04, "PENDING"),
+		QUEUED(0x08, "QUEUED"),
+		SENT(0x10, "SENT"),
+		SATISFIED(0x20, "SATISFIED");
 
 		final public int o;
 		final public String t;
@@ -230,20 +234,32 @@ public class DistributorDataStore {
 		}
 		/**
 		 * This method indicates if the goal has been met.
+		 * Note that false does not mean the goal will not be reachable
+		 * it only means that it has not yet been reached.
 		 */
 		public boolean goalReached(boolean goalCondition) {
 			switch (this) {
 			case SENT:
 			case SATISFIED:
-				return goalCondition ? true : false;
+				if (goalCondition == true) return true;
+				break;
 			case FAIL:
-				return goalCondition ? false : true;
+				if (goalCondition == false) return true;
+				break;
 			}
 			return false;
 		}
 		public DisposalState and(boolean clauseSuccess) {
 			if (clauseSuccess) return this;
 			return DisposalState.SATISFIED;
+		}
+		
+		public int checkAggregate(final int aggregate) {
+			return this.o & aggregate;
+		}
+		
+		public int aggregate(final int aggregate) {
+			return this.o | aggregate;
 		}
 	};
 
@@ -388,6 +404,9 @@ public class DistributorDataStore {
 
 		PAYLOAD("payload", "TEXT"),
 		// The payload instead of content provider
+		
+		DISPOSITION("disposition", "INTEGER"),
+		// The current best guess of the status of the request.
 
 		NOTICE("notice", "BLOB"),
 		// A description of what is to be done when various state-transition occur.
@@ -396,9 +415,6 @@ public class DistributorDataStore {
 		// What order should this message be sent. Negative priorities indicated less than normal.
 
 		ORDER("serialize_type", "INTEGER"),
-
-		DISPOSITION("disposition", "INTEGER"),
-		// The current best guess of the status of the request.
 
 		EXPIRATION("expiration", "INTEGER"),
 		// Time-stamp at which point entry becomes stale.
@@ -931,6 +947,7 @@ public class DistributorDataStore {
 	 */
 	public Cursor queryPostal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
+		this.openRead();
 		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.POSTAL.n);
@@ -943,6 +960,15 @@ public class DistributorDataStore {
 						: PostalTable.DEFAULT_SORT_ORDER);
 	}
 
+	public Cursor queryPostalReady() {
+		this.openRead();
+		try {
+			return db.rawQuery(POSTAL_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
+	}
 	private static final String POSTAL_STATUS_QUERY = new StringBuilder()
 	.append(" SELECT ").append(" * ")
 	.append(" FROM ").append(Tables.POSTAL.q()).append(" AS p ")
@@ -958,15 +984,6 @@ public class DistributorDataStore {
 	.append(')') // close exists clause
 	.toString();
 
-	public Cursor queryPostalReady() {
-		try {
-			return db.rawQuery(POSTAL_STATUS_QUERY, null);
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
-
 	public Cursor queryPublish(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -981,8 +998,7 @@ public class DistributorDataStore {
 						: PublishTable.DEFAULT_SORT_ORDER);
 	}
 
-	public Cursor queryRetrieval(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
+	public Cursor queryRetrieval(String[] projection, String selection, String[] selectArgs, String sortOrder) {
 		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.RETRIEVAL.n);
@@ -990,10 +1006,29 @@ public class DistributorDataStore {
 
 		// Get the database and run the query.
 		final SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, selection, selectionArgs, null, null,
+		return qb.query(db, projection, selection, selectArgs, null, null,
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: RetrievalTable.DEFAULT_SORT_ORDER);
 	}
+	
+	public Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
+		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+		qb.setTables(Tables.RETRIEVAL.n);
+		qb.setProjectionMap(RetrievalTable.PROJECTION_MAP);
+
+		// Get the database and run the query.
+		final SQLiteDatabase db = this.helper.getReadableDatabase();
+		return qb.query(db, projection, RETRIEVAL_QUERY, new String[]{ uuid, topic}, null, null,
+				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+						: RetrievalTable.DEFAULT_SORT_ORDER);
+	}
+	static private final String RETRIEVAL_QUERY = new StringBuilder()
+	.append(RetrievalTableSchema.UUID.q()).append("=?")
+	.append(" AND ")
+	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
+	.toString();
+
 
 	private static final String RETRIEVAL_STATUS_QUERY = new StringBuilder()
 	.append(" SELECT ").append(" * ")
@@ -1020,7 +1055,7 @@ public class DistributorDataStore {
 	}
 
 	public Cursor querySubscribe(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
+			String[] selectArgs, String sortOrder) {
 		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 		qb.setTables(Tables.SUBSCRIBE.n);
@@ -1028,11 +1063,36 @@ public class DistributorDataStore {
 
 		// Get the database and run the query.
 		final SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, selection, selectionArgs, null, null,
+		return qb.query(db, projection, selection, selectArgs, null, null,
 				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 						: SubscribeTable.DEFAULT_SORT_ORDER);
 	}
+	
+	public Cursor querySubscribeByKey(String[] projection,
+			String topic, String sortOrder) {
+		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
+		qb.setTables(Tables.SUBSCRIBE.n);
+		qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
+
+		// Get the database and run the query.
+		final SQLiteDatabase db = this.helper.getReadableDatabase();
+		return qb.query(db, projection, SUSCRIBE_QUERY, new String[]{ topic}, null, null,
+				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+						: SubscribeTable.DEFAULT_SORT_ORDER);
+	}
+	static private final String SUSCRIBE_QUERY = new StringBuilder()
+	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
+	.toString();
+
+	public Cursor querySubscribeReady() {
+		try {
+			return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
+	}
 	private static final String SUBSCRIBE_STATUS_QUERY = new StringBuilder()
 	.append(" SELECT ").append(" * ")
 	.append(" FROM ").append(Tables.SUBSCRIBE.q()).append(" AS p ")
@@ -1047,15 +1107,6 @@ public class DistributorDataStore {
 	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause
 	.toString();
-
-	public Cursor querySubscribeReady() {
-		try {
-			return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
 
 
 
@@ -1119,7 +1170,7 @@ public class DistributorDataStore {
 	 * if a record with a matching key exists then update
 	 * otherwise insert.
 	 */
-	public long upsertPostal(ContentValues cv, Map<String, DisposalState> status) {
+	public long upsertPostal(ContentValues cv, DispersalVector status) {
 		final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
 
@@ -1146,7 +1197,7 @@ public class DistributorDataStore {
 	.append(PostalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
-	public long upsertPublish(ContentValues cv, Map<String,DisposalState> status) {
+	public long upsertPublish(ContentValues cv, DispersalVector status) {
 		final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
 
@@ -1173,7 +1224,7 @@ public class DistributorDataStore {
 	.append(PublishTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
-	public long upsertRetrieval(ContentValues cv, Map<String,DisposalState> status) {
+	public long upsertRetrieval(ContentValues cv, DispersalVector status) {
 		final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
 		final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
@@ -1206,7 +1257,7 @@ public class DistributorDataStore {
 	/**
 	 *
 	 */
-	public long upsertSubscribe(ContentValues cv, Map<String,DisposalState> status) {
+	public long upsertSubscribe(ContentValues cv, DispersalVector status) {
 		final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
 
@@ -1235,7 +1286,7 @@ public class DistributorDataStore {
 
 
 	public long[] upsertDisposalByParent(long id, Tables type, 
-			Map<String, DisposalState> status) {
+			DispersalVector status) {
 		final long[] idArray = new long[status.size()];
 		int ix = 0;
 		for (Entry<String,DisposalState> entry : status.entrySet()) {
@@ -1384,6 +1435,10 @@ public class DistributorDataStore {
 		if (!values.containsKey(PostalTableSchema.PROVIDER.n)) {
 			values.put(PostalTableSchema.PROVIDER.n,"unknown");
 		}
+		if (!values.containsKey(RetrievalTableSchema.DISPOSITION.n)) {
+			values.put(RetrievalTableSchema.DISPOSITION.n,
+					DisposalState.PENDING.o);
+		}
 		if (!values.containsKey(PostalTableSchema.NOTICE.n)) {
 			values.put(PostalTableSchema.NOTICE.n, "");
 		}
@@ -1394,10 +1449,7 @@ public class DistributorDataStore {
 			values.put(PostalTableSchema.ORDER.n,
 					SerializeType.INDIRECT.o);
 		}
-		if (!values.containsKey(PostalTableSchema.DISPOSITION.n)) {
-			values.put(PostalTableSchema.DISPOSITION .n,
-					DisposalState.PENDING.o);
-		}
+		
 		if (!values.containsKey(PostalTableSchema.EXPIRATION.n)) {
 			values.put(PostalTableSchema.EXPIRATION.n, now);
 		}
@@ -1541,20 +1593,41 @@ public class DistributorDataStore {
 	 * @return
 	 */
 
+	// ======== HELPER ============
+	static private String[] getCurrentTime() {
+	    return new String[]{String.valueOf(System.currentTimeMillis())}; 
+	}
+	
+	private static final String DISPOSAL_PURGE = new StringBuilder()
+	.append(DisposalTableSchema.TYPE.q())
+	.append('=').append('?')
+	.toString();
+	
+	// ========= POSTAL : DELETE ================
+	
 	public int deletePostal(String selection, String[] selectionArgs) {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		return db.delete(Tables.POSTAL.n, selection, selectionArgs);
+		final int count = db.delete(Tables.POSTAL.n, selection, selectionArgs);
+		final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+		logger.trace("Postal delete {} {}", count, disposalCount);
+		return count;
 	}
 	public int deletePostalGarbage() {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		db.update(Tables.POSTAL.n, POSTAL_EXPIRATION_UPDATE, POSTAL_EXPIRATION_CONDITION, null);
-		return db.delete(Tables.POSTAL.n, POSTAL_GARBAGE, null);
+		final int expireCount = db.delete(Tables.POSTAL.n, 
+				POSTAL_EXPIRATION_CONDITION, getCurrentTime());
+		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+				DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+		logger.trace("Postal garbage {} {}", expireCount, disposalCount);
+		return expireCount;
 	}
-	private static final String POSTAL_GARBAGE = new StringBuilder()
-	.append(PostalTableSchema.DISPOSITION.q())
-	.append(" IN (")
-	.append(DisposalState.SATISFIED.q()).append(",")
-	.append(DisposalState.EXPIRED.q()).append(")")
+	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
+	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.POSTAL.qv())
+	.append(" AND NOT EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.POSTAL.q())
+	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
+	.append('=').append(Tables.POSTAL.q()).append(PostalTableSchema._ID.q())
+	.append(')')
 	.toString();
 
 	private static final String POSTAL_EXPIRATION_CONDITION = new StringBuilder()
@@ -1562,49 +1635,70 @@ public class DistributorDataStore {
 	.append('<').append('?')
 	.toString();
 
-	private static final ContentValues POSTAL_EXPIRATION_UPDATE;
-	static {
-		POSTAL_EXPIRATION_UPDATE = new ContentValues();
-		POSTAL_EXPIRATION_UPDATE.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.EXPIRED.cv());
-	}
+	// ========= PUBLISH : DELETE ================
 
 	public int deletePublish(String selection, String[] selectionArgs) {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		db.update(Tables.POSTAL.n, POSTAL_EXPIRATION_UPDATE, POSTAL_EXPIRATION_CONDITION, null);
-		return db.delete(Tables.PUBLISH.n, selection, selectionArgs);
+		final int count = db.delete(Tables.PUBLISH.n, selection, selectionArgs);
+		final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
+		logger.trace("Publish delete {} {}", count, disposalCount);
+		return count;
 	}
 	public int deletePublishGarbage() {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		return db.delete(Tables.PUBLISH.n, null, null);
+		final int expireCount = db.delete(Tables.PUBLISH.n, 
+				PUBLISH_EXPIRATION_CONDITION, getCurrentTime());
+		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+				DISPOSAL_PUBLISH_ORPHAN_CONDITION, getCurrentTime());
+		logger.trace("Publish garbage {} {}", expireCount, disposalCount);
+		return expireCount;
 	}
-
-	public int deleteRetrieval(String selection, String[] selectionArgs) {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		return db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
-	}
-	public int deleteRetrievalGarbage() {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		db.update(Tables.POSTAL.n, RETRIEVAL_EXPIRATION_UPDATE, RETRIEVAL_EXPIRATION_CONDITION, null);
-		return db.delete(Tables.RETRIEVAL.n, RETRIEVAL_GARBAGE, null);
-	}
-	private static final String RETRIEVAL_GARBAGE  = new StringBuilder()
-	.append(RetrievalTableSchema.DISPOSITION.q())
-	.append(" IN (")
-	.append(DisposalState.SATISFIED.q()).append(",")
-	.append(DisposalState.EXPIRED.q()).append(")")
+	private static final String DISPOSAL_PUBLISH_ORPHAN_CONDITION = new StringBuilder()
+	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.PUBLISH.qv())
+	.append(" AND NOT EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.PUBLISH.q())
+	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
+	.append('=').append(Tables.PUBLISH.q()).append(PublishTableSchema._ID.q())
+	.append(')')
 	.toString();
 
-	private static final String RETRIEVAL_EXPIRATION_CONDITION = new StringBuilder()
-	.append(RetrievalTableSchema.EXPIRATION.q())
+	private static final String PUBLISH_EXPIRATION_CONDITION = new StringBuilder()
+	.append('"').append(PublishTableSchema.EXPIRATION.n).append('"')
 	.append('<').append('?')
 	.toString();
 
-	private static final ContentValues RETRIEVAL_EXPIRATION_UPDATE;
-	static {
-		RETRIEVAL_EXPIRATION_UPDATE= new ContentValues();
-		RETRIEVAL_EXPIRATION_UPDATE.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.EXPIRED.cv());
+	// ========= RETRIEVAL : DELETE ================
+
+	public int deleteRetrieval(String selection, String[] selectionArgs) {
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
+		final int count = db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
+		final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
+		logger.trace("Retrieval delete {} {}", count, disposalCount);
+		return count;
 	}
-	
+	public int deleteRetrievalGarbage() {
+		final SQLiteDatabase db = this.helper.getWritableDatabase();
+		final int expireCount = db.delete(Tables.RETRIEVAL.n, 
+				RETRIEVAL_EXPIRATION_CONDITION, getCurrentTime());
+		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+				DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, getCurrentTime());
+		logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
+		return expireCount;
+	}
+	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
+	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.RETRIEVAL.qv())
+	.append(" AND NOT EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.RETRIEVAL.q())
+	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
+	.append('=').append(Tables.RETRIEVAL.q()).append(RetrievalTableSchema._ID.q())
+	.append(')')
+	.toString();
+
+	private static final String RETRIEVAL_EXPIRATION_CONDITION = new StringBuilder()
+	.append('"').append(RetrievalTableSchema.EXPIRATION.n).append('"')
+	.append('<').append('?')
+	.toString();
+
 	/**
 	 * purge all records from the retrieval table and cascade to the disposal table.
 	 * @return
@@ -1614,38 +1708,38 @@ public class DistributorDataStore {
 		db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.RETRIEVAL.qv()});
 		return db.delete(Tables.RETRIEVAL.n, null, null);
 	}
-	private static final String DISPOSAL_PURGE = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q())
-	.append('=').append('?')
-	.toString();
 
-
+	// ========= SUBSCRIBE : DELETE ================
 
 	public int deleteSubscribe(String selection, String[] selectionArgs) {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		return db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
+		final int count = db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
+		final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
+		logger.trace("Subscribe delete {} {}", count, disposalCount);
+		return count;
 	}
 	public int deleteSubscribeGarbage() {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		db.update(Tables.POSTAL.n, SUBSCRIPTION_EXPIRIATION_UPDATE, SUBSCRIPTION_EXPIRATION_CONDITION, null);
-		return db.delete(Tables.SUBSCRIBE.n, SUBSCRIPTION_GARBAGE, null);
+		final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
+				SUBSCRIBE_EXPIRATION_CONDITION, getCurrentTime());
+		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+				DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, getCurrentTime());
+		logger.trace("Subscribe garbage {} {}", expireCount, disposalCount);
+		return expireCount;
 	}
-	private static final String SUBSCRIPTION_GARBAGE = new StringBuilder()
-	.append(SubscribeTableSchema.DISPOSITION.q())
-	.append(" IN (")
-	.append(DisposalState.EXPIRED.q()).append(")")
+	private static final String DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION = new StringBuilder()
+	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.SUBSCRIBE.qv())
+	.append(" AND NOT EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.SUBSCRIBE.q())
+	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
+	.append('=').append(Tables.SUBSCRIBE.q()).append(SubscribeTableSchema._ID.q())
+	.append(')')
 	.toString();
 
-	private static final String SUBSCRIPTION_EXPIRATION_CONDITION = new StringBuilder()
-	.append('"').append(SubscribeTableSchema.EXPIRATION).append('"')
-	.append('<').append('?').toString();
-
-	private static final ContentValues SUBSCRIPTION_EXPIRIATION_UPDATE;
-	static {
-		SUBSCRIPTION_EXPIRIATION_UPDATE= new ContentValues();
-		SUBSCRIPTION_EXPIRIATION_UPDATE.put(SubscribeTableSchema.DISPOSITION.cv(),
-				DisposalState.EXPIRED.cv());
-	}
+	private static final String SUBSCRIBE_EXPIRATION_CONDITION = new StringBuilder()
+	.append('"').append(SubscribeTableSchema.EXPIRATION.n).append('"')
+	.append('<').append('?')
+	.toString();
 	
 	/**
 	 * purge all records from the subscribe table and cascade to the disposal table.

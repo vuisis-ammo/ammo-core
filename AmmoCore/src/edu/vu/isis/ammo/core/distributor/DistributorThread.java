@@ -1,7 +1,6 @@
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -325,15 +324,11 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * 
 	 * @see scripts/tests/distribution_policy.xml for an example.
 	 */
-	private Map<String, DisposalState> 
+	private DispersalVector
 	dispatchRequest(AmmoService that, 
-			RequestSerializer serializer, DistributorPolicy.Topic topic, Map<String, DisposalState> status) {
+			RequestSerializer serializer, DistributorPolicy.Topic topic, DispersalVector status) {
 
 		logger.info("::sendGatewayRequest");
-		if (status == null) status = new HashMap<String, DisposalState>();
-
-		DisposalState ruleSuccess = status.get(DistributorPolicy.TOTAL);
-		if (ruleSuccess == null) ruleSuccess = DisposalState.PENDING;
 
 		if (topic == null) {
 			logger.error("no matching routing topic");
@@ -341,7 +336,6 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final DisposalState actualCondition =
 					that.sendRequest(agmb, DistributorPolicy.DEFAULT, topic);
 			status.put(DistributorPolicy.DEFAULT, actualCondition);
-			status.put(DistributorPolicy.TOTAL, actualCondition);
 			return status;
 		} 
 		// evaluate rule
@@ -364,9 +358,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 					break;
 				}
 			}
-			ruleSuccess = ruleSuccess.and(clauseSuccess);
+			status.and(clauseSuccess);
 		}
-		status.put(DistributorPolicy.TOTAL, ruleSuccess);
 		return status;
 	}
 
@@ -533,7 +526,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
-				final Map<String,DisposalState> dispatchResult = 
+				final DispersalVector dispatchResult = 
 						this.dispatchPostalRequest(that,
 								ar.provider.toString(),
 								topic, policy, null, serializer,
@@ -616,7 +609,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			});
 
 			final DistributorPolicy.Topic policy = that.policy().match(topic);
-			final Map<String, DisposalState> status = new HashMap<String,DisposalState>();
+			final DispersalVector status = DispersalVector.newInstance();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -641,7 +634,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					long numUpdated = this.store.updatePostalByKey(id, values);
 					logger.debug("updated {} postal items", numUpdated);
 
-					final Map<String,DisposalState> dispatchResult = 
+					final DispersalVector dispatchResult = 
 							this.dispatchPostalRequest(that,
 									provider.toString(),
 									topic, policy, status, serializer,
@@ -682,10 +675,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param handler
 	 * @return
 	 */
-	private Map<String,DisposalState> 
+	private DispersalVector 
 	dispatchPostalRequest(final AmmoService that, final String uri, 
 			final String msgType,
-			final DistributorPolicy.Topic policy, final Map<String,DisposalState> status,
+			final DistributorPolicy.Topic policy, final DispersalVector status,
 			final RequestSerializer serializer, final INetworkService.OnSendMessageHandler handler)  {
 		logger.info("::dispatchPostalRequest");
 
@@ -846,9 +839,9 @@ extends AsyncTask<AmmoService, Integer, Void>
 			synchronized (this.store) {
 				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
 				
-				final Map<String,DisposalState> dispatchResult = 
+				final DispersalVector dispatchResult = 
 						this.dispatchRetrievalRequest(that,
-								uuid, topic, select, policy, null,
+								uuid, topic, select, policy, DispersalVector.newInstance(),
 								new INetworkService.OnSendMessageHandler() {
 
 							@Override
@@ -889,7 +882,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
-			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
+			final DispersalVector status = DispersalVector.newInstance();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"retrieval");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -918,7 +911,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					@SuppressWarnings("unused")
 					final long numUpdated = this.store.updateRetrievalByKey(id, values);
 
-					final Map<String,DisposalState> dispatchResult = 
+					final DispersalVector dispatchResult = 
 							this.dispatchRetrievalRequest(that,
 									uuid, topic, selection,
 									policy, status,
@@ -958,9 +951,9 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return
 	 */
 
-	private Map<String,DisposalState> 
+	private DispersalVector 
 	dispatchRetrievalRequest(final AmmoService that, String retrievalId, String topic, String selection,  
-			DistributorPolicy.Topic policy, Map<String,DisposalState> status,
+			DistributorPolicy.Topic policy, DispersalVector status,
 			final INetworkService.OnSendMessageHandler handler) {
 	    logger.info("::dispatchRetrievalRequest {}", topic);
 
@@ -1016,9 +1009,9 @@ extends AsyncTask<AmmoService, Integer, Void>
 		// find the provider to use
 		final String uuid = resp.getRequestUid(); 
 		final String topic = resp.getMimeType();
-		final Cursor cursor = this.store.queryRetrieval(
+		final Cursor cursor = this.store.queryRetrievalByKey(
 				new String[]{RetrievalTableSchema.PROVIDER.n}, 
-				RETRIEVAL_QUERY, new String[]{uuid, topic }, null);
+				uuid, topic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no retrieval {}", topic);
 			cursor.close();
@@ -1037,11 +1030,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		
 		return true;
 	}
-	static private final String RETRIEVAL_QUERY = new StringBuilder()
-	.append(RetrievalTableSchema.UUID.q()).append("=? ")
-	.append(RetrievalTableSchema.TOPIC.q()).append("=? ")
-	.toString();
-
+	
 
 
 	// =========== SUBSCRIBE ====================
@@ -1089,7 +1078,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertSubscribe(values, policy.makeRouteMap());
-				final Map<String,DisposalState> dispatchResult = 
+				final DispersalVector dispatchResult = 
 						this.dispatchSubscribeRequest(that,
 								topic, agm.select.toString(),
 								policy, null,
@@ -1139,7 +1128,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
 
-			final Map<String,DisposalState> status = new HashMap<String,DisposalState>();
+			final DispersalVector status = DispersalVector.newInstance();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,"subscribe");
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -1165,7 +1154,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					@SuppressWarnings("unused")
 					long numUpdated = this.store.updateSubscribeByKey(id, values);
 
-					final Map<String,DisposalState> dispatchResult = 
+					final DispersalVector dispatchResult = 
 							this.dispatchSubscribeRequest(that,
 										      topic, selection,
 										      policy, status, 
@@ -1197,9 +1186,9 @@ extends AsyncTask<AmmoService, Integer, Void>
 	/**
 	 * Deliver the subscription request to the network service for processing.
 	 */
-	private Map<String,DisposalState> 
+	private DispersalVector 
 	dispatchSubscribeRequest(final AmmoService that, String topic, 
-			String selection, DistributorPolicy.Topic policy, Map<String,DisposalState> status,
+			String selection, DistributorPolicy.Topic policy, DispersalVector status,
 			final INetworkService.OnSendMessageHandler handler) {
 	    logger.info("::dispatchSubscribeRequest {}", topic);
 
@@ -1250,8 +1239,9 @@ extends AsyncTask<AmmoService, Integer, Void>
 		logger.info("::dispatchSubscribeResponse : {} : {}",
 				resp.getMimeType(), resp.getUri());
 		final String topic = resp.getMimeType();
-		final Cursor cursor = this.store.querySubscribe(new String[]{SubscribeTableSchema.PROVIDER.n}, 
-				SUSCRIBE_QUERY, new String[]{ topic }, null);
+		final Cursor cursor = this.store.querySubscribeByKey(
+				new String[]{SubscribeTableSchema.PROVIDER.n}, 
+				topic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no subscription {}", topic);
 			cursor.close();
@@ -1267,9 +1257,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		return true;
 	}
-	static private final String SUSCRIBE_QUERY = new StringBuilder()
-	.append(SubscribeTableSchema.TOPIC.q()).append("=? ")
-	.toString();
+	
 
 	/**
 	 * Clear the contents of tables in preparation for reloading them.

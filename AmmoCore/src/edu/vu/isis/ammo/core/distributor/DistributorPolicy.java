@@ -9,10 +9,8 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -37,7 +35,6 @@ import android.net.Uri;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 /**
  * This class provides the base level mapping between distribution 
@@ -59,7 +56,6 @@ public class DistributorPolicy implements ContentHandler {
 	private static final Logger logger = LoggerFactory.getLogger("ammo.dp");
 
 	public static final String DEFAULT = "_default_";
-	public static final String TOTAL = "_total_";
 
 	public final Trie<String, Topic> policy;
 	public final static String policy_dir = "policy";
@@ -228,7 +224,7 @@ public class DistributorPolicy implements ContentHandler {
 			return sb.toString();
 		}
 
-		public Map<String, DisposalState> makeRouteMap() {
+		public DispersalVector makeRouteMap() {
 			return this.routing.makeMap();
 		}
 	}
@@ -238,8 +234,8 @@ public class DistributorPolicy implements ContentHandler {
 		public Routing() {
 			this.clauses = new ArrayList<Clause>();
 		}
-		public Map<String, DisposalState> makeMap() {
-			final Map<String,DisposalState> map = new HashMap<String,DisposalState>();
+		public DispersalVector makeMap() {
+			final DispersalVector map = DispersalVector.newInstance();
 			for (Clause clause : this.clauses) {
 				for (Literal literal : clause.literals) {
 					map.put(literal.term, null);
