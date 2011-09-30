@@ -492,10 +492,11 @@ extends AsyncTask<AmmoService, Integer, Void>
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
 			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-			values.put(PostalTableSchema.EXPIRATION.cv(), ar.durability);
-			values.put(PostalTableSchema.UNIT.cv(), 50);
+			values.put(PostalTableSchema.EXPIRATION.cv(), ar.expire.cv());
+			
 			values.put(PostalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
+			//values.put(PostalTableSchema.UNIT.cv(), 50);
 
 			if (!that.isConnected()) {
 				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
@@ -823,7 +824,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			values.put(RetrievalTableSchema.SELECTION.cv(), select);
 			
 			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());		
-			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.durability);
+			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.expire.cv());
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
 			values.put(RetrievalTableSchema.PRIORITY.cv(), agm.priority);
 			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
@@ -1062,7 +1063,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
 			values.put(SubscribeTableSchema.PROVIDER.cv(), agm.provider.cv());
 			values.put(SubscribeTableSchema.SELECTION.cv(), agm.select.toString());
-			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.durability);
+			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.expire.cv());
 			values.put(SubscribeTableSchema.PRIORITY.cv(), agm.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
