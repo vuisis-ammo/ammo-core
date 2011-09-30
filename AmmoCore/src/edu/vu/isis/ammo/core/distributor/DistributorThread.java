@@ -303,7 +303,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		this.store.deletePostalGarbage();
 		this.store.deletePublishGarbage();
 		this.store.deleteRetrievalGarbage();
-		//		this.store.deleteSubscribeGarbage();	
+		this.store.deleteSubscribeGarbage();	
 
 		this.processPostalTable(that);
 		this.processPublishTable(that);
