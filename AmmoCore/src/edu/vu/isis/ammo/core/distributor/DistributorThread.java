@@ -1039,6 +1039,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	}
 	static private final String RETRIEVAL_QUERY = new StringBuilder()
 	.append(RetrievalTableSchema.UUID.q()).append("=? ")
+	    .append(" AND ")
 	.append(RetrievalTableSchema.TOPIC.q()).append("=? ")
 	.toString();
 
