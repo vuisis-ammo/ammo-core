@@ -127,7 +127,7 @@ public class DistributorDataStore {
 			.append(";")
 			.toString();
 		}
-		
+
 	};
 
 
@@ -253,11 +253,11 @@ public class DistributorDataStore {
 			if (clauseSuccess) return this;
 			return DisposalState.SATISFIED;
 		}
-		
+
 		public int checkAggregate(final int aggregate) {
 			return this.o & aggregate;
 		}
-		
+
 		public int aggregate(final int aggregate) {
 			return this.o | aggregate;
 		}
@@ -404,7 +404,7 @@ public class DistributorDataStore {
 
 		PAYLOAD("payload", "TEXT"),
 		// The payload instead of content provider
-		
+
 		DISPOSITION("disposition", "INTEGER"),
 		// The current best guess of the status of the request.
 
@@ -947,17 +947,22 @@ public class DistributorDataStore {
 	 */
 	public Cursor queryPostal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		this.openRead();
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		try {
+			this.openRead();
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-		qb.setTables(Tables.POSTAL.n);
-		qb.setProjectionMap(PostalTable.PROJECTION_MAP);
+			qb.setTables(Tables.POSTAL.n);
+			qb.setProjectionMap(PostalTable.PROJECTION_MAP);
 
-		// Get the database and run the query.
-		final SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, selection, selectionArgs, null, null,
-				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-						: PostalTable.DEFAULT_SORT_ORDER);
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, selection, selectionArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: PostalTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query postal {} {}", selection, selectionArgs);
+		}
+		return null;
 	}
 
 	public Cursor queryPostalReady() {
@@ -986,42 +991,57 @@ public class DistributorDataStore {
 
 	public Cursor queryPublish(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-		qb.setTables(Tables.PUBLISH.n);
-		qb.setProjectionMap(PublishTable.PROJECTION_MAP);
+			qb.setTables(Tables.PUBLISH.n);
+			qb.setProjectionMap(PublishTable.PROJECTION_MAP);
 
-		// Get the database and run the query.
-		final SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, selection, selectionArgs, null, null,
-				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-						: PublishTable.DEFAULT_SORT_ORDER);
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, selection, selectionArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: PublishTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query publish {} {}", selection, selectionArgs);
+		}
+		return null;
 	}
 
 	public Cursor queryRetrieval(String[] projection, String selection, String[] selectArgs, String sortOrder) {
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-		qb.setTables(Tables.RETRIEVAL.n);
-		qb.setProjectionMap(RetrievalTable.PROJECTION_MAP);
+			qb.setTables(Tables.RETRIEVAL.n);
+			qb.setProjectionMap(RetrievalTable.PROJECTION_MAP);
 
-		// Get the database and run the query.
-		final SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, selection, selectArgs, null, null,
-				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-						: RetrievalTable.DEFAULT_SORT_ORDER);
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, selection, selectArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: RetrievalTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query retrieval {} {}", selection, selectArgs);
+		}
+		return null;
 	}
-	
+
 	public Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-		qb.setTables(Tables.RETRIEVAL.n);
-		qb.setProjectionMap(RetrievalTable.PROJECTION_MAP);
+			qb.setTables(Tables.RETRIEVAL.n);
+			qb.setProjectionMap(RetrievalTable.PROJECTION_MAP);
 
-		// Get the database and run the query.
-		final SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, RETRIEVAL_QUERY, new String[]{ uuid, topic}, null, null,
-				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-						: RetrievalTable.DEFAULT_SORT_ORDER);
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, RETRIEVAL_QUERY, new String[]{ uuid, topic}, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: RetrievalTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query retrieval by key {} {} {}", new Object[]{ projection, uuid, topic });
+		}
+		return null;
 	}
 	static private final String RETRIEVAL_QUERY = new StringBuilder()
 	.append(RetrievalTableSchema.UUID.q()).append("=?")
@@ -1056,30 +1076,40 @@ public class DistributorDataStore {
 
 	public Cursor querySubscribe(String[] projection, String selection,
 			String[] selectArgs, String sortOrder) {
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-		qb.setTables(Tables.SUBSCRIBE.n);
-		qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
+			qb.setTables(Tables.SUBSCRIBE.n);
+			qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
 
-		// Get the database and run the query.
-		final SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, selection, selectArgs, null, null,
-				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-						: SubscribeTable.DEFAULT_SORT_ORDER);
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, selection, selectArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: SubscribeTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query subscribe {} {}", selection, selectArgs);
+		}
+		return null;
 	}
-	
+
 	public Cursor querySubscribeByKey(String[] projection,
 			String topic, String sortOrder) {
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-		qb.setTables(Tables.SUBSCRIBE.n);
-		qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
+			qb.setTables(Tables.SUBSCRIBE.n);
+			qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
 
-		// Get the database and run the query.
-		final SQLiteDatabase db = this.helper.getReadableDatabase();
-		return qb.query(db, projection, SUSCRIBE_QUERY, new String[]{ topic}, null, null,
-				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-						: SubscribeTable.DEFAULT_SORT_ORDER);
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, SUSCRIBE_QUERY, new String[]{ topic}, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: SubscribeTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query subscribe by key {} {}", projection, topic);
+		}
+		return null;
 	}
 	static private final String SUSCRIBE_QUERY = new StringBuilder()
 	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
@@ -1112,15 +1142,20 @@ public class DistributorDataStore {
 
 	public Cursor queryDisposal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-		qb.setTables(Tables.DISPOSAL.n);
-		qb.setProjectionMap(DisposalTable.PROJECTION_MAP);
+			qb.setTables(Tables.DISPOSAL.n);
+			qb.setProjectionMap(DisposalTable.PROJECTION_MAP);
 
-		// Get the database and run the query.
-		return qb.query(this.db, projection, selection, selectionArgs, null, null,
-				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-						: DisposalTable.DEFAULT_SORT_ORDER);
+			// Get the database and run the query.
+			return qb.query(this.db, projection, selection, selectionArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: DisposalTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query disposal {} {}", selection, selectionArgs);
+		}
+		return null;
 	}
 
 	/**
@@ -1152,15 +1187,20 @@ public class DistributorDataStore {
 
 	public Cursor queryChannel(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-		qb.setTables(Tables.CHANNEL.n);
-		qb.setProjectionMap(ChannelTable.PROJECTION_MAP);
+			qb.setTables(Tables.CHANNEL.n);
+			qb.setProjectionMap(ChannelTable.PROJECTION_MAP);
 
-		// Get the database and run the query.
-		return qb.query(this.db, projection, selection, selectionArgs, null, null,
-				(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-						: ChannelTable.DEFAULT_SORT_ORDER);
+			// Get the database and run the query.
+			return qb.query(this.db, projection, selection, selectionArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: ChannelTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query channel {} {}", selection, selectionArgs);
+		}
+		return null;
 	}
 
 
@@ -1171,25 +1211,30 @@ public class DistributorDataStore {
 	 * otherwise insert.
 	 */
 	public long upsertPostal(ContentValues cv, DispersalVector status) {
-		final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
-		final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
+		try {
+			final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
+			final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
 
-		final long key;
-		final String[] updateArgs = new String[]{ topic, provider };
-		if (0 < this.db.update(Tables.POSTAL.n, cv, POSTAL_UPDATE_CLAUSE, updateArgs )) {
-			final Cursor cursor = this.db.query(Tables.POSTAL.n, 
-					new String[]{PostalTableSchema._ID.n},
-					POSTAL_UPDATE_CLAUSE, updateArgs, null, null, null);
-			cursor.moveToFirst();
-			key = cursor.getInt(0); // we only asked for one column so it better be it.
-			cursor.close();
-		} else {
-			key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
+			final long key;
+			final String[] updateArgs = new String[]{ topic, provider };
+			if (0 < this.db.update(Tables.POSTAL.n, cv, POSTAL_UPDATE_CLAUSE, updateArgs )) {
+				final Cursor cursor = this.db.query(Tables.POSTAL.n, 
+						new String[]{PostalTableSchema._ID.n},
+						POSTAL_UPDATE_CLAUSE, updateArgs, null, null, null);
+				cursor.moveToFirst();
+				key = cursor.getInt(0); // we only asked for one column so it better be it.
+				cursor.close();
+			} else {
+				key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
+			}
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
+				upsertDisposalByParent(key, Tables.POSTAL, entry.getKey(), entry.getValue());
+			}
+			return key;
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert postal {} {}", cv, status);
 		}
-		for (Entry<String,DisposalState> entry : status.entrySet()) {
-			upsertDisposalByParent(key, Tables.POSTAL, entry.getKey(), entry.getValue());
-		}
-		return key;
+		return 0;
 	}
 	static final private String POSTAL_UPDATE_CLAUSE = new StringBuilder()
 	.append(PostalTableSchema.TOPIC.q()).append("=?")
@@ -1198,25 +1243,30 @@ public class DistributorDataStore {
 	.toString();
 
 	public long upsertPublish(ContentValues cv, DispersalVector status) {
-		final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
-		final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
+		try {
+			final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
+			final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
 
-		final long key;
-		final String[] updateArgs = new String[]{ topic, provider };
-		if (0 < this.db.update(Tables.PUBLISH.n, cv, PUBLISH_UPDATE_CLAUSE, updateArgs )) {
-			final Cursor cursor = this.db.query(Tables.PUBLISH.n, 
-					new String[]{PublishTableSchema._ID.n},
-					PUBLISH_UPDATE_CLAUSE, updateArgs, null, null, null);
-			cursor.moveToFirst();
-			key = cursor.getInt(0); // we only asked for one column so it better be it.
-			cursor.close();
-		} else {
-			key = this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
+			final long key;
+			final String[] updateArgs = new String[]{ topic, provider };
+			if (0 < this.db.update(Tables.PUBLISH.n, cv, PUBLISH_UPDATE_CLAUSE, updateArgs )) {
+				final Cursor cursor = this.db.query(Tables.PUBLISH.n, 
+						new String[]{PublishTableSchema._ID.n},
+						PUBLISH_UPDATE_CLAUSE, updateArgs, null, null, null);
+				cursor.moveToFirst();
+				key = cursor.getInt(0); // we only asked for one column so it better be it.
+				cursor.close();
+			} else {
+				key = this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
+			}
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
+				upsertDisposalByParent(key, Tables.PUBLISH, entry.getKey(), entry.getValue());
+			}
+			return key;
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert publish {} {}", cv, status);
 		}
-		for (Entry<String,DisposalState> entry : status.entrySet()) {
-			upsertDisposalByParent(key, Tables.PUBLISH, entry.getKey(), entry.getValue());
-		}
-		return key;
+		return 0;
 	}
 	static final private String PUBLISH_UPDATE_CLAUSE = new StringBuilder()
 	.append(PublishTableSchema.TOPIC.q()).append("=?")
@@ -1225,26 +1275,31 @@ public class DistributorDataStore {
 	.toString();
 
 	public long upsertRetrieval(ContentValues cv, DispersalVector status) {
-		final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
-		final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
-		final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
+		try {
+			final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
+			final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
+			final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
 
-		final long key;
-		final String[] updateArgs = new String[]{ uuid, topic, provider };
-		if (0 < this.db.update(Tables.RETRIEVAL.n, cv, RETRIEVAL_UPDATE_CLAUSE, updateArgs )) {
-			final Cursor cursor = this.db.query(Tables.RETRIEVAL.n, 
-					new String[]{RetrievalTableSchema._ID.n},
-					RETRIEVAL_UPDATE_CLAUSE, updateArgs, null, null, null);
-			cursor.moveToFirst();
-			key = cursor.getInt(0); // we only asked for one column so it better be it.
-			cursor.close();
-		} else {
-			key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
+			final long key;
+			final String[] updateArgs = new String[]{ uuid, topic, provider };
+			if (0 < this.db.update(Tables.RETRIEVAL.n, cv, RETRIEVAL_UPDATE_CLAUSE, updateArgs )) {
+				final Cursor cursor = this.db.query(Tables.RETRIEVAL.n, 
+						new String[]{RetrievalTableSchema._ID.n},
+						RETRIEVAL_UPDATE_CLAUSE, updateArgs, null, null, null);
+				cursor.moveToFirst();
+				key = cursor.getInt(0); // we only asked for one column so it better be it.
+				cursor.close();
+			} else {
+				key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
+			}
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
+				upsertDisposalByParent(key, Tables.RETRIEVAL, entry.getKey(), entry.getValue());
+			}
+			return key;
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert retrieval {} {}", cv, status);
 		}
-		for (Entry<String,DisposalState> entry : status.entrySet()) {
-			upsertDisposalByParent(key, Tables.RETRIEVAL, entry.getKey(), entry.getValue());
-		}
-		return key;
+		return 0;
 	}
 	static final private String RETRIEVAL_UPDATE_CLAUSE = new StringBuilder()
 	.append(RetrievalTableSchema.UUID.q()).append("=?")
@@ -1258,25 +1313,30 @@ public class DistributorDataStore {
 	 *
 	 */
 	public long upsertSubscribe(ContentValues cv, DispersalVector status) {
-		final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
-		final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
+		try {
+			final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
+			final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
 
-		final long key;
-		final String[] updateArgs = new String[]{ topic, provider };
-		if (0 < this.db.update(Tables.SUBSCRIBE.n, cv, SUBSCRIBE_UPDATE_CLAUSE, updateArgs )) {
-			final Cursor cursor = this.db.query(Tables.SUBSCRIBE.n, 
-					new String[]{SubscribeTableSchema._ID.n},
-					SUBSCRIBE_UPDATE_CLAUSE, updateArgs, null, null, null);
-			cursor.moveToFirst();
-			key = cursor.getInt(0); // we only asked for one column so it better be it.
-			cursor.close();
-		} else {
-			key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
+			final long key;
+			final String[] updateArgs = new String[]{ topic, provider };
+			if (0 < this.db.update(Tables.SUBSCRIBE.n, cv, SUBSCRIBE_UPDATE_CLAUSE, updateArgs )) {
+				final Cursor cursor = this.db.query(Tables.SUBSCRIBE.n, 
+						new String[]{SubscribeTableSchema._ID.n},
+						SUBSCRIBE_UPDATE_CLAUSE, updateArgs, null, null, null);
+				cursor.moveToFirst();
+				key = cursor.getInt(0); // we only asked for one column so it better be it.
+				cursor.close();
+			} else {
+				key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
+			}
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
+				this.upsertDisposalByParent(key, Tables.SUBSCRIBE, entry.getKey(), entry.getValue());
+			}
+			return key;
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert subscribe {} {}", cv, status);
 		}
-		for (Entry<String,DisposalState> entry : status.entrySet()) {
-			this.upsertDisposalByParent(key, Tables.SUBSCRIBE, entry.getKey(), entry.getValue());
-		}
-		return key;
+		return 0;
 	}
 	static final private String SUBSCRIBE_UPDATE_CLAUSE = new StringBuilder()
 	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
@@ -1287,39 +1347,49 @@ public class DistributorDataStore {
 
 	public long[] upsertDisposalByParent(long id, Tables type, 
 			DispersalVector status) {
-		final long[] idArray = new long[status.size()];
-		int ix = 0;
-		for (Entry<String,DisposalState> entry : status.entrySet()) {
-			idArray[ix] = upsertDisposalByParent(id, type, entry.getKey(), entry.getValue());
-			ix++;
+		try {
+			final long[] idArray = new long[status.size()];
+			int ix = 0;
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
+				idArray[ix] = upsertDisposalByParent(id, type, entry.getKey(), entry.getValue());
+				ix++;
+			}
+			return idArray;
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert disposal by parent {} {} {}", new Object[]{id, type, status});
 		}
-		return idArray;
+		return null;
 	}
 	public long upsertDisposalByParent(long id, Tables type, String channel, DisposalState status) {
-		final String typeVal = type.cv();
+		try {
+			final String typeVal = type.cv();
 
-		final ContentValues cv = new ContentValues();
-		cv.put(DisposalTableSchema.TYPE.cv(), typeVal);
-		cv.put(DisposalTableSchema.PARENT.cv(), id);
-		cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
-		cv.put(DisposalTableSchema.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
+			final ContentValues cv = new ContentValues();
+			cv.put(DisposalTableSchema.TYPE.cv(), typeVal);
+			cv.put(DisposalTableSchema.PARENT.cv(), id);
+			cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
+			cv.put(DisposalTableSchema.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
 
-		final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
-				DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel } );
-		if (updateCount > 0) {
-			final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalTableSchema._ID.n}, 
-					DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel },
-					null, null, null);
-		    final int rowCount = cursor.getCount();
-		    if (rowCount > 1) {
-		    	logger.error("you have a duplicates {} {}", rowCount, cv);
-		    }
-		    cursor.moveToFirst();
-			final long key = cursor.getInt(0); // we only asked for one column so it better be it.
-			cursor.close();
-			return key;
+			final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
+					DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel } );
+			if (updateCount > 0) {
+				final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalTableSchema._ID.n}, 
+						DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel },
+						null, null, null);
+				final int rowCount = cursor.getCount();
+				if (rowCount > 1) {
+					logger.error("you have a duplicates {} {}", rowCount, cv);
+				}
+				cursor.moveToFirst();
+				final long key = cursor.getInt(0); // we only asked for one column so it better be it.
+				cursor.close();
+				return key;
+			}
+			return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.TYPE.n, cv);
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert disposal {} {} {} {}", new Object[]{id, type, channel, status});
 		}
-		return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.TYPE.n, cv);
+		return 0;
 	}
 	static final private String DISPOSAL_UPDATE_CLAUSE = new StringBuilder()
 	.append(DisposalTableSchema.TYPE.q()).append("=?")
@@ -1329,16 +1399,21 @@ public class DistributorDataStore {
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?").toString();
 
 
-	public void upsertChannelByName(String channel, ChannelState status) {
-		final ContentValues cv = new ContentValues();		
-		cv.put(ChannelTableSchema.STATE.cv(), status.cv());
+	public long upsertChannelByName(String channel, ChannelState status) {
+		try {
+			final ContentValues cv = new ContentValues();		
+			cv.put(ChannelTableSchema.STATE.cv(), status.cv());
 
-		final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
-				CHANNEL_UPDATE_CLAUSE, new String[]{ channel } );
-		if (updateCount > 0) return;
-		
-		cv.put(ChannelTableSchema.NAME.cv(), channel);
-		db.insert(Tables.CHANNEL.n, ChannelTableSchema.NAME.n, cv);
+			final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
+					CHANNEL_UPDATE_CLAUSE, new String[]{ channel } );
+			if (updateCount > 0) return 0;
+
+			cv.put(ChannelTableSchema.NAME.cv(), channel);
+			db.insert(Tables.CHANNEL.n, ChannelTableSchema.NAME.n, cv);
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert channel {} {}", channel, status);
+		}
+		return 0;
 	}
 	static final private String CHANNEL_UPDATE_CLAUSE = new StringBuilder()
 	.append(ChannelTableSchema.NAME.q()).append("=?").toString();
@@ -1354,18 +1429,23 @@ public class DistributorDataStore {
 		DISPOSAL_PENDING_VALUES = new ContentValues();
 		DISPOSAL_PENDING_VALUES.put(DisposalTableSchema.STATE.cv(), DisposalState.PENDING.o); 
 	}
-	
+
 	/**
 	 * When a channel is deactivated all of its subscriptions  
 	 * will need to be re-done on re-connect.
-         * Retrievals and postals won't have this problem,
-         * TODO unless they are queued.
+	 * Retrievals and postals won't have this problem,
+	 * TODO unless they are queued.
 	 * @param channel
 	 * @return
 	 */
 	public int deactivateDisposalStateByChannel(String channel) {
-		return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
-				DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
+		try {
+			return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
+					DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("deactivateDisposalStateByChannel {} ", channel);
+		}
+		return 0;
 	}	
 	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
@@ -1376,7 +1456,7 @@ public class DistributorDataStore {
 	.append(DisposalTableSchema.STATE.q())
 	.append(" NOT IN ( ").append(DisposalState.FAIL.q()).append(')')
 	.toString();
-	
+
 	/**
 	 * When a channel is activated nothing really needs to be done.
 	 * This method is provided as a place holder.
@@ -1387,15 +1467,20 @@ public class DistributorDataStore {
 	public int activateDisposalStateByChannel(String channel) {
 		return -1;
 	}
-	
+
 	/** 
 	 * When a channel is repaired it any failed requests may be retried.
 	 * @param channel
 	 * @return
 	 */
 	public int repairDisposalStateByChannel(String channel) {
-		return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
-				DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
+		try {
+			return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
+					DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("repairDisposalStateByChannel {}", channel);
+		}
+		return 0;
 	}
 	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
@@ -1409,19 +1494,39 @@ public class DistributorDataStore {
 	 * Any reasonable update will need to know how to select an existing object.
 	 */
 	public long updatePostalByKey(Integer id, ContentValues cv) {
-		return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+		try {
+			return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("updatePostalByKey {} {}", id, cv);
+		}
+		return 0;
 	}
 
 	public long updatePublishByKey(Integer id, ContentValues cv) {
-		return this.db.update(Tables.PUBLISH.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+		try {
+			return this.db.update(Tables.PUBLISH.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("updatePublishByKey {} {}", id, cv);
+		}
+		return 0;
 	}
 
 	public long updateRetrievalByKey(Integer id, ContentValues cv) {
-		return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+		try {
+			return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("updateRetrievalByKey {} {}", id, cv);
+		}
+		return 0;
 	}
 
 	public long updateSubscribeByKey(Integer id, ContentValues cv) {
-		return this.db.update(Tables.SUBSCRIBE.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+		try {
+			return this.db.update(Tables.SUBSCRIBE.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("updateSubscribeByKey {} {}", id, cv);
+		}
+		return 0;
 	}
 
 
@@ -1449,7 +1554,7 @@ public class DistributorDataStore {
 			values.put(PostalTableSchema.ORDER.n,
 					SerializeType.INDIRECT.o);
 		}
-		
+
 		if (!values.containsKey(PostalTableSchema.EXPIRATION.n)) {
 			values.put(PostalTableSchema.EXPIRATION.n, now);
 		}
@@ -1596,31 +1701,41 @@ public class DistributorDataStore {
 	// ======== HELPER ============
 	static private String[] getRelativeExpirationTime(long delay) {
 		final long absTime = System.currentTimeMillis() - (delay * 1000);
-	    return new String[]{String.valueOf(absTime)}; 
+		return new String[]{String.valueOf(absTime)}; 
 	}
-	
+
 	private static final String DISPOSAL_PURGE = new StringBuilder()
 	.append(DisposalTableSchema.TYPE.q())
 	.append('=').append('?')
 	.toString();
-	
+
 	// ========= POSTAL : DELETE ================
-	
+
 	public int deletePostal(String selection, String[] selectionArgs) {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		final int count = db.delete(Tables.POSTAL.n, selection, selectionArgs);
-		final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
-		logger.trace("Postal delete {} {}", count, disposalCount);
-		return count;
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int count = db.delete(Tables.POSTAL.n, selection, selectionArgs);
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+			logger.trace("Postal delete {} {}", count, disposalCount);
+			return count;
+		} catch (IllegalArgumentException ex) {
+			logger.error("delete postal {} {}", selection, selectionArgs);
+		}
+		return 0;
 	}
 	public int deletePostalGarbage() {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		final int expireCount = db.delete(Tables.POSTAL.n, 
-				POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
-		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-				DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
-		logger.trace("Postal garbage {} {}", expireCount, disposalCount);
-		return expireCount;
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int expireCount = db.delete(Tables.POSTAL.n, 
+					POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+					DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
+			return expireCount;
+		} catch (IllegalArgumentException ex) {
+			logger.error("deletePostalGarbage");
+		}
+		return 0;
 	}
 	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
 	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.POSTAL.cv())
@@ -1635,26 +1750,36 @@ public class DistributorDataStore {
 	.append('"').append(PostalTableSchema.EXPIRATION.n).append('"')
 	.append('<').append('?')
 	.toString();
-	
+
 	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
 
 	// ========= PUBLISH : DELETE ================
 
 	public int deletePublish(String selection, String[] selectionArgs) {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		final int count = db.delete(Tables.PUBLISH.n, selection, selectionArgs);
-		final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
-		logger.trace("Publish delete {} {}", count, disposalCount);
-		return count;
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int count = db.delete(Tables.PUBLISH.n, selection, selectionArgs);
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
+			logger.trace("Publish delete {} {}", count, disposalCount);
+			return count;
+		} catch (IllegalArgumentException ex) {
+			logger.error("delete postal {} {}", selection, selectionArgs);
+		}
+		return 0;
 	}
 	public int deletePublishGarbage() {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		final int expireCount = db.delete(Tables.PUBLISH.n, 
-				PUBLISH_EXPIRATION_CONDITION, getRelativeExpirationTime(0));
-		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-				DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
-		logger.trace("Publish garbage {} {}", expireCount, disposalCount);
-		return expireCount;
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int expireCount = db.delete(Tables.PUBLISH.n, 
+					PUBLISH_EXPIRATION_CONDITION, getRelativeExpirationTime(0));
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+					DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
+			logger.trace("Publish garbage {} {}", expireCount, disposalCount);
+			return expireCount;
+		} catch (IllegalArgumentException ex) {
+			logger.error("deletePublishGarbage");
+		}
+		return 0;
 	}
 	private static final String DISPOSAL_PUBLISH_ORPHAN_CONDITION = new StringBuilder()
 	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.PUBLISH.cv())
@@ -1673,20 +1798,30 @@ public class DistributorDataStore {
 	// ========= RETRIEVAL : DELETE ================
 
 	public int deleteRetrieval(String selection, String[] selectionArgs) {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		final int count = db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
-		final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
-		logger.trace("Retrieval delete {} {}", count, disposalCount);
-		return count;
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int count = db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
+			logger.trace("Retrieval delete {} {}", count, disposalCount);
+			return count;
+		} catch (IllegalArgumentException ex) {
+			logger.error("delete postal {} {}", selection, selectionArgs);
+		}
+		return 0;
 	}
 	public int deleteRetrievalGarbage() {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		final int expireCount = db.delete(Tables.RETRIEVAL.n, 
-				RETRIEVAL_EXPIRATION_CONDITION, getRelativeExpirationTime(RETRIEVAL_DELAY_OFFSET));
-		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-				DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
-		logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
-		return expireCount;
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int expireCount = db.delete(Tables.RETRIEVAL.n, 
+					RETRIEVAL_EXPIRATION_CONDITION, getRelativeExpirationTime(RETRIEVAL_DELAY_OFFSET));
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+					DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
+			logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
+			return expireCount;
+		} catch (IllegalArgumentException ex) {
+			logger.error("deleteRetrievalGarbage");
+		}
+		return 0;
 	}
 	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
 	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.RETRIEVAL.cv())
@@ -1701,7 +1836,7 @@ public class DistributorDataStore {
 	.append('"').append(RetrievalTableSchema.EXPIRATION.n).append('"')
 	.append('<').append('?')
 	.toString();
-	
+
 	private static final long RETRIEVAL_DELAY_OFFSET = 8 * 60 * 60; // 8 hrs in seconds
 
 	/**
@@ -1709,28 +1844,43 @@ public class DistributorDataStore {
 	 * @return
 	 */
 	public int purgeRetrieval() {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.RETRIEVAL.qv()});
-		return db.delete(Tables.RETRIEVAL.n, null, null);
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.RETRIEVAL.qv()});
+			return db.delete(Tables.RETRIEVAL.n, null, null);
+		} catch (IllegalArgumentException ex) {
+			logger.error("purgeRetrieval");
+		}
+		return 0;
 	}
 
 	// ========= SUBSCRIBE : DELETE ================
 
 	public int deleteSubscribe(String selection, String[] selectionArgs) {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		final int count = db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
-		final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
-		logger.trace("Subscribe delete {} {}", count, disposalCount);
-		return count;
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int count = db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
+			logger.trace("Subscribe delete {} {}", count, disposalCount);
+			return count;
+		} catch (IllegalArgumentException ex) {
+			logger.error("delete postal {} {}", selection, selectionArgs);
+		}
+		return 0;
 	}
 	public int deleteSubscribeGarbage() {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
-				SUBSCRIBE_EXPIRATION_CONDITION, getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
-		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-				DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
-		logger.trace("Subscribe garbage {} {}", expireCount, disposalCount);
-		return expireCount;
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
+					SUBSCRIBE_EXPIRATION_CONDITION, getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+					DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
+			logger.trace("Subscribe garbage {} {}", expireCount, disposalCount);
+			return expireCount;
+		} catch (IllegalArgumentException ex) {
+			logger.error("deleteSubscribeGarbage");
+		}
+		return 0;
 	}
 	private static final String DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION = new StringBuilder()
 	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.SUBSCRIBE.cv())
@@ -1745,17 +1895,22 @@ public class DistributorDataStore {
 	.append('"').append(SubscribeTableSchema.EXPIRATION.n).append('"')
 	.append('<').append('?')
 	.toString();
-	
+
 	private static final long SUBSCRIBE_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
-	
+
 	/**
 	 * purge all records from the subscribe table and cascade to the disposal table.
 	 * @return
 	 */
 	public int purgeSubscribe() {
-		final SQLiteDatabase db = this.helper.getWritableDatabase();
-		db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.SUBSCRIBE.qv()});
-		return db.delete(Tables.SUBSCRIBE.n, null, null);
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.SUBSCRIBE.qv()});
+			return db.delete(Tables.SUBSCRIBE.n, null, null);
+		} catch (IllegalArgumentException ex) {
+			logger.error("purgeSubscribe");
+		}
+		return 0;
 	}
 
 	public final File applDir;
