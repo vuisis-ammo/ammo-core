@@ -329,6 +329,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			RequestSerializer serializer, DistributorPolicy.Topic topic, DispersalVector status) {
 
 		logger.info("::sendGatewayRequest");
+		if (status == null) status = DispersalVector.newInstance();
 
 		if (topic == null) {
 			logger.error("no matching routing topic");

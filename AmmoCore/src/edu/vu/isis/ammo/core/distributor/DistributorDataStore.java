@@ -1594,8 +1594,9 @@ public class DistributorDataStore {
 	 */
 
 	// ======== HELPER ============
-	static private String[] getCurrentTime() {
-	    return new String[]{String.valueOf(System.currentTimeMillis())}; 
+	static private String[] getRelativeExpirationTime(long delay) {
+		final long absTime = System.currentTimeMillis() - (delay * 1000);
+	    return new String[]{String.valueOf(absTime)}; 
 	}
 	
 	private static final String DISPOSAL_PURGE = new StringBuilder()
@@ -1615,14 +1616,14 @@ public class DistributorDataStore {
 	public int deletePostalGarbage() {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		final int expireCount = db.delete(Tables.POSTAL.n, 
-				POSTAL_EXPIRATION_CONDITION, getCurrentTime());
+				POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
 		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
 				DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
 		logger.trace("Postal garbage {} {}", expireCount, disposalCount);
 		return expireCount;
 	}
 	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.POSTAL.qv())
+	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.POSTAL.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.POSTAL.q())
 	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
@@ -1634,6 +1635,8 @@ public class DistributorDataStore {
 	.append('"').append(PostalTableSchema.EXPIRATION.n).append('"')
 	.append('<').append('?')
 	.toString();
+	
+	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
 
 	// ========= PUBLISH : DELETE ================
 
@@ -1647,14 +1650,14 @@ public class DistributorDataStore {
 	public int deletePublishGarbage() {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		final int expireCount = db.delete(Tables.PUBLISH.n, 
-				PUBLISH_EXPIRATION_CONDITION, getCurrentTime());
+				PUBLISH_EXPIRATION_CONDITION, getRelativeExpirationTime(0));
 		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-				DISPOSAL_PUBLISH_ORPHAN_CONDITION, getCurrentTime());
+				DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
 		logger.trace("Publish garbage {} {}", expireCount, disposalCount);
 		return expireCount;
 	}
 	private static final String DISPOSAL_PUBLISH_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.PUBLISH.qv())
+	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.PUBLISH.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.PUBLISH.q())
 	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
@@ -1679,14 +1682,14 @@ public class DistributorDataStore {
 	public int deleteRetrievalGarbage() {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		final int expireCount = db.delete(Tables.RETRIEVAL.n, 
-				RETRIEVAL_EXPIRATION_CONDITION, getCurrentTime());
+				RETRIEVAL_EXPIRATION_CONDITION, getRelativeExpirationTime(RETRIEVAL_DELAY_OFFSET));
 		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-				DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, getCurrentTime());
+				DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
 		logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
 		return expireCount;
 	}
 	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.RETRIEVAL.qv())
+	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.RETRIEVAL.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.RETRIEVAL.q())
 	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
@@ -1698,6 +1701,8 @@ public class DistributorDataStore {
 	.append('"').append(RetrievalTableSchema.EXPIRATION.n).append('"')
 	.append('<').append('?')
 	.toString();
+	
+	private static final long RETRIEVAL_DELAY_OFFSET = 8 * 60 * 60; // 8 hrs in seconds
 
 	/**
 	 * purge all records from the retrieval table and cascade to the disposal table.
@@ -1721,14 +1726,14 @@ public class DistributorDataStore {
 	public int deleteSubscribeGarbage() {
 		final SQLiteDatabase db = this.helper.getWritableDatabase();
 		final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
-				SUBSCRIBE_EXPIRATION_CONDITION, getCurrentTime());
+				SUBSCRIBE_EXPIRATION_CONDITION, getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
 		final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-				DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, getCurrentTime());
+				DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
 		logger.trace("Subscribe garbage {} {}", expireCount, disposalCount);
 		return expireCount;
 	}
 	private static final String DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.SUBSCRIBE.qv())
+	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.SUBSCRIBE.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.SUBSCRIBE.q())
 	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
@@ -1740,6 +1745,8 @@ public class DistributorDataStore {
 	.append('"').append(SubscribeTableSchema.EXPIRATION.n).append('"')
 	.append('<').append('?')
 	.toString();
+	
+	private static final long SUBSCRIBE_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
 	
 	/**
 	 * purge all records from the subscribe table and cascade to the disposal table.
