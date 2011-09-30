@@ -1030,8 +1030,6 @@ extends AsyncTask<AmmoService, Integer, Void>
 		
 		return true;
 	}
-	
-
 
 	// =========== SUBSCRIBE ====================
 
