@@ -36,7 +36,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
-	public static final int VERSION = 17;
+	public static final int VERSION = 18;
 
 	// ===========================================================
 	// Fields
@@ -550,8 +550,12 @@ public class DistributorDataStore {
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
 
+		UUID("uuid", "TEXT"),
+		// This is a unique identifier for the request
+		// It is used to look up the appropriate provider
+
 		TOPIC("topic", "TEXT"),
-		// This along with the cost is used to decide how to deliver the specific object.
+		// This is the data type
 
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
@@ -1170,11 +1174,12 @@ public class DistributorDataStore {
 	.toString();
 
 	public long upsertRetrieval(ContentValues cv, Map<String,DisposalState> status) {
+		final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
 		final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
 		final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
 
 		final long key;
-		final String[] updateArgs = new String[]{ topic, provider };
+		final String[] updateArgs = new String[]{ uuid, topic, provider };
 		if (0 < this.db.update(Tables.RETRIEVAL.n, cv, RETRIEVAL_UPDATE_CLAUSE, updateArgs )) {
 			final Cursor cursor = this.db.query(Tables.RETRIEVAL.n, 
 					new String[]{RetrievalTableSchema._ID.n},
@@ -1191,6 +1196,8 @@ public class DistributorDataStore {
 		return key;
 	}
 	static final private String RETRIEVAL_UPDATE_CLAUSE = new StringBuilder()
+	.append(RetrievalTableSchema.UUID.q()).append("=?")
+	.append(" AND ")
 	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
 	.append(" AND ")
 	.append(RetrievalTableSchema.PROVIDER.q()).append("=?")
@@ -1369,7 +1376,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	public ContentValues initializePostalDefaults(ContentValues values) {
-		Long now = Long.valueOf(System.currentTimeMillis());
+		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(PostalTableSchema.TOPIC.n)) {
 			values.put(PostalTableSchema.TOPIC.n,"unknown");
@@ -1415,7 +1422,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	protected ContentValues initializePublicationDefaults(ContentValues values) {
-		Long now = Long.valueOf(System.currentTimeMillis());
+		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(PublishTableSchema.DISPOSITION.n)) {
 			values.put(PublishTableSchema.DISPOSITION.n,
@@ -1441,7 +1448,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	protected ContentValues initializeRetrievalDefaults(ContentValues values) {
-		Long now = Long.valueOf(System.currentTimeMillis());
+		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(RetrievalTableSchema.DISPOSITION.n)) {
 			values.put(RetrievalTableSchema.DISPOSITION.n,
@@ -1493,7 +1500,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	protected ContentValues initializeSubscriptionDefaults(ContentValues values) {
-		Long now = Long.valueOf(System.currentTimeMillis());
+		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(SubscribeTableSchema.DISPOSITION.n)) {
 			values.put(SubscribeTableSchema.DISPOSITION.n,

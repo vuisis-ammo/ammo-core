@@ -15,9 +15,7 @@ public class PackageInstalledReceiver extends BroadcastReceiver {
 	// Constants
 	// ===========================================================
 	public static final Logger logger = LoggerFactory.getLogger("ammo-PIR");
-	
-//	public static final String PACKAGE_INSTALLED_INTENT = "android.intent.action.PACKAGE_ADDED";
-	
+
 	// ===========================================================
 	// Broadcast Receiver
 	// ===========================================================
@@ -30,12 +28,16 @@ public class PackageInstalledReceiver extends BroadcastReceiver {
 		logger.debug("onReceive{}", intent.getAction());
 		final String action = intent.getAction();
 		final String packageName = intent.getDataString();
-		
+
 		// If this is an ammo package, broadcast an intent that the Ammo is ready.  
-		if (action.equalsIgnoreCase("android.intent.action.PACKAGE_ADDED") && packageName.contains("ammo")) {
-			final Intent readyIntent = new Intent(IPrefKeys.AMMO_READY);
-			readyIntent.addCategory(packageName);
-			context.sendBroadcast(readyIntent);
+		if (action.equalsIgnoreCase(Intent.ACTION_PACKAGE_ADDED) 
+				|| action.equalsIgnoreCase(Intent.ACTION_PACKAGE_REPLACED)) {
+			if (packageName.contains("ammo")) {
+
+				final Intent readyIntent = new Intent(IPrefKeys.AMMO_READY);
+				//readyIntent.addCategory(packageName);
+				context.sendBroadcast(readyIntent);
+			}
 		}
 	}
 }
