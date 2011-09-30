@@ -550,8 +550,12 @@ public class DistributorDataStore {
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
 
+		UUID("uuid", "TEXT"),
+		// This is a unique identifier for the request
+		// It is used to look up the appropriate provider
+
 		TOPIC("topic", "TEXT"),
-		// This along with the cost is used to decide how to deliver the specific object.
+		// This is the data type
 
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
@@ -1369,7 +1373,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	public ContentValues initializePostalDefaults(ContentValues values) {
-		Long now = Long.valueOf(System.currentTimeMillis());
+		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(PostalTableSchema.TOPIC.n)) {
 			values.put(PostalTableSchema.TOPIC.n,"unknown");
@@ -1415,7 +1419,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	protected ContentValues initializePublicationDefaults(ContentValues values) {
-		Long now = Long.valueOf(System.currentTimeMillis());
+		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(PublishTableSchema.DISPOSITION.n)) {
 			values.put(PublishTableSchema.DISPOSITION.n,
@@ -1441,7 +1445,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	protected ContentValues initializeRetrievalDefaults(ContentValues values) {
-		Long now = Long.valueOf(System.currentTimeMillis());
+		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(RetrievalTableSchema.DISPOSITION.n)) {
 			values.put(RetrievalTableSchema.DISPOSITION.n,
@@ -1493,7 +1497,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	protected ContentValues initializeSubscriptionDefaults(ContentValues values) {
-		Long now = Long.valueOf(System.currentTimeMillis());
+		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(SubscribeTableSchema.DISPOSITION.n)) {
 			values.put(SubscribeTableSchema.DISPOSITION.n,
