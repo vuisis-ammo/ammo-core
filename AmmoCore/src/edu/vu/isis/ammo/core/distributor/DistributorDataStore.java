@@ -35,7 +35,7 @@ public class DistributorDataStore {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private final static Logger logger = LoggerFactory.getLogger("ammo:dds");
+	private final static Logger logger = LoggerFactory.getLogger("ammo-dds");
 	public static final int VERSION = 19;
 
 	// ===========================================================
@@ -1742,7 +1742,7 @@ public class DistributorDataStore {
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.POSTAL.q())
 	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	.append('=').append(Tables.POSTAL.q()).append(PostalTableSchema._ID.q())
+	    .append('=').append(Tables.POSTAL.q()).append(".").append(PostalTableSchema._ID.q())
 	.append(')')
 	.toString();
 
@@ -1786,7 +1786,7 @@ public class DistributorDataStore {
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.PUBLISH.q())
 	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	.append('=').append(Tables.PUBLISH.q()).append(PublishTableSchema._ID.q())
+	    .append('=').append(Tables.PUBLISH.q()).append(".").append(PublishTableSchema._ID.q())
 	.append(')')
 	.toString();
 
@@ -1828,7 +1828,7 @@ public class DistributorDataStore {
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.RETRIEVAL.q())
 	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	.append('=').append(Tables.RETRIEVAL.q()).append(RetrievalTableSchema._ID.q())
+	    .append('=').append(Tables.RETRIEVAL.q()).append(".").append(RetrievalTableSchema._ID.q())
 	.append(')')
 	.toString();
 
@@ -1875,7 +1875,7 @@ public class DistributorDataStore {
 					SUBSCRIBE_EXPIRATION_CONDITION, getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
 			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
 					DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
-			logger.trace("Subscribe garbage {} {}", expireCount, disposalCount);
+			logger.trace("Subscribe garbage {} {} {}", new Object[] {expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION} );
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
 			logger.error("deleteSubscribeGarbage");
@@ -1887,7 +1887,7 @@ public class DistributorDataStore {
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.SUBSCRIBE.q())
 	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	.append('=').append(Tables.SUBSCRIBE.q()).append(SubscribeTableSchema._ID.q())
+	    .append('=').append(Tables.SUBSCRIBE.q()).append(".").append(SubscribeTableSchema._ID.q())
 	.append(')')
 	.toString();
 

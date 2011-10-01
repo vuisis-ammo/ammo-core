@@ -1124,12 +1124,15 @@ extends AsyncTask<AmmoService, Integer, Void>
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems;
 				areMoreItems = pending.moveToNext()) 
 		{
+		    logger.info("Inside the loop of processSubscribeResponse");
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
 			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
 			
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
+			
+			logger.info("Inside the loop of processSubscribeResponse {} {} {}", new Object[]{id, topic, selection});
 
 			final DispersalVector status = DispersalVector.newInstance();
 			{
