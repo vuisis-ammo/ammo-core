@@ -152,9 +152,9 @@ public class RequestSerializer {
 			final JSONObject json = new JSONObject();
 			tupleCursor.moveToFirst();
 
-			final List<String> fieldNameList = new ArrayList<String>();
-			fieldNameList.add("_serial");
 			for (final String name : tupleCursor.getColumnNames()) {
+				if (name.startsWith("_")) continue; // don't send the local fields
+				
 				final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
 				if (value == null || value.length() < 1) continue;
 				try {
