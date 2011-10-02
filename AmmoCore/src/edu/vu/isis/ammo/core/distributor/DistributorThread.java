@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -75,61 +74,58 @@ extends AsyncTask<AmmoService, Integer, Void>
 				new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
 						new AmmoGatewayMessage.PriorityOrder());
 		this.store = new DistributorDataStore(context);
+		this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
 		logger.debug("constructed");
 	}
 
+
+	/**
+	 * This method is *not* called from the distributor thread so it
+	 * should not update the store directly.
+	 * Rather it updates a map which records the same information
+	 * found in the store's channel table.
+	 * 
+	 * @param context
+	 * @param name
+	 * @param change
+	 */
+	public void onChannelChange(final Context context, final String name, final ChannelChange change) {
+		if (change.equals(this.channelStatus.get(name))) return; // already present
+		this.channelStatus.put(name, new ChannelStatus(change)); // change channel
+		if (!channelDelta.compareAndSet(false, true)) return; // mark as needing processing
+		this.signal(); // signal to perform update
+	}	
 	/**
 	 * When a channel comes on-line the disposition table should
 	 * be checked to see if there are any waiting messages for 
 	 * that channel.
 	 * Channels going off-line are uninteresting so no signal.
 	 */
+	private final ConcurrentMap<String, ChannelStatus> channelStatus;
+	
 	private AtomicBoolean channelDelta = new AtomicBoolean(true);
-	private ConcurrentMap<String, ChannelChange> channelStatus = 
-			new ConcurrentHashMap<String, ChannelChange>();
 
-	public void onChannelChange(final Context context, final String name, final ChannelChange change) {
-		if (change.equals(this.channelStatus.get(name))) return;
-		this.channelStatus.put(name, change);
-
-		switch (change) {
-		case DEACTIVATE:
-			this.store.upsertChannelByName(name, ChannelState.INACTIVE);
-			this.store.deactivateDisposalStateByChannel(name);
-			logger.trace("::channel deactivated");
-			return;
-
-		case ACTIVATE:
-			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-			this.store.activateDisposalStateByChannel(name);
-                        this.announceChannelActive(context, name);
-			if (!channelDelta.compareAndSet(false, true)) return;
-			this.signal();
-			logger.trace("::channel activated");
-			return;
-
-		case REPAIR: 
-			this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-			this.store.repairDisposalStateByChannel(name);
-                        this.announceChannelActive(context, name);
-			if (!channelDelta.compareAndSet(false, true)) return;
-			this.signal();
-			logger.trace("::channel repaired");
-			return;
-		} 
+	// indicates the table does not yet reflect this state
+	private class ChannelStatus {
+		final ChannelChange change;
+		final AtomicBoolean status;
+		public ChannelStatus(final ChannelChange change) {
+			this.change = change;
+			this.status = new AtomicBoolean(false); 			
+		}
 	}
 
-        private void announceChannelActive(final Context context, final String name) {
-                logger.trace("inform applications to retrieve more data");
+	private void announceChannelActive(final Context context, final String name) {
+		logger.trace("inform applications to retrieve more data");
 
 		// TBD SKN --- the channel activates repeatedly due to status change
 		//         --- do not use this to generate ammo_connected intent
 		//         --- generate ammo_connected after gateway authenticated
-                // // broadcast login event to apps ...
-                // final Intent loginIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
-                // loginIntent.putExtra("channel", name);
-                // context.sendBroadcast(loginIntent);
-        }
+		// // broadcast login event to apps ...
+		// final Intent loginIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
+		// loginIntent.putExtra("channel", name);
+		// context.sendBroadcast(loginIntent);
+	}
 
 	/**
 	 * Contains client application requests
@@ -297,6 +293,35 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		if (!that.isConnected()) 
 			return;
+		
+		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+			final String name = entry.getKey();		
+			final ChannelStatus status = entry.getValue();
+			if (status.status.getAndSet(true)) continue; // is it this one?
+			
+		    final ChannelChange change = status.change;
+			switch (change) {
+			case DEACTIVATE:
+				this.store.upsertChannelByName(name, ChannelState.INACTIVE);
+				this.store.deactivateDisposalStateByChannel(name);
+				logger.trace("::channel deactivated");
+				return;
+
+			case ACTIVATE:
+				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
+				this.store.activateDisposalStateByChannel(name);
+				this.announceChannelActive(that.getBaseContext(), name);
+				logger.trace("::channel activated");
+				return;
+
+			case REPAIR: 
+				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
+				this.store.repairDisposalStateByChannel(name);
+				this.announceChannelActive(that.getBaseContext(), name);
+				logger.trace("::channel repaired");
+				return;
+			} 
+		}
 
 		// we could do a priming query to determine if there are any candidates
 
@@ -496,7 +521,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
 			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
 			values.put(PostalTableSchema.EXPIRATION.cv(), ar.expire.cv());
-			
+
 			values.put(PostalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
 			//values.put(PostalTableSchema.UNIT.cv(), 50);
@@ -550,7 +575,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		} catch (NullPointerException ex) {
 			logger.warn("NullPointerException, sending to gateway failed {}",
-				    ex.getStackTrace() );
+					ex.getStackTrace() );
 		}
 	}
 
@@ -704,7 +729,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				mw.setDataMessage(pushReq);
 
 				logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
-					     System.currentTimeMillis()-now, serialized.length);
+						System.currentTimeMillis()-now, serialized.length);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
 				return agmb.build();
 			}
@@ -812,7 +837,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processRetrievalRequest(AmmoService that, AmmoRequest agm) {
-	    logger.info("::processRetrievalRequest() {} {}", agm.topic.toString(), agm.provider.toString() );
+		logger.info("::processRetrievalRequest() {} {}", agm.topic.toString(), agm.provider.toString() );
 
 		// Dispatch the message.
 		try {
@@ -825,7 +850,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			values.put(RetrievalTableSchema.UUID.cv(), uuid);
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
 			values.put(RetrievalTableSchema.SELECTION.cv(), select);
-			
+
 			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());		
 			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.expire.cv());
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
@@ -843,7 +868,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
-				
+
 				final DispersalVector dispatchResult = 
 						this.dispatchRetrievalRequest(that,
 								uuid, topic, select, policy, DispersalVector.newInstance(),
@@ -861,7 +886,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			}
 
 		} catch (NullPointerException ex) {
-		    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 		}
 	}
 
@@ -899,7 +924,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				}
 				channelCursor.close();
 			}
-			
+
 			final String uuid = pending.getString(pending.getColumnIndex(RetrievalTableSchema.UUID.cv()));
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));		
 			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
@@ -939,7 +964,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-			    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+				logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 			}
 		}
 		pending.close();
@@ -960,41 +985,41 @@ extends AsyncTask<AmmoService, Integer, Void>
 	dispatchRetrievalRequest(final AmmoService that, String retrievalId, String topic, String selection,  
 			DistributorPolicy.Topic policy, DispersalVector status,
 			final INetworkService.OnSendMessageHandler handler) {
-	    logger.info("::dispatchRetrievalRequest {}", topic);
+		logger.info("::dispatchRetrievalRequest {}", topic);
 
-	    /** Message Building */
+		/** Message Building */
 
-	    final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-	    mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
-	    //mw.setSessionUuid(sessionId);
+		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
+		//mw.setSessionUuid(sessionId);
 
-	    final AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
-		.setRequestUid(retrievalId)
-		.setMimeType(topic);
+		final AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
+				.setRequestUid(retrievalId)
+				.setMimeType(topic);
 
-	    if (selection != null) pushReq.setQuery(selection);
+		if (selection != null) pushReq.setQuery(selection);
 
-	    // projection
-	    // max_results
-	    // start_from_count
-	    // live_query
-	    // expiration
-	    try {
-		mw.setPullRequest(pushReq);
-		final RequestSerializer serializer = RequestSerializer.newInstance();
-		serializer.setAction(new RequestSerializer.OnReady() {
-			@Override
-			    public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
-			    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
-			    return agmb.build();
-			}
-		    });	
-		return this.dispatchRequest(that, serializer, policy, status);
-	    } catch (com.google.protobuf.UninitializedMessageException ex) {
-		logger.warn("Failed to marshal the message: {}", ex.getStackTrace() );
-	    }
-	    return status;
-		
+		// projection
+		// max_results
+		// start_from_count
+		// live_query
+		// expiration
+		try {
+			mw.setPullRequest(pushReq);
+			final RequestSerializer serializer = RequestSerializer.newInstance();
+			serializer.setAction(new RequestSerializer.OnReady() {
+				@Override
+				public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+					final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
+					return agmb.build();
+				}
+			});	
+			return this.dispatchRequest(that, serializer, policy, status);
+		} catch (com.google.protobuf.UninitializedMessageException ex) {
+			logger.warn("Failed to marshal the message: {}", ex.getStackTrace() );
+		}
+		return status;
+
 	}
 
 
@@ -1010,7 +1035,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		logger.info("::receiveRetrievalResponse");
 
 		final AmmoMessages.PullResponse resp = mw.getPullResponse();
-			
+
 		// find the provider to use
 		final String uuid = resp.getRequestUid(); 
 		final String topic = resp.getMimeType();
@@ -1018,7 +1043,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				new String[]{RetrievalTableSchema.PROVIDER.n}, 
 				uuid, topic, null);
 		if (cursor.getCount() < 1) {
-		    logger.error("received a message for which there is no retrieval {} {}", topic, uuid);
+			logger.error("received a message for which there is no retrieval {} {}", topic, uuid);
 			cursor.close();
 			return false;
 		}
@@ -1026,13 +1051,13 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final String uriString = cursor.getString(0);  // only asked for one so it better be it.
 		cursor.close();
 		final Uri provider = Uri.parse(uriString);
-		
+
 		// update the actual provider
-		
+
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
 		final Uri tuple = RequestSerializer.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray());
 		logger.debug("tuple upserted {}", tuple);
-		
+
 		return true;
 	}
 
@@ -1055,7 +1080,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processSubscribeRequest(AmmoService that, AmmoRequest agm, int st) {
-	    logger.info("::processSubscribeRequest() {}", agm.topic.toString() );
+		logger.info("::processSubscribeRequest() {}", agm.topic.toString() );
 
 		// Dispatch the message.
 		try {
@@ -1124,14 +1149,14 @@ extends AsyncTask<AmmoService, Integer, Void>
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems;
 				areMoreItems = pending.moveToNext()) 
 		{
-		    logger.info("Inside the loop of processSubscribeResponse");
+			logger.info("Inside the loop of processSubscribeResponse");
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
 			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
-			
+
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
-			
+
 			logger.info("Inside the loop of processSubscribeResponse {} {} {}", new Object[]{id, topic, selection});
 
 			final DispersalVector status = DispersalVector.newInstance();
@@ -1162,8 +1187,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 					final DispersalVector dispatchResult = 
 							this.dispatchSubscribeRequest(that,
-										      topic, selection,
-										      policy, status, 
+									topic, selection,
+									policy, status, 
 									new INetworkService.OnSendMessageHandler() {
 
 								@Override
@@ -1183,7 +1208,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-			    logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+				logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 			}
 		}
 		pending.close();
@@ -1196,7 +1221,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	dispatchSubscribeRequest(final AmmoService that, String topic, 
 			String selection, DistributorPolicy.Topic policy, DispersalVector status,
 			final INetworkService.OnSendMessageHandler handler) {
-	    logger.info("::dispatchSubscribeRequest {}", topic);
+		logger.info("::dispatchSubscribeRequest {}", topic);
 
 		/** Message Building */
 		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
@@ -1263,7 +1288,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		return true;
 	}
-	
+
 
 	/**
 	 * Clear the contents of tables in preparation for reloading them.
