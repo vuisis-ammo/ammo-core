@@ -286,7 +286,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 	/**
 	 * Check to see if the active channels can be used to send a request.
-	 * This makes use of the disposition table and the channel status map.
+	 * This updates the channel status table.
 	 */
 	private void processChannelChange(AmmoService that) {
 		logger.info("::processPostalChange()");
