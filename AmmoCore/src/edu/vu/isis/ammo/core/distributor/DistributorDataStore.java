@@ -239,6 +239,7 @@ public class DistributorDataStore {
 		 */
 		public boolean goalReached(boolean goalCondition) {
 			switch (this) {
+			case QUEUED:
 			case SENT:
 			case SATISFIED:
 				if (goalCondition == true) return true;

@@ -64,5 +64,14 @@ public class DispersalVector {
 		return this;
 	}
 	
+	@Override
+	public String toString() {
+		final StringBuilder sb = new StringBuilder().append("status:");
+		for( final Map.Entry<String,DisposalState> entry : this.stateMap.entrySet()) {
+		   sb.append('\n').append(entry.getKey()).append(" : ").append(entry.getValue());
+		}
+		return sb.toString();
+	}
+	
 	
 }
