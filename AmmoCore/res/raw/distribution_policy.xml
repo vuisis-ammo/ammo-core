@@ -11,10 +11,20 @@ Generally requests should be sent over the gateway, unless it isn't
 available then local multicast delivery should be used.
      </description>
      <priority value="normal"/>
-     <routing>
+     <routing priority="normal" category="postal">
 	     <clause>
 	        <literal term="gateway" condition="success" encoding="json"/>
             <literal term="multicast" condition="success" encoding="json"/>
+	     </clause>
+     </routing>
+     <routing priority="high" category="subscribe">
+	     <clause>
+	        <literal term="gateway" condition="success"/>
+	     </clause>
+     </routing>
+     <routing priority="normal" category="retrieval">
+	     <clause>
+	        <literal term="gateway" condition="success"/>
 	     </clause>
      </routing>
   </topic>
@@ -23,8 +33,7 @@ available then local multicast delivery should be used.
      <description>
 The ammo applications.
      </description>
-     <priority value="normal"/>
-     <routing>
+     <routing priority="normal">
 	     <clause>
 	        <literal term="gateway" condition="success" encoding="json"/>
             <literal term="multicast" condition="success" encoding="json"/>
@@ -35,8 +44,7 @@ The ammo applications.
   <topic type="ammo/com.aterrasys.">
      <description>
      </description>
-     <priority value="normal"/>
-     <routing>
+     <routing priority="normal">
 	     <clause>
 	        <literal term="gateway" condition="success" encoding="json"/>
 	        <literal term="multicast" condition="success" encoding="json"/>
@@ -47,8 +55,7 @@ The ammo applications.
   <topic type="ammo/edu.vu.isis.ammo.sms.">
      <description>
      </description>
-     <priority value="normal"/>
-     <routing>
+     <routing priority="normal">
 	     <clause>
 	        <literal term="gateway" condition="true" encoding="json"/>
 	        <literal term="multicast" condition="true" encoding="json"/>
@@ -61,8 +68,7 @@ The ammo applications.
 This example illustrates the case where the requests 
 should be sent over both channels.
      </description>
-     <priority value="normal"/>
-     <routing>
+     <routing priority="normal">
 	     <clause>
 	        <literal term="multicast" condition="success" encoding="json"/>
 	     </clause>
@@ -76,8 +82,7 @@ should be sent over both channels.
      <description>
       PLI : location, for terse messages
      </description>
-     <priority value="normal"/>
-     <routing>
+     <routing priority="normal">
 	     <clause>
 	        <literal term="multicast" condition="false" encoding="json"/>
 	        <literal term="serial" condition="true" encoding="terse" />
@@ -92,8 +97,7 @@ should be sent over both channels.
      <description>
       Used for testing the routing mechanism.
      </description>
-     <priority value="normal"/>
-     <routing>
+     <routing priority="normal">
 	     <clause>
 	        <literal term="multicast" condition="false" encoding="json"/>
 	        <literal term="serial" condition="true" encoding="terse"/>

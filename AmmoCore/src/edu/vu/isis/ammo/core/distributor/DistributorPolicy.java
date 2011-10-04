@@ -32,9 +32,9 @@ import org.xml.sax.XMLReader;
 import android.content.Context;
 import android.content.res.Resources.NotFoundException;
 import android.net.Uri;
-import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 /**
  * This class provides the base level mapping between distribution 
@@ -46,18 +46,20 @@ import edu.vu.isis.ammo.core.R;
  * 
  * The main values are:
  * <ul>
- * <li>priority</li>
- * <li>scope</li>
+ * <li>routing</li>
  * </ul>
  * 
  *
  */
 public class DistributorPolicy implements ContentHandler {
-	private static final Logger logger = LoggerFactory.getLogger("ammo.dp");
+	private static final Logger logger = LoggerFactory.getLogger("ammo-dp");
 
 	public static final String DEFAULT = "_default_";
 
-	public final Trie<String, Topic> policy;
+	public final Trie<String, Topic> postalPolicy;
+	public final Trie<String, Topic> subscribePolicy;
+	public final Trie<String, Topic> retrievalPolicy;
+	
 	public final static String policy_dir = "policy";
 	public final static String policy_file = "distribution_policy.xml";
 
@@ -91,8 +93,8 @@ public class DistributorPolicy implements ContentHandler {
 				return null;
 			}
 		}
-		InputSource is = new InputSource(new InputStreamReader(inputStream));
-		DistributorPolicy policy = new DistributorPolicy(is);
+		final InputSource is = new InputSource(new InputStreamReader(inputStream));
+		final DistributorPolicy policy = new DistributorPolicy(is);
 		try {
 			inputStream.close();
 		} catch (IOException ex) {
@@ -106,8 +108,11 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param file
 	 */
 	public DistributorPolicy(InputSource is ) {
-		this.policy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.builder = new TopicBuilder();
+		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		
+		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
 		if (is == null) {
 			logger.debug("loading default rule");
@@ -142,8 +147,18 @@ public class DistributorPolicy implements ContentHandler {
 	@Override
 	public String toString() {
 		final StringBuffer sb = new StringBuffer();
-		for (Entry<String, Topic> entry : this.policy.entrySet()) {
-			sb
+		for (final Entry<String, Topic> entry : this.postalPolicy.entrySet()) {
+			sb.append('\n').append("POSTAL")
+			.append('\n').append(" topic \"").append(entry.getKey()).append('"')
+			.append(entry.getValue() );
+		}
+		for (final Entry<String, Topic> entry : this.subscribePolicy.entrySet()) {
+			sb.append('\n').append("SUBSCRIBE")
+			.append('\n').append(" topic \"").append(entry.getKey()).append('"')
+			.append(entry.getValue() );
+		}
+		for (final Entry<String, Topic> entry : this.retrievalPolicy.entrySet()) {
+			sb.append('\n').append("RETRIEVAL")
 			.append('\n').append(" topic \"").append(entry.getKey()).append('"')
 			.append(entry.getValue() );
 		}
@@ -157,13 +172,15 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param dummy
 	 */
 	public DistributorPolicy(Context context, int testSetId) {
-		this.policy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.builder = new TopicBuilder();
+		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		
+		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
 		switch (testSetId) {
 		default:
 			this.setDefaultRule();
-			this.builder.priority(AmmoRequest.PRIORITY_NORMAL);
 
 			this.builder.type("urn:test:domain/trial/both")
 			.addClause()
@@ -180,7 +197,6 @@ public class DistributorPolicy implements ContentHandler {
 	public void setDefaultRule() {
 		this.builder
 		.type("")
-		.priority(AmmoRequest.PRIORITY_NORMAL)
 		.addClause().addLiteral("gateway", true, Encoding.getDefault())
 		.build();
 	}
@@ -193,8 +209,14 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param key
 	 * @return
 	 */
-	public Topic match(String key) {
-		return this.policy.selectValue(key);
+	public Topic matchPostal(String key) {
+		return this.postalPolicy.selectValue(key);
+	}
+	public Topic matchSubscribe(String key) {
+		return this.subscribePolicy.selectValue(key);
+	}
+	public Topic matchRetrieval(String key) {
+		return this.retrievalPolicy.selectValue(key);
 	}
 
 	private int indent = 0;
@@ -205,11 +227,9 @@ public class DistributorPolicy implements ContentHandler {
 	}
 
 	public class Topic {
-		public final int priority;
 		public final Routing routing;
 
 		public Topic(TopicBuilder builder) {
-			this.priority = builder.priority();
 			this.routing = builder.routing();
 		}
 		@Override
@@ -218,8 +238,7 @@ public class DistributorPolicy implements ContentHandler {
 			final String ind = DistributorPolicy.this.indent();
 
 			final StringBuffer sb = new StringBuffer();
-			sb.append('\n').append(ind).append("priority: ").append(this.priority)
-			.append('\n').append(ind).append("routing:  ").append(this.routing);
+			sb.append('\n').append(ind).append("routing:  ").append(this.routing);
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
@@ -230,15 +249,20 @@ public class DistributorPolicy implements ContentHandler {
 	}
 
 	public class Routing {
+		public final int priority;
+		public final Category category;
 		public final List<Clause> clauses;
-		public Routing() {
+		
+		public Routing(Category category, int priority) {
+			this.category = category;
+			this.priority = priority;
 			this.clauses = new ArrayList<Clause>();
 		}
 		public DispersalVector makeMap() {
 			final DispersalVector map = DispersalVector.newInstance();
 			for (Clause clause : this.clauses) {
 				for (Literal literal : clause.literals) {
-					map.put(literal.term, null);
+					map.put(literal.term, DisposalState.PENDING);
 				}
 			}
 			return map;
@@ -246,8 +270,11 @@ public class DistributorPolicy implements ContentHandler {
 		@Override
 		public String toString() {
 			DistributorPolicy.this.indent++;
+			final String ind = DistributorPolicy.this.indent();
 
-			final StringBuffer sb = new StringBuffer();
+			final StringBuffer sb = new StringBuffer();		
+			sb.append('\n').append(ind).append("priority: ").append(this.priority);
+			
 			for (Clause clause : this.clauses) { 
 				sb.append(clause);
 			}
@@ -291,6 +318,11 @@ public class DistributorPolicy implements ContentHandler {
 			this.literals.add(literal);
 		}
 	}
+	
+	public enum Category {
+		POSTAL, SUBSCRIBE, RETRIEVAL;
+	}
+	
 
 	/**
 	 * Encoding is an indicator to the distributor as to how to encode/decode requests.
@@ -403,20 +435,15 @@ public class DistributorPolicy implements ContentHandler {
 
 	public class TopicBuilder {
 
-		public TopicBuilder() {
-			this.routing = new Routing();
+		public TopicBuilder(Category category, int priority) {
+			this.routing = new Routing(category, priority);
 		}
 		public Topic build() { return new Topic(this); }
 
-		private int priority;
-		public int priority() { return this.priority; }
-		public TopicBuilder priority(int val) {  this.priority = val; return this; }
-
-
 		private Routing routing;
 		public Routing routing() { return this.routing; }
-		public TopicBuilder newRouting() { 
-			this.routing = new Routing();
+		public TopicBuilder newRouting(Category category, int priority) { 
+			this.routing = new Routing(category, priority);
 			return this;
 		}
 
@@ -448,10 +475,8 @@ public class DistributorPolicy implements ContentHandler {
 	@Override
 	public void endDocument() throws SAXException {}
 
-
 	private boolean inPolicy = false;
 	private boolean inTopic = false;
-	private boolean inPriority = false;
 	private boolean inRouting = false;
 	private boolean inClause = false;
 	private boolean inLiteral = false;
@@ -484,18 +509,13 @@ public class DistributorPolicy implements ContentHandler {
 			return;
 		} 
 		// in policy/topic
-		if (! this.inDescription && ! this.inPriority && ! this.inRouting) { 
+		if (! this.inDescription && ! this.inRouting) { 
 			if (localName.equals("routing")) { 
 				logger.debug("begin 'routing'");
 				this.inRouting = true;
-				this.builder.newRouting();
-				return;
-			}
-			if (localName.equals("priority")) {
-				logger.debug("begin 'priority'");
-				this.inPriority = true;
-				this.builder.priority(extractPriority(uri,"value", 
-						IAmmoRequest.PRIORITY_NORMAL, atts));
+				final Category category = extractCategory(uri,"category", Category.POSTAL, atts);
+				final int priority = extractPriority(uri,"priority", IAmmoRequest.PRIORITY_NORMAL, atts);
+				this.builder.newRouting(category, priority);
 				return;
 			}
 			if (localName.equals("description")) {
@@ -503,7 +523,7 @@ public class DistributorPolicy implements ContentHandler {
 				this.inDescription = true;
 				return;
 			}
-			logger.warn("expecting begin 'routing' or 'priority': got {}", localName);
+			logger.warn("expecting begin 'routing' or 'description': got {}", localName);
 			return; 
 		}
 		// in policy/topic/routing
@@ -559,15 +579,9 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy/topic
 		if (! this.inRouting) { 
 			if (localName.equals("topic")) {
-				Topic topic = builder.build();
-				this.policy.put(builder.type(), topic );
+				
 				logger.debug("end 'topic'");
 				this.inTopic = false;
-				return;
-			}
-			if (localName.equals("priority")) {
-				logger.debug("end 'topic/priority'");
-				this.inPriority = false;
 				return;
 			}
 			if (localName.equals("description")) {
@@ -581,6 +595,18 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy/topic/routing
 		if (! this.inClause){
 			if (localName.equals("routing")) { 
+				final Topic topic = builder.build();
+				switch (builder.routing.category) {
+				case POSTAL:
+					this.postalPolicy.put(builder.type(), topic );
+					break;
+				case SUBSCRIBE:
+					this.subscribePolicy.put(builder.type(), topic );
+					break;
+				case RETRIEVAL:
+					this.retrievalPolicy.put(builder.type(), topic );
+					break;
+				}
 				logger.debug("end 'routing'");
 				this.inRouting = false;
 				return;
@@ -650,7 +676,7 @@ public class DistributorPolicy implements ContentHandler {
 			return  Encoding.newInstance( Encoding.Type.TERSE, Encoding.Type.TERSE, Encoding.Type.TERSE );
 		return def;
 	}
-
+	
 	/**
 	 * A helper routine to extract an attribute from the xml element and 
 	 * convert it into a boolean.
@@ -669,7 +695,7 @@ public class DistributorPolicy implements ContentHandler {
 
 	/**
 	 * A helper routine to extract an attribute from the xml element and 
-	 * convert it into a boolean.
+	 * convert it into an integer.
 	 * 
 	 * @param uri
 	 * @param attrname
@@ -692,6 +718,26 @@ public class DistributorPolicy implements ContentHandler {
 			return def;
 		}
 	}
+	
+	/**
+	 * A helper routine to extract an attribute from the xml element and 
+	 * convert it into an integer.
+	 * 
+	 * @param uri
+	 * @param attrname
+	 * @param def
+	 * @param atts
+	 * @return
+	 */
+	private Category extractCategory(String uri, String attrname, Category def, Attributes atts) {
+		final String value = atts.getValue(uri, attrname);
+		if (value == null) return def;
+		if (value.equalsIgnoreCase("postal")) return Category.POSTAL;
+		if (value.equalsIgnoreCase("subscribe")) return Category.SUBSCRIBE;
+		if (value.equalsIgnoreCase("retrieval")) return Category.RETRIEVAL;
+		return def;
+	}
+
 
 	@Override
 	public void startPrefixMapping(String prefix, String uri)  throws SAXException { }
