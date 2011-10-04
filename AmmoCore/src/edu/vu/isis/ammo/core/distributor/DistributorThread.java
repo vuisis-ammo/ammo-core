@@ -95,6 +95,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final ChannelChange priorChange = priorStatus.change;
 			if (change.equals(priorChange)) return; // already present
 		}
+		logger.debug("On Channel Change: {} :: {}", channelName, change);
 		this.channelStatus.put(channelName, new ChannelStatus(change)); // change channel
 		if (!channelDelta.compareAndSet(false, true)) return; // mark as needing processing
 		this.signal(); // signal to perform update
@@ -295,16 +296,18 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * This updates the channel status table.
 	 */
 	private void processChannelChange(AmmoService that) {
-		logger.info("::processPostalChange()");
+		logger.info("::processChannelChange()");
 
-		if (!that.isConnected()) 
-			return;
+		// FIXME
+		// Fred says: This could be bad. Subscriptions might not be re-sent. Possible race condition?
+		//if (!that.isConnected()) 
+		//	return;
 
 		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
 			final String name = entry.getKey();		
 			final ChannelStatus status = entry.getValue();
 			if (status.status.getAndSet(true)) continue; // is it this one?
-
+			logger.info("::processChannelChange() : {} , {}", name, status.change);
 			final ChannelChange change = status.change;
 			switch (change) {
 			case DEACTIVATE:
