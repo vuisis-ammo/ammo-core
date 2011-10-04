@@ -298,11 +298,6 @@ extends AsyncTask<AmmoService, Integer, Void>
 	private void processChannelChange(AmmoService that) {
 		logger.info("::processChannelChange()");
 
-		// FIXME
-		// Fred says: This could be bad. Subscriptions might not be re-sent. Possible race condition?
-		//if (!that.isConnected()) 
-		//	return;
-
 		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
 			final String name = entry.getKey();		
 			final ChannelStatus status = entry.getValue();
@@ -313,22 +308,30 @@ extends AsyncTask<AmmoService, Integer, Void>
 			case DEACTIVATE:
 				this.store.upsertChannelByName(name, ChannelState.INACTIVE);
 				this.store.deactivateDisposalStateByChannel(name);
+				
 				logger.trace("::channel deactivated");
-				return;
+				break;
 
 			case ACTIVATE:
 				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
+				this.store.deactivateDisposalStateByChannel(name);
+
 				this.store.activateDisposalStateByChannel(name);
 				this.announceChannelActive(that.getBaseContext(), name);
 				logger.trace("::channel activated");
-				return;
+				break;
 
 			case REPAIR: 
 				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
+				this.store.activateDisposalStateByChannel(name);
+				
 				this.store.repairDisposalStateByChannel(name);
 				this.announceChannelActive(that.getBaseContext(), name);
 				logger.trace("::channel repaired");
-				return;
+				break;
+				
+			default:
+				logger.trace("::channel unknown change {}", change);	
 			} 
 		}
 
@@ -523,7 +526,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		// Dispatch the message.
 		try {
 			final String topic = ar.topic.asString();
-			final DistributorPolicy.Topic policy = that.policy().match(topic);
+			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
@@ -570,11 +573,11 @@ extends AsyncTask<AmmoService, Integer, Void>
 								ar.provider.toString(),
 								topic, policy, null, serializer,
 								new INetworkService.OnSendMessageHandler() {
-
+							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
+									parent.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
 								}
 								return true;
 							}
@@ -647,7 +650,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				}
 			});
 
-			final DistributorPolicy.Topic policy = that.policy().match(topic);
+			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 			final DispersalVector status = DispersalVector.newInstance();
 			{
 				final Cursor channelCursor = this.store.queryDisposalReady(id,Tables.POSTAL.n);
@@ -678,14 +681,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 									provider.toString(),
 									topic, policy, status, serializer,
 									new INetworkService.OnSendMessageHandler() {
-
+                                final DistributorThread parent = DistributorThread.this;
 								@Override
-								public boolean ack(String clazz, DisposalState status) {
-
-									ContentValues values = new ContentValues();
-
-									values.put(PostalTableSchema.DISPOSITION.cv(), status.cv());
-									long numUpdated = DistributorThread.this.store.updatePostalByKey(id, values);
+								public boolean ack(String channel, DisposalState status) {
+									long numUpdated = parent.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
 
 									logger.info("Postal: {} rows updated to {}",
 											numUpdated, status);
@@ -853,7 +852,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final String uuid = agm.uuid();
 			final String topic = agm.topic.asString();
 			final String select = agm.select.toString();
-			final DistributorPolicy.Topic policy = that.policy().match(topic);
+			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(RetrievalTableSchema.UUID.cv(), uuid);
@@ -882,12 +881,12 @@ extends AsyncTask<AmmoService, Integer, Void>
 						this.dispatchRetrievalRequest(that,
 								uuid, topic, select, policy, DispersalVector.newInstance(),
 								new INetworkService.OnSendMessageHandler() {
-
+							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
 									logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
+									parent.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
 								}
 								return false;
 							}
@@ -945,7 +944,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				} 
 				synchronized (this.store) {
 					final ContentValues values = new ContentValues();
-					final DistributorPolicy.Topic policy = that.policy().match(topic);
+					final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 
 					values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 					@SuppressWarnings("unused")
@@ -956,18 +955,15 @@ extends AsyncTask<AmmoService, Integer, Void>
 									uuid, topic, selection,
 									policy, status,
 									new INetworkService.OnSendMessageHandler() {
-
+								final DistributorThread parent = DistributorThread.this;
 								@Override
-								public boolean ack(String clazz, DisposalState status) {
-
-									ContentValues values = new ContentValues();
-
-									values.put(RetrievalTableSchema.DISPOSITION.cv(), status.cv());
-									long numUpdated = DistributorThread.this.store.updateRetrievalByKey(id, values);
-
-									logger.info("Retrieval: {} rows updated to {}",
-											numUpdated, status);
-
+								public boolean ack(String channel, DisposalState status) {
+									synchronized (DistributorThread.this.store) {
+										logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
+										long numUpdated = parent.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
+										logger.info("Retrieval: {} rows updated to {}",
+												numUpdated, status);
+									}
 									return false;
 								}
 							});
@@ -1095,7 +1091,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		// Dispatch the message.
 		try {
 			final String topic = agm.topic.asString();
-			final DistributorPolicy.Topic policy = that.policy().match(topic);
+			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
@@ -1107,7 +1103,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 			if (!that.isConnected()) {
 				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
-				long key = this.store.upsertSubscribe(values, policy.makeRouteMap());
+				final DispersalVector dispersal = policy.makeRouteMap();
+				long key = this.store.upsertSubscribe(values, dispersal);
 				logger.info("no network connection, added {}", key);
 				return;
 			}
@@ -1115,17 +1112,18 @@ extends AsyncTask<AmmoService, Integer, Void>
 			values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 			// We synchronize on the store to avoid a race between dispatch and queuing
 			synchronized (this.store) {
-				final long id = this.store.upsertSubscribe(values, policy.makeRouteMap());
+				final DispersalVector dispersal = policy.makeRouteMap();
+				final long id = this.store.upsertSubscribe(values, dispersal);
 				final DispersalVector dispatchResult = 
 						this.dispatchSubscribeRequest(that,
 								topic, agm.select.toString(),
-								policy, null,
+								policy, dispersal,
 								new INetworkService.OnSendMessageHandler() {
-
+							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
-									DistributorThread.this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
+									parent.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
 								}
 								return true;
 							}
@@ -1189,7 +1187,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				} 
 				synchronized (this.store) {
 					final ContentValues values = new ContentValues();
-					final DistributorPolicy.Topic policy = that.policy().match(topic);
+					final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 
 					values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.QUEUED.cv());
 					@SuppressWarnings("unused")
@@ -1201,17 +1199,14 @@ extends AsyncTask<AmmoService, Integer, Void>
 									policy, status, 
 									new INetworkService.OnSendMessageHandler() {
 
+								final DistributorThread parent = DistributorThread.this;
 								@Override
-								public boolean ack(String clazz, DisposalState status) {
-
-									final ContentValues values = new ContentValues();
-
-									values.put(SubscribeTableSchema.DISPOSITION.cv(), status.cv());
-									long numUpdated = DistributorThread.this.store.updateSubscribeByKey(id, values);
-
-									logger.info("Subscribe: {} rows updated to {}",
-											numUpdated, status);
-
+								public boolean ack(String channel, DisposalState status) {
+									synchronized (DistributorThread.this.store) {
+										long numrows = parent.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
+										logger.info("Subscribe: {} rows updated to {}",
+												numrows, status);
+									}
 									return true;
 								}
 							});
