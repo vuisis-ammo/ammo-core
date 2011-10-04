@@ -201,12 +201,12 @@ extends AsyncTask<AmmoService, Integer, Void>
 			if (!that.isConnected()) 
 				continue;
 
-                        for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
-                            final String name = entry.getKey();         
-                            this.store.deactivateDisposalStateByChannel(name);
-                        }
+			for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+				final String name = entry.getKey();         
+				this.store.deactivateDisposalStateByChannel(name);
+			}
 
-         		this.processSubscribeTable(that);
+			this.processSubscribeTable(that);
 			this.processRetrievalTable(that);
 			this.processPostalTable(that);
 		}
@@ -214,45 +214,45 @@ extends AsyncTask<AmmoService, Integer, Void>
 		try {
 			while (true) {
 				// condition wait, is there something to process?
-				synchronized (this) {
-					while (!this.isReady(them)) 
-						this.wait(BURP_TIME); 
-				}
-				while (this.isReady(them)) {
-					if (this.channelDelta.getAndSet(false)) {
-						logger.trace("channel change");
-						for (AmmoService that : them) {
-							this.processChannelChange(that);						
+						synchronized (this) {
+							while (!this.isReady(them)) 
+								this.wait(BURP_TIME); 
 						}
-					}
-
-					if (!this.responseQueue.isEmpty()) {
-						logger.trace("processing response, remaining {}", this.responseQueue.size());
-						try {
-							final AmmoGatewayMessage agm = this.responseQueue.take();
-							for (AmmoService that : them) {
-								this.processResponse(that, agm);
+						while (this.isReady(them)) {
+							if (this.channelDelta.getAndSet(false)) {
+								logger.trace("channel change");
+								for (AmmoService that : them) {
+									this.processChannelChange(that);						
+								}
 							}
-						} catch (ClassCastException ex) {
-							logger.error("response queue contains illegal item of class {}", 
-									ex.getLocalizedMessage());
-						}
-					}
 
-					if (!this.requestQueue.isEmpty()) {
-						logger.trace("processing request, remaining {}", this.requestQueue.size());
-						try {
-							final AmmoRequest agm = this.requestQueue.take();
-							for (AmmoService that : them) {
-								this.processRequest(that, agm);
+							if (!this.responseQueue.isEmpty()) {
+								logger.trace("processing response, remaining {}", this.responseQueue.size());
+								try {
+									final AmmoGatewayMessage agm = this.responseQueue.take();
+									for (AmmoService that : them) {
+										this.processResponse(that, agm);
+									}
+								} catch (ClassCastException ex) {
+									logger.error("response queue contains illegal item of class {}", 
+											ex.getLocalizedMessage());
+								}
 							}
-						} catch (ClassCastException ex) {
-							logger.error("request queue contains illegal item of class {}", 
-									ex.getLocalizedMessage());
+
+							if (!this.requestQueue.isEmpty()) {
+								logger.trace("processing request, remaining {}", this.requestQueue.size());
+								try {
+									final AmmoRequest agm = this.requestQueue.take();
+									for (AmmoService that : them) {
+										this.processRequest(that, agm);
+									}
+								} catch (ClassCastException ex) {
+									logger.error("request queue contains illegal item of class {}", 
+											ex.getLocalizedMessage());
+								}
+							}
 						}
-					}
-				}
-				logger.info("work processed"); 
+						logger.info("work processed"); 
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
@@ -300,6 +300,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 	/**
 	 * Check to see if the active channels can be used to send a request.
 	 * This updates the channel status table.
+	 * There is a slight race here, it is possible that while
+	 * the list was being processed the channel status changed.
+	 * This is all right it just means that this method may
+	 * be called with no work to do.
 	 */
 	private void processChannelChange(AmmoService that) {
 		logger.info("::processChannelChange()");
@@ -307,14 +311,15 @@ extends AsyncTask<AmmoService, Integer, Void>
 		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
 			final String name = entry.getKey();		
 			final ChannelStatus status = entry.getValue();
-			if (status.status.getAndSet(true)) continue; // is it this one?
+			if (status.status.getAndSet(true)) continue; 	
+
 			logger.info("::processChannelChange() : {} , {}", name, status.change);
 			final ChannelChange change = status.change;
 			switch (change) {
 			case DEACTIVATE:
 				this.store.upsertChannelByName(name, ChannelState.INACTIVE);
 				this.store.deactivateDisposalStateByChannel(name);
-				
+
 				logger.trace("::channel deactivated");
 				break;
 
@@ -330,12 +335,12 @@ extends AsyncTask<AmmoService, Integer, Void>
 			case REPAIR: 
 				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
 				this.store.activateDisposalStateByChannel(name);
-				
+
 				this.store.repairDisposalStateByChannel(name);
 				this.announceChannelActive(that.getBaseContext(), name);
 				logger.trace("::channel repaired");
 				break;
-				
+
 			default:
 				logger.trace("::channel unknown change {}", change);	
 			} 
@@ -582,9 +587,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
-								synchronized (DistributorThread.this.store) {
-									parent.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
-								}
+								parent.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
 								return true;
 							}
 						});
@@ -687,7 +690,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 									provider.toString(),
 									topic, policy, status, serializer,
 									new INetworkService.OnSendMessageHandler() {
-                                final DistributorThread parent = DistributorThread.this;
+								final DistributorThread parent = DistributorThread.this;
 								@Override
 								public boolean ack(String channel, DisposalState status) {
 									long numUpdated = parent.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
@@ -890,10 +893,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
-								synchronized (DistributorThread.this.store) {
-									logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
-									parent.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
-								}
+								logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
+								parent.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
 								return false;
 							}
 						});
@@ -964,12 +965,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 								final DistributorThread parent = DistributorThread.this;
 								@Override
 								public boolean ack(String channel, DisposalState status) {
-									synchronized (DistributorThread.this.store) {
-										logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
-										long numUpdated = parent.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
-										logger.info("Retrieval: {} rows updated to {}",
-												numUpdated, status);
-									}
+									logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
+									long numUpdated = parent.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
+									logger.info("Retrieval: {} rows updated to {}",
+											numUpdated, status);
 									return false;
 								}
 							});
@@ -1128,9 +1127,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
-								synchronized (DistributorThread.this.store) {
-									parent.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
-								}
+								parent.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
 								return true;
 							}
 						});
@@ -1208,11 +1205,9 @@ extends AsyncTask<AmmoService, Integer, Void>
 								final DistributorThread parent = DistributorThread.this;
 								@Override
 								public boolean ack(String channel, DisposalState status) {
-									synchronized (DistributorThread.this.store) {
-										long numrows = parent.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
-										logger.info("Subscribe: {} rows updated to {}",
-												numrows, status);
-									}
+									long numrows = parent.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
+									logger.info("Subscribe: {} rows updated to {}",
+											numrows, status);
 									return true;
 								}
 							});

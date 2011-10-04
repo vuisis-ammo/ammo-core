@@ -922,18 +922,18 @@ public class DistributorDataStore {
 	}
 
 
-	public DistributorDataStore openRead() {
+	public synchronized DistributorDataStore openRead() {
 		if (this.db != null && this.db.isReadOnly()) return this;
 		this.db = this.helper.getReadableDatabase();
 		return this;
 	}
-	public DistributorDataStore openWrite() {
+	public synchronized DistributorDataStore openWrite() {
 		if (this.db != null && this.db.isOpen() && ! this.db.isReadOnly()) this.db.close();
 		this.db = this.helper.getWritableDatabase();
 		return this;
 	}
 
-	public void close() {
+	public synchronized void close() {
 		this.db.close();
 	}
 
@@ -946,7 +946,7 @@ public class DistributorDataStore {
 	 * @param sortOrder
 	 * @return
 	 */
-	public Cursor queryPostal(String[] projection, String selection,
+	public synchronized Cursor queryPostal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		try {
 			this.openRead();
@@ -966,7 +966,7 @@ public class DistributorDataStore {
 		return null;
 	}
 
-	public Cursor queryPostalReady() {
+	public synchronized Cursor queryPostalReady() {
 		this.openRead();
 		try {
 			return db.rawQuery(POSTAL_STATUS_QUERY, null);
@@ -990,7 +990,7 @@ public class DistributorDataStore {
 	.append(')') // close exists clause
 	.toString();
 
-	public Cursor queryPublish(String[] projection, String selection,
+	public synchronized Cursor queryPublish(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -1009,7 +1009,7 @@ public class DistributorDataStore {
 		return null;
 	}
 
-	public Cursor queryRetrieval(String[] projection, String selection, String[] selectArgs, String sortOrder) {
+	public synchronized Cursor queryRetrieval(String[] projection, String selection, String[] selectArgs, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
@@ -1027,7 +1027,7 @@ public class DistributorDataStore {
 		return null;
 	}
 
-	public Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
+	public synchronized Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
@@ -1050,7 +1050,7 @@ public class DistributorDataStore {
 	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
 	.toString();
 
-	public Cursor queryRetrievalReady() {
+	public synchronized Cursor queryRetrievalReady() {
 		try {
 			logger.trace("retrieval ready {}", RETRIEVAL_STATUS_QUERY);
 			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
@@ -1075,7 +1075,7 @@ public class DistributorDataStore {
 	.toString();
 
 
-	public Cursor querySubscribe(String[] projection, String selection,
+	public synchronized Cursor querySubscribe(String[] projection, String selection,
 			String[] selectArgs, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -1094,7 +1094,7 @@ public class DistributorDataStore {
 		return null;
 	}
 
-	public Cursor querySubscribeByKey(String[] projection,
+	public synchronized Cursor querySubscribeByKey(String[] projection,
 			String topic, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -1116,7 +1116,7 @@ public class DistributorDataStore {
 	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
 	.toString();
 
-	public Cursor querySubscribeReady() {
+	public synchronized Cursor querySubscribeReady() {
 		try {
 			return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
@@ -1141,7 +1141,7 @@ public class DistributorDataStore {
 
 
 
-	public Cursor queryDisposal(String[] projection, String selection,
+	public synchronized Cursor queryDisposal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -1166,7 +1166,7 @@ public class DistributorDataStore {
 	 * @param type
 	 * @return
 	 */
-	public Cursor queryDisposalReady(int parent, String type) {
+	public synchronized Cursor queryDisposalReady(int parent, String type) {
 		try {
 			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(parent), type});
 		} catch(SQLiteException ex) {
@@ -1186,7 +1186,7 @@ public class DistributorDataStore {
 	.append(" IN (").append(DisposalState.PENDING.q()).append(")")
 	.toString();
 
-	public Cursor queryChannel(String[] projection, String selection,
+	public synchronized Cursor queryChannel(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -1211,7 +1211,7 @@ public class DistributorDataStore {
 	 * if a record with a matching key exists then update
 	 * otherwise insert.
 	 */
-	public long upsertPostal(ContentValues cv, DispersalVector status) {
+	public synchronized long upsertPostal(ContentValues cv, DispersalVector status) {
 		try {
 			final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
 			final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
@@ -1243,7 +1243,7 @@ public class DistributorDataStore {
 	.append(PostalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
-	public long upsertPublish(ContentValues cv, DispersalVector status) {
+	public synchronized long upsertPublish(ContentValues cv, DispersalVector status) {
 		try {
 			final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
 			final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
@@ -1275,7 +1275,7 @@ public class DistributorDataStore {
 	.append(PublishTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
-	public long upsertRetrieval(ContentValues cv, DispersalVector status) {
+	public synchronized long upsertRetrieval(ContentValues cv, DispersalVector status) {
 		try {
 			final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
 			final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
@@ -1316,7 +1316,7 @@ public class DistributorDataStore {
 	/**
 	 *
 	 */
-	public long upsertSubscribe(ContentValues cv, DispersalVector status) {
+	public synchronized long upsertSubscribe(ContentValues cv, DispersalVector status) {
 		try {
 			final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
 			final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
@@ -1349,7 +1349,7 @@ public class DistributorDataStore {
 	.toString();
 
 
-	public long[] upsertDisposalByParent(long id, Tables type, DispersalVector status) {
+	public synchronized long[] upsertDisposalByParent(long id, Tables type, DispersalVector status) {
 		try {
 			final long[] idArray = new long[status.size()];
 			int ix = 0;
@@ -1363,7 +1363,7 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-	public long upsertDisposalByParent(long id, Tables type, String channel, DisposalState status) {
+	public synchronized long upsertDisposalByParent(long id, Tables type, String channel, DisposalState status) {
 		try {
 			final String typeVal = type.cv();
 
@@ -1402,7 +1402,7 @@ public class DistributorDataStore {
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?").toString();
 
 
-	public long upsertChannelByName(String channel, ChannelState status) {
+	public synchronized long upsertChannelByName(String channel, ChannelState status) {
 		try {
 			final ContentValues cv = new ContentValues();		
 			cv.put(ChannelTableSchema.STATE.cv(), status.cv());
@@ -1441,7 +1441,7 @@ public class DistributorDataStore {
 	 * @param channel
 	 * @return
 	 */
-	public int deactivateDisposalStateByChannel(String channel) {
+	public synchronized int deactivateDisposalStateByChannel(String channel) {
 		try {
 			return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
 					DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
@@ -1476,7 +1476,7 @@ public class DistributorDataStore {
 	 * @param channel
 	 * @return
 	 */
-	public int repairDisposalStateByChannel(String channel) {
+	public synchronized int repairDisposalStateByChannel(String channel) {
 		try {
 			return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
 					DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
@@ -1496,7 +1496,7 @@ public class DistributorDataStore {
 	 * Update an object represented in the database.
 	 * Any reasonable update will need to know how to select an existing object.
 	 */
-	public long updatePostalByKey(Integer id, ContentValues cv) {
+	public synchronized long updatePostalByKey(Integer id, ContentValues cv) {
 		try {
 			return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
 		} catch (IllegalArgumentException ex) {
@@ -1505,7 +1505,7 @@ public class DistributorDataStore {
 		return 0;
 	}
 
-	public long updatePublishByKey(Integer id, ContentValues cv) {
+	public synchronized long updatePublishByKey(Integer id, ContentValues cv) {
 		try {
 			return this.db.update(Tables.PUBLISH.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
 		} catch (IllegalArgumentException ex) {
@@ -1514,7 +1514,7 @@ public class DistributorDataStore {
 		return 0;
 	}
 
-	public long updateRetrievalByKey(Integer id, ContentValues cv) {
+	public synchronized long updateRetrievalByKey(Integer id, ContentValues cv) {
 		try {
 			logger.trace("update retrieval by key {} {}", id, cv);
 			return this.db.update(Tables.RETRIEVAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
@@ -1524,7 +1524,7 @@ public class DistributorDataStore {
 		return 0;
 	}
 
-	public long updateSubscribeByKey(Integer id, ContentValues cv) {
+	public synchronized long updateSubscribeByKey(Integer id, ContentValues cv) {
 		try {
 			return this.db.update(Tables.SUBSCRIBE.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
 		} catch (IllegalArgumentException ex) {
@@ -1715,7 +1715,7 @@ public class DistributorDataStore {
 
 	// ========= POSTAL : DELETE ================
 
-	public int deletePostal(String selection, String[] selectionArgs) {
+	public synchronized int deletePostal(String selection, String[] selectionArgs) {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int count = db.delete(Tables.POSTAL.n, selection, selectionArgs);
@@ -1727,7 +1727,7 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	public int deletePostalGarbage() {
+	public synchronized int deletePostalGarbage() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int expireCount = db.delete(Tables.POSTAL.n, 
@@ -1759,7 +1759,7 @@ public class DistributorDataStore {
 
 	// ========= PUBLISH : DELETE ================
 
-	public int deletePublish(String selection, String[] selectionArgs) {
+	public synchronized int deletePublish(String selection, String[] selectionArgs) {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int count = db.delete(Tables.PUBLISH.n, selection, selectionArgs);
@@ -1771,7 +1771,7 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	public int deletePublishGarbage() {
+	public synchronized int deletePublishGarbage() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int expireCount = db.delete(Tables.PUBLISH.n, 
@@ -1801,7 +1801,7 @@ public class DistributorDataStore {
 
 	// ========= RETRIEVAL : DELETE ================
 
-	public int deleteRetrieval(String selection, String[] selectionArgs) {
+	public synchronized int deleteRetrieval(String selection, String[] selectionArgs) {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int count = db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
@@ -1813,7 +1813,7 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	public int deleteRetrievalGarbage() {
+	public synchronized int deleteRetrievalGarbage() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int expireCount = db.delete(Tables.RETRIEVAL.n, 
@@ -1847,7 +1847,7 @@ public class DistributorDataStore {
 	 * purge all records from the retrieval table and cascade to the disposal table.
 	 * @return
 	 */
-	public int purgeRetrieval() {
+	public synchronized int purgeRetrieval() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.RETRIEVAL.qv()});
@@ -1860,7 +1860,7 @@ public class DistributorDataStore {
 
 	// ========= SUBSCRIBE : DELETE ================
 
-	public int deleteSubscribe(String selection, String[] selectionArgs) {
+	public synchronized int deleteSubscribe(String selection, String[] selectionArgs) {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int count = db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
@@ -1872,7 +1872,7 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	public int deleteSubscribeGarbage() {
+	public synchronized int deleteSubscribeGarbage() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
@@ -1906,7 +1906,7 @@ public class DistributorDataStore {
 	 * purge all records from the subscribe table and cascade to the disposal table.
 	 * @return
 	 */
-	public int purgeSubscribe() {
+	public synchronized int purgeSubscribe() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.SUBSCRIBE.qv()});
@@ -2022,7 +2022,7 @@ public class DistributorDataStore {
 		// ===========================================================
 
 		@Override
-		public void onCreate(SQLiteDatabase db) {
+		public synchronized void onCreate(SQLiteDatabase db) {
 			logger.info("Bootstrapping database");
 
 			try {
@@ -2122,7 +2122,7 @@ public class DistributorDataStore {
 		}
 
 		@Override
-		public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+		public synchronized void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 			logger.warn("Upgrading database from version {} to {} which will destroy all old data",
 					oldVersion, newVersion);
 			for (Tables table : Tables.values()) {
