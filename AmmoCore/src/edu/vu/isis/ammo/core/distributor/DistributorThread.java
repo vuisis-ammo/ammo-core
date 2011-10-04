@@ -200,7 +200,13 @@ extends AsyncTask<AmmoService, Integer, Void>
 		for (final AmmoService that : them) {
 			if (!that.isConnected()) 
 				continue;
-			this.processSubscribeTable(that);
+
+                        for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+                            final String name = entry.getKey();         
+                            this.store.deactivateDisposalStateByChannel(name);
+                        }
+
+         		this.processSubscribeTable(that);
 			this.processRetrievalTable(that);
 			this.processPostalTable(that);
 		}
