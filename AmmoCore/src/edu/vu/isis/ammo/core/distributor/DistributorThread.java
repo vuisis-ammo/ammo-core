@@ -86,12 +86,16 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * found in the store's channel table.
 	 * 
 	 * @param context
-	 * @param name
+	 * @param channelName
 	 * @param change
 	 */
-	public void onChannelChange(final Context context, final String name, final ChannelChange change) {
-		if (change.equals(this.channelStatus.get(name))) return; // already present
-		this.channelStatus.put(name, new ChannelStatus(change)); // change channel
+	public void onChannelChange(final Context context, final String channelName, final ChannelChange change) {
+		final ChannelStatus priorStatus = this.channelStatus.get(channelName);
+		if (priorStatus != null) {
+			final ChannelChange priorChange = priorStatus.change;
+			if (change.equals(priorChange)) return; // already present
+		}
+		this.channelStatus.put(channelName, new ChannelStatus(change)); // change channel
 		if (!channelDelta.compareAndSet(false, true)) return; // mark as needing processing
 		this.signal(); // signal to perform update
 	}	
@@ -102,10 +106,12 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * Channels going off-line are uninteresting so no signal.
 	 */
 	private final ConcurrentMap<String, ChannelStatus> channelStatus;
-	
+
 	private AtomicBoolean channelDelta = new AtomicBoolean(true);
 
-	// indicates the table does not yet reflect this state
+	/**
+	 * The status field indicates the table does not yet reflect this state
+	 */
 	private class ChannelStatus {
 		final ChannelChange change;
 		final AtomicBoolean status;
@@ -293,13 +299,13 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		if (!that.isConnected()) 
 			return;
-		
+
 		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
 			final String name = entry.getKey();		
 			final ChannelStatus status = entry.getValue();
 			if (status.status.getAndSet(true)) continue; // is it this one?
-			
-		    final ChannelChange change = status.change;
+
+			final ChannelChange change = status.change;
 			switch (change) {
 			case DEACTIVATE:
 				this.store.upsertChannelByName(name, ChannelState.INACTIVE);
@@ -352,8 +358,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * 
 	 * @see scripts/tests/distribution_policy.xml for an example.
 	 */
-	private DispersalVector
-	dispatchRequest(AmmoService that, 
+	private DispersalVector dispatchRequest(AmmoService that, 
 			RequestSerializer serializer, DistributorPolicy.Topic topic, DispersalVector status) {
 
 		logger.info("::sendGatewayRequest");
@@ -368,6 +373,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			return status;
 		} 
 		// evaluate rule
+		status.total(true);
 		for (DistributorPolicy.Clause clause : topic.routing.clauses) {
 			boolean clauseSuccess = false;
 			// evaluate clause
@@ -641,7 +647,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final DistributorPolicy.Topic policy = that.policy().match(topic);
 			final DispersalVector status = DispersalVector.newInstance();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,"postal");
+				final Cursor channelCursor = this.store.queryDisposalReady(id,Tables.POSTAL.n);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -877,6 +883,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								synchronized (DistributorThread.this.store) {
+									logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
 									DistributorThread.this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
 								}
 								return false;
@@ -914,7 +921,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
 			final DispersalVector status = DispersalVector.newInstance();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,"retrieval");
+				final Cursor channelCursor = this.store.queryDisposalReady(id, Tables.RETRIEVAL.n);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -981,8 +988,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return
 	 */
 
-	private DispersalVector 
-	dispatchRetrievalRequest(final AmmoService that, String retrievalId, String topic, String selection,  
+	private DispersalVector dispatchRetrievalRequest(final AmmoService that, 
+			String retrievalId, String topic, String selection,  
 			DistributorPolicy.Topic policy, DispersalVector status,
 			final INetworkService.OnSendMessageHandler handler) {
 		logger.info("::dispatchRetrievalRequest {}", topic);
@@ -1161,7 +1168,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 			final DispersalVector status = DispersalVector.newInstance();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,"subscribe");
+				final Cursor channelCursor = this.store.queryDisposalReady(id,Tables.SUBSCRIBE.n);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{

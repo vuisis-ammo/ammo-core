@@ -1050,7 +1050,15 @@ public class DistributorDataStore {
 	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
 	.toString();
 
-
+	public Cursor queryRetrievalReady() {
+		try {
+			logger.trace("retrieval ready {}", RETRIEVAL_STATUS_QUERY);
+			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
+	}
 	private static final String RETRIEVAL_STATUS_QUERY = new StringBuilder()
 	.append(" SELECT ").append(" * ")
 	.append(" FROM ").append(Tables.RETRIEVAL.q()).append(" AS p ")
@@ -1066,14 +1074,6 @@ public class DistributorDataStore {
 	.append(')') // close exists clause
 	.toString();
 
-	public Cursor queryRetrievalReady() {
-		try {
-			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
 
 	public Cursor querySubscribe(String[] projection, String selection,
 			String[] selectArgs, String sortOrder) {
@@ -1294,7 +1294,10 @@ public class DistributorDataStore {
 				key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
 			}
 			for (Entry<String,DisposalState> entry : status.entrySet()) {
-				upsertDisposalByParent(key, Tables.RETRIEVAL, entry.getKey(), entry.getValue());
+				final String entityChannel = entry.getKey();
+				final DisposalState entityStatus = entry.getValue();
+				logger.trace("upsert retrieval {} {} {}", new Object[]{key, entityChannel, entityStatus});
+				upsertDisposalByParent(key, Tables.RETRIEVAL, entityChannel, entityStatus);
 			}
 			return key;
 		} catch (IllegalArgumentException ex) {
@@ -1346,8 +1349,7 @@ public class DistributorDataStore {
 	.toString();
 
 
-	public long[] upsertDisposalByParent(long id, Tables type, 
-			DispersalVector status) {
+	public long[] upsertDisposalByParent(long id, Tables type, DispersalVector status) {
 		try {
 			final long[] idArray = new long[status.size()];
 			int ix = 0;
@@ -1514,7 +1516,8 @@ public class DistributorDataStore {
 
 	public long updateRetrievalByKey(Integer id, ContentValues cv) {
 		try {
-			return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+			logger.trace("update retrieval by key {} {}", id, cv);
+			return this.db.update(Tables.RETRIEVAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
 		} catch (IllegalArgumentException ex) {
 			logger.error("updateRetrievalByKey {} {}", id, cv);
 		}
