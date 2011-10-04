@@ -193,6 +193,13 @@ extends AsyncTask<AmmoService, Integer, Void>
 		for (final AmmoService that : them) {
 			if (!that.isConnected()) 
 				continue;
+
+			// TBD SKN: cleanup all channel entries first
+			for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+			    final String name = entry.getKey();		
+			    this.store.deactivateDisposalStateByChannel(name);
+			}
+
 			this.processSubscribeTable(that);
 			this.processRetrievalTable(that);
 			this.processPostalTable(that);
@@ -289,51 +296,53 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * This updates the channel status table.
 	 */
 	private void processChannelChange(AmmoService that) {
-		logger.info("::processPostalChange()");
+	    logger.info("::processChannelChange()");
 
-		if (!that.isConnected()) 
-			return;
+	    if (!that.isConnected()) 
+		return;
 		
-		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
-			final String name = entry.getKey();		
-			final ChannelStatus status = entry.getValue();
-			if (status.status.getAndSet(true)) continue; // is it this one?
+	    for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+		final String name = entry.getKey();		
+		final ChannelStatus status = entry.getValue();
+		logger.trace("processChannelChange: {} {}", name, status);
+		if (status.status.getAndSet(true)) continue; // is it this one?
+
 			
-		    final ChannelChange change = status.change;
-			switch (change) {
-			case DEACTIVATE:
-				this.store.upsertChannelByName(name, ChannelState.INACTIVE);
-				this.store.deactivateDisposalStateByChannel(name);
-				logger.trace("::channel deactivated");
-				return;
+		final ChannelChange change = status.change;
+		switch (change) {
+		case DEACTIVATE:
+		    this.store.upsertChannelByName(name, ChannelState.INACTIVE);
+		    this.store.deactivateDisposalStateByChannel(name);
+		    logger.trace("::channel deactivated");
+		    return;
 
-			case ACTIVATE:
-				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-				this.store.activateDisposalStateByChannel(name);
-				this.announceChannelActive(that.getBaseContext(), name);
-				logger.trace("::channel activated");
-				return;
+		case ACTIVATE:
+		    this.store.upsertChannelByName(name, ChannelState.ACTIVE);
+		    this.store.activateDisposalStateByChannel(name);
+		    this.announceChannelActive(that.getBaseContext(), name);
+		    logger.trace("::channel activated");
+		    this.store.deletePostalGarbage();
+		    this.store.deletePublishGarbage();
+		    this.store.deleteRetrievalGarbage();
+		    this.store.deleteSubscribeGarbage();	
 
-			case REPAIR: 
-				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-				this.store.repairDisposalStateByChannel(name);
-				this.announceChannelActive(that.getBaseContext(), name);
-				logger.trace("::channel repaired");
-				return;
-			} 
-		}
+		    this.processPostalTable(that);
+		    this.processPublishTable(that);
+		    this.processRetrievalTable(that);
+		    this.processSubscribeTable(that);
 
-		// we could do a priming query to determine if there are any candidates
+		    return;
 
-		this.store.deletePostalGarbage();
-		this.store.deletePublishGarbage();
-		this.store.deleteRetrievalGarbage();
-		this.store.deleteSubscribeGarbage();	
+		case REPAIR: 
+		    this.store.upsertChannelByName(name, ChannelState.ACTIVE);
+		    this.store.repairDisposalStateByChannel(name);
+		    this.announceChannelActive(that.getBaseContext(), name);
+		    logger.trace("::channel repaired");
+		    return;
+		} 
+	    }
 
-		this.processPostalTable(that);
-		this.processPublishTable(that);
-		this.processRetrievalTable(that);
-		this.processSubscribeTable(that);
+	    // we could do a priming query to determine if there are any candidates
 	}
 
 	/**

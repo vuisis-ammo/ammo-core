@@ -321,7 +321,7 @@ public class TcpChannel extends NetChannel {
 	private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
 			DisposalState status )
 	{
-		return handler.ack( "TcpChannel", status );
+		return handler.ack( this.name, status );
 	}
 
 	// Called by the ConnectorThread.

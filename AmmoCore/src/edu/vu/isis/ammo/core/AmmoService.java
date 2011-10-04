@@ -854,11 +854,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
 
 		// TBD needs mapping from channel status to "ACTIVATE/DEACTIVATE"
-		
-		this.distThread.onChannelChange(this.getBaseContext(), channel.name, 
+		if (connStatus != NetChannel.CONNECTED)	   {
+		    this.distThread.onChannelChange(this.getBaseContext(), channel.name, 
 				     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
 				     ChannelChange.ACTIVATE : ChannelChange.DEACTIVATE);
 		// channel is ACTIVATED by authenticate
+		}
 
 		final Intent broadcastIntent = new Intent(
 				AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
