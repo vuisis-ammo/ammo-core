@@ -40,6 +40,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
@@ -444,8 +445,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		// broadcast login event to apps ...
 		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_READY);
 		loginIntent.addCategory(INetPrefKeys.RESET_CATEGORY);
-		
+
 		this.acquirePreferences();
+		this.tcpChannel.reset();
 		this.multicastChannel.reset(); 
 		
 		loginIntent.putExtra("operatorId", this.operatorId);
@@ -579,6 +581,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		}
 		if (key.equals(IPrefKeys.CORE_OPERATOR_ID)) {
 			this.operatorId = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, this.operatorId);
+			
+			// Refresh if the operator id changes since that will affect our subscriptions.
+			this.refresh();
 			if (this.isConnected())
 				this.auth(); // TBD SKN: this should really do a setStale rather
 			// than just authenticate
