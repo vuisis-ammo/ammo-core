@@ -36,6 +36,7 @@ import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
@@ -900,6 +901,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	public List<Netlink> getNetlinkList() {
 		return mNetlinks;
+	}
+	
+	public DistributorDataStore store() {
+		return this.distThread.store();
 	}
 	
 	/**

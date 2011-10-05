@@ -3,14 +3,19 @@ package edu.vu.isis.ammo.core.provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.ComponentName;
 import android.content.ContentProvider;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.IBinder;
+import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
-import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 
 
@@ -18,8 +23,6 @@ public class DistributorProvider extends ContentProvider {
 	// =================================
 	// Constants
 	// =================================
-	private static final int GATEWAY_GROUP = 1000;
-	private static final int MULTICAST_GROUP = 1001;
 	
 	private static final UriMatcher uriMatcher;
 	   static {
@@ -55,14 +58,42 @@ public class DistributorProvider extends ContentProvider {
 		return null;
 	}
 
+	private DistributorDataStore dds;
+	private static final Intent AMMO_SERVICE;
+	static {
+		AMMO_SERVICE = new Intent();
+		final ComponentName serviceComponent = 
+				new ComponentName(AmmoService.class.getPackage().getName(), 
+						AmmoService.class.getCanonicalName());
+		AMMO_SERVICE.setComponent(serviceComponent);
+	}
 	@Override
 	public boolean onCreate() {
+		this.dds = null;
+		final ServiceConnection conn = new ServiceConnection() {
+            final DistributorProvider parent = DistributorProvider.this;
+            
+			@Override
+			public void onServiceConnected(ComponentName name, IBinder binder) {
+				
+				 final AmmoService.DistributorServiceAidl proxy = (AmmoService.DistributorServiceAidl) binder;
+		         final AmmoService service = proxy.getService();
+
+		         parent.dds = service.store();
+			}
+			@Override
+			public void onServiceDisconnected(ComponentName name) {
+				return;
+			}
+		};
+		this.getContext().bindService(AMMO_SERVICE, conn, Context.BIND_AUTO_CREATE);
 		return true;
 	}
 
 	@Override
 	public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
-		final DistributorDataStore dds = new DistributorDataStore(getContext()).openRead();
+		if (this.dds == null) return null;
+		
 		final Cursor c;
 		switch(Tables.values()[uriMatcher.match(uri)]) {
 		case POSTAL:

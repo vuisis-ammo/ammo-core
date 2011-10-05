@@ -78,6 +78,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 		this.channelAck = new LinkedBlockingQueue<ChannelAck>(20);
 		logger.debug("constructed");
 	}
+	
+	public DistributorDataStore store() { return this.store; }
 
 
 	/**
