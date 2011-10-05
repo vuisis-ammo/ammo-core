@@ -706,11 +706,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @param message
 	 */
 	@Override
-	public DisposalState sendRequest(AmmoGatewayMessage agm, String channel, DistributorPolicy.Topic topic) {
+	public DisposalState sendRequest(AmmoGatewayMessage agm, String channelName, DistributorPolicy.Topic topic) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
-		if (! mChannelMap.containsKey(channel)) return DisposalState.FAIL;
-		return mChannelMap.get(channel).sendRequest(agm);
+		if (! mChannelMap.containsKey(channelName)) return DisposalState.FAIL;
+		final NetChannel channel = mChannelMap.get(channelName);
+		if (! channel.isConnected()) return DisposalState.PENDING;
+		return channel.sendRequest(agm);
 	}
 
 	abstract public class TotalChannel implements INetChannel {}

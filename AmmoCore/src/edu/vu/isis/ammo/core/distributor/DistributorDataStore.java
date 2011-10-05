@@ -244,6 +244,7 @@ public class DistributorDataStore {
 			case SATISFIED:
 				if (goalCondition == true) return true;
 				break;
+			case PENDING:
 			case FAIL:
 				if (goalCondition == false) return true;
 				break;

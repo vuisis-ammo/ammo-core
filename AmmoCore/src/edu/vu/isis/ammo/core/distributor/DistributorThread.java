@@ -75,6 +75,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 						new AmmoGatewayMessage.PriorityOrder());
 		this.store = new DistributorDataStore(context);
 		this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
+		this.channelAck = new LinkedBlockingQueue<ChannelAck>(20);
 		logger.debug("constructed");
 	}
 
@@ -120,6 +121,43 @@ extends AsyncTask<AmmoService, Integer, Void>
 			this.change = change;
 			this.status = new AtomicBoolean(false); 			
 		}
+	}
+
+	private final LinkedBlockingQueue<ChannelAck> channelAck;
+
+	private class ChannelAck {
+		public final long id;
+		public final Tables type;
+		public final String channel;
+		public final DisposalState status;
+		public ChannelAck(long id, Tables type, String channel, DisposalState status) {
+			this.id = id;
+			this.type = type;
+			this.channel = channel;
+			this.status = status;
+		}
+		@Override
+		public String toString() {
+			return new StringBuilder()
+			.append(" id ").append(id)
+			.append(" type ").append(type)
+			.append(" channel ").append(channel)
+			.append(" status ").append(status)
+			.toString();
+		}
+	}
+
+	private boolean announceChannelAck(ChannelAck ack) {
+		this.channelAck.add(ack);
+		this.signal();
+		return true;
+	}
+
+	private void processChannelAck(ChannelAck ack) {
+		long numUpdated = this.store.upsertDisposalByParent(ack.id, ack.type, ack.channel, ack.status);
+
+		logger.info("ACK {}: request {} : over {} row {} updated to {}",
+				new Object[]{ ack.type, ack.id, ack.channel, numUpdated, ack.status} );
 	}
 
 	private void announceChannelActive(final Context context, final String name) {
@@ -181,6 +219,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	private boolean isReady(AmmoService[] them) {
 		if (this.channelDelta.get()) return true;
 
+		if (! this.channelAck.isEmpty()) return true;
 		if (! this.responseQueue.isEmpty()) return true;
 		if (! this.requestQueue.isEmpty()) return true;
 		return false;
@@ -214,45 +253,56 @@ extends AsyncTask<AmmoService, Integer, Void>
 		try {
 			while (true) {
 				// condition wait, is there something to process?
-						synchronized (this) {
-							while (!this.isReady(them)) 
-								this.wait(BURP_TIME); 
+				synchronized (this) {
+					while (!this.isReady(them)) 
+						this.wait(BURP_TIME); 
+				}
+				while (this.isReady(them)) {
+					if (this.channelDelta.getAndSet(false)) {
+						logger.trace("channel change");
+						for (AmmoService that : them) {
+							this.processChannelChange(that);						
 						}
-						while (this.isReady(them)) {
-							if (this.channelDelta.getAndSet(false)) {
-								logger.trace("channel change");
-								for (AmmoService that : them) {
-									this.processChannelChange(that);						
-								}
-							}
+					}
 
-							if (!this.responseQueue.isEmpty()) {
-								logger.trace("processing response, remaining {}", this.responseQueue.size());
-								try {
-									final AmmoGatewayMessage agm = this.responseQueue.take();
-									for (AmmoService that : them) {
-										this.processResponse(that, agm);
-									}
-								} catch (ClassCastException ex) {
-									logger.error("response queue contains illegal item of class {}", 
-											ex.getLocalizedMessage());
-								}
-							}
-
-							if (!this.requestQueue.isEmpty()) {
-								logger.trace("processing request, remaining {}", this.requestQueue.size());
-								try {
-									final AmmoRequest agm = this.requestQueue.take();
-									for (AmmoService that : them) {
-										this.processRequest(that, agm);
-									}
-								} catch (ClassCastException ex) {
-									logger.error("request queue contains illegal item of class {}", 
-											ex.getLocalizedMessage());
-								}
-							}
+					if (!this.channelAck.isEmpty()) {
+						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
+						try {
+							final ChannelAck ack = this.channelAck.take();
+							this.processChannelAck(ack);
+						} catch (ClassCastException ex) {
+							logger.error("channel ack queue contains illegal item of class {}", 
+									ex.getLocalizedMessage());
 						}
-						logger.info("work processed"); 
+					}
+
+					if (!this.responseQueue.isEmpty()) {
+						logger.trace("processing response, remaining {}", this.responseQueue.size());
+						try {
+							final AmmoGatewayMessage agm = this.responseQueue.take();
+							for (AmmoService that : them) {
+								this.processResponse(that, agm);
+							}
+						} catch (ClassCastException ex) {
+							logger.error("response queue contains illegal item of class {}", 
+									ex.getLocalizedMessage());
+						}
+					}
+
+					if (!this.requestQueue.isEmpty()) {
+						logger.trace("processing request, remaining {}", this.requestQueue.size());
+						try {
+							final AmmoRequest agm = this.requestQueue.take();
+							for (AmmoService that : them) {
+								this.processRequest(that, agm);
+							}
+						} catch (ClassCastException ex) {
+							logger.error("request queue contains illegal item of class {}", 
+									ex.getLocalizedMessage());
+						}
+					}
+				}
+				logger.info("work processed"); 
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
@@ -285,7 +335,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	private boolean processRequest(AmmoService that, AmmoRequest agm) {
-		logger.info("::processRequest {}",agm);
+		logger.info("process request {}", agm);
 		switch (agm.action){
 		case POSTAL: processPostalRequest(that, agm); break;
 		case DIRECTED_POSTAL: processPostalRequest(that, agm); break;
@@ -375,10 +425,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * 
 	 * @see scripts/tests/distribution_policy.xml for an example.
 	 */
-	private DispersalVector dispatchRequest(AmmoService that, 
+	private DispersalVector multiplexRequest(AmmoService that, 
 			RequestSerializer serializer, DistributorPolicy.Topic topic, DispersalVector status) {
 
-		logger.info("::sendGatewayRequest");
+		logger.info("::multiplex request");
 		if (status == null) status = DispersalVector.newInstance();
 
 		if (topic == null) {
@@ -397,13 +447,22 @@ extends AsyncTask<AmmoService, Integer, Void>
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
 				final boolean goalCondition = literal.condition;
-				final DisposalState actualCondition;
+				final DisposalState priorCondition;
 				if (status.containsKey(term)) {
-					actualCondition = status.get(term);
+					priorCondition = status.get(term);
 				} else {
+					priorCondition = DisposalState.PENDING;
+				}
+				final DisposalState actualCondition;
+				switch (priorCondition) {
+				case PENDING:
 					final AmmoGatewayMessage agmb = serializer.act(literal.encoding);
 					actualCondition = that.sendRequest(agmb, term, topic);
 					status.put(term, actualCondition);
+					logger.info("attempting {} over {}", agmb, term);
+					break;
+				default:
+					actualCondition = priorCondition;
 				} 
 				if (actualCondition.goalReached(goalCondition)) {
 					clauseSuccess = true;
@@ -425,7 +484,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	private boolean processResponse(Context context, AmmoGatewayMessage agm) {
-		logger.info("::processResponse");
+		logger.info("process response");
 
 		final CRC32 crc32 = new CRC32();
 		crc32.update(agm.payload);
@@ -532,7 +591,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return
 	 */
 	private void processPostalRequest(final AmmoService that, AmmoRequest ar) {
-		logger.info("::processPostalRequest()");
+		logger.info("process request POSTAL");
 
 		// Dispatch the message.
 		try {
@@ -587,8 +646,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
-								parent.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
-								return true;
+								return parent.announceChannelAck( new ChannelAck(id, Tables.POSTAL, channel, status) );
 							}
 						});
 				this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
@@ -606,7 +664,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * and for which there is, now, an available channel.
 	 */
 	private void processPostalTable(final AmmoService that) {
-		logger.info("::processPostalTable()");
+		logger.info("processt table POSTAL");
 
 		if (!that.isConnected()) 
 			return;
@@ -693,12 +751,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 								final DistributorThread parent = DistributorThread.this;
 								@Override
 								public boolean ack(String channel, DisposalState status) {
-									long numUpdated = parent.store.upsertDisposalByParent(id, Tables.POSTAL, channel, status);
-
-									logger.info("Postal: {} rows updated to {}",
-											numUpdated, status);
-
-									return false;
+									return parent.announceChannelAck( new ChannelAck(id, Tables.POSTAL, channel, status) );
 								}
 							});
 					this.store.upsertDisposalByParent(id, Tables.POSTAL, dispatchResult);
@@ -751,7 +804,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				return agmb.build();
 			}
 		});	
-		return this.dispatchRequest(that, serializer, policy, status);
+		return this.multiplexRequest(that, serializer, policy, status);
 	}
 
 
@@ -764,7 +817,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return
 	 */
 	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("::receivePostalResponse");
+		logger.info("receive response POSTAL");
 
 		if (mw == null) return false;
 		if (! mw.hasPushAcknowledgement()) return false;
@@ -789,11 +842,11 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */
 	@SuppressWarnings("unused")
 	private void processPublishRequest(AmmoService that, AmmoRequest agm, int st) {
-		logger.info("::processPublicationRequest()");
+		logger.info("process request PUBLISH : not implemented");
 	}
 
 	private void processPublishTable(AmmoService that) {
-		logger.error("::processPublishTable : not implemented");
+		logger.error("process table PUBLISH : not implemented");
 	}
 
 	/**
@@ -826,7 +879,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */
 	@SuppressWarnings("unused")
 	private boolean receivePublishResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("::receivePublishResponse");
+		logger.info("receive response PUBLISH");
 
 		if (mw == null) return false;
 		if (! mw.hasPushAcknowledgement()) return false;
@@ -854,7 +907,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processRetrievalRequest(AmmoService that, AmmoRequest agm) {
-		logger.info("::processRetrievalRequest() {} {}", agm.topic.toString(), agm.provider.toString() );
+		logger.info("process request RETRIEVAL {} {}", agm.topic.toString(), agm.provider.toString() );
 
 		// Dispatch the message.
 		try {
@@ -893,9 +946,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
-								logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
-								parent.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
-								return false;
+								return parent.announceChannelAck( new ChannelAck(id, Tables.RETRIEVAL, channel, status) );
 							}
 						});
 				this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
@@ -918,7 +969,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * Garbage collect items which are expired.
 	 */
 	private void processRetrievalTable(AmmoService that) {
-		logger.info("::processRetrievalTable()");
+		logger.info("process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
 
@@ -965,11 +1016,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 								final DistributorThread parent = DistributorThread.this;
 								@Override
 								public boolean ack(String channel, DisposalState status) {
-									logger.trace("ack process retrieval {} {} {}", new Object[]{id, channel, status});
-									long numUpdated = parent.store.upsertDisposalByParent(id, Tables.RETRIEVAL, channel, status);
-									logger.info("Retrieval: {} rows updated to {}",
-											numUpdated, status);
-									return false;
+									return parent.announceChannelAck( new ChannelAck(id, Tables.RETRIEVAL, channel, status) );
 								}
 							});
 					this.store.upsertDisposalByParent(id, Tables.RETRIEVAL, dispatchResult);
@@ -1025,7 +1072,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 					return agmb.build();
 				}
 			});	
-			return this.dispatchRequest(that, serializer, policy, status);
+			return this.multiplexRequest(that, serializer, policy, status);
 		} catch (com.google.protobuf.UninitializedMessageException ex) {
 			logger.warn("Failed to marshal the message: {}", ex.getStackTrace() );
 		}
@@ -1043,7 +1090,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw) {	
 		if (mw == null) return false;
 		if (! mw.hasPullResponse()) return false;
-		logger.info("::receiveRetrievalResponse");
+		logger.info("receive response RETRIEVAL");
 
 		final AmmoMessages.PullResponse resp = mw.getPullResponse();
 
@@ -1091,7 +1138,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processSubscribeRequest(AmmoService that, AmmoRequest agm, int st) {
-		logger.info("::processSubscribeRequest() {}", agm.topic.toString() );
+		logger.info("process request SUBSCRIBE {}", agm.topic.toString() );
 
 		// Dispatch the message.
 		try {
@@ -1127,8 +1174,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 							final DistributorThread parent = DistributorThread.this;
 							@Override
 							public boolean ack(String channel, DisposalState status) {
-								parent.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
-								return true;
+								return parent.announceChannelAck( new ChannelAck(id, Tables.SUBSCRIBE, channel, status) );
 							}
 						});
 				this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, dispatchResult);
@@ -1153,14 +1199,13 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */
 
 	private void processSubscribeTable(AmmoService that) {
-		logger.info("::processSubscribeTable()");
+		logger.info("process table SUBSCRIBE");
 
 		final Cursor pending = this.store.querySubscribeReady();
 
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems;
 				areMoreItems = pending.moveToNext()) 
 		{
-			logger.info("Inside the loop of processSubscribeResponse");
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
@@ -1168,7 +1213,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
 
-			logger.info("Inside the loop of processSubscribeResponse {} {} {}", new Object[]{id, topic, selection});
+			logger.info("process row SUBSCRIBE {} {} {}", new Object[]{id, topic, selection});
 
 			final DispersalVector status = DispersalVector.newInstance();
 			{
@@ -1205,10 +1250,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 								final DistributorThread parent = DistributorThread.this;
 								@Override
 								public boolean ack(String channel, DisposalState status) {
-									long numrows = parent.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, channel, status);
-									logger.info("Subscribe: {} rows updated to {}",
-											numrows, status);
-									return true;
+									return parent.announceChannelAck( new ChannelAck(id, Tables.SUBSCRIBE, channel, status) );
 								}
 							});
 					this.store.upsertDisposalByParent(id, Tables.SUBSCRIBE, dispatchResult);
@@ -1249,7 +1291,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				return agmb.build();
 			}
 		});	
-		return this.dispatchRequest(that, serializer, policy, status);
+		return this.multiplexRequest(that, serializer, policy, status);
 	}
 
 
@@ -1273,7 +1315,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final AmmoMessages.DataMessage resp = mw.getDataMessage();
 		// final ContentResolver resolver = context.getContentResolver();
 
-		logger.info("::dispatchSubscribeResponse : {} : {}",
+		logger.info("receive response SUBSCRIBE : {} : {}",
 				resp.getMimeType(), resp.getUri());
 		final String topic = resp.getMimeType();
 		final Cursor cursor = this.store.querySubscribeByKey(
