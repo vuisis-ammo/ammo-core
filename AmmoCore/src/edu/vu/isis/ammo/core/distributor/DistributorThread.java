@@ -150,6 +150,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	}
 
 	private boolean announceChannelAck(ChannelAck ack) {
+		logger.info("RECV ACK {}", ack);
 		this.channelAck.add(ack);
 		this.signal();
 		return true;

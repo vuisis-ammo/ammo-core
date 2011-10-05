@@ -10,7 +10,6 @@ adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/dis
 Generally requests should be sent over the gateway, unless it isn't
 available then local multicast delivery should be used.
      </description>
-     <priority value="normal"/>
      <routing priority="normal" category="postal">
 	     <clause>
 	        <literal term="gateway" condition="success" encoding="json"/>
