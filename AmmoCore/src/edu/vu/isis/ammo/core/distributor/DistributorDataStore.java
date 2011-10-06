@@ -36,7 +36,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo-dds");
-	public static final int VERSION = 19;
+	public static final int VERSION = 20;
 
 	// ===========================================================
 	// Fields
