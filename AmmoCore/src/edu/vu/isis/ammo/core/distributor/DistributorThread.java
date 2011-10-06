@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.zip.CRC32;
 
@@ -69,13 +70,13 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 	public DistributorThread(Context context) {
 		super();
-		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(20);
+		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
 		this.responseQueue = 
-				new PriorityBlockingQueue<AmmoGatewayMessage>(20, 
+				new PriorityBlockingQueue<AmmoGatewayMessage>(200, 
 						new AmmoGatewayMessage.PriorityOrder());
 		this.store = new DistributorDataStore(context);
 		this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
-		this.channelAck = new LinkedBlockingQueue<ChannelAck>(20);
+		this.channelAck = new LinkedBlockingQueue<ChannelAck>(200);
 		logger.debug("constructed");
 	}
 	
@@ -150,8 +151,16 @@ extends AsyncTask<AmmoService, Integer, Void>
 	}
 
 	private boolean announceChannelAck(ChannelAck ack) {
-		logger.info("RECV ACK {}", ack);
-		this.channelAck.add(ack);
+		logger.info("RECV ACK {}", ack);		
+		try {
+			if (! this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
+				logger.warn("announcing channel ack queue is full");
+				return false;
+			}
+		} catch (InterruptedException ex) {
+			logger.warn("announcing channel ack was interrupted");
+			return false;
+		}
 		this.signal();
 		return true;
 	}
@@ -185,7 +194,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			logger.trace("received request of type {}", 
 					request.toString());
 
-			// TODO should we generate the uuid here or earlier?
+			// TODO should this use offer?
 			this.requestQueue.put(request);
 			this.signal();
 			return request.uuid();
@@ -203,6 +212,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 	public boolean distributeResponse(AmmoGatewayMessage agm)
 	{
+		// TODO should this use offer?
 		this.responseQueue.put(agm);
 		this.signal();
 		return true;
