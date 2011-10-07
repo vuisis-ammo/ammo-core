@@ -151,7 +151,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	}
 
 	private boolean announceChannelAck(ChannelAck ack) {
-		logger.info("RECV ACK {}", ack);		
+		logger.trace("RECV ACK {}", ack);		
 		try {
 			if (! this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
 				logger.warn("announcing channel ack queue is full");
@@ -168,7 +168,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	private void processChannelAck(ChannelAck ack) {
 		long numUpdated = this.store.upsertDisposalByParent(ack.id, ack.type, ack.channel, ack.status);
 
-		logger.info("ACK {}: request {} : over {} row {} updated to {}",
+		logger.trace("ACK {}: request {} : over {} row {} updated to {}",
 				new Object[]{ ack.type, ack.id, ack.channel, numUpdated, ack.status} );
 	}
 
@@ -315,7 +315,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 						}
 					}
 				}
-				logger.info("work processed"); 
+				logger.trace("work processed"); 
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
@@ -348,7 +348,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	private boolean processRequest(AmmoService that, AmmoRequest agm) {
-		logger.info("process request {}", agm);
+		logger.trace("process request {}", agm);
 		switch (agm.action){
 		case POSTAL: processPostalRequest(that, agm); break;
 		case DIRECTED_POSTAL: processPostalRequest(that, agm); break;
@@ -369,14 +369,14 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * be called with no work to do.
 	 */
 	private void processChannelChange(AmmoService that) {
-		logger.info("::processChannelChange()");
+		logger.trace("::processChannelChange()");
 
 		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
 			final String name = entry.getKey();		
 			final ChannelStatus status = entry.getValue();
 			if (status.status.getAndSet(true)) continue; 	
 
-			logger.info("::processChannelChange() : {} , {}", name, status.change);
+			logger.trace("::processChannelChange() : {} , {}", name, status.change);
 			final ChannelChange change = status.change;
 			switch (change) {
 			case DEACTIVATE:
@@ -441,7 +441,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	private DispersalVector multiplexRequest(AmmoService that, 
 			RequestSerializer serializer, DistributorPolicy.Topic topic, DispersalVector status) {
 
-		logger.info("::multiplex request");
+		logger.trace("::multiplex request");
 		if (status == null) status = DispersalVector.newInstance();
 
 		if (topic == null) {
@@ -454,31 +454,46 @@ extends AsyncTask<AmmoService, Integer, Void>
 		} 
 		// evaluate rule
 		status.total(true);
+		
 		for (DistributorPolicy.Clause clause : topic.routing.clauses) {
 			boolean clauseSuccess = false;
+			
 			// evaluate clause
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
 				final boolean goalCondition = literal.condition;
-				final DisposalState priorCondition;
-				if (status.containsKey(term)) {
-					priorCondition = status.get(term);
-				} else {
-					priorCondition = DisposalState.PENDING;
+				final DisposalState priorCondition = 
+						(status.containsKey(term)) ? status.get(term) : DisposalState.PENDING;
+				logger.debug("prior {} {} {}", new Object[]{term, priorCondition, goalCondition});
+				if (priorCondition.goalReached(goalCondition)) {
+					clauseSuccess = true;
+					logger.trace("clause previously satisfied {} {}", status, clause);
+					break;
 				}
+			}
+			if (clauseSuccess) continue;
+			
+			// evaluate clause
+			for (DistributorPolicy.Literal literal : clause.literals) {
+				final String term = literal.term;
+				final boolean goalCondition = literal.condition;
+				final DisposalState priorCondition = 
+						(status.containsKey(term)) ? status.get(term) : DisposalState.PENDING;
+						
 				final DisposalState actualCondition;
 				switch (priorCondition) {
 				case PENDING:
 					final AmmoGatewayMessage agmb = serializer.act(literal.encoding);
 					actualCondition = that.sendRequest(agmb, term, topic);
 					status.put(term, actualCondition);
-					logger.info("attempting {} over {}", agmb, term);
+					logger.trace("attempting {} over {}", agmb, term);
 					break;
 				default:
 					actualCondition = priorCondition;
 				} 
 				if (actualCondition.goalReached(goalCondition)) {
 					clauseSuccess = true;
+					logger.trace("clause satisfied {} {}", status, clause);
 					break;
 				}
 			}
@@ -497,7 +512,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	private boolean processResponse(Context context, AmmoGatewayMessage agm) {
-		logger.info("process response");
+		logger.trace("process response");
 
 		final CRC32 crc32 = new CRC32();
 		crc32.update(agm.payload);
@@ -567,7 +582,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return
 	 */
 	private boolean receiveAuthenticateResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("::receiveAuthenticateResponse");
+		logger.trace("::receiveAuthenticateResponse");
 
 		if (mw == null) return false;
 		if (! mw.hasAuthenticationResult()) return false;
@@ -604,7 +619,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return
 	 */
 	private void processPostalRequest(final AmmoService that, AmmoRequest ar) {
-		logger.info("process request POSTAL");
+		logger.trace("process request POSTAL");
 
 		// Dispatch the message.
 		try {
@@ -624,7 +639,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			if (!that.isConnected()) {
 				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
 				long key = this.store.upsertPostal(values, policy.makeRouteMap());
-				logger.info("no network connection, added {}", key);
+				logger.debug("no network connection, added {}", key);
 				return;
 			}
 
@@ -677,7 +692,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * and for which there is, now, an available channel.
 	 */
 	private void processPostalTable(final AmmoService that) {
-		logger.info("processt table POSTAL");
+		logger.trace("processt table POSTAL");
 
 		if (!that.isConnected()) 
 			return;
@@ -733,20 +748,21 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 			final DispersalVector status = DispersalVector.newInstance();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,Tables.POSTAL.n);
+				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.POSTAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					status.put(channel, DisposalState.values()[state]);
+					status.put(channel, DisposalState.byId(state));
 				}
+				logger.trace("prior channel states {}", status);
 				channelCursor.close();
 			}
 			// Dispatch the request.
 			try {
 				if (!that.isConnected()) {
-					logger.info("no network connection");
+					logger.debug("no network connection");
 					continue;
 				} 
 				synchronized (this.store) {
@@ -793,7 +809,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final String msgType,
 			final DistributorPolicy.Topic policy, final DispersalVector status,
 			final RequestSerializer serializer, final INetworkService.OnSendMessageHandler handler)  {
-		logger.info("::dispatchPostalRequest");
+		logger.trace("::dispatchPostalRequest");
 
 		final Long now = System.currentTimeMillis();
 		logger.debug("Building MessageWrapper @ time {}", now);
@@ -830,7 +846,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return
 	 */
 	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("receive response POSTAL");
+		logger.trace("receive response POSTAL");
 
 		if (mw == null) return false;
 		if (! mw.hasPushAcknowledgement()) return false;
@@ -855,7 +871,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */
 	@SuppressWarnings("unused")
 	private void processPublishRequest(AmmoService that, AmmoRequest agm, int st) {
-		logger.info("process request PUBLISH : not implemented");
+		logger.trace("process request PUBLISH : not implemented");
 	}
 
 	private void processPublishTable(AmmoService that) {
@@ -879,7 +895,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	dispatchPublishRequest(AmmoService that, String uri, String mimeType, 
 			Map<String,Boolean> status,
 			byte []data, INetworkService.OnSendMessageHandler handler) {
-		logger.info("::dispatchPublishRequest");
+		logger.trace("::dispatchPublishRequest");
 		return null;
 	}
 	/**
@@ -892,7 +908,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */
 	@SuppressWarnings("unused")
 	private boolean receivePublishResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.info("receive response PUBLISH");
+		logger.trace("receive response PUBLISH");
 
 		if (mw == null) return false;
 		if (! mw.hasPushAcknowledgement()) return false;
@@ -920,7 +936,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processRetrievalRequest(AmmoService that, AmmoRequest agm) {
-		logger.info("process request RETRIEVAL {} {}", agm.topic.toString(), agm.provider.toString() );
+		logger.trace("process request RETRIEVAL {} {}", agm.topic.toString(), agm.provider.toString() );
 
 		// Dispatch the message.
 		try {
@@ -943,7 +959,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			if (!that.isConnected()) {
 				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
 				this.store.upsertRetrieval(values, policy.makeRouteMap());
-				logger.info("no network connection");
+				logger.debug("no network connection");
 				return;
 			}
 
@@ -982,7 +998,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * Garbage collect items which are expired.
 	 */
 	private void processRetrievalTable(AmmoService that) {
-		logger.info("process table RETRIEVAL");
+		logger.trace("process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
 
@@ -994,13 +1010,13 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
 			final DispersalVector status = DispersalVector.newInstance();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id, Tables.RETRIEVAL.n);
+				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.RETRIEVAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					status.put(channel, DisposalState.values()[state]);
+					status.put(channel, DisposalState.byId(state));
 				}
 				channelCursor.close();
 			}
@@ -1010,7 +1026,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
 			try {
 				if (!that.isConnected()) {
-					logger.info("no network connection");
+					logger.debug("no network connection");
 					continue;
 				} 
 				synchronized (this.store) {
@@ -1056,7 +1072,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			String retrievalId, String topic, String selection,  
 			DistributorPolicy.Topic policy, DispersalVector status,
 			final INetworkService.OnSendMessageHandler handler) {
-		logger.info("::dispatchRetrievalRequest {}", topic);
+		logger.trace("::dispatchRetrievalRequest {}", topic);
 
 		/** Message Building */
 
@@ -1103,7 +1119,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw) {	
 		if (mw == null) return false;
 		if (! mw.hasPullResponse()) return false;
-		logger.info("receive response RETRIEVAL");
+		logger.trace("receive response RETRIEVAL");
 
 		final AmmoMessages.PullResponse resp = mw.getPullResponse();
 
@@ -1151,7 +1167,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param st
 	 */
 	private void processSubscribeRequest(AmmoService that, AmmoRequest agm, int st) {
-		logger.info("process request SUBSCRIBE {}", agm.topic.toString() );
+		logger.trace("process request SUBSCRIBE {}", agm.topic.toString() );
 
 		// Dispatch the message.
 		try {
@@ -1170,7 +1186,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
 				final DispersalVector dispersal = policy.makeRouteMap();
 				long key = this.store.upsertSubscribe(values, dispersal);
-				logger.info("no network connection, added {}", key);
+				logger.debug("no network connection, added {}", key);
 				return;
 			}
 
@@ -1212,7 +1228,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */
 
 	private void processSubscribeTable(AmmoService that) {
-		logger.info("process table SUBSCRIBE");
+		logger.trace("process table SUBSCRIBE");
 
 		final Cursor pending = this.store.querySubscribeReady();
 
@@ -1226,24 +1242,24 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
 
-			logger.info("process row SUBSCRIBE {} {} {}", new Object[]{id, topic, selection});
+			logger.trace("process row SUBSCRIBE {} {} {}", new Object[]{id, topic, selection});
 
 			final DispersalVector status = DispersalVector.newInstance();
 			{
-				final Cursor channelCursor = this.store.queryDisposalReady(id,Tables.SUBSCRIBE.n);
+				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.SUBSCRIBE.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short state = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					status.put(channel, DisposalState.values()[state]);
+					status.put(channel, DisposalState.byId(state));
 				}
 				channelCursor.close();
 			}
 
 			try {
 				if (!that.isConnected()) {
-					logger.info("no network connection");
+					logger.debug("no network connection");
 					continue;
 				} 
 				synchronized (this.store) {
@@ -1282,7 +1298,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	dispatchSubscribeRequest(final AmmoService that, String topic, 
 			String selection, DistributorPolicy.Topic policy, DispersalVector status,
 			final INetworkService.OnSendMessageHandler handler) {
-		logger.info("::dispatchSubscribeRequest {}", topic);
+		logger.trace("::dispatchSubscribeRequest {}", topic);
 
 		/** Message Building */
 		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
@@ -1328,7 +1344,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final AmmoMessages.DataMessage resp = mw.getDataMessage();
 		// final ContentResolver resolver = context.getContentResolver();
 
-		logger.info("receive response SUBSCRIBE : {} : {}",
+		logger.trace("receive response SUBSCRIBE : {} : {}",
 				resp.getMimeType(), resp.getUri());
 		final String topic = resp.getMimeType();
 		final Cursor cursor = this.store.querySubscribeByKey(
