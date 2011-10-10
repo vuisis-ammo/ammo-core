@@ -602,6 +602,10 @@ public class DistributorDataStore {
 
 		ORDERING("ordering", "TEXT"),
 		// The order the values are to be returned in.
+		
+		LIMIT("limit", "INTEGER"),
+		// The maximum number of items to retrieve
+		// as items are obtained the count should be decremented
 
 		DISPOSITION("disposition", "INTEGER"),
 		// The current best guess of the status of the request.
@@ -995,7 +999,9 @@ public class DistributorDataStore {
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
-	.append(')') // close exists clause
+	.append(')') // close exists clause	
+	.append(" ORDER BY ").append(PostalTableSchema.PRIORITY.q()).append(" DESC ")
+	.append(',').append(PostalTableSchema._ID.q()).append(" ASC ")	
 	.toString();
 
 	public synchronized Cursor queryPublish(String[] projection, String selection,
@@ -1080,6 +1086,8 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause
+	.append(" ORDER BY ").append(RetrievalTableSchema.PRIORITY.q()).append(" DESC ")
+	.append(',').append(RetrievalTableSchema._ID.q()).append(" ASC ")	
 	.toString();
 
 
@@ -1145,6 +1153,8 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause
+	.append(" ORDER BY ").append(SubscribeTableSchema.PRIORITY.q()).append(" DESC ")
+	.append(',').append(SubscribeTableSchema._ID.q()).append(" ASC ")	
 	.toString();
 
 
@@ -1642,6 +1652,9 @@ public class DistributorDataStore {
 		}
 		if (!values.containsKey(RetrievalTableSchema.ORDERING.n)) {
 			values.put(RetrievalTableSchema.ORDERING.n, "");
+		}
+		if (!values.containsKey(RetrievalTableSchema.LIMIT.n)) {
+			values.put(RetrievalTableSchema.LIMIT.n, -1);
 		}
 		if (!values.containsKey(RetrievalTableSchema.CONTINUITY_TYPE.n)) {
 			values.put(RetrievalTableSchema.CONTINUITY_TYPE.n,

@@ -28,6 +28,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.type.Limit;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoService;
@@ -629,6 +630,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final ContentValues values = new ContentValues();
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority);
 			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
 			values.put(PostalTableSchema.EXPIRATION.cv(), ar.expire.cv());
 
@@ -804,8 +806,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @param handler
 	 * @return
 	 */
-	private DispersalVector 
-	dispatchPostalRequest(final AmmoService that, final String uri, 
+	private DispersalVector dispatchPostalRequest(final AmmoService that, final String uri, 
 			final String msgType,
 			final DistributorPolicy.Topic policy, final DispersalVector status,
 			final RequestSerializer serializer, final INetworkService.OnSendMessageHandler handler)  {
@@ -891,9 +892,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * @return
 	 */
 	@SuppressWarnings("unused")
-	private Map<String,Boolean> 
-	dispatchPublishRequest(AmmoService that, String uri, String mimeType, 
-			Map<String,Boolean> status,
+	private DispersalVector dispatchPublishRequest(AmmoService that, 
+			String uri, String mimeType, DispersalVector status,
 			byte []data, INetworkService.OnSendMessageHandler handler) {
 		logger.trace("::dispatchPublishRequest");
 		return null;
@@ -932,28 +932,31 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 * The handling of insert v. update is also handled here.
 	 * 
 	 * @param that
-	 * @param agm
+	 * @param ar
 	 * @param st
 	 */
-	private void processRetrievalRequest(AmmoService that, AmmoRequest agm) {
-		logger.trace("process request RETRIEVAL {} {}", agm.topic.toString(), agm.provider.toString() );
+	private void processRetrievalRequest(AmmoService that, AmmoRequest ar) {
+		logger.trace("process request RETRIEVAL {} {}", ar.topic.toString(), ar.provider.toString() );
 
 		// Dispatch the message.
 		try {
-			final String uuid = agm.uuid();
-			final String topic = agm.topic.asString();
-			final String select = agm.select.toString();
+			final String uuid = ar.uuid();
+			final String topic = ar.topic.asString();
+			final String select = ar.select.toString();
+			final Integer limit = ar.limit.asInteger();
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(RetrievalTableSchema.UUID.cv(), uuid);
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
 			values.put(RetrievalTableSchema.SELECTION.cv(), select);
+			values.put(RetrievalTableSchema.LIMIT.cv(), limit);
 
-			values.put(RetrievalTableSchema.PROVIDER.cv(), agm.provider.cv());		
-			values.put(RetrievalTableSchema.EXPIRATION.cv(), agm.expire.cv());
+			values.put(RetrievalTableSchema.PROVIDER.cv(), ar.provider.cv());	
+			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
+			values.put(RetrievalTableSchema.EXPIRATION.cv(), ar.expire.cv());
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
-			values.put(RetrievalTableSchema.PRIORITY.cv(), agm.priority);
+			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
 			if (!that.isConnected()) {
@@ -970,7 +973,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 				final DispersalVector dispatchResult = 
 						this.dispatchRetrievalRequest(that,
-								uuid, topic, select, policy, DispersalVector.newInstance(),
+								uuid, topic, select, limit,
+								policy, DispersalVector.newInstance(),
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							@Override
@@ -1024,6 +1028,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final String uuid = pending.getString(pending.getColumnIndex(RetrievalTableSchema.UUID.cv()));
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));		
 			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
+			final Integer limit = pending.getInt(pending.getColumnIndex(RetrievalTableSchema.LIMIT.n));
 			try {
 				if (!that.isConnected()) {
 					logger.debug("no network connection");
@@ -1039,7 +1044,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 					final DispersalVector dispatchResult = 
 							this.dispatchRetrievalRequest(that,
-									uuid, topic, selection,
+									uuid, topic, selection, limit,
 									policy, status,
 									new INetworkService.OnSendMessageHandler() {
 								final DistributorThread parent = DistributorThread.this;
@@ -1069,10 +1074,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 	 */
 
 	private DispersalVector dispatchRetrievalRequest(final AmmoService that, 
-			String retrievalId, String topic, String selection,  
+			String retrievalId, String topic, String selection, Integer limit,  
 			DistributorPolicy.Topic policy, DispersalVector status,
 			final INetworkService.OnSendMessageHandler handler) {
-		logger.trace("::dispatchRetrievalRequest {}", topic);
+		logger.trace("dispatch request RETRIEVAL {}", topic);
 
 		/** Message Building */
 
@@ -1080,19 +1085,19 @@ extends AsyncTask<AmmoService, Integer, Void>
 		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
 		//mw.setSessionUuid(sessionId);
 
-		final AmmoMessages.PullRequest.Builder pushReq = AmmoMessages.PullRequest.newBuilder()
+		final AmmoMessages.PullRequest.Builder retrieveReq = AmmoMessages.PullRequest.newBuilder()
 				.setRequestUid(retrievalId)
 				.setMimeType(topic);
 
-		if (selection != null) pushReq.setQuery(selection);
+		if (selection != null) retrieveReq.setQuery(selection);
+		if (limit != null) retrieveReq.setMaxResults(limit);
 
 		// projection
-		// max_results
 		// start_from_count
 		// live_query
 		// expiration
 		try {
-			mw.setPullRequest(pushReq);
+			mw.setPullRequest(retrieveReq);
 			final RequestSerializer serializer = RequestSerializer.newInstance();
 			serializer.setAction(new RequestSerializer.OnReady() {
 				@Override
@@ -1179,7 +1184,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			values.put(SubscribeTableSchema.PROVIDER.cv(), agm.provider.cv());
 			values.put(SubscribeTableSchema.SELECTION.cv(), agm.select.toString());
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.expire.cv());
-			values.put(SubscribeTableSchema.PRIORITY.cv(), agm.priority);
+			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
 			if (!that.isConnected()) {
