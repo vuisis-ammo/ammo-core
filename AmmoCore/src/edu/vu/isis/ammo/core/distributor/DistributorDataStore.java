@@ -36,7 +36,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo-dds");
-	public static final int VERSION = 19;
+	public static final int VERSION = 20;
 
 	// ===========================================================
 	// Fields
@@ -263,6 +263,13 @@ public class DistributorDataStore {
 		public int aggregate(final int aggregate) {
 			return this.o | aggregate;
 		}
+		
+	    static public DisposalState byId(int o) {
+	    	for (DisposalState candidate : DisposalState.values()) {
+	    		if (candidate.o == o) return candidate;
+	    	}
+	    	return null;
+	    }
 	};
 
 	/**
@@ -1167,9 +1174,10 @@ public class DistributorDataStore {
 	 * @param type
 	 * @return
 	 */
-	public synchronized Cursor queryDisposalReady(int parent, String type) {
+	public synchronized Cursor queryDisposalByParent(int type, int parent) {
 		try {
-			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(parent), type});
+			logger.trace("disposal ready {} {} {}", new Object[]{ DISPOSAL_STATUS_QUERY, type, parent} );
+			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(type), String.valueOf(parent)});
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
 		}
@@ -1178,13 +1186,8 @@ public class DistributorDataStore {
 	private static final String DISPOSAL_STATUS_QUERY = new StringBuilder()
 	.append("SELECT * ")
 	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
-	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
 	.append(" WHERE d.").append(DisposalTableSchema.TYPE.q()).append("=? ")
 	.append("   AND d.").append(DisposalTableSchema.PARENT.q()).append("=? ")
-	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(DisposalState.PENDING.q()).append(")")
 	.toString();
 
 	public synchronized Cursor queryChannel(String[] projection, String selection,

@@ -298,6 +298,8 @@ public class RequestSerializer {
 					final String key = iter.next();
 					cv.put(key, input.getString(key));
 				}
+				cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+				cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
 				tupleUri = resolver.insert(provider, cv);
 				if (tupleUri == null) {
 					logger.warn("could not insert {} into {}", cv, provider);

@@ -397,8 +397,8 @@ public class TcpChannel extends NetChannel {
 	private class ConnectorThread extends Thread {
 		private final Logger logger = LoggerFactory.getLogger( "net.tcp.connector" );
 
-		private final String DEFAULT_HOST = "10.0.2.2";
-		private final int DEFAULT_PORT = 32896;
+		private final String DEFAULT_HOST = "192.168.1.100";
+		private final int DEFAULT_PORT = 33289;
 		private final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
 
 		private TcpChannel parent;
