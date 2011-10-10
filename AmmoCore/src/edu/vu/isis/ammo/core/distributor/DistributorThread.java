@@ -28,7 +28,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
-import edu.vu.isis.ammo.api.type.Limit;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoService;

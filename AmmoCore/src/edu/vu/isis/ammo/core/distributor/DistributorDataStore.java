@@ -36,7 +36,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo-dds");
-	public static final int VERSION = 20;
+	public static final int VERSION = 21;
 
 	// ===========================================================
 	// Fields
@@ -603,7 +603,7 @@ public class DistributorDataStore {
 		ORDERING("ordering", "TEXT"),
 		// The order the values are to be returned in.
 		
-		LIMIT("limit", "INTEGER"),
+		LIMIT("maxrows", "INTEGER"),
 		// The maximum number of items to retrieve
 		// as items are obtained the count should be decremented
 
