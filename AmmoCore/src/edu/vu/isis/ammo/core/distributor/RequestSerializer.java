@@ -229,9 +229,11 @@ public class RequestSerializer {
 				final ByteArrayOutputStream fieldBlob = fieldBlobList.get(ix);
 				final ByteBuffer bb = ByteBuffer.allocate(4);
 				bb.order(ByteOrder.BIG_ENDIAN); 
-				bb.putInt(fieldBlob.size());
+				final int size = fieldBlob.size();
+				bb.putInt(size);
 				bigTuple.write(bb.array());
 				bigTuple.write(fieldBlob.toByteArray());
+				bb.putInt(size);
 			}
 			blobCursor.close();
 			final byte[] finalTuple = bigTuple.toByteArray();
@@ -345,6 +347,11 @@ public class RequestSerializer {
 				final int blobStart = dataBuff.position();
 				System.arraycopy(data, blobStart, blob, 0, dataLength);
 				dataBuff.position(blobStart+dataLength);
+				final int dataLengthFinal = dataBuff.getInt();
+				if (dataLengthFinal != dataLength) {
+					logger.error("data length mismatch {} {}", dataLength, dataLengthFinal);
+				}
+				
 				final Uri fieldUri = updateTuple.appendPath(fieldName).build();			
 				try {
 					final OutputStream outstream = resolver.openOutputStream(fieldUri);
