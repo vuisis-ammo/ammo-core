@@ -6,17 +6,14 @@ package edu.vu.isis.ammo.core.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.database.Cursor;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.SimpleCursorAdapter;
 import android.widget.Toast;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.ui.util.ListActivityEx;
 
 /**
@@ -43,14 +40,14 @@ public class SubscriptionStatus extends ListActivityEx {
 	 * 
 	 */
 	static private String[] fromItemLayout = new String[] {
-		 SubscriptionTableSchema.URI ,
-		 //SubscriptionTableSchema.PROJECTION ,
-		 //SubscriptionTableSchema.SELECTION ,
-		 //SubscriptionTableSchema.ARGS ,
-		 //SubscriptionTableSchema.ORDER ,
-		 //SubscriptionTableSchema.EXPIRATION ,
-		 //SubscriptionTableSchema.CREATED_DATE ,
-		 SubscriptionTableSchema.MODIFIED_DATE 
+		 SubscribeTableSchema.PROVIDER.n ,
+		 //SubscribeTableSchema.PROJECTION ,
+		 //SubscribeTableSchema.SELECTION ,
+		 //SubscribeTableSchema.ARGS ,
+		 //SubscribeTableSchema.ORDER ,
+		 //SubscribeTableSchema.EXPIRATION ,
+		 //SubscribeTableSchema.CREATED_DATE ,
+		 SubscribeTableSchema.MODIFIED.n
 	};
 	
 	static private int[] toItemLayout = new int[] {
@@ -64,12 +61,14 @@ public class SubscriptionStatus extends ListActivityEx {
 		setContentView(R.layout.distributor_table_viewer_activity);
 		
 		//statusList = (ListView) findViewById(R.id.subscription_status_list);
-		final Cursor cursor = this.managedQuery(SubscriptionTableSchema.CONTENT_URI, null, null, null, null);
+		/*
+		final Cursor cursor = this.managedQuery(SubscribeTableSchema.CONTENT_URI, null, null, null, null);
 		final ListAdapter adapter = new SimpleCursorAdapter(this,
 				R.layout.distributor_table_view_item,
 				cursor, fromItemLayout, toItemLayout);
 		
 		setListAdapter(adapter);
+		*/
 	}
 	
 	@Override
@@ -85,8 +84,10 @@ public class SubscriptionStatus extends ListActivityEx {
 		logger.trace("::onOptionsItemSelected");
 		switch(item.getItemId()) {
 		case MENU_PURGE_SUBSCRIPTIONS:
-			int count = getContentResolver().delete(SubscriptionTableSchema.CONTENT_URI, SubscriptionTableSchema._ID + ">" + String.valueOf(-1), null);
+			/*
+			int count = getContentResolver().delete(SubscribeTableSchema.CONTENT_URI, SubscribeTableSchema._ID + ">" + String.valueOf(-1), null);
 			logger.debug("Deleted " + count + "subscriptions");
+			*/
 		}
 		return true;
 	}

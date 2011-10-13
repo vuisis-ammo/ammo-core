@@ -11,9 +11,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.network.NetworkService;
 
 /**
  * The Ammo core is responsible for distributing
@@ -89,9 +89,9 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
     private Gateway(Context context, String name) {
     	super(context, name);
     	
-        this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, NetworkService.DEFAULT_GATEWAY_HOST);
+        this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, AmmoService.DEFAULT_GATEWAY_HOST);
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT,
-                String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
+                String.valueOf(AmmoService.DEFAULT_GATEWAY_PORT)));
         this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
     }
 
@@ -124,14 +124,14 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
         logger.trace("pref change: {}", key);
         if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
             if (this.nameView == null) return;
-            this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, NetworkService.DEFAULT_GATEWAY_HOST);
+            this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, AmmoService.DEFAULT_GATEWAY_HOST);
             this.nameListener.onFormalChange(this.nameView, this.getFormal());
             return;
         }
         if (key.equals(INetPrefKeys.CORE_IP_PORT)) {
             if (this.nameView == null) return;
             this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT,
-                    String.valueOf(NetworkService.DEFAULT_GATEWAY_PORT)));
+                    String.valueOf(AmmoService.DEFAULT_GATEWAY_PORT)));
             this.nameListener.onFormalChange(this.nameView, this.getFormal());
             return;
         }

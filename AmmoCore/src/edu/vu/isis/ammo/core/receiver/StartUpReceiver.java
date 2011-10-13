@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import edu.vu.isis.ammo.core.distributor.DistributorService;
+import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
 public class StartUpReceiver extends BroadcastReceiver {
@@ -29,7 +29,7 @@ public class StartUpReceiver extends BroadcastReceiver {
 	@Override
 	public void onReceive(Context context, Intent intent) {
 		logger.debug("::onReceive");
-		context.startService(DistributorService.LAUNCH);
+		context.startService(AmmoService.LAUNCH);
 		// context.startService(NetworkService.LAUNCH);
 		
 		Intent svc = new Intent();

@@ -41,7 +41,7 @@ public interface IChannelManager
      *
      * @return boolean
      */
-    void statusChange( INetChannel channel,
+    void statusChange( NetChannel channel,
                        int connStatus,
                        int sendStatus,
                        int recvStatus );
@@ -53,7 +53,7 @@ public interface IChannelManager
      */
     boolean isAnyLinkUp();
 
-    void authorizationSucceeded( AmmoGatewayMessage agm );
+    void authorizationSucceeded( NetChannel channel, AmmoGatewayMessage agm );
 
     // FIXME: this is a temporary hack to get authentication working again,
     // until Nilabja's new code is implemented.  Remove this afterward, and

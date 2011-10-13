@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**
- * The principle activity for the ammo core application.
+ * The principle activity for ammo core.
  * Provides a means for...
  * ...changing the user preferences.
  * ...checking delivery status of various messages.

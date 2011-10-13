@@ -42,12 +42,12 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         this.res = this.parent.getResources();
         this.model = model;
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this.parent);
-        if(this.prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, false))
+        if(this.prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true))
         	this.model.get(1).enable();
         else
         	this.model.get(1).disable();
         
-        if(this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, false))
+        if(this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true))
         	this.model.get(0).enable();
         else
         	this.model.get(0).disable();
@@ -58,8 +58,6 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-    	
-
     	Channel channel = this.model.get(position);
     	View row = channel.getView(convertView, this.parent.getLayoutInflater());
     	onStatusChange( row, channel.getStatus() );

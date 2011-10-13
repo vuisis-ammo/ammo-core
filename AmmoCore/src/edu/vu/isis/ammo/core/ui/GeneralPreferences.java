@@ -11,7 +11,7 @@ import edu.vu.isis.ammo.core.MyEditIntegerPreference.Type;
 import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
 
 /**
- * View and change the core application preferences.
+ * View and change the ammo core preferences.
  * These are primarily concerned with the management
  * of the logging framework.
  * 
@@ -38,6 +38,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	private MyCheckBoxPreference mcEnabledPref;
 	private MyEditIntegerPreference mcConnIdlePref;
 	private MyEditIntegerPreference mcNetConnPref;
+	private MyEditIntegerPreference mcTTLPref;
 
 	private MyEditTextPreference ipPref;
 
@@ -93,7 +94,11 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.mcNetConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT);
 		this.mcNetConnPref.setType(Type.TIMEOUT);
 		this.mcNetConnPref.refreshSummaryField();
-		
+
+		// Network Connection Timeout
+		this.mcTTLPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_TTL);
+		this.mcTTLPref.setType(Type.TTL);
+		this.mcTTLPref.refreshSummaryField();
 		
 		/*
 		 * Gateway Setup
