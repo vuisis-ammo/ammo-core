@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -327,7 +327,7 @@ public class MulticastChannel extends NetChannel
      *  Also, follows the delegation pattern.
      */
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-    		DisposalState status )
+    		ChannelDisposal status )
     {
         return handler.ack( this.name, status );
     }
@@ -792,7 +792,7 @@ public class MulticastChannel extends NetChannel
      * @param agm AmmoGatewayMessage
      * @return
      */
-    public DisposalState sendRequest( AmmoGatewayMessage agm )
+    public ChannelDisposal sendRequest( AmmoGatewayMessage agm )
     {
         return mSenderQueue.putFromDistributor( agm );
     }
@@ -825,7 +825,7 @@ public class MulticastChannel extends NetChannel
 
         // In the new design, aren't we supposed to let the
         // NetworkService know if the outgoing queue is full or not?
-        public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
+        public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
             try
             {
@@ -834,9 +834,9 @@ public class MulticastChannel extends NetChannel
             }
             catch ( InterruptedException e )
             {
-                return DisposalState.FAIL;
+                return ChannelDisposal.FAILED;
             }
-            return DisposalState.QUEUED;
+            return ChannelDisposal.QUEUED;
         }
 
 
@@ -910,7 +910,7 @@ public class MulticastChannel extends NetChannel
             while ( msg != null )
             {
                 if ( msg.handler != null )
-                    mChannel.ackToHandler( msg.handler, DisposalState.FAIL );
+                    mChannel.ackToHandler( msg.handler, ChannelDisposal.FAILED );
                 msg = mDistQueue.poll();
             }
 
@@ -1002,7 +1002,7 @@ public class MulticastChannel extends NetChannel
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, DisposalState.QUEUED );
+                        mChannel.ackToHandler( msg.handler, ChannelDisposal.QUEUED );
                 }
                 catch ( SocketException ex )
                 {
@@ -1016,7 +1016,7 @@ public class MulticastChannel extends NetChannel
                     e.printStackTrace();
                     logger.warn("sender threw exception");
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, DisposalState.FAIL );
+                        mChannel.ackToHandler( msg.handler, ChannelDisposal.FAILED );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;

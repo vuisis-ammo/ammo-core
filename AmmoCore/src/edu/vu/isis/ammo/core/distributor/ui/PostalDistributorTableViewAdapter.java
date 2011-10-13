@@ -13,8 +13,8 @@ import android.graphics.Color;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 
 /**
@@ -38,17 +38,17 @@ public class PostalDistributorTableViewAdapter extends DistributorTableViewAdapt
 		super(context, layout, cursor, from, to);
 		this.context = context;
 		// Setup hashmap.
-		dispositionStateMap.put(DisposalState.EXPIRED.o, "Disposition Expired");
-		dispositionStateMap.put(DisposalState.FAIL.o, "Disposition Failed");
-		dispositionStateMap.put(DisposalState.PENDING.o, "Disposition Pending");
-		dispositionStateMap.put(DisposalState.QUEUED.o, "Disposition Queued");
-		dispositionStateMap.put(DisposalState.SENT.o, "Disposition Sent");
+		dispositionStateMap.put(RequestDisposal.EXPIRED.o, "Request Expired");
+		dispositionStateMap.put(RequestDisposal.COMPLETE.o, "Request Complete");
+		dispositionStateMap.put(RequestDisposal.INCOMPLETE.o, "Request Incomplete");
+		dispositionStateMap.put(RequestDisposal.DISTRIBUTE.o, "Request In-progress");
+		dispositionStateMap.put(RequestDisposal.NEW.o, "Request New");
 		
-		dispositionColorMap.put(DisposalState.EXPIRED.o, Color.LTGRAY);
-		dispositionColorMap.put(DisposalState.FAIL.o, Color.RED);
-		dispositionColorMap.put(DisposalState.PENDING.o, Color.rgb(255, 149, 28));
-		dispositionColorMap.put(DisposalState.QUEUED.o, Color.CYAN);
-		dispositionColorMap.put(DisposalState.SENT.o, Color.GREEN);
+		dispositionColorMap.put(RequestDisposal.EXPIRED.o, Color.RED);
+		dispositionColorMap.put(RequestDisposal.COMPLETE.o, Color.LTGRAY);
+		dispositionColorMap.put(RequestDisposal.INCOMPLETE.o, Color.RED);
+		dispositionColorMap.put(RequestDisposal.DISTRIBUTE.o, Color.GREEN);
+		dispositionColorMap.put(RequestDisposal.NEW.o, Color.CYAN);
 		
 		this.expiration = Calendar.getInstance();
 	}

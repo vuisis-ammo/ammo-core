@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.core.ui;
 
+import java.util.Arrays;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,12 +33,12 @@ public class DistributorPopupWindow extends PopupWindow {
 					R.id.distributor_detail_view_textF };
 			  
 	
-	Logger logger = LoggerFactory.getLogger("DistributorPopupWindow");
+	private static final Logger logger = LoggerFactory.getLogger("DistributorPopupWindow");
 	
 
 	
 	public boolean onKeyDown(int keyCode, KeyEvent event)  {
-		logger.info("BACK KEY PRESSED 2");
+		logger.trace("BACK KEY PRESSED 2");
 	    if (keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
 	        
 	        return true;
@@ -49,47 +51,24 @@ public class DistributorPopupWindow extends PopupWindow {
 		super(inflater.inflate(R.layout.distributor_table_item_detail_view, null, false),600,400,true);
 		c.moveToFirst();
 		c.move(position);
-		logger.info(c.getColumnNames().toString());
-		StringBuilder sb = new StringBuilder();
+		logger.trace("popup window {}", Arrays.asList(c.getColumnNames()) );
 		String [] cols = c.getColumnNames();
 		for(int i = 0; i < cols.length; ++i)
 		{
 			try
 			{
-		
-			((TextView)this.getContentView().findViewById(ids[i])).setText(sb.append(cols[i]).append(": ").append(c.getString(c.getColumnIndex(cols[i]))));
+			((TextView)this.getContentView().findViewById(ids[i]))
+			  .setText( new StringBuilder()
+			               .append(cols[i])
+			               .append(": ")
+			               .append(c.getString(c.getColumnIndex(cols[i]))));
 			}
 			catch(Exception e)
 			{
 				//((TextView)this.getContentView().findViewById(ids[i])).setText("");	
 			}
-			sb = new StringBuilder();
 		}
-		/*
-		//ID
-		((TextView)this.getContentView().findViewById(R.id.distributor_detail_view_text1)).setText(sb.append("ID: ").append(c.getString(c.getColumnIndex("_id"))));
-		sb = new StringBuilder();
 		
-		//DISPOSITION
-		((TextView)this.getContentView().findViewById(R.id.distributor_detail_view_text2)).setText(sb.append("Disposition: ").append(c.getString(c.getColumnIndex("disposition"))));
-		sb = new StringBuilder();
-		
-		//URI
-		((TextView)this.getContentView().findViewById(R.id.distributor_detail_view_text3)).setText(sb.append("URI: ").append(c.getString(c.getColumnIndex("uri"))));
-		sb = new StringBuilder();
-				
-		//CREATED_DATE
-		((TextView)this.getContentView().findViewById(R.id.distributor_detail_view_text4)).setText(sb.append("Created Date: ").append(c.getString(c.getColumnIndex("created_date"))));
-		sb = new StringBuilder();
-		
-		//MIME
-		try
-		{
-		((TextView)this.getContentView().findViewById(R.id.distributor_detail_view_text5)).setText(sb.append("Type: ").append(c.getString(c.getColumnIndex("mime"))));
-		sb = new StringBuilder();
-		}
-		catch(Exception e) {};
-		*/
 	}
 
 

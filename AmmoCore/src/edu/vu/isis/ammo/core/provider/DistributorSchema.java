@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import android.content.ContentResolver;
-import android.content.UriMatcher;
-import android.database.Cursor;
 import android.net.Uri;
 import android.provider.BaseColumns;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;

@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
@@ -34,11 +33,6 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 				fromItemLayout, toItemLayout);
 		
 		super.onCreate(bun);
-		
-		StringBuilder sb = new StringBuilder();
-		sb.append("(").append(DisposalState.EXPIRED.o);
-		sb.append(",").append(DisposalState.FAIL.o).append(")");
-	    this.completeDisp = sb.toString();
 	}
 
 	@Override

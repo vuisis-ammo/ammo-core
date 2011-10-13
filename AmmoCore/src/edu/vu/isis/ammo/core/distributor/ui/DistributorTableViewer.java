@@ -1,7 +1,5 @@
 package edu.vu.isis.ammo.core.distributor.ui;
 
-import java.util.Calendar;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +24,6 @@ import edu.vu.isis.ammo.core.ui.DistributorPopupWindow;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
- * @author Fred Eisele
- *
  */
 public abstract class DistributorTableViewer extends ListActivity 
 implements IAmmoActivitySetup 
@@ -46,6 +42,7 @@ implements IAmmoActivitySetup
 	static protected final int[] toItemLayout = new int[] {
 			R.id.distributor_table_view_item_uri,
 			R.id.distributor_table_view_item_timestamp };
+	
 	// ===========================================================
 	// Fields
 	// ===========================================================
@@ -82,7 +79,8 @@ implements IAmmoActivitySetup
 		return true;
 	}
 
-	protected String completeDisp = null;
+	protected String[] completeDisp = null;
+	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		logger.trace("::onOptionsItemSelected");
@@ -94,16 +92,9 @@ implements IAmmoActivitySetup
 			logger.debug("Deleted " + count + "subscriptions");
 			break;
 		case MENU_GARBAGE:
-			// Delete things which are outdated or complete everything.
-			StringBuilder sb = new StringBuilder();
-			sb.append("_id > -1");
-			sb.append(" AND ");
-			sb.append(" expiration < '").append(Calendar.getInstance().getTimeInMillis()).append("'");
-			if (this.completeDisp != null)
-				sb.append(" AND ").append(" disposition IN ").append(this.completeDisp);
-			
-			count = getContentResolver().delete(this.uri, sb.toString(), null);
-			logger.debug("Deleted " + count + "subscriptions");
+			// Delete requests channel dispositions which are in a terminated state.
+			count = getContentResolver().delete(Uri.withAppendedPath(this.uri, "garbage"), null, null);
+			logger.trace("Deleted {} requests",count);
 		}
 		return true;
 	}
@@ -143,8 +134,6 @@ implements IAmmoActivitySetup
 	    
 	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
-	  
-	    
 	}
 	
 	public void removeMenuItem(MenuItem item) {

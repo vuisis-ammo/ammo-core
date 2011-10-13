@@ -26,7 +26,7 @@ import android.widget.Toast;
 import edu.vu.isis.ammo.IPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatch;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
@@ -94,7 +94,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         		ContentValues values = new ContentValues();
             	values.put(SubscribeTableSchema.PROVIDER.cv(), selectedUri.toString());
             	values.put(SubscribeTableSchema.TOPIC.cv(), selectedMime);
-            	values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
+            	values.put(SubscribeTableSchema.DISPOSITION.cv(), ChannelDisposal.PENDING.cv());
             	// cr.insert(SubscribeTableSchema.CONTENT_URI, values);
             	
             	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();

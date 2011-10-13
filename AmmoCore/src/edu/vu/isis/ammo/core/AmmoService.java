@@ -37,10 +37,9 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
@@ -712,12 +711,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @param message
 	 */
 	@Override
-	public DisposalState sendRequest(AmmoGatewayMessage agm, String channelName, DistributorPolicy.Topic topic) {
+	public ChannelDisposal sendRequest(AmmoGatewayMessage agm, String channelName) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
-		if (! mChannelMap.containsKey(channelName)) return DisposalState.FAIL;
+		if (! mChannelMap.containsKey(channelName)) return ChannelDisposal.FAILED;
 		final NetChannel channel = mChannelMap.get(channelName);
-		if (! channel.isConnected()) return DisposalState.PENDING;
+		if (! channel.isConnected()) return ChannelDisposal.PENDING;
 		return channel.sendRequest(agm);
 	}
 
@@ -786,9 +785,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		final AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
 		final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
 		agmb.isGateway(true);
-		switch (sendRequest(agmb.build(), DistributorPolicy.DEFAULT, null)) {
+		switch (sendRequest(agmb.build(), DistributorPolicy.DEFAULT)) {
 		case SENT:
-		case SATISFIED:
+		case DELIVERED:
 		case QUEUED:
 			return true;
 		default:
@@ -805,7 +804,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * it in the future.
 	 */
 	@Override
-	public boolean ack(String channel, DisposalState status) {
+	public boolean ack(String channel, ChannelDisposal status) {
 		return false;
 	}
 

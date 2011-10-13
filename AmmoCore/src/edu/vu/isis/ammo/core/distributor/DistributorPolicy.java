@@ -34,7 +34,7 @@ import android.content.res.Resources.NotFoundException;
 import android.net.Uri;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 
 /**
  * This class provides the base level mapping between distribution 
@@ -243,7 +243,7 @@ public class DistributorPolicy implements ContentHandler {
 			return sb.toString();
 		}
 
-		public DispersalVector makeRouteMap() {
+		public DistributorState makeRouteMap() {
 			return this.routing.makeMap();
 		}
 	}
@@ -258,11 +258,11 @@ public class DistributorPolicy implements ContentHandler {
 			this.priority = priority;
 			this.clauses = new ArrayList<Clause>();
 		}
-		public DispersalVector makeMap() {
-			final DispersalVector map = DispersalVector.newInstance();
+		public DistributorState makeMap() {
+			final DistributorState map = DistributorState.newInstance(this);
 			for (Clause clause : this.clauses) {
 				for (Literal literal : clause.literals) {
-					map.put(literal.term, DisposalState.PENDING);
+					map.put(literal.term, ChannelDisposal.PENDING);
 				}
 			}
 			return map;

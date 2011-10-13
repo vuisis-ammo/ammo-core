@@ -1,6 +1,6 @@
 package edu.vu.isis.ammo.core.network;
 
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 
 /**
  * The NetChannel is some mechanism for establishing a network connection
@@ -62,7 +62,7 @@ public interface INetChannel {
      * @param req
      * @return
      */
-    DisposalState sendRequest( AmmoGatewayMessage agm );
+    ChannelDisposal sendRequest( AmmoGatewayMessage agm );
     //String getLocalIpAddress();
 
 }
