@@ -233,7 +233,7 @@ public class RequestSerializer {
 				bb.putInt(size);
 				bigTuple.write(bb.array());
 				bigTuple.write(fieldBlob.toByteArray());
-				bb.putInt(size);
+				bigTuple.write(bb.array());
 			}
 			blobCursor.close();
 			final byte[] finalTuple = bigTuple.toByteArray();
