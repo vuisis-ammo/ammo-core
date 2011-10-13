@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteException;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
@@ -942,14 +943,14 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final String uuid = ar.uuid();
 			final String topic = ar.topic.asString();
 			final String select = ar.select.toString();
-			final Integer limit = ar.limit.asInteger();
+			final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(RetrievalTableSchema.UUID.cv(), uuid);
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
 			values.put(RetrievalTableSchema.SELECTION.cv(), select);
-			values.put(RetrievalTableSchema.LIMIT.cv(), limit);
+			if (limit != null) values.put(RetrievalTableSchema.LIMIT.cv(), limit);
 
 			values.put(RetrievalTableSchema.PROVIDER.cv(), ar.provider.cv());	
 			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
@@ -985,7 +986,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+			logger.warn("NullPointerException, sending to gateway failed {}", 
+					ex.getStackTrace());
 		}
 	}
 
@@ -1027,7 +1029,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final String uuid = pending.getString(pending.getColumnIndex(RetrievalTableSchema.UUID.cv()));
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));		
 			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
-			final Integer limit = pending.getInt(pending.getColumnIndex(RetrievalTableSchema.LIMIT.n));
+			
+			final int columnIx = pending.getColumnIndex(RetrievalTableSchema.LIMIT.n);
+			final Integer limit = pending.isNull(columnIx) ? null : pending.getInt(columnIx);
+			
 			try {
 				if (!that.isConnected()) {
 					logger.debug("no network connection");

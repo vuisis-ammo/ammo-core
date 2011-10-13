@@ -77,6 +77,13 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         this.uid = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, "transappuser");
 	}  
+
+	@Override
+	protected void onDestroy() {
+		this.ad.releaseInstance();
+		super.onDestroy();
+	}
+
 	    
 	@Override
 	public void onClick(View v) {
