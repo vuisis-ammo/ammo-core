@@ -33,6 +33,12 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	private MyEditTextPreference level;
 	private MyEditTextPreference name;
 
+	private MyEditTextPreference ipPref;
+	private MyEditIntegerPreference portPref;
+	private MyCheckBoxPreference enabledPref;
+	private MyEditIntegerPreference connIdlePref;
+	private MyEditIntegerPreference netConnPref;
+
 	// Multicast
 	private MyEditTextPreference mcIpPref;
 	private MyEditIntegerPreference mcPortPref;
@@ -40,30 +46,18 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	private MyEditIntegerPreference mcConnIdlePref;
 	private MyEditIntegerPreference mcNetConnPref;
 
-	private MyEditTextPreference ipPref;
-
-	private MyEditIntegerPreference portPref;
-
-	private MyCheckBoxPreference enabledPref;
-
-	private MyEditIntegerPreference connIdlePref;
-
-	private MyEditIntegerPreference netConnPref;
-
-	private MyEditTextPreference devicePref;
-
+    // Serial port
 	private MyCheckBoxPreference serialUsePref;
-
+	private MyEditTextPreference devicePref;
+	private MyEditIntegerPreference baudPref;
+	private MyEditIntegerPreference slotPref;
+	private MyEditIntegerPreference radiosInGroupPref;
+	private MyEditIntegerPreference slotDurationPref;
+	private MyEditIntegerPreference transmitDurationPref;
 	private MyCheckBoxPreference sendingPref;
-
 	private MyCheckBoxPreference receivingPref;
 
-	private MyEditIntegerPreference baudPref;
 
-	private MyEditIntegerPreference slotPref;
-
-	private MyEditIntegerPreference debugPref;
-	
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
@@ -136,39 +130,49 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
 		this.netConnPref.setType(Type.TIMEOUT);
 		this.netConnPref.refreshSummaryField();
-		
-		
+
+
 		/*
 		 * Serial Setup
 		 */
-		
+
+		this.serialUsePref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SHOULD_USE);
+		this.serialUsePref.refreshSummaryField();
+
 		this.devicePref = (MyEditTextPreference)this.findPreference(INetPrefKeys.SERIAL_DEVICE);
 		//this.devicePref.setType(MyEditTextPreference.Type.DEVICE_ID);
 		this.devicePref.refreshSummaryField();
-		
-		this.serialUsePref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SHOULD_USE);
-		this.serialUsePref.refreshSummaryField();
-		
-		this.sendingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SEND_ENABLED);
-		this.sendingPref.refreshSummaryField();
-		
-		this.receivingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_RECEIVE_ENABLED);
-		this.receivingPref.refreshSummaryField();
-		
+
 		this.baudPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_BAUD_RATE);
 		this.baudPref.setType(Type.BAUDRATE);
 		this.baudPref.refreshSummaryField();
-		
+
 		this.slotPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_SLOT_NUMBER);
 		this.slotPref.setType(Type.SLOT_NUMBER);
 		this.slotPref.refreshSummaryField();
-		
-		this.debugPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_DEBUG_PERIOD);
-		this.debugPref.setType(Type.DEBUG_PERIOD);
-		this.debugPref.refreshSummaryField();
+
+		this.radiosInGroupPref = (MyEditIntegerPreference) this.findPreference( INetPrefKeys.SERIAL_RADIOS_IN_GROUP );
+		this.radiosInGroupPref.setType(Type.RADIOS_IN_GROUP);
+		this.radiosInGroupPref.refreshSummaryField();
+
+		this.slotDurationPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.SERIAL_SLOT_DURATION);
+		this.slotDurationPref.setType(Type.SLOT_DURATION);
+		this.slotDurationPref.refreshSummaryField();
+
+		this.transmitDurationPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.SERIAL_TRANSMIT_DURATION);
+		this.transmitDurationPref.setType(Type.TRANSMIT_DURATION);
+		this.transmitDurationPref.refreshSummaryField();
+
+		this.sendingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SEND_ENABLED);
+		this.sendingPref.refreshSummaryField();
+
+		this.receivingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_RECEIVE_ENABLED);
+		this.receivingPref.refreshSummaryField();
+
+
 		// System.setProperty(prop, value);
 		// export ANDROID_LOG_TAGS="ActivityManager:I MyApp:D *:S"
-			
+
 		this.setupViews();
 	}
 	

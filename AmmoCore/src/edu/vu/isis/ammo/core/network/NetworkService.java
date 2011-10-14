@@ -386,18 +386,25 @@ public class NetworkService extends Service implements
 		 * SerialChannel
 		 */
         serialEnabled = prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false);
-        this.serialChannel.setBaudRate( Integer.parseInt(
-            prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600") ));
-        this.serialChannel.setDebugPeriod( Long.parseLong(
-            prefs.getString(INetPrefKeys.SERIAL_DEBUG_PERIOD, "10") ));
-        this.serialChannel.setDevice(
+        serialChannel.setDevice(
             prefs.getString(INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0") );
-        this.serialChannel.setReceiverEnabled(
-            prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true) );
-        this.serialChannel.setSenderEnabled(
-            prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true) );
-        this.serialChannel.setSlotNumber(Integer.parseInt(
+        serialChannel.setBaudRate( Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600") ));
+
+        serialChannel.setSlotNumber(Integer.parseInt(
             prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, "8")));
+        serialChannel.setRadiosInGroup(Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_RADIOS_IN_GROUP, "16")));
+
+        serialChannel.setSlotDuration( Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_SLOT_DURATION, "125") ));
+        serialChannel.setTransmitDuration( Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_TRANSMIT_DURATION, "50") ));
+
+        serialChannel.setSenderEnabled(
+            prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true) );
+        serialChannel.setReceiverEnabled(
+            prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true) );
 	}
 
 	/**
@@ -521,37 +528,45 @@ public class NetworkService extends Service implements
 			this.multicastChannel.setPort(port);
 		}
 
-		if(key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
-			this.serialChannel.setBaudRate(Integer.parseInt(prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600")));
+
+        //
+        // Serial port
+        //
+		if ( key.equals(INetPrefKeys.SERIAL_DEVICE) ) {
+			serialChannel.setDevice( prefs.getString( INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0" ));
+		}
+		if ( key.equals(INetPrefKeys.SERIAL_BAUD_RATE) ) {
+			serialChannel.setBaudRate( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_BAUD_RATE, "9600" )));
 		}
 
-		if(key.equals(INetPrefKeys.SERIAL_DEBUG_PERIOD)) {
-			this.serialChannel.setDebugPeriod(Long.parseLong(prefs.getString(INetPrefKeys.SERIAL_DEBUG_PERIOD, "10")));
+		if ( key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER) ) {
+			serialChannel.setSlotNumber( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_SLOT_NUMBER, "8" )));
+		}
+		if ( key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP) ) {
+			serialChannel.setRadiosInGroup( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_RADIOS_IN_GROUP, "16" )));
 		}
 
-		if(key.equals(INetPrefKeys.SERIAL_DEVICE)) {
-			this.serialChannel.setDevice(prefs.getString(INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0"));
+		if ( key.equals(INetPrefKeys.SERIAL_SLOT_DURATION) ) {
+			serialChannel.setSlotDuration( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_SLOT_DURATION, "125" )));
+		}
+		if ( key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION) ) {
+			serialChannel.setTransmitDuration( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_TRANSMIT_DURATION, "50" )));
 		}
 
-		if(key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED)) {
-			this.serialChannel.setReceiverEnabled(prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true));
+		if ( key.equals(INetPrefKeys.SERIAL_SEND_ENABLED) ) {
+			serialChannel.setSenderEnabled( prefs.getBoolean( INetPrefKeys.SERIAL_SEND_ENABLED, true ));
+		}
+		if ( key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED) ) {
+			serialChannel.setReceiverEnabled( prefs.getBoolean( INetPrefKeys.SERIAL_RECEIVE_ENABLED, true ));
 		}
 
-		if(key.equals(INetPrefKeys.SERIAL_SEND_ENABLED)) {
-			this.serialChannel.setSenderEnabled(prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true));
-		}
-
-		if(key.equals(INetPrefKeys.SERIAL_SHOULD_USE)) {
-            serialEnabled = prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false);
-			if ( serialEnabled )
+		if ( key.equals(INetPrefKeys.SERIAL_SHOULD_USE) ) {
+            if ( prefs.getBoolean( INetPrefKeys.SERIAL_SHOULD_USE, false ))
 				this.serialChannel.enable();
 			else
 				this.serialChannel.disable();
 		}
 
-		if(key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
-			this.serialChannel.setSlotNumber(Integer.parseInt(prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, "8")));
-		}
 		return;
 	}
 
@@ -568,8 +583,7 @@ public class NetworkService extends Service implements
 
 		AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
 				.newBuilder();
-		mw
-				.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
+		mw.setType(AmmoMessages.MessageWrapper.MessageType.AUTHENTICATION_MESSAGE);
 		mw.setSessionUuid(sessionId);
 
 		AmmoMessages.AuthenticationMessage.Builder authreq = AmmoMessages.AuthenticationMessage

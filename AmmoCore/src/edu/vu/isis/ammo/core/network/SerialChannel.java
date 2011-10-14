@@ -27,6 +27,7 @@ import java.util.Enumeration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.LinkedList;
 import java.util.zip.CRC32;
@@ -122,8 +123,6 @@ public class SerialChannel extends NetChannel
         this.connectorThread = new ConnectorThread(this);
         // The thread is start()ed the first time the network disables and
         // reenables it.
-
-        //slotNumber = (int) System.currentTimeMillis() % 15;
     }
 
 
@@ -340,17 +339,18 @@ public class SerialChannel extends NetChannel
     private final long mHeartbeatInterval = 10 * 1000; // ms
     private final AtomicLong mNextHeartbeatTime = new AtomicLong( 0 );
 
-    private int baudRate;
+    private String mDevice;
+    private int mBaudRate;
 
-    private long debugPeriod;
+    private AtomicInteger mSlotNumber = new AtomicInteger();
+    private AtomicInteger mRadiosInGroup = new AtomicInteger();
 
-    private String device;
+    private AtomicInteger mSlotDuration = new AtomicInteger();
+    private AtomicInteger mTransmitDuration = new AtomicInteger();
 
-    private boolean receiverEnabled;
+    private AtomicBoolean mSenderEnabled = new AtomicBoolean();
+    private AtomicBoolean mReceiverEnabled = new AtomicBoolean();
 
-    private int slotNumber;
-
-    private boolean senderEnabled;
 
     // Send a heartbeat packet to the gateway if enough time has elapsed.
     // Note: the way this currently works, the heartbeat can only be sent
@@ -674,7 +674,7 @@ public class SerialChannel extends NetChannel
                 logger.error( "Tried to create mPort when we already had one." );
             try
             {
-                parent.mPort = new SerialPort( new File(device), baudRate );
+                parent.mPort = new SerialPort( new File(mDevice), mBaudRate );
             }
             catch ( Exception e )
             {
@@ -924,48 +924,43 @@ public class SerialChannel extends NetChannel
             mChannel = iChannel;
             mQueue = iQueue;
             mPort = iPort;
-
-            mOffset = slotNumber * 125; // ms
         }
 
 
-        /**
-         * the message format is
-         *
-         */
         @Override
         public void run()
         {
-            logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
+            logger.info( "SenderThread <{}>::run()", Thread.currentThread().getId() );
 
             // Sleep until our slot in the round.  If, upon waking, we find that
             // we are in the right slot, check to see if a packet is available
             // to be sent and, if so, send it. Upon getting a serial port error,
             // notify our parent and go into an error state.
 
-            while ( mState != INetChannel.INTERRUPTED )
-            {
+            while ( mState.get() != INetChannel.INTERRUPTED ) {
                 AmmoGatewayMessage msg = null;
-                try
-                {
+                try {
                     setSenderState( INetChannel.TAKING );
 
                     // Try to sleep until our next take time.
                     long currentTime = System.currentTimeMillis();
-                    long thisRoundTakeTime = ((long) (currentTime / 2000) * 2000) + mOffset;
+
+                    int slotDuration = mSlotDuration.get();
+                    int offset = mSlotNumber.get() * slotDuration;
+                    int cycleDuration = slotDuration * mRadiosInGroup.get();
+
+                    long thisCycleStartTime = (long) (currentTime / cycleDuration) * cycleDuration;
+                    long thisCycleTakeTime = thisCycleStartTime + offset;
 
                     long goalTakeTime;
-                    if ( thisRoundTakeTime > currentTime )
-                    {
-                        // We haven't yet reached our take time for this turn,
+                    if ( thisCycleTakeTime > currentTime ) {
+                        // We haven't yet reached our take time for this cycle,
                         // so that's our goal.
-                        goalTakeTime = thisRoundTakeTime;
-                    }
-                    else
-                    {
-                        // We've already missed our turn this round, so add
-                        // 2000 ms and wait until the next round.
-                        goalTakeTime = thisRoundTakeTime + 2000;
+                        goalTakeTime = thisCycleTakeTime;
+                    } else {
+                        // We've already missed our turn this cycle, so add
+                        // cycleDuration and wait until the next round.
+                        goalTakeTime = thisCycleTakeTime + cycleDuration;
                     }
                     Thread.sleep( goalTakeTime - currentTime );
 
@@ -977,11 +972,10 @@ public class SerialChannel extends NetChannel
                     currentTime = System.currentTimeMillis();
                     logger.debug( "Woke up: slotNumber={}, (time, mu-s)={}, jitter={}",
                                  new Object[] {
-                                  slotNumber,
-                                  currentTime,
-                                  currentTime - goalTakeTime } );
-                    if ( currentTime - goalTakeTime > 25 ) // make 25 configurable
-                    {
+                                      mSlotNumber.get(),
+                                      currentTime,
+                                      currentTime - goalTakeTime } );
+                    if ( currentTime - goalTakeTime > WINDOW_DURATION ) {
                         logger.debug( "Missed slot: attempted={}, current={}, jitter={}",
                                       new Object[] {
                                           goalTakeTime,
@@ -992,46 +986,42 @@ public class SerialChannel extends NetChannel
 
                     // At this point, we've woken up near the start of our window
                     // and should send a message if one is available.
-                    if ( !mQueue.messageIsAvailable() )
-                    {
+                    if ( !mQueue.messageIsAvailable() ) {
                         continue;
                     }
                     msg = mQueue.take(); // Will not block
 
                     logger.debug( "Took a message from the send queue" );
-                }
-                catch ( InterruptedException ex )
-                {
+                } catch ( InterruptedException ex ) {
                     logger.debug( "interrupted taking messages from send queue: {}",
                                   ex.getLocalizedMessage() );
                     setSenderState( INetChannel.INTERRUPTED );
                     break;
                 }
 
-                try
-                {
+                try {
                     ByteBuffer buf = msg.serialize( endian,
                                                     AmmoGatewayMessage.VERSION_1_TERSE,
-                                                    (byte) slotNumber );
+                                                    (byte) mSlotNumber.get() );
 
                     setSenderState( INetChannel.SENDING );
 
-                    OutputStream outputStream = mPort.getOutputStream();
-                    outputStream.write( buf.array() );
-                    outputStream.flush();
+                    if ( mSenderEnabled.get() ) {
+                        OutputStream outputStream = mPort.getOutputStream();
+                        outputStream.write( buf.array() );
+                        outputStream.flush();
 
-                    logger.info( "sent message size={}, checksum={}, data:{}",
-                                 new Object[] {
-                                     msg.size,
-                                     Long.toHexString(msg.payload_checksum),
-                                     msg.payload } );
+                        logger.info( "sent message size={}, checksum={}, data:{}",
+                                     new Object[] {
+                                         msg.size,
+                                         Long.toHexString(msg.payload_checksum),
+                                         msg.payload } );
+                    }
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, true );
-                }
-                catch ( Exception e )
-                {
+                } catch ( Exception e ) {
                     logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, false );
@@ -1042,23 +1032,23 @@ public class SerialChannel extends NetChannel
         }
 
 
-        private void setSenderState( int iState )
+        private void setSenderState( int state )
         {
-            synchronized ( this )
-            {
-                mState = iState;
-            }
+            mState.set( state );
             mParent.statusChange();
         }
 
-        public synchronized int getSenderState() { return mState; }
+        public int getSenderState() { return mState.get(); }
 
-        private int mState = INetChannel.TAKING;
+        // If we miss our window's start time by more than this amount, we
+        // give up until our turn in the next cycle.
+        private static final int WINDOW_DURATION = 25;
+
+        private AtomicInteger mState = new AtomicInteger( INetChannel.TAKING );
         private ConnectorThread mParent;
         private SerialChannel mChannel;
         private SenderQueue mQueue;
         private SerialPort mPort;
-        private int mOffset;
         private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
     }
 
@@ -1077,6 +1067,7 @@ public class SerialChannel extends NetChannel
             mInputStream = mPort.getInputStream();
         }
 
+
         @Override
         public void run()
         {
@@ -1089,8 +1080,7 @@ public class SerialChannel extends NetChannel
             // one byte at a time using the standard stream and ByteBuffer patterns.
             // Reading one byte at a time in the code below is intentional.
 
-            try
-            {
+            try {
                 final byte first = (byte) 0xef;
                 final byte second = (byte) 0xbe;
                 final byte third = (byte) 0xed;
@@ -1103,14 +1093,12 @@ public class SerialChannel extends NetChannel
                 byte c = 0;
                 AmmoGatewayMessage.Builder agmb = null;
 
-                while ( mState != INetChannel.INTERRUPTED )
-                {
+                while ( mState.get() != INetChannel.INTERRUPTED ) {
                     setReceiverState( INetChannel.START );
 
-                    switch ( state )
-                    {
+                    switch ( state ) {
                     case 0:
-                        logger.debug( "Waiting for magic." );
+                        logger.debug( "Waiting for magic sequence." );
                         c = readAByte();
                         if ( c == first )
                             state = c;
@@ -1137,8 +1125,11 @@ public class SerialChannel extends NetChannel
                     case 1:
                         {
                             long currentTime = System.currentTimeMillis();
-                            long startOfRound = ((long) (currentTime / 2000) * 2000);
-                            long currentSlot = (currentTime - startOfRound) / 125;
+                            int slotDuration = mSlotDuration.get();
+                            int cycleDuration = slotDuration * mRadiosInGroup.get();
+                            long thisCycleStartTime = (long) (currentTime / cycleDuration) * cycleDuration;
+
+                            long currentSlot = (currentTime - thisCycleStartTime) / slotDuration;
                             logger.debug( "Read magic sequence in slot {} at {}",
                                           currentSlot,
                                           currentTime );
@@ -1151,21 +1142,17 @@ public class SerialChannel extends NetChannel
                             // For some unknown reason, this was writing past the end of the
                             // array when length=16. It may have been ant not recompiling things
                             // properly.  Look into it when I have time.
-                            for ( int i = 0; i < 13; ++i )
-                            {
+                            for ( int i = 0; i < 13; ++i ) {
                                 c = readAByte();
                                 buf_header[i+3] = c;
                             }
                             logger.debug( " Received terse header, reading payload " );
 
                             agmb = AmmoGatewayMessage.extractHeader( header );
-                            if ( agmb == null )
-                            {
+                            if ( agmb == null ) {
                                 logger.error( "Deserialization failure." );
                                 state = 0;
-                            }
-                            else
-                            {
+                            } else {
                                 state = 2;
                             }
                         }
@@ -1176,8 +1163,7 @@ public class SerialChannel extends NetChannel
                             int payload_size = agmb.size();
                             byte[] buf_payload = new byte[ payload_size ];
 
-                            for ( int i = 0; i < payload_size; ++i )
-                            {
+                            for ( int i = 0; i < payload_size; ++i ) {
                                 c = readAByte();
                                 buf_payload[i] = c;
                             }
@@ -1185,8 +1171,12 @@ public class SerialChannel extends NetChannel
                             AmmoGatewayMessage agm = agmb.payload( buf_payload ).build();
 
                             long currentTime = System.currentTimeMillis();
-                            long startOfRound = ((long) (currentTime / 2000) * 2000);
-                            long currentSlot = (currentTime - startOfRound) / 125;
+                            int slotDuration = mSlotDuration.get();
+                            int cycleDuration = slotDuration * mRadiosInGroup.get();
+
+                            long thisCycleStartTime = (long) (currentTime / cycleDuration) * cycleDuration;
+                            long currentSlot = (currentTime - thisCycleStartTime) / slotDuration;
+
                             logger.debug( "Finished reading payload in slot {} at {}",
                                           currentSlot,
                                           currentTime );
@@ -1196,8 +1186,12 @@ public class SerialChannel extends NetChannel
                                              Long.toHexString(agm.payload_checksum),
                                              agm.payload } );
 
-                            setReceiverState( INetChannel.DELIVER );
-                            mDestination.deliverMessage( agm );
+                            if ( mReceiverEnabled.get() ) {
+                                setReceiverState( INetChannel.DELIVER );
+                                mDestination.deliverMessage( agm );
+                            } else {
+                                logger.info( "Receiving disabled, discarding message." );
+                            }
 
                             header.clear();
                             setReceiverState( INetChannel.START );
@@ -1209,15 +1203,11 @@ public class SerialChannel extends NetChannel
                         logger.debug( "Unknown value for state variable" );
                     }
                 }
-            }
-            catch ( IOException ex )
-            {
+            } catch ( IOException ex ) {
                 logger.warn( "receiver threw an IOException {}", ex.getStackTrace() );
                 setReceiverState( INetChannel.INTERRUPTED );
                 mParent.socketOperationFailed();
-            }
-            catch ( Exception ex )
-            {
+            } catch ( Exception ex ) {
                 logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
                 setReceiverState( INetChannel.INTERRUPTED );
                 mParent.socketOperationFailed();
@@ -1229,8 +1219,7 @@ public class SerialChannel extends NetChannel
         {
             //logger.debug( "Calling receive() on the SerialPort." );
             int val = mInputStream.read();
-            if ( val == -1 )
-            {
+            if ( val == -1 ) {
                 logger.debug( "The serial port returned -1 from read()." );
                 throw new IOException();
             }
@@ -1239,18 +1228,15 @@ public class SerialChannel extends NetChannel
         }
 
 
-        private void setReceiverState( int iState )
+        private void setReceiverState( int state )
         {
-            synchronized ( this )
-            {
-                mState = iState;
-            }
+            mState.set( state );
             mParent.statusChange();
         }
 
-        public synchronized int getReceiverState() { return mState; }
+        public int getReceiverState() { return mState.get(); }
 
-        private int mState = INetChannel.TAKING; // fixme
+        private AtomicInteger mState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
         private ConnectorThread mParent;
         private SerialChannel mDestination;
         private SerialPort mPort;
@@ -1263,39 +1249,66 @@ public class SerialChannel extends NetChannel
 
     // ********** UTILITY METHODS ****************
 
-    public void setBaudRate(int long1) {
-        logger.error( "Baud rate set to {}", long1 );
-        this.baudRate = long1;
+    // The following methods will require a disconnect and reconnect,
+    // because the variables can't changed while running.  They probably aren't
+    // that important in the short-term.
+    //
+    // NOTE: The following two function are probably not working atm.  We need
+    // to make sure that they're synchronized, and deal with disconnecting the
+    // channel (to force a reconnect).  This functionality isn't presently
+    // needed, but fix this at some point.
+    public void setDevice( String device )
+    {
+        logger.error( "Device set to {}", device );
+        mDevice = device;
+    }
+
+    public void setBaudRate( int baudRate )
+    {
+        logger.error( "Baud rate set to {}", baudRate );
+        mBaudRate = baudRate;
     }
 
 
-    public void setDebugPeriod(long long1) {
-        logger.error( "Debug period set to {}", long1 );
-        this.debugPeriod = long1;
+    // The following methods can be changed while connected.  Modify the
+    // threads to get the values from synchronized members.
+    //
+    public void setSlotNumber( int slotNumber )
+    {
+        logger.error( "Slot set to {}", slotNumber );
+        mSlotNumber.set( slotNumber );
+    }
+
+    public void setRadiosInGroup( int radiosInGroup )
+    {
+        logger.error( "Radios in group set to {}", radiosInGroup );
+        mRadiosInGroup.set( radiosInGroup );
     }
 
 
-    public void setDevice(String string) {
-        logger.error( "Device set to {}", string );
-        this.device = string;
+    public void setSlotDuration( int slotDuration )
+    {
+        logger.error( "Slot duration set to {}", slotDuration );
+        mSlotDuration.set( slotDuration );
+    }
+
+    public void setTransmitDuration( int transmitDuration )
+    {
+        logger.error( "Transmit duration set to {}", transmitDuration );
+        mTransmitDuration.set( transmitDuration );
     }
 
 
-    public void setReceiverEnabled(boolean boolean1) {
-        logger.error( "Receiver enabled set to {}", boolean1 );
-        this.receiverEnabled = boolean1;
+    public void setSenderEnabled( boolean enabled )
+    {
+        logger.error( "Sender enabled set to {}", enabled );
+        mSenderEnabled.set( enabled );
     }
 
-
-    public void setSlotNumber(int int1) {
-        logger.error( "Slot set to {}", int1 );
-        this.slotNumber = int1;
-    }
-
-
-    public void setSenderEnabled(boolean boolean1) {
-        logger.error( "Sender enabled set to {}", boolean1 );
-        this.senderEnabled = boolean1;
+    public void setReceiverEnabled( boolean enabled )
+    {
+        logger.error( "Receiver enabled set to {}", enabled );
+        mReceiverEnabled.set( enabled );
     }
 
 
@@ -1303,21 +1316,8 @@ public class SerialChannel extends NetChannel
     // A routine to get the local ip address
     // TODO use this someplace
     //
-    public String getLocalIpAddress() {
-        logger.trace("Thread <{}>::getLocalIpAddress", Thread.currentThread().getId());
-        try {
-            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
-                NetworkInterface intf = en.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    if (!inetAddress.isLoopbackAddress()) {
-                        return inetAddress.getHostAddress().toString();
-                    }
-                }
-            }
-        } catch (SocketException ex) {
-            logger.error( ex.toString());
-        }
+    public String getLocalIpAddress()
+    {
         return null;
     }
 }

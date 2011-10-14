@@ -99,59 +99,66 @@
 			android:defaultValue= "3000"/>
 		
 		</PreferenceScreen>
-		
-		<PreferenceScreen
-		xmlns:android="http://schemas.android.com/apk/res/android"
-		android:id="@+id/serial_prefs"
-		android:key="outer_pref_screen"
-		android:title="Serial Preferences">
-			<edu.vu.isis.ammo.core.MyCheckBoxPreference
-			android:key="SERIAL_SHOULD_USE"
-			android:title="Channel Enabled"
-			android:name="Channel Enabled"
-			android:defaultValue="false"/>
-			
-			<edu.vu.isis.ammo.core.MyCheckBoxPreference
-			android:key="SERIAL_SEND_ENABLED"
-			android:title="Sending Enabled"
-			android:name="Sending Enabled"
-			android:defaultValue="true"/>		
 
-			<edu.vu.isis.ammo.core.MyCheckBoxPreference
-			android:key="SERIAL_RECEIVE_ENABLED"
-			android:title="Receiving Enabled"
-			android:name="Receiving Enabled"
-			android:defaultValue="true"/>	
-			
-			<edu.vu.isis.ammo.core.MyEditTextPreference
-			android:key="SERIAL_DEVICE"
-			android:title="Device"
-			android:name="Device"
-			android:defaultValue="/dev/ttyUSB0"/>
-			
-			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="SERIAL_BAUD_RATE"
-			android:title="Baud Rate"
-			android:name="Baud Rate"
-			android:defaultValue="9600"/>	
-			
-			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="SERIAL_SLOT_NUMBER"
-			android:title="Slot Number"
-			android:name="Slot Number"
-			android:defaultValue="8"/>	
-			
-			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="SERIAL_DEBUG_PERIOD"
-			android:title="Debug Period"
-			android:name="Debug Period"
-			android:defaultValue="10"/>	
-			
-			<!-- <edu.vu.isis.ammo.core.MyListPreference
-			android:key="TESTKEY"
-			android:title="TEST"
-			android:name="TEST"
-			android:defaultValue="/dev/"/> -->
+		<PreferenceScreen
+		    xmlns:android="http://schemas.android.com/apk/res/android"
+		    android:id="@+id/serial_prefs"
+		    android:key="outer_pref_screen"
+		    android:title="Serial Preferences">
+
+		  <edu.vu.isis.ammo.core.MyCheckBoxPreference
+		      android:key="SERIAL_SHOULD_USE"
+		      android:title="Channel Enabled"
+		      android:name="Channel Enabled"
+		      android:defaultValue="false"/>
+
+		  <edu.vu.isis.ammo.core.MyEditTextPreference
+		      android:key="SERIAL_DEVICE"
+		      android:title="Device"
+		      android:name="Device"
+		      android:defaultValue="/dev/ttyUSB0"/>
+
+		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
+		      android:key="SERIAL_BAUD_RATE"
+		      android:title="Baud Rate"
+		      android:name="Baud Rate"
+		      android:defaultValue="9600"/>
+
+		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
+		      android:key="SERIAL_SLOT_NUMBER"
+		      android:title="Slot Number"
+		      android:name="Slot Number"
+		      android:defaultValue="8"/>
+
+		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
+		      android:key="SERIAL_RADIOS_IN_GROUP"
+		      android:title="Radios in Group"
+		      android:name="Radios in Group"
+		      android:defaultValue="16"/>
+
+		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
+		      android:key="SERIAL_SLOT_DURATION"
+		      android:title="Slot Duration (ms)"
+		      android:name="Slot Duration"
+		      android:defaultValue="125"/>
+
+		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
+		      android:key="SERIAL_TRANSMIT_DURATION"
+		      android:title="Transmit Duration (ms)"
+		      android:name="Transmit Duration"
+		      android:defaultValue="50"/>
+
+		  <edu.vu.isis.ammo.core.MyCheckBoxPreference
+		      android:key="SERIAL_SEND_ENABLED"
+		      android:title="Sending Enabled"
+		      android:name="Sending Enabled"
+		      android:defaultValue="true"/>
+
+		  <edu.vu.isis.ammo.core.MyCheckBoxPreference
+		      android:key="SERIAL_RECEIVE_ENABLED"
+		      android:title="Receiving Enabled"
+		      android:name="Receiving Enabled"
+		      android:defaultValue="true"/>
 		</PreferenceScreen>
 	</PreferenceCategory>
 

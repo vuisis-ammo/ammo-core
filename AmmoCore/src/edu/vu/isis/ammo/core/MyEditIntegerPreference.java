@@ -22,17 +22,18 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	// ===========================================================
 	public static final Logger logger = LoggerFactory.getLogger(MyEditIntegerPreference.class);
 	public static enum Type {
-		PORT, TIMEOUT, BAUDRATE, SLOT_NUMBER, DEBUG_PERIOD
+		PORT, TIMEOUT, BAUDRATE, SLOT_NUMBER, RADIOS_IN_GROUP, SLOT_DURATION, TRANSMIT_DURATION
 	};
-	
+
+
 	// ===========================================================
 	// Fields
 	// ===========================================================
 	private String summaryPrefix = "";
 	private Type mType;
 	private Context context;
-	
-	
+
+
 	// ===========================================================
 	// Lifecycle
 	// ===========================================================
@@ -56,7 +57,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		this.context = context;
 		summaryPrefix = aSummaryPrefix;
 	}
-	
+
 	// ===========================================================
 	// IP/Port Input Management
 	// ===========================================================
@@ -64,121 +65,96 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		// We should do some bounds checking here based on type of ETP.
 		String checkedText = uncheckedText;
 
-		if (mType == null) { 
+		if (mType == null) {
 			super.setText(checkedText);
 			return;
 		}
 
 		switch (mType) {
-		case PORT:
-			if (!this.validatePort(uncheckedText)) {
-				Toast.makeText(context, "Invalid port, please try again", Toast.LENGTH_SHORT).show();
-				checkedText = this.getText();
-			}
-			
-			break;
-
 		case TIMEOUT:
 			if (!this.validateTimeout(uncheckedText)) {
 				Toast.makeText(context, "Invalid timeout value", Toast.LENGTH_SHORT).show();
 				checkedText = this.getText();
-				
 			}
 			else
 			{
-				
 				//Shared enum solution. It's not exactly graceful, but it works.
 				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
 				{
 					//Input is in seconds, we need to store as minutes
 					checkedText = Integer.toString((Integer.parseInt(uncheckedText)/60));
-					
+
 				}
 				else if(this.getKey().equals("CORE_SOCKET_TIMEOUT"))
 				{
 					//Input is in seconds, we need to store as milliseconds
 					checkedText = Integer.toString((Integer.parseInt(uncheckedText)*1000));
-					
 				}
-				
-				
 			}
+            break;
+		case PORT:
+			if (!this.validatePort(uncheckedText)) {
+				Toast.makeText(context, "Invalid port", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			}
+			break;
 		case BAUDRATE:
 			if(!this.validateBaudrate(uncheckedText)) {
-				Toast.makeText(context, "Invalid Baudrate", Toast.LENGTH_SHORT).show();
+				Toast.makeText(context, "Invalid baud rate", Toast.LENGTH_SHORT).show();
 				checkedText = this.getText();
 			} else {
 				checkedText = uncheckedText;
 			}
-			
+            break;
 		case SLOT_NUMBER:
 			if(!this.validateSlotNumber(uncheckedText)) {
-				Toast.makeText(context, "Invalid Slot Number", Toast.LENGTH_SHORT).show();
+				Toast.makeText(context, "Invalid slot number", Toast.LENGTH_SHORT).show();
 				checkedText = this.getText();
 			} else {
 				checkedText = uncheckedText;
 			}
-			
-		case DEBUG_PERIOD:
-			if(!this.validateDebugPeriod(uncheckedText)) {
-				Toast.makeText(context, "Invalid Debug Period", Toast.LENGTH_SHORT).show();
+            break;
+		case RADIOS_IN_GROUP:
+			if(!this.validateRadiosInGroup(uncheckedText)) {
+				Toast.makeText(context, "Invalid radios in group", Toast.LENGTH_SHORT).show();
 				checkedText = this.getText();
 			} else {
 				checkedText = uncheckedText;
 			}
-			
-			
+			break;
+		case SLOT_DURATION:
+			if(!this.validateSlotDuration(uncheckedText)) {
+				Toast.makeText(context, "Invalid slot duration", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			} else {
+				checkedText = uncheckedText;
+			}
+			break;
+		case TRANSMIT_DURATION:
+			if(!this.validateTransmitDuration(uncheckedText)) {
+				Toast.makeText(context, "Invalid transmit duration", Toast.LENGTH_SHORT).show();
+				checkedText = this.getText();
+			} else {
+				checkedText = uncheckedText;
+			}
 			break;
 		default:
 			// do nothing.
+            break;
 		}
-		
-		
+
 		super.setText(checkedText);
 	}
-	
-	
-	
-	
-	private boolean validateDebugPeriod(String uncheckedText) {
-		return Integer.parseInt(uncheckedText) > 0;
-	}
 
-	private boolean validateSlotNumber(String uncheckedText) {
-		int i = Integer.parseInt(uncheckedText);
-		return (i > 0) && (i <=16);
-	}
 
-	private boolean validateBaudrate(String uncheckedText) {
-		return Integer.parseInt(uncheckedText) == 9600;
-	}
+    //
+    // Validation methods
+    //
 
-	public String getText() {
-		// We should do some bounds checking here based on type of ETP.
-		String value = super.getText();
-		switch (mType)
-		{
-		case TIMEOUT:
-				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
-				{
-					return Integer.toString(Integer.parseInt(value)*60);
-				}
-				else if(this.getKey().equals("CORE_SOCKET_TIMEOUT"))
-				{
-					return Integer.toString(Integer.parseInt(value)/1000);
-				}
-			
-		default:
-			return value;
-		}
-
-	}
-	
-	
 	/**
 	 *  Checks whether or not the input ip address is valid for IPv4 protocol.
 	 *  @see http://forums.sun.com/thread.jspa?threadID=584205
-	 *  
+	 *
 	 * @param ip
 	 * @return
 	 */
@@ -187,10 +163,33 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	        Pattern IPPattern = Pattern.compile("^(?:"+two_five_five+"\\.){3}"+two_five_five+"$");
 		return IPPattern.matcher(ip).matches();
 	}
+
+
+	/**
+	 * Convert the timeout parameter to a string and make sure it is non-negative.
+	 * @param timeout
+	 * @return
+	 */
+	public boolean validateTimeout(String timeout) {
+		boolean returnValue = false;
+		try {
+			Integer intValue = Integer.valueOf(timeout);
+			if (intValue > 0) {
+				returnValue = true;
+			}
+		} catch (NumberFormatException e) {
+			logger.debug("::validateTimeout - NumberFormatException");
+		}
+
+		return returnValue;
+	}
+
+
+
 	/**
 	 * Check that the port value supplied is appropriate.
 	 * @see http://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
-	 * 
+	 *
 	 * @param port
 	 * @return
 	 */
@@ -214,27 +213,80 @@ public class MyEditIntegerPreference extends EditTextPreference {
 			return false;
 		}
 	}
-	
-	/**
-	 * Convert the timeout parameter to a string and make sure it is non-negative.
-	 * @param timeout
-	 * @return
-	 */
-	public boolean validateTimeout(String timeout) {
-		boolean returnValue = false;
-		try {
-			Integer intValue = Integer.valueOf(timeout);
-			if (intValue > 0) {
-				returnValue = true;
-			}
-		} catch (NumberFormatException e) {
-			logger.debug("::validateTimeout - NumberFormatException");
-		}
-		
-		return returnValue;
+
+
+	private boolean validateBaudrate(String uncheckedText) {
+        try {
+            // Will we need something different here?  Are other baud rates
+            // even supported?
+            return Integer.parseInt(uncheckedText) == 9600;
+        } catch ( NumberFormatException e ) {
+            return false;
+        }
 	}
-	
-	@Override 
+
+
+    // It would be good to make sure that slot number < radios in group - 1.
+	private boolean validateSlotNumber(String uncheckedText) {
+        try {
+            return Integer.parseInt(uncheckedText) > 0;
+        } catch ( NumberFormatException e ) {
+            return false;
+        }
+	}
+
+
+	private boolean validateRadiosInGroup( String uncheckedText ) {
+        try {
+            return Integer.parseInt(uncheckedText) > 0;
+        } catch ( NumberFormatException e ) {
+            return false;
+        }
+	}
+
+
+	private boolean validateSlotDuration( String uncheckedText ) {
+        try {
+            return Integer.parseInt(uncheckedText) > 0;
+        } catch ( NumberFormatException e ) {
+            return false;
+        }
+	}
+
+    // It would be good to make sure that transmit duration < slot duration.
+	private boolean validateTransmitDuration( String uncheckedText ) {
+        try {
+            return Integer.parseInt(uncheckedText) > 0;
+        } catch ( NumberFormatException e ) {
+            return false;
+        }
+	}
+
+
+	public String getText() {
+		// We should do some bounds checking here based on type of ETP.
+		String value = super.getText();
+		switch (mType)
+		{
+		case TIMEOUT:
+				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
+				{
+					return Integer.toString(Integer.parseInt(value)*60);
+				}
+				else if(this.getKey().equals("CORE_SOCKET_TIMEOUT"))
+				{
+					return Integer.toString(Integer.parseInt(value)/1000);
+				}
+
+		default:
+			return value;
+		}
+
+	}
+
+
+
+	@Override
 	protected void onDialogClosed (boolean positiveResult) {
 		super.onDialogClosed(positiveResult);
 		
