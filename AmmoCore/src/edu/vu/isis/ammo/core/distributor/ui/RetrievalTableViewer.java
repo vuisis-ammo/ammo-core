@@ -6,6 +6,7 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class RetrievalTableViewer extends DistributorTableViewer {
@@ -22,15 +23,19 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 		// RetrievalTableSchema.CREATED_DATE ,
 		RetrievalTableSchema.CREATED.n };
 	
+	public RetrievalTableViewer() {
+		super(Tables.RETRIEVAL);
+	}
+	
 	@Override 
 	public void onCreate(Bundle bun) {
 		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.RETRIEVAL.n);
 		
-		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
+		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 RetrievalTableSchema._ID + " DESC");
 
 		this.adapter = new RetrievalDistributorTableViewAdapter(this,
-				R.layout.distributor_table_view_item, cursor, 
+				R.layout.dist_table_view_item, cursor, 
 				fromItemLayout, toItemLayout);
 		
 		super.onCreate(bun);

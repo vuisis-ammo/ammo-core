@@ -239,6 +239,12 @@ public class DistributorDataStore {
 		static public RequestDisposal getInstance(String ordinal) {
 			return RequestDisposal.values()[Integer.parseInt(ordinal)];
 		}
+		static public RequestDisposal getInstanceById(int o) {
+	    	for (RequestDisposal candidate : RequestDisposal.values()) {
+	    		if (candidate.o == o) return candidate;
+	    	}
+	    	return null;
+	    }
 		
 	};
 
@@ -305,7 +311,7 @@ public class DistributorDataStore {
 			return this.o | aggregate;
 		}
 		
-	    static public ChannelDisposal byId(int o) {
+	    static public ChannelDisposal getInstanceById(int o) {
 	    	for (ChannelDisposal candidate : ChannelDisposal.values()) {
 	    		if (candidate.o == o) return candidate;
 	    	}

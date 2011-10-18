@@ -27,14 +27,14 @@ public class SubscriptionStatus extends ListActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================
+	public static final Logger logger = LoggerFactory.getLogger(SubscriptionStatus.class);
+	
 	public static final String LAUNCH = "edu.vu.isis.ammo.core.SubscriptionStatus.LAUNCH";
 	public static final int MENU_PURGE_SUBSCRIPTIONS = Menu.FIRST;
 	
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	Logger logger = LoggerFactory.getLogger(SubscriptionStatus.class);
-	
 	
 	/**
 	 * 
@@ -58,7 +58,7 @@ public class SubscriptionStatus extends ListActivityEx {
 	@Override
 	public void onCreate(Bundle bun) {
 		super.onCreate(bun);
-		setContentView(R.layout.distributor_table_viewer_activity);
+		setContentView(R.layout.dist_table_viewer_activity);
 		
 		//statusList = (ListView) findViewById(R.id.subscription_status_list);
 		/*

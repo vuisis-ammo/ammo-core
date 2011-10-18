@@ -6,6 +6,7 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class PostalTableViewer extends DistributorTableViewer {
@@ -22,15 +23,19 @@ public class PostalTableViewer extends DistributorTableViewer {
 		// PostalTableSchema.CREATED_DATE ,
 		PostalTableSchema.CREATED.n };
 	
+	public PostalTableViewer() {
+		super(Tables.POSTAL);
+	}
+	
 	@Override 
 	public void onCreate(Bundle bun) {
 		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.POSTAL.n);
 		
-		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
+		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 PostalTableSchema._ID + " DESC");
 
 		this.adapter = new PostalDistributorTableViewAdapter(this,
-				R.layout.distributor_table_view_item, cursor, 
+				R.layout.dist_table_view_item, cursor, 
 				fromItemLayout, toItemLayout);
 		
 		super.onCreate(bun);

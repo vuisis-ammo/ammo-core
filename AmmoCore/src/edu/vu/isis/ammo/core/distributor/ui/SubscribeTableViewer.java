@@ -6,6 +6,7 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class SubscribeTableViewer extends DistributorTableViewer {
@@ -21,15 +22,19 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 		// SubscribeTableSchema.MODIFIED ,
 		SubscribeTableSchema.CREATED.n };
 
+	public SubscribeTableViewer() {
+		super(Tables.SUBSCRIBE);
+	}
+	
 	@Override 
 	public void onCreate(Bundle bun) {
 		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.SUBSCRIBE.n);
 		
-		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
+		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 SubscribeTableSchema._ID + " DESC");
 		
 		this.adapter = new SubscribeDistributorTableViewAdapter(this,
-				R.layout.distributor_table_view_item, cursor, 
+				R.layout.dist_table_view_item, cursor, 
 				fromItemLayout, toItemLayout);
 		
 		super.onCreate(bun);

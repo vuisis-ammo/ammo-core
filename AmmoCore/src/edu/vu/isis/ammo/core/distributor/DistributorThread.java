@@ -655,7 +655,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
 
-			logger.debug("serializing: {} as {}",provider,topic);
+			logger.debug("serializing: {} as {}", provider,topic);
 
 			final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
 			final int serialType = pending.getInt(pending.getColumnIndex(PostalTableSchema.ORDER.n));
@@ -701,7 +701,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.byId(channelState));
+					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
 				}
 				logger.trace("prior channel states {}", dispersal);
 				channelCursor.close();
@@ -709,7 +709,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 			// Dispatch the request.
 			try {
 				if (!that.isConnected()) {
-					logger.debug("no network connection");
+					logger.debug("no network connection while processing table");
 					continue;
 				} 
 				synchronized (this.store) {
@@ -974,7 +974,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.byId(channelState));
+					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
 				}
 				channelCursor.close();
 			}
@@ -1213,7 +1213,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.byId(channelState));
+					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
 				}
 				channelCursor.close();
 			}

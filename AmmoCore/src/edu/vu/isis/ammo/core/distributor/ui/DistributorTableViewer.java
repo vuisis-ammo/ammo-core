@@ -20,6 +20,7 @@ import android.widget.ListView;
 import android.widget.PopupWindow;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.ui.DistributorPopupWindow;
 
 /**
@@ -57,7 +58,7 @@ implements IAmmoActivitySetup
 	@Override
 	public void onCreate(Bundle bun) {
 		super.onCreate(bun);
-		setContentView(R.layout.distributor_table_viewer);
+		setContentView(R.layout.dist_table_viewer);
 		if (this.uri == null) {
 			logger.error("no uri provided...exiting");
 			return;
@@ -121,16 +122,23 @@ implements IAmmoActivitySetup
 		return true;
 	}
 
+	
 	// ===========================================================
 	// List Management
 	// ===========================================================
+	private final Tables table;
+	public DistributorTableViewer(Tables table) {
+		super();
+		this.table = table;
+	}
+	
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
 		super.onListItemClick(l, v, position, id);
-		LayoutInflater inflater = (LayoutInflater)
+		final LayoutInflater inflater = (LayoutInflater)
 	       this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		
-	    pw = new DistributorPopupWindow(inflater, position, this.adapter.getCursor());
+	    pw = new DistributorPopupWindow(inflater, position, this.adapter.getCursor(), this.table);
 	    
 	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
@@ -138,7 +146,7 @@ implements IAmmoActivitySetup
 	
 	public void removeMenuItem(MenuItem item) {
 		// Get the row id and uri of the selected item.
-		AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
+		final AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
 		int rowId = (int)acmi.id;
 		//int count = getContentResolver().delete(this.uri, SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
 		//Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();
