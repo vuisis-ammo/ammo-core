@@ -38,7 +38,8 @@ an ammo request
 		android:padding="5px"
 		android:textSize="18px"
 		android:textColor="#FFF" />
-  <TextView android:id="@+id/distributor_table_view_item_uri"
+		
+  <TextView android:id="@+id/distributor_table_view_item_provider"
   		android:layout_width="fill_parent"
   		android:layout_height="wrap_content"
   		android:padding="5px"

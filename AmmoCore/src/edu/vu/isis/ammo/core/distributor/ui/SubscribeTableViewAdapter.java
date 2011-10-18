@@ -61,6 +61,12 @@ public class SubscribeTableViewAdapter extends DistributorTableViewAdapter
 			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_topic);
 			tv.setText(cursor.getString(cursor.getColumnIndex(SubscribeTableSchema.TOPIC.n)));
 		}
+		// set the provider
+		{
+			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_provider);
+			tv.setText(cursor.getString(cursor.getColumnIndex(SubscribeTableSchema.PROVIDER.n)));
+		}
+
 	}
 
 }

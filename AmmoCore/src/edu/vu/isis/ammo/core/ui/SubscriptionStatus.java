@@ -13,15 +13,12 @@ import android.view.View;
 import android.widget.ListView;
 import android.widget.Toast;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.ui.util.ListActivityEx;
 
 /**
  * This activity shows a list of the items and their subscription status.
  * Eventually it will allow the operator to perform various management operations.
  * These management operations will be available via content menus.
- * 
- * @author phreed
  */
 public class SubscriptionStatus extends ListActivityEx {
 	// ===========================================================
@@ -36,39 +33,10 @@ public class SubscriptionStatus extends ListActivityEx {
 	// Fields
 	// ===========================================================
 	
-	/**
-	 * 
-	 */
-	static private String[] fromItemLayout = new String[] {
-		 SubscribeTableSchema.PROVIDER.n ,
-		 //SubscribeTableSchema.PROJECTION ,
-		 //SubscribeTableSchema.SELECTION ,
-		 //SubscribeTableSchema.ARGS ,
-		 //SubscribeTableSchema.ORDER ,
-		 //SubscribeTableSchema.EXPIRATION ,
-		 //SubscribeTableSchema.CREATED_DATE ,
-		 SubscribeTableSchema.MODIFIED.n
-	};
-	
-	static private int[] toItemLayout = new int[] {
-			R.id.distributor_table_view_item_uri,
-			R.id.distributor_table_view_item_timestamp
-	};
-	
 	@Override
 	public void onCreate(Bundle bun) {
 		super.onCreate(bun);
 		setContentView(R.layout.dist_table_viewer_activity);
-		
-		//statusList = (ListView) findViewById(R.id.subscription_status_list);
-		/*
-		final Cursor cursor = this.managedQuery(SubscribeTableSchema.CONTENT_URI, null, null, null, null);
-		final ListAdapter adapter = new SimpleCursorAdapter(this,
-				R.layout.distributor_table_view_item,
-				cursor, fromItemLayout, toItemLayout);
-		
-		setListAdapter(adapter);
-		*/
 	}
 	
 	@Override

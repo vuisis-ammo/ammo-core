@@ -30,12 +30,12 @@ public class RetrievalTableViewAdapter extends DistributorTableViewAdapter
 	// Override this to set disposition field.
 
 	@Override
-	public void bindView(View v, Context context, Cursor cursor) {
+	public void bindView(View view, Context context, Cursor cursor) {
 		// super.bindView(v, context, cursor);
 
 		// deal with the displaying of the disposition
 		{
-			final TextView tv = (TextView)v.findViewById(R.id.distributor_table_view_item_disposition);
+			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_disposition);
 			int disposition = cursor.getInt(cursor.getColumnIndex(RetrievalTableSchema.DISPOSITION.n));
 			if (dispositionStateMap.containsKey(disposition)) {
 				tv.setText(dispositionStateMap.get(disposition));
@@ -47,7 +47,7 @@ public class RetrievalTableViewAdapter extends DistributorTableViewAdapter
 
 		// deal with the displaying of the timestamp
 		{
-			final TextView tv = (TextView)v.findViewById(R.id.distributor_table_view_item_timestamp);
+			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_timestamp);
 			long timestamp = cursor.getLong(cursor.getColumnIndex(RetrievalTableSchema.CREATED.n));
 			this.expiration.clear();
 			this.expiration.setTimeInMillis(timestamp);
@@ -58,8 +58,14 @@ public class RetrievalTableViewAdapter extends DistributorTableViewAdapter
 
 		// set the mime-type / topic
 		{
-			final TextView tv = (TextView)v.findViewById(R.id.distributor_table_view_item_topic);
+			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_topic);
 			tv.setText(cursor.getString(cursor.getColumnIndex(RetrievalTableSchema.TOPIC.n)));
+		}
+		
+		// set the provider
+		{
+			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_provider);
+			tv.setText(cursor.getString(cursor.getColumnIndex(RetrievalTableSchema.PROVIDER.n)));
 		}
 
 	}
