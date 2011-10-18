@@ -51,13 +51,22 @@
      in between standard targets -->
 
 
-    <target name="-pre-build">
+    <target name="-pre-build" >
         <echo>configure ammo core libraries for ${basedir}.</echo>
         <!-- configure protobuf -->
         <mkdir dir="libs"/>
-        <symlink action="single" overwrite="true" 
+        <symlink taskname="add-lib" action="single" overwrite="true" 
               link="${basedir}/libs/protobuf.jar" 
               resource="/usr/share/java/protobuf.jar"/>
+        <fail message="Files are missing.">
+           <condition>
+               <not>
+                   <resourcecount count="1">
+                       <fileset id="fs" dir="libs" includes="protobuf.jar"/>
+                   </resourcecount>
+               </not>
+           </condition>
+        </fail>
     </target>
 
     <target name="-pre-compile" depends="protobuf,-ndk-build"/>
