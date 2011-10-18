@@ -12,16 +12,7 @@ import edu.vu.isis.ammo.core.provider.DistributorSchema;
 public class SubscribeTableViewer extends DistributorTableViewer {
 
 	private TextView tvLabel;
-	static protected final String[] fromItemLayout = new String[] {
-		SubscribeTableSchema.PROVIDER.n,
-		// SubscribeTableSchema.PROJECTION ,
-		// SubscribeTableSchema.SELECTION ,
-		// SubscribeTableSchema.ARGS ,
-		// SubscribeTableSchema.ORDER ,
-		// SubscribeTableSchema.EXPIRATION ,
-		// SubscribeTableSchema.MODIFIED ,
-		SubscribeTableSchema.CREATED.n };
-
+	
 	public SubscribeTableViewer() {
 		super(Tables.SUBSCRIBE);
 	}
@@ -33,9 +24,7 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 SubscribeTableSchema._ID + " DESC");
 		
-		this.adapter = new SubscribeDistributorTableViewAdapter(this,
-				R.layout.dist_table_view_item, cursor, 
-				fromItemLayout, toItemLayout);
+		this.adapter = new SubscribeTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
 		
 		super.onCreate(bun);
 	}

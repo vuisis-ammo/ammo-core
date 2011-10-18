@@ -3,18 +3,19 @@
 	  android:layout_width="fill_parent"
 	  android:layout_height="fill_parent"
 	  android:background="@drawable/distributor_detail_view_border" >
-  
-  <ScrollView 
+	  
+  <ScrollView android:id="@+id/dist_detail"
 	  android:layout_width="fill_parent"
 	  android:layout_height="fill_parent"
 	  android:scrollbars="vertical" >
 	  
-	  <RelativeLayout android:id="@+id/dist_detail"
-		  android:layout_width="fill_parent" android:layout_height="376dp">
+	  <RelativeLayout android:id="@+id/dist_detail_main"
+		  android:layout_width="fill_parent" 
+		  android:layout_height="fill_parent">
 	  
 	  	<Button android:id="@+id/dist_detail_close_button"
-			android:layout_width="40px"
-			android:layout_height="40px"
+			android:layout_width="40dip"
+			android:layout_height="40dip"
 			android:layout_alignParentRight="true"
 			android:layout_alignParentTop="true"
 			android:onClick="closePopup"
@@ -168,23 +169,31 @@
 		            android:padding="3dip" />
 		    </TableRow>
 	   </TableLayout>
-	   
-	   <!--  A separator -->
-	   <View
-	   		android:id="@+id/dist_channel_section" 
-	   		android:layout_below="@id/dist_detail_params"
-		    android:layout_width="fill_parent"
-		    android:layout_height="3dip"
-		    android:background="#FF000000" />
-	   		
-	   <ListView android:id="@+id/dist_channel_detail" 
-	   		android:layout_below="@id/dist_channel_section" 
-	   		android:layout_width="fill_parent"
-		    android:layout_height="wrap_content"/>
-		
-	  
+	 
 	  </RelativeLayout>
 	</ScrollView>
-  
+	
+    <SlidingDrawer
+	     android:id="@+id/drawer"
+	     android:layout_width="match_parent"
+	     android:layout_height="match_parent"
+	
+	     android:handle="@+id/dist_channel_handle"
+	     android:content="@+id/dist_channel_content">
+	     
+	     <TextView
+	         android:id="@id/dist_channel_handle"
+	         android:layout_width="wrap_content"
+	         android:layout_height="wrap_content" 
+	         android:background="#FF222222"
+	         android:text="channel state"
+	         android:padding="10dip" />
+	         
+		 <ListView android:id="@id/dist_channel_content" 
+	   		android:layout_width="fill_parent"
+		    android:layout_height="fill_parent"
+		    android:background="#FF111111" />
+	
+	</SlidingDrawer>
   
  </RelativeLayout>

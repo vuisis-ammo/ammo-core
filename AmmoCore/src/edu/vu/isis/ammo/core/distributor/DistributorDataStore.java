@@ -357,11 +357,11 @@ public class DistributorDataStore {
 	 * 
 	 */
 	public enum PriorityType {
-		FLASH(128, "FLASH"),
-		URGENT(64, "URGENT"),
-		IMPORTANT(32, "IMPORTANT"),
-		NORMAL(16, "NORMAL"),
-		BACKGROUND(8, "BACKGROUND");
+		FLASH(0x80, "FLASH"),
+		URGENT(0x40, "URGENT"),
+		IMPORTANT(0x20, "IMPORTANT"),
+		NORMAL(0x10, "NORMAL"),
+		BACKGROUND(0x08, "BACKGROUND");
 
 		final public int o;
 		final public String t;
@@ -383,7 +383,22 @@ public class DistributorDataStore {
 		static public PriorityType getInstance(String ordinal) {
 			return PriorityType.values()[Integer.parseInt(ordinal)];
 		}
-	}
+		 static public PriorityType getInstanceById(int o) {
+	    	for (PriorityType candidate : PriorityType.values()) {
+	    		final int lower = candidate.o;
+	    		final int upper = lower << 1;
+	    		if (upper > o && lower >= o) return candidate;
+	    	}
+	    	return null;
+	    }
+		public CharSequence toString(int priorityId) {
+			final StringBuilder sb = new StringBuilder().append(this.o);
+			if (priorityId > this.o) {
+				sb.append("+").append(priorityId-this.o);
+			}
+			return sb.toString();
+		}
+	};
 
 	/** 
 	 * Description: Indicates if the uri indicates a table or whether the data has been preserialized.
@@ -417,7 +432,7 @@ public class DistributorDataStore {
 		static public SeriaizeType getInstance(String ordinal) {
 			return SeriaizeType.values()[Integer.parseInt(ordinal)];
 		}
-	}
+	};
 
 	// ===========================================================
 	// Enumerated types in the tables.
@@ -589,7 +604,7 @@ public class DistributorDataStore {
 		public String cv() {
 			return String.valueOf(this.n);
 		}
-	}
+	};
 
 	/**
 	 * The retrieval table is for holding retrieval requests.

@@ -13,16 +13,6 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 
 	private TextView tvLabel;
 	
-	static protected final String[] fromItemLayout = new String[] {
-		RetrievalTableSchema.PROVIDER.n,
-		// RetrievalTableSchema.PROJECTION ,
-		// RetrievalTableSchema.SELECTION ,
-		// RetrievalTableSchema.ARGS ,
-		// RetrievalTableSchema.ORDER ,
-		// RetrievalTableSchema.EXPIRATION ,
-		// RetrievalTableSchema.CREATED_DATE ,
-		RetrievalTableSchema.CREATED.n };
-	
 	public RetrievalTableViewer() {
 		super(Tables.RETRIEVAL);
 	}
@@ -34,9 +24,7 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 RetrievalTableSchema._ID + " DESC");
 
-		this.adapter = new RetrievalDistributorTableViewAdapter(this,
-				R.layout.dist_table_view_item, cursor, 
-				fromItemLayout, toItemLayout);
+		this.adapter = new RetrievalTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
 		
 		super.onCreate(bun);
 	}

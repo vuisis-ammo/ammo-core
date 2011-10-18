@@ -21,7 +21,6 @@ import android.widget.PopupWindow;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
-import edu.vu.isis.ammo.core.ui.DistributorPopupWindow;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
@@ -38,11 +37,6 @@ implements IAmmoActivitySetup
 	private static final int MENU_GARBAGE = 2;
 	
 	public static final int MENU_CONTEXT_DELETE = 1;
-
-
-	static protected final int[] toItemLayout = new int[] {
-			R.id.distributor_table_view_item_uri,
-			R.id.distributor_table_view_item_timestamp };
 	
 	// ===========================================================
 	// Fields
@@ -135,10 +129,9 @@ implements IAmmoActivitySetup
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
 		super.onListItemClick(l, v, position, id);
-		final LayoutInflater inflater = (LayoutInflater)
-	       this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		final LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		
-	    pw = new DistributorPopupWindow(inflater, position, this.adapter.getCursor(), this.table);
+	    pw = new RequestPopupWindow(this, inflater, position, this.adapter.getCursor(), this.table);
 	    
 	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
@@ -147,6 +140,7 @@ implements IAmmoActivitySetup
 	public void removeMenuItem(MenuItem item) {
 		// Get the row id and uri of the selected item.
 		final AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
+		@SuppressWarnings("unused")
 		int rowId = (int)acmi.id;
 		//int count = getContentResolver().delete(this.uri, SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
 		//Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();

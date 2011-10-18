@@ -5,6 +5,6 @@
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="src" path="AmmoLib_tests"/>
 	<classpathentry kind="src" path="AmmoLib_src"/>
-	<classpathentry kind="lib" path="/usr/share/java/protobuf.jar"/>
+	<classpathentry kind="lib" path="libs/protobuf.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -133,34 +133,38 @@ public class DistributorProvider extends ContentProvider {
 	public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
 		if (this.dds == null) return null;
 		
+		final int uriMatch = uriMatcher.match(uri);
+		if (uriMatch < 0) {
+			logger.error("failed query on distributor provider {} {}", uri, selection);
+			return null;
+		}
 		logger.trace("query on distributor provider {} {}", uri, selection);
-		final Cursor c;
-		switch(Tables.values()[uriMatcher.match(uri)]) {
+		
+		final Cursor cursor;
+		switch(Tables.values()[uriMatch]) {
 		case POSTAL:
-			c = dds.queryPostal(projection, selection, selectionArgs, sortOrder);
+			cursor = dds.queryPostal(projection, selection, selectionArgs, sortOrder);
 			break;
 		case PUBLISH:
-			c = dds.queryPublish(projection, selection, selectionArgs, sortOrder);
+			cursor = dds.queryPublish(projection, selection, selectionArgs, sortOrder);
 			break;
 		case RETRIEVAL:
-			c = dds.queryRetrieval(projection, selection, selectionArgs, sortOrder);
+			cursor = dds.queryRetrieval(projection, selection, selectionArgs, sortOrder);
 			break;
 		case SUBSCRIBE:
-			c = dds.querySubscribe(projection, selection, selectionArgs, sortOrder);
+			cursor = dds.querySubscribe(projection, selection, selectionArgs, sortOrder);
 			break;
 		case DISPOSAL:
-			c = dds.queryDisposal(projection, selection, selectionArgs, sortOrder);
+			cursor = dds.queryDisposal(projection, selection, selectionArgs, sortOrder);
 			break;
 		case CHANNEL:
-			c = dds.queryChannel(projection, selection, selectionArgs, sortOrder);
+			cursor = dds.queryChannel(projection, selection, selectionArgs, sortOrder);
 			break;
 		default:
 			// If we get here, it's a special uri and should be matched differently.
-			
-			c = null;
+			cursor = null;
 		}
-		
-		return c;
+		return cursor;
 	}
 
 	@Override
