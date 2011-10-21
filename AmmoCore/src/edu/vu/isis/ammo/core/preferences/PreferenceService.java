@@ -33,7 +33,7 @@ public class PreferenceService extends Service {
             Log.d("PreferenceService", "::getOperatorId()");
             return PreferenceManager
                  .getDefaultSharedPreferences(PreferenceService.this)
-                 .getString(IPrefKeys.CORE_OPERATOR_ID, "operator3");
+                 .getString(IPrefKeys.CORE_OPERATOR_ID, "transappuser");
         }
         
         @Override

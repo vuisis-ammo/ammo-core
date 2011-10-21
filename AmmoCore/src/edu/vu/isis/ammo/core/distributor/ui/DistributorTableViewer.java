@@ -1,7 +1,5 @@
 package edu.vu.isis.ammo.core.distributor.ui;
 
-import java.util.Calendar;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,25 +9,21 @@ import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.ContextMenu;
+import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ContextMenu.ContextMenuInfo;
+import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ListView;
 import android.widget.PopupWindow;
-import android.widget.Toast;
-import android.widget.AdapterView.AdapterContextMenuInfo;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
-import edu.vu.isis.ammo.core.ui.DistributorPopupWindow;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
- * @author Fred Eisele
- *
  */
 public abstract class DistributorTableViewer extends ListActivity 
 implements IAmmoActivitySetup 
@@ -43,11 +37,7 @@ implements IAmmoActivitySetup
 	private static final int MENU_GARBAGE = 2;
 	
 	public static final int MENU_CONTEXT_DELETE = 1;
-
-
-	static protected final int[] toItemLayout = new int[] {
-			R.id.distributor_table_view_item_uri,
-			R.id.distributor_table_view_item_timestamp };
+	
 	// ===========================================================
 	// Fields
 	// ===========================================================
@@ -62,7 +52,7 @@ implements IAmmoActivitySetup
 	@Override
 	public void onCreate(Bundle bun) {
 		super.onCreate(bun);
-		setContentView(R.layout.distributor_table_viewer);
+		setContentView(R.layout.dist_table_viewer);
 		if (this.uri == null) {
 			logger.error("no uri provided...exiting");
 			return;
@@ -84,7 +74,8 @@ implements IAmmoActivitySetup
 		return true;
 	}
 
-	protected String completeDisp = null;
+	protected String[] completeDisp = null;
+	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		logger.trace("::onOptionsItemSelected");
@@ -96,16 +87,9 @@ implements IAmmoActivitySetup
 			logger.debug("Deleted " + count + "subscriptions");
 			break;
 		case MENU_GARBAGE:
-			// Delete things which are outdated or complete everything.
-			StringBuilder sb = new StringBuilder();
-			sb.append("_id > -1");
-			sb.append(" AND ");
-			sb.append(" expiration < '").append(Calendar.getInstance().getTimeInMillis()).append("'");
-			if (this.completeDisp != null)
-				sb.append(" AND ").append(" disposition IN ").append(this.completeDisp);
-			
-			count = getContentResolver().delete(this.uri, sb.toString(), null);
-			logger.debug("Deleted " + count + "subscriptions");
+			// Delete requests channel dispositions which are in a terminated state.
+			count = getContentResolver().delete(Uri.withAppendedPath(this.uri, "garbage"), null, null);
+			logger.trace("Deleted {} requests",count);
 		}
 		return true;
 	}
@@ -132,29 +116,34 @@ implements IAmmoActivitySetup
 		return true;
 	}
 
+	
 	// ===========================================================
 	// List Management
 	// ===========================================================
+	private final Tables table;
+	public DistributorTableViewer(Tables table) {
+		super();
+		this.table = table;
+	}
+	
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
 		super.onListItemClick(l, v, position, id);
-		LayoutInflater inflater = (LayoutInflater)
-	       this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		final LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		
-	    pw = new DistributorPopupWindow(inflater, position, this.adapter.getCursor());
+	    pw = new RequestPopupWindow(this, inflater, position, this.adapter.getCursor(), this.table);
 	    
 	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
-	  
-	    
 	}
 	
 	public void removeMenuItem(MenuItem item) {
 		// Get the row id and uri of the selected item.
-		AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
+		final AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
+		@SuppressWarnings("unused")
 		int rowId = (int)acmi.id;
-		int count = getContentResolver().delete(this.uri, SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
-		Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();
+		//int count = getContentResolver().delete(this.uri, SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
+		//Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();
 	}
 
 	// ===========================================================

@@ -3,220 +3,174 @@ package edu.vu.isis.ammo.core.provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.ContentUris;
+import android.content.ComponentName;
+import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.Context;
-import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.UriMatcher;
+import android.database.Cursor;
 import android.net.Uri;
-import android.text.TextUtils;
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PostalTableSchemaBase;
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.PublicationTableSchemaBase;
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.RetrievalTableSchemaBase;
-import edu.vu.isis.ammo.core.provider.DistributorSchemaBase.SubscriptionTableSchemaBase;
+import android.os.IBinder;
+import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 
 
-/**
- * Implements and overrides those elements not completed
- * 
- * @author <yourself>
- *    
- */
-public class DistributorProvider extends DistributorProviderBase {
 
-   protected class DistributorDatabaseHelper extends DistributorProviderBase.DistributorDatabaseHelper {
-      protected DistributorDatabaseHelper(Context context) { super(context); }
+public class DistributorProvider extends ContentProvider {
+	// =================================
+	// Constants
+	// =================================
+	
+	private static final UriMatcher uriMatcher;
+	private static final UriMatcher garbageMatcher;
+	   static {
+		   uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
+		   garbageMatcher = new UriMatcher(UriMatcher.NO_MATCH);
+		   for (final Tables table : Tables.values()) {
+			   uriMatcher.addURI(DistributorSchema.AUTHORITY, table.n, table.ordinal());
+			   garbageMatcher.addURI(DistributorSchema.AUTHORITY, table.n+"/garbage", table.ordinal());
+		   }
+	   }
+	
+	// =================================
+	// Fields
+	// =================================
+	Logger logger = LoggerFactory.getLogger(PreferenceProvider.class);
 
-   
-    @Override
-        protected void preloadTables(SQLiteDatabase db) {
-//              db.execSQL("INSERT INTO \"" + Tables.DELIVERY_MECHANISM_TBL + "\" ("
-//                      + DeliveryMechanismTableSchema.CONN_TYPE + ") "
-//                      + "VALUES ('" + DeliveryMechanismTableSchema.CONN_TYPE_CELLULAR + "');");
-//              db.execSQL("INSERT INTO \"" + Tables.DELIVERY_MECHANISM_TBL + "\" ("
-//                      + DeliveryMechanismTableSchema.CONN_TYPE + ") "
-//                      + "VALUES ('" + DeliveryMechanismTableSchema.CONN_TYPE_WIFI + "');");
-//              db.execSQL("INSERT INTO \"" + Tables.DELIVERY_MECHANISM_TBL + "\" ("
-//                      + DeliveryMechanismTableSchema.CONN_TYPE + ") "
-//                      + "VALUES ('" + DeliveryMechanismTableSchema.CONN_TYPE_USB + "');");
-           }
-    }
-    
-    private final Logger logger = LoggerFactory.getLogger(DistributorProvider.class);
-   
-   // ===========================================================
-   // Content Provider Overrides
-   // ===========================================================
+	// =================================
+	// setup
+	// =================================
 
-   @Override
-   public boolean onCreate() {
-       super.onCreate();
-       return true;
-   }
+	private DistributorDataStore dds;
+	private static final Intent AMMO_SERVICE;
+	static {
+		AMMO_SERVICE = new Intent();
+		final ComponentName serviceComponent = 
+				new ComponentName(AmmoService.class.getPackage().getName(), 
+						AmmoService.class.getCanonicalName());
+		AMMO_SERVICE.setComponent(serviceComponent);
+	}
+	
+	@Override
+	public boolean onCreate() {
+		this.dds = null;
+		final ServiceConnection conn = new ServiceConnection() {
+            final DistributorProvider parent = DistributorProvider.this;
+            
+			@Override
+			public void onServiceConnected(ComponentName name, IBinder binder) {
+				
+				 final AmmoService.DistributorServiceAidl proxy = (AmmoService.DistributorServiceAidl) binder;
+		         final AmmoService service = proxy.getService();
 
-   @Override
-   protected boolean createDatabaseHelper() {
-      openHelper = new DistributorDatabaseHelper(getContext());
-      return false;
-   }
-   
-
-  @Override
-  public Uri insert(Uri uri, ContentValues initialValues) {
-     String insertTable = "";
-     String nullColumnHack = "";
-     Uri tableUri = null;
-     logger.info("insert: " + uri.toString() );
-
-     ContentValues values = (initialValues != null) 
-        ? new ContentValues(initialValues)
-        : new ContentValues();
-     
-     /** Validate the requested uri and do default initialization. */
-     switch (uriMatcher.match(uri)) {
-           case POSTAL_SET:
-              values = this.initializePostalDefaults(values);
-              insertTable = Tables.POSTAL_TBL;
-              nullColumnHack = PostalTableSchemaBase.CP_TYPE;
-              tableUri = PostalTableSchemaBase.CONTENT_URI;
-              break;
-           
-           case RETRIEVAL_SET:
-              values = this.initializeRetrievalDefaults(values);
-              insertTable = Tables.RETRIEVAL_TBL;
-              nullColumnHack = RetrievalTableSchemaBase.DISPOSITION;
-              tableUri = RetrievalTableSchemaBase.CONTENT_URI;
-              break;
-           
-           case PUBLICATION_SET:
-              values = this.initializePublicationDefaults(values);
-              insertTable = Tables.PUBLICATION_TBL;
-              nullColumnHack = PublicationTableSchemaBase.DISPOSITION;
-              tableUri = PublicationTableSchemaBase.CONTENT_URI;
-              break;
-           
-           case SUBSCRIPTION_SET:
-              values = this.initializeSubscriptionDefaults(values);
-              insertTable = Tables.SUBSCRIPTION_TBL;
-              nullColumnHack = SubscriptionTableSchemaBase.DISPOSITION;
-              tableUri = SubscriptionTableSchemaBase.CONTENT_URI;
-              break;
-           
-        
-     default:
-        throw new IllegalArgumentException("Unknown URI " + uri);
-     }
-     
-     SQLiteDatabase db = openHelper.getWritableDatabase();
-
-     long rowID = db.insert(insertTable, nullColumnHack, values);
-     if (rowID < 1) {
-        throw new SQLException("Failed to insert row into " + uri);
-     }
-     Uri playerURI = ContentUris.withAppendedId(tableUri, rowID);
-
-     //getContext().getContentResolver().notifyChange(uri, null);
- // TBD SKN - notify change on a row URI, this would still satisfy the broad observers
- // by setting their notifyForDescendant to true, and would prevent row observers from
- // getting unnecessary events
-
-     getContext().getContentResolver().notifyChange(playerURI, null);
-     return playerURI;
-  }
+		         parent.dds = service.store();
+			}
+			@Override
+			public void onServiceDisconnected(ComponentName name) {
+				return;
+			}
+		};
+		this.getContext().bindService(AMMO_SERVICE, conn, Context.BIND_AUTO_CREATE);
+		return true;
+	}
 
 
-  @Override
-  public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
-     SQLiteDatabase db = openHelper.getWritableDatabase();
-     final Uri notifyUri = uri;
-     final int count;
-     logger.debug("update: " + uri.toString() );
+	@Override
+	public String getType(Uri uri) {
+		return null;
+	}
 
-     switch (uriMatcher.match(uri)) {
-           case POSTAL_SET:
-              logger.debug("POSTAL_SET");
-              count = db.update(Tables.POSTAL_TBL, values, selection,
-                    selectionArgs);
-              break;
 
-           case POSTAL_ID:
-              logger.debug("POSTAL_ID");
-              //  notify on the base URI - without the ID ?
-              // notifyUri = PostalTableSchemaBase.CONTENT_URI;    --- TBD SKN MOD
-              String postalID = uri.getPathSegments().get(1);
-              count = db.update(Tables.POSTAL_TBL, values, PostalTableSchemaBase._ID
-                    + "="
-                    + postalID
-                    + (TextUtils.isEmpty(selection) ? "" 
-                                 : (" AND (" + selection + ')')),
-                    selectionArgs);
-              break;
-           
-           case RETRIEVAL_SET:
-              logger.debug("RETRIEVAL_SET");
-              count = db.update(Tables.RETRIEVAL_TBL, values, selection,
-                    selectionArgs);
-              break;
+	// =================================
+	// Content Provider Overrides
+	// =================================
 
-           case RETRIEVAL_ID:
-              logger.debug("RETRIEVAL_ID");
-              //  notify on the base URI - without the ID ?
-              // notifyUri = RetrievalTableSchemaBase.CONTENT_URI; 
-              String retrievalID = uri.getPathSegments().get(1);
-              count = db.update(Tables.RETRIEVAL_TBL, values, RetrievalTableSchemaBase._ID
-                    + "="
-                    + retrievalID
-                    + (TextUtils.isEmpty(selection) ? "" 
-                                 : (" AND (" + selection + ')')),
-                    selectionArgs);
-              break;
-           
-           case PUBLICATION_SET:
-              logger.debug("PUBLICATION_SET");
-              count = db.update(Tables.PUBLICATION_TBL, values, selection,
-                    selectionArgs);
-              break;
+	@Override
+	public int delete(Uri uri, String selection, String[] selectionArgs) {
+		if (this.dds == null) return -1;
+		logger.trace("delete on distributor provider {} {}", uri, selection);
+		
+		switch(Tables.values()[uriMatcher.match(uri)]) {
+		case POSTAL:
+			return dds.deletePostal(selection, selectionArgs);
+		case PUBLISH:
+			return dds.deletePublish(selection, selectionArgs);
+		case RETRIEVAL:
+			return dds.deleteRetrieval(selection, selectionArgs);
+		case SUBSCRIBE:
+			return dds.deleteSubscribe(selection, selectionArgs);
+		case DISPOSAL:
+		case CHANNEL:
+			return -1;
+		}
+		
+		switch(Tables.values()[garbageMatcher.match(uri)]) {
+		case POSTAL:
+			return dds.deletePostalGarbage();
+		case PUBLISH:
+			return dds.deletePublishGarbage();
+		case RETRIEVAL:
+			return dds.deleteRetrievalGarbage();
+		case SUBSCRIBE:
+			return dds.deleteSubscribeGarbage();
+		case DISPOSAL:
+		case CHANNEL:
+			return -1;
+		}
+		return -1;	
+	}
 
-           case PUBLICATION_ID:
-              logger.debug("PUBLICATION_ID");
-              //  notify on the base URI - without the ID ?
-              // notifyUri = PublicationTableSchemaBase.CONTENT_URI; 
-              String publicationID = uri.getPathSegments().get(1);
-              count = db.update(Tables.PUBLICATION_TBL, values, PublicationTableSchemaBase._ID
-                    + "="
-                    + publicationID
-                    + (TextUtils.isEmpty(selection) ? "" 
-                                 : (" AND (" + selection + ')')),
-                    selectionArgs);
-              break;
-           
-           case SUBSCRIPTION_SET:
-              logger.debug("SUBSCRIPTION_SET");
-              count = db.update(Tables.SUBSCRIPTION_TBL, values, selection,
-                    selectionArgs);
-              break;
+	@Override
+	public Uri insert(Uri uri, ContentValues values) {
+		logger.warn("no inserts allowed on distributor provider {} {}", uri, values);
+		return null;
+	}
 
-           case SUBSCRIPTION_ID:
-              logger.debug("SUBSCRIPTION_ID");
-              //  notify on the base URI - without the ID ?
-              // notifyUri = SubscriptionTableSchemaBase.CONTENT_URI; 
-              String subscriptionID = uri.getPathSegments().get(1);
-              count = db.update(Tables.SUBSCRIPTION_TBL, values, SubscriptionTableSchemaBase._ID
-                    + "="
-                    + subscriptionID
-                    + (TextUtils.isEmpty(selection) ? "" 
-                                 : (" AND (" + selection + ')')),
-                    selectionArgs);
-              break;
-           
-        
-     default:
-        throw new IllegalArgumentException("Unknown URI " + uri);
-     }
+	@Override
+	public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
+		if (this.dds == null) return null;
+		
+		final int uriMatch = uriMatcher.match(uri);
+		if (uriMatch < 0) {
+			logger.error("failed query on distributor provider {} {}", uri, selection);
+			return null;
+		}
+		logger.trace("query on distributor provider {} {}", uri, selection);
+		
+		final Cursor cursor;
+		switch(Tables.values()[uriMatch]) {
+		case POSTAL:
+			cursor = dds.queryPostal(projection, selection, selectionArgs, sortOrder);
+			break;
+		case PUBLISH:
+			cursor = dds.queryPublish(projection, selection, selectionArgs, sortOrder);
+			break;
+		case RETRIEVAL:
+			cursor = dds.queryRetrieval(projection, selection, selectionArgs, sortOrder);
+			break;
+		case SUBSCRIBE:
+			cursor = dds.querySubscribe(projection, selection, selectionArgs, sortOrder);
+			break;
+		case DISPOSAL:
+			cursor = dds.queryDisposal(projection, selection, selectionArgs, sortOrder);
+			break;
+		case CHANNEL:
+			cursor = dds.queryChannel(projection, selection, selectionArgs, sortOrder);
+			break;
+		default:
+			// If we get here, it's a special uri and should be matched differently.
+			cursor = null;
+		}
+		return cursor;
+	}
 
-     if (count > 0) 
-    	 getContext().getContentResolver().notifyChange(notifyUri, null);
-     return count;   
-  }
-
+	@Override
+	public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+		logger.warn("no updates allowed on distributor provider {} {}", uri, values);
+		return 0;
+	}
+	
 }

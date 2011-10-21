@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	  android:layout_width="fill_parent"
+	  android:layout_height="fill_parent"
+	  android:background="@drawable/distributor_detail_view_border" >
+	  
+  <ScrollView android:id="@+id/dist_detail"
+	  android:layout_width="fill_parent"
+	  android:layout_height="fill_parent"
+	  android:scrollbars="vertical" >
+	  
+	  <RelativeLayout android:id="@+id/dist_detail_main"
+		  android:layout_width="fill_parent" 
+		  android:layout_height="fill_parent">
+	  
+	  	<Button android:id="@+id/dist_detail_close_button"
+			android:layout_width="40dip"
+			android:layout_height="40dip"
+			android:layout_alignParentRight="true"
+			android:layout_alignParentTop="true"
+			android:onClick="closePopup"
+			android:text="@string/title_close" />
+			
+	    <TableLayout android:id="@+id/dist_detail_params"
+		    android:layout_width="fill_parent"
+		    android:layout_height="fill_parent"
+		    android:stretchColumns="1">
+	
+		    <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="topic"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_topic"
+		            android:hint="ammo/edu.vu.isis.ammo.*"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="provider"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_provider"
+		            android:hint="content://edu.vu.isis.ammo/sample"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		        <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="payload"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_payload"
+		            android:hint="&lt;payload&gt;"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="projection"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_projection"
+		            android:hint="&lt;columns projected&gt;"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="select"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_selection"
+		            android:hint="&lt;rows selected&gt;"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="args"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_select_args"
+		            android:hint="&lt;rows selected&gt;"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="expiration"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_expiration"
+		            android:hint="2011 Jan 15"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		  <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="modified"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_modified"
+		            android:hint="2011 Jan 15"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		    <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="created"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_created"
+		            android:hint="2011 Jan 15"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		    <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="priority"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_priority"
+		            android:hint="normal"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		    <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="disposition"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_disposal"
+		            android:hint="normal"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="notice"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_notice"
+		            android:hint="normal"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:layout_column="1"
+		            android:text="identity"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_identity"
+		            android:hint="2"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+	   </TableLayout>
+	 
+	  </RelativeLayout>
+	</ScrollView>
+	
+    <SlidingDrawer
+	     android:id="@+id/drawer"
+	     android:layout_width="match_parent"
+	     android:layout_height="match_parent"
+	
+	     android:handle="@+id/dist_channel_handle"
+	     android:content="@+id/dist_channel_content">
+	     
+	     <TextView
+	         android:id="@id/dist_channel_handle"
+	         android:layout_width="wrap_content"
+	         android:layout_height="wrap_content" 
+	         android:background="#FF222222"
+	         android:text="channel state"
+	         android:padding="10dip" />
+	         
+		 <ListView android:id="@id/dist_channel_content" 
+	   		android:layout_width="fill_parent"
+		    android:layout_height="fill_parent"
+		    android:background="#FF111111" />
+	
+	</SlidingDrawer>
+  
+ </RelativeLayout>

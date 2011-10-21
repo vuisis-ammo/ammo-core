@@ -30,6 +30,7 @@ import android.widget.TabHost;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 import edu.vu.isis.ammo.api.AmmoIntents;
+import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Channel;
@@ -37,12 +38,11 @@ import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetworkService;
-import edu.vu.isis.ammo.core.network.NetworkService;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 /**
- * The principle activity for the ammo core application.
+ * The principle activity for ammo core.
  * Provides a means for...
  * ...changing the user preferences.
  * ...checking delivery status of various messages.
@@ -57,6 +57,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     private static final int CONFIG_MENU = Menu.NONE + 1;
     private static final int DEBUG_MENU = Menu.NONE + 2;
     private static final int ABOUT_MENU = Menu.NONE + 3;
+    private static final int RESET_MENU = Menu.NONE + 4;
 
     // ===========================================================
     // Fields
@@ -84,20 +85,18 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     private INetworkService networkServiceBinder;
 
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
+    	final private AmmoActivity parent = AmmoActivity.this;
+    	
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.info("::onServiceConnected - Network Service");
-            networkServiceBinder = ((NetworkService.MyBinder) service).getService();
+            final AmmoService.DistributorServiceAidl binder = (AmmoService.DistributorServiceAidl) service;
+            parent.networkServiceBinder = binder.getService();
             initializeGatewayAdapter();
             initializeNetlinkAdapter();
         }
-
         public void onServiceDisconnected(ComponentName name) {
             logger.info("::onServiceDisconnected - Network Service");
-            networkServiceBinder = null;
-            // FIXME: what to do here if the NS goes away?
-            // Change the model for the adapters to an empty list.
-            // This situation should probably never happen, but we should
-            // handle it properly anyway.
+            parent.networkServiceBinder = null;
         }
     };
 
@@ -140,7 +139,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         this.setContentView(R.layout.ammo_activity);
 
         // Get a reference to the NetworkService.
-        Intent networkServiceIntent = new Intent(this, NetworkService.class);
+        Intent networkServiceIntent = new Intent(this, AmmoService.class);
         boolean result = bindService( networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE );
         if ( !result )
             logger.error( "AmmoActivity failed to bind to the NetworkService!" );
@@ -165,7 +164,16 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         spec.setIndicator("Link Status", res.getDrawable(R.drawable.netlink_32));
         spec.setContent(R.id.netlink_layout);
         getTabHost().addTab(spec);
-
+        
+        /* 
+         * Commented out for NTCNIE branch
+         * 
+        spec = tabHost.newTabSpec("message_queue");
+        spec.setIndicator("Message Queue", res.getDrawable(R.drawable.mailbox_icon));
+        spec.setContent(new Intent("edu.vu.isis.ammo.core.ui.MessageQueueActivity.LAUNCH"));
+        getTabHost().addTab(spec);
+        */
+        
         intent = new Intent().setClass(this, CorePreferenceActivity.class);
         /*
         spec = tabHost.newTabSpec("settings");
@@ -248,6 +256,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         menu.add(Menu.NONE, CONFIG_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
         menu.add(Menu.NONE, DEBUG_MENU, Menu.NONE, getResources().getString((!this.netlinkAdvancedView)?(R.string.debug_label):(R.string.user_label)));
         menu.add(Menu.NONE, ABOUT_MENU, Menu.NONE, getResources().getString(R.string.about_label));
+        menu.add(Menu.NONE, RESET_MENU, Menu.NONE, "Hard Reset");
 
         //ANDROID3.0
         //Store the reference to the menu so we can use it in the toggle
@@ -268,24 +277,33 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     public boolean onOptionsItemSelected(MenuItem item) {
         logger.trace("::onOptionsItemSelected");
         Intent intent = new Intent();
+        boolean returnValue = true;
         switch (item.getItemId()) {
         case DEBUG_MENU:
             toggleMode();
-            return true;
+            break;
         case VIEW_TABLES_MENU:
             intent.setClass(this, DistributorTabActivity.class);
             this.startActivity(intent);
-            return true;
+            break;
         case CONFIG_MENU:
             intent.setClass(this, GeneralPreferences.class);
             this.startActivity(intent);
-            return true;
+            break;
         case ABOUT_MENU:
             intent.setClass(this, AboutActivity.class);
             this.startActivity(intent);
-                return true;
+            break;
+        case RESET_MENU:
+        	intent.setAction("edu.vu.isis.ammo.AMMO_HARD_RESET");
+        	intent.setClass(this, AmmoService.class);
+        	this.startService(intent);
+        	break;
+        default:
+        		returnValue = false;
         }
-        return false;
+        
+        return returnValue;
     }
 
     @Override

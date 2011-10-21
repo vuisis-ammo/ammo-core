@@ -23,7 +23,7 @@ public class DistributorTabActivity extends TabActivityEx  {
 		public void onCreate(Bundle savedInstanceState) {
 			super.onCreate(savedInstanceState);
 			logger.trace("::onCreate");
-			this.setContentView(R.layout.distributor_list_activity);
+			this.setContentView(R.layout.dist_list_activity);
 			
 			Intent intent = new Intent();
 			

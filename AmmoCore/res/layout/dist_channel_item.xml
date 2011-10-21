@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+This layout is used to show the current channel
+disposal states for an ammo request
+-->
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:orientation="horizontal"
+  android:layout_width="fill_parent"
+  android:layout_height="wrap_content" 
+  android:padding="15px" >
+            	
+  <TextView android:id="@+id/dist_channel_name"
+  		android:layout_width="wrap_content"
+  		android:layout_height="wrap_content"
+  		android:padding="5px"
+  		android:textSize="18px"
+  		android:textColor="#FFF" />
+  		  
+  <TextView android:id="@+id/dist_channel_state"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:padding="5px"
+		android:textSize="18px"
+		android:textColor="#FFF" />
+  		
+</LinearLayout>

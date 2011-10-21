@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="AmmoCore" default="help">
 
-    <property name="external.libs.dir" value="mylibs/"/>
+    <property name="jdk.libs.dir" value="mylibs/"/>
 
 <!-- The local.properties file is created and updated by the 'android'
      tool.
@@ -50,7 +50,26 @@
 <!-- extension targets. Uncomment the ones where you want to do custom work
      in between standard targets -->
 
-    <target name="-pre-build" depends="protobuf,-ndk-build"/>
+
+    <target name="-pre-build" >
+        <echo>configure ammo core libraries for ${basedir}.</echo>
+        <!-- configure protobuf -->
+        <mkdir dir="libs"/>
+        <symlink taskname="add-lib" action="single" overwrite="true" 
+              link="${basedir}/libs/protobuf.jar" 
+              resource="/usr/share/java/protobuf.jar"/>
+        <fail message="Files are missing.">
+           <condition>
+               <not>
+                   <resourcecount count="1">
+                       <fileset id="fs" dir="libs" includes="protobuf.jar"/>
+                   </resourcecount>
+               </not>
+           </condition>
+        </fail>
+    </target>
+
+    <target name="-pre-compile" depends="protobuf,-ndk-build"/>
 
     <target name="-ndk-build">
         <echo>Building ethertracker library</echo>
@@ -87,7 +106,6 @@
         <move file="${out.dir}/${ant.project.name}-release.apk"
               tofile="${out.dir}/${ant.project.name}-${version}.apk" />
     </target>
-
 
 <!--
     <target name="-pre-build">
