@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	  android:layout_width="fill_parent"
 	  android:layout_height="fill_parent"
+	  android:orientation="vertical"
 	  android:background="@drawable/distributor_detail_view_border" >
 	  
   <ScrollView android:id="@+id/dist_detail"
 	  android:layout_width="fill_parent"
-	  android:layout_height="fill_parent"
+	  android:layout_height="wrap_content"
+	  android:layout_weight=".5"
 	  android:scrollbars="vertical" >
 	   <LinearLayout 
 		  android:layout_width="fill_parent" 
@@ -202,8 +204,7 @@
 	   </TableLayout>
 	  </LinearLayout>
 	</ScrollView>
-<!-- 
-      <SlidingDrawer
+      <!-- <SlidingDrawer
 	     android:id="@+id/drawer"
 	     android:layout_width="match_parent"
 	     android:layout_height="match_parent"
@@ -217,13 +218,37 @@
 	         android:layout_height="wrap_content" 
 	         android:background="#FF222222"
 	         android:text="channel state"
-	         android:padding="10dip" />
-	         
-		 <ListView android:id="@id/dist_channel_content" 
-	   		android:layout_width="fill_parent"
-		    android:layout_height="fill_parent"
-		    android:background="#FF111111" />
+	         android:padding="10dip" /> -->
+	         <View
+        android:layout_width="fill_parent"
+        android:layout_height="4px"
+        android:layout_marginBottom="2dp"
+        android:layout_marginTop="2dp"
+        android:background="#FFFFFF" />
+
+    <TextView
+        android:id="@+id/dist_channel_handle"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="#FF222222"
+        android:padding="10dip"
+        android:text="Channel State"
+        android:textSize="18dp"
+        android:textColor="#FFFFFF" />
+
+    <View
+        android:layout_width="fill_parent"
+        android:layout_height="2px"
+        android:layout_marginBottom="2dp"
+        android:layout_marginTop="2dp"
+        android:background="#FFFFFF" />
+
+    <ListView
+        android:id="@+id/dist_channel_content"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight=".5"
+        android:background="#FF111111" />
 	
-	</SlidingDrawer>
-   -->
- </RelativeLayout>
+	<!-- </SlidingDrawer> -->
+ </LinearLayout>

@@ -173,10 +173,10 @@ public class RequestPopupWindow extends PopupWindow {
 				CHANNEL_SELECTION, new String[]{ String.valueOf(table.o), String.valueOf(id) }, 
 				null);
 
-		//final ListView list = ((ListView)this.getContentView().findViewById(R.id.dist_channel_content));
+		final ListView list = ((ListView)this.getContentView().findViewById(R.id.dist_channel_content));
 		final CursorAdapter channelDetailAdaptor = new DisposalTableAdapter(activity, 
 				R.layout.dist_channel_item, channelCursor); 
-		//list.setAdapter(channelDetailAdaptor);
+		list.setAdapter(channelDetailAdaptor);
 
 	}
 	static final private String CHANNEL_SELECTION = new StringBuilder()

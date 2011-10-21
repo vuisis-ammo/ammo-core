@@ -134,10 +134,8 @@ implements IAmmoActivitySetup
 		
 		// Get the display dimensions and use them for figuring out the dimensions of our popover.
 		Display display = getWindowManager().getDefaultDisplay();
-		int popoverWidth = (int) (display.getWidth()*0.8);
-		int popoverHeight = (int) (display.getHeight()*0.5);
-		
-		
+		int popoverWidth = (int) (display.getWidth()*0.9);
+		int popoverHeight = (int) (display.getHeight()*0.75);
 		
 	    pw = new RequestPopupWindow(this, inflater, popoverWidth, popoverHeight, position, this.adapter.getCursor(), this.table);
 	    pw.setBackgroundDrawable(new BitmapDrawable());
