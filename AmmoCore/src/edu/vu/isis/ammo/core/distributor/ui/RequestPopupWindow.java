@@ -69,7 +69,8 @@ public class RequestPopupWindow extends PopupWindow {
 		subscribeMap = new HashMap<String, FieldProperty>();
 		subscribeMap.put(SubscribeTableSchema.PROVIDER.n, new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
 		subscribeMap.put(SubscribeTableSchema.TOPIC.n, new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
-		subscribeMap.put(SubscribeTableSchema.SELECTION.n, new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
+		subscribeMap.put(SubscribeTableSchema.SELECTION.n, new FieldProperty(R.id.
+				dist_detail_selection, FieldType.TEXT));
 		subscribeMap.put(SubscribeTableSchema.MODIFIED.n, new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
 		subscribeMap.put(SubscribeTableSchema.CREATED.n, new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
 		subscribeMap.put(SubscribeTableSchema.PRIORITY.n, new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
@@ -100,10 +101,10 @@ public class RequestPopupWindow extends PopupWindow {
 		return false;
 	}
 
-	public RequestPopupWindow(final Activity activity, final LayoutInflater inflater, int position, 
+	public RequestPopupWindow(final Activity activity, final LayoutInflater inflater, final int popupWidth, final int popupHeight, int position, 
 			final Cursor requestCursor, Tables table)
 	{
-		super(inflater.inflate(R.layout.dist_table_item_detail_view, null, false),600,400,true);
+		super(inflater.inflate(R.layout.dist_table_item_detail_view, null, false),popupWidth,popupHeight,true);
 		requestCursor.moveToFirst();
 		requestCursor.move(position);
 		logger.trace("popup window {}", Arrays.asList(requestCursor.getColumnNames()) );
@@ -172,10 +173,10 @@ public class RequestPopupWindow extends PopupWindow {
 				CHANNEL_SELECTION, new String[]{ String.valueOf(table.o), String.valueOf(id) }, 
 				null);
 
-		final ListView list = ((ListView)this.getContentView().findViewById(R.id.dist_channel_content));
+		//final ListView list = ((ListView)this.getContentView().findViewById(R.id.dist_channel_content));
 		final CursorAdapter channelDetailAdaptor = new DisposalTableAdapter(activity, 
 				R.layout.dist_channel_item, channelCursor); 
-		list.setAdapter(channelDetailAdaptor);
+		//list.setAdapter(channelDetailAdaptor);
 
 	}
 	static final private String CHANNEL_SELECTION = new StringBuilder()
