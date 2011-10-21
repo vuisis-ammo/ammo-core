@@ -40,16 +40,4 @@
 		<nature>com.android.ide.eclipse.adt.AndroidNature</nature>
 		<nature>org.eclipse.jdt.core.javanature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>AmmoLib_src</name>
-			<type>2</type>
-			<locationURI>_android_AmmoLib_2ea8e8b7/src</locationURI>
-		</link>
-		<link>
-			<name>AmmoLib_tests</name>
-			<type>2</type>
-			<locationURI>_android_AmmoLib_2ea8e8b7/tests</locationURI>
-		</link>
-	</linkedResources>
 </projectDescription>
