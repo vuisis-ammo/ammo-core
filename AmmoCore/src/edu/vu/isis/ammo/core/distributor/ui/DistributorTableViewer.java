@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -131,8 +132,12 @@ implements IAmmoActivitySetup
 		super.onListItemClick(l, v, position, id);
 		final LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		
-	    pw = new RequestPopupWindow(this, inflater, position, this.adapter.getCursor(), this.table);
-	    
+		// Get the display dimensions and use them for figuring out the dimensions of our popover.
+		Display display = getWindowManager().getDefaultDisplay();
+		int popoverWidth = (int) (display.getWidth()*0.9);
+		int popoverHeight = (int) (display.getHeight()*0.75);
+		
+	    pw = new RequestPopupWindow(this, inflater, popoverWidth, popoverHeight, position, this.adapter.getCursor(), this.table);
 	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
 	}

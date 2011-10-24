@@ -1,136 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
-  xmlns:android="http://schemas.android.com/apk/res/android"
-  android:layout_width="fill_parent"
-  android:layout_height="fill_parent"
-  android:background="@drawable/distributor_detail_view_border"
-  >
-  <ScrollView android:layout_width="fill_parent"
-  android:layout_height="fill_parent"
-  android:scrollbars="vertical"
-  >
-  <RelativeLayout
-  xmlns:android="http://schemas.android.com/apk/res/android"
-  android:layout_width="fill_parent"
-  android:layout_height="fill_parent"
-  
-  >
-    <Button android:layout_width="40px"
-  android:layout_height="40px"
-  android:layout_alignParentRight="true"
-  android:layout_alignParentTop="true"
-  android:onClick="closePopup"
-  android:text="X"
-  />
-      <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text0"
-  />
-  
-  <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text1"
-    android:layout_below="@id/distributor_detail_view_text0"
-  />
-  
-  <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text2"
-  android:layout_below="@id/distributor_detail_view_text1"
-  />
-  <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text3"
-  android:layout_below="@id/distributor_detail_view_text2"
-  />
-  <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text4"
-  android:layout_below="@id/distributor_detail_view_text3"
-  />
-  <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text5"
-  android:layout_below="@id/distributor_detail_view_text4"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text6"
-  android:layout_below="@id/distributor_detail_view_text5"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text7"
-  android:layout_below="@id/distributor_detail_view_text6"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text8"
-  android:layout_below="@id/distributor_detail_view_text7"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_text9"
-  android:layout_below="@id/distributor_detail_view_text8"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_textA"
-  android:layout_below="@id/distributor_detail_view_text9"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_textB"
-  android:layout_below="@id/distributor_detail_view_textA"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_textC"
-  android:layout_below="@id/distributor_detail_view_textB"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_textD"
-  android:layout_below="@id/distributor_detail_view_textC"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_textE"
-  android:layout_below="@id/distributor_detail_view_textD"
-  />
-  
-    <TextView android:layout_height="wrap_content"
-  android:layout_width="wrap_content"
-  android:text=""
-  android:id="@+id/distributor_detail_view_textF"
-  android:layout_below="@id/distributor_detail_view_textE"
-  />
-  </RelativeLayout>
-</ScrollView>
-  
-  
- </RelativeLayout>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="fill_parent" android:layout_height="fill_parent"
+	android:background="@drawable/distributor_detail_view_border">
+	<ScrollView android:layout_width="fill_parent"
+		android:layout_height="fill_parent" android:scrollbars="vertical">
+		<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+			android:layout_width="fill_parent" android:layout_height="fill_parent">
+			<Button android:layout_width="40px" android:layout_height="40px"
+				android:layout_alignParentRight="true"
+				android:layout_alignParentTop="true" android:onClick="closePopup"
+				android:text="X" />
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text0" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text1"
+				android:layout_below="@id/distributor_detail_view_text0" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text2"
+				android:layout_below="@id/distributor_detail_view_text1" />
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text3"
+				android:layout_below="@id/distributor_detail_view_text2" />
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text4"
+				android:layout_below="@id/distributor_detail_view_text3" />
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text5"
+				android:layout_below="@id/distributor_detail_view_text4" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text6"
+				android:layout_below="@id/distributor_detail_view_text5" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text7"
+				android:layout_below="@id/distributor_detail_view_text6" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text8"
+				android:layout_below="@id/distributor_detail_view_text7" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_text9"
+				android:layout_below="@id/distributor_detail_view_text8" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_textA"
+				android:layout_below="@id/distributor_detail_view_text9" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_textB"
+				android:layout_below="@id/distributor_detail_view_textA" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_textC"
+				android:layout_below="@id/distributor_detail_view_textB" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_textD"
+				android:layout_below="@id/distributor_detail_view_textC" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_textE"
+				android:layout_below="@id/distributor_detail_view_textD" />
+
+			<TextView android:layout_height="wrap_content"
+				android:layout_width="wrap_content" android:text=""
+				android:id="@+id/distributor_detail_view_textF"
+				android:layout_below="@id/distributor_detail_view_textE" />
+		</RelativeLayout>
+	</ScrollView>
+
+
+</RelativeLayout>
