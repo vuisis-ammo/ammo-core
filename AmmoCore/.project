@@ -11,18 +11,18 @@
 			</arguments>
 		</buildCommand>
 		<buildCommand>
+			<name>com.android.ide.eclipse.adt.PreCompilerBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
 			<name>org.eclipse.ui.externaltools.ExternalToolBuilder</name>
 			<triggers>full,incremental,</triggers>
 			<arguments>
 				<dictionary>
 					<key>LaunchConfigHandle</key>
-					<value>&lt;project&gt;/.externalToolBuilders/Protobuf.launch</value>
+					<value>&lt;project&gt;/.externalToolBuilders/AmmoProtobufBuilder.launch</value>
 				</dictionary>
-			</arguments>
-		</buildCommand>
-		<buildCommand>
-			<name>com.android.ide.eclipse.adt.PreCompilerBuilder</name>
-			<arguments>
 			</arguments>
 		</buildCommand>
 		<buildCommand>
@@ -40,4 +40,16 @@
 		<nature>com.android.ide.eclipse.adt.AndroidNature</nature>
 		<nature>org.eclipse.jdt.core.javanature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>AmmoLib_src</name>
+			<type>2</type>
+			<locationURI>_android_AmmoLib_2ea8e8b7/src</locationURI>
+		</link>
+		<link>
+			<name>AmmoLib_tests</name>
+			<type>2</type>
+			<locationURI>_android_AmmoLib_2ea8e8b7/tests</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>
