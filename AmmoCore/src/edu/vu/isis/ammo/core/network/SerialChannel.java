@@ -413,7 +413,7 @@ public class SerialChannel extends NetChannel
         // Called by the sender and receiver when they have an exception on the
         // socket.  We only want to call reset() once, so we use an
         // AtomicBoolean to keep track of whether we need to call it.
-        public void socketOperationFailed()
+        public void portOperationFailed()
         {
             if ( mIsConnected.compareAndSet( true, false ))
                 state.reset();
@@ -553,7 +553,7 @@ public class SerialChannel extends NetChannel
                         break;
                     case NetChannel.STALE:
                         disconnect();
-                        this.state.set(NetChannel.LINK_WAIT);
+                        this.state.set(NetChannel.DISCONNECTED); // skip over LINK_WAIT
                         break;
 
                     case NetChannel.LINK_WAIT:
@@ -1026,9 +1026,11 @@ public class SerialChannel extends NetChannel
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, false );
                     setSenderState( INetChannel.INTERRUPTED );
-                    mParent.socketOperationFailed();
+                    mParent.portOperationFailed();
                 }
             }
+
+            logger.info( "SenderThread <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
@@ -1071,7 +1073,7 @@ public class SerialChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
+            logger.info( "ReceiverThread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the SerialPort until we get some data.
             // If we get an error, notify our parent and go into an error state.
@@ -1206,12 +1208,14 @@ public class SerialChannel extends NetChannel
             } catch ( IOException ex ) {
                 logger.warn( "receiver threw an IOException {}", ex.getStackTrace() );
                 setReceiverState( INetChannel.INTERRUPTED );
-                mParent.socketOperationFailed();
+                mParent.portOperationFailed();
             } catch ( Exception ex ) {
                 logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
                 setReceiverState( INetChannel.INTERRUPTED );
-                mParent.socketOperationFailed();
+                mParent.portOperationFailed();
             }
+
+            logger.info( "ReceiverThread <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
@@ -1220,7 +1224,7 @@ public class SerialChannel extends NetChannel
             //logger.debug( "Calling receive() on the SerialPort." );
             int val = mInputStream.read();
             if ( val == -1 ) {
-                logger.debug( "The serial port returned -1 from read()." );
+                logger.warn( "The serial port returned -1 from read()." );
                 throw new IOException();
             }
             //logger.debug( "{}", Integer.toHexString(val) );

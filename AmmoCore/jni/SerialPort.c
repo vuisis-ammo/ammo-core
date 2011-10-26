@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <errno.h>
 #include <termios.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -100,22 +101,27 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 		jboolean iscopy;
 		const char *path_utf = (*env)->GetStringUTFChars(env, path, &iscopy);
 		LOGD("Opening serial port %s", path_utf);
-		fd = open(path_utf, O_RDWR | O_SYNC);
+
+		// fd = open(path_utf, O_RDWR | O_SYNC); // old version
+		fd = open( path_utf, O_RDWR | O_NOCTTY | O_SYNC );
 		LOGD("open() fd = %d", fd);
+
+        int errnum = 0;
+        if ( fd == -1 )
+            errnum = errno;
+
 		(*env)->ReleaseStringUTFChars(env, path, path_utf);
-		if (fd == -1)
+
+		if ( fd == -1 )
 		{
-			/* Throw an exception */
 			LOGE("Cannot open port");
-			//LOGE(strerror(errno));
-			/* TODO: throw an exception */
+			LOGE( strerror(errnum) );
 			return NULL;
 		}
 	}
 
 	/* Configure device */
 	{
-		struct termios config;
 		LOGD("Configuring serial port");
 		/* if (tcgetattr(fd, &cfg)) */
 		/* { */
@@ -126,7 +132,7 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 		/* } */
 
 		//cfmakeraw(&cfg);
-				
+
 		/*  SETTING KEY:
 			1 -- ignore BREAK condition
 			2 -- map BREAK to SIGINTR
@@ -150,7 +156,7 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 			20-- 8 bits
 			21-- enable follwing output processing
 		/* *\/ */
-			    
+
 		/* //		   1      2      3      4     5      6     7    8     9    10 */
 		/* cfg.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL|IXON|IXOFF|IXANY); */
 		/* //                11 */
@@ -168,14 +174,74 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 		/* cfsetispeed(&cfg, speed); */
 		/* cfsetospeed(&cfg, speed); */
 
-        memset( &config, 0, sizeof(config) );
-        config.c_cflag = B9600 | CRTSCTS  | CS8 | CLOCAL | CREAD;
-        config.c_iflag = IGNPAR | ICRNL;
-        config.c_oflag = 0;
-        config.c_cc[VMIN] = 1;
+
+        ///////////////////////////////////////////////////////////////////////
+        //
+        // Revised version of the code
+        //
+
+		struct termios cfg;
+
+		if (tcgetattr(fd, &cfg))
+		{
+			LOGE("tcgetattr() failed");
+			close(fd);
+			// TODO: throw an exception
+			return NULL;
+		}
+
+        // Set baud rate
+		cfsetispeed( &cfg, speed );
+		cfsetospeed( &cfg, speed );
+
+		cfmakeraw( &cfg );
+
+        // Always set these
+		cfg.c_cflag |= (CLOCAL | CREAD);
+
+        // Set 8, None, 1
+        cfg.c_cflag &= ~PARENB;
+        cfg.c_cflag &= ~CSTOPB;
+        cfg.c_cflag &= ~CSIZE;
+        cfg.c_cflag |= CS8;
+
+        // Enable hardware flow control
+		cfg.c_cflag |= CRTSCTS;
+
+        // Use raw input rather than canonical (line-oriented)
+        cfg.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+
+        // Disable software flow control
+        cfg.c_iflag &= ~(IXON | IXOFF | IXANY);
+
+        // Use raw output rather than processed (line-oriented)
+        cfg.c_oflag &= ~OPOST;
+
+        // Read one character at a time.  VTIME defaults to zero, so reads will
+        // block indefinitely.
+        cfg.c_cc[VMIN] = 1;
+
+        // Other "c" bits
+		//cfg.c_iflag |= IGNBRK; // Ignore break condition
+		cfg.c_iflag &= ~( IGNBRK | BRKINT | IGNPAR | PARMRK | INPCK | ISTRIP | INLCR | IGNCR | ICRNL | IUCLC );
+
+        // Other "l" bits
+        cfg.c_lflag &= ~IEXTEN;
+
+
+        // Old, bad code. Sort of works, but was using canonical mode, which
+        // we don't want.
+
+		//struct termios config;
+        //memset( &config, 0, sizeof(config) );
+        //config.c_cflag = B9600 | CRTSCTS  | CS8 | CLOCAL | CREAD;
+        //config.c_iflag = IGNPAR | ICRNL;
+        //config.c_oflag = 0;
+        //config.c_cc[VMIN] = 1;
 
         tcflush( fd, TCIFLUSH );
-		if (tcsetattr(fd, TCSANOW, &config))
+
+		if (tcsetattr(fd, TCSANOW, &cfg))
 		{
 			LOGE("tcsetattr() failed");
 			close(fd);

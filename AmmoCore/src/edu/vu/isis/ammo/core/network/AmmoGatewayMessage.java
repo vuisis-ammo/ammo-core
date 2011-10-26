@@ -316,8 +316,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             logger.debug( "   size={}", sizeAsShort );
 
             // Only output [0] and [1] of the four byte checksum.
-            logger.debug( "   payload_checksum={}", this.payload_checksum );
-            buf.put( convertChecksum(this.payload_checksum), 0, 2 );
+            byte[] checkSum = convertChecksum( this.payload_checksum );
+            logger.debug( "   payload_checksum as bytes={}", checkSum );
+            buf.put( checkSum[0] );
+            buf.put( checkSum[1] );
+            //buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
             long nowInMillis = System.currentTimeMillis();
             buf.putLong( nowInMillis );
@@ -394,10 +397,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     int size = drain.getShort();
 
                     byte[] checkBytes = new byte[ 4 ];
-
-                    drain.get( checkBytes, 0, 2 );
+                    checkBytes[0] = drain.get();
+                    checkBytes[1] = drain.get();
                     checkBytes[2] = 0;
                     checkBytes[3] = 0;
+                    //drain.get( checkBytes, 0, 2 );
                     logger.debug( "   payload check={}", checkBytes );
                     long payload_checksum = convertChecksum(checkBytes);
 
@@ -467,8 +471,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * @return
      */
     private static byte[] convertChecksum(long cvalue) {
-        byte[] checksum = new byte[]
-        {
+        byte[] checksum = new byte[] {
             (byte) cvalue,
             (byte) (cvalue >>> 8),
             (byte) (cvalue >>> 16),
@@ -513,8 +516,17 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
         } else if ( (version & 0xC0) == 0x40 ) {
             // Only use the relevant two bytes of the four byte checksum.
+
+            logger.debug( "CRC32 of payload={}", Long.toHexString(crc32.getValue()) );
+            logger.debug( "payload_checksum={}", Long.toHexString(this.payload_checksum) );
+
             byte[] computed = convertChecksum( crc32.getValue() );
             byte[] fromHeader = convertChecksum( this.payload_checksum );
+
+            logger.debug( "computed={}, fromHeader={}", computed, fromHeader );
+
+            logger.debug( "computed[2]={}, fromHeader[1]={}", computed[2], fromHeader[1] );
+            logger.debug( "computed[3]={}, fromHeader[0]={}", computed[3], fromHeader[0] );
 
             if ( computed[0] != fromHeader[0] || computed[1] != fromHeader[1] ) {
                 logger.warn("you have received a bad message, the checksums [{}:{}] did not match",
