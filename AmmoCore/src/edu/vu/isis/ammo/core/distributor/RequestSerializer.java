@@ -33,6 +33,10 @@ import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
+import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import android.os.AsyncTask;
+
 /**
  * The purpose of these objects is lazily serialize an object.
  * Once it has been serialized once a copy is kept.
@@ -52,14 +56,12 @@ public class RequestSerializer {
 	public final Payload payload;
 	private OnReady readyActor;
 	private OnSerialize serializeActor;
-	private AmmoGatewayMessage terse;
-	private AmmoGatewayMessage json;
+	private AmmoGatewayMessage agm;
 
 	private RequestSerializer(Provider provider, Payload payload) {
 		this.provider = provider;
 		this.payload = payload;
-		this.terse = null;
-		this.json = null;
+		this.agm = null;
 		this.readyActor = new RequestSerializer.OnReady() {
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
@@ -83,20 +85,32 @@ public class RequestSerializer {
 		return new RequestSerializer(provider, payload);
 	}
 
-	public AmmoGatewayMessage act(Encoding encode) {
-		switch (encode.getPayload()) {
-		case JSON: 
-			if (this.json != null) return this.json;
-			final byte[] jsonBytes = this.serializeActor.run(encode);
-			this.json = this.readyActor.run(encode, jsonBytes);
-			return this.json;
-		case TERSE: 
-			if (this.terse == null) return this.terse;
-			final byte[] terseBytes = this.serializeActor.run(encode);
-			this.terse = this.readyActor.run(encode, terseBytes);
-			return this.terse;
-		}
-		return null;
+	public ChannelDisposal act(final AmmoService that,final Encoding encode,final String channel) {
+            
+            final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
+
+                        final RequestSerializer parent = RequestSerializer.this;
+			@Override
+                          protected Void doInBackground(Void...none) {
+                            if (parent.agm == null) {
+                               final byte[] agmBytes = parent.serializeActor.run(encode);
+                               parent.agm = parent.readyActor.run(encode, agmBytes);
+                            }
+                            that.sendRequest(agm, channel);
+                            return null;
+                          }
+
+			@Override
+                          protected void onProgressUpdate(Void... none) {
+                          }
+
+			@Override
+                          protected void onPostExecute(Void result) {
+                          }
+            };
+
+            action.execute();
+            return ChannelDisposal.QUEUED;
 	}
 
 	public void setAction(OnReady action) {
@@ -379,6 +393,32 @@ public class RequestSerializer {
 		case CUSTOM:
 		default:
 		{
+                        // get a service connection using ServiceConnection, then 
+                        // call a AsyncTaskLoader to do the deserialization ... 
+                        // fire and forget ..... 
+/*
+                  IRemoteService mIRemoteService;
+                  private ServiceConnection mConnection = new ServiceConnection() {
+                    // Called when the connection with the service is established
+                    public void onServiceConnected(ComponentName className, IBinder service) {
+                      // Following the example above for an AIDL interface,
+                      // this gets an instance of the IRemoteInterface, which we can use to call on the service
+                      mIRemoteService = IRemoteService.Stub.asInterface(service);
+
+
+                      // call the deserialize function here ....
+                    }
+
+                    // Called when the connection with the service disconnects unexpectedly
+                    public void onServiceDisconnected(ComponentName className) {
+                      Log.e(TAG, "Service has unexpectedly disconnected");
+                      mIRemoteService = null;
+                    }
+                  };
+
+                  context.bindService (Intent intent, mIRemoteService, flags);
+
+*/
 			// FIXME write to the custom provider address
 			final Uri customProvider = encoding.extendProvider(provider);
 			final ContentValues cv = new ContentValues();

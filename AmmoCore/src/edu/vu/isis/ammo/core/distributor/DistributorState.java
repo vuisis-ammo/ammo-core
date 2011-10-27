@@ -105,9 +105,11 @@ public class DistributorState {
 
 		if (this.policy == null) {
 			logger.error("no matching routing topic");
-			final AmmoGatewayMessage agmb = serializer.act(Encoding.getDefault());
-			final ChannelDisposal actualCondition =
-					that.sendRequest(agmb, DistributorPolicy.DEFAULT);
+                        
+                        ChannelDisposal actualCondition = that.checkChannel(DistributorPolicy.DEFAULT);
+                        if(actualCondition == ChannelDisposal.QUEUED) {
+			  actualCondition = serializer.act(that,Encoding.getDefault(),DistributorPolicy.DEFAULT);
+                        }
 			this.put(DistributorPolicy.DEFAULT, actualCondition);
 			return this;
 		} 
@@ -139,14 +141,15 @@ public class DistributorState {
 				final ChannelDisposal priorCondition = 
 						(this.containsKey(term)) ? this.get(term) : ChannelDisposal.PENDING;
 						
-				final ChannelDisposal actualCondition;
+				ChannelDisposal actualCondition;
 				switch (priorCondition) {
 				case PENDING:
-					// this.deliver(term);
-					final AmmoGatewayMessage agmb = serializer.act(literal.encoding);
-					actualCondition = that.sendRequest(agmb, term);
+                                        actualCondition = that.checkChannel(term);
+                                        if(actualCondition == ChannelDisposal.QUEUED) {
+                                          actualCondition = serializer.act(that,literal.encoding, term);
+                                        }
 					this.put(term, actualCondition);
-					logger.trace("attempting {} over {}", agmb, term);
+					logger.trace("attempting message over {}", term);
 					break;
 				default:
 					actualCondition = priorCondition;

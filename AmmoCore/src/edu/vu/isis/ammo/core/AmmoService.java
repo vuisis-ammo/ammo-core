@@ -720,6 +720,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return channel.sendRequest(agm);
 	}
 
+        public ChannelDisposal checkChannel(String channelName) {
+          if (! mChannelMap.containsKey(channelName)) return ChannelDisposal.FAILED;
+          final NetChannel channel = mChannelMap.get(channelName);
+          if (! channel.isConnected()) return ChannelDisposal.PENDING;
+          return ChannelDisposal.QUEUED;
+        }
+
 	abstract public class TotalChannel implements INetChannel {}
 
 	// ===========================================================
