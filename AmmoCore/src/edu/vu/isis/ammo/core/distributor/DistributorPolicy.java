@@ -3,9 +3,11 @@ package edu.vu.isis.ammo.core.distributor;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,7 +61,7 @@ public class DistributorPolicy implements ContentHandler {
 	public final Trie<String, Topic> postalPolicy;
 	public final Trie<String, Topic> subscribePolicy;
 	public final Trie<String, Topic> retrievalPolicy;
-	
+
 	public final static String policy_dir = "policy";
 	public final static String policy_file = "distribution_policy.xml";
 
@@ -85,11 +87,27 @@ public class DistributorPolicy implements ContentHandler {
 			}
 		}
 		else {
-			logger.warn("no policy file {}, using default instead", file);
+			logger.warn("no policy file {}, using and writing default", file);
 			try {
+				final InputStream copiable = context.getResources().openRawResource(R.raw.distribution_policy);				
+				final OutputStream out = new FileOutputStream(file);
+				final byte[] buf = new byte[1024];
+				int len;
+				while ((len = copiable.read(buf)) > 0) {
+					out.write(buf, 0, len);
+				}
+				copiable.close();
+				out.close();
+
 				inputStream = context.getResources().openRawResource(R.raw.distribution_policy);
 			} catch (NotFoundException ex) {
 				logger.error("asset not available {}", ex.getMessage());
+				return null;
+			} catch (FileNotFoundException ex) {
+				logger.error("file not available {}", ex.getMessage());
+				return null;
+			} catch (IOException ex) {
+				logger.error("file not writable {}", ex.getMessage());
 				return null;
 			}
 		}
@@ -111,7 +129,7 @@ public class DistributorPolicy implements ContentHandler {
 		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
 		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
 		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		
+
 		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
 		if (is == null) {
@@ -175,7 +193,7 @@ public class DistributorPolicy implements ContentHandler {
 		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
 		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
 		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		
+
 		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
 		switch (testSetId) {
@@ -252,7 +270,7 @@ public class DistributorPolicy implements ContentHandler {
 		public final int priority;
 		public final Category category;
 		public final List<Clause> clauses;
-		
+
 		public Routing(Category category, int priority) {
 			this.category = category;
 			this.priority = priority;
@@ -274,7 +292,7 @@ public class DistributorPolicy implements ContentHandler {
 
 			final StringBuffer sb = new StringBuffer();		
 			sb.append('\n').append(ind).append("priority: ").append(this.priority);
-			
+
 			for (Clause clause : this.clauses) { 
 				sb.append(clause);
 			}
@@ -318,11 +336,11 @@ public class DistributorPolicy implements ContentHandler {
 			this.literals.add(literal);
 		}
 	}
-	
+
 	public enum Category {
 		POSTAL, SUBSCRIBE, RETRIEVAL;
 	}
-	
+
 
 	/**
 	 * Encoding is an indicator to the distributor as to how to encode/decode requests.
@@ -579,7 +597,7 @@ public class DistributorPolicy implements ContentHandler {
 		// in policy/topic
 		if (! this.inRouting) { 
 			if (localName.equals("topic")) {
-				
+
 				logger.debug("end 'topic'");
 				this.inTopic = false;
 				return;
@@ -676,7 +694,7 @@ public class DistributorPolicy implements ContentHandler {
 			return  Encoding.newInstance( Encoding.Type.TERSE, Encoding.Type.TERSE, Encoding.Type.TERSE );
 		return def;
 	}
-	
+
 	/**
 	 * A helper routine to extract an attribute from the xml element and 
 	 * convert it into a boolean.
@@ -718,7 +736,7 @@ public class DistributorPolicy implements ContentHandler {
 			return def;
 		}
 	}
-	
+
 	/**
 	 * A helper routine to extract an attribute from the xml element and 
 	 * convert it into an integer.
