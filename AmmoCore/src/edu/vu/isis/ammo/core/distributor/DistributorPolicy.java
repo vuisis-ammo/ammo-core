@@ -333,6 +333,15 @@ public class DistributorPolicy implements ContentHandler {
 			TERSE, JSON, CUSTOM;
 		}
 		final private Type[] list;
+		
+		final private String name;
+		public String name() {
+			return this.name;
+		}
+		public Encoding name(String val) {
+			this.name = val;
+			return this;
+		}
 
 		private Encoding(Type...types) {
 			this.list = types;
