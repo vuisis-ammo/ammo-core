@@ -356,13 +356,14 @@ public class DistributorPolicy implements ContentHandler {
 		public String name() {
 			return this.name;
 		}
-		public Encoding name(String val) {
-			this.name = val;
-			return this;
+		
+		private Encoding(String name, Type...types) {
+			this.list = types;
+			this.name = name;
 		}
-
 		private Encoding(Type...types) {
 			this.list = types;
+			this.name = null;
 		}
 		public static Encoding getDefault() {
 			return new Encoding(Type.JSON);

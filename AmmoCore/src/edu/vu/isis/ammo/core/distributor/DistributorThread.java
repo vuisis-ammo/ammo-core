@@ -1103,7 +1103,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		// update the actual provider
 
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		final Uri tuple = RequestSerializer.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray());
+		final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, resp.getData().toByteArray());
 		logger.debug("tuple upserted {}", tuple);
 
 		return true;
@@ -1320,7 +1320,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final Uri provider = Uri.parse(uriString);
 
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		RequestSerializer.deserializeToProvider(context.getContentResolver(), provider, encoding, resp.getData().toByteArray());
+		RequestSerializer.deserializeToProvider(context, provider, encoding, resp.getData().toByteArray());
 
 		return true;
 	}

@@ -9,8 +9,10 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.lang.IllegalArgumentException;
 
 import org.json.JSONException;
@@ -19,13 +21,18 @@ import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
+import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 
 import edu.vu.isis.ammo.api.type.Payload;
@@ -35,6 +42,7 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.api.IDistributorAdaptor;		
 import android.os.AsyncTask;
 
 /**
@@ -58,10 +66,17 @@ public class RequestSerializer {
 	private OnSerialize serializeActor;
 	private AmmoGatewayMessage agm;
 
+	final static private Map<String,IDistributorAdaptor> remoteServiceMap;
+	static {
+		remoteServiceMap = new HashMap<String,IDistributorAdaptor>(10);
+	}
+
 	private RequestSerializer(Provider provider, Payload payload) {
 		this.provider = provider;
 		this.payload = payload;
 		this.agm = null;
+
+
 		this.readyActor = new RequestSerializer.OnReady() {
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
@@ -86,31 +101,31 @@ public class RequestSerializer {
 	}
 
 	public ChannelDisposal act(final AmmoService that,final Encoding encode,final String channel) {
-            
-            final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
 
-                        final RequestSerializer parent = RequestSerializer.this;
-			@Override
-                          protected Void doInBackground(Void...none) {
-                            if (parent.agm == null) {
-                               final byte[] agmBytes = parent.serializeActor.run(encode);
-                               parent.agm = parent.readyActor.run(encode, agmBytes);
-                            }
-                            that.sendRequest(agm, channel);
-                            return null;
-                          }
+		final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
 
+			final RequestSerializer parent = RequestSerializer.this;
 			@Override
-                          protected void onProgressUpdate(Void... none) {
-                          }
+			protected Void doInBackground(Void...none) {
+				if (parent.agm == null) {
+					final byte[] agmBytes = parent.serializeActor.run(encode);
+					parent.agm = parent.readyActor.run(encode, agmBytes);
+				}
+				that.sendRequest(agm, channel);
+				return null;
+			}
 
 			@Override
-                          protected void onPostExecute(Void result) {
-                          }
-            };
+			protected void onProgressUpdate(Void... none) {
+			}
 
-            action.execute();
-            return ChannelDisposal.QUEUED;
+			@Override
+			protected void onPostExecute(Void result) {
+			}
+		};
+
+		action.execute();
+		return ChannelDisposal.QUEUED;
 	}
 
 	public void setAction(OnReady action) {
@@ -138,7 +153,7 @@ public class RequestSerializer {
 	 * Note the serializeFromProvider and serializeFromProvider are symmetric, 
 	 * any change to one will necessitate a corresponding change to the other.
 	 */  
-	
+
 	public static byte[] serializeFromProvider(final ContentResolver resolver, 
 			final Uri tupleUri, final DistributorPolicy.Encoding encoding) 
 					throws FileNotFoundException, IOException {
@@ -168,7 +183,7 @@ public class RequestSerializer {
 
 			for (final String name : tupleCursor.getColumnNames()) {
 				if (name.startsWith("_")) continue; // don't send the local fields
-				
+
 				final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
 				if (value == null || value.length() < 1) continue;
 				try {
@@ -289,11 +304,12 @@ public class RequestSerializer {
 	/**
 	 * @see serializeFromProvider with which this method is symmetric.
 	 */
-	public static Uri deserializeToProvider(final ContentResolver resolver, 
+	public static Uri deserializeToProvider(final Context context, 
 			final Uri provider, final Encoding encoding, final byte[] data) {
 
 		logger.debug("deserialize message");
 
+		final ContentResolver resolver = context.getContentResolver();
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
 
 		switch (encoding.getPayload()) {
@@ -328,8 +344,8 @@ public class RequestSerializer {
 				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
 				return null;
 			} catch (IllegalArgumentException ex) {
-			    logger.warn("bad provider or values: {}", ex.getLocalizedMessage());
-			    return null;
+				logger.warn("bad provider or values: {}", ex.getLocalizedMessage());
+				return null;
 			}		
 			if (position == data.length) return tupleUri;
 
@@ -365,7 +381,7 @@ public class RequestSerializer {
 				if (dataLengthFinal != dataLength) {
 					logger.error("data length mismatch {} {}", dataLength, dataLengthFinal);
 				}
-				
+
 				final Uri fieldUri = updateTuple.appendPath(fieldName).build();			
 				try {
 					final OutputStream outstream = resolver.openOutputStream(fieldUri);
@@ -393,40 +409,40 @@ public class RequestSerializer {
 		case CUSTOM:
 		default:
 		{
-                        // get a service connection using ServiceConnection, then 
-                        // call a AsyncTaskLoader to do the deserialization ... 
-                        // fire and forget ..... 
-/*
-                  IRemoteService mIRemoteService;
-                  private ServiceConnection mConnection = new ServiceConnection() {
-                    // Called when the connection with the service is established
-                    public void onServiceConnected(ComponentName className, IBinder service) {
-                      // Following the example above for an AIDL interface,
-                      // this gets an instance of the IRemoteInterface, which we can use to call on the service
-                      mIRemoteService = IRemoteService.Stub.asInterface(service);
+			// get a service connection using ServiceConnection, then 
+			// call a AsyncTaskLoader to do the deserialization ... 
+			// fire and forget ..... 
 
-
-                      // call the deserialize function here ....
-                    }
-
-                    // Called when the connection with the service disconnects unexpectedly
-                    public void onServiceDisconnected(ComponentName className) {
-                      Log.e(TAG, "Service has unexpectedly disconnected");
-                      mIRemoteService = null;
-                    }
-                  };
-
-                  context.bindService (Intent intent, mIRemoteService, flags);
-
-*/
-			// FIXME write to the custom provider address
-			final Uri customProvider = encoding.extendProvider(provider);
-			final ContentValues cv = new ContentValues();
-			cv.put("data", data);
-			return resolver.insert(customProvider, cv);
+//			final String key = provider.toString();
+//			if ( RequestSerializer.remoteServiceMap.containsKey(key)) {
+//				final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
+//				return adaptor.deserialize(encoding.name(), key, data);
+//			}
+//			final ServiceConnection connection = new ServiceConnection() {
+//				@Override
+//				public void onServiceConnected(ComponentName name, IBinder service) {
+//
+//					if (! RequestSerializer.remoteServiceMap.containsKey(key)) {
+//						RequestSerializer.remoteServiceMap.put(key, IDistributorAdaptor.Stub.asInterface(service));	
+//					}
+//					final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
+//
+//					// call the deserialize function here ....
+//					return adaptor.deserialize(encoding.name(), key, data);
+//				}
+//
+//				@Override
+//				public void onServiceDisconnected(ComponentName name) {
+//					logger.debug("service disconnected");
+//					RequestSerializer.remoteServiceMap.remove(key);
+//				}
+//			};
+//			final Intent intent = new Intent();
+//			context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
 		}
 		}
+		return null;
+
 	}
-
 }
 
