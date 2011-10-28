@@ -1,134 +1,144 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="edu.vu.isis.ammo.core" 
-    android:versionName="@string/ammo_version_name" 
-    android:sharedUserId="edu.vu.isis.ammo">
-<!-- the version code is set via the 'version.code' variable in the ant script -->
+	package="edu.vu.isis.ammo.core" android:versionName="@string/ammo_version_name"
+	android:sharedUserId="edu.vu.isis.ammo">
+	<!-- the version code is set via the 'version.code' variable in the ant 
+		script -->
 
-    <application android:icon="@drawable/appl_icon"
-       android:name="ApplicationEx"
-        android:label="@string/app_name" 
-        android:debuggable="true"
-        android:theme="@android:style/Theme.NoTitleBar">
-        
+	<permission android:name="edu.vu.isis.ammo.permission.MAKE_REQUEST"
+		android:label="@string/make_request_label" android:description="@string/make_request_desc"
+		android:protectionLevel="dangerous" />
 
-        <!-- ========== ACTIVITY SECTION ================= -->
+	<application android:icon="@drawable/appl_icon"
+		android:name="ApplicationEx" android:label="@string/app_name"
+		android:debuggable="true" android:theme="@android:style/Theme.NoTitleBar">
 
-        <activity android:name=".ui.AmmoActivity">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity android:name=".ui.GatewayActivity"/>
-        <activity android:name=".ui.ChannelDetailActivity"/>
-        <activity android:name=".ui.NetlinkActivity"/>
-        <activity android:name=".ui.NetlinkDetailActivity"/>
-        
-        <activity android:name=".ui.CorePreferenceActivity"/>
-        <activity android:name=".ui.DeliveryStatus"/>
-        <activity android:name=".ui.SubscriptionStatus"/>
-        <activity android:name=".ui.Subscribe"/>
-        <activity android:name=".ui.GeneralPreferences"/>
-        <activity android:name=".ui.AboutActivity"/>
-        
-        <activity android:name=".distributor.ui.DistributorTableViewer"/>
-        <activity android:name=".distributor.ui.RetrievalTableViewer"/>
-        <activity android:name=".distributor.ui.SubscribeTableViewer"/>
-        <activity android:name=".distributor.ui.PostalTableViewer"/>
-        <activity android:name=".distributor.ui.DistributorTabActivity"/>
 
-    <!-- ========== RECIEVER SECTION ================= -->
+		<!-- ========== ACTIVITY SECTION ================= -->
 
-        <receiver android:name=".receiver.WifiReceiver">
-            <intent-filter>
-                <action android:name="android.net.wifi.supplicant.CONNECTION_CHANGE" />
-            </intent-filter>
-        </receiver>
+		<activity android:name=".ui.AmmoActivity">
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN" />
+				<category android:name="android.intent.category.LAUNCHER" />
+			</intent-filter>
+		</activity>
+		<activity android:name=".ui.MessageQueueActivity">
+			<intent-filter>
+				<action android:name="edu.vu.isis.ammo.core.ui.MessageQueueActivity.LAUNCH" />
+				<category android:name="android.intent.category.DEFAULT" />
+			</intent-filter>
+		</activity>
 
-        <receiver android:name=".receiver.USBReceiver">
-            <intent-filter>
-            </intent-filter>
-        </receiver>
+		<activity android:name=".ui.GatewayActivity" />
+		<activity android:name=".ui.ChannelDetailActivity" />
+		<activity android:name=".ui.NetlinkActivity" />
+		<activity android:name=".ui.NetlinkDetailActivity" />
 
-        <receiver android:name=".receiver.StartUpReceiver">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.ACTION_USER_PRESENT" />
-                <action android:name="edu.vu.isis.ammo.action.RESET" />
-                <category android:name="android.intent.category.HOME" />
-            </intent-filter>
-        </receiver>
+		<activity android:name=".ui.CorePreferenceActivity" />
+		<activity android:name=".ui.DeliveryStatus" />
+		<activity android:name=".ui.SubscriptionStatus" />
+		<activity android:name=".ui.Subscribe" />
+		<activity android:name=".ui.GeneralPreferences" />
+		<activity android:name=".ui.AboutActivity" />
 
-   <!-- ========== SERVICE SECTION ================= -->
-        <!-- 
-         Services are started by the .receiver.StartUpReceiver
-         should android:persistent be used?
-        -->
-        <service android:enabled="true" 
-            android:name=".network.NetworkService">
-            <intent-filter>
-                <action android:name="edu.vu.isis.ammo.core.network.NetworkService.ACTION" />
-                <action android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
-                <action android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP" />
-            </intent-filter>
-        </service>
+		<activity android:name=".distributor.ui.DistributorTableViewer" />
+		<activity android:name=".distributor.ui.RetrievalTableViewer" />
+		<activity android:name=".distributor.ui.SubscribeTableViewer" />
+		<activity android:name=".distributor.ui.PostalTableViewer" />
+		<activity android:name=".distributor.ui.DistributorTabActivity" />
 
-        <service android:enabled="true" 
-            android:name=".distributor.DistributorService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH" />
-                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.BIND" />
-                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP" />
-                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
-                
-                <action android:name="edu.vu.isis.ammo.api.IDistributorService" />
-            </intent-filter>
-        </service>
-        
-        <service android:enabled="true"
-        android:name=".preferences.PreferenceService"
-        android:exported="true">
-          <intent-filter>
-              <action android:name="edu.vu.isis.ammo.core.preferences.PreferenceService.BIND" />
-          </intent-filter>
-        
-        </service>
-        
-        <service android:enabled="true" 
-          android:name=".CorePreferenceService" 
-          android:exported="true">
-          <intent-filter>
-              <action android:name="edu.vu.isis.ammo.core.CorePreferenceService.LAUNCH" />
-          </intent-filter>
-        </service>
+		<!-- ========== RECIEVER SECTION ================= -->
 
-        <service android:name=".ethertracker.EthTrackSvc">
-            <intent-filter>
-                <action android:name="edu.vu.isis.ammo.startatboot.EthTrackSvc" />
-                <action android:name="edu.vu.isis.ammo.core.ethtracksvc.LAUNCH" />
-            </intent-filter>
-        </service>
+		<receiver android:name=".receiver.WifiReceiver">
+			<intent-filter>
+				<action android:name="android.net.wifi.supplicant.CONNECTION_CHANGE" />
+			</intent-filter>
+		</receiver>
 
-        <!-- ========== PROVIDER SECTION ================= -->
+		<receiver android:name=".receiver.USBReceiver">
+			<intent-filter>
+			</intent-filter>
+		</receiver>
 
-        <provider android:name=".provider.DistributorProvider"
-            android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/>
+		<receiver android:name=".receiver.StartUpReceiver">
+			<intent-filter>
+				<action android:name="android.intent.action.BOOT_COMPLETED" />
+				<action android:name="android.intent.action.ACTION_USER_PRESENT" />
+				<action android:name="edu.vu.isis.ammo.action.RESET" />
+				<category android:name="android.intent.category.HOME" />
+			</intent-filter>
+		</receiver>
 
-        <provider android:name=".provider.PreferenceProvider"
-            android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider"/>
-         
-    </application>
+		<receiver android:name=".receiver.PackageInstalledReceiver">
+			<intent-filter>
+				<action android:name="android.intent.action.PACKAGE_ADDED" />
+				<data android:scheme="package" />
+			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.PACKAGE_REPLACED" />
+				<data android:scheme="package" />
+			</intent-filter>
+		</receiver>
 
-    <uses-sdk android:minSdkVersion="8" />
+		<!-- ========== SERVICE SECTION ================= -->
+		<!-- Services are started by the .receiver.StartUpReceiver should android:persistent 
+			be used? -->
+		<service android:enabled="true" 
+		         android:name=".AmmoService"
+		         android:exported="true" >
+			<intent-filter>
+				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.ACTION" />
+				<action
+					android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP" />
+				<action android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP" />
+			
+				<action
+					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH" />
+				<action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.BIND" />
+				<action
+					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP" />
+				<action
+					android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED" />
 
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+				<action android:name="edu.vu.isis.ammo.api.MAKE_REQUEST" />
+				<action android:name="edu.vu.isis.ammo.AMMO_HARD_RESET" />
+			</intent-filter>
+		</service>
+
+		<service android:enabled="true" android:name=".preferences.PreferenceService"
+			android:exported="true">
+			<intent-filter>
+				<action android:name="edu.vu.isis.ammo.core.preferences.PreferenceService.BIND" />
+			</intent-filter>
+
+		</service>
+
+		<service android:name=".ethertracker.EthTrackSvc">
+			<intent-filter>
+				<action android:name="edu.vu.isis.ammo.startatboot.EthTrackSvc" />
+				<action android:name="edu.vu.isis.ammo.core.ethtracksvc.LAUNCH" />
+			</intent-filter>
+		</service>
+
+		<!-- ========== PROVIDER SECTION ================= -->
+		<!-- <provider android:name=".provider.DistributorProvider" android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/> -->
+		<provider android:name=".provider.PreferenceProvider"
+			android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider" />
+
+		<provider android:name=".provider.DistributorProvider"
+			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider" />
+
+	</application>
+
+	<uses-sdk android:minSdkVersion="8" />
+
+	<uses-permission android:name="edu.vu.isis.ammo.permission.MAKE_REQUEST" />
+	<uses-permission android:name="android.permission.INTERNET" />
+	<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+	<uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+	<uses-permission android:name="android.permission.READ_PHONE_STATE" />
+	<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+	<uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+	<uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 </manifest> 

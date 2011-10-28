@@ -5,48 +5,51 @@ package edu.vu.isis.ammo.core.ui;
 
 import java.util.Calendar;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.SharedPreferences;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
-import android.widget.AdapterView.OnItemSelectedListener;
 import edu.vu.isis.ammo.IPrefKeys;
-import edu.vu.isis.ammo.api.AmmoDispatcher;
-import edu.vu.isis.ammo.dash.provider.IncidentSchema;
-import edu.vu.isis.ammo.dash.provider.IncidentSchema.EventTableSchema;
+import edu.vu.isis.ammo.api.AmmoDispatch;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**
  * This activity provides the operator a direct way of subscribing to content of interest.
  * He enters the subscription fields directly.
  * 
- * @author phreed
- *
+ * This is to be used primarily for testing (move to AmmoCoreTestDummy?)
  */
 public class Subscribe extends ActivityEx implements OnClickListener {
+	private static final Logger logger = LoggerFactory.getLogger("ammo:api-d");
+	
 	// ===========================================================
 	// Constants
 	// ===========================================================
 	public static final String LAUNCH = "edu.vu.isis.ammo.core.Subscribe.LAUNCH";
-	public static final String MIME_OBJECT = "application/vnd.edu.vu.isis.ammo.map.object";
+	public static final String MIME_OBJECT = "ammo/edu.vu.isis.ammo.map.object";
 	
 	// ===========================================================
 	// Fields
 	// ===========================================================
 	private Spinner interestSpinner;
-	private AmmoDispatcher ad = null;
+	private AmmoDispatch ad = null;
 	private MyOnItemSelectedListener selectionListener = null;
 	private Button btnSubscribe;
 	private String uid;
@@ -55,7 +58,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	public void onCreate(Bundle savedInstanceState) {
 	    super.onCreate(savedInstanceState);
 	    setContentView(R.layout.subscribe);
-	    ad = AmmoDispatcher.getInstance(this);
+	    this.ad = AmmoDispatch.newInstance(this);
 
 	    interestSpinner = (Spinner) findViewById(R.id.subscribe_uri);
 	    ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
@@ -72,8 +75,15 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         btnSubscribe.setOnClickListener(this);
         
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        this.uid = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, "operator1");
+        this.uid = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, "transappuser");
 	}  
+
+	@Override
+	protected void onDestroy() {
+		this.ad.releaseInstance();
+		super.onDestroy();
+	}
+
 	    
 	@Override
 	public void onClick(View v) {
@@ -89,13 +99,18 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         	ContentResolver cr = this.getContentResolver();
         	if (entryDoesNotExist(cr, selectedUri)) {
         		ContentValues values = new ContentValues();
-            	values.put(SubscriptionTableSchema.URI, selectedUri.toString());
-            	values.put(SubscriptionTableSchema.MIME, selectedMime);
-            	values.put(SubscriptionTableSchema.DISPOSITION, SubscriptionTableSchema.DISPOSITION_PENDING);
-            	cr.insert(SubscriptionTableSchema.CONTENT_URI, values);
+            	values.put(SubscribeTableSchema.PROVIDER.cv(), selectedUri.toString());
+            	values.put(SubscribeTableSchema.TOPIC.cv(), selectedMime);
+            	values.put(SubscribeTableSchema.DISPOSITION.cv(), ChannelDisposal.PENDING.cv());
+            	// cr.insert(SubscribeTableSchema.CONTENT_URI, values);
             	
             	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();
-            	ad.subscribe(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");	
+            	try {
+					ad.subscribe(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");
+				} catch (RemoteException ex) {
+					logger.warn("ammo distributor not yet active {}",
+							ex.getLocalizedMessage());
+				}	
         	} else {
         		Toast.makeText(Subscribe.this, "Already subscribed to this content", Toast.LENGTH_SHORT).show();
         	}
@@ -103,10 +118,11 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	}
 	
 	private boolean entryDoesNotExist(ContentResolver cr, Uri selectedUri) {
-		String[] projection = {SubscriptionTableSchema.URI, SubscriptionTableSchema._ID};
-		String selection = SubscriptionTableSchema.URI + " LIKE \"" + selectedUri.toString() + "\"";
-		Cursor c = cr.query(SubscriptionTableSchema.CONTENT_URI, projection, selection, null, null);
-		return (c.getCount() == 0);
+		// String[] projection = {SubscribeTableSchema.PROVIDER.n, SubscribeTableSchema._ID};
+		String selection = SubscribeTableSchema.PROVIDER.q() + " LIKE \"" + selectedUri.toString() + "\"";
+		// Cursor c = cr.query(SubscribeTableSchema.CONTENT_URI, projection, selection, null, null);
+		//return (c.getCount() == 0);
+		return false;
 	}
 	
 	private class MyOnItemSelectedListener implements OnItemSelectedListener {
@@ -115,13 +131,8 @@ public class Subscribe extends ActivityEx implements OnClickListener {
     	
     	
         public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-        	uri = Uri.parse(parent.getItemAtPosition(pos).toString());
-        	
-        	if (uri.equals(IncidentSchema.EventTableSchema.CONTENT_URI)) {
-        		mime = EventTableSchema.CONTENT_TOPIC + "_" + uid;
-        	} else {
-        		mime = MIME_OBJECT + "_" + uid;
-        	}
+        	uri = Uri.parse(parent.getItemAtPosition(pos).toString());  	
+        	mime = MIME_OBJECT + "_" + uid;
 	        Toast.makeText(parent.getContext(), 
 	    		  "The content uri is " + uri, 
 	    		  Toast.LENGTH_SHORT).show();

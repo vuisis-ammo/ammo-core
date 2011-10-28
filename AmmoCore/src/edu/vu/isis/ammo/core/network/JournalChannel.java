@@ -17,6 +17,9 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+
 import android.os.AsyncTask;
 import android.os.Environment;
 
@@ -53,8 +56,8 @@ public class JournalChannel extends NetChannel {
 	public boolean toggleJournalSwitch() { return journalingSwitch = journalingSwitch ? false : true; }
 	
 	
-	private JournalChannel(NetworkService driver) {
-		super();
+	private JournalChannel(String name, AmmoService driver) {
+		super(name);
 		logger.trace("::<constructor>");
 		this.syncObj = this;
 		this.isStale = true;
@@ -62,10 +65,10 @@ public class JournalChannel extends NetChannel {
 		JournalChannel.isConnected = false;
 	}
 	
-	public static JournalChannel getInstance(NetworkService driver) {
+	public static JournalChannel getInstance(String name, AmmoService driver) {
 		logger.trace("::getInstance");
 		synchronized (JournalChannel.isConnected) {
-			JournalChannel instance = new JournalChannel(driver);
+			JournalChannel instance = new JournalChannel(name, driver);
 			
 			instance.senderThread = instance.new SenderThread(instance);
 			return instance;
@@ -236,20 +239,20 @@ public class JournalChannel extends NetChannel {
 	 * @param message
 	 * @return
 	 */
-	public boolean sendRequest(AmmoGatewayMessage agm) 
+	public ChannelDisposal sendRequest(AmmoGatewayMessage agm) 
 	{
 		synchronized (this.syncObj) {
 			logger.trace("::sendGatewayRequest");
 			if (! JournalChannel.isConnected) {
 				this.tryConnect(false);
-				return false;
+				return ChannelDisposal.FAILED;
 			}
 			try {
 				this.sendQueue.put(agm);
 			} catch (InterruptedException e) {
-				return false;
+				return ChannelDisposal.FAILED;
 			}
-			return true;
+			return ChannelDisposal.SENT;
 		}
 	}
 	

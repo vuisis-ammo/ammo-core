@@ -4,46 +4,29 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema.SubscriptionTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class SubscribeTableViewer extends DistributorTableViewer {
 
 	private TextView tvLabel;
-	static protected final String[] fromItemLayout = new String[] {
-		SubscriptionTableSchema.URI,
-		// SubscriptionTableSchema.PROJECTION ,
-		// SubscriptionTableSchema.SELECTION ,
-		// SubscriptionTableSchema.ARGS ,
-		// SubscriptionTableSchema.ORDER ,
-		// SubscriptionTableSchema.EXPIRATION ,
-		// SubscriptionTableSchema.CREATED_DATE ,
-		SubscriptionTableSchema.CREATED_DATE };
-
+	
+	public SubscribeTableViewer() {
+		super(Tables.SUBSCRIBE);
+	}
+	
 	@Override 
 	public void onCreate(Bundle bun) {
-		this.uri = SubscriptionTableSchema.CONTENT_URI;
+		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.SUBSCRIBE.n);
 		
-		@SuppressWarnings("unused")
-		String[] projection = {SubscriptionTableSchema._ID, 
-				SubscriptionTableSchema.DISPOSITION,
-				SubscriptionTableSchema.URI, 
-				SubscriptionTableSchema.CREATED_DATE,
-				SubscriptionTableSchema.MIME};
+		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
+                SubscribeTableSchema._ID + " DESC");
 		
-		Cursor cursor = this.managedQuery(this.uri, null, null, null, 
-                SubscriptionTableSchema._ID + " DESC");
-		
-		
-		this.adapter = new SubscribeDistributorTableViewAdapter(this,
-				R.layout.distributor_table_view_item, cursor, 
-				fromItemLayout, toItemLayout);
+		this.adapter = new SubscribeTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
 		
 		super.onCreate(bun);
-		
-		StringBuilder sb = new StringBuilder();
-		sb.append("(").append(SubscriptionTableSchema.DISPOSITION_EXPIRED);
-		sb.append(",").append(SubscriptionTableSchema.DISPOSITION_FAIL).append(")");
-	    this.completeDisp = sb.toString();
 	}
 
 	@Override

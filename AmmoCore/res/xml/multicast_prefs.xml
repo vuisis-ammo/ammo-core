@@ -34,6 +34,11 @@ android:name="Connection Idle Timeout (s)"
 android:title="Connection Idle Timeout (s)"
 android:defaultValue= "10"/>
 
+<edu.vu.isis.ammo.core.MyEditIntegerPreference
+android:key="MULTICAST_TTL"
+android:name="Time To Live (s)"
+android:title="Time To Live (s)"
+android:defaultValue= "1"/>
 
 </PreferenceScreen>
 

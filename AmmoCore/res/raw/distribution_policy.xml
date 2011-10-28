@@ -1,0 +1,111 @@
+<?xml version="1.0"?>
+<!--
+  put the file in /data/data/edu.vu.isis.ammo.core/app_policy
+
+adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml
+-->
+<policy>
+  <topic type="">
+     <description>
+Generally requests should be sent over the gateway, unless it isn't
+available then local multicast delivery should be used.
+     </description>
+     <routing priority="normal" category="postal">
+	     <clause>
+	        <literal term="gateway" condition="success" encoding="json"/>
+            <literal term="multicast" condition="success" encoding="json"/>
+	     </clause>
+     </routing>
+     <routing priority="high" category="subscribe">
+	     <clause>
+	        <literal term="gateway" condition="success"/>
+	     </clause>
+     </routing>
+     <routing priority="normal" category="retrieval">
+	     <clause>
+	        <literal term="gateway" condition="success"/>
+	     </clause>
+     </routing>
+  </topic>
+  
+   <topic type="ammo/edu.vu.isis.ammo.">
+     <description>
+The ammo applications.
+     </description>
+     <routing priority="normal">
+	     <clause>
+	        <literal term="gateway" condition="success" encoding="json"/>
+            <literal term="multicast" condition="success" encoding="json"/>
+	     </clause>
+     </routing>
+  </topic>
+
+  <topic type="ammo/com.aterrasys.">
+     <description>
+     </description>
+     <routing priority="normal">
+	     <clause>
+	        <literal term="gateway" condition="success" encoding="json"/>
+	        <literal term="multicast" condition="success" encoding="json"/>
+	     </clause>
+     </routing>
+  </topic>
+
+  <topic type="ammo/edu.vu.isis.ammo.sms.">
+     <description>
+     </description>
+     <routing priority="normal">
+	     <clause>
+	        <literal term="gateway" condition="true" encoding="json"/>
+	        <literal term="multicast" condition="true" encoding="json"/>
+	     </clause>
+     </routing>
+  </topic>
+
+  <topic type="ammo/edu.vu.isis.ammo.sample.">
+     <description>
+This example illustrates the case where the requests 
+should be sent over both channels.
+     </description>
+     <routing priority="normal">
+	     <clause>
+	        <literal term="multicast" condition="success" encoding="terse"/>
+	     </clause>
+	     <clause>
+	        <literal term="gateway" condition="success" encoding="json"/>
+	     </clause>
+     </routing>
+  </topic>
+  
+    <topic type="@L">
+     <description>
+      PLI : location, for terse messages
+     </description>
+     <routing priority="normal">
+	     <clause>
+	        <literal term="multicast" condition="false" encoding="json"/>
+	        <literal term="serial" condition="true" encoding="terse" />
+	     </clause>
+	     <clause>
+	        <literal term="gateway" condition="true" encoding="json" />
+	     </clause>
+     </routing>
+  </topic>
+  
+  <topic type="urn:trial:dummy/">
+     <description>
+      Used for testing the routing mechanism.
+     </description>
+     <routing priority="normal">
+	     <clause>
+	        <literal term="multicast" condition="false" encoding="json"/>
+	        <literal term="serial" condition="true" encoding="terse"/>
+	     </clause>
+	     <clause>
+	        <literal term="gateway" condition="true" encoding="json"/>
+	        <literal term="serial" condition="false" encoding="terse"/>
+	     </clause>
+     </routing>
+  </topic>
+
+</policy>
