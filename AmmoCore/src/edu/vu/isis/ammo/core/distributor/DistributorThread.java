@@ -597,8 +597,14 @@ extends AsyncTask<AmmoService, Integer, Void>
 						return serializer.payload.asBytes();
 					} else {
 						try {
-							return RequestSerializer.serializeFromProvider(that.getContentResolver(), 
+							final byte[] result = RequestSerializer.serializeFromProvider(that.getContentResolver(), 
 									serializer.provider.asUri(), encode);
+
+                                                        if (result == null)
+                                                        {
+                                                          logger.error ("Null result from serialize {} {} ",serializer.provider, encode );
+                                                        }
+                                                        return result;
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization {}",
 									e1.getLocalizedMessage());
@@ -767,6 +773,8 @@ extends AsyncTask<AmmoService, Integer, Void>
 		serializer.setAction(new RequestSerializer.OnReady() {
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+
+
 				final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder()
 						.setUri(provider)
 						.setMimeType(msgType)
