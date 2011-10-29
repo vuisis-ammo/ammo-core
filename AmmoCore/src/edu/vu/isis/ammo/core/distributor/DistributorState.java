@@ -176,19 +176,6 @@ public class DistributorState {
 		for (final Entry<String,ChannelDisposal> entry : this.stateMap.entrySet()) {
 			aggregated |= entry.getValue().o;
 		}
-		switch (ChannelDisposal.values()[aggregated]) {
-		case FAILED:
-			return  RequestDisposal.INCOMPLETE;
-		case PENDING:
-		case NEW:
-			return  RequestDisposal.NEW;
-		case QUEUED: 
-			return RequestDisposal.DISTRIBUTE;
-		case SENT: 
-		case TOLD:
-		case DELIVERED:
-			return RequestDisposal.COMPLETE;
-		}
 		if (0 < (aggregated & ChannelDisposal.FAILED.o))
 			return RequestDisposal.INCOMPLETE;
 		if (0 < (aggregated & (ChannelDisposal.PENDING.o | ChannelDisposal.NEW.o) ))

@@ -109,13 +109,10 @@ public class RequestSerializer {
 			protected Void doInBackground(Void...none) {
 				if (parent.agm == null) {
 					final byte[] agmBytes = parent.serializeActor.run(encode);
-                                        if (agmBytes == null)
-                                        {
-                                          logger.error("No Payload");
-                                          return null;
-                                        }
 					parent.agm = parent.readyActor.run(encode, agmBytes);
 				}
+				if (parent.agm == null)
+				  return null;
 				that.sendRequest(parent.agm, channel);
 				return null;
 			}
