@@ -591,14 +591,23 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 			final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
 			serializer.setSerializer( new RequestSerializer.OnSerialize() {
+				
+				final RequestSerializer serializer_ = serializer;
+				final AmmoService that_ = that;
 				@Override
 				public byte[] run(Encoding encode) {
-					if (serializer.payload.hasContent()) {
-						return serializer.payload.asBytes();
+					if (serializer_.payload.hasContent()) {
+						return serializer_.payload.asBytes();
 					} else {
 						try {
-							return RequestSerializer.serializeFromProvider(that.getContentResolver(), 
-									serializer.provider.asUri(), encode);
+							final byte[] result = RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
+									serializer_.provider.asUri(), encode);
+
+                                                        if (result == null)
+                                                        {
+                                                          logger.error ("Null result from serialize {} {} ",serializer_.provider, encode );
+                                                        }
+                                                        return result;
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization {}",
 									e1.getLocalizedMessage());
@@ -618,9 +627,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 								dispersal, serializer,
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
+                                                        final long id_ = id;
 							@Override
 							public boolean ack(String channel, ChannelDisposal status) {
-								return parent.announceChannelAck( new ChannelAck(id, Tables.POSTAL, channel, status) );
+								return parent.announceChannelAck( new ChannelAck(id_, Tables.POSTAL, channel, status) );
 							}
 						});
 				this.store.updatePostalByKey(id, null, dispatchResult);
@@ -658,30 +668,38 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 			final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
 			final int serialType = pending.getInt(pending.getColumnIndex(PostalTableSchema.ORDER.n));
+			int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
+
+			final String data;
+			if (!pending.isNull(dataColumnIndex)) {
+				data = pending.getString(dataColumnIndex);
+			} else {
+                                data = null;
+                        }
 			serializer.setSerializer( new RequestSerializer.OnSerialize() {
+					
+				final RequestSerializer serializer_ = serializer;
+				final AmmoService that_ = that;
+				final int serialType_ = serialType;
+				final String data_ = data;
+
 				@Override
 				public byte[] run(Encoding encode) {
 
-					switch (SerializeType.getInstance(serialType)) {
+					switch (SerializeType.getInstance(serialType_)) {
 					case DIRECT:
-						int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
-
-						if (!pending.isNull(dataColumnIndex)) {
-							String data = pending.getString(dataColumnIndex);
-							return data.getBytes();
-						} else {
-							// TODO handle the case where data is null
-							// that signifies there is a file containing the data
-							;
-						}
-						break;
+                                              if (data_.length() > 0) {
+						return data_.getBytes();
+ 					      } else {
+ 					        return null;
+ 					      }
 
 					case INDIRECT:
 					case DEFERRED:
 					default:
 						try {
-							return RequestSerializer.serializeFromProvider(that.getContentResolver(), 
-									serializer.provider.asUri(), encode);
+							return RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
+									serializer_.provider.asUri(), encode);
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization");
 						}
@@ -724,9 +742,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 									dispersal, serializer,
 									new INetworkService.OnSendMessageHandler() {
 								final DistributorThread parent = DistributorThread.this;
+                                                                final int id_ = id;
 								@Override
 								public boolean ack(String channel, ChannelDisposal status) {
-									return parent.announceChannelAck( new ChannelAck(id, Tables.POSTAL, channel, status) );
+									return parent.announceChannelAck( new ChannelAck(id_, Tables.POSTAL, channel, status) );
 								}
 							});
 					this.store.updatePostalByKey(id, null, dispatchResult);
@@ -761,17 +780,26 @@ extends AsyncTask<AmmoService, Integer, Void>
 		final Long now = System.currentTimeMillis();
 		logger.debug("Building MessageWrapper @ time {}", now);
 
-		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-		mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
-
 		serializer.setAction(new RequestSerializer.OnReady() {
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+
+
+                                 if (serialized == null)
+                                 {
+				  	logger.error("No Payload");
+				 	return null;
+				 }
 				final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder()
 						.setUri(provider)
 						.setMimeType(msgType)
 						.setEncoding(encode.getPayload().name())
 						.setData(ByteString.copyFrom(serialized));
+		
+
+				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+				mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+
 				mw.setDataMessage(pushReq);
 
 				logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
@@ -927,9 +955,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 								dispersal,
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
+                                                        final long id_ = id;
 							@Override
 							public boolean ack(String channel, ChannelDisposal status) {
-								return parent.announceChannelAck( new ChannelAck(id, Tables.RETRIEVAL, channel, status) );
+								return parent.announceChannelAck( new ChannelAck(id_, Tables.RETRIEVAL, channel, status) );
 							}
 						});
 				this.store.updateRetrievalByKey(id, null, dispatchResult);
@@ -1037,8 +1066,6 @@ extends AsyncTask<AmmoService, Integer, Void>
 
 		/** Message Building */
 
-		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-		mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
 		//mw.setSessionUuid(sessionId);
 
 		final AmmoMessages.PullRequest.Builder retrieveReq = AmmoMessages.PullRequest.newBuilder()
@@ -1053,11 +1080,15 @@ extends AsyncTask<AmmoService, Integer, Void>
 		// live_query
 		// expiration
 		try {
-			mw.setPullRequest(retrieveReq);
 			final RequestSerializer serializer = RequestSerializer.newInstance();
 			serializer.setAction(new RequestSerializer.OnReady() {
+
+				private AmmoMessages.PullRequest.Builder retrieveReq_ = retrieveReq;
 				@Override
 				public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+					final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+					mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
+					mw.setPullRequest(retrieveReq_);
 					final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
 					return agmb.build();
 				}
@@ -1160,9 +1191,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 								topic, agm.select.toString(), dispersal,
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
+				                        final long id_ = id;
 							@Override
 							public boolean ack(String channel, ChannelDisposal status) {
-								return parent.announceChannelAck( new ChannelAck(id, Tables.SUBSCRIBE, channel, status) );
+								return parent.announceChannelAck( new ChannelAck(id_, Tables.SUBSCRIBE, channel, status) );
 							}
 						});
 				this.store.updateSubscribeByKey(id, null, dispatchResult);
@@ -1235,9 +1267,10 @@ extends AsyncTask<AmmoService, Integer, Void>
 									new INetworkService.OnSendMessageHandler() {
 
 								final DistributorThread parent = DistributorThread.this;
+                                                                final int id_ = id;
 								@Override
 								public boolean ack(String channel, ChannelDisposal status) {
-									return parent.announceChannelAck( new ChannelAck(id, Tables.SUBSCRIBE, channel, status) );
+									return parent.announceChannelAck( new ChannelAck(id_, Tables.SUBSCRIBE, channel, status) );
 								}
 							});
 					this.store.updateSubscribeByKey(id, null, dispatchResult);
@@ -1260,21 +1293,23 @@ extends AsyncTask<AmmoService, Integer, Void>
 		logger.trace("::dispatchSubscribeRequest {}", topic);
 
 		/** Message Building */
-		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-		mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
-		//mw.setSessionUuid(sessionId);
 
 		final AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
 		subscribeReq.setMimeType(topic);
 
 		if (subscribeReq != null) subscribeReq.setQuery(selection);
 
-		mw.setSubscribeMessage(subscribeReq);
 
 		final RequestSerializer serializer = RequestSerializer.newInstance();
 		serializer.setAction(new RequestSerializer.OnReady() {
+
+			final AmmoMessages.SubscribeMessage.Builder subscribeReq_ = subscribeReq;
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+				mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
+				//mw.setSessionUuid(sessionId);
+				mw.setSubscribeMessage(subscribeReq_);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder( mw, handler);
 				return agmb.build();
 			}

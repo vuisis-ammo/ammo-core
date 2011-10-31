@@ -111,7 +111,9 @@ public class RequestSerializer {
 					final byte[] agmBytes = parent.serializeActor.run(encode);
 					parent.agm = parent.readyActor.run(encode, agmBytes);
 				}
-				that.sendRequest(agm, channel);
+				if (parent.agm == null)
+				  return null;
+				that.sendRequest(parent.agm, channel);
 				return null;
 			}
 
