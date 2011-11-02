@@ -40,21 +40,23 @@ public interface INetChannel {
 
     String showState(int state);
 
+    boolean sendRequest( AmmoGatewayMessage agm );
+    void reset();
     boolean isConnected();
-    boolean isEnabled();
     void enable();
     void disable(); // From TcpChannel
-    boolean close(); // From JournalChannel
-    boolean setConnectTimeout(int value);
-    boolean setSocketTimeout(int value);
-    void setFlatLineTime(long flatLineTime);
-    boolean setHost(String host);
-    boolean setPort(int port);
 
-    String toString();
-    void linkUp();
-    void linkDown();
-    void reset();
+    //boolean isEnabled();
+    //boolean close(); // From JournalChannel
+    //boolean setConnectTimeout(int value);
+    //boolean setSocketTimeout(int value);
+    //void setFlatLineTime(long flatLineTime);
+    //boolean setHost(String host);
+    //boolean setPort(int port);
+
+    //String toString();
+    //void linkUp();
+    //void linkDown();
 
     /**
      * The method to post things to the channel input queue.
@@ -62,7 +64,6 @@ public interface INetChannel {
      * @param req
      * @return
      */
-    boolean sendRequest( AmmoGatewayMessage agm );
-    String getLocalIpAddress();
+    //String getLocalIpAddress();
 
 }

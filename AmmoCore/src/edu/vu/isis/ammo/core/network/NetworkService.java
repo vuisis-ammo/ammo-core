@@ -146,11 +146,10 @@ public class NetworkService extends Service implements
 	private DistributorService distributor;
 
 	// Channels
-	private INetChannel tcpChannel = TcpChannel.getInstance(this);
-	//private INetChannel multicastChannel = MulticastChannel.getInstance(this);
-	private INetChannel multicastChannel = MulticastChannel.getInstance(this);
-	private INetChannel journalChannel = JournalChannel.getInstance(this);
-	private SerialChannel serialChannel = SerialChannel.getInstance(this);
+	private TcpChannel tcpChannel = TcpChannel.getInstance(this);
+	private MulticastChannel multicastChannel = MulticastChannel.getInstance(this);
+	private JournalChannel journalChannel = JournalChannel.getInstance(this);
+	private SerialChannel serialChannel = new SerialChannel( this );
 
 	private MyBroadcastReceiver myReceiver = null;
 	private IRegisterReceiver mReceiverRegistrar = new IRegisterReceiver() {
@@ -253,7 +252,7 @@ public class NetworkService extends Service implements
 		// no point in enabling the socket until the preferences have been read
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
-        this.serialChannel.disable();
+        // The serial channel is created in a disabled state.
 		this.acquirePreferences();
 		if (this.networkingSwitch && this.gatewayEnabled) {
 			this.tcpChannel.enable();
@@ -262,10 +261,9 @@ public class NetworkService extends Service implements
             this.multicastChannel.enable();
             this.multicastChannel.reset(); // This starts the connector thread.
         }
-		if (this.networkingSwitch && this.serialEnabled) {
+
+		if (this.networkingSwitch && this.serialEnabled)
             this.serialChannel.enable();
-            this.serialChannel.reset(); // This starts the connector thread.
-        }
 
 		this.myReceiver = new MyBroadcastReceiver();
 

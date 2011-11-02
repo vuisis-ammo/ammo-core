@@ -4,800 +4,400 @@
 package edu.vu.isis.ammo.core.network;
 
 import java.io.File;
-import java.io.FileDescriptor;
+import java.io.IOException;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.MulticastSocket;
-import java.net.NetworkInterface;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.ClosedChannelException;
-import java.util.Enumeration;
+import java.nio.channels.FileChannel;
+import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.LinkedList;
-import java.util.zip.CRC32;
-import java.lang.Long;
-
-import android.net.wifi.WifiManager;
-import android.net.wifi.WifiManager.MulticastLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
-
+/**
+ *
+ */
 public class SerialChannel extends NetChannel
 {
-    private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
+    // Move these to the interface class later.
+    public static final int SERIAL_DISABLED        = 1;
+    public static final int SERIAL_WAITING_FOR_TTY = 2;
+    public static final int SERIAL_CONNECTED       = 3;
+    public static final int SERIAL_ERROR           = 4;
 
-    private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
 
     /**
-     * $ sysctl net.ipv4.tcp_rmem
-     * or
-     * $ cat /proc/sys/net/ipv4/tcp_rmem
-     * 4096   87380   4194304
-     * 0x1000 0x15554 0x400000
-     *
-     * The first value tells the kernel the minimum receive buffer for each TCP connection, and
-     * this buffer is always allocated to a TCP socket, even under high pressure on the system.
-     *
-     * The second value specified tells the kernel the default receive buffer allocated for each TCP socket.
-     * This value overrides the /proc/sys/net/core/rmem_default value used by other protocols.
-     *
-     * The third and last value specified in this variable specifies the maximum receive buffer
-     * that can be allocated for a TCP socket.
      *
      */
-    private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
-    private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
-    private boolean isEnabled = true;
-
-    private Socket socket = null;
-    private ConnectorThread connectorThread;
-
-    // New threads
-    private SenderThread mSender;
-    private ReceiverThread mReceiver;
-
-    @SuppressWarnings("unused")
-    private int connectTimeout = 5 * 1000; // this should come from network preferences
-    @SuppressWarnings("unused")
-    private int socketTimeout = 5 * 1000; // milliseconds.
-
-    private String gatewayHost = null;
-    private int gatewayPort = -1;
-
-    private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
-    private final Object syncObj;
-
-    private boolean shouldBeDisabled = false;
-    private long flatLineTime;
-
-    private SerialPort mPort;
-    //private String mMulticastAddress = "228.1.2.3";
-    //private InetAddress mMulticastGroup = null;
-    //private int mMulticastPort = 1234;
-
-    private SenderQueue mSenderQueue;
-
-    private AtomicBoolean mIsAuthorized;
-
-    // I made this public to support the hack to get authentication
-    // working before Nilabja's code is ready.  Make it private again
-    // once his stuff is in.
-    public IChannelManager mChannelManager;
-    private ISecurityObject mSecurityObject;
-
-
-    private SerialChannel( IChannelManager iChannelManager ) {
-        super();
-
-        logger.info("Thread <{}>SerialChannel::<constructor>", Thread.currentThread().getId());
-        this.syncObj = this;
-
-        mIsAuthorized = new AtomicBoolean( false );
+    public SerialChannel( IChannelManager iChannelManager )
+    {
+        logger.info( "SerialChannel::SerialChannel()" );
 
         mChannelManager = iChannelManager;
 
-        this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
-
-        mSenderQueue = new SenderQueue( this );
-
-        this.connectorThread = new ConnectorThread(this);
-        // The thread is start()ed the first time the network disables and
-        // reenables it.
+        // The channel is created in the disabled state, so it will
+        // not have a Connector thread.
     }
 
-
-    public static SerialChannel getInstance( IChannelManager iChannelManager )
-    {
-        logger.trace("Thread <{}> SerialChannel::getInstance()",
-                     Thread.currentThread().getId());
-        SerialChannel instance = new SerialChannel( iChannelManager );
-        return instance;
-    }
-
-
-    public boolean isConnected() { return this.connectorThread.isConnected(); }
 
     /**
-     * Was the status changed as a result of enabling the connection.
-     * @return
-     */
-    public boolean isEnabled() { return this.isEnabled; }
-
-
-    public void enable() {
-        logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
-        synchronized (this.syncObj) {
-            if ( !this.isEnabled ) {
-                this.isEnabled = true;
-
-                // if (! this.connectorThread.isAlive()) this.connectorThread.start();
-
-                logger.warn("::enable - Setting the state to STALE");
-                this.shouldBeDisabled = false;
-                this.connectorThread.state.set(NetChannel.STALE);
-            }
-        }
-    }
-
-
-    public void disable() {
-        logger.trace("Thread <{}>::disable", Thread.currentThread().getId());
-        synchronized (this.syncObj) {
-            if ( this.isEnabled ) {
-                this.isEnabled = false;
-                logger.warn("::disable - Setting the state to DISABLED");
-                this.shouldBeDisabled = true;
-                this.connectorThread.state.set(NetChannel.DISABLED);
-
-                //          this.connectorThread.stop();
-            }
-        }
-    }
-
-
-    public boolean close() { return false; }
-
-    public boolean setConnectTimeout(int value) {
-        logger.trace("Thread <{}>::setConnectTimeout {}", Thread.currentThread().getId(), value);
-        this.connectTimeout = value;
-        return true;
-    }
-    public boolean setSocketTimeout(int value) {
-        logger.trace("Thread <{}>::setSocketTimeout {}", Thread.currentThread().getId(), value);
-        this.socketTimeout = value;
-        this.reset();
-        return true;
-    }
-
-    public void setFlatLineTime(long flatLineTime) {
-        //this.flatLineTime = flatLineTime;  // currently broken
-    }
-
-    public boolean setHost(String host) {
-        logger.info("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
-        if ( gatewayHost != null && gatewayHost.equals(host) ) return false;
-        this.gatewayHost = host;
-        this.reset();
-        return true;
-    }
-    public boolean setPort(int port) {
-        logger.info("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
-        if (gatewayPort == port) return false;
-        this.gatewayPort = port;
-        this.reset();
-        return true;
-    }
-
-    public String toString() {
-        return "socket: host["+this.gatewayHost+"] port["+this.gatewayPort+"]";
-    }
-
-    public void linkUp() {
-        this.connectorThread.state.linkUp();
-    }
-    public void linkDown() {
-        this.connectorThread.state.linkDown();
-    }
-    /**
-     * forces a reconnection.
-     */
-    public void reset() {
-        logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
-        logger.info("connector: {} sender: {} receiver: {}",
-                    new Object[] {
-                        this.connectorThread.showState(),
-                        (this.mSender == null ? "none" : this.mSender.getSenderState()),
-                        (this.mReceiver == null ? "none" : this.mReceiver.getReceiverState())});
-
-        synchronized (this.syncObj) {
-            if (! this.connectorThread.isAlive()) {
-                this.connectorThread = new ConnectorThread(this);
-                this.connectorThread.start();
-            }
-
-            this.connectorThread.reset();
-        }
-    }
-    private void statusChange()
-    {
-        int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
-        int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
-
-        mChannelManager.statusChange( this,
-                                      this.connectorThread.state.value,
-                                      senderState,
-                                      receiverState );
-    }
-
-
-    private synchronized void setSecurityObject( ISecurityObject iSecurityObject )
-    {
-        mSecurityObject = iSecurityObject;
-    }
-
-
-    private synchronized ISecurityObject getSecurityObject()
-    {
-        return mSecurityObject;
-    }
-
-
-    private void setIsAuthorized( boolean iValue )
-    {
-        logger.info( "In setIsAuthorized(). value={}", iValue );
-
-        mIsAuthorized.set( iValue );
-    }
-
-
-    public boolean getIsAuthorized()
-    {
-        return mIsAuthorized.get();
-    }
-
-
-    public void authorizationSucceeded( AmmoGatewayMessage agm )
-    {
-        setIsAuthorized( true );
-        mSenderQueue.markAsAuthorized();
-
-        // Tell the NetworkService that we're authorized and have it
-        // notify the apps.
-        mChannelManager.authorizationSucceeded( agm );
-    }
-
-
-    public void authorizationFailed()
-    {
-        // Disconnect the channel.
-        reset();
-    }
-
-
-    // Called by ReceiverThread to send an incoming message to the
-    // appropriate destination.
-    private boolean deliverMessage( AmmoGatewayMessage agm )
-    {
-        logger.error( "In deliverMessage()" );
-
-        boolean result;
-        if ( mIsAuthorized.get() )
-        {
-            logger.info( " delivering to channel manager" );
-            result = mChannelManager.deliver( agm );
-        }
-        else
-        {
-            logger.info( " delivering to security object" );
-            result = getSecurityObject().deliverMessage( agm );
-        }
-        return result;
-    }
-
-    /**
-     *  Called by the SenderThread.
-     *  This exists primarily to make a place to add instrumentation.
-     *  Also, follows the delegation pattern.
-     */
-    private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-                                  boolean status )
-    {
-        return handler.ack( SerialChannel.class, status );
-    }
-
-    // Called by the ConnectorThread.
-    private boolean isAnyLinkUp()
-    {
-        return mChannelManager.isAnyLinkUp();
-    }
-
-
-    private final AtomicLong mTimeOfLastGoodRead = new AtomicLong( 0 );
-
-
-    // Heartbeat-related members.
-    private final long mHeartbeatInterval = 10 * 1000; // ms
-    private final AtomicLong mNextHeartbeatTime = new AtomicLong( 0 );
-
-    private String mDevice;
-    private int mBaudRate;
-
-    private AtomicInteger mSlotNumber = new AtomicInteger();
-    private AtomicInteger mRadiosInGroup = new AtomicInteger();
-
-    private AtomicInteger mSlotDuration = new AtomicInteger();
-    private AtomicInteger mTransmitDuration = new AtomicInteger();
-
-    private AtomicBoolean mSenderEnabled = new AtomicBoolean();
-    private AtomicBoolean mReceiverEnabled = new AtomicBoolean();
-
-
-    // Send a heartbeat packet to the gateway if enough time has elapsed.
-    // Note: the way this currently works, the heartbeat can only be sent
-    // in intervals that are multiples of the burp time.  This may change
-    // later if I can eliminate some of the wait()s.
-    private void sendHeartbeatIfNeeded()
-    {
-        //logger.warn( "In sendHeartbeatIfNeeded()." );
-
-        long nowInMillis = System.currentTimeMillis();
-        if ( nowInMillis < mNextHeartbeatTime.get() ) return;
-
-        // Send the heartbeat here.
-        logger.warn( "Sending a heartbeat. t={}", nowInMillis );
-
-        // Create a heartbeat message and call the method to send it.
-        AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType( AmmoMessages.MessageWrapper.MessageType.HEARTBEAT );
-        mw.setMessagePriority(AmmoGatewayMessage.PriorityLevel.FLASH.v);
-
-        AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
-        message.setSequenceNumber( nowInMillis ); // Just for testing
-
-        mw.setHeartbeat( message );
-
-        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
-        agmb.isGateway(true);
-        sendRequest( agmb.build() );
-
-        mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
-        //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
-    }
-
-    /**
-     * manages the connection.
-     * enable or disable expresses the operator intent.
-     * There is no reason to run the thread unless the channel is enabled.
-     *
-     * Any of the properties of the channel
      *
      */
-    private class ConnectorThread extends Thread {
+    public synchronized void enable()
+    {
+        logger.info( "SerialChannel::enable()" );
+
+        if ( mConnector == null ) {
+            mConnector = new Connector();
+            mConnector.start();
+        }
+        else {
+            logger.error( "enable() called on an already enabled channel" );
+        }
+    }
+
+
+    /**
+     *
+     */
+    public synchronized void disable()
+    {
+        logger.info( "SerialChannel::disable()" );
+
+        if ( mConnector != null ) {
+            mConnector.terminate();
+            mConnector = null;
+        }
+
+        disconnect();
+        setState( SERIAL_DISABLED );
+    }
+
+
+    /**
+     * Do we even need this? Does it need to be public? Couldn't the
+     * NS just call enable/disable in sequence? Ah, reset() might be
+     * more explicit about what is going on.
+     */
+    public synchronized void reset()
+    {
+        disable();
+        enable();
+    }
+
+
+    /**
+     * Rename this to send() once the merge is done.
+     */
+    public boolean sendRequest( AmmoGatewayMessage message )
+    {
+        return mSenderQueue.putFromDistributor( message );
+    }
+
+
+    /**
+     *
+     */
+    public boolean isConnected() { return getState() == SERIAL_CONNECTED; }
+
+
+    // The following methods will require a disconnect and reconnect,
+    // because the variables can't changed while running.  They probably aren't
+    // that important in the short-term.
+    //
+    // NOTE: The following two function are probably not working atm.  We need
+    // to make sure that they're synchronized, and deal with disconnecting the
+    // channel (to force a reconnect).  This functionality isn't presently
+    // needed, but fix this at some point.
+
+    /**
+     * FIXME
+     */
+    public void setDevice( String device )
+    {
+        logger.info( "Device set to {}", device );
+        mDevice = device;
+    }
+
+
+    /**
+     * FIXME
+     */
+    public void setBaudRate( int baudRate )
+    {
+        logger.info( "Baud rate set to {}", baudRate );
+        mBaudRate = baudRate;
+    }
+
+
+    // The following methods can be changed while connected.  Modify the
+    // threads to get the values from synchronized members.
+    //
+
+    /**
+     *
+     */
+    public void setSlotNumber( int slotNumber )
+    {
+        logger.info( "Slot set to {}", slotNumber );
+        mSlotNumber.set( slotNumber );
+    }
+
+    /**
+     *
+     */
+    public void setRadiosInGroup( int radiosInGroup )
+    {
+        logger.error( "Radios in group set to {}", radiosInGroup );
+        mRadiosInGroup.set( radiosInGroup );
+    }
+
+
+    /**
+     *
+     */
+    public void setSlotDuration( int slotDuration )
+    {
+        logger.error( "Slot duration set to {}", slotDuration );
+        mSlotDuration.set( slotDuration );
+    }
+
+    /**
+     *
+     */
+    public void setTransmitDuration( int transmitDuration )
+    {
+        logger.error( "Transmit duration set to {}", transmitDuration );
+        mTransmitDuration.set( transmitDuration );
+    }
+
+
+    /**
+     *
+     */
+    public void setSenderEnabled( boolean enabled )
+    {
+        logger.error( "Sender enabled set to {}", enabled );
+        mSenderEnabled.set( enabled );
+    }
+
+    /**
+     *
+     */
+    public void setReceiverEnabled( boolean enabled )
+    {
+        logger.error( "Receiver enabled set to {}", enabled );
+        mReceiverEnabled.set( enabled );
+    }
+
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // Private classes, methods, and members
+    //
+
+    /**
+     *
+     */
+    private class Connector extends Thread
+    {
         private final Logger logger = LoggerFactory.getLogger( "net.serial.connector" );
 
-        private final String DEFAULT_HOST = "10.0.2.2";
-        private final int DEFAULT_PORT = 32896;
-        private final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
-
-        private SerialChannel parent;
-        private final State state;
-
-        private AtomicBoolean mIsConnected;
-
-        public void statusChange()
-        {
-            parent.statusChange();
-        }
-
-
-        // Called by the sender and receiver when they have an exception on the
-        // socket.  We only want to call reset() once, so we use an
-        // AtomicBoolean to keep track of whether we need to call it.
-        public void portOperationFailed()
-        {
-            if ( mIsConnected.compareAndSet( true, false ))
-                state.reset();
-        }
-
-
-        private ConnectorThread( SerialChannel parent ) {
-            logger.info("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
-            this.parent = parent;
-            this.state = new State();
-            mIsConnected = new AtomicBoolean( false );
-        }
-
-        private class State {
-            private int value;
-            private int actual;
-
-            private long attempt; // used to uniquely name the connection
-
-            public State() {
-                this.value = STALE;
-                this.attempt = Long.MIN_VALUE;
-            }
-            public synchronized void linkUp() {
-                this.notifyAll();
-            }
-            public synchronized void linkDown() {
-                this.reset();
-            }
-            public synchronized void set(int state) {
-                logger.info("Thread <{}>State::set", Thread.currentThread().getId());
-                switch (state) {
-                case STALE:
-                    this.reset();
-                    return;
-                }
-                this.value = state;
-                this.notifyAll();
-            }
-            public synchronized int get() { return this.value; }
-
-            public synchronized boolean isConnected() {
-                return this.value == CONNECTED;
-            }
-
-
-            /**
-             * Previously this method would only set the state to stale
-             * if the current state were CONNECTED.  It may be important
-             * to return to STALE from other states as well.
-             * For example during a failed link attempt.
-             * Therefore if the attempt value matches then reset to STALE
-             * This also causes a reset to reliably perform a notify.
-             *
-             * @param attempt value (an increasing integer)
-             * @return
-             */
-            public synchronized boolean failure(long attempt) {
-                if (attempt != this.attempt) return true;
-                return this.reset();
-            }
-            public synchronized boolean reset() {
-                attempt++;
-                this.value = STALE;
-                this.notifyAll();
-                return true;
-            }
-
-            public String showState () {
-                if (this.value == this.actual)
-                    return parent.showState(this.value);
-                else
-                    return parent.showState(this.actual) + "->" + parent.showState(this.value);
-            }
-        }
-
-        public boolean isConnected() {
-            return this.state.isConnected();
-        }
-        public long getAttempt() {
-            return this.state.attempt;
-        }
-        public String showState() { return this.state.showState( ); }
-
         /**
-         * reset forces the channel closed if open.
+         *
          */
-        public void reset() {
-            this.state.failure(this.state.attempt);
+        public Connector()
+        {
+            logger.info( "SerialChannel.Connector::Connector()" );
+            setState( SERIAL_WAITING_FOR_TTY );
         }
 
-        public void failure(long attempt) {
-            this.state.failure(attempt);
-        }
 
         /**
-         * A value machine based.
-         * Most of the time this machine will be in a CONNECTED value.
-         * In that CONNECTED value the machine wait for the connection value to
-         * change or for an interrupt indicating that the thread is being shut down.
          *
-         *  The value machine takes care of the following constraints:
-         * We don't need to reconnect unless.
-         * 1) the connection has been lost
-         * 2) the connection has been marked stale
-         * 3) the connection is enabled.
-         * 4) an explicit reconnection was requested
-         *
-         * @return
          */
         @Override
-        public void run() {
+        public void run()
+        {
+            logger.info( "SerialChannel.Connector::run()",
+                         Thread.currentThread().getId() );
+
+            // We might have been disabled before the thread even gets
+            // a chance to run, so check that before doing anything.
+            if ( isInterrupted() )
+                return;
+
             try {
-                logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
-                MAINTAIN_CONNECTION: while (true) {
-                    logger.info("connector state: {}",this.showState());
-
-                    if(this.parent.shouldBeDisabled) this.state.set(NetChannel.DISABLED);
-                    switch (this.state.get()) {
-                    case NetChannel.DISABLED:
-                        try {
-                            synchronized (this.state) {
-                                logger.info("this.state.get() = {}", this.state.get());
-
-                                while (this.state.get() == NetChannel.DISABLED) // this is IMPORTANT don't remove it.
-                                {
-                                    this.parent.statusChange();
-                                    this.state.wait(BURP_TIME);   // wait for a link interface
-                                    logger.info("Looping in Disabled");
-                                }
-                            }
-                        } catch (InterruptedException ex) {
-                            logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.set(NetChannel.STALE);
-                            break MAINTAIN_CONNECTION;
-                        }
-                        break;
-                    case NetChannel.STALE:
-                        disconnect();
-                        this.state.set(NetChannel.DISCONNECTED); // skip over LINK_WAIT
-                        break;
-
-                    case NetChannel.LINK_WAIT:
-                        this.parent.statusChange();
-                        try {
-                            synchronized (this.state) {
-                                while (! parent.isAnyLinkUp()) // this is IMPORTANT don't remove it.
-                                    this.state.wait(BURP_TIME);   // wait for a link interface
-                            }
-                            this.state.set(NetChannel.DISCONNECTED);
-                        } catch (InterruptedException ex) {
-                            logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.set(NetChannel.STALE);
-                            break MAINTAIN_CONNECTION;
-                        }
-                        this.parent.statusChange();
-                        // or else wait for link to come up, triggered through broadcast receiver
-                        break;
-
-                    case NetChannel.DISCONNECTED:
-                        this.parent.statusChange();
-                        if ( !this.connect() ) {
-                            this.state.set(NetChannel.CONNECTING);
-                        } else {
-                            this.state.set(NetChannel.CONNECTED);
-                        }
-                        break;
-
-                    case NetChannel.CONNECTING: // keep trying
-                        try {
-                            this.parent.statusChange();
-                            long attempt = this.getAttempt();
-                            Thread.sleep(GATEWAY_RETRY_TIME);
-                            if ( this.connect() ) {
-                                this.state.set(NetChannel.CONNECTED);
-                            } else {
-                                this.failure(attempt);
-                            }
-                            this.parent.statusChange();
-                        } catch (InterruptedException ex) {
-                            logger.info("sleep interrupted - intentional disable, exiting thread ...");
-                            this.reset();
-                            break MAINTAIN_CONNECTION;
-                        }
-                        break;
-
-                    case NetChannel.CONNECTED:
-                    {
-                        this.parent.statusChange();
-                        try {
-                            synchronized (this.state) {
-                                while (this.isConnected()) // this is IMPORTANT don't remove it.
-                                {
-                                    //parent.sendHeartbeatIfNeeded();
-
-                                    // wait for somebody to change the connection status
-                                    this.state.wait(BURP_TIME);
-                                }
-                            }
-                        } catch (InterruptedException ex) {
-                            logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.set(NetChannel.STALE);
-                            break MAINTAIN_CONNECTION;
-                        }
-                        this.parent.statusChange();
+                setState( SERIAL_WAITING_FOR_TTY );
+                synchronized ( SerialChannel.this ) {
+                    while ( !connect() ) {
+                        logger.debug( "Connect failed. Waiting to retry..." );
+                        wait( WAIT_TIME );
                     }
-                    break;
-                    default:
-                        try {
-                            long attempt = this.getAttempt();
-                            this.parent.statusChange();
-                            Thread.sleep(GATEWAY_RETRY_TIME);
-                            this.failure(attempt);
-                            this.parent.statusChange();
-                        } catch (InterruptedException ex) {
-                            logger.info("sleep interrupted - intentional disable, exiting thread ...");
-                            this.reset();
-                            break MAINTAIN_CONNECTION;
-                        }
-                    }
+                    setState( SERIAL_CONNECTED );
+                    mConnector = null;
                 }
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                this.state.set(NetChannel.EXCEPTION);
+            } catch ( InterruptedException e ) {
+                // Do nothing here.  If we were interrupted, we need
+                // to catch the exception and exit cleanly.
             }
-            try {
-                if (this.parent.socket == null) {
-                    logger.error("channel closing without active socket");
-                    return;
-                }
-                this.parent.socket.close();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-                logger.error("channel closing without proper socket");
-            }
-            logger.error("channel closing");
+            // FIXME: Do we need this?  Is it the right thing to do?
+            //catch ( Exception e ) {
+            //    logger.warn("Connector threw exception {}", e.getStackTrace() );
+            //}
         }
 
 
+        /**
+         *
+         */
+        public void terminate()
+        {
+            logger.info( "SerialChannel.Connector::terminate()" );
+            interrupt();
+        }
+
+
+        /**
+         *
+         */
         private boolean connect()
         {
-            logger.info( "Thread <{}>ConnectorThread::connect",
-                         Thread.currentThread().getId() );
-
-            // try
-            // {
-            //     parent.mMulticastGroup = InetAddress.getByName( parent.mMulticastAddress );
-            // }
-            // catch ( UnknownHostException e )
-            // {
-            //     logger.warn( "could not resolve host name" );
-            //     return false;
-            // }
+            logger.info( "SerialChannel.Connector::connect()" );
 
             // Create the SerialPort.
-            if ( parent.mPort != null )
+            if ( mPort != null )
                 logger.error( "Tried to create mPort when we already had one." );
-            try
-            {
-                parent.mPort = new SerialPort( new File(mDevice), mBaudRate );
-            }
-            catch ( Exception e )
-            {
-                logger.warn( "connection to serial port failed" );
-                parent.mPort = null;
+            try {
+                mPort = new SerialPort( new File(mDevice), mBaudRate );
+            } catch ( Exception e ) {
+                logger.info( "Connection to serial port failed" );
+                mPort = null;
                 return false;
             }
 
-            logger.info( "connection to serial port established " );
+            logger.info( "Connection to serial port established " );
             mIsConnected.set( true );
 
             // Create the security object.  This must be done before
             // the ReceiverThread is created in case we receive a
             // message before the SecurityObject is ready to have it
             // delivered.
-            if ( parent.getSecurityObject() != null )
+            if ( getSecurityObject() != null )
                 logger.error( "Tried to create SecurityObject when we already had one." );
-            parent.setSecurityObject( new SerialSecurityObject( parent ));
+            setSecurityObject( new SerialSecurityObject( SerialChannel.this ));
 
             // Create the sending thread.
-            if ( parent.mSender != null )
+            if ( mSender != null )
                 logger.error( "Tried to create Sender when we already had one." );
-            parent.mSender = new SenderThread( this,
-                                               parent,
-                                               parent.mSenderQueue,
-                                               parent.mPort );
+            mSender = new SenderThread();
             setIsAuthorized( true );
-            parent.mSender.start();
+            mSender.start();
 
             // Create the receiving thread.
-            if ( parent.mReceiver != null )
+            if ( mReceiver != null )
                 logger.error( "Tried to create Receiver when we already had one." );
-            parent.mReceiver = new ReceiverThread( this, parent, parent.mPort );
-            parent.mReceiver.start();
+            mReceiver = new ReceiverThread();
+            mReceiver.start();
 
             // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
             // just a temporary hack.
             //parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest());
+
+            // HACK: We are currently not using authentication or
+            // encryption with the 152s, so just force the
+            // authorization so the senderqueue will start sending
+            // packets out.
             mSenderQueue.markAsAuthorized();
 
-            return true;
-        }
-
-
-        private boolean disconnect()
-        {
-            logger.info( "Thread <{}>ConnectorThread::disconnect",
-                         Thread.currentThread().getId() );
-            try
-            {
-                mIsConnected.set( false );
-
-                if ( mSender != null )
-                    mSender.interrupt();
-                if ( mReceiver != null )
-                    mReceiver.interrupt();
-
-                mSenderQueue.reset();
-
-                if ( parent.mPort != null )
-                {
-                    logger.debug( "Closing SerialPort." );
-                    parent.mPort.close();
-                    logger.debug( "Done" );
-
-                    parent.mPort = null;
-                }
-
-                setIsAuthorized( false );
-
-                parent.setSecurityObject( null );
-                parent.mSender = null;
-                parent.mReceiver = null;
-            }
-            catch ( Exception e )
-            {
-                logger.error( "Caught Exception" );
-                // Do this here, too, since if we exited early because
-                // of an exception, we want to make sure that we're in
-                // an unauthorized state.
-                setIsAuthorized( false );
-                return false;
-            }
-            logger.debug( "returning after successful disconnect()." );
             return true;
         }
     }
 
 
     /**
-     * do your best to send the message.
-     * This makes use of the blocking "put" call.
-     * A proper producer-consumer should use put or add and not offer.
-     * "put" is blocking call.
-     * If this were on the UI thread then offer would be used.
      *
-     * @param agm AmmoGatewayMessage
-     * @return
      */
-    public boolean sendRequest( AmmoGatewayMessage agm )
+    private void disconnect()
     {
-        return mSenderQueue.putFromDistributor( agm );
+        logger.info( "SerialChannel::disconnect()" );
+
+        try {
+            mIsConnected.set( false );
+
+            if ( mConnector != null )
+                mConnector.terminate();
+            if ( mSender != null )
+                mSender.interrupt();
+            if ( mReceiver != null )
+                mReceiver.interrupt();
+
+            mSenderQueue.reset();
+
+            if ( mPort != null ) {
+                logger.debug( "Closing SerialPort..." );
+
+                // Closing the port doesn't interrupt blocked read()s,
+                // so we close the streams first.
+                mPort.getInputStream().getChannel().close();
+                mPort.getOutputStream().getChannel().close();
+                mPort.close();
+                logger.debug( "Done" );
+
+                mPort = null;
+            }
+
+            setIsAuthorized( false );
+
+            setSecurityObject( null );
+            mConnector = null;
+            mSender = null;
+            mReceiver = null;
+        } catch ( Exception e ) {
+            logger.error( "Caught exception while closing serial port." );
+            // Do this here, too, since if we exited early because
+            // of an exception, we want to make sure that we're in
+            // an unauthorized state.
+            setIsAuthorized( false );
+            return;
+        }
+        logger.debug( "Disconnected successfully." );
     }
 
-    public void putFromSecurityObject( AmmoGatewayMessage agm )
-    {
-        mSenderQueue.putFromSecurityObject( agm );
-    }
 
-    public void finishedPuttingFromSecurityObject()
+    // Called by the sender and receiver when they have an exception on the
+    // port.  We only want to call reset() once, so we use an
+    // AtomicBoolean to keep track of whether we need to call it.
+    /**
+     *
+     */
+    public void ioOperationFailed()
     {
-        mSenderQueue.finishedPuttingFromSecurityObject();
+        if ( mIsConnected.compareAndSet( true, false )) {
+            logger.error( "I/O operation failed.  Resetting channel." );
+            reset();
+        }
     }
 
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class SenderQueue
+    /**
+     *
+     */
+    private class SenderQueue
     {
-        public SenderQueue( SerialChannel iChannel )
+        /**
+         *
+         */
+        public SenderQueue()
         {
-            mChannel = iChannel;
-
             setIsAuthorized( false );
             mDistQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( 20 );
             mAuthQueue = new LinkedList<AmmoGatewayMessage>();
@@ -806,21 +406,24 @@ public class SerialChannel extends NetChannel
 
         // In the new design, aren't we supposed to let the
         // NetworkService know if the outgoing queue is full or not?
+        /**
+         *
+         */
         public boolean putFromDistributor( AmmoGatewayMessage iMessage )
         {
-            try
-            {
+            try {
                 logger.info( "putFromDistributor()" );
                 mDistQueue.put( iMessage );
-            }
-            catch ( InterruptedException e )
-            {
+            } catch ( InterruptedException e ) {
                 return false;
             }
             return true;
         }
 
 
+        /**
+         *
+         */
         public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
         {
             logger.info( "putFromSecurityObject()" );
@@ -828,6 +431,9 @@ public class SerialChannel extends NetChannel
         }
 
 
+        /**
+         *
+         */
         public synchronized void finishedPuttingFromSecurityObject()
         {
             logger.info( "finishedPuttingFromSecurityObject()" );
@@ -837,6 +443,9 @@ public class SerialChannel extends NetChannel
 
         // This is called when the SecurityObject has successfully
         // authorized the channel.
+        /**
+         *
+         */
         public synchronized void markAsAuthorized()
         {
             logger.info( "Marking channel as authorized" );
@@ -844,39 +453,36 @@ public class SerialChannel extends NetChannel
         }
 
 
+        /**
+         *
+         */
         public synchronized boolean messageIsAvailable()
         {
             return mDistQueue.peek() != null;
         }
 
 
+        /**
+         *
+         */
         public synchronized AmmoGatewayMessage take() throws InterruptedException
         {
             logger.info( "taking from SenderQueue" );
-            if ( mChannel.getIsAuthorized() )
-            {
+            if ( getIsAuthorized() ) {
                 // This is where the authorized SenderThread blocks.
                 return mDistQueue.take();
-            }
-            else
-            {
-                if ( mAuthQueue.size() > 0 )
-                {
+            } else {
+                if ( mAuthQueue.size() > 0 ) {
                     // return the first item in mAuthqueue and remove
                     // it from the queue.
                     return mAuthQueue.remove();
-                }
-                else
-                {
+                } else {
                     logger.info( "wait()ing in SenderQueue" );
                     wait(); // This is where the SenderThread blocks.
 
-                    if ( mChannel.getIsAuthorized() )
-                    {
+                    if ( getIsAuthorized() ) {
                         return mDistQueue.take();
-                    }
-                    else
-                    {
+                    } else {
                         // We are not yet authorized, so return the
                         // first item in mAuthqueue and remove
                         // it from the queue.
@@ -888,16 +494,18 @@ public class SerialChannel extends NetChannel
 
 
         // Somehow synchronize this here.
+        /**
+         *
+         */
         public synchronized void reset()
         {
             logger.info( "reset()ing the SenderQueue" );
             // Tell the distributor that we couldn't send these
             // packets.
             AmmoGatewayMessage msg = mDistQueue.poll();
-            while ( msg != null )
-            {
+            while ( msg != null ) {
                 if ( msg.handler != null )
-                    mChannel.ackToHandler( msg.handler, false );
+                    ackToHandler( msg.handler, false );
                 msg = mDistQueue.poll();
             }
 
@@ -907,26 +515,28 @@ public class SerialChannel extends NetChannel
 
         private BlockingQueue<AmmoGatewayMessage> mDistQueue;
         private LinkedList<AmmoGatewayMessage> mAuthQueue;
-        private SerialChannel mChannel;
     }
 
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class SenderThread extends Thread
+    /**
+     *
+     */
+    private class SenderThread extends Thread
     {
-        public SenderThread( ConnectorThread iParent,
-                             SerialChannel iChannel,
-                             SenderQueue iQueue,
-                             SerialPort iPort )
+        /**
+         *
+         */
+        public SenderThread()
         {
-            mParent = iParent;
-            mChannel = iChannel;
-            mQueue = iQueue;
-            mPort = iPort;
+            logger.info( "SenderThread::SenderThread", Thread.currentThread().getId() );
         }
 
 
+        /**
+         *
+         */
         @Override
         public void run()
         {
@@ -937,7 +547,7 @@ public class SerialChannel extends NetChannel
             // to be sent and, if so, send it. Upon getting a serial port error,
             // notify our parent and go into an error state.
 
-            while ( mState.get() != INetChannel.INTERRUPTED ) {
+            while ( mSenderState.get() != INetChannel.INTERRUPTED ) {
                 AmmoGatewayMessage msg = null;
                 try {
                     setSenderState( INetChannel.TAKING );
@@ -986,10 +596,10 @@ public class SerialChannel extends NetChannel
 
                     // At this point, we've woken up near the start of our window
                     // and should send a message if one is available.
-                    if ( !mQueue.messageIsAvailable() ) {
+                    if ( !mSenderQueue.messageIsAvailable() ) {
                         continue;
                     }
-                    msg = mQueue.take(); // Will not block
+                    msg = mSenderQueue.take(); // Will not block
 
                     logger.debug( "Took a message from the send queue" );
                 } catch ( InterruptedException ex ) {
@@ -1007,7 +617,7 @@ public class SerialChannel extends NetChannel
                     setSenderState( INetChannel.SENDING );
 
                     if ( mSenderEnabled.get() ) {
-                        OutputStream outputStream = mPort.getOutputStream();
+                        FileOutputStream outputStream = mPort.getOutputStream();
                         outputStream.write( buf.array() );
                         outputStream.flush();
 
@@ -1020,13 +630,13 @@ public class SerialChannel extends NetChannel
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, true );
+                        ackToHandler( msg.handler, true );
                 } catch ( Exception e ) {
                     logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, false );
+                        ackToHandler( msg.handler, false );
                     setSenderState( INetChannel.INTERRUPTED );
-                    mParent.portOperationFailed();
+                    ioOperationFailed();
                 }
             }
 
@@ -1034,42 +644,49 @@ public class SerialChannel extends NetChannel
         }
 
 
+        /**
+         *
+         */
         private void setSenderState( int state )
         {
-            mState.set( state );
-            mParent.statusChange();
+            mSenderState.set( state );
+            statusChange();
         }
 
-        public int getSenderState() { return mState.get(); }
+        /**
+         *
+         */
+        public int getSenderState() { return mSenderState.get(); }
 
         // If we miss our window's start time by more than this amount, we
         // give up until our turn in the next cycle.
         private static final int WINDOW_DURATION = 25;
 
-        private AtomicInteger mState = new AtomicInteger( INetChannel.TAKING );
-        private ConnectorThread mParent;
-        private SerialChannel mChannel;
-        private SenderQueue mQueue;
-        private SerialPort mPort;
+        private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
         private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
     }
 
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class ReceiverThread extends Thread
+    /**
+     *
+     */
+    private class ReceiverThread extends Thread
     {
-        public ReceiverThread( ConnectorThread iParent,
-                               SerialChannel iDestination,
-                               SerialPort iPort )
+        /**
+         *
+         */
+        public ReceiverThread()
         {
-            mParent = iParent;
-            mDestination = iDestination;
-            mPort = iPort;
+            logger.info( "ReceiverThread::ReceiverThread()", Thread.currentThread().getId() );
             mInputStream = mPort.getInputStream();
         }
 
 
+        /**
+         *
+         */
         @Override
         public void run()
         {
@@ -1087,6 +704,7 @@ public class SerialChannel extends NetChannel
                 final byte second = (byte) 0xbe;
                 final byte third = (byte) 0xed;
 
+                // See note about length=16 below.
                 byte[] buf_header = new byte[ 32 ];// AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE ];
                 ByteBuffer header = ByteBuffer.wrap( buf_header );
                 header.order( endian );
@@ -1095,7 +713,7 @@ public class SerialChannel extends NetChannel
                 byte c = 0;
                 AmmoGatewayMessage.Builder agmb = null;
 
-                while ( mState.get() != INetChannel.INTERRUPTED ) {
+                while ( mReceiverState.get() != INetChannel.INTERRUPTED ) {
                     setReceiverState( INetChannel.START );
 
                     switch ( state ) {
@@ -1190,7 +808,7 @@ public class SerialChannel extends NetChannel
 
                             if ( mReceiverEnabled.get() ) {
                                 setReceiverState( INetChannel.DELIVER );
-                                mDestination.deliverMessage( agm );
+                                deliverMessage( agm );
                             } else {
                                 logger.info( "Receiving disabled, discarding message." );
                             }
@@ -1208,120 +826,234 @@ public class SerialChannel extends NetChannel
             } catch ( IOException ex ) {
                 logger.warn( "receiver threw an IOException {}", ex.getStackTrace() );
                 setReceiverState( INetChannel.INTERRUPTED );
-                mParent.portOperationFailed();
+                ioOperationFailed();
             } catch ( Exception ex ) {
                 logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
                 setReceiverState( INetChannel.INTERRUPTED );
-                mParent.portOperationFailed();
+                ioOperationFailed();
             }
 
             logger.info( "ReceiverThread <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
+        /**
+         *
+         */
         private byte readAByte() throws IOException
         {
-            //logger.debug( "Calling receive() on the SerialPort." );
+            //logger.debug( "Calling read() on the SerialPort's InputStream." );
             int val = mInputStream.read();
             if ( val == -1 ) {
                 logger.warn( "The serial port returned -1 from read()." );
                 throw new IOException();
             }
-            //logger.debug( "{}", Integer.toHexString(val) );
+
+            // I was trying to make this interruptable, but it didn't
+            // work.  Why not?
+
+            // FileChannel fc = mInputStream.getChannel();
+            // byte[] buf = new byte[1];
+            // ByteBuffer bb = ByteBuffer.wrap( buf );
+
+            // int bytesRead = 0;
+            // while ( bytesRead == 0 ) {
+            //     logger.debug( "before read()" );
+            //     try {
+            //         bytesRead = fc.read( bb );
+            //     } catch ( Exception e ) {
+            //         logger.warn( "Caught an exception from the read" );
+            //     }
+            //     logger.debug( "after read()" );
+            // }
+
+            // if ( bytesRead == -1 ) {
+            //     logger.warn( "The serial port returned -1 from read()." );
+            //     throw new IOException();
+            // }
+
+            // int val = buf[0];
+            //logger.debug( "Read: {}", Integer.toHexString(val) );
             return (byte) val;
         }
 
 
+        /**
+         *
+         */
         private void setReceiverState( int state )
         {
-            mState.set( state );
-            mParent.statusChange();
+            mReceiverState.set( state );
+            statusChange();
         }
 
-        public int getReceiverState() { return mState.get(); }
+        /**
+         *
+         */
+        public int getReceiverState() { return mReceiverState.get(); }
 
-        private AtomicInteger mState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
-        private ConnectorThread mParent;
-        private SerialChannel mDestination;
-        private SerialPort mPort;
-        private InputStream mInputStream;
+        private AtomicInteger mReceiverState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
+        private FileInputStream mInputStream;
         private final Logger logger
             = LoggerFactory.getLogger( "net.serial.receiver" );
     }
 
 
-
-    // ********** UTILITY METHODS ****************
-
-    // The following methods will require a disconnect and reconnect,
-    // because the variables can't changed while running.  They probably aren't
-    // that important in the short-term.
-    //
-    // NOTE: The following two function are probably not working atm.  We need
-    // to make sure that they're synchronized, and deal with disconnecting the
-    // channel (to force a reconnect).  This functionality isn't presently
-    // needed, but fix this at some point.
-    public void setDevice( String device )
+    // Called by ReceiverThread to send an incoming message to the
+    // appropriate destination.
+    /**
+     *
+     */
+    private boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.error( "Device set to {}", device );
-        mDevice = device;
-    }
+        logger.error( "In deliverMessage()" );
 
-    public void setBaudRate( int baudRate )
-    {
-        logger.error( "Baud rate set to {}", baudRate );
-        mBaudRate = baudRate;
+        boolean result;
+        if ( mIsAuthorized.get() ) {
+            logger.info( " delivering to channel manager" );
+            result = mChannelManager.deliver( agm );
+        } else {
+            logger.info( " delivering to security object" );
+            result = getSecurityObject().deliverMessage( agm );
+        }
+        return result;
     }
 
 
-    // The following methods can be changed while connected.  Modify the
-    // threads to get the values from synchronized members.
-    //
-    public void setSlotNumber( int slotNumber )
+    // Called by the SenderThread.
+    /**
+     *
+     */
+    private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
+                                  boolean status )
     {
-        logger.error( "Slot set to {}", slotNumber );
-        mSlotNumber.set( slotNumber );
-    }
-
-    public void setRadiosInGroup( int radiosInGroup )
-    {
-        logger.error( "Radios in group set to {}", radiosInGroup );
-        mRadiosInGroup.set( radiosInGroup );
+        return handler.ack( SerialChannel.class, status );
     }
 
 
-    public void setSlotDuration( int slotDuration )
+    /**
+     *
+     */
+    private synchronized void setSecurityObject( ISecurityObject iSecurityObject )
     {
-        logger.error( "Slot duration set to {}", slotDuration );
-        mSlotDuration.set( slotDuration );
-    }
-
-    public void setTransmitDuration( int transmitDuration )
-    {
-        logger.error( "Transmit duration set to {}", transmitDuration );
-        mTransmitDuration.set( transmitDuration );
+        mSecurityObject = iSecurityObject;
     }
 
 
-    public void setSenderEnabled( boolean enabled )
+    /**
+     *
+     */
+    private synchronized ISecurityObject getSecurityObject()
     {
-        logger.error( "Sender enabled set to {}", enabled );
-        mSenderEnabled.set( enabled );
-    }
-
-    public void setReceiverEnabled( boolean enabled )
-    {
-        logger.error( "Receiver enabled set to {}", enabled );
-        mReceiverEnabled.set( enabled );
+        return mSecurityObject;
     }
 
 
-    //
-    // A routine to get the local ip address
-    // TODO use this someplace
-    //
-    public String getLocalIpAddress()
+    /**
+     *
+     */
+    private void setIsAuthorized( boolean iValue )
     {
-        return null;
+        logger.info( "In setIsAuthorized(). value={}", iValue );
+
+        mIsAuthorized.set( iValue );
     }
+
+
+    /**
+     *
+     */
+    public boolean getIsAuthorized()
+    {
+        return mIsAuthorized.get();
+    }
+
+
+    /**
+     *
+     */
+    public void authorizationSucceeded( AmmoGatewayMessage agm )
+    {
+        setIsAuthorized( true );
+        mSenderQueue.markAsAuthorized();
+
+        // Tell the NetworkService that we're authorized and have it
+        // notify the apps.
+        mChannelManager.authorizationSucceeded( agm );
+    }
+
+
+    /**
+     *
+     */
+    public void authorizationFailed()
+    {
+        // Disconnect the channel.
+        reset();
+    }
+
+
+    /**
+     *
+     */
+    private void statusChange()
+    {
+        // FIXME: make a better state than PENDING.  At this point
+        // they have *no* state since they don't exist.
+        int senderState = (mSender != null) ? mSender.getSenderState() : PENDING;
+        int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : PENDING;
+
+        mChannelManager.statusChange( this,
+                                      getState(),
+                                      senderState,
+                                      receiverState );
+    }
+
+
+    // I made this public to support the hack to get authentication
+    // working before Nilabja's code is ready.  Make it private again
+    // once his stuff is in.
+    public IChannelManager mChannelManager;
+
+    private ISecurityObject mSecurityObject;
+
+    private static final int WAIT_TIME = 5 * 1000; // 5 s
+    private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
+
+    private String mDevice;
+    private int mBaudRate;
+
+    private AtomicInteger mSlotNumber = new AtomicInteger();
+    private AtomicInteger mRadiosInGroup = new AtomicInteger();
+
+    private AtomicInteger mSlotDuration = new AtomicInteger();
+    private AtomicInteger mTransmitDuration = new AtomicInteger();
+
+    private AtomicBoolean mSenderEnabled = new AtomicBoolean();
+    private AtomicBoolean mReceiverEnabled = new AtomicBoolean();
+
+
+    private AtomicInteger mState = new AtomicInteger( SERIAL_DISABLED );
+    private int getState() { return mState.get(); }
+    private void setState( int state )
+    {
+        // Create a method is NetChannel to convert the numbers to strings.
+        logger.info( "changing state from {} to {}",
+                     mState,
+                     state );
+        mState.set( state );
+    }
+
+    private Connector mConnector;
+    private SerialPort mPort;
+    private AtomicBoolean mIsConnected = new AtomicBoolean( false );
+
+    private AtomicBoolean mIsAuthorized = new AtomicBoolean( false );
+
+    private SenderThread mSender;
+    private ReceiverThread mReceiver;
+
+    private SenderQueue mSenderQueue = new SenderQueue();
+;
+    private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
 }

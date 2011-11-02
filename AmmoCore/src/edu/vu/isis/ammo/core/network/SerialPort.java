@@ -68,11 +68,11 @@ public class SerialPort {
     }
 
     // Getters and setters
-    public InputStream getInputStream() {
+    public FileInputStream getInputStream() {
         return mFileInputStream;
     }
 
-    public OutputStream getOutputStream() {
+    public FileOutputStream getOutputStream() {
         return mFileOutputStream;
     }
 
