@@ -90,6 +90,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public final boolean isGateway;
 
     /**
+	 * This is used by PriorityBlockingQueue() to prioritize it contents.
      * @return
      * a negative integer if this instance is less than another;
      * a positive integer if this instance is greater than another;
@@ -103,7 +104,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      */
     @Override
     public int compareTo(Object another) {
-        if (another instanceof AmmoGatewayMessage)
+		if (!(another instanceof AmmoGatewayMessage)) 
             throw new ClassCastException("does not compare with AmmoGatewayMessage");
 
         AmmoGatewayMessage that = (AmmoGatewayMessage) another;
@@ -142,7 +143,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         sb.append("[addr=").append(this.hashCode()).append(" ");
         sb.append("size=").append(this.size).append(" ");
         sb.append("priority=").append(this.priority).append(" ");
-        sb.append("payload checksum=").append(Long.toHexString(this.payload_checksum)).append(" ]");
+		sb.append("checksum=").append(Long.toHexString(this.payload_checksum)).append(" ]");
         return sb.toString();
     }
 
@@ -187,19 +188,28 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public boolean isGateway() { return this.isGateway; }
         public Builder isGateway(boolean val) { this.isGateway = val; return this; }
 
-        private byte[] payload;
-        public byte[] payload() { return this.payload; }
+		private byte[] payload_serialized;
+		public byte[] payload() { 
+			return this.payload_serialized; 
+		}
         public Builder payload(byte[] val) {
             //if (this.size != val.length)
             //    throw new IllegalArgumentException("payload size incorrect");
-            //return new AmmoGatewayMessage(this, val);
+			this.payload_serialized = val;
+			return this;
+		}
+		private AmmoMessages payload;
+		public AmmoMessages payload(Class<?> clazz) { 
+			return this.payload; 
+		}
+		public Builder payload(AmmoMessages val) { 
             this.payload = val;
             return this;
         }
         public AmmoGatewayMessage build() {
-            if (this.size != this.payload.length)
+			if (this.size != this.payload_serialized.length)
                 throw new IllegalArgumentException("payload size incorrect");
-            return new AmmoGatewayMessage(this, this.payload);
+			return new AmmoGatewayMessage(this, this.payload_serialized);
         }
 
         /**

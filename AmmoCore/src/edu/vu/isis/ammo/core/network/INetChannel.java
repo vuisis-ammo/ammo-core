@@ -1,6 +1,6 @@
 package edu.vu.isis.ammo.core.network;
 
-
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 
 /**
  * The NetChannel is some mechanism for establishing a network connection
@@ -40,23 +40,11 @@ public interface INetChannel {
 
     String showState(int state);
 
-    boolean sendRequest( AmmoGatewayMessage agm );
     void reset();
     boolean isConnected();
     void enable();
     void disable(); // From TcpChannel
 
-    //boolean isEnabled();
-    //boolean close(); // From JournalChannel
-    //boolean setConnectTimeout(int value);
-    //boolean setSocketTimeout(int value);
-    //void setFlatLineTime(long flatLineTime);
-    //boolean setHost(String host);
-    //boolean setPort(int port);
-
-    //String toString();
-    //void linkUp();
-    //void linkDown();
 
     /**
      * The method to post things to the channel input queue.
@@ -64,6 +52,7 @@ public interface INetChannel {
      * @param req
      * @return
      */
+    ChannelDisposal sendRequest( AmmoGatewayMessage agm );
     //String getLocalIpAddress();
 
 }

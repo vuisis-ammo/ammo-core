@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 import android.app.Application;
 import android.content.Intent;
 import android.os.Environment;
-import edu.vu.isis.ammo.core.distributor.DistributorService;
+import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
 public class ApplicationEx  extends Application {
@@ -41,7 +41,7 @@ public class ApplicationEx  extends Application {
 
         Intent svc = new Intent();
 
-        svc.setClass(this, DistributorService.class);
+        svc.setClass(this, AmmoService.class);
         this.startService(svc);
         // context.startService(NetworkService.LAUNCH);
 
