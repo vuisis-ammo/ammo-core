@@ -62,8 +62,8 @@ public class SerialChannel extends NetChannel
         logger.info( "SerialChannel::enable()" );
 
         if ( mConnector == null ) {
-            mConnector = new Connector();
-            mConnector.start();
+            //mConnector = new Connector();
+            //mConnector.start();
         }
         else {
             logger.error( "enable() called on an already enabled channel" );

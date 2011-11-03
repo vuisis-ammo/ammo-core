@@ -58,6 +58,7 @@ public class SerialPort {
         //     }
         // }
 
+        Log.e(TAG, "SerialPort: about to call JNI open() method.");
         mFd = open(device.getAbsolutePath(), baudrate);
         if (mFd == null) {
             Log.e(TAG, "native open returns null");
