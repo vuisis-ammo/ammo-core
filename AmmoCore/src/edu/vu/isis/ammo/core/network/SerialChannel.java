@@ -36,7 +36,7 @@ public class SerialChannel extends NetChannel
 
 
     static {
-        System.loadLibrary("ethrmon");
+        System.loadLibrary("serialchan");
     }
 
     /**
@@ -251,6 +251,8 @@ public class SerialChannel extends NetChannel
                     setState( SERIAL_CONNECTED );
                     mConnector = null;
                 }
+            } catch ( IllegalMonitorStateException e ) {
+                logger.error("no serial port available");
             } catch ( InterruptedException e ) {
                 // Do nothing here.  If we were interrupted, we need
                 // to catch the exception and exit cleanly.
