@@ -5,8 +5,8 @@ package edu.vu.isis.ammo.core.network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-
 
 
 public class SerialSecurityObject implements ISecurityObject,
@@ -48,7 +48,7 @@ public class SerialSecurityObject implements ISecurityObject,
     }
 
 
-    public boolean ack( Class<? extends INetChannel> clazz, boolean status )
+    public boolean ack( String channel, ChannelDisposal status )
     {
         return true;
     }

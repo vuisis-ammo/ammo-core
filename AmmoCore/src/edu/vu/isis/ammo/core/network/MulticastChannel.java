@@ -981,7 +981,7 @@ public class MulticastChannel extends NetChannel
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL);
+                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0);
                     setSenderState( INetChannel.SENDING );
 
                     DatagramPacket packet =

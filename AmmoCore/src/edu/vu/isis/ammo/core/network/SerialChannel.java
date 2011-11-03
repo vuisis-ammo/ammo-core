@@ -19,6 +19,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.pb.AmmoMessages;
+
 
 /**
  *
@@ -35,8 +38,9 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
-    public SerialChannel( IChannelManager iChannelManager )
+    public SerialChannel( String theName, IChannelManager iChannelManager )
     {
+        super( theName );
         logger.info( "SerialChannel::SerialChannel()" );
 
         mChannelManager = iChannelManager;
@@ -95,7 +99,7 @@ public class SerialChannel extends NetChannel
     /**
      * Rename this to send() once the merge is done.
      */
-    public boolean sendRequest( AmmoGatewayMessage message )
+    public ChannelDisposal sendRequest( AmmoGatewayMessage message )
     {
         return mSenderQueue.putFromDistributor( message );
     }
@@ -409,15 +413,18 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public boolean putFromDistributor( AmmoGatewayMessage iMessage )
+        public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
-            try {
+            try
+            {
                 logger.info( "putFromDistributor()" );
                 mDistQueue.put( iMessage );
-            } catch ( InterruptedException e ) {
-                return false;
             }
-            return true;
+            catch ( InterruptedException e )
+            {
+                return ChannelDisposal.FAILED;
+            }
+            return ChannelDisposal.QUEUED;
         }
 
 
@@ -503,9 +510,10 @@ public class SerialChannel extends NetChannel
             // Tell the distributor that we couldn't send these
             // packets.
             AmmoGatewayMessage msg = mDistQueue.poll();
-            while ( msg != null ) {
+            while ( msg != null )
+            {
                 if ( msg.handler != null )
-                    ackToHandler( msg.handler, false );
+                    ackToHandler( msg.handler, ChannelDisposal.PENDING );
                 msg = mDistQueue.poll();
             }
 
@@ -630,11 +638,11 @@ public class SerialChannel extends NetChannel
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
-                        ackToHandler( msg.handler, true );
+                        ackToHandler( msg.handler, ChannelDisposal.SENT );
                 } catch ( Exception e ) {
                     logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
-                        ackToHandler( msg.handler, false );
+                        ackToHandler( msg.handler, ChannelDisposal.FAILED );
                     setSenderState( INetChannel.INTERRUPTED );
                     ioOperationFailed();
                 }
@@ -925,9 +933,9 @@ public class SerialChannel extends NetChannel
      *
      */
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-                                  boolean status )
+                                  ChannelDisposal status )
     {
-        return handler.ack( SerialChannel.class, status );
+        return handler.ack( name, status );
     }
 
 
@@ -979,7 +987,7 @@ public class SerialChannel extends NetChannel
 
         // Tell the NetworkService that we're authorized and have it
         // notify the apps.
-        mChannelManager.authorizationSucceeded( agm );
+        mChannelManager.authorizationSucceeded( this, agm );
     }
 
 

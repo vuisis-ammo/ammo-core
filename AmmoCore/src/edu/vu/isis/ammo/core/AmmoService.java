@@ -54,6 +54,7 @@ import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.JournalChannel;
 import edu.vu.isis.ammo.core.network.MulticastChannel;
+import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -205,8 +206,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// Network Channels
 	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
 	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
-	private JournalChannel journalChannel = JournalChannel.getInstance(this);
-	private SerialChannel serialChannel = new SerialChannel( this );
+	private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
+	private SerialChannel serialChannel = new SerialChannel( "serial",  this );
 
 	final private Map<String,NetChannel> mChannelMap = new HashMap<String,NetChannel>();
 
