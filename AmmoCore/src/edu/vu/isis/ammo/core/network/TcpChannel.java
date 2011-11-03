@@ -444,14 +444,13 @@ public class TcpChannel extends NetChannel {
 			}
 			public synchronized void set(int state) {
 				logger.info("Thread <{}>State::set", Thread.currentThread().getId());
-                switch (state) {
-                case STALE:
+                if ( state == STALE ) {
 					this.reset();
-                    return;
+                } else {
+                    this.value = state;
+                    this.notifyAll();
                 }
-                this.value = state;
-                this.notifyAll();
-            }
+			}
 
             public synchronized int get() { return this.value; }
 
