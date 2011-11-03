@@ -35,6 +35,10 @@ public class SerialChannel extends NetChannel
     public static final int SERIAL_ERROR           = 4;
 
 
+    static {
+        System.loadLibrary("ethrmon");
+    }
+
     /**
      *
      */
