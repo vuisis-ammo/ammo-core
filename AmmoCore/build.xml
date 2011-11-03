@@ -54,14 +54,17 @@
         <echo>configure ammo core libraries for ${basedir}.</echo>
         <!-- configure protobuf -->
         <mkdir dir="libs"/>
-        <symlink taskname="add-lib" action="single" overwrite="true" 
+        <symlink taskname="add-protobuf-lib" action="single" overwrite="true" 
               link="${basedir}/libs/protobuf.jar" 
               resource="/usr/share/java/protobuf.jar"/>
+
         <fail message="Files are missing.">
            <condition>
                <not>
                    <resourcecount count="1">
-                       <fileset id="fs" dir="libs" includes="protobuf.jar"/>
+                       <fileset id="simlinks" dir="libs">
+                         <include name="protobuf.jar"/>
+                       </fileset>
                    </resourcecount>
                </not>
            </condition>
