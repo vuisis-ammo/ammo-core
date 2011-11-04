@@ -61,9 +61,9 @@ public class SerialChannel extends NetChannel
     {
         logger.info( "SerialChannel::enable()" );
 
-        if ( mConnector == null ) {
-            //mConnector = new Connector();
-            //mConnector.start();
+        if ( getState() == SERIAL_DISABLED ) {
+            mConnector = new Connector();
+            mConnector.start();
         }
         else {
             logger.error( "enable() called on an already enabled channel" );
@@ -254,6 +254,7 @@ public class SerialChannel extends NetChannel
             } catch ( IllegalMonitorStateException e ) {
                 logger.error("no serial port available");
             } catch ( InterruptedException e ) {
+                logger.error("Connector interrupted. Exiting.");
                 // Do nothing here.  If we were interrupted, we need
                 // to catch the exception and exit cleanly.
             }
@@ -261,6 +262,8 @@ public class SerialChannel extends NetChannel
             //catch ( Exception e ) {
             //    logger.warn("Connector threw exception {}", e.getStackTrace() );
             //}
+
+            logger.info( "SenderThread <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
