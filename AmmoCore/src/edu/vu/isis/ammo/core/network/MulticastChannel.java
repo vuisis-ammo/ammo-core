@@ -23,6 +23,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +98,7 @@ public class MulticastChannel extends NetChannel
     // working before Nilabja's code is ready.  Make it private again
     // once his stuff is in.
     public final IChannelManager mChannelManager;
-    private ISecurityObject mSecurityObject;
+	private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
 
     private MulticastChannel(String name, IChannelManager iChannelManager ) {
@@ -257,16 +258,16 @@ public class MulticastChannel extends NetChannel
 	}
 
 
-    private synchronized void setSecurityObject( ISecurityObject iSecurityObject )
-    {
-        mSecurityObject = iSecurityObject;
-    }
+	private void setSecurityObject( ISecurityObject iSecurityObject )
+	{
+        mSecurityObject.set( iSecurityObject );
+	}
 
 
-    private synchronized ISecurityObject getSecurityObject()
-    {
-        return mSecurityObject;
-    }
+	private ISecurityObject getSecurityObject()
+	{
+		return mSecurityObject.get();
+	}
 
 
     private void setIsAuthorized( boolean iValue )
