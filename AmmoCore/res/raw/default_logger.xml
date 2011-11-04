@@ -25,6 +25,10 @@
   </appender>
   
   <logger name="ammo" level="TRACE"/>
+  <logger name="net" level="TRACE"/>
+  <logger name="dash" level="TRACE"/>
+  <logger name="e.v.i.a" level="TRACE"/>
+  <logger name="edu.vu.isis.ammo" level="DEBUG" />
 
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
