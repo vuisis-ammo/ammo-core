@@ -13,7 +13,6 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
-import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
 /**
  * The dispersal vector is related to the distribution policy
