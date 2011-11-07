@@ -13,7 +13,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.lang.IllegalArgumentException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,29 +20,23 @@ import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
-import android.os.IBinder;
+import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
-
+import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
-import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
-
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
-import edu.vu.isis.ammo.api.IDistributorAdaptor;		
-import android.os.AsyncTask;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
 /**
  * The purpose of these objects is lazily serialize an object.
@@ -66,6 +59,11 @@ public class RequestSerializer {
 	private OnSerialize serializeActor;
 	private AmmoGatewayMessage agm;
 
+	/**
+	 * This maintains a set of persistent connections to 
+	 * content provider adapter services.
+	 */
+	@SuppressWarnings("unused")
 	final static private Map<String,IDistributorAdaptor> remoteServiceMap;
 	static {
 		remoteServiceMap = new HashMap<String,IDistributorAdaptor>(10);

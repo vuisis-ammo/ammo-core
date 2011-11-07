@@ -38,8 +38,10 @@ public class ApplicationEx  extends Application {
         super.onCreate();
         logger.debug("::onCreate");
         singleton = this;
+        
+        FLogger.configure(this.getApplicationContext());
 
-        Intent svc = new Intent();
+        final Intent svc = new Intent();
 
         svc.setClass(this, AmmoService.class);
         this.startService(svc);
