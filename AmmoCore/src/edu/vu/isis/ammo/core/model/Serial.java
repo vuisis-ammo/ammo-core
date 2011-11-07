@@ -11,6 +11,8 @@ import edu.vu.isis.ammo.core.R;
 
 public class Serial extends Channel
 {
+	public static String KEY = "SerialUiChannel";
+
 	private static Serial instance;
 
 	public static Serial getInstance(Context context)
@@ -84,6 +86,7 @@ public class Serial extends Channel
 
 		TextView name = (TextView) row.findViewById(R.id.serial_name);
 		TextView device = (TextView) row.findViewById(R.id.serial_device);
+		((TextView) row.findViewById( R.id.channel_type )).setText( Serial.KEY );
 
 		name.setText(this.name);
 		StringBuilder sb = new StringBuilder();

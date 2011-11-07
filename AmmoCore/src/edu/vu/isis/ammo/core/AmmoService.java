@@ -940,18 +940,18 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	@Override
 	public void statusChange(NetChannel channel, int connStatus,
 			int sendStatus, int recvStatus) {
-		logger.debug("status change");
-		
+		logger.debug("status change. channel={}", channel.name );
+
 		mChannels.get(channel.name)
 		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
 
 		// TBD needs mapping from channel status to "ACTIVATE/DEACTIVATE"
-		
-                if (connStatus != NetChannel.CONNECTED)  {
-		    this.distThread.onChannelChange(this.getBaseContext(), channel.name, 
-				     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
+
+        if (connStatus != NetChannel.CONNECTED) {
+		    this.distThread.onChannelChange(this.getBaseContext(), channel.name,
+                     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
 				     ChannelChange.ACTIVATE : ChannelChange.DEACTIVATE);
-		// channel is ACTIVATED by authenticate
+            // channel is ACTIVATED by authenticate
 		}
 
 		final Intent broadcastIntent = new Intent(

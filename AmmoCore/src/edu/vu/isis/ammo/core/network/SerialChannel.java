@@ -15,6 +15,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,10 +30,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class SerialChannel extends NetChannel
 {
     // Move these to the interface class later.
-    public static final int SERIAL_DISABLED        = 1;
-    public static final int SERIAL_WAITING_FOR_TTY = 2;
-    public static final int SERIAL_CONNECTED       = 3;
-    public static final int SERIAL_ERROR           = 4;
+    public static final int SERIAL_DISABLED        = INetChannel.DISABLED;
+    public static final int SERIAL_WAITING_FOR_TTY = INetChannel.LINK_WAIT;
+    public static final int SERIAL_CONNECTED       = INetChannel.CONNECTED;
 
 
     static {
@@ -61,7 +61,8 @@ public class SerialChannel extends NetChannel
     {
         logger.info( "SerialChannel::enable()" );
 
-        if ( getState() == SERIAL_DISABLED ) {
+        if ( mState.compareAndSet( SERIAL_DISABLED, SERIAL_WAITING_FOR_TTY )) {
+            setState( SERIAL_WAITING_FOR_TTY ); // Need this to update the GUI.
             mConnector = new Connector();
             mConnector.start();
         }
@@ -78,13 +79,12 @@ public class SerialChannel extends NetChannel
     {
         logger.info( "SerialChannel::disable()" );
 
-        if ( mConnector != null ) {
-            mConnector.terminate();
-            mConnector = null;
+        if ( getState() == SERIAL_DISABLED ) {
+            logger.error( "disable() called on an already disabled channel" );
+        } else {
+            disconnect();
+            setState( SERIAL_DISABLED );
         }
-
-        disconnect();
-        setState( SERIAL_DISABLED );
     }
 
 
@@ -95,6 +95,7 @@ public class SerialChannel extends NetChannel
      */
     public synchronized void reset()
     {
+        logger.info( "SerialChannel::reset()" );
         disable();
         enable();
     }
@@ -119,7 +120,7 @@ public class SerialChannel extends NetChannel
     // because the variables can't changed while running.  They probably aren't
     // that important in the short-term.
     //
-    // NOTE: The following two function are probably not working atm.  We need
+    // NOTE: The following two functions are probably not working atm.  We need
     // to make sure that they're synchronized, and deal with disconnecting the
     // channel (to force a reconnect).  This functionality isn't presently
     // needed, but fix this at some point.
@@ -144,8 +145,8 @@ public class SerialChannel extends NetChannel
     }
 
 
-    // The following methods can be changed while connected.  Modify the
-    // threads to get the values from synchronized members.
+    // The following methods can be changed while connected.  The sender and
+    // receiver threads always use the current values.
     //
 
     /**
@@ -210,6 +211,7 @@ public class SerialChannel extends NetChannel
     // Private classes, methods, and members
     //
 
+
     /**
      *
      */
@@ -223,7 +225,6 @@ public class SerialChannel extends NetChannel
         public Connector()
         {
             logger.info( "SerialChannel.Connector::Connector()" );
-            setState( SERIAL_WAITING_FOR_TTY );
         }
 
 
@@ -238,32 +239,32 @@ public class SerialChannel extends NetChannel
 
             // We might have been disabled before the thread even gets
             // a chance to run, so check that before doing anything.
-            if ( isInterrupted() )
+            if ( isInterrupted() ) {
+                logger.info( "SenderThread <{}>::run() was interrupted before run().", Thread.currentThread().getId() );
                 return;
+            }
 
             try {
-                setState( SERIAL_WAITING_FOR_TTY );
+                // The channel is already in the SERIAL_WAITING_FOR_TTY state.
                 synchronized ( SerialChannel.this ) {
                     while ( !connect() ) {
                         logger.debug( "Connect failed. Waiting to retry..." );
                         wait( WAIT_TIME );
                     }
                     setState( SERIAL_CONNECTED );
-                    mConnector = null;
                 }
             } catch ( IllegalMonitorStateException e ) {
-                logger.error("no serial port available");
+                logger.error("IllegalMonitorStateException thrown.");
             } catch ( InterruptedException e ) {
                 logger.error("Connector interrupted. Exiting.");
                 // Do nothing here.  If we were interrupted, we need
                 // to catch the exception and exit cleanly.
+            } catch ( Exception e ) {
+                logger.warn("Connector threw exception {}", e.getStackTrace() );
             }
-            // FIXME: Do we need this?  Is it the right thing to do?
-            //catch ( Exception e ) {
-            //    logger.warn("Connector threw exception {}", e.getStackTrace() );
-            //}
 
-            logger.info( "SenderThread <{}>::run() exiting.", Thread.currentThread().getId() );
+            mConnector = null;
+            logger.info( "Connector <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
@@ -951,18 +952,18 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
-    private synchronized void setSecurityObject( ISecurityObject iSecurityObject )
+    private void setSecurityObject( ISecurityObject iSecurityObject )
     {
-        mSecurityObject = iSecurityObject;
+        mSecurityObject.set( iSecurityObject );
     }
 
 
     /**
      *
      */
-    private synchronized ISecurityObject getSecurityObject()
+    private ISecurityObject getSecurityObject()
     {
-        return mSecurityObject;
+        return mSecurityObject.get();
     }
 
 
@@ -1032,7 +1033,7 @@ public class SerialChannel extends NetChannel
     // once his stuff is in.
     public IChannelManager mChannelManager;
 
-    private ISecurityObject mSecurityObject;
+    private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
     private static final int WAIT_TIME = 5 * 1000; // 5 s
     private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
@@ -1059,6 +1060,7 @@ public class SerialChannel extends NetChannel
                      mState,
                      state );
         mState.set( state );
+        statusChange();
     }
 
     private Connector mConnector;
