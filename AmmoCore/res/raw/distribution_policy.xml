@@ -62,14 +62,14 @@ The ammo applications.
      </routing>
   </topic>
 
-  <topic type="example/both.">
+  <topic type="ammo/edu.vu.isis.ammo.sample.">
      <description>
 This example illustrates the case where the requests 
 should be sent over both channels.
      </description>
      <routing priority="normal">
 	     <clause>
-	        <literal term="multicast" condition="success" encoding="json"/>
+	        <literal term="multicast" condition="success" encoding="terse"/>
 	     </clause>
 	     <clause>
 	        <literal term="gateway" condition="success" encoding="json"/>

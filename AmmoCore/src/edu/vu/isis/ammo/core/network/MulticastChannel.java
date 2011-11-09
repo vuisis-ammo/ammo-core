@@ -23,6 +23,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +98,7 @@ public class MulticastChannel extends NetChannel
     // working before Nilabja's code is ready.  Make it private again
     // once his stuff is in.
     public final IChannelManager mChannelManager;
-    private ISecurityObject mSecurityObject;
+	private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
 
     private MulticastChannel(String name, IChannelManager iChannelManager ) {
@@ -137,35 +138,35 @@ public class MulticastChannel extends NetChannel
      */
     public boolean isEnabled() { return this.isEnabled; }
 
-    public boolean enable() {
+
+    public void enable() {
         logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
         synchronized (this.syncObj) {
-            if (this.isEnabled == true)
-                return false;
-            this.isEnabled = true;
+            if ( !this.isEnabled ) {
+                this.isEnabled = true;
 
-            // if (! this.connectorThread.isAlive()) this.connectorThread.start();
+                // if (! this.connectorThread.isAlive()) this.connectorThread.start();
 
-            logger.warn("::enable - Setting the state to STALE");
-            this.shouldBeDisabled = false;
-            this.connectorThread.state.set(NetChannel.STALE);
+                logger.warn("::enable - Setting the state to STALE");
+                this.shouldBeDisabled = false;
+                this.connectorThread.state.set(NetChannel.STALE);
+            }
         }
-        return true;
     }
 
-    public boolean disable() {
+
+    public void disable() {
         logger.trace("Thread <{}>::disable", Thread.currentThread().getId());
         synchronized (this.syncObj) {
-            if (this.isEnabled == false)
-                return false;
-            this.isEnabled = false;
-            logger.warn("::disable - Setting the state to DISABLED");
-            this.shouldBeDisabled = true;
-            this.connectorThread.state.set(NetChannel.DISABLED);
+            if ( this.isEnabled ) {
+                this.isEnabled = false;
+                logger.warn("::disable - Setting the state to DISABLED");
+                this.shouldBeDisabled = true;
+                this.connectorThread.state.set(NetChannel.DISABLED);
 
-            //          this.connectorThread.stop();
+                //          this.connectorThread.stop();
+            }
         }
-        return true;
     }
 
     public boolean close() { return false; }
@@ -257,16 +258,16 @@ public class MulticastChannel extends NetChannel
 	}
 
 
-    private synchronized void setSecurityObject( ISecurityObject iSecurityObject )
-    {
-        mSecurityObject = iSecurityObject;
-    }
+	private void setSecurityObject( ISecurityObject iSecurityObject )
+	{
+        mSecurityObject.set( iSecurityObject );
+	}
 
 
-    private synchronized ISecurityObject getSecurityObject()
-    {
-        return mSecurityObject;
-    }
+	private ISecurityObject getSecurityObject()
+	{
+		return mSecurityObject.get();
+	}
 
 
     private void setIsAuthorized( boolean iValue )
@@ -959,6 +960,7 @@ public class MulticastChannel extends NetChannel
                 {
                     setSenderState( INetChannel.TAKING );
                     msg = mQueue.take(); // The main blocking call
+
                     logger.debug( "Took a message from the send queue" );
                 }
                 catch ( InterruptedException ex )
@@ -980,7 +982,7 @@ public class MulticastChannel extends NetChannel
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL);
+                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0);
                     setSenderState( INetChannel.SENDING );
 
                     DatagramPacket packet =
@@ -1013,8 +1015,7 @@ public class MulticastChannel extends NetChannel
                 }
                 catch ( Exception e )
                 {
-                    e.printStackTrace();
-                    logger.warn("sender threw exception");
+                    logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, ChannelDisposal.FAILED );
                     setSenderState( INetChannel.INTERRUPTED );
@@ -1047,7 +1048,7 @@ public class MulticastChannel extends NetChannel
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class ReceiverThread extends Thread
+     class ReceiverThread extends Thread
     {
         public ReceiverThread( ConnectorThread iParent,
                                MulticastChannel iDestination,

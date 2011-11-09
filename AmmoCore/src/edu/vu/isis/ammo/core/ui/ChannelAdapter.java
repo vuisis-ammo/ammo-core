@@ -24,6 +24,7 @@ import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
+import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.network.INetChannel;
 
 public class ChannelAdapter extends ArrayAdapter<Channel>
@@ -103,8 +104,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         if (status.length < 1) return false;
 
         final View row = item;
-        
-        
+
         TextView text_one = null;
         TextView text_two = null;
         TextView text = null;
@@ -112,15 +112,18 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         String channelType = (String) ((TextView) row.findViewById(R.id.channel_type)).getText();
         if(channelType.equals(Gateway.KEY))
         {
-	        
 	        text_one = (TextView)row.findViewById(R.id.gateway_status_text_one);
 	        text_two = (TextView)row.findViewById(R.id.gateway_status_text_two);
         }
         else if(channelType.equals(Multicast.KEY))
         {
-	        
 	        text_one = (TextView)row.findViewById(R.id.multicast_status_one);
 	        text_two = (TextView)row.findViewById(R.id.multicast_status_two);
+        }
+        else if ( channelType.equals(Serial.KEY) )
+        {
+	        text_one = (TextView) row.findViewById(R.id.serial_status_one);
+	        text_two = (TextView) row.findViewById(R.id.serial_status_two);
         }
         if (text_one == null) {
             logger.error("text field is null");
