@@ -46,6 +46,20 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 public class RequestSerializer {
 	private static final Logger logger = LoggerFactory.getLogger("ammo-serial");
 
+	public static final int FIELD_TYPE_NULL = 0;
+	public static final int FIELD_TYPE_BOOL = 1;
+	public static final int FIELD_TYPE_BLOB = 2;
+	public static final int FIELD_TYPE_FLOAT = 3;
+	public static final int FIELD_TYPE_INTEGER = 4;
+	public static final int FIELD_TYPE_LONG = 5;
+	public static final int FIELD_TYPE_TEXT = 6;
+	public static final int FIELD_TYPE_REAL = 7;
+	public static final int FIELD_TYPE_FK = 8;
+	public static final int FIELD_TYPE_GUID = 9;
+	public static final int FIELD_TYPE_EXCLUSIVE = 10;
+	public static final int FIELD_TYPE_INCLUSIVE = 11;
+	public static final int FIELD_TYPE_TIMESTAMP = 12;
+
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
 	}
@@ -110,7 +124,7 @@ public class RequestSerializer {
 					parent.agm = parent.readyActor.run(encode, agmBytes);
 				}
 				if (parent.agm == null)
-				  return null;
+					return null;
 				that.sendRequest(parent.agm, channel);
 				return null;
 			}
@@ -272,8 +286,65 @@ public class RequestSerializer {
 
 		case TERSE: 
 		{
-			logger.error("terse serialization not implemented");
-			return null;
+			/**
+			 * 1) query to find out about the fields to send: name, position, type
+			 * 2) serialize the fields 
+			 */
+			logger.debug("terse serialization not implemented");
+
+			final Cursor serialMetaCursor;
+			try {
+				serialMetaCursor = resolver.query(Uri.withAppendedPath(tupleUri, "_data_type"), 
+						null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider ", ex);
+				return null;
+			}
+			if (serialMetaCursor == null) return null;
+
+			if (! serialMetaCursor.moveToFirst()) return null;
+			if (serialMetaCursor.getColumnCount() < 1) return null;
+
+			final Map<String,Integer> serialMap = 
+					new HashMap<String,Integer>(serialMetaCursor.getColumnCount());
+
+			for (final String key : serialMetaCursor.getColumnNames()) {
+				final int value = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
+				serialMap.put(key, value);
+			}
+			serialMetaCursor.close(); 
+
+			final Cursor cursor;
+			try {
+				cursor = resolver.query(tupleUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider ", ex);
+				return null;
+			}
+			if (cursor == null) return null;
+
+			if (! cursor.moveToFirst()) return null;
+			if (cursor.getColumnCount() < 1) return null;
+
+			final ByteBuffer tuple = ByteBuffer.allocate(2048);
+
+			// For the new serialization for the 152s, write the data we want to tuple.
+			for (final String key : cursor.getColumnNames()) {
+				final int type = serialMap.get(key);
+				switch (type) {
+				case FIELD_TYPE_LONG:
+					long value = cursor.getLong( cursor.getColumnIndex(key) );
+					tuple.putLong(value);
+					break;
+				case FIELD_TYPE_TEXT:
+					break;
+				default:
+					logger.warn("unhandled data type {}", type);
+				}
+			}
+			// we only process one
+			cursor.close();
+			return tuple.array();
 		}
 		// TODO custom still needs a lot of work
 		// It will presume the presence of a SyncAdaptor for the content provider.
@@ -392,17 +463,60 @@ public class RequestSerializer {
 					outstream.write(blob);
 					outstream.close();
 				} catch (FileNotFoundException ex) {
-					logger.error( "blob file not found: {} {}",fieldUri, ex.getStackTrace());
+					logger.error( "blob file not found: {}",fieldUri, ex);
 				} catch (IOException ex) {
-					logger.error( "error writing blob file: {} {}",fieldUri, ex.getStackTrace());
+					logger.error( "error writing blob file: {}",fieldUri, ex);
 				}
 			}	
 			return tupleUri;
 		}
 		case TERSE: 
 		{
-			logger.error("terse deserialization not implemented");
-			return null;
+			/**
+			 * 1) perform a query to get the field: names, types.
+			 * 2) parse the incoming data using the order of the names
+			 *    and their types as a guide.
+			 */
+			logger.error("terse deserialization");
+			/**
+			 * 1) query to find out about the fields to send: name, position, type
+			 * 2) serialize the fields 
+			 */
+			logger.debug("terse serialization not implemented");
+
+			final Cursor serialMetaCursor;
+			try {
+				serialMetaCursor = resolver.query(Uri.withAppendedPath(provider, "_data_type"), 
+						null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider ", ex);
+				return null;
+			}
+			if (serialMetaCursor == null) return null;
+
+			if (! serialMetaCursor.moveToFirst()) return null;
+			if (serialMetaCursor.getColumnCount() < 1) return null;
+
+			final ByteBuffer tuple = ByteBuffer.wrap(data);
+			final ContentValues wrap = new ContentValues();
+
+			for (final String key : serialMetaCursor.getColumnNames()) {
+				final int type = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
+				switch (type) {
+				case FIELD_TYPE_LONG:
+					long value = tuple.getLong();
+					wrap.put(key, value);
+					break;
+				case FIELD_TYPE_TEXT:
+					//long value = tuple.getString();
+					//wrap.put(key, value);
+					break;
+				default:
+					logger.warn("unhandled data type {}", type);
+				}
+			}
+			final Uri tupleUri = resolver.insert(provider, wrap);
+			return tupleUri;
 		}
 		// TODO as with the serializer the CUSTOM section will presume for the
 		// content provider the existence of a SyncAdaptor
@@ -413,32 +527,32 @@ public class RequestSerializer {
 			// call a AsyncTaskLoader to do the deserialization ... 
 			// fire and forget ..... 
 
-//			final String key = provider.toString();
-//			if ( RequestSerializer.remoteServiceMap.containsKey(key)) {
-//				final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
-//				return adaptor.deserialize(encoding.name(), key, data);
-//			}
-//			final ServiceConnection connection = new ServiceConnection() {
-//				@Override
-//				public void onServiceConnected(ComponentName name, IBinder service) {
-//
-//					if (! RequestSerializer.remoteServiceMap.containsKey(key)) {
-//						RequestSerializer.remoteServiceMap.put(key, IDistributorAdaptor.Stub.asInterface(service));	
-//					}
-//					final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
-//
-//					// call the deserialize function here ....
-//					return adaptor.deserialize(encoding.name(), key, data);
-//				}
-//
-//				@Override
-//				public void onServiceDisconnected(ComponentName name) {
-//					logger.debug("service disconnected");
-//					RequestSerializer.remoteServiceMap.remove(key);
-//				}
-//			};
-//			final Intent intent = new Intent();
-//			context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
+			//			final String key = provider.toString();
+			//			if ( RequestSerializer.remoteServiceMap.containsKey(key)) {
+			//				final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
+			//				return adaptor.deserialize(encoding.name(), key, data);
+			//			}
+			//			final ServiceConnection connection = new ServiceConnection() {
+			//				@Override
+			//				public void onServiceConnected(ComponentName name, IBinder service) {
+			//
+			//					if (! RequestSerializer.remoteServiceMap.containsKey(key)) {
+			//						RequestSerializer.remoteServiceMap.put(key, IDistributorAdaptor.Stub.asInterface(service));	
+			//					}
+			//					final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
+			//
+			//					// call the deserialize function here ....
+			//					return adaptor.deserialize(encoding.name(), key, data);
+			//				}
+			//
+			//				@Override
+			//				public void onServiceDisconnected(ComponentName name) {
+			//					logger.debug("service disconnected");
+			//					RequestSerializer.remoteServiceMap.remove(key);
+			//				}
+			//			};
+			//			final Intent intent = new Intent();
+			//			context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
 		}
 		}
 		return null;
