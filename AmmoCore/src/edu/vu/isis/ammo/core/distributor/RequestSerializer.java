@@ -330,6 +330,8 @@ public class RequestSerializer {
 
 			// For the new serialization for the 152s, write the data we want to tuple.
 			for (final String key : cursor.getColumnNames()) {
+				if (! serialMap.containsKey(key)) continue;
+				
 				final int type = serialMap.get(key);
 				switch (type) {
 				case FIELD_TYPE_LONG:
