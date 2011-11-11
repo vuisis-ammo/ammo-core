@@ -36,22 +36,27 @@ public class LogcatAppender extends AppenderBase<ILoggingEvent> {
 
 	public void append(ILoggingEvent event) {
 		// output the events as formatted by our layout
-
+		final String tag = event.getLoggerName();
 		switch (event.getLevel().levelInt) {
 		case Level.TRACE_INT: 
-			Log.v(event.getLoggerName(), event.getFormattedMessage());
+			if (! Log.isLoggable(tag, Log.VERBOSE) ) return;
+			Log.v(tag, event.getFormattedMessage());
 			return;
 		case Level.DEBUG_INT:
-			Log.d(event.getLoggerName(), event.getFormattedMessage());
+			if (! Log.isLoggable(tag, Log.DEBUG) ) return;
+			Log.d(tag, event.getFormattedMessage());
 			return;
 		case Level.INFO_INT:
-			Log.i(event.getLoggerName(), event.getFormattedMessage());
+			if (! Log.isLoggable(tag, Log.INFO) ) return;
+			Log.i(tag, event.getFormattedMessage());
 			return;
 		case Level.WARN_INT:
-			Log.w(event.getLoggerName(), event.getFormattedMessage());
+			if (! Log.isLoggable(tag, Log.WARN) ) return;
+			Log.w(tag, event.getFormattedMessage());
 			return;
 		case Level.ERROR_INT:
-			Log.d(event.getLoggerName(), event.getFormattedMessage());
+			if (! Log.isLoggable(tag, Log.ERROR) ) return;
+			Log.d(tag, event.getFormattedMessage());
 			return;
 		case Level.OFF_INT:
 		default:
