@@ -32,7 +32,7 @@
   <logger name="edu.vu.isis.ammo" level="TRACE" />
   -->
 
-  <root level="INFO">
+  <root level="TRACE">
     <appender-ref ref="LOGCAT" />
   </root>
 </configuration>

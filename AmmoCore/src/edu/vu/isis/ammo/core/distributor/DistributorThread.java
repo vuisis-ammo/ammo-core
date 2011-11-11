@@ -603,11 +603,11 @@ extends AsyncTask<AmmoService, Integer, Void>
 							final byte[] result = RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
 									serializer_.provider.asUri(), encode);
 
-                                                        if (result == null)
-                                                        {
-                                                          logger.error ("Null result from serialize {} {} ",serializer_.provider, encode );
-                                                        }
-                                                        return result;
+                            if (result == null)
+                            {
+                              logger.error ("Null result from serialize {} {} ",serializer_.provider, encode );
+                            }
+                            return result;
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization {}",
 									e1.getLocalizedMessage());
