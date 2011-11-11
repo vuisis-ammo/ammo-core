@@ -6,10 +6,11 @@
 <configuration> 
   <appender name="LOGCAT" class="ch.qos.logback.android.LogcatAppender"> 
     <encoder>
-      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+      <pattern>%msg%n</pattern>
     </encoder>
   </appender>
   
+  <!-- 
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender"> 
     <encoder>
       <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
@@ -28,9 +29,10 @@
   <logger name="net" level="TRACE"/>
   <logger name="dash" level="TRACE"/>
   <logger name="e.v.i.a" level="TRACE"/>
-  <logger name="edu.vu.isis.ammo" level="DEBUG" />
+  <logger name="edu.vu.isis.ammo" level="TRACE" />
+  -->
 
-  <root level="WARN">
+  <root level="INFO">
     <appender-ref ref="LOGCAT" />
   </root>
 </configuration>
