@@ -294,8 +294,8 @@ public class RequestSerializer {
 
 			final Cursor serialMetaCursor;
 			try {
-				serialMetaCursor = resolver.query(Uri.withAppendedPath(tupleUri, "_data_type"), 
-						null, null, null, null);
+				final Uri dUri = Uri.withAppendedPath(tupleUri, "_data_type");
+				serialMetaCursor = resolver.query(dUri, null, null, null, null);
 			} catch(IllegalArgumentException ex) {
 				logger.warn("unknown content provider ", ex);
 				return null;
@@ -303,14 +303,17 @@ public class RequestSerializer {
 			if (serialMetaCursor == null) return null;
 
 			if (! serialMetaCursor.moveToFirst()) return null;
-			if (serialMetaCursor.getColumnCount() < 1) return null;
+			final int columnCount = serialMetaCursor.getColumnCount();
+			if (columnCount < 1) return null;
 
-			final Map<String,Integer> serialMap = 
-					new HashMap<String,Integer>(serialMetaCursor.getColumnCount());
-
+			final Map<String,Integer> serialMap = new HashMap<String,Integer>(columnCount);
+            final String[] serialOrder = new String[columnCount];
+            int ix = 0;
 			for (final String key : serialMetaCursor.getColumnNames()) {
 				final int value = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
 				serialMap.put(key, value);
+				serialOrder[ix] = key;
+				ix++;
 			}
 			serialMetaCursor.close(); 
 
@@ -329,7 +332,7 @@ public class RequestSerializer {
 			final ByteBuffer tuple = ByteBuffer.allocate(2048);
 
 			// For the new serialization for the 152s, write the data we want to tuple.
-			for (final String key : cursor.getColumnNames()) {
+			for (final String key : serialOrder) {
 				if (! serialMap.containsKey(key)) continue;
 				
 				final int type = serialMap.get(key);
@@ -346,7 +349,10 @@ public class RequestSerializer {
 			}
 			// we only process one
 			cursor.close();
-			return tuple.array();
+			tuple.flip();
+			final byte[] tupleBytes = new byte[tuple.limit()];
+			tuple.get(tupleBytes);
+			return tupleBytes;
 		}
 		// TODO custom still needs a lot of work
 		// It will presume the presence of a SyncAdaptor for the content provider.
