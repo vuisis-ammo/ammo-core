@@ -83,11 +83,7 @@ should be sent over both channels.
      </description>
      <routing priority="normal">
 	     <clause>
-	        <literal term="multicast" condition="false" encoding="json"/>
-	        <literal term="serial" condition="true" encoding="terse" />
-	     </clause>
-	     <clause>
-	        <literal term="gateway" condition="true" encoding="json" />
+	        <literal term="multicast" condition="true" encoding="terse" />
 	     </clause>
      </routing>
   </topic>
