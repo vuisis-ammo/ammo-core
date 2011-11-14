@@ -77,7 +77,7 @@ should be sent over both channels.
      </routing>
   </topic>
   
-    <topic type="@L">
+    <topic type="ammo/com.aterrasys.nevada.locations">
      <description>
       PLI : location, for terse messages
      </description>
