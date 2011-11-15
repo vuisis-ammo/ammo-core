@@ -603,8 +603,7 @@ extends AsyncTask<AmmoService, Integer, Void>
 							final byte[] result = RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
 									serializer_.provider.asUri(), encode);
 
-                            if (result == null)
-                            {
+                            if (result == null) {
                               logger.error ("Null result from serialize {} {} ",serializer_.provider, encode );
                             }
                             return result;

@@ -1004,11 +1004,13 @@ public class MulticastChannel extends NetChannel
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.QUEUED );
+                        mChannel.ackToHandler( msg.handler, ChannelDisposal.SENT );
                 }
                 catch ( SocketException ex )
                 {
                     logger.debug( "sender caught SocketException" );
+                    if ( msg.handler != null )
+                        mChannel.ackToHandler( msg.handler, ChannelDisposal.FAILED );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;
