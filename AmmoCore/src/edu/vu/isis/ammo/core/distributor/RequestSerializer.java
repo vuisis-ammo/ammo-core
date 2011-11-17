@@ -170,7 +170,7 @@ public class RequestSerializer {
 
 	public static byte[] serializeFromProvider(final ContentResolver resolver, 
 			final Uri tupleUri, final DistributorPolicy.Encoding encoding) 
-					throws FileNotFoundException, IOException {
+					throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
 		logger.trace("serializing using encoding {}", encoding);
 		switch (encoding.getPayload()) {
@@ -186,7 +186,9 @@ public class RequestSerializer {
 				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
 				return null;
 			}
-			if (tupleCursor == null) return null;
+			if (tupleCursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
 
 			if (! tupleCursor.moveToFirst()) return null;
 			if (tupleCursor.getColumnCount() < 1) return null;
@@ -300,7 +302,9 @@ public class RequestSerializer {
 				logger.warn("unknown content provider ", ex);
 				return null;
 			}
-			if (serialMetaCursor == null) return null;
+			if (serialMetaCursor == null) {
+				throw new NonConformingAmmoContentProvider("while getting metadata from provider", tupleUri);
+			}
 
 			if (! serialMetaCursor.moveToFirst()) return null;
 			final int columnCount = serialMetaCursor.getColumnCount();
@@ -324,7 +328,9 @@ public class RequestSerializer {
 				logger.warn("unknown content provider ", ex);
 				return null;
 			}
-			if (cursor == null) return null;
+			if (cursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
 
 			if (! cursor.moveToFirst()) return null;
 			if (cursor.getColumnCount() < 1) return null;
@@ -367,7 +373,9 @@ public class RequestSerializer {
 				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
 				return null;
 			}
-			if (tupleCursor == null) return null;
+			if (tupleCursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
 
 			if (! tupleCursor.moveToFirst()) return null;
 			if (tupleCursor.getColumnCount() < 1) return null;
