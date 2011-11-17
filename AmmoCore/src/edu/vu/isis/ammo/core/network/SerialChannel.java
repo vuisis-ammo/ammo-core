@@ -249,7 +249,7 @@ public class SerialChannel extends NetChannel
                 synchronized ( SerialChannel.this ) {
                     while ( !connect() ) {
                         logger.debug( "Connect failed. Waiting to retry..." );
-                        wait( WAIT_TIME );
+                        SerialChannel.this.wait( WAIT_TIME );
                     }
                     setState( SERIAL_CONNECTED );
                 }
