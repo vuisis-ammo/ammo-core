@@ -76,18 +76,18 @@ should be sent over both channels.
 	     </clause>
      </routing>
   </topic>
-  
+
     <topic type="ammo/com.aterrasys.nevada.locations">
      <description>
       PLI : location, for terse messages
      </description>
      <routing priority="normal">
 	     <clause>
-	        <literal term="multicast" condition="true" encoding="terse" />
+	        <literal term="serial" condition="true" encoding="terse" />
 	     </clause>
      </routing>
   </topic>
-  
+
   <topic type="urn:trial:dummy/">
      <description>
       Used for testing the routing mechanism.
