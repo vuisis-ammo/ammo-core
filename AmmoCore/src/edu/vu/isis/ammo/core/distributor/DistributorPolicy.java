@@ -700,7 +700,9 @@ public class DistributorPolicy implements ContentHandler {
 		if (value == null) return def;
 		if (value.equalsIgnoreCase("verbose")) 
 			return Encoding.newInstance( Encoding.Type.JSON, Encoding.Type.JSON, Encoding.Type.JSON);
-		if (value.equalsIgnoreCase("verbose")) 
+		if (value.equalsIgnoreCase("json")) 
+			return Encoding.newInstance( Encoding.Type.JSON, Encoding.Type.JSON, Encoding.Type.JSON);
+		if (value.equalsIgnoreCase("terse")) 
 			return  Encoding.newInstance( Encoding.Type.TERSE, Encoding.Type.TERSE, Encoding.Type.TERSE );
 		return def;
 	}

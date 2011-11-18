@@ -14,6 +14,8 @@ import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ch.qos.logback.android.FLogger;
+
 import android.app.Application;
 import android.content.Intent;
 import android.os.Environment;
@@ -38,8 +40,10 @@ public class ApplicationEx  extends Application {
         super.onCreate();
         logger.debug("::onCreate");
         singleton = this;
+        
+        FLogger.configure(this.getApplicationContext(), R.raw.default_logger);
 
-        Intent svc = new Intent();
+        final Intent svc = new Intent();
 
         svc.setClass(this, AmmoService.class);
         this.startService(svc);

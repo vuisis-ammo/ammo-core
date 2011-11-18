@@ -40,21 +40,11 @@ public interface INetChannel {
 
     String showState(int state);
 
-    boolean isConnected();
-    boolean isEnabled();
-    boolean enable();
-    boolean disable(); // From TcpChannel
-    boolean close(); // From JournalChannel
-    boolean setConnectTimeout(int value);
-    boolean setSocketTimeout(int value);
-    void setFlatLineTime(long flatLineTime);
-    boolean setHost(String host);
-    boolean setPort(int port);
-    
-    String toString();
-    void linkUp();
-    void linkDown();
     void reset();
+    boolean isConnected();
+    void enable();
+    void disable(); // From TcpChannel
+
 
     /**
      * The method to post things to the channel input queue.

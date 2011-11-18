@@ -110,23 +110,27 @@ public class JournalChannel extends NetChannel {
 	 * @return
 	 */
 	public boolean isEnabled() { return this.isEnabled(); }
-	public boolean enable() {
-		logger.trace("::enable");
-		if (this.isEnabled == true) 
-			return false;
-		this.isEnabled = true;
-		this.setStale();
-		this.tryConnect(false);
-		return true;
-	}
-	public boolean disable() {
-		logger.trace("::disable");
-		if (this.isEnabled == false) 
-			return false;
-		this.isEnabled = false;
-		this.setStale();
-		return true;
-	}
+
+    public void enable() {}
+    public void disable() {}
+
+	// public boolean enable() {
+	// 	logger.trace("::enable");
+	// 	if (this.isEnabled == true) 
+	// 		return false;
+	// 	this.isEnabled = true;
+	// 	this.setStale();
+	// 	this.tryConnect(false);
+	// 	return true;
+	// }
+	// public boolean disable() {
+	// 	logger.trace("::disable");
+	// 	if (this.isEnabled == false) 
+	// 		return false;
+	// 	this.isEnabled = false;
+	// 	this.setStale();
+	// 	return true;
+	// }
 	
 	public String toString() {
 		return "journal: ["+this.isEnabled+"]";
@@ -313,7 +317,7 @@ public class JournalChannel extends NetChannel {
 						}
 					}
 					AmmoGatewayMessage msg = queue.take();
-					dos.write(msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL).array());
+					dos.write(msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,(byte)0).array());
 				}
 			} catch (SocketException ex) {
 				ex.printStackTrace();

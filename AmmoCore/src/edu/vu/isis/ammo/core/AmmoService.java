@@ -45,6 +45,7 @@ import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
+import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -53,9 +54,11 @@ import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.JournalChannel;
 import edu.vu.isis.ammo.core.network.MulticastChannel;
+import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -178,6 +181,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	// Determine if the connection is enabled
 	private boolean gatewayEnabled = true;
+    private boolean multicastEnabled = true;
+    private boolean serialEnabled = true;
 	// for providing networking support
 	// should this be using IPv6?
 	private boolean networkingSwitch = true;
@@ -199,9 +204,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 
 	// Network Channels
-	final private NetChannel tcpChannel = TcpChannel.getInstance("gateway", this);
+	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
 	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
-	final private NetChannel journalChannel = JournalChannel.getInstance("journal", this);
+	private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
+	private SerialChannel serialChannel = new SerialChannel( "serial",  this );
 
 	final private Map<String,NetChannel> mChannelMap = new HashMap<String,NetChannel>();
 
@@ -269,7 +275,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * In order for the service to be shutdown cleanly the 'serviceStart()'
 	 * method may be used to prepare_for_stop, it will be stopped shortly and it
 	 * needs to have some things done before that happens.
-	 * 
+	 *
 	 * When the user changes the configuration 'startService()' is run to change
 	 * the settings.
 	 */
@@ -369,9 +375,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		mChannelMap.put(this.tcpChannel.name, this.tcpChannel);
 		mChannelMap.put(this.multicastChannel.name, this.multicastChannel);
 		mChannelMap.put(this.journalChannel.name, this.journalChannel);
+		mChannelMap.put(this.serialChannel.name, this.serialChannel);
 
 		mChannels.put(this.tcpChannel.name, Gateway.getInstance(getBaseContext()));
 		mChannels.put(this.multicastChannel.name, Multicast.getInstance(getBaseContext()));
+		mChannels.put(this.serialChannel.name, Serial.getInstance(getBaseContext()));
 
 		mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
 		mNetlinks.add(WiredNetlink.getInstance(getBaseContext()));
@@ -388,13 +396,18 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		// no point in enabling the socket until the preferences have been read
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
-
+        // The serial channel is created in a disabled state.
+		this.acquirePreferences();
 		if (this.networkingSwitch && this.gatewayEnabled) {
 			this.tcpChannel.enable();
 		}
-		this.multicastChannel.enable();
-		
-	
+		if (this.networkingSwitch && this.multicastEnabled) {
+            this.multicastChannel.enable();
+            this.multicastChannel.reset(); // This starts the connector thread.
+        }
+
+		if (this.networkingSwitch && this.serialEnabled)
+            this.serialChannel.enable();
 
 		this.myNetworkReceiver = new NetworkBroadcastReceiver();
 
@@ -423,7 +436,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		tm.listen(mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE);
 
 		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
-		this.acquirePreferences();
 		
 		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
@@ -448,6 +460,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.acquirePreferences();
 		this.tcpChannel.reset();
 		this.multicastChannel.reset(); 
+		this.serialChannel.reset(); 
 		
 		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
@@ -459,6 +472,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
 		this.journalChannel.close();
+		this.serialChannel.disable();
 		
 		if (this.tm != null) 
 			this.tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);
@@ -517,6 +531,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		/*
 		 * Multicast
 		 */
+        multicastEnabled = prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, false);
 		String multicastHost = prefs.getString(
 				INetPrefKeys.MULTICAST_IP_ADDRESS, DEFAULT_MULTICAST_HOST);
 		int multicastPort = Integer.parseInt(prefs.getString(
@@ -535,15 +550,39 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.multicastChannel.setFlatLineTime(multicastFlatLine);
 		this.multicastChannel.setSocketTimeout(multicastIdleTime);
 		this.multicastChannel.setTTL(multicastTTL);
+
+		/*
+		 * SerialChannel
+		 */
+        serialEnabled = prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false);
+        serialChannel.setDevice(
+            prefs.getString(INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0") );
+        serialChannel.setBaudRate( Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600") ));
+
+        serialChannel.setSlotNumber(Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, "8")));
+        serialChannel.setRadiosInGroup(Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_RADIOS_IN_GROUP, "16")));
+
+        serialChannel.setSlotDuration( Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_SLOT_DURATION, "125") ));
+        serialChannel.setTransmitDuration( Integer.parseInt(
+            prefs.getString(INetPrefKeys.SERIAL_TRANSMIT_DURATION, "50") ));
+
+        serialChannel.setSenderEnabled(
+            prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true) );
+        serialChannel.setReceiverEnabled(
+            prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true) );
 	}
 
 	/**
 	 * Reset the local copies of the shared preference. Also indicate that the
 	 * gateway connections are stale will need to be refreshed.
-	 * 
+	 *
 	 * @param prefs   a sharedPreferencesInterface for accessing and modifying preference data
 	 * @param key     a string to signal which preference to access
-	 *  
+	 *
 	 */
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
@@ -618,6 +657,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		
 			this.tcpChannel.reset();
 			this.multicastChannel.reset();
+			this.serialChannel.reset();
 		}
 
 		if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
@@ -658,11 +698,48 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					INetPrefKeys.MULTICAST_PORT, DEFAULT_MULTICAST_PORT));
 			this.multicastChannel.setPort(port);
 		}
-
 		if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
 			int ttl = Integer.parseInt(prefs.getString(
 					INetPrefKeys.MULTICAST_TTL, DEFAULT_MULTICAST_TTL));
 			this.multicastChannel.setTTL(ttl);
+        }
+
+        //
+        // Serial port
+        //
+		if ( key.equals(INetPrefKeys.SERIAL_DEVICE) ) {
+			serialChannel.setDevice( prefs.getString( INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0" ));
+		}
+		if ( key.equals(INetPrefKeys.SERIAL_BAUD_RATE) ) {
+			serialChannel.setBaudRate( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_BAUD_RATE, "9600" )));
+		}
+
+		if ( key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER) ) {
+			serialChannel.setSlotNumber( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_SLOT_NUMBER, "8" )));
+		}
+		if ( key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP) ) {
+			serialChannel.setRadiosInGroup( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_RADIOS_IN_GROUP, "16" )));
+		}
+
+		if ( key.equals(INetPrefKeys.SERIAL_SLOT_DURATION) ) {
+			serialChannel.setSlotDuration( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_SLOT_DURATION, "125" )));
+		}
+		if ( key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION) ) {
+			serialChannel.setTransmitDuration( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_TRANSMIT_DURATION, "50" )));
+		}
+
+		if ( key.equals(INetPrefKeys.SERIAL_SEND_ENABLED) ) {
+			serialChannel.setSenderEnabled( prefs.getBoolean( INetPrefKeys.SERIAL_SEND_ENABLED, true ));
+		}
+		if ( key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED) ) {
+			serialChannel.setReceiverEnabled( prefs.getBoolean( INetPrefKeys.SERIAL_RECEIVE_ENABLED, true ));
+		}
+
+		if ( key.equals(INetPrefKeys.SERIAL_SHOULD_USE) ) {
+            if ( prefs.getBoolean( INetPrefKeys.SERIAL_SHOULD_USE, false ))
+				this.serialChannel.enable();
+			else
+				this.serialChannel.disable();
 		}
 
 		return;
@@ -735,7 +812,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	/**
 	 * Processes and delivers messages received from the gateway.
-	 * 
+	 *
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
@@ -758,6 +835,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("Tearing down NPS");
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
+		this.serialChannel.disable();
 
 		Timer t = new Timer();
 		t.schedule(new TimerTask() {
@@ -772,11 +850,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	/**
 	 * Check to see if there are any open connections.
-	 * 
+	 *
 	 * @return
 	 */
 	public boolean isConnected() {
-		boolean any = tcpChannel.isConnected() || multicastChannel.isConnected();
+		boolean any = tcpChannel.isConnected() || multicastChannel.isConnected() || serialChannel.isConnected();
 		logger.debug("::isConnected ? {}", any );
 		return any;
 	}
@@ -862,18 +940,18 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	@Override
 	public void statusChange(NetChannel channel, int connStatus,
 			int sendStatus, int recvStatus) {
-		logger.debug("status change");
-		
+		logger.debug("status change. channel={}", channel.name );
+
 		mChannels.get(channel.name)
 		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
 
 		// TBD needs mapping from channel status to "ACTIVATE/DEACTIVATE"
-		
-                if (connStatus != NetChannel.CONNECTED)  {
-		    this.distThread.onChannelChange(this.getBaseContext(), channel.name, 
-				     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
+
+        if (connStatus != NetChannel.CONNECTED) {
+		    this.distThread.onChannelChange(this.getBaseContext(), channel.name,
+                     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
 				     ChannelChange.ACTIVATE : ChannelChange.DEACTIVATE);
-		// channel is ACTIVATED by authenticate
+            // channel is ACTIVATED by authenticate
 		}
 
 		final Intent broadcastIntent = new Intent(
@@ -921,7 +999,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	/**
 	 * This should handle the link state behavior. This is really the main job
 	 * of the Network service; matching up links with channels.
-	 * 
+	 *
 	 */
 	private class NetworkBroadcastReceiver extends BroadcastReceiver {
 		@Override
