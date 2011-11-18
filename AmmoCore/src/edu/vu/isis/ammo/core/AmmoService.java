@@ -207,7 +207,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
 	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
 	private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
-	private SerialChannel serialChannel = new SerialChannel( "serial",  this );
+	private SerialChannel serialChannel;
 
 	final private Map<String,NetChannel> mChannelMap = new HashMap<String,NetChannel>();
 
@@ -371,6 +371,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				.getDefaultSharedPreferences(this);
 		prefs.registerOnSharedPreferenceChangeListener(this);
 
+		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
+		
 		mChannelMap.put("default", this.tcpChannel);
 		mChannelMap.put(this.tcpChannel.name, this.tcpChannel);
 		mChannelMap.put(this.multicastChannel.name, this.multicastChannel);

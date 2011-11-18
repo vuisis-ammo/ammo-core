@@ -16,6 +16,20 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
+import java.util.Date;
+
+import android.content.Context;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.location.LocationProvider;
+import android.location.GpsStatus.NmeaListener;
+import android.telephony.TelephonyManager;
+import android.os.Bundle;
+import android.os.Looper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,12 +56,15 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
-    public SerialChannel( String theName, IChannelManager iChannelManager )
+    public SerialChannel( String theName,
+                          IChannelManager iChannelManager,
+                          Context context )
     {
         super( theName );
         logger.info( "SerialChannel::SerialChannel()" );
 
         mChannelManager = iChannelManager;
+        mContext = context;
 
         // The channel is created in the disabled state, so it will
         // not have a Connector thread.
@@ -245,6 +262,7 @@ public class SerialChannel extends NetChannel
             }
 
             try {
+            	Looper.prepare();
                 // The channel is already in the SERIAL_WAITING_FOR_TTY state.
                 synchronized ( SerialChannel.this ) {
                     while ( !connect() ) {
@@ -253,6 +271,7 @@ public class SerialChannel extends NetChannel
                     }
                     setState( SERIAL_CONNECTED );
                 }
+                Looper.loop();
             } catch ( IllegalMonitorStateException e ) {
                 logger.error("IllegalMonitorStateException thrown.");
             } catch ( InterruptedException e ) {
@@ -262,6 +281,9 @@ public class SerialChannel extends NetChannel
             } catch ( Exception e ) {
                 logger.warn("Connector threw exception {}", e.getStackTrace() );
             }
+
+            // Do we need to call some sort of quit() for the looper here? The
+            // docs disagree.
 
             mConnector = null;
             logger.info( "Connector <{}>::run() exiting.", Thread.currentThread().getId() );
@@ -284,6 +306,22 @@ public class SerialChannel extends NetChannel
         private boolean connect()
         {
             logger.info( "SerialChannel.Connector::connect()" );
+
+            // FIXME: Do better error handling.  If we can't enable Nmea
+            // messages, should we close the channel?
+            try {
+                if ( !enableNmeaMessages() )
+                {
+                    logger.error( "Could not enable Nmea messages." );
+                    return false;
+                }
+            } catch ( Exception e ) {
+                logger.error( "Exception thrown in enableNmeaMessages() {} \n {}",
+                              e,
+                              e.getStackTrace());
+                logger.info( "Connection to serial port failed" );
+                return false;
+            }
 
             // Create the SerialPort.
             if ( mPort != null )
@@ -369,6 +407,8 @@ public class SerialChannel extends NetChannel
 
             setIsAuthorized( false );
 
+            disableNmeaMessages();
+
             setSecurityObject( null );
             mConnector = null;
             mSender = null;
@@ -391,12 +431,121 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
-    public void ioOperationFailed()
+    private void ioOperationFailed()
     {
         if ( mIsConnected.compareAndSet( true, false )) {
             logger.error( "I/O operation failed.  Resetting channel." );
             reset();
         }
+    }
+
+
+    /**
+     *
+     */
+    private boolean enableNmeaMessages()
+    {
+        LocationManager mLocationManager = (LocationManager) mContext.getSystemService( Context.LOCATION_SERVICE );
+        //TelephonyManager tManager = (TelephonyManager) mContext.getSystemService( Context.TELEPHONY_SERVICE );
+
+        if ( mLocationManager == null )
+            mLocationManager = (LocationManager) mContext.getSystemService( Context.LOCATION_SERVICE );
+
+        if ( !mLocationManager.isProviderEnabled( LocationManager.GPS_PROVIDER )) {
+            logger.warn( "GPS is disabled.  Nmea messages will not work." );
+        }
+
+        // try {
+        //     mSocket = new MulticastSocket( 33289 );
+        //     mSocket.joinGroup( InetAddress.getByName( "224.0.0.1" ) );
+        // } catch (Exception e) {
+        //     Log.v( TAG, "Exception: " + Log.getStackTraceString(e) );
+        // }
+
+        // mTimer = new Timer("SendLoc");
+        // mTimer.schedule(new mytimer(), 1000);
+
+        mLocationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER,
+                                                 60000,
+                                                 0,
+                                                 new LocationListener() {
+                @Override
+                public void onLocationChanged(Location location) {}
+
+                @Override
+                public void onProviderDisabled(String provider) {}
+
+                @Override
+                public void onProviderEnabled(String provider) {}
+
+                @Override
+                public void onStatusChanged(String provider, int status, Bundle extras) {
+                    switch (status) {
+                        // We only care if the location provider goes out of service
+                    case LocationProvider.OUT_OF_SERVICE:
+                        //mSensorCallback.onSensorUpdate(SensorCallback.GPS, getUnknownLocation());
+                        break;
+                    default:
+                        // Otherwise, ignore the situation
+                    }
+                }
+            } );
+
+        mLocationManager.addNmeaListener( new NmeaListener() {
+                @Override
+                public void onNmeaReceived(long timestamp, String nmea) {
+                    if (nmea.indexOf("GPGGA") >= 0) {
+                        logger.error( "Received an NMEA message" );
+                        String[] toks = nmea.split(",");
+                        if (toks[6].compareTo("1") == 0) {
+                            // calendar from callback timestamp
+                            Calendar sysCal = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+                            sysCal.setTime(new Date(timestamp));
+
+                            // gps hr/min/sec/fracsec
+                            String hr = toks[1].substring(0,2);
+                            String mm = toks[1].substring(2,4);
+                            String ss = toks[1].substring(4,6);
+                            String fs = toks[1].substring(7,8);
+
+                            // instantaneous deltas
+                            int dHr = sysCal.get(Calendar.HOUR_OF_DAY) - Integer.parseInt(hr);
+                            int dMm = sysCal.get(Calendar.MINUTE) - Integer.parseInt(mm);
+                            int dSs = sysCal.get(Calendar.SECOND) - Integer.parseInt(ss);
+                            int dMs = sysCal.get(Calendar.MILLISECOND) - Integer.parseInt(fs)*100;
+
+                            long delta = ((dHr*60 + dMm)*60 + dSs)*1000 + dMs;
+
+                            // average delta
+                            mDelta = (mCount > 0) ? (mCount*mDelta + delta)/(mCount+1)
+                                : delta;
+                            mCount++;
+
+                            logger.debug( String.valueOf(mDelta) + ",TS,"
+                                          + String.valueOf(timestamp) + "," + nmea );
+                        }
+                    }
+
+                    // every 10 minutes - set time
+                    long now = System.currentTimeMillis();
+                    if ( (now - mLast) > 600000 ) {
+                        // stuff removed
+                        mLast = now;
+                        mCount = 0;
+                        // mDelta = 0;
+                    }
+                }
+            });
+
+        return true;
+    }
+
+
+    /**
+     *
+     */
+    private void disableNmeaMessages()
+    {
     }
 
 
@@ -1011,6 +1160,34 @@ public class SerialChannel extends NetChannel
     }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     /**
      *
      */
@@ -1032,6 +1209,8 @@ public class SerialChannel extends NetChannel
     // working before Nilabja's code is ready.  Make it private again
     // once his stuff is in.
     public IChannelManager mChannelManager;
+
+    private Context mContext;
 
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
@@ -1073,6 +1252,10 @@ public class SerialChannel extends NetChannel
     private ReceiverThread mReceiver;
 
     private SenderQueue mSenderQueue = new SenderQueue();
-;
+
+    private long mDelta = 0;
+    private long mCount = 0;
+    private long mLast = 0;
+
     private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
 }
