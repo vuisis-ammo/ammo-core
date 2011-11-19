@@ -701,8 +701,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							logger.error("invalid row for serialization");
 						} catch (TupleNotFoundException e) {
 							logger.error("tuple not found when processing postal table");
-							parent.store().deletePostal(new StringBuilder().append(PostalTableSchema.PROVIDER.q()).append("=?").append(" AND ")
-									.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), new String[] {e.missingTupleUri.getPath(), topic});
+							parent.store().deletePostal(new StringBuilder()
+							        .append(PostalTableSchema.PROVIDER.q()).append("=?").append(" AND ")
+									.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), 
+									new String[] {e.missingTupleUri.getPath(), topic});
 						} catch (NonConformingAmmoContentProvider e) {
 							e.printStackTrace();
 						}
@@ -785,7 +787,12 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 					logger.error("No Payload");
 					return null;
 				}
-				final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage.newBuilder().setUri(provider).setMimeType(msgType).setEncoding(encode.getPayload().name()).setData(ByteString.copyFrom(serialized));
+				final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
+						.newBuilder()
+						.setUri(provider)
+						.setMimeType(msgType)
+						.setEncoding(encode.getPayload().name())
+						.setData(ByteString.copyFrom(serialized));
 
 				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 				mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
@@ -1036,7 +1043,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		// mw.setSessionUuid(sessionId);
 
-		final AmmoMessages.PullRequest.Builder retrieveReq = AmmoMessages.PullRequest.newBuilder().setRequestUid(retrievalId).setMimeType(topic);
+		final AmmoMessages.PullRequest.Builder retrieveReq = AmmoMessages.PullRequest
+				.newBuilder()
+				.setRequestUid(retrievalId)
+				.setMimeType(topic);
 
 		if (selection != null)
 			retrieveReq.setQuery(selection);
@@ -1088,7 +1098,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		// find the provider to use
 		final String uuid = resp.getRequestUid();
 		final String topic = resp.getMimeType();
-		final Cursor cursor = this.store.queryRetrievalByKey(new String[] { RetrievalTableSchema.PROVIDER.n }, uuid, topic, null);
+		final Cursor cursor = this.store
+				.queryRetrievalByKey(new String[] { RetrievalTableSchema.PROVIDER.n }, uuid, topic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no retrieval {} {}", topic, uuid);
 			cursor.close();

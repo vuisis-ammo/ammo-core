@@ -28,7 +28,7 @@ available then local multicast delivery should be used.
      </routing>
   </topic>
   
-   <topic type="ammo/edu.vu.isis.ammo.">
+     <topic type="ammo/edu.vu.isis.ammo.">
      <description>
 The ammo applications.
      </description>

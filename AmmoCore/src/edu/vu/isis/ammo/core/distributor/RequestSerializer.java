@@ -112,20 +112,21 @@ public class RequestSerializer {
 		return new RequestSerializer(provider, payload);
 	}
 
-	public ChannelDisposal act(final AmmoService that,final Encoding encode,final String channel) {
+	public ChannelDisposal act(final AmmoService that, final Encoding encode, final String channel) {
 
 		final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
-
 			final RequestSerializer parent = RequestSerializer.this;
+			final Encoding local_encode = encode;
+			final String local_channel = channel;
 			@Override
 			protected Void doInBackground(Void...none) {
 				if (parent.agm == null) {
-					final byte[] agmBytes = parent.serializeActor.run(encode);
-					parent.agm = parent.readyActor.run(encode, agmBytes);
+					final byte[] agmBytes = parent.serializeActor.run(local_encode);
+					parent.agm = parent.readyActor.run(local_encode, agmBytes);
 				}
 				if (parent.agm == null)
 					return null;
-				that.sendRequest(parent.agm, channel);
+				that.sendRequest(parent.agm, local_channel);
 				return null;
 			}
 
