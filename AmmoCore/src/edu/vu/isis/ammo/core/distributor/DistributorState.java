@@ -76,7 +76,9 @@ public class DistributorState {
 
 	@Override
 	public String toString() {
-		final StringBuilder sb = new StringBuilder().append("status:");
+		final StringBuilder sb = new StringBuilder()
+		        .append("type: ").append(this.type).append(" ")
+				.append("status:");
 		for( final Map.Entry<String,ChannelDisposal> entry : this.stateMap.entrySet()) {
 			sb.append('\n').append(entry.getKey()).append(" : ").append(entry.getValue());
 		}
@@ -180,6 +182,12 @@ public class DistributorState {
 		if (0 < (aggregated & (ChannelDisposal.SENT.o | ChannelDisposal.TOLD.o | ChannelDisposal.DELIVERED.o) ))
 			return RequestDisposal.COMPLETE;
 		return RequestDisposal.DISTRIBUTE;
+	}
+
+	private String type;
+	public DistributorState setType(String type) {
+		this.type = type;
+		return this;
 	}
 
 }
