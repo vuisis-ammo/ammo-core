@@ -40,6 +40,18 @@ The ammo applications.
      </routing>
   </topic>
 
+   <topic type="ammo/edu.vu.isis.ammo.dash">
+     <description>
+Dash
+     </description>
+     <routing priority="normal">
+	     <clause>
+	        <literal term="gateway" condition="success" encoding="json"/>
+            <literal term="multicast" condition="success" encoding="json"/>
+	     </clause>
+     </routing>
+  </topic>
+
   <topic type="ammo/com.aterrasys.">
      <description>
      </description>
