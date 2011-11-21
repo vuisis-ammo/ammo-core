@@ -223,18 +223,23 @@ public class DistributorPolicy implements ContentHandler {
 	 * Find the 'best' key match.
 	 * The best match is the shortest string which matches the key.
 	 * 
-	 * 
 	 * @param key
 	 * @return
 	 */
 	public Topic matchPostal(String key) {
-		return this.postalPolicy.selectValue(key);
+		final Trie<String, Topic> policy = this.postalPolicy;
+		final String bestMatch = policy.headMap(key).lastKey(); 
+		return policy.get(bestMatch);
 	}
 	public Topic matchSubscribe(String key) {
-		return this.subscribePolicy.selectValue(key);
+		final Trie<String, Topic> policy = this.subscribePolicy;
+		final String bestMatch = policy.headMap(key).lastKey(); 
+		return policy.get(bestMatch);
 	}
 	public Topic matchRetrieval(String key) {
-		return this.retrievalPolicy.selectValue(key);
+		final Trie<String, Topic> policy = this.retrievalPolicy;
+		final String bestMatch = policy.headMap(key).lastKey(); 
+		return policy.get(bestMatch);
 	}
 
 	private int indent = 0;
@@ -256,13 +261,23 @@ public class DistributorPolicy implements ContentHandler {
 			final String ind = DistributorPolicy.this.indent();
 
 			final StringBuffer sb = new StringBuffer();
-			sb.append('\n').append(ind).append("routing:  ").append(this.routing);
+			sb.append('\n').append(ind).append("type: ").append(this.type).append(' ')
+			  .append("routing:  ").append(this.routing);
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
 
 		public DistributorState makeRouteMap() {
-			return this.routing.makeMap();
+			final DistributorState state = this.routing.makeMap();
+			return state.setType(this.type);
+		}
+		
+		private String type;
+		public void setType(String type) {
+			this.type = type;
+		}
+		public String getType() {
+			return this.type;
 		}
 	}
 
@@ -455,7 +470,8 @@ public class DistributorPolicy implements ContentHandler {
 			final StringBuffer sb = new StringBuffer();
 			sb.append('\n').append(ind)
 			.append("term: ").append(this.term).append(' ')
-			.append("condition: ").append(this.condition);
+			.append("condition: ").append(this.condition).append(' ')
+			.append("encoding: ").append(this.encoding);
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
@@ -624,15 +640,16 @@ public class DistributorPolicy implements ContentHandler {
 		if (! this.inClause){
 			if (localName.equals("routing")) { 
 				final Topic topic = builder.build();
+				topic.setType(builder.type());
 				switch (builder.routing.category) {
 				case POSTAL:
-					this.postalPolicy.put(builder.type(), topic );
+					this.postalPolicy.put(topic.getType(), topic );
 					break;
 				case SUBSCRIBE:
-					this.subscribePolicy.put(builder.type(), topic );
+					this.subscribePolicy.put(topic.getType(), topic );
 					break;
 				case RETRIEVAL:
-					this.retrievalPolicy.put(builder.type(), topic );
+					this.retrievalPolicy.put(topic.getType(), topic );
 					break;
 				}
 				logger.debug("end 'routing'");

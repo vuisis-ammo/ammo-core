@@ -28,9 +28,21 @@ available then local multicast delivery should be used.
      </routing>
   </topic>
   
-   <topic type="ammo/edu.vu.isis.ammo.">
+     <topic type="ammo/edu.vu.isis.ammo.">
      <description>
 The ammo applications.
+     </description>
+     <routing priority="normal">
+	     <clause>
+	        <literal term="gateway" condition="success" encoding="json"/>
+            <literal term="multicast" condition="success" encoding="json"/>
+	     </clause>
+     </routing>
+  </topic>
+
+   <topic type="ammo/edu.vu.isis.ammo.dash">
+     <description>
+Dash
      </description>
      <routing priority="normal">
 	     <clause>

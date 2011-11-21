@@ -112,20 +112,21 @@ public class RequestSerializer {
 		return new RequestSerializer(provider, payload);
 	}
 
-	public ChannelDisposal act(final AmmoService that,final Encoding encode,final String channel) {
+	public ChannelDisposal act(final AmmoService that, final Encoding encode, final String channel) {
 
 		final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
-
 			final RequestSerializer parent = RequestSerializer.this;
+			final Encoding local_encode = encode;
+			final String local_channel = channel;
 			@Override
 			protected Void doInBackground(Void...none) {
 				if (parent.agm == null) {
-					final byte[] agmBytes = parent.serializeActor.run(encode);
-					parent.agm = parent.readyActor.run(encode, agmBytes);
+					final byte[] agmBytes = parent.serializeActor.run(local_encode);
+					parent.agm = parent.readyActor.run(local_encode, agmBytes);
 				}
 				if (parent.agm == null)
 					return null;
-				that.sendRequest(parent.agm, channel);
+				that.sendRequest(parent.agm, local_channel);
 				return null;
 			}
 
@@ -170,7 +171,7 @@ public class RequestSerializer {
 
 	public static byte[] serializeFromProvider(final ContentResolver resolver, 
 			final Uri tupleUri, final DistributorPolicy.Encoding encoding) 
-					throws FileNotFoundException, IOException {
+					throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
 		logger.trace("serializing using encoding {}", encoding);
 		switch (encoding.getPayload()) {
@@ -186,7 +187,9 @@ public class RequestSerializer {
 				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
 				return null;
 			}
-			if (tupleCursor == null) return null;
+			if (tupleCursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
 
 			if (! tupleCursor.moveToFirst()) return null;
 			if (tupleCursor.getColumnCount() < 1) return null;
@@ -300,7 +303,9 @@ public class RequestSerializer {
 				logger.warn("unknown content provider ", ex);
 				return null;
 			}
-			if (serialMetaCursor == null) return null;
+			if (serialMetaCursor == null) {
+				throw new NonConformingAmmoContentProvider("while getting metadata from provider", tupleUri);
+			}
 
 			if (! serialMetaCursor.moveToFirst()) return null;
 			final int columnCount = serialMetaCursor.getColumnCount();
@@ -324,7 +329,9 @@ public class RequestSerializer {
 				logger.warn("unknown content provider ", ex);
 				return null;
 			}
-			if (cursor == null) return null;
+			if (cursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
 
 			if (! cursor.moveToFirst()) return null;
 			if (cursor.getColumnCount() < 1) return null;
@@ -367,7 +374,9 @@ public class RequestSerializer {
 				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
 				return null;
 			}
-			if (tupleCursor == null) return null;
+			if (tupleCursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
 
 			if (! tupleCursor.moveToFirst()) return null;
 			if (tupleCursor.getColumnCount() < 1) return null;
