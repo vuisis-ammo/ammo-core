@@ -455,16 +455,6 @@ public class SerialChannel extends NetChannel
             logger.warn( "GPS is disabled.  Nmea messages will not work." );
         }
 
-        // try {
-        //     mSocket = new MulticastSocket( 33289 );
-        //     mSocket.joinGroup( InetAddress.getByName( "224.0.0.1" ) );
-        // } catch (Exception e) {
-        //     Log.v( TAG, "Exception: " + Log.getStackTraceString(e) );
-        // }
-
-        // mTimer = new Timer("SendLoc");
-        // mTimer.schedule(new mytimer(), 1000);
-
         mLocationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER,
                                                  60000,
                                                  0,
@@ -495,7 +485,7 @@ public class SerialChannel extends NetChannel
                 @Override
                 public void onNmeaReceived(long timestamp, String nmea) {
                     if (nmea.indexOf("GPGGA") >= 0) {
-                        logger.error( "Received an NMEA message" );
+                        //logger.error( "Received an NMEA message" );
                         String[] toks = nmea.split(",");
                         if (toks[6].compareTo("1") == 0) {
                             // calendar from callback timestamp
@@ -721,16 +711,17 @@ public class SerialChannel extends NetChannel
 
                     // Try to sleep until our next take time.
                     long currentTime = System.currentTimeMillis();
+                    long currentGpsTime = currentTime - mDelta;
 
                     int slotDuration = mSlotDuration.get();
                     int offset = mSlotNumber.get() * slotDuration;
                     int cycleDuration = slotDuration * mRadiosInGroup.get();
 
-                    long thisCycleStartTime = (long) (currentTime / cycleDuration) * cycleDuration;
+                    long thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration;
                     long thisCycleTakeTime = thisCycleStartTime + offset;
 
                     long goalTakeTime;
-                    if ( thisCycleTakeTime > currentTime ) {
+                    if ( thisCycleTakeTime > currentGpsTime ) {
                         // We haven't yet reached our take time for this cycle,
                         // so that's our goal.
                         goalTakeTime = thisCycleTakeTime;
@@ -739,7 +730,7 @@ public class SerialChannel extends NetChannel
                         // cycleDuration and wait until the next round.
                         goalTakeTime = thisCycleTakeTime + cycleDuration;
                     }
-                    Thread.sleep( goalTakeTime - currentTime );
+                    Thread.sleep( goalTakeTime - currentGpsTime );
 
 
                     // Once we wake up, we need to see if we are in our slot.
@@ -747,17 +738,18 @@ public class SerialChannel extends NetChannel
                     // have missed our slot.  If so, don't do a take() and just
                     // wait until our next slot.
                     currentTime = System.currentTimeMillis();
+                    currentGpsTime = currentTime - mDelta;
                     logger.debug( "Woke up: slotNumber={}, (time, mu-s)={}, jitter={}",
                                  new Object[] {
                                       mSlotNumber.get(),
-                                      currentTime,
-                                      currentTime - goalTakeTime } );
-                    if ( currentTime - goalTakeTime > WINDOW_DURATION ) {
+                                      currentGpsTime,
+                                      currentGpsTime - goalTakeTime } );
+                    if ( currentGpsTime - goalTakeTime > WINDOW_DURATION ) {
                         logger.debug( "Missed slot: attempted={}, current={}, jitter={}",
                                       new Object[] {
                                           goalTakeTime,
-                                          currentTime,
-                                          currentTime - goalTakeTime } );
+                                          currentGpsTime,
+                                          currentGpsTime - goalTakeTime } );
                         continue;
                     }
 
@@ -1159,35 +1151,7 @@ public class SerialChannel extends NetChannel
         reset();
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
     /**
      *
      */
