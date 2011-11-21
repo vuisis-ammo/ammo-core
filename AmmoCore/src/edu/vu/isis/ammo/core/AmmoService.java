@@ -856,7 +856,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @return
 	 */
 	public boolean isConnected() {
-		boolean any = tcpChannel.isConnected() || multicastChannel.isConnected() || serialChannel.isConnected();
+	    boolean any = tcpChannel.isConnected() || multicastChannel.isConnected() || ((serialChannel != null) && serialChannel.isConnected());
 		logger.debug("::isConnected ? {}", any );
 		return any;
 	}
