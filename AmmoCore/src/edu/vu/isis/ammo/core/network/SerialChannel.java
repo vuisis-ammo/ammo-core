@@ -748,12 +748,19 @@ public class SerialChannel extends NetChannel
                     // wait until our next slot.
                     currentTime = System.currentTimeMillis();
                     currentGpsTime = currentTime - mDelta;
+                    slotDuration = mSlotDuration.get();
+                    offset = mSlotNumber.get() * slotDuration;
+                    cycleDuration = slotDuration * mRadiosInGroup.get();
+
+                    thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration;
+                    thisCycleTakeTime = thisCycleStartTime + offset;
+                    long endOfSlot = thisCycleTakeTime + slotDuration;
                     logger.debug( "Woke up: slotNumber={}, (time, mu-s)={}, jitter={}",
                                  new Object[] {
                                       mSlotNumber.get(),
                                       currentGpsTime,
                                       currentGpsTime - goalTakeTime } );
-                    if ( currentGpsTime - goalTakeTime > WINDOW_DURATION ) {
+                    if ( endOfSlot - currentGpsTime < WINDOW_DURATION ) {
                         logger.debug( "Missed slot: attempted={}, current={}, jitter={}",
                                       new Object[] {
                                           goalTakeTime,
@@ -826,9 +833,9 @@ public class SerialChannel extends NetChannel
          */
         public int getSenderState() { return mSenderState.get(); }
 
-        // If we miss our window's start time by more than this amount, we
-        // give up until our turn in the next cycle.
-        private static final int WINDOW_DURATION = 25;
+        // If we wake up and have less than this number of milliseconds left
+        // in our slot, skip this slot and wait for the next cycle.
+        private static final int WINDOW_DURATION = 100;
 
         private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
         private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
