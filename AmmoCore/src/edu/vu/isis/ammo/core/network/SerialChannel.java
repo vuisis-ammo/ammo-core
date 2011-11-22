@@ -48,6 +48,9 @@ public class SerialChannel extends NetChannel
     public static final int SERIAL_WAITING_FOR_TTY = INetChannel.LINK_WAIT;
     public static final int SERIAL_CONNECTED       = INetChannel.CONNECTED;
 
+    private LocationManager mLocationManager;
+    private NmeaListener mNmeaListener;
+    private LocationListener mLocationListener;
 
     static {
         System.loadLibrary("serialchan");
@@ -307,8 +310,23 @@ public class SerialChannel extends NetChannel
         {
             logger.info( "SerialChannel.Connector::connect()" );
 
+            // Create the SerialPort.
+            if ( mPort != null )
+                logger.error( "Tried to create mPort when we already had one." );
+            try {
+                mPort = new SerialPort( new File(mDevice), mBaudRate );
+            } catch ( Exception e ) {
+                logger.info( "Connection to serial port failed" );
+                mPort = null;
+                return false;
+            }
+
+            logger.info( "Connection to serial port established " );
+            mIsConnected.set( true );
+
             // FIXME: Do better error handling.  If we can't enable Nmea
             // messages, should we close the channel?
+	    // TBD SKN: Start the NMEA Message after we have made a connection to the serial port
             try {
                 if ( !enableNmeaMessages() )
                 {
@@ -323,19 +341,7 @@ public class SerialChannel extends NetChannel
                 return false;
             }
 
-            // Create the SerialPort.
-            if ( mPort != null )
-                logger.error( "Tried to create mPort when we already had one." );
-            try {
-                mPort = new SerialPort( new File(mDevice), mBaudRate );
-            } catch ( Exception e ) {
-                logger.info( "Connection to serial port failed" );
-                mPort = null;
-                return false;
-            }
 
-            logger.info( "Connection to serial port established " );
-            mIsConnected.set( true );
 
             // Create the security object.  This must be done before
             // the ReceiverThread is created in case we receive a
@@ -381,6 +387,8 @@ public class SerialChannel extends NetChannel
         logger.info( "SerialChannel::disconnect()" );
 
         try {
+            disableNmeaMessages();
+
             mIsConnected.set( false );
 
             if ( mConnector != null )
@@ -406,8 +414,6 @@ public class SerialChannel extends NetChannel
             }
 
             setIsAuthorized( false );
-
-            disableNmeaMessages();
 
             setSecurityObject( null );
             mConnector = null;
@@ -445,7 +451,6 @@ public class SerialChannel extends NetChannel
      */
     private boolean enableNmeaMessages()
     {
-        LocationManager mLocationManager = (LocationManager) mContext.getSystemService( Context.LOCATION_SERVICE );
         //TelephonyManager tManager = (TelephonyManager) mContext.getSystemService( Context.TELEPHONY_SERVICE );
 
         if ( mLocationManager == null )
@@ -458,7 +463,7 @@ public class SerialChannel extends NetChannel
         mLocationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER,
                                                  60000,
                                                  0,
-                                                 new LocationListener() {
+                                                 mLocationListener = new LocationListener() {
                 @Override
                 public void onLocationChanged(Location location) {}
 
@@ -481,7 +486,7 @@ public class SerialChannel extends NetChannel
                 }
             } );
 
-        mLocationManager.addNmeaListener( new NmeaListener() {
+        mLocationManager.addNmeaListener( mNmeaListener = new NmeaListener() {
                 @Override
                 public void onNmeaReceived(long timestamp, String nmea) {
                     if (nmea.indexOf("GPGGA") >= 0) {
@@ -536,6 +541,10 @@ public class SerialChannel extends NetChannel
      */
     private void disableNmeaMessages()
     {
+	if (mLocationManager != null) {
+	    mLocationManager.removeNmeaListener(mNmeaListener);
+	    mLocationManager.removeUpdates(mLocationListener);
+	}
     }
 
 
