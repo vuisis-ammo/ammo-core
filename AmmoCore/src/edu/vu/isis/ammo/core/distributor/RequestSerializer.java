@@ -293,7 +293,7 @@ public class RequestSerializer {
 			 * 1) query to find out about the fields to send: name, position, type
 			 * 2) serialize the fields 
 			 */
-			logger.debug("terse serialization not implemented");
+			logger.debug("Using terse serialization");
 
 			final Cursor serialMetaCursor;
 			try {
@@ -349,6 +349,13 @@ public class RequestSerializer {
 					tuple.putLong(value);
 					break;
 				case FIELD_TYPE_TEXT:
+					String svalue = cursor.getString( cursor.getColumnIndex(key) );
+					int length = svalue.length();
+					tuple.putInt( length );
+					for ( int i = 0; i < length; i++ ) {
+					    char c = svalue.charAt(i);        
+						tuple.putChar( c );
+					}
 					break;
 				default:
 					logger.warn("unhandled data type {}", type);
@@ -494,12 +501,7 @@ public class RequestSerializer {
 			 * 2) parse the incoming data using the order of the names
 			 *    and their types as a guide.
 			 */
-			logger.error("terse deserialization");
-			/**
-			 * 1) query to find out about the fields to send: name, position, type
-			 * 2) serialize the fields 
-			 */
-			logger.debug("terse serialization not implemented");
+			logger.debug("Using terse deserialization");
 
 			final Cursor serialMetaCursor;
 			try {
@@ -525,8 +527,13 @@ public class RequestSerializer {
 					wrap.put(key, value);
 					break;
 				case FIELD_TYPE_TEXT:
-					//long value = tuple.getString();
-					//wrap.put(key, value);
+					StringBuilder svalue = new StringBuilder();
+					int size = tuple.getInt();
+					for ( int i = 0; i < size; i++ ) {
+						char c = tuple.getChar();
+						svalue.append( c );
+					}
+					wrap.put( key, svalue.toString() );
 					break;
 				default:
 					logger.warn("unhandled data type {}", type);
