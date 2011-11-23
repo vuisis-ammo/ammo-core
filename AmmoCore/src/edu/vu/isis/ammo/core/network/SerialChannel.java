@@ -265,7 +265,7 @@ public class SerialChannel extends NetChannel
             }
 
             try {
-            	Looper.prepare();
+                Looper.prepare();
                 // The channel is already in the SERIAL_WAITING_FOR_TTY state.
                 synchronized ( SerialChannel.this ) {
                     while ( !connect() ) {
@@ -326,7 +326,7 @@ public class SerialChannel extends NetChannel
 
             // FIXME: Do better error handling.  If we can't enable Nmea
             // messages, should we close the channel?
-	    // TBD SKN: Start the NMEA Message after we have made a connection to the serial port
+        // TBD SKN: Start the NMEA Message after we have made a connection to the serial port
             try {
                 if ( !enableNmeaMessages() )
                 {
@@ -541,10 +541,10 @@ public class SerialChannel extends NetChannel
      */
     private void disableNmeaMessages()
     {
-	if (mLocationManager != null) {
-	    mLocationManager.removeNmeaListener(mNmeaListener);
-	    mLocationManager.removeUpdates(mLocationListener);
-	}
+    if (mLocationManager != null) {
+        mLocationManager.removeNmeaListener(mNmeaListener);
+        mLocationManager.removeUpdates(mLocationListener);
+    }
     }
 
 
@@ -741,13 +741,11 @@ public class SerialChannel extends NetChannel
                     }
                     Thread.sleep( goalTakeTime - currentGpsTime );
 
-
-                    // Once we wake up, we need to see if we are in our slot.
-                    // Sometimes the sleep() will not wake up on time, and we
-                    // have missed our slot.  If so, don't do a take() and just
-                    // wait until our next slot.
                     currentTime = System.currentTimeMillis();
                     currentGpsTime = currentTime - mDelta;
+
+                    // Calculate things here that will remain valid for the
+                    // rest of the slot.
                     slotDuration = mSlotDuration.get();
                     offset = mSlotNumber.get() * slotDuration;
                     cycleDuration = slotDuration * mRadiosInGroup.get();
@@ -760,62 +758,78 @@ public class SerialChannel extends NetChannel
                                       mSlotNumber.get(),
                                       currentGpsTime,
                                       currentGpsTime - goalTakeTime } );
-                    if ( endOfSlot - currentGpsTime < WINDOW_DURATION ) {
-                        logger.debug( "Missed slot: attempted={}, current={}, jitter={}",
-                                      new Object[] {
-                                          goalTakeTime,
-                                          currentGpsTime,
-                                          currentGpsTime - goalTakeTime } );
-                        continue;
-                    }
 
-                    // At this point, we've woken up near the start of our window
-                    // and should send a message if one is available.
-                    if ( !mSenderQueue.messageIsAvailable() ) {
-                        continue;
-                    }
-                    msg = mSenderQueue.take(); // Will not block
+                    while (true) {
+                        // Send all available packets until we run out of time
+                        // in our slot.
+                        currentTime = System.currentTimeMillis();
+                        currentGpsTime = currentTime - mDelta;
 
-                    logger.debug( "Took a message from the send queue" );
+                        if (endOfSlot - currentGpsTime < WINDOW_DURATION) {
+                            logger.debug( "currentGptTime={}, endOfSlot={}", currentGpsTime, endOfSlot);
+                            logger.debug( "Out of time in slot: time remaining={}",
+                                          endOfSlot - currentGpsTime );
+                            break;
+                        }
+
+                        // At this point, we've woken up near the start of our
+                        // window and should send a message if one is available.
+                        if (!mSenderQueue.messageIsAvailable()) {
+                            logger.debug( "Time remaining in slot={}, but no messages in queue",
+                                          endOfSlot - currentGpsTime );
+                            break;
+                        }
+                        msg = mSenderQueue.take(); // Will not block
+
+                        logger.debug("Took a message from the send queue");
+                        try {
+                            sendMessage(msg);
+                        } catch (Exception e) {
+                            logger.warn("sender threw exception {}",
+                                        e.getStackTrace());
+                            if (msg.handler != null)
+                                ackToHandler(msg.handler,
+                                             ChannelDisposal.FAILED);
+                            setSenderState(INetChannel.INTERRUPTED);
+                            ioOperationFailed();
+                            break;
+                        }
+                    }
                 } catch ( InterruptedException ex ) {
                     logger.debug( "interrupted taking messages from send queue: {}",
                                   ex.getLocalizedMessage() );
                     setSenderState( INetChannel.INTERRUPTED );
                     break;
                 }
-
-                try {
-                    ByteBuffer buf = msg.serialize( endian,
-                                                    AmmoGatewayMessage.VERSION_1_TERSE,
-                                                    (byte) mSlotNumber.get() );
-
-                    setSenderState( INetChannel.SENDING );
-
-                    if ( mSenderEnabled.get() ) {
-                        FileOutputStream outputStream = mPort.getOutputStream();
-                        outputStream.write( buf.array() );
-                        outputStream.flush();
-
-                        logger.info( "sent message size={}, checksum={}, data:{}",
-                                     new Object[] {
-                                         msg.size,
-                                         Long.toHexString(msg.payload_checksum),
-                                         msg.payload } );
-                    }
-
-                    // legitimately sent to gateway.
-                    if ( msg.handler != null )
-                        ackToHandler( msg.handler, ChannelDisposal.SENT );
-                } catch ( Exception e ) {
-                    logger.warn("sender threw exception {}", e.getStackTrace() );
-                    if ( msg.handler != null )
-                        ackToHandler( msg.handler, ChannelDisposal.FAILED );
-                    setSenderState( INetChannel.INTERRUPTED );
-                    ioOperationFailed();
-                }
             }
 
             logger.info( "SenderThread <{}>::run() exiting.", Thread.currentThread().getId() );
+        }
+
+
+        private void sendMessage(AmmoGatewayMessage msg) throws IOException
+        {
+            ByteBuffer buf = msg.serialize( endian,
+                                            AmmoGatewayMessage.VERSION_1_TERSE,
+                                            (byte) mSlotNumber.get());
+
+            setSenderState(INetChannel.SENDING);
+
+            if ( mSenderEnabled.get() ) {
+                FileOutputStream outputStream = mPort.getOutputStream();
+                outputStream.write( buf.array() );
+                outputStream.flush();
+
+                logger.info(
+                        "sent message size={}, checksum={}, data:{}",
+                        new Object[] { msg.size,
+                                Long.toHexString(msg.payload_checksum),
+                                msg.payload });
+            }
+
+            // legitimately sent to gateway.
+            if ( msg.handler != null )
+                ackToHandler(msg.handler, ChannelDisposal.SENT);
         }
 
 
@@ -1167,7 +1181,7 @@ public class SerialChannel extends NetChannel
         reset();
     }
 
-    
+
     /**
      *
      */
