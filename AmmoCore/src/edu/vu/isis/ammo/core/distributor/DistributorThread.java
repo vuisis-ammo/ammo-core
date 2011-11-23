@@ -30,6 +30,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
@@ -787,17 +788,26 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 					logger.error("No Payload");
 					return null;
 				}
-				final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
+				
+				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+				if (encode.getPayload() != Encoding.Type.TERSE) {
+					final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
 						.newBuilder()
 						.setUri(provider)
 						.setMimeType(msgType)
 						.setEncoding(encode.getPayload().name())
 						.setData(ByteString.copyFrom(serialized));
+					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+					mw.setDataMessage(pushReq);
 
-				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-				mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
-
-				mw.setDataMessage(pushReq);
+				} else {
+					final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
+							.newBuilder()
+							.setMimeType(AmmoMimeTypes.mimeIds.get(msgType))
+							.setData(ByteString.copyFrom(serialized));
+						mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
+						mw.setTerseMessage(pushReq);
+				}
 
 				logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n", System.currentTimeMillis() - now, serialized.length);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
@@ -1296,15 +1306,30 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			logger.warn("no message");
 			return false;
 		}
-		if (!mw.hasDataMessage()) {
+		if (!mw.hasDataMessage() && !mw.hasTerseMessage() ) {
 			logger.warn("no data in message");
 			return false;
 		}
-		final AmmoMessages.DataMessage resp = mw.getDataMessage();
+		
+		String mime = null;
+		String encode = null;
+		com.google.protobuf.ByteString data = null;
+		if ( mw.hasDataMessage()) {
+			final AmmoMessages.DataMessage resp = mw.getDataMessage();
+			mime = resp.getMimeType();
+			data = resp.getData();
+			encode = resp.getEncoding();
+		} else {
+			final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
+			mime = AmmoMimeTypes.mimeTypes.get( resp.getMimeType());
+			data = resp.getData();	
+			encode = "TERSE";
+		}
+		
 		// final ContentResolver resolver = context.getContentResolver();
 
-		logger.trace("receive response SUBSCRIBE : {} : {}", resp.getMimeType(), resp.getUri());
-		final String topic = resp.getMimeType();
+		logger.trace("receive response SUBSCRIBE : {}", mime );
+		final String topic = mime;
 		final Cursor cursor = this.store.querySubscribeByKey(new String[] { SubscribeTableSchema.PROVIDER.n }, topic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no subscription {}", topic);
@@ -1317,8 +1342,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		cursor.close();
 		final Uri provider = Uri.parse(uriString);
 
-		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		RequestSerializer.deserializeToProvider(context, provider, encoding, resp.getData().toByteArray());
+		final Encoding encoding = Encoding.getInstanceByName( encode );
+		RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
 
 		return true;
 	}
