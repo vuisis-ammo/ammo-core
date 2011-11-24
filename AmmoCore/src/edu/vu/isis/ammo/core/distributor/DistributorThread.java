@@ -484,6 +484,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
+		case TERSE_MESSAGE:
 			final boolean subscribeResult = receiveSubscribeResponse(context, mw);
 			logger.debug("subscribe reply {}", subscribeResult);
 			break;
@@ -510,7 +511,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			logger.debug("{} message, no processing", mw.getType());
 			break;
 		default:
-			logger.error("unexpected resply type. {}", mw.getType());
+			logger.error("unexpected reply type. {}", mw.getType());
 		}
 		return true;
 	}

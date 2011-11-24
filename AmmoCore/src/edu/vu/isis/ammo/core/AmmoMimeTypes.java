@@ -23,6 +23,6 @@ public class AmmoMimeTypes {
         mimeIds.put( "ammo/com.aterrasys.nevada.locations", 2 );
 
         mimeTypes.put( 3, "ammo/edu.vu.isis.ammo.dash.event" );
-        mimeIds.put( "ammo/edu.vu.isis.ammo.dash.event", 2 );
+        mimeIds.put( "ammo/edu.vu.isis.ammo.dash.event", 3 );
     }
 }

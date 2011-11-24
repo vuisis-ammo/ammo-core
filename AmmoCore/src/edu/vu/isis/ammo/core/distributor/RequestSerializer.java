@@ -350,7 +350,8 @@ public class RequestSerializer {
 					break;
 				case FIELD_TYPE_TEXT:
 					String svalue = cursor.getString( cursor.getColumnIndex(key) );
-					int length = svalue.length();
+					int length = svalue == null ? 0 : svalue.length();
+					logger.debug( "key={}, length={}", key, length );
 					tuple.putInt( length );
 					for ( int i = 0; i < length; i++ ) {
 					    char c = svalue.charAt(i);        
@@ -529,6 +530,7 @@ public class RequestSerializer {
 				case FIELD_TYPE_TEXT:
 					StringBuilder svalue = new StringBuilder();
 					int size = tuple.getInt();
+					logger.debug( "key={}, length={}", key, size );
 					for ( int i = 0; i < size; i++ ) {
 						char c = tuple.getChar();
 						svalue.append( c );
