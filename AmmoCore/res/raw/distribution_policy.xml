@@ -47,7 +47,8 @@ Dash
      <routing priority="normal">
 	     <clause>
 	        <literal term="gateway" condition="success" encoding="json"/>
-            <literal term="multicast" condition="success" encoding="json"/>
+                <literal term="multicast" condition="success" encoding="json"/>
+                <literal term="serial" condition="success" encoding="terse"/>
 	     </clause>
      </routing>
   </topic>
@@ -58,8 +59,8 @@ Dash
      <routing priority="normal">
 	     <clause>
 	        <literal term="gateway" condition="success" encoding="json"/>
-            <literal term="multicast" condition="success" encoding="json"/>
-            <literal term="serial" condition="success" encoding="terse"/>
+                <literal term="multicast" condition="success" encoding="json"/>
+                <literal term="serial" condition="success" encoding="terse"/>
 	     </clause>
      </routing>
   </topic>
@@ -71,6 +72,7 @@ Dash
 	     <clause>
 	        <literal term="gateway" condition="true" encoding="json"/>
 	        <literal term="multicast" condition="true" encoding="json"/>
+	        <literal term="serial" condition="true" encoding="terse"/>
 	     </clause>
      </routing>
   </topic>
