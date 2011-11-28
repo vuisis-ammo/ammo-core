@@ -117,6 +117,9 @@ public class SerialChannel extends NetChannel
     {
         logger.info( "SerialChannel::reset()" );
         disable();
+        
+        // What is reset() is called on a disabled() channel?  Should we
+        // enable() here if we were already disabled?
         enable();
     }
 

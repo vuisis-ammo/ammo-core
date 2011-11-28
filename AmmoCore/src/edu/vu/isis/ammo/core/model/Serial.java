@@ -2,6 +2,7 @@ package edu.vu.isis.ammo.core.model;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
@@ -22,12 +23,14 @@ public class Serial extends Channel
 		return instance;
 	}
 
-	private boolean election;
-	private int[] status;
+	private boolean election = false;
+	private int[] status = null;
 
 	private Serial(Context context, String name)
     {
 		super(context, name);
+
+		election = this.prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false);
 	}
 
 
@@ -46,14 +49,15 @@ public class Serial extends Channel
 	public void enable()
     {
 		this.setElection(true);
-
 	}
 
 
 	private void setElection(boolean b)
     {
 		this.election = b;
-		this.prefs.edit().putBoolean(INetPrefKeys.SERIAL_SHOULD_USE, this.election).commit();
+        Editor editor = this.prefs.edit();
+        editor.putBoolean(INetPrefKeys.SERIAL_SHOULD_USE, this.election);
+        editor.commit();
 	}
 
 
@@ -61,7 +65,6 @@ public class Serial extends Channel
 	public void disable()
     {
 		this.setElection(false);
-
 	}
 
 

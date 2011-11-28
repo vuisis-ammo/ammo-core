@@ -26,36 +26,53 @@ import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.network.INetChannel;
+import edu.vu.isis.ammo.core.network.MulticastChannel;
+import edu.vu.isis.ammo.core.network.SerialChannel;
+import edu.vu.isis.ammo.core.network.TcpChannel;
 
 public class ChannelAdapter extends ArrayAdapter<Channel>
     implements OnTouchListener, OnNameChangeListener
 {
     public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
+
     private final AmmoActivity parent;
     private final Resources res;
     private final List<Channel> model;
     private SharedPreferences prefs = null;
-    public ChannelAdapter(AmmoActivity parent, List<Channel> model) {
-        super(parent,
-                android.R.layout.simple_list_item_1,
-                model);
+
+
+    public ChannelAdapter( AmmoActivity parent, List<Channel> model )
+    {
+        super( parent,
+               android.R.layout.simple_list_item_1,
+               model);
         this.parent = parent;
         this.res = this.parent.getResources();
         this.model = model;
-        this.prefs = PreferenceManager.getDefaultSharedPreferences(this.parent);
-        if(this.prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true))
-        	this.model.get(1).enable();
-        else
-        	this.model.get(1).disable();
-        
-        if(this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true))
-        	this.model.get(0).enable();
-        else
-        	this.model.get(0).disable();
-        
-     
-        
+        this.prefs = PreferenceManager.getDefaultSharedPreferences( parent );
+
+        for ( Channel c : model ) {
+            if ( Gateway.class.isInstance( c )) {
+                if ( prefs.getBoolean( INetPrefKeys.GATEWAY_SHOULD_USE, true ))
+                    c.enable();
+                else
+                    c.disable();
+            } else if ( Multicast.class.isInstance( c )) {
+                if ( prefs.getBoolean( INetPrefKeys.MULTICAST_SHOULD_USE, true ))
+                    c.enable();
+                else
+                    c.disable();
+            } else if ( Serial.class.isInstance( c ) ) {
+                if ( prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false ))
+                    c.enable();
+                else
+                    c.disable();
+            } else {
+                logger.error( "Invalid channel type." );
+            }
+        }
     }
+
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
@@ -66,13 +83,13 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
     	return row;
     }
 
-    
+
     @Override
     public boolean onTouch(View view, MotionEvent event) {
     	Toast.makeText(this.getContext(), "Event: " + event.getAction(), Toast.LENGTH_SHORT).show();
     	// Only perform this transform on image buttons for now.
         if (view.getClass() != RelativeLayout.class) return false;
-        
+
         RelativeLayout item = (RelativeLayout) view;
         int action = event.getAction();
         switch (action) {
@@ -133,7 +150,6 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         if (text_two != null) text_two.setVisibility(TextView.INVISIBLE);
 
         text = text_one;
-
 
         if(parent.netlinkAdvancedView)
         {
@@ -351,19 +367,20 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         item.refreshDrawableState();
         return true;
     }
+    
     private void setColor(ToggleButton icon, TextView text, int resColor) {
         int color = this.res.getColor(resColor);
         if (icon != null) icon.setTextColor(R.color.togglebutton_default);
         if (text != null) text.setTextColor(color);
     }
-
-
+    
     @Override
     public boolean onNameChange(View item, String name) {
         ((TextView)item.findViewById(R.id.gateway_name)).setText(name);
         item.refreshDrawableState();
         return false;
     }
+    
     @Override
     public boolean onFormalChange(View item, String formal) {
         ((TextView)item.findViewById(R.id.gateway_formal)).setText(formal);
@@ -371,16 +388,13 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         return false;
     }
 
-    public Channel getItemByName(String name) {
-        for (int ix=0; ix < this.model.size(); ix++) {
-            Channel item = this.model.get(ix);
-            if (! item.getName().equalsIgnoreCase(name)) continue;
-            return item;
-        }
-        return null;
-    }
-    
-
-
+    //public Channel getItemByName(String name) {
+    //    for (int ix=0; ix < this.model.size(); ix++) {
+    //        Channel item = this.model.get(ix);
+    //        if (! item.getName().equalsIgnoreCase(name)) continue;
+    //        return item;
+    //    }
+    //    return null;
+    //}
 }
 

@@ -182,7 +182,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// Determine if the connection is enabled
 	private boolean gatewayEnabled = true;
     private boolean multicastEnabled = true;
-    private boolean serialEnabled = true;
+    private boolean serialEnabled = false;
 	// for providing networking support
 	// should this be using IPv6?
 	private boolean networkingSwitch = true;

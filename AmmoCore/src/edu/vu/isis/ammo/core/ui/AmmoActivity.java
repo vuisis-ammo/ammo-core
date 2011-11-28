@@ -326,41 +326,41 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         this.startActivity(settingIntent);
     }
 
-    public void onGatewayElectionToggle(View view) {
-        int position = this.channelList.getPositionForView(view);
-        Gateway gw = (Gateway) this.channelAdapter.getItem(position);
+    // public void onGatewayElectionToggle(View view) {
+    //     int position = this.channelList.getPositionForView(view);
+    //     Gateway gw = (Gateway) this.channelAdapter.getItem(position);
 
-        // get the button's row
-        RelativeLayout row = (RelativeLayout)view.getParent();
-        ToggleButton button = (ToggleButton)view;
+    //     // get the button's row
+    //     RelativeLayout row = (RelativeLayout)view.getParent();
+    //     ToggleButton button = (ToggleButton)view;
 
-        if (button.isChecked()) {
-            gw.enable();
-        }
-        else {
-            TextView t = (TextView)row.findViewById(R.id.gateway_status_text_one);
-            t.setText("Disabling...");
-            gw.disable();
-        }
+    //     if (button.isChecked()) {
+    //         gw.enable();
+    //     }
+    //     else {
+    //         TextView t = (TextView)row.findViewById(R.id.gateway_status_text_one);
+    //         t.setText("Disabling...");
+    //         gw.disable();
+    //     }
 
-        row.refreshDrawableState();
-    }
+    //     row.refreshDrawableState();
+    // }
     
-    public void onMulticastElectionToggle(View view)
-    {
-    	int position = this.channelList.getPositionForView(view);
-    	Multicast  mc = (Multicast) this.channelAdapter.getItem(position);
+    // public void onMulticastElectionToggle(View view)
+    // {
+    // 	int position = this.channelList.getPositionForView(view);
+    // 	Multicast  mc = (Multicast) this.channelAdapter.getItem(position);
     	
-    	RelativeLayout row = (RelativeLayout)view.getParent();
-    	ToggleButton button = (ToggleButton)view;
+    // 	RelativeLayout row = (RelativeLayout)view.getParent();
+    // 	ToggleButton button = (ToggleButton)view;
     	
-    	if(button.isChecked())
-    		mc.enable();
-    	else
-    		mc.disable();
+    // 	if(button.isChecked())
+    // 		mc.enable();
+    // 	else
+    // 		mc.disable();
     	
-    	row.refreshDrawableState();
-    }
+    // 	row.refreshDrawableState();
+    // }
 
 
     /*
@@ -409,21 +409,21 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
 		
 	}
 
-	public void editPreferences(View v)
-	{
-		ListView lv = (ListView) v.getParent().getParent();
-		int position = lv.getPositionForView((View) v.getParent());
-		Channel c = (Channel) lv.getAdapter().getItem(position);
-        Intent gatewayIntent = new Intent();
-        if(c.getClass().equals(Gateway.class))
-        {
-        	gatewayIntent.putExtra(ChannelDetailActivity.PREF_TYPE, ChannelDetailActivity.GATEWAY_PREF);
-        }
-        else
-        {
-        	gatewayIntent.putExtra(ChannelDetailActivity.PREF_TYPE, ChannelDetailActivity.MULTICAST_PREF);
-        }       
-        gatewayIntent.setClass(this, ChannelDetailActivity.class);
-        this.startActivity(gatewayIntent);
-	}
+	// public void editPreferences(View v)
+	// {
+	// 	ListView lv = (ListView) v.getParent().getParent();
+	// 	int position = lv.getPositionForView((View) v.getParent());
+	// 	Channel c = (Channel) lv.getAdapter().getItem(position);
+    //     Intent gatewayIntent = new Intent();
+    //     if(c.getClass().equals(Gateway.class))
+    //     {
+    //     	gatewayIntent.putExtra(ChannelDetailActivity.PREF_TYPE, ChannelDetailActivity.GATEWAY_PREF);
+    //     }
+    //     else
+    //     {
+    //     	gatewayIntent.putExtra(ChannelDetailActivity.PREF_TYPE, ChannelDetailActivity.MULTICAST_PREF);
+    //     }       
+    //     gatewayIntent.setClass(this, ChannelDetailActivity.class);
+    //     this.startActivity(gatewayIntent);
+	// }
 }
