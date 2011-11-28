@@ -191,8 +191,14 @@ public class RequestSerializer {
 				throw new TupleNotFoundException("while serializing from provider", tupleUri);
 			}
 
-			if (! tupleCursor.moveToFirst()) return null;
-			if (tupleCursor.getColumnCount() < 1) return null;
+			if (! tupleCursor.moveToFirst()) {
+				tupleCursor.close();
+				return null;
+			}
+			if (tupleCursor.getColumnCount() < 1) {
+				tupleCursor.close();
+				return null;
+			}
 
 			final byte[] tuple;
 			final JSONObject json = new JSONObject();
@@ -224,11 +230,17 @@ public class RequestSerializer {
 				return null;
 			}
 			if (blobCursor == null) return tuple;
-			if (! blobCursor.moveToFirst()) return tuple;
-			if (blobCursor.getColumnCount() < 1) return tuple;
-
-			logger.trace("getting the blob fields");
+			if (! blobCursor.moveToFirst()) {
+				blobCursor.close();
+				return tuple;
+			}
 			final int blobCount = blobCursor.getColumnCount();
+			if (blobCount < 1)  {
+				blobCursor.close();
+				return tuple;
+			}
+
+			logger.trace("getting the blob fields");	
 			final List<String> blobFieldNameList = new ArrayList<String>(blobCount);
 			final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
 			final byte[] buffer = new byte[1024]; 
@@ -307,9 +319,15 @@ public class RequestSerializer {
 				throw new NonConformingAmmoContentProvider("while getting metadata from provider", tupleUri);
 			}
 
-			if (! serialMetaCursor.moveToFirst()) return null;
+			if (! serialMetaCursor.moveToFirst()) {
+				serialMetaCursor.close();
+				return null;
+			}
 			final int columnCount = serialMetaCursor.getColumnCount();
-			if (columnCount < 1) return null;
+			if (columnCount < 1) {
+				serialMetaCursor.close();
+				return null;
+			}
 
 			final Map<String,Integer> serialMap = new HashMap<String,Integer>(columnCount);
             final String[] serialOrder = new String[columnCount];
@@ -322,19 +340,25 @@ public class RequestSerializer {
 			}
 			serialMetaCursor.close(); 
 
-			final Cursor cursor;
+			final Cursor tupleCursor;
 			try {
-				cursor = resolver.query(tupleUri, null, null, null, null);
+				tupleCursor = resolver.query(tupleUri, null, null, null, null);
 			} catch(IllegalArgumentException ex) {
 				logger.warn("unknown content provider ", ex);
 				return null;
 			}
-			if (cursor == null) {
+			if (tupleCursor == null) {
 				throw new TupleNotFoundException("while serializing from provider", tupleUri);
 			}
 
-			if (! cursor.moveToFirst()) return null;
-			if (cursor.getColumnCount() < 1) return null;
+			if (! tupleCursor.moveToFirst()) {
+				tupleCursor.close();
+				return null;
+			}
+			if (tupleCursor.getColumnCount() < 1) {
+				tupleCursor.close();
+				return null;
+			}
 
 			final ByteBuffer tuple = ByteBuffer.allocate(2048);
 
@@ -345,7 +369,7 @@ public class RequestSerializer {
 				final int type = serialMap.get(key);
 				switch (type) {
 				case FIELD_TYPE_LONG:
-					long value = cursor.getLong( cursor.getColumnIndex(key) );
+					long value = tupleCursor.getLong( tupleCursor.getColumnIndex(key) );
 					tuple.putLong(value);
 					break;
 				case FIELD_TYPE_TEXT:
@@ -363,7 +387,7 @@ public class RequestSerializer {
 				}
 			}
 			// we only process one
-			cursor.close();
+			tupleCursor.close();
 			tuple.flip();
 			final byte[] tupleBytes = new byte[tuple.limit()];
 			tuple.get(tupleBytes);
@@ -386,12 +410,19 @@ public class RequestSerializer {
 				throw new TupleNotFoundException("while serializing from provider", tupleUri);
 			}
 
-			if (! tupleCursor.moveToFirst()) return null;
-			if (tupleCursor.getColumnCount() < 1) return null;
-
+			if (! tupleCursor.moveToFirst()) {
+				tupleCursor.close();
+				return null;
+			}
+			int columnCount = tupleCursor.getColumnCount();
+			if (columnCount < 1) {
+				tupleCursor.close();
+				return null;
+			}
 			tupleCursor.moveToFirst();
 
 			final String tupleString = tupleCursor.getString(0);
+			tupleCursor.close();
 			return tupleString.getBytes();
 		}
 		}
@@ -514,8 +545,15 @@ public class RequestSerializer {
 			}
 			if (serialMetaCursor == null) return null;
 
-			if (! serialMetaCursor.moveToFirst()) return null;
-			if (serialMetaCursor.getColumnCount() < 1) return null;
+			if (! serialMetaCursor.moveToFirst()) {
+				serialMetaCursor.close();
+				return null;
+			}
+			int columnCount = serialMetaCursor.getColumnCount();
+			if (columnCount < 1) {
+				serialMetaCursor.close();
+				return null;
+			}
 
 			final ByteBuffer tuple = ByteBuffer.wrap(data);
 			final ContentValues wrap = new ContentValues();
