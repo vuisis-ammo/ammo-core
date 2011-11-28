@@ -373,7 +373,7 @@ public class RequestSerializer {
 					tuple.putLong(value);
 					break;
 				case FIELD_TYPE_TEXT:
-					String svalue = cursor.getString( cursor.getColumnIndex(key) );
+					String svalue = tupleCursor.getString( tupleCursor.getColumnIndex(key) );
 					int length = svalue == null ? 0 : svalue.length();
 					logger.debug( "key={}, length={}", key, length );
 					tuple.putInt( length );
