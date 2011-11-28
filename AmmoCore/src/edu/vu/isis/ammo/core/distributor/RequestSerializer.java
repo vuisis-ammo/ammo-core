@@ -541,6 +541,7 @@ public class RequestSerializer {
 					logger.warn("unhandled data type {}", type);
 				}
 			}
+			serialMetaCursor.close();
 			final Uri tupleUri = resolver.insert(provider, wrap);
 			return tupleUri;
 		}
