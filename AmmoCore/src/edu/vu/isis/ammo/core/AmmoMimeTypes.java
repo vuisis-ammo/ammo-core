@@ -29,7 +29,7 @@ public class AmmoMimeTypes {
 	// the issue of static/dynamic MIME types serialized over the
 	// serial channel (relevant for SMS, obviously).
 	String smsMimeBase = "ammo/edu.vu.isis.ammo.sms.message_ta152-";
-	for (int i=4; i < 34; i++) {	    
+	for (int i=128; i < 158; i++) {	    
 	    String smsMime = smsMimeBase;
 	    smsMime.concat(String.valueOf(i-3));
 	    mimeTypes.put( i, smsMime );
