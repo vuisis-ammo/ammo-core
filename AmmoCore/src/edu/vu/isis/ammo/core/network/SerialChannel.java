@@ -631,6 +631,19 @@ public class SerialChannel extends NetChannel
 
 
         /**
+        *
+        */
+       public synchronized AmmoGatewayMessage peek()
+       {
+           if ( getIsAuthorized() ) {
+               return mDistQueue.peek();
+           } else {
+        	   return mAuthQueue.peek();
+           }
+       }
+
+
+        /**
          *
          */
         public synchronized AmmoGatewayMessage take() throws InterruptedException
@@ -775,6 +788,10 @@ public class SerialChannel extends NetChannel
                             break;
                         }
 
+                        long timeLeftToTransmit = (endOfSlot - WINDOW_DURATION) - currentGpsTime; // in ms
+                        double bytesPerMs = mBaudRate / 8000.0;
+                        long bytesThatWillFit = (long) (timeLeftToTransmit * bytesPerMs);
+                        		
                         // At this point, we've woken up near the start of our
                         // window and should send a message if one is available.
                         if (!mSenderQueue.messageIsAvailable()) {
@@ -782,6 +799,15 @@ public class SerialChannel extends NetChannel
                                           endOfSlot - currentGpsTime );
                             break;
                         }
+                        AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
+                        int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
+                        if ( peekedMsgLength > bytesThatWillFit ) {
+                            logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
+                            			  peekedMsgLength,
+                            			  bytesThatWillFit );
+                            break;
+                        }
+                        
                         msg = mSenderQueue.take(); // Will not block
 
                         logger.debug("Took a message from the send queue");
