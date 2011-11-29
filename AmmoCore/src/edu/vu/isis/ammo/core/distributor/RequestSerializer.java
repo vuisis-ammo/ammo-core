@@ -367,13 +367,18 @@ public class RequestSerializer {
 				if (! serialMap.containsKey(key)) continue;
 				
 				final int type = serialMap.get(key);
+				final int columnIndex = tupleCursor.getColumnIndex(key);
 				switch (type) {
+				case FIELD_TYPE_NULL:
+					break;
 				case FIELD_TYPE_LONG:
-					long value = tupleCursor.getLong( tupleCursor.getColumnIndex(key) );
-					tuple.putLong(value);
+				case FIELD_TYPE_FK:
+				case FIELD_TYPE_TIMESTAMP:
+					final long longValue = tupleCursor.getLong( columnIndex );
+					tuple.putLong(longValue);
 					break;
 				case FIELD_TYPE_TEXT:
-					String svalue = tupleCursor.getString( tupleCursor.getColumnIndex(key) );
+					final String svalue = tupleCursor.getString( columnIndex );
 					int length = svalue == null ? 0 : svalue.length();
 					logger.debug( "key={}, length={}", key, length );
 					tuple.putInt( length );
@@ -381,6 +386,21 @@ public class RequestSerializer {
 					    char c = svalue.charAt(i);        
 						tuple.putChar( c );
 					}
+					break;
+				case FIELD_TYPE_BOOL:
+				case FIELD_TYPE_INTEGER:
+				case FIELD_TYPE_EXCLUSIVE:
+				case FIELD_TYPE_INCLUSIVE:
+					final int intValue = tupleCursor.getInt(columnIndex);
+					tuple.putInt(intValue);
+					break;
+				case FIELD_TYPE_REAL:
+				case FIELD_TYPE_FLOAT:
+					final double doubleValue = tupleCursor.getDouble( columnIndex );
+					tuple.putDouble(doubleValue);
+					break;
+				case FIELD_TYPE_BLOB:
+					logger.warn("blobs not supported for terse encoding");
 					break;
 				default:
 					logger.warn("unhandled data type {}", type);
@@ -561,19 +581,39 @@ public class RequestSerializer {
 			for (final String key : serialMetaCursor.getColumnNames()) {
 				final int type = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
 				switch (type) {
+				case FIELD_TYPE_NULL:
+					//wrap.put(key, null);
+					break;
 				case FIELD_TYPE_LONG:
-					long value = tuple.getLong();
-					wrap.put(key, value);
+				case FIELD_TYPE_FK:
+				case FIELD_TYPE_TIMESTAMP:
+					final long longValue = tuple.getLong();
+					wrap.put(key, longValue);
 					break;
 				case FIELD_TYPE_TEXT:
-					StringBuilder svalue = new StringBuilder();
-					int size = tuple.getInt();
-					logger.debug( "key={}, length={}", key, size );
-					for ( int i = 0; i < size; i++ ) {
-						char c = tuple.getChar();
-						svalue.append( c );
+					final StringBuilder textValue = new StringBuilder();
+					final int textLength = tuple.getInt();
+					logger.debug( "key={}, length={}", key, textLength );
+					for ( int i = 0; i < textLength; i++ ) {
+						final char c = tuple.getChar();
+						textValue.append( c );
 					}
-					wrap.put( key, svalue.toString() );
+					wrap.put( key, textValue.toString() );
+					break;
+				case FIELD_TYPE_BOOL:
+				case FIELD_TYPE_INTEGER:
+				case FIELD_TYPE_EXCLUSIVE:
+				case FIELD_TYPE_INCLUSIVE:
+					final int intValue = tuple.getInt();
+					wrap.put(key, intValue);
+					break;
+				case FIELD_TYPE_REAL:
+				case FIELD_TYPE_FLOAT:
+					final double doubleValue = tuple.getDouble();
+					wrap.put(key, doubleValue);
+					break;
+				case FIELD_TYPE_BLOB:
+					logger.warn("blobs not supported for terse encoding");
 					break;
 				default:
 					logger.warn("unhandled data type {}", type);
