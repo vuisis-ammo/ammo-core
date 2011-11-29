@@ -802,9 +802,14 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 					mw.setDataMessage(pushReq);
 
 				} else {
+					final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
+					if (mimeId == null) {
+						logger.error("no integer mapping for this mime type {}", msgType);
+						return null;
+					}
 					final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
 							.newBuilder()
-							.setMimeType(AmmoMimeTypes.mimeIds.get(msgType))
+							.setMimeType(mimeId)
 							.setData(ByteString.copyFrom(serialized));
 						mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
 						mw.setTerseMessage(pushReq);
