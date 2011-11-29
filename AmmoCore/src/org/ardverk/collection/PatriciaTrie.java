@@ -251,7 +251,7 @@ public class PatriciaTrie<K, V> extends AbstractPatriciaTrie<K, V>
      * Returns a key-value mapping associated with the greatest key
      * strictly less than the given key, or null if there is no such key.
      */
-    TrieEntry<K,V> lowerEntry(K key) {
+    public TrieEntry<K,V> lowerEntry(K key) {
         // Basically:
         // Follow the steps of adding an entry, but instead...
         //

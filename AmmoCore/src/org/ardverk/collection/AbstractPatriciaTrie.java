@@ -457,7 +457,7 @@ abstract class AbstractPatriciaTrie<K, V> extends AbstractTrie<K, V> {
      * selectR but with the exception that it might return the
      * root Entry even if it's empty.
      */
-    TrieEntry<K, V> getNearestEntryForKey(K key) {
+    public TrieEntry<K, V> getNearestEntryForKey(K key) {
         TrieEntry<K, V> current = root.left;
         TrieEntry<K, V> path = root;
         while(true) {

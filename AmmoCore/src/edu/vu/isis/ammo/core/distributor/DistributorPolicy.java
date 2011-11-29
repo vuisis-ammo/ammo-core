@@ -58,9 +58,9 @@ public class DistributorPolicy implements ContentHandler {
 
 	public static final String DEFAULT = "_default_";
 
-	public final Trie<String, Topic> postalPolicy;
-	public final Trie<String, Topic> subscribePolicy;
-	public final Trie<String, Topic> retrievalPolicy;
+	public final PatriciaTrie<String, Topic> postalPolicy;
+	public final PatriciaTrie<String, Topic> subscribePolicy;
+	public final PatriciaTrie<String, Topic> retrievalPolicy;
 
 	public final static String policy_dir = "policy";
 	public final static String policy_file = "distribution_policy.xml";
@@ -126,9 +126,9 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param file
 	 */
 	public DistributorPolicy(InputSource is ) {
-		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.CHAR);
+		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.CHAR);
+		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.CHAR);
 
 		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
@@ -190,9 +190,9 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param dummy
 	 */
 	public DistributorPolicy(Context context, int testSetId) {
-		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.CHAR);
+		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.CHAR);
+		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.CHAR);
 
 		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
@@ -227,19 +227,19 @@ public class DistributorPolicy implements ContentHandler {
 	 * @return
 	 */
 	public Topic matchPostal(String key) {
-		final Trie<String, Topic> policy = this.postalPolicy;
-		final String bestMatch = policy.headMap(key).lastKey(); 
-		return policy.get(bestMatch);
+		final PatriciaTrie<String, Topic> policy = this.postalPolicy;
+		final Entry<String, Topic> bestMatch = policy.getNearestEntryForKey(key);
+		return bestMatch.getValue();
 	}
 	public Topic matchSubscribe(String key) {
-		final Trie<String, Topic> policy = this.subscribePolicy;
-		final String bestMatch = policy.headMap(key).lastKey(); 
-		return policy.get(bestMatch);
+		final PatriciaTrie<String, Topic> policy = this.subscribePolicy;
+		final Entry<String, Topic> bestMatch = policy.getNearestEntryForKey(key);
+		return bestMatch.getValue();
 	}
 	public Topic matchRetrieval(String key) {
-		final Trie<String, Topic> policy = this.retrievalPolicy;
-		final String bestMatch = policy.headMap(key).lastKey(); 
-		return policy.get(bestMatch);
+		final PatriciaTrie<String, Topic> policy = this.retrievalPolicy;
+		final Entry<String, Topic> bestMatch = policy.getNearestEntryForKey(key);
+		return bestMatch.getValue();
 	}
 
 	private int indent = 0;
