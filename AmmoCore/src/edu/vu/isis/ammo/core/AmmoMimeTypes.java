@@ -35,11 +35,11 @@ public class AmmoMimeTypes {
     // a/e.v.i.a.sms.message_ta152-1  == 128
     // a/e.v.i.a.sms.message_ta152-2  == 129   
 	String smsMimeBase = "ammo/edu.vu.isis.ammo.sms.message_ta152-";
-	for (int i=128; i < 158; i++) {	    
-	    String smsMime = smsMimeBase;
-	    smsMime.concat(String.valueOf(i-127));
-	    mimeTypes.put( i, smsMime );
-	    mimeIds.put( smsMime,  i );
+	for (int i=64; i < 94; i++) {	    
+	    //String smsMime = smsMimeBase;
+	    //smsMime.concat(String.valueOf(i-63));
+	    mimeTypes.put( i, smsMimeBase + String.valueOf(i-63) );
+	    mimeIds.put( smsMimeBase + String.valueOf(i-63),  i );
 	}
 
     }
