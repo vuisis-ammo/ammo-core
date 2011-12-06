@@ -33,7 +33,7 @@ import android.net.Uri;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
-import edu.vu.isis.ammo.util.ATrie;
+import edu.vu.isis.ammo.util.PrefixList;
 
 /**
  * This class provides the base level mapping between distribution 
@@ -55,9 +55,9 @@ public class DistributorPolicy implements ContentHandler {
 
 	public static final String DEFAULT = "_default_";
 
-	public final ATrie<Topic> postalPolicy;
-	public final ATrie<Topic> subscribePolicy;
-	public final ATrie<Topic> retrievalPolicy;
+	public final PrefixList<Topic> postalPolicy;
+	public final PrefixList<Topic> subscribePolicy;
+	public final PrefixList<Topic> retrievalPolicy;
 
 	public final static String policy_dir = "policy";
 	public final static String policy_file = "distribution_policy.xml";
@@ -123,9 +123,9 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param file
 	 */
 	public DistributorPolicy(InputSource is ) {
-		this.postalPolicy = new ATrie<Topic>();
-		this.subscribePolicy = new ATrie<Topic>();
-		this.retrievalPolicy = new ATrie<Topic>();
+		this.postalPolicy = new PrefixList<Topic>();
+		this.subscribePolicy = new PrefixList<Topic>();
+		this.retrievalPolicy = new PrefixList<Topic>();
 
 		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
@@ -184,9 +184,9 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param dummy
 	 */
 	public DistributorPolicy(Context context, int testSetId) {
-		this.postalPolicy = new ATrie<Topic>();
-		this.subscribePolicy = new ATrie<Topic>();
-		this.retrievalPolicy = new ATrie<Topic>();
+		this.postalPolicy = new PrefixList<Topic>();
+		this.subscribePolicy = new PrefixList<Topic>();
+		this.retrievalPolicy = new PrefixList<Topic>();
 
 		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
