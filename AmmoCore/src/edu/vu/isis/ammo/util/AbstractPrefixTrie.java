@@ -27,14 +27,19 @@ public class AbstractPrefixTrie<V> {
 	 * @return 
 	 */
 	public V longestPrefix(String key) {
-		return this.longestPrefix(new Key(key.getBytes())).value;
+		final Node node = this.longestPrefix(new Key(key.getBytes()));
+		if (node == null) {
+			logger.error("no matching node {}", key);
+			return null;
+		}
+		return node.value;
 	}
 
 	protected Node longestPrefix(Key key) {
 		logger.error("insert not implmented");
 		return null;
 	}
-
+	
 	public class Key implements Comparable<Key> {
 		final private byte[] k;
 		private int position;
@@ -44,11 +49,19 @@ public class AbstractPrefixTrie<V> {
 			this.k = k;
 			this.position = 0;
 		}
+		
+
+		@Override
+		public String toString() {
+			final StringBuilder sb = new StringBuilder();
+			sb.append(new String(this.k));
+			return sb.toString();
+		}
 
 		public int get() {
 			return (int) this.k[this.position];
 		}
-		
+
 		public int size() {
 			return this.k.length;
 		}
@@ -102,34 +115,47 @@ public class AbstractPrefixTrie<V> {
 			this.mark = this.position;
 		}
 
+		/**
+		 * if this is lexicographically before that return -1
+		 * if equal return 0
+		 * otherwise return 1
+		 */
 		@Override
 		public int compareTo(Key that) {
-			for (int ix=0; ix < Math.min(this.k.length, this.k.length); ++ix) {
+			for (int ix=0; ix < Math.min(this.k.length, that.k.length); ++ix) {
 				if (this.k[ix] == that.k[ix]) continue;
 				return (this.k[ix] < that.k[ix]) ?  -1 : 1;
 			}
 			if (this.k.length == that.k.length) return 0;
-			return (this.k[this.k.length] < that.k[that.k.length]) ?  -1 : 1;
+			return (this.k.length < that.k.length) ?  -1 : 1;
 		}
 	}
 
 	public V[] values() {
 		return null;
 	}
-	
 
-	 public class Node implements Comparable<Node> {
-		 final V value;
-		 final Key key;
-		 public Node( Key key, V value) {
-			 this.key = key;
-			 this.value = value;
-		 }
+
+	public class Node implements Comparable<Node> {
+		final V value;
+		final Key key;
+		public Node( Key key, V value) {
+			this.key = key;
+			this.value = value;
+		}
 		@Override
 		public int compareTo(Node that) {
-			return that.key.compareTo(that.key);
+			return this.key.compareTo(that.key);
 		}
-	 }
-   
+		
+		@Override
+		public String toString() {
+			final StringBuilder sb = new StringBuilder();
+			sb.append("key ").append(this.key);
+			sb.append(this.value);
+			return sb.toString();
+		}
+	}
+
 
 }

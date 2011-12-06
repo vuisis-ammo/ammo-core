@@ -27,6 +27,16 @@ public class PrefixList<V> extends AbstractPrefixTrie<V> {
 		this.isDirty = true;
 	}
 
+	@Override
+	public String toString() {
+		final StringBuilder sb = new StringBuilder();
+		sb.append("prefix list [").append(this.nodes.size()).append("] \n");
+		for (Node node : this.nodes) {
+			sb.append(node).append("\n");
+		}
+		return sb.toString();
+	}
+
 	/**
 	 * Check if this key is a prefix for the supplied key.
 	 * null : this Trie is not a prefix to the key.
@@ -40,32 +50,62 @@ public class PrefixList<V> extends AbstractPrefixTrie<V> {
 		if (this.isDirty) {
 			Collections.sort(this.nodes);
 		}
+		int bestScore = -1;
+		int lastScore = -1;
+		Node bestNode = null;
+		for (Node node : this.nodes){
+			final Key currentKey = node.key;
+			final int score = key.match(currentKey);
+			if (score < lastScore) break;
+			lastScore = score;
+			if (score == currentKey.size()) {
+				if (score > bestScore) {
+					bestScore = score;
+					bestNode = node;
+				}
+			}
+			if (score == key.size()) break;
+		}
+		logger.debug("match {} {}", key, bestNode);
+		return bestNode;
+	}
+
+	protected Node longestPrefixBinarySearch(Key key) {
+		if (this.isDirty) {
+			Collections.sort(this.nodes);
+		}
 		int lower = 0;
 		int upper = 1;
+		int bestScore = -1;
+		Node bestNode = null;
 		for (; upper < this.nodes.size(); upper = upper << 1) {}
-		for (int delta = upper >> 1; delta > 0; delta = delta >> 1) {
+		for (int delta = upper; delta > 0; delta = delta >> 1) {
 			final int current = lower + delta;
-
 			if (current > this.nodes.size()) {
 				continue;
 			}
-			final Key currentKey = this.nodes.get(current).key;
-			int score = key.match(currentKey);	
-			if (score == key.size()) {
-				upper = current;
-			} else if (score == currentKey.size()) {
-				lower = current;
-			} else {
+			final Node currentNode = this.nodes.get(current-1);
+			final Key currentKey = currentNode.key;
+			int score = key.match(currentKey);
 
+			if (score == currentKey.size()) {
+				if (score > bestScore) {
+					bestScore = score;
+					bestNode = currentNode;
+				}
+				lower = current;
+			} else if (score == key.size()) {
+				upper = current;
+			} else {
 				final int comparison = key.compareItem(score, currentKey);
 				if (comparison < 0) {
-                    upper = current;
+					upper = current;
 				} else {
-					lower = current;
+					lower = current-1;
 				}
 			}
 		}
-		return this.nodes.get(lower);
+		return bestNode;
 	}
 }
 

@@ -26,7 +26,7 @@
 	</topic>
 	
 	<test name="a1" type="ammo/edu." postal="" />
-
+ 
 	<topic type="ammo/edu.vu.isis.ammo.">
 		<description>
 			The ammo applications.
@@ -59,6 +59,7 @@
 	<test name="c2" type="ammo/edu.vu.isis.ammo." postal="ammo/edu.vu.isis.ammo." />
 	<test name="c3" type="ammo/edu.vu.isis.ammo.dash" postal="ammo/edu.vu.isis.ammo.dash" />
 	<test name="c4" type="ammo/edu.vu.isis.ammo.dash.media" postal="ammo/edu.vu.isis.ammo.dash" />
+	
 
 	<topic type="ammo/com.aterrasys.">
 		<description>
@@ -127,8 +128,9 @@
 	<test name="z1" type="ammo/edu." postal="" />
 	<test name="z2" type="ammo/edu.vu.isis.ammo." postal="ammo/edu.vu.isis.ammo." />
 	<test name="z3" type="ammo/edu.vu.isis.ammo.dash" postal="ammo/edu.vu.isis.ammo.dash" />
-	<test name="z4" type="ammo/edu.vu.isis.ammo.dash.media" postal="ammo/edu.vu.isis.ammo.dash" />
-	<test name="z5" type="urn:trial:dummy/dog" postal="urn:trial:dummy/" />
-	<test name="z6" type="ammo/com.aterrasys.nevada.locations" postal="ammo/com.aterrasys.nevada.locations" />
+	<test name="z4" type="ammo/edu.vu.isis.ammo.dash.event" postal="ammo/edu.vu.isis.ammo.dash" />
+	<test name="z5" type="ammo/edu.vu.isis.ammo.dash.media" postal="ammo/edu.vu.isis.ammo.dash" />
+	<test name="z6" type="urn:trial:dummy/dog" postal="urn:trial:dummy/" />
+	<test name="z7" type="ammo/com.aterrasys.nevada.locations" postal="ammo/com.aterrasys.nevada.locations" />
 
 </policy>
