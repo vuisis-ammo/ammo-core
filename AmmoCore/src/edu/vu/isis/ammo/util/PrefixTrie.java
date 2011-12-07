@@ -34,7 +34,10 @@ public class PrefixTrie<V> extends AbstractPrefixTrie<V> {
 	}
 	
 	@Override
-	protected void insert(Node node) {
+	public void insert(INode val) {
+		@SuppressWarnings("unchecked")
+		final Node node = (Node) val;
+		
 		final int matchCnt = node.key.match(this.frag);
 		if (matchCnt == node.key.remaining()) {
 			logger.error("duplicate topic type {}", value);
@@ -68,8 +71,11 @@ public class PrefixTrie<V> extends AbstractPrefixTrie<V> {
 	 * @return 
 	 */
 	
-	 @Override
-     protected Node longestPrefix(Key key) {	
+	@Override
+	public Node longestPrefix(IKey val) {
+		@SuppressWarnings("unchecked")
+		final Key key = (Key) val;
+		
     	if (key.match(this.frag) < this.frag.length) // different keys
     		return null; 
     	
@@ -84,6 +90,12 @@ public class PrefixTrie<V> extends AbstractPrefixTrie<V> {
 		//if (result != null) return result;
     	//return this.value;
     	return null;
+	}
+	
+	@Override
+	public List<V> values() {
+		logger.error("values not implemented");
+		return null;
 	}
     
 

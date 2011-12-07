@@ -162,14 +162,17 @@ public class DistributorPolicy implements ContentHandler {
 	@Override
 	public String toString() {
 		final StringBuffer sb = new StringBuffer();
+		if (this.postalPolicy != null)
 		for (final Topic entry : this.postalPolicy.values()) {
 			sb.append('\n').append("POSTAL: \n")
 			.append(entry);
 		}
+		if (this.subscribePolicy != null)
 		for (final Topic entry : this.subscribePolicy.values()) {
 			sb.append('\n').append("SUBSCRIBE: \n")
 			.append(entry);
 		}
+		if (this.retrievalPolicy != null)
 		for (final Topic entry : this.retrievalPolicy.values()) {
 			sb.append('\n').append("RETRIEVAL: \n")
 			.append(entry);

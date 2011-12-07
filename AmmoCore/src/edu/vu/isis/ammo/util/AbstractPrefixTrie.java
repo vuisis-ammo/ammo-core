@@ -1,21 +1,16 @@
 package edu.vu.isis.ammo.util;
 
-import java.util.Arrays;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /*
  * This is a Trie which uses bits on bytes as potential branches.
  */
-public class AbstractPrefixTrie<V> {
+abstract public class AbstractPrefixTrie<V> implements IPrefixTrie<V> {
 	private static final Logger logger = LoggerFactory.getLogger("ammo-pretrie");
 
 	public void insert(String key, V value) {
 		this.insert(new Node( new Key(key.getBytes()), value));
-	}
-	protected void insert(Node node) {
-		logger.error("insert not implmented");
 	}
 
 	/**
@@ -27,7 +22,8 @@ public class AbstractPrefixTrie<V> {
 	 * @return 
 	 */
 	public V longestPrefix(String key) {
-		final Node node = this.longestPrefix(new Key(key.getBytes()));
+		@SuppressWarnings("unchecked")
+		final Node node = (Node) this.longestPrefix(new Key(key.getBytes()));
 		if (node == null) {
 			logger.error("no matching node {}", key);
 			return null;
@@ -35,12 +31,7 @@ public class AbstractPrefixTrie<V> {
 		return node.value;
 	}
 
-	protected Node longestPrefix(Key key) {
-		logger.error("insert not implmented");
-		return null;
-	}
-	
-	public class Key implements Comparable<Key> {
+	public class Key implements IPrefixTrie.IKey {
 		final private byte[] k;
 		private int position;
 		private int mark;
@@ -58,30 +49,41 @@ public class AbstractPrefixTrie<V> {
 			return sb.toString();
 		}
 
+		@Override
 		public int get() {
 			return (int) this.k[this.position];
 		}
 
+		@Override
 		public int size() {
 			return this.k.length;
 		}
 
+		@Override
 		public void offset(int length) {
 			this.position += length;
 		}
 
-		public int compareItem(int ix, Key that) {
-			if (this.k[ix] == that.k[ix]) return 0;
-			return (this.k[ix] < that.k[ix]) ? -1 : 1;
+		@Override
+		public int compareItem(int ix, IKey that) {
+			@SuppressWarnings("unchecked")
+			final Key key = (Key) that;
+			
+			if (this.k[ix] == key.k[ix]) return 0;
+			return (this.k[ix] < key.k[ix]) ? -1 : 1;
 		}
 		/**
 		 * 
 		 * @param frag
 		 * @return the number of frag bytes matched.
 		 */
-		public int match(Key that) {
+		@Override
+		public int match(IKey key) {
+			@SuppressWarnings("unchecked")
+			final Key that = (Key) key;
 			return this.match(that.k);
 		}
+		@Override
 		public int match(byte[] frag) {
 			int kx = Math.min(frag.length, this.remaining());
 
@@ -121,7 +123,9 @@ public class AbstractPrefixTrie<V> {
 		 * otherwise return 1
 		 */
 		@Override
-		public int compareTo(Key that) {
+		public int compareTo(IKey key) {
+			@SuppressWarnings("unchecked")
+			final Key that = (Key) key;
 			for (int ix=0; ix < Math.min(this.k.length, that.k.length); ++ix) {
 				if (this.k[ix] == that.k[ix]) continue;
 				return (this.k[ix] < that.k[ix]) ?  -1 : 1;
@@ -129,22 +133,21 @@ public class AbstractPrefixTrie<V> {
 			if (this.k.length == that.k.length) return 0;
 			return (this.k.length < that.k.length) ?  -1 : 1;
 		}
+
 	}
 
-	public V[] values() {
-		return null;
-	}
-
-
-	public class Node implements Comparable<Node> {
+	public class Node implements INode {
 		final V value;
 		final Key key;
+		
 		public Node( Key key, V value) {
 			this.key = key;
 			this.value = value;
 		}
 		@Override
-		public int compareTo(Node that) {
+		public int compareTo(INode node) {
+			@SuppressWarnings("unchecked")
+			final Node that = (Node) node;
 			return this.key.compareTo(that.key);
 		}
 		
@@ -155,7 +158,9 @@ public class AbstractPrefixTrie<V> {
 			sb.append(this.value);
 			return sb.toString();
 		}
+		
 	}
+	
 
 
 }

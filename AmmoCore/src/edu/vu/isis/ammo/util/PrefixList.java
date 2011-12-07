@@ -2,7 +2,9 @@ package edu.vu.isis.ammo.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,15 +16,19 @@ public class PrefixList<V> extends AbstractPrefixTrie<V> {
 	private static final Logger logger = LoggerFactory.getLogger("ammo-plist");
 
 	final private List< Node > nodes;
+	final private Map< Key, Node > prefixMap;
 	private boolean isDirty;
 
 	public PrefixList() {
 		this.nodes = new ArrayList< Node >(5);
+		this.prefixMap = new HashMap< Key, Node >(5);
 		this.isDirty = false;
 	}
 
 	@Override
-	protected void insert(Node node) {
+	public void insert(INode val) {
+		@SuppressWarnings("unchecked")
+		final Node node = (Node) val;
 		this.nodes.add(node);
 		this.isDirty = true;
 	}
@@ -46,9 +52,15 @@ public class PrefixList<V> extends AbstractPrefixTrie<V> {
 	 * @return 
 	 */
 	@Override
-	protected Node longestPrefix(Key key) {
+	public Node longestPrefix(IKey val) {
+		@SuppressWarnings("unchecked")
+		final Key key = (Key) val;
 		if (this.isDirty) {
 			Collections.sort(this.nodes);
+			this.prefixMap.clear();
+		}
+		if (this.prefixMap.containsKey(key)) {
+			return this.prefixMap.get(key);
 		}
 		int bestScore = -1;
 		int lastScore = -1;
@@ -67,46 +79,19 @@ public class PrefixList<V> extends AbstractPrefixTrie<V> {
 			if (score == key.size()) break;
 		}
 		logger.debug("match {} {}", key, bestNode);
+		this.prefixMap.put(key, bestNode);
 		return bestNode;
 	}
-
-	protected Node longestPrefixBinarySearch(Key key) {
-		if (this.isDirty) {
-			Collections.sort(this.nodes);
+	
+	@Override
+	public List<V> values() {
+		final List<V> vals = new ArrayList<V>(this.nodes.size());
+		for (Node node : this.nodes) {
+			vals.add(node.value);
 		}
-		int lower = 0;
-		int upper = 1;
-		int bestScore = -1;
-		Node bestNode = null;
-		for (; upper < this.nodes.size(); upper = upper << 1) {}
-		for (int delta = upper; delta > 0; delta = delta >> 1) {
-			final int current = lower + delta;
-			if (current > this.nodes.size()) {
-				continue;
-			}
-			final Node currentNode = this.nodes.get(current-1);
-			final Key currentKey = currentNode.key;
-			int score = key.match(currentKey);
-
-			if (score == currentKey.size()) {
-				if (score > bestScore) {
-					bestScore = score;
-					bestNode = currentNode;
-				}
-				lower = current;
-			} else if (score == key.size()) {
-				upper = current;
-			} else {
-				final int comparison = key.compareItem(score, currentKey);
-				if (comparison < 0) {
-					upper = current;
-				} else {
-					lower = current-1;
-				}
-			}
-		}
-		return bestNode;
+		return vals;
 	}
+
 }
 
 
