@@ -38,6 +38,7 @@ import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
 import edu.vu.isis.ammo.core.model.Channel;
@@ -791,18 +792,25 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public ChannelDisposal sendRequest(AmmoGatewayMessage agm, String channelName) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
-		if (! mChannelMap.containsKey(channelName)) return ChannelDisposal.FAILED;
+		if (!mChannelMap.containsKey(channelName))
+			return ChannelDisposal.DOWN;
 		final NetChannel channel = mChannelMap.get(channelName);
-		if (! channel.isConnected()) return ChannelDisposal.PENDING;
+		if (!channel.isConnected())
+			return ChannelDisposal.PENDING;
 		return channel.sendRequest(agm);
 	}
 
-        public ChannelDisposal checkChannel(String channelName) {
-          if (! mChannelMap.containsKey(channelName)) return ChannelDisposal.FAILED;
-          final NetChannel channel = mChannelMap.get(channelName);
-          if (! channel.isConnected()) return ChannelDisposal.PENDING;
-          return ChannelDisposal.QUEUED;
-        }
+	public ChannelStatus checkChannel(String channelName) {
+		if (!mChannelMap.containsKey(channelName))
+			return ChannelStatus.DOWN;
+        
+		final NetChannel channel = mChannelMap.get(channelName);
+		if (! channel.isBusy()) 
+			return ChannelStatus.BUSY;
+		if (!channel.isConnected())
+			return ChannelStatus.DOWN;
+		return ChannelStatus.READY;
+	}
 
 	abstract public class TotalChannel implements INetChannel {}
 

@@ -55,6 +55,7 @@ public class DistributorPolicy implements ContentHandler {
 
 	public static final String DEFAULT = "_default_";
 
+	public final PrefixList<Topic> publishPolicy;
 	public final PrefixList<Topic> postalPolicy;
 	public final PrefixList<Topic> subscribePolicy;
 	public final PrefixList<Topic> retrievalPolicy;
@@ -123,6 +124,7 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param file
 	 */
 	public DistributorPolicy(InputSource is ) {
+		this.publishPolicy = new PrefixList<Topic>();
 		this.postalPolicy = new PrefixList<Topic>();
 		this.subscribePolicy = new PrefixList<Topic>();
 		this.retrievalPolicy = new PrefixList<Topic>();
@@ -187,6 +189,7 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param dummy
 	 */
 	public DistributorPolicy(Context context, int testSetId) {
+		this.publishPolicy = new PrefixList<Topic>();
 		this.postalPolicy = new PrefixList<Topic>();
 		this.subscribePolicy = new PrefixList<Topic>();
 		this.retrievalPolicy = new PrefixList<Topic>();
@@ -344,69 +347,47 @@ public class DistributorPolicy implements ContentHandler {
 	}
 
 	public enum Category {
-		POSTAL, SUBSCRIBE, RETRIEVAL;
+		PUBLISH, POSTAL, SUBSCRIBE, RETRIEVAL;
 	}
 
 
 	/**
 	 * Encoding is an indicator to the distributor as to how to encode/decode requests.
-	 * Encoding is stored as an array, where the first is the encoding of the 
+	 * It is a wrapper around the encoding type.
+	 * 
 	 */
-	public static class Encoding implements Iterable<Encoding.Type> {
+	public static class Encoding {
 		public enum Type {
 			TERSE, JSON, CUSTOM;
 		}
-		final private Type[] list;
+		final private Type type;
 		
 		final private String name;
 		public String name() {
 			return this.name;
 		}
 		
-		private Encoding(String name, Type...types) {
-			this.list = types;
+		private Encoding(String name, Type type) {
+			this.type = type;
 			this.name = name;
 		}
-		private Encoding(Type...types) {
-			this.list = types;
+		private Encoding(Type type) {
+			this.type = type;
 			this.name = null;
 		}
 		public static Encoding getDefault() {
 			return new Encoding(Type.JSON);
 		}
-		public static Encoding newInstance(Type...types) {
-			return new Encoding(types);
+		public static Encoding newInstance(Type type) {
+			return new Encoding(type);
 		}
-		@Override
-		public Iterator<Type> iterator() {
-			return Arrays.asList(this.list).iterator();
+		
+		public Type getType() {
+			return this.type;
 		}
-		public Type[] asArray() {
-			return this.list;
-		}
-		public Type getPayload() {
-			switch (this.list.length){
-			case 0: return Type.JSON;
-			}
-			return this.list[0];
-		}
-		public Type getMessage() {
-			switch (this.list.length){
-			case 0: return Type.JSON;
-			case 1: return this.list[0];
-			}
-			return this.list[1];
-		}
-		public Type getHeader() {
-			switch (this.list.length){
-			case 0: return Type.JSON;
-			case 1: return this.list[0];
-			case 2: return this.list[1];
-			}
-			return this.list[2];
-		}
+		
 		public String getPayloadSuffix() {
-			switch (getPayload()) {
+			switch (this.type) {
 			case JSON: return "";
 			case TERSE: return "";
 			case CUSTOM: return "_serial/";
@@ -414,7 +395,7 @@ public class DistributorPolicy implements ContentHandler {
 			}
 		}
 		public Uri extendProvider(Uri provider) {
-			switch (getPayload()) {
+			switch (this.type) {
 			case JSON: return provider;
 			case TERSE: return provider;
 			case CUSTOM: return Uri.withAppendedPath(provider, "_serial/");
@@ -423,23 +404,15 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		@Override
 		public String toString() {
-			final StringBuilder sb = new StringBuilder().append('[');
-			for( final Type type : this.list) {
-				sb.append(type.name()).append(',');
-			}
-			return sb.append(']').toString();
+			return new StringBuilder().append('[')
+			.append(type.name()).append(']').toString();
 		}
-		public static Encoding getInstanceByName(String...encoding) {
-			final Type[] typeArray = new Type[encoding.length];
-			for (int ix = 0; ix < encoding.length; ix++) {
-				final String typeStr = encoding[ix];
-
-				for (final Type type : Encoding.Type.values()) {
-					if (! type.name().equalsIgnoreCase(typeStr)) continue;
-					typeArray[ix] = type;
-				}
+		public static Encoding getInstanceByName(String encoding) {
+			for (final Type type : Encoding.Type.values()) {
+				if (! type.name().equalsIgnoreCase(encoding)) continue;
+				return new Encoding( type );
 			}
-			return new Encoding(typeArray);
+			return null;
 		}
 	}
 
@@ -758,11 +731,11 @@ public class DistributorPolicy implements ContentHandler {
 		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
 		if (value.equalsIgnoreCase("verbose")) 
-			return Encoding.newInstance( Encoding.Type.JSON, Encoding.Type.JSON, Encoding.Type.JSON);
+			return Encoding.newInstance( Encoding.Type.JSON);
 		if (value.equalsIgnoreCase("json")) 
-			return Encoding.newInstance( Encoding.Type.JSON, Encoding.Type.JSON, Encoding.Type.JSON);
+			return Encoding.newInstance( Encoding.Type.JSON);
 		if (value.equalsIgnoreCase("terse")) 
-			return  Encoding.newInstance( Encoding.Type.TERSE, Encoding.Type.TERSE, Encoding.Type.TERSE );
+			return  Encoding.newInstance( Encoding.Type.TERSE );
 		return def;
 	}
 
@@ -821,6 +794,7 @@ public class DistributorPolicy implements ContentHandler {
 	private Category extractCategory(String uri, String attrname, Category def, Attributes atts) {
 		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
+		if (value.equalsIgnoreCase("publish")) return Category.PUBLISH;
 		if (value.equalsIgnoreCase("postal")) return Category.POSTAL;
 		if (value.equalsIgnoreCase("subscribe")) return Category.SUBSCRIBE;
 		if (value.equalsIgnoreCase("retrieval")) return Category.RETRIEVAL;

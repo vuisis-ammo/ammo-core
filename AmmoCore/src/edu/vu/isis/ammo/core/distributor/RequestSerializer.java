@@ -174,7 +174,7 @@ public class RequestSerializer {
 					throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
 		logger.trace("serializing using encoding {}", encoding);
-		switch (encoding.getPayload()) {
+		switch (encoding.getType()) {
 		case JSON: 
 		{
 			logger.trace("Serialize the non-blob data");
@@ -458,7 +458,7 @@ public class RequestSerializer {
 		final ContentResolver resolver = context.getContentResolver();
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
 
-		switch (encoding.getPayload()) {
+		switch (encoding.getType()) {
 		case JSON: 
 		{
 			int position = 0;

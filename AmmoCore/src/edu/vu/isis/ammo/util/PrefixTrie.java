@@ -1,6 +1,7 @@
 package edu.vu.isis.ammo.util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -8,6 +9,14 @@ import org.slf4j.LoggerFactory;
 
 /*
  * This is a Trie which uses bits on bytes as potential branches.
+ * 
+ * THIS IS NON-FUNCTIONING CODE
+ * 
+ * TODO This should be an implementation of burst tries.
+ * "Burst Tries: A Fast, Efficient Data Structure for String Keys (2002)"
+ * Steffen Heinz , Justin Zobel , Hugh E. Williams
+ * 
+ * http://www.cs.mu.oz.au/~jz/fulltext/acmtois02.pdf
  */
 public class PrefixTrie<V> extends AbstractPrefixTrie<V> {
 	private static final Logger logger = LoggerFactory.getLogger("ammo-trie");
@@ -51,12 +60,12 @@ public class PrefixTrie<V> extends AbstractPrefixTrie<V> {
     		return;
 		}
     	// split trie
-		final byte[] parentFrag = Arrays6.copyOf(this.frag, matchCnt);
+		//final byte[] parentFrag = Arrays.copyOf(this.frag, matchCnt);
 		final int childIx = this.frag[matchCnt];
-		final byte[] childFrag = Arrays6.copyOfRange(this.frag, matchCnt, this.frag.length); 
+		//final byte[] childFrag = Arrays.copyOfRange(this.frag, matchCnt, this.frag.length); 
 		final PrefixTrie<V> child = new PrefixTrie<V>(null, this.value, this.burst);
-		child.frag = childFrag;
-		this.frag = parentFrag;
+		//child.frag = childFrag;
+		//this.frag = parentFrag;
 		//this.node.value = value;
 		this.burst = new ArrayList< PrefixTrie<V> >(256);
     	this.burst.add(childIx, child);
