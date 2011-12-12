@@ -13,15 +13,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
-import org.ardverk.collection.PatriciaTrie;
-import org.ardverk.collection.StringKeyAnalyzer;
-import org.ardverk.collection.Trie;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.Attributes;
@@ -37,6 +33,7 @@ import android.net.Uri;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.util.PrefixList;
 
 /**
  * This class provides the base level mapping between distribution 
@@ -58,9 +55,10 @@ public class DistributorPolicy implements ContentHandler {
 
 	public static final String DEFAULT = "_default_";
 
-	public final Trie<String, Topic> postalPolicy;
-	public final Trie<String, Topic> subscribePolicy;
-	public final Trie<String, Topic> retrievalPolicy;
+	public final PrefixList<Topic> publishPolicy;
+	public final PrefixList<Topic> postalPolicy;
+	public final PrefixList<Topic> subscribePolicy;
+	public final PrefixList<Topic> retrievalPolicy;
 
 	public final static String policy_dir = "policy";
 	public final static String policy_file = "distribution_policy.xml";
@@ -126,9 +124,10 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param file
 	 */
 	public DistributorPolicy(InputSource is ) {
-		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.publishPolicy = new PrefixList<Topic>();
+		this.postalPolicy = new PrefixList<Topic>();
+		this.subscribePolicy = new PrefixList<Topic>();
+		this.retrievalPolicy = new PrefixList<Topic>();
 
 		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
@@ -165,20 +164,20 @@ public class DistributorPolicy implements ContentHandler {
 	@Override
 	public String toString() {
 		final StringBuffer sb = new StringBuffer();
-		for (final Entry<String, Topic> entry : this.postalPolicy.entrySet()) {
-			sb.append('\n').append("POSTAL")
-			.append('\n').append(" topic \"").append(entry.getKey()).append('"')
-			.append(entry.getValue() );
+		if (this.postalPolicy != null)
+		for (final Topic entry : this.postalPolicy.values()) {
+			sb.append('\n').append("POSTAL: \n")
+			.append(entry);
 		}
-		for (final Entry<String, Topic> entry : this.subscribePolicy.entrySet()) {
-			sb.append('\n').append("SUBSCRIBE")
-			.append('\n').append(" topic \"").append(entry.getKey()).append('"')
-			.append(entry.getValue() );
+		if (this.subscribePolicy != null)
+		for (final Topic entry : this.subscribePolicy.values()) {
+			sb.append('\n').append("SUBSCRIBE: \n")
+			.append(entry);
 		}
-		for (final Entry<String, Topic> entry : this.retrievalPolicy.entrySet()) {
-			sb.append('\n').append("RETRIEVAL")
-			.append('\n').append(" topic \"").append(entry.getKey()).append('"')
-			.append(entry.getValue() );
+		if (this.retrievalPolicy != null)
+		for (final Topic entry : this.retrievalPolicy.values()) {
+			sb.append('\n').append("RETRIEVAL: \n")
+			.append(entry);
 		}
 		return sb.toString();
 	}
@@ -190,9 +189,10 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param dummy
 	 */
 	public DistributorPolicy(Context context, int testSetId) {
-		this.postalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.subscribePolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
-		this.retrievalPolicy = new PatriciaTrie<String, Topic>(StringKeyAnalyzer.BYTE);
+		this.publishPolicy = new PrefixList<Topic>();
+		this.postalPolicy = new PrefixList<Topic>();
+		this.subscribePolicy = new PrefixList<Topic>();
+		this.retrievalPolicy = new PrefixList<Topic>();
 
 		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
 
@@ -227,19 +227,13 @@ public class DistributorPolicy implements ContentHandler {
 	 * @return
 	 */
 	public Topic matchPostal(String key) {
-		final Trie<String, Topic> policy = this.postalPolicy;
-		final String bestMatch = policy.headMap(key).lastKey(); 
-		return policy.get(bestMatch);
+		return this.postalPolicy.longestPrefix(key);
 	}
 	public Topic matchSubscribe(String key) {
-		final Trie<String, Topic> policy = this.subscribePolicy;
-		final String bestMatch = policy.headMap(key).lastKey(); 
-		return policy.get(bestMatch);
+		return this.subscribePolicy.longestPrefix(key);
 	}
 	public Topic matchRetrieval(String key) {
-		final Trie<String, Topic> policy = this.retrievalPolicy;
-		final String bestMatch = policy.headMap(key).lastKey(); 
-		return policy.get(bestMatch);
+		return this.retrievalPolicy.longestPrefix(key);
 	}
 
 	private int indent = 0;
@@ -261,8 +255,8 @@ public class DistributorPolicy implements ContentHandler {
 			final String ind = DistributorPolicy.this.indent();
 
 			final StringBuffer sb = new StringBuffer();
-			sb.append('\n').append(ind).append("type: ").append(this.type).append(' ')
-			  .append("routing:  ").append(this.routing);
+			sb.append('\n').append(ind).append("routing: \"").append(this.type).append("\"")
+			  .append(this.routing);
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
@@ -353,69 +347,47 @@ public class DistributorPolicy implements ContentHandler {
 	}
 
 	public enum Category {
-		POSTAL, SUBSCRIBE, RETRIEVAL;
+		PUBLISH, POSTAL, SUBSCRIBE, RETRIEVAL;
 	}
 
 
 	/**
 	 * Encoding is an indicator to the distributor as to how to encode/decode requests.
-	 * Encoding is stored as an array, where the first is the encoding of the 
+	 * It is a wrapper around the encoding type.
+	 * 
 	 */
-	public static class Encoding implements Iterable<Encoding.Type> {
+	public static class Encoding {
 		public enum Type {
 			TERSE, JSON, CUSTOM;
 		}
-		final private Type[] list;
+		final private Type type;
 		
 		final private String name;
 		public String name() {
 			return this.name;
 		}
 		
-		private Encoding(String name, Type...types) {
-			this.list = types;
+		private Encoding(String name, Type type) {
+			this.type = type;
 			this.name = name;
 		}
-		private Encoding(Type...types) {
-			this.list = types;
+		private Encoding(Type type) {
+			this.type = type;
 			this.name = null;
 		}
 		public static Encoding getDefault() {
 			return new Encoding(Type.JSON);
 		}
-		public static Encoding newInstance(Type...types) {
-			return new Encoding(types);
+		public static Encoding newInstance(Type type) {
+			return new Encoding(type);
 		}
-		@Override
-		public Iterator<Type> iterator() {
-			return Arrays.asList(this.list).iterator();
+		
+		public Type getType() {
+			return this.type;
 		}
-		public Type[] asArray() {
-			return this.list;
-		}
-		public Type getPayload() {
-			switch (this.list.length){
-			case 0: return Type.JSON;
-			}
-			return this.list[0];
-		}
-		public Type getMessage() {
-			switch (this.list.length){
-			case 0: return Type.JSON;
-			case 1: return this.list[0];
-			}
-			return this.list[1];
-		}
-		public Type getHeader() {
-			switch (this.list.length){
-			case 0: return Type.JSON;
-			case 1: return this.list[0];
-			case 2: return this.list[1];
-			}
-			return this.list[2];
-		}
+		
 		public String getPayloadSuffix() {
-			switch (getPayload()) {
+			switch (this.type) {
 			case JSON: return "";
 			case TERSE: return "";
 			case CUSTOM: return "_serial/";
@@ -423,7 +395,7 @@ public class DistributorPolicy implements ContentHandler {
 			}
 		}
 		public Uri extendProvider(Uri provider) {
-			switch (getPayload()) {
+			switch (this.type) {
 			case JSON: return provider;
 			case TERSE: return provider;
 			case CUSTOM: return Uri.withAppendedPath(provider, "_serial/");
@@ -432,23 +404,15 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		@Override
 		public String toString() {
-			final StringBuilder sb = new StringBuilder().append('[');
-			for( final Type type : this.list) {
-				sb.append(type.name()).append(',');
-			}
-			return sb.append(']').toString();
+			return new StringBuilder().append('[')
+			.append(type.name()).append(']').toString();
 		}
-		public static Encoding getInstanceByName(String...encoding) {
-			final Type[] typeArray = new Type[encoding.length];
-			for (int ix = 0; ix < encoding.length; ix++) {
-				final String typeStr = encoding[ix];
-
-				for (final Type type : Encoding.Type.values()) {
-					if (! type.name().equalsIgnoreCase(typeStr)) continue;
-					typeArray[ix] = type;
-				}
+		public static Encoding getInstanceByName(String encoding) {
+			for (final Type type : Encoding.Type.values()) {
+				if (! type.name().equalsIgnoreCase(encoding)) continue;
+				return new Encoding( type );
 			}
-			return new Encoding(typeArray);
+			return null;
 		}
 	}
 
@@ -524,6 +488,8 @@ public class DistributorPolicy implements ContentHandler {
 	private boolean inRouting = false;
 	private boolean inClause = false;
 	private boolean inLiteral = false;
+	
+	private boolean inTest = false;
 
 	private boolean inDescription = false;
 
@@ -540,7 +506,7 @@ public class DistributorPolicy implements ContentHandler {
 			return;
 		} 
 		// in policy
-		if (! this.inTopic) {  
+		if (! this.inTopic && ! this.inTest) {  
 			if (localName.equals("topic")) {
 				logger.debug("begin 'topic'");
 				this.inTopic = true;
@@ -549,7 +515,44 @@ public class DistributorPolicy implements ContentHandler {
 				this.builder.type(type);
 				return;
 			}
-			logger.warn("expecting begin 'topic': got {}", localName);
+			if (localName.equals("test")) {
+				logger.debug("begin 'test'");
+				this.inTest = true;
+				final String type = atts.getValue(uri, "type");
+				if (type == null) return;
+				final String title = (null == atts.getValue(uri, "name"))
+						? type : atts.getValue(uri, "name");
+				
+				final String postalMatch = atts.getValue(uri, "postal");
+				if (postalMatch != null) {
+					final Topic topic = this.matchPostal(type);
+					if (! topic.type.equals(postalMatch)) {
+						logger.error("postal test {} failed {} != {}",
+								new String[]{ title, topic.type, postalMatch });
+					}
+				}
+				
+				final String subscribeMatch = atts.getValue(uri, "subscribe");
+				if (subscribeMatch != null) {
+					final Topic topic = this.matchSubscribe(type);
+					if (! topic.type.equals(subscribeMatch)) {
+						logger.error("subscribe test {} failed {} != {}",
+								new String[]{ title, topic.type, subscribeMatch });
+					}
+				}
+				
+				final String retrievalMatch = atts.getValue(uri, "retrieval");
+				if (retrievalMatch != null) {
+					final Topic topic = this.matchRetrieval(type);
+					if (! topic.type.equals(retrievalMatch)) {
+						logger.error("retrieval test {} failed {} != {}",
+								new String[]{ title, topic.type, retrievalMatch });
+					}
+				}
+				
+				return;
+			}
+			logger.warn("expecting begin 'topic' or 'test': got {}", localName);
 			return;
 		} 
 		// in policy/topic
@@ -611,6 +614,17 @@ public class DistributorPolicy implements ContentHandler {
 			return;
 		} 
 		// in policy
+		
+		if (this.inTest) {
+			if (localName.equals("test")) {
+				logger.debug("end 'test'");
+				this.inTest = false;
+				return;
+			}
+			logger.error("processing test and found {}", localName);
+			return;
+		}
+		
 		if (! this.inTopic) { 
 			if (localName.equals("policy")) {
 				logger.debug("end 'policy'");
@@ -620,6 +634,7 @@ public class DistributorPolicy implements ContentHandler {
 			logger.error("topic ended prematurely expecting policy got {}", localName);
 			return;
 		} 
+		
 		// in policy/topic
 		if (! this.inRouting) { 
 			if (localName.equals("topic")) {
@@ -643,13 +658,13 @@ public class DistributorPolicy implements ContentHandler {
 				topic.setType(builder.type());
 				switch (builder.routing.category) {
 				case POSTAL:
-					this.postalPolicy.put(topic.getType(), topic );
+					this.postalPolicy.insert(topic.getType(), topic );
 					break;
 				case SUBSCRIBE:
-					this.subscribePolicy.put(topic.getType(), topic );
+					this.subscribePolicy.insert(topic.getType(), topic );
 					break;
 				case RETRIEVAL:
-					this.retrievalPolicy.put(topic.getType(), topic );
+					this.retrievalPolicy.insert(topic.getType(), topic );
 					break;
 				}
 				logger.debug("end 'routing'");
@@ -716,11 +731,11 @@ public class DistributorPolicy implements ContentHandler {
 		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
 		if (value.equalsIgnoreCase("verbose")) 
-			return Encoding.newInstance( Encoding.Type.JSON, Encoding.Type.JSON, Encoding.Type.JSON);
+			return Encoding.newInstance( Encoding.Type.JSON);
 		if (value.equalsIgnoreCase("json")) 
-			return Encoding.newInstance( Encoding.Type.JSON, Encoding.Type.JSON, Encoding.Type.JSON);
+			return Encoding.newInstance( Encoding.Type.JSON);
 		if (value.equalsIgnoreCase("terse")) 
-			return  Encoding.newInstance( Encoding.Type.TERSE, Encoding.Type.TERSE, Encoding.Type.TERSE );
+			return  Encoding.newInstance( Encoding.Type.TERSE );
 		return def;
 	}
 
@@ -779,6 +794,7 @@ public class DistributorPolicy implements ContentHandler {
 	private Category extractCategory(String uri, String attrname, Category def, Attributes atts) {
 		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
+		if (value.equalsIgnoreCase("publish")) return Category.PUBLISH;
 		if (value.equalsIgnoreCase("postal")) return Category.POSTAL;
 		if (value.equalsIgnoreCase("subscribe")) return Category.SUBSCRIBE;
 		if (value.equalsIgnoreCase("retrieval")) return Category.RETRIEVAL;

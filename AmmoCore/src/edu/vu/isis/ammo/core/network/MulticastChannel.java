@@ -20,6 +20,7 @@ import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -352,7 +353,7 @@ public class MulticastChannel extends NetChannel
     // Note: the way this currently works, the heartbeat can only be sent
     // in intervals that are multiples of the burp time.  This may change
     // later if I can eliminate some of the wait()s.
-    @SuppressWarnings("unused")
+    // @SuppressWarnings("unused")
 	private void sendHeartbeatIfNeeded()
     {
         //logger.warn( "In sendHeartbeatIfNeeded()." );
@@ -828,15 +829,14 @@ public class MulticastChannel extends NetChannel
         // NetworkService know if the outgoing queue is full or not?
         public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
-            try
-            {
-                logger.info( "putFromDistributor()" );
-                mDistQueue.put( iMessage );
-            }
-            catch ( InterruptedException e )
-            {
-                return ChannelDisposal.FAILED;
-            }
+            logger.info( "putFromDistributor()" );
+            try {
+				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
+				    return ChannelDisposal.BUSY;
+				}
+			} catch (InterruptedException e) {
+				return ChannelDisposal.DOWN;
+			}
             return ChannelDisposal.QUEUED;
         }
 
@@ -911,7 +911,7 @@ public class MulticastChannel extends NetChannel
             while ( msg != null )
             {
                 if ( msg.handler != null )
-                    mChannel.ackToHandler( msg.handler, ChannelDisposal.FAILED );
+                    mChannel.ackToHandler( msg.handler, ChannelDisposal.DOWN );
                 msg = mDistQueue.poll();
             }
 
@@ -1010,7 +1010,7 @@ public class MulticastChannel extends NetChannel
                 {
                     logger.debug( "sender caught SocketException" );
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.FAILED );
+                        mChannel.ackToHandler( msg.handler, ChannelDisposal.DOWN );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;
@@ -1019,7 +1019,7 @@ public class MulticastChannel extends NetChannel
                 {
                     logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.FAILED );
+                        mChannel.ackToHandler( msg.handler, ChannelDisposal.BAD );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;
@@ -1181,4 +1181,10 @@ public class MulticastChannel extends NetChannel
 
         return addresses;
     }
+
+
+	@Override
+	public boolean isBusy() {
+		return false;
+	}
 }

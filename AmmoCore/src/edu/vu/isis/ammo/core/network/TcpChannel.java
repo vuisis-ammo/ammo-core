@@ -19,6 +19,7 @@ import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -854,15 +855,14 @@ public class TcpChannel extends NetChannel {
         // NetworkService know if the outgoing queue is full or not?
         public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
-            try
-            {
-                logger.info( "putFromDistributor()" );
-                mDistQueue.put( iMessage );
-            }
-            catch ( InterruptedException e )
-            {
-                return ChannelDisposal.FAILED;
-            }
+            logger.info( "putFromDistributor()" );
+            try {
+				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
+				    return ChannelDisposal.BUSY;
+				}
+			} catch (InterruptedException e) {
+				return ChannelDisposal.BAD;
+			}
             return ChannelDisposal.QUEUED;
         }
 
@@ -1012,7 +1012,7 @@ public class TcpChannel extends NetChannel {
                 {
                     logger.warn("sender threw exception {}", ex.getStackTrace());
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.FAILED );
+                        mChannel.ackToHandler( msg.handler, ChannelDisposal.DOWN );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
@@ -1193,4 +1193,9 @@ public class TcpChannel extends NetChannel {
         }
         return null;
     }
+
+	@Override
+	public boolean isBusy() {
+		return false;
+	}
 }

@@ -4,8 +4,8 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
-	<classpathentry kind="lib" path="/AmmoLib/libs/logback.jar"/>
-	<classpathentry kind="lib" path="/AmmoLib/libs/slf4j.jar"/>
+	<classpathentry kind="lib" path="/usr/local/share/slf4j/logback-android-0.9.30-RC4.jar"/>
+	<classpathentry kind="lib" path="/usr/local/share/slf4j/slf4j-api-1.6.2.jar"/>
 	<classpathentry kind="lib" path="/usr/share/java/protobuf.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

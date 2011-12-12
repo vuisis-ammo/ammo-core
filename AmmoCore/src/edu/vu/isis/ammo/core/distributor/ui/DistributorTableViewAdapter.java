@@ -24,6 +24,7 @@ public abstract class DistributorTableViewAdapter extends ResourceCursorAdapter 
 		dispositionStateMap.put(RequestDisposal.INCOMPLETE.o, "Request Incomplete");
 		dispositionStateMap.put(RequestDisposal.DISTRIBUTE.o, "Request In-progress");
 		dispositionStateMap.put(RequestDisposal.NEW.o, "Request New");
+		dispositionStateMap.put(RequestDisposal.FAILED.o, "Request Failed");
 	}
 	static protected HashMap<Integer, Integer> dispositionColorMap;
 	static {
@@ -33,6 +34,7 @@ public abstract class DistributorTableViewAdapter extends ResourceCursorAdapter 
 		dispositionColorMap.put(RequestDisposal.INCOMPLETE.o, Color.RED);
 		dispositionColorMap.put(RequestDisposal.DISTRIBUTE.o, Color.LTGRAY);
 		dispositionColorMap.put(RequestDisposal.NEW.o, Color.CYAN);
+		dispositionColorMap.put(RequestDisposal.FAILED.o, Color.RED);
 	}
 
 	final protected Calendar expiration;

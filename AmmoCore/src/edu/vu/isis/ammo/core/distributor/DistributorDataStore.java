@@ -9,6 +9,8 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -221,7 +223,8 @@ public class DistributorDataStore {
 		DISTRIBUTE(0x02, "distribute"),
 		EXPIRED(0x04, "expired"),
 		COMPLETE(0x08, "complete"),
-		INCOMPLETE(0x10, "incomplete");
+		INCOMPLETE(0x10, "incomplete"),
+		FAILED(0x20, "failed");
 
 		final public int o;
 		final public String t;
@@ -254,14 +257,52 @@ public class DistributorDataStore {
 	 * total state is an aggregate of the distribution
 	 * of the request across the relevant channels.
 	 */
+	public enum ChannelStatus {
+		READY    (0x0001, "ready"),      // channel is ready to receive requests
+		EMPTY    (0x0002, "empty"),      // channel queue is empty
+		DOWN     (0x0004, "down"),       // channel is temporarily down
+		BUSY     (0x0008, "busy"),       // channel queue was busy (usually full queue)
+		;
+
+		final public int o;
+		final public String t;
+
+		private ChannelStatus(int ordinal, String title) {
+			this.o = ordinal;
+			this.t = title;
+		}
+		public String q() {
+			return new StringBuilder().append("'").append(this.o).append("'").toString();
+		}
+		
+		public ChannelDisposal inferDisposal() {
+			switch (this) {
+			case DOWN: return ChannelDisposal.DOWN;
+			case BUSY: return ChannelDisposal.BUSY;
+			default:
+				logger.warn("don't call with {}", this);
+				throw new IllegalArgumentException();
+			}
+		}
+		
+	};
+	/**
+	 * The states of a request over a particular channel.
+	 * The DISTRIBUTE RequestDisposal indicates that the
+	 * total state is an aggregate of the distribution
+	 * of the request across the relevant channels.
+	 */
 	public enum ChannelDisposal {
-		NEW(0x01, "new"),
-		FAILED(0x02, "failed"),
-		PENDING(0x04, "pending"),
-		QUEUED(0x08, "queued"),
-		SENT(0x10, "sent"),
-		TOLD(0x20, "told"),
-		DELIVERED(0x40, "delivered");
+		NEW      (0x0001, "new"),
+		DOWN     (0x0002, "down"),       // channel is temporarily down
+		BAD      (0x0080, "bad"),        // message is problematic, don't try again
+		PENDING  (0x0004, "pending"),    // cannot send but not bad
+		QUEUED   (0x0008, "queued"),     // message in channel queue
+		BUSY     (0x0100, "busy"),       // channel queue was busy (usually full queue)
+		SENT     (0x0010, "sent"),       // message is sent synchronously
+		TOLD     (0x0020, "told"),       // message sent asynchronously
+		DELIVERED(0x0040, "delivered"),  // async message acknowledged
+		;
 
 		final public int o;
 		final public String t;
@@ -292,7 +333,9 @@ public class DistributorDataStore {
 				if (goalCondition == true) return true;
 				break;
 			case PENDING:
-			case FAILED:
+			case DOWN:
+            case BUSY:
+			case BAD:
 				if (goalCondition == false) return true;
 				break;
 			}
@@ -1533,7 +1576,7 @@ public class DistributorDataStore {
 	.append(Tables.SUBSCRIBE.qv()).append(')')
 	.append(" AND ")
 	.append(DisposalTableSchema.STATE.q())
-	.append(" NOT IN ( ").append(ChannelDisposal.FAILED.q()).append(')')
+	.append(" NOT IN ( ").append(ChannelDisposal.BAD.q()).append(')')
 	.toString();
 
 	/**
@@ -1565,7 +1608,7 @@ public class DistributorDataStore {
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
 	.append(" AND ")
 	.append(DisposalTableSchema.STATE.q())
-	.append(" IN ( ").append(ChannelDisposal.FAILED.q()).append(')')
+	.append(" IN ( ").append(ChannelDisposal.BAD.q()).append(')')
 	.toString();
 
 	/**
