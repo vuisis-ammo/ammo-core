@@ -270,6 +270,19 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     }
 
 
+    //public int totalLength( byte version )
+    //{
+    //    if ( version == VERSION_1_FULL ) {
+    //        return HEADER_LENGTH + payload.length;
+    //    } else if ( version == VERSION_1_TERSE ) {
+    //        return HEADER_LENGTH_TERSE + payload.length;
+    //    } else {
+    //        logger.error("invalid version supplied {}", version);
+    //        return -1;
+    //    }    	
+    //}
+    
+    
     /**
      * Serialize the AmmoMessage for transmission to the gateway.
      * @return
