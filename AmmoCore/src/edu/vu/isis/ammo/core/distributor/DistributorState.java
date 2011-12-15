@@ -185,7 +185,7 @@ public class DistributorState {
 		for (final Entry<String,ChannelDisposal> entry : this.stateMap.entrySet()) {
 			aggregated |= entry.getValue().o;
 		}
-		if (0 < (aggregated & (ChannelDisposal.DOWN.o | ChannelDisposal.BUSY.o) ))
+		if (0 < (aggregated & (ChannelDisposal.REJECTED.o | ChannelDisposal.BUSY.o) ))
 			return RequestDisposal.INCOMPLETE;
 		if (0 < (aggregated & (ChannelDisposal.PENDING.o | ChannelDisposal.NEW.o) ))
 			return RequestDisposal.DISTRIBUTE;

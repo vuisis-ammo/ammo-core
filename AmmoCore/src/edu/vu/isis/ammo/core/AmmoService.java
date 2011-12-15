@@ -793,7 +793,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
 		if (!mChannelMap.containsKey(channelName))
-			return ChannelDisposal.DOWN;
+			return ChannelDisposal.REJECTED;
 		final NetChannel channel = mChannelMap.get(channelName);
 		if (!channel.isConnected())
 			return ChannelDisposal.PENDING;
@@ -806,7 +806,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
         
 		final NetChannel channel = mChannelMap.get(channelName);
 		if (! channel.isBusy()) 
-			return ChannelStatus.BUSY;
+			return ChannelStatus.FULL;
 		if (!channel.isConnected())
 			return ChannelStatus.DOWN;
 		return ChannelStatus.READY;

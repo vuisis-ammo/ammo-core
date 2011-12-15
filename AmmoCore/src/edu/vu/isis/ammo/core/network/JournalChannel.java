@@ -250,14 +250,15 @@ public class JournalChannel extends NetChannel {
 			logger.trace("::sendGatewayRequest");
 			if (! JournalChannel.isConnected) {
 				this.tryConnect(false);
-				return ChannelDisposal.DOWN;
+				return ChannelDisposal.REJECTED;
 			}
 			try {
 				if (! this.sendQueue.offer(agm, 1, TimeUnit.SECONDS)) {
+					logger.warn("journal not taking messages {}", ChannelDisposal.BUSY );
 					return ChannelDisposal.BUSY;
 				}
 			} catch (InterruptedException e) {
-				return ChannelDisposal.DOWN;
+				return ChannelDisposal.REJECTED;
 			}
 			return ChannelDisposal.SENT;
 		}

@@ -23,9 +23,9 @@ public class DisposalTableAdapter extends ResourceCursorAdapter {
 		dispositionStateMap = new HashMap<Integer, String>();
 		dispositionStateMap.put(ChannelDisposal.NEW.o, "new");
 		dispositionStateMap.put(ChannelDisposal.DELIVERED.o, "delivered");
-		dispositionStateMap.put(ChannelDisposal.DOWN.o, "failed");
+		dispositionStateMap.put(ChannelDisposal.REJECTED.o, "failed");
 		dispositionStateMap.put(ChannelDisposal.BAD.o, "bad");
-		dispositionStateMap.put(ChannelDisposal.BUSY.o, "full");
+		dispositionStateMap.put(ChannelDisposal.BUSY.o, "busy");
 		dispositionStateMap.put(ChannelDisposal.PENDING.o, "pending");
 		dispositionStateMap.put(ChannelDisposal.QUEUED.o, "queued");
 		dispositionStateMap.put(ChannelDisposal.SENT.o, "sent");
@@ -36,7 +36,7 @@ public class DisposalTableAdapter extends ResourceCursorAdapter {
 		dispositionColorMap = new HashMap<Integer, Integer>();
 		dispositionColorMap.put(ChannelDisposal.NEW.o, Color.CYAN);
 		dispositionColorMap.put(ChannelDisposal.DELIVERED.o, Color.GREEN);
-		dispositionColorMap.put(ChannelDisposal.DOWN.o, Color.RED);
+		dispositionColorMap.put(ChannelDisposal.REJECTED.o, Color.RED);
 		dispositionColorMap.put(ChannelDisposal.BAD.o, Color.DKGRAY);
 		dispositionColorMap.put(ChannelDisposal.BUSY.o, Color.BLUE);
 		dispositionColorMap.put(ChannelDisposal.PENDING.o, Color.LTGRAY);
