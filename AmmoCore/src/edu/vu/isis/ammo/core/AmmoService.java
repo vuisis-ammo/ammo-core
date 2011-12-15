@@ -805,7 +805,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			return ChannelStatus.DOWN;
         
 		final NetChannel channel = mChannelMap.get(channelName);
-		if (! channel.isBusy()) 
+		if (channel.isBusy()) // this is to improve performance
 			return ChannelStatus.FULL;
 		if (!channel.isConnected())
 			return ChannelStatus.DOWN;
