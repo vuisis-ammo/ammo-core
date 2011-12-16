@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
@@ -76,7 +77,9 @@ public class DistributorState {
 
 	@Override
 	public String toString() {
-		final StringBuilder sb = new StringBuilder().append("status:");
+		final StringBuilder sb = new StringBuilder()
+		        .append("type: ").append(this.type).append(" ")
+				.append("status:");
 		for( final Map.Entry<String,ChannelDisposal> entry : this.stateMap.entrySet()) {
 			sb.append('\n').append(entry.getKey()).append(" : ").append(entry.getValue());
 		}
@@ -105,9 +108,14 @@ public class DistributorState {
 		if (this.policy == null) {
 			logger.error("no matching routing topic");
 
-			ChannelDisposal actualCondition = that.checkChannel(DistributorPolicy.DEFAULT);
-			if(actualCondition == ChannelDisposal.QUEUED) {
+			final ChannelStatus channelStatus = that.checkChannel(DistributorPolicy.DEFAULT);
+			final ChannelDisposal actualCondition;
+			switch (channelStatus) {
+			case READY:
 				actualCondition = serializer.act(that,Encoding.getDefault(),DistributorPolicy.DEFAULT);
+				break;
+			default:
+				actualCondition = channelStatus.inferDisposal();	
 			}
 			this.put(DistributorPolicy.DEFAULT, actualCondition);
 			return this;
@@ -141,9 +149,13 @@ public class DistributorState {
 				ChannelDisposal actualCondition;
 				switch (priorCondition) {
 				case PENDING:
-					actualCondition = that.checkChannel(term);
-					if(actualCondition == ChannelDisposal.QUEUED) {
-						actualCondition = serializer.act(that,literal.encoding, term);
+					final ChannelStatus channelStatus = that.checkChannel(term);
+					switch (channelStatus) {
+					case READY:
+						actualCondition = serializer.act(that,literal.encoding,term);
+						break;
+					default:
+						actualCondition = channelStatus.inferDisposal();	
 					}
 					this.put(term, actualCondition);
 					logger.trace("attempting message over {}", term);
@@ -173,13 +185,21 @@ public class DistributorState {
 		for (final Entry<String,ChannelDisposal> entry : this.stateMap.entrySet()) {
 			aggregated |= entry.getValue().o;
 		}
-		if (0 < (aggregated & ChannelDisposal.FAILED.o))
+		if (0 < (aggregated & (ChannelDisposal.REJECTED.o | ChannelDisposal.BUSY.o) ))
 			return RequestDisposal.INCOMPLETE;
 		if (0 < (aggregated & (ChannelDisposal.PENDING.o | ChannelDisposal.NEW.o) ))
 			return RequestDisposal.DISTRIBUTE;
 		if (0 < (aggregated & (ChannelDisposal.SENT.o | ChannelDisposal.TOLD.o | ChannelDisposal.DELIVERED.o) ))
 			return RequestDisposal.COMPLETE;
+		if (0 < (aggregated & (ChannelDisposal.BAD.o) ))
+			return RequestDisposal.FAILED;
 		return RequestDisposal.DISTRIBUTE;
+	}
+
+	private String type;
+	public DistributorState setType(String type) {
+		this.type = type;
+		return this;
 	}
 
 }

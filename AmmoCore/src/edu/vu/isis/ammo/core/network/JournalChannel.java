@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
@@ -249,12 +250,15 @@ public class JournalChannel extends NetChannel {
 			logger.trace("::sendGatewayRequest");
 			if (! JournalChannel.isConnected) {
 				this.tryConnect(false);
-				return ChannelDisposal.FAILED;
+				return ChannelDisposal.REJECTED;
 			}
 			try {
-				this.sendQueue.put(agm);
+				if (! this.sendQueue.offer(agm, 1, TimeUnit.SECONDS)) {
+					logger.warn("journal not taking messages {}", ChannelDisposal.BUSY );
+					return ChannelDisposal.BUSY;
+				}
 			} catch (InterruptedException e) {
-				return ChannelDisposal.FAILED;
+				return ChannelDisposal.REJECTED;
 			}
 			return ChannelDisposal.SENT;
 		}
@@ -347,4 +351,8 @@ public class JournalChannel extends NetChannel {
 	public void reset() {}
 	public String getLocalIpAddress() { return ""; }
 
+	@Override
+	public boolean isBusy() {
+    	return false;
+	}
 }

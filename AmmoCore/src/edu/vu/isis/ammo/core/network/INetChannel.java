@@ -44,6 +44,7 @@ public interface INetChannel {
     boolean isConnected();
     void enable();
     void disable(); // From TcpChannel
+    boolean isBusy();
 
 
     /**
