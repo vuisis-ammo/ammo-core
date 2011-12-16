@@ -174,7 +174,7 @@ public class RequestSerializer {
 					throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
 		logger.trace("serializing using encoding {}", encoding);
-		switch (encoding.getPayload()) {
+		switch (encoding.getType()) {
 		case JSON: 
 		{
 			logger.trace("Serialize the non-blob data");
@@ -378,13 +378,12 @@ public class RequestSerializer {
 					tuple.putLong(longValue);
 					break;
 				case FIELD_TYPE_TEXT:
-					final String svalue = tupleCursor.getString( columnIndex );
-					int length = svalue == null ? 0 : svalue.length();
-					logger.debug( "key={}, length={}", key, length );
-					tuple.putInt( length );
-					for ( int i = 0; i < length; i++ ) {
-					    char c = svalue.charAt(i);        
-						tuple.putChar( c );
+				case FIELD_TYPE_GUID:
+					final char[] textValue = tupleCursor.getString( columnIndex ).toCharArray();
+					final int charCount = textValue.length;;
+					tuple.putInt(charCount);
+					for (char charValue : textValue) {
+					    tuple.putChar(charValue);
 					}
 					break;
 				case FIELD_TYPE_BOOL:
@@ -459,7 +458,7 @@ public class RequestSerializer {
 		final ContentResolver resolver = context.getContentResolver();
 		final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
 
-		switch (encoding.getPayload()) {
+		switch (encoding.getType()) {
 		case JSON: 
 		{
 			int position = 0;
@@ -591,14 +590,13 @@ public class RequestSerializer {
 					wrap.put(key, longValue);
 					break;
 				case FIELD_TYPE_TEXT:
-					final StringBuilder textValue = new StringBuilder();
+				case FIELD_TYPE_GUID:
 					final int textLength = tuple.getInt();
-					logger.debug( "key={}, length={}", key, textLength );
-					for ( int i = 0; i < textLength; i++ ) {
-						final char c = tuple.getChar();
-						textValue.append( c );
+					final char[] textValue = new char[textLength];
+					for (int ix=0; ix < textLength; ++ix) {
+						textValue[ix] = tuple.getChar();
 					}
-					wrap.put( key, textValue.toString() );
+					wrap.put(key, new String(textValue));
 					break;
 				case FIELD_TYPE_BOOL:
 				case FIELD_TYPE_INTEGER:

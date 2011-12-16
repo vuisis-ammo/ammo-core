@@ -4,15 +4,15 @@
 package edu.vu.isis.ammo.core.network;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
 import java.util.LinkedList;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,7 +35,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
-import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
 /**
@@ -43,6 +42,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  */
 public class SerialChannel extends NetChannel
 {
+    private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
+	
     // Move these to the interface class later.
     public static final int SERIAL_DISABLED        = INetChannel.DISABLED;
     public static final int SERIAL_WAITING_FOR_TTY = INetChannel.LINK_WAIT;
@@ -55,6 +56,8 @@ public class SerialChannel extends NetChannel
     static {
         System.loadLibrary("serialchan");
     }
+    
+    
 
     /**
      *
@@ -576,15 +579,15 @@ public class SerialChannel extends NetChannel
          */
         public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
-            try
-            {
-                logger.info( "putFromDistributor()" );
-                mDistQueue.put( iMessage );
-            }
-            catch ( InterruptedException e )
-            {
-                return ChannelDisposal.FAILED;
-            }
+            logger.info( "putFromDistributor()" );
+            try {
+				if (! mDistQueue.offer(iMessage, 1, TimeUnit.SECONDS)) {
+					logger.warn("serial channel not taking messages {}", ChannelDisposal.BUSY );
+					return ChannelDisposal.BUSY;
+				}
+			} catch (InterruptedException e) {
+				return ChannelDisposal.BAD;
+			}
             return ChannelDisposal.QUEUED;
         }
 
@@ -832,12 +835,7 @@ public class SerialChannel extends NetChannel
                 }
             }
 
-            logger.info( "SenderThread <{}>::run() exiting.", Thread.currentThread().getId() );
-        }
-
-
-        private void sendMessage(AmmoGatewayMessage msg) throws IOException
-        {
+                try {
             ByteBuffer buf = msg.serialize( endian,
                                             AmmoGatewayMessage.VERSION_1_TERSE,
                                             (byte) mSlotNumber.get());
@@ -849,16 +847,32 @@ public class SerialChannel extends NetChannel
                 outputStream.write( buf.array() );
                 outputStream.flush();
 
-                logger.info(
-                        "sent message size={}, checksum={}, data:{}",
-                        new Object[] { msg.size,
+                        logger.info( "sent message size={}, checksum={}, data:{}",
+                                     new Object[] {
+                                         msg.size,
                                 Long.toHexString(msg.payload_checksum),
                                 msg.payload });
+                    }
+
+                    // legitimately sent to gateway.
+                    if ( msg.handler != null )
+                        ackToHandler( msg.handler, ChannelDisposal.SENT );
+                } catch ( IOException e ) {
+                    logger.warn("sender threw exception {}", e.getStackTrace() );
+                    if ( msg.handler != null )
+                        ackToHandler( msg.handler, ChannelDisposal.REJECTED );
+                    setSenderState( INetChannel.INTERRUPTED );
+                    ioOperationFailed();
+                } catch ( Exception e ) {
+                    logger.warn("sender threw exception {}", e.getStackTrace() );
+                    if ( msg.handler != null )
+                        ackToHandler( msg.handler, ChannelDisposal.BAD );
+                    setSenderState( INetChannel.INTERRUPTED );
+                    ioOperationFailed();
+                }
             }
 
-            // legitimately sent to gateway.
-            if ( msg.handler != null )
-                ackToHandler(msg.handler, ChannelDisposal.SENT);
+            logger.info( "SenderThread <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
@@ -1281,4 +1295,10 @@ public class SerialChannel extends NetChannel
     private long mLast = 0;
 
     private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
+    
+    @Override
+	public boolean isBusy() {
+    	return false;
+	}
+    
 }
