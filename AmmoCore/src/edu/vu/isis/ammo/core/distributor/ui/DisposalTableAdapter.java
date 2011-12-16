@@ -72,6 +72,6 @@ public class DisposalTableAdapter extends ResourceCursorAdapter {
 			}
 			dispTv.setText(disposition);
 		}
-		logger.info("bind disposal {} {}", channel, disposition);
+		logger.trace("bind disposal {} {}", channel, disposition);
 	}
 }
