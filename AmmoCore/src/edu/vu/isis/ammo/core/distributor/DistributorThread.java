@@ -1047,7 +1047,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @return
 	 */
 
-	private DistributorState dispatchRetrievalRequest(final AmmoService that, final String retrievalId, final String topic, final String selection, final Integer limit, final DistributorState dispersal, final INetworkService.OnSendMessageHandler handler) {
+	private DistributorState dispatchRetrievalRequest(final AmmoService that, 
+			final String retrievalId, final String topic, 
+			final String selection, final Integer limit, final DistributorState dispersal, 
+			final INetworkService.OnSendMessageHandler handler) 
+	{
 		logger.trace("dispatch request RETRIEVAL {}", topic);
 
 		/** Message Building */

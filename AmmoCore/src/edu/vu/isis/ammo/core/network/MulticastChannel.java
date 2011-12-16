@@ -832,10 +832,11 @@ public class MulticastChannel extends NetChannel
             logger.info( "putFromDistributor()" );
             try {
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
+					logger.warn("multicast channel not taking messages {}", ChannelDisposal.BUSY );
 				    return ChannelDisposal.BUSY;
 				}
 			} catch (InterruptedException e) {
-				return ChannelDisposal.DOWN;
+				return ChannelDisposal.REJECTED;
 			}
             return ChannelDisposal.QUEUED;
         }
@@ -911,7 +912,7 @@ public class MulticastChannel extends NetChannel
             while ( msg != null )
             {
                 if ( msg.handler != null )
-                    mChannel.ackToHandler( msg.handler, ChannelDisposal.DOWN );
+                    mChannel.ackToHandler( msg.handler, ChannelDisposal.REJECTED );
                 msg = mDistQueue.poll();
             }
 
@@ -1010,7 +1011,7 @@ public class MulticastChannel extends NetChannel
                 {
                     logger.debug( "sender caught SocketException" );
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.DOWN );
+                        mChannel.ackToHandler( msg.handler, ChannelDisposal.REJECTED );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;

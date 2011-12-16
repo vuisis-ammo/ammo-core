@@ -431,10 +431,11 @@ public class SerialChannel extends NetChannel
             logger.info( "putFromDistributor()" );
             try {
 				if (! mDistQueue.offer(iMessage, 1, TimeUnit.SECONDS)) {
+					logger.warn("serial channel not taking messages {}", ChannelDisposal.BUSY );
 					return ChannelDisposal.BUSY;
 				}
 			} catch (InterruptedException e) {
-				return ChannelDisposal.BUSY;
+				return ChannelDisposal.BAD;
 			}
             return ChannelDisposal.QUEUED;
         }
@@ -654,7 +655,7 @@ public class SerialChannel extends NetChannel
                 } catch ( IOException e ) {
                     logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
-                        ackToHandler( msg.handler, ChannelDisposal.DOWN );
+                        ackToHandler( msg.handler, ChannelDisposal.REJECTED );
                     setSenderState( INetChannel.INTERRUPTED );
                     ioOperationFailed();
                 } catch ( Exception e ) {
