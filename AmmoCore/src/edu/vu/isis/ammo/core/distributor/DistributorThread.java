@@ -14,6 +14,10 @@ import net.jcip.annotations.ThreadSafe;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
+import org.slf4j.helpers.BasicMarker;
+import org.slf4j.helpers.BasicMarkerFactory;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -58,6 +62,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger("ammo-dst");
+	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
+	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
+	private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
 
 	// 20 seconds expressed in milliseconds
 	private static final int BURP_TIME = 20 * 1000;
@@ -654,7 +661,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * for which there is, now, an available channel.
 	 */
 	private void processPostalTable(final AmmoService that) {
-		logger.trace("processt table POSTAL");
+		logger.debug(MARK_POSTAL, "process table POSTAL");
 
 		if (!that.isConnected()) 
 			return;
@@ -756,7 +763,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 									dispersal, serializer,
 									new INetworkService.OnSendMessageHandler() {
 										final DistributorThread parent = DistributorThread.this;
-		                                                                final int id_ = id;
+		                                final int id_ = id;
 										@Override
 										public boolean ack(String channel, ChannelDisposal status) {
 											return parent.announceChannelAck( new ChannelAck(id_, Tables.POSTAL, channel, status) );
@@ -994,7 +1001,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * Garbage collect items which are expired.
 	 */
 	private void processRetrievalTable(AmmoService that) {
-		logger.trace("process table RETRIEVAL");
+		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
 
@@ -1227,7 +1234,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 */
 
 	private void processSubscribeTable(AmmoService that) {
-		logger.trace("process table SUBSCRIBE");
+		logger.debug(MARK_SUBSCRIBE, "process table SUBSCRIBE");
 
 		final Cursor pending = this.store.querySubscribeReady();
 
@@ -1239,7 +1246,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
 
-			logger.trace("process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
+			logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
 
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 			final DistributorState dispersal = policy.makeRouteMap();
