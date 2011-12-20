@@ -798,7 +798,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				}
 				
 				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-				if (encode.getPayload() != Encoding.Type.TERSE) {
+				if (encode.getType() != Encoding.Type.TERSE) {
 					final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
 						.newBuilder()
 						.setUri(provider)
