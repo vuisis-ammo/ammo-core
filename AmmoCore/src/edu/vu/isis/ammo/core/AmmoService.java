@@ -321,10 +321,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 
 	private PhoneStateListener mListener;
+	
 	private SharedPreferences globalSettings;
 	private SharedPreferences localSettings;
 	private SharedPreferences settings;
-	 
 	
 	/**
 	 * When the service is first created, we should grab the IP and Port values
@@ -379,10 +379,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		
 
 		this.globalSettings = new Settings(context);
+		this.globalSettings.registerOnSharedPreferenceChangeListener(this);
+		
 		this.localSettings = PreferenceManager.getDefaultSharedPreferences(this);
-		this.settings = new CompositeSettings(this.localSettings, this.globalSettings);
-		 
-		this.settings.registerOnSharedPreferenceChangeListener(this);
+		this.localSettings.registerOnSharedPreferenceChangeListener(this);
+		//this.settings = new CompositeSettings(this.localSettings, this.globalSettings);
 
 		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
 		
@@ -412,6 +413,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
         // The serial channel is created in a disabled state.
+		{
+		   final String globalId = this.globalSettings.getString(Keys.UserKeys.USERNAME, null);
+		   if (globalId != null) {
+				final Editor editor = this.localSettings.edit();
+				editor.putString(INetPrefKeys.CORE_OPERATOR_ID, globalId );
+				editor.commit();
+		   }
+		}
 		this.acquirePreferences();
 		if (this.networkingSwitch && this.gatewayEnabled) {
 			this.tcpChannel.enable();
@@ -512,13 +521,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * 
 	 */
 	private void refreshOperatorId() {
-		final String globalId = this.globalSettings.getString(Keys.UserKeys.USERNAME, null);
-		if (globalId == null) {
-			this.operatorId = 
-					this.localSettings.getString(INetPrefKeys.CORE_OPERATOR_ID, 
-					this.operatorId);
-			return;
-		}
+		this.operatorId = 
+				this.localSettings.getString(INetPrefKeys.CORE_OPERATOR_ID, 
+				this.operatorId);
 	}
 	/**
 	 * Read the system preferences for the network connection information.
@@ -646,14 +651,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			return;
 		}
 		if (key.equals(Keys.UserKeys.USERNAME)) {
-			this.operatorId = prefs.getString(key, this.operatorId);
+			String globalId = prefs.getString(key, this.operatorId);
 			
 			final Editor editor = this.localSettings.edit();
-			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, this.operatorId );
+			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, globalId );
 			editor.commit();
 			 
-			this.refresh();
-			if (this.isConnected()) this.auth(); 
+			//this.refresh();
+			//if (this.isConnected()) this.auth(); 
 			return;
 		}
 		if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
