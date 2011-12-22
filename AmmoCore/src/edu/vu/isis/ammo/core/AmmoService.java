@@ -13,12 +13,17 @@ import java.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import transapps.settings.CompositeSettings;
+import transapps.settings.Keys;
+import transapps.settings.Settings;
+
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
@@ -32,7 +37,7 @@ import android.telephony.TelephonyManager;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.IntentNames;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
@@ -174,7 +179,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	private String sessionId = "";
 	private String deviceId = null;
-	private String operatorId = "0004";
+	private String operatorId = null;
 	private String operatorKey = "37";
 
 	// journalingSwitch
@@ -316,7 +321,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 
 	private PhoneStateListener mListener;
-
+	private SharedPreferences globalSettings;
+	private SharedPreferences localSettings;
+	private SharedPreferences settings;
+	 
+	
 	/**
 	 * When the service is first created, we should grab the IP and Port values
 	 * from the SystemPreferences.
@@ -325,6 +334,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public void onCreate() {
 		super.onCreate();
 		logger.info("::onCreate");
+		final Context context = this.getBaseContext();
 
 		// set up the worker thread
 		this.distThread = new DistributorThread(this.getApplicationContext());
@@ -365,12 +375,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		mReadyResourceReceiver.checkResourceStatus(this);
 
-		this.policy = DistributorPolicy.newInstance(this.getBaseContext());
+		this.policy = DistributorPolicy.newInstance(context);
 		
 
-		final SharedPreferences prefs = PreferenceManager
-				.getDefaultSharedPreferences(this);
-		prefs.registerOnSharedPreferenceChangeListener(this);
+		this.globalSettings = new Settings(context);
+		this.localSettings = PreferenceManager.getDefaultSharedPreferences(this);
+		this.settings = new CompositeSettings(this.localSettings, this.globalSettings);
+		 
+		this.settings.registerOnSharedPreferenceChangeListener(this);
 
 		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
 		
@@ -438,7 +450,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				.getSystemService(Context.TELEPHONY_SERVICE);
 		tm.listen(mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE);
 
-		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		final Intent loginIntent = new Intent(IntentNames.AMMO_LOGIN);
 		
 		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
@@ -457,8 +469,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.distThread.clearTables();
 		
 		// broadcast login event to apps ...
-		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_READY);
-		loginIntent.addCategory(INetPrefKeys.RESET_CATEGORY);
+		final Intent loginIntent = new Intent(IntentNames.AMMO_READY);
+		loginIntent.addCategory(IntentNames.RESET_CATEGORY);
 
 		this.acquirePreferences();
 		this.tcpChannel.reset();
@@ -496,6 +508,19 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// ===========================================================
 
 	/**
+	 * The operator id may be set from the global context.
+	 * 
+	 */
+	private void refreshOperatorId() {
+		final String globalId = this.globalSettings.getString(Keys.UserKeys.USERNAME, null);
+		if (globalId == null) {
+			this.operatorId = 
+					this.localSettings.getString(INetPrefKeys.CORE_OPERATOR_ID, 
+					this.operatorId);
+			return;
+		}
+	}
+	/**
 	 * Read the system preferences for the network connection information.
 	 */
 	private void acquirePreferences() {
@@ -511,7 +536,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 
 		this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
-		this.operatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, this.operatorId);
+		refreshOperatorId();
 		this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
 
 		String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
@@ -620,16 +645,25 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				this.auth();
 			return;
 		}
-		if (key.equals(IPrefKeys.CORE_OPERATOR_ID)) {
-			this.operatorId = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, this.operatorId);
+		if (key.equals(Keys.UserKeys.USERNAME)) {
+			this.operatorId = prefs.getString(key, this.operatorId);
 			
-			// Refresh if the operator id changes since that will affect our subscriptions.
+			final Editor editor = this.localSettings.edit();
+			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, this.operatorId );
+			editor.commit();
+			 
 			this.refresh();
-			if (this.isConnected())
-				this.auth(); // TBD SKN: this should really do a setStale rather
-			// than just authenticate
+			if (this.isConnected()) this.auth(); 
 			return;
 		}
+		if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
+			this.operatorId = prefs.getString(key, this.operatorId);
+			
+			this.refresh();
+			if (this.isConnected()) this.auth(); 
+			return;
+		}
+		
 		if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
 			this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
 			if (this.isConnected())
@@ -932,12 +966,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("authentication complete inform applications : ");
 		// TBD SKN - this should not be sent now ...
 		// broadcast login event to apps ...
-		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		Intent loginIntent = new Intent(IntentNames.AMMO_LOGIN);
 		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
 
 		// broadcast gateway connected to apps ...
-		loginIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
+		loginIntent = new Intent(IntentNames.AMMO_CONNECTED);
 		loginIntent.putExtra("channel", channel.name);
 		this.sendBroadcast(loginIntent);
 

@@ -5,7 +5,8 @@
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
 	<classpathentry kind="lib" path="/usr/share/java/protobuf.jar"/>
-	<classpathentry kind="lib" path="/usr/local/share/slf4j/slf4j-api-1.6.4.jar"/>
-	<classpathentry kind="lib" path="/usr/local/share/slf4j/logback-android-1.0.0-2.jar"/>
+	<classpathentry kind="lib" path="/usr/local/share/java/logback-android.jar"/>
+	<classpathentry kind="lib" path="/usr/local/share/java/slf4j-api.jar"/>
+	<classpathentry kind="lib" path="/usr/local/share/java/tasettingsapi.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

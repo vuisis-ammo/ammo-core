@@ -23,7 +23,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
-import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatch;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
@@ -75,7 +75,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         btnSubscribe.setOnClickListener(this);
         
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        this.uid = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, "transappuser");
+        this.uid = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, "transappuser");
 	}  
 
 	@Override
@@ -119,7 +119,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	
 	private boolean entryDoesNotExist(ContentResolver cr, Uri selectedUri) {
 		// String[] projection = {SubscribeTableSchema.PROVIDER.n, SubscribeTableSchema._ID};
-		String selection = SubscribeTableSchema.PROVIDER.q() + " LIKE \"" + selectedUri.toString() + "\"";
+		// String selection = SubscribeTableSchema.PROVIDER.q() + " LIKE \"" + selectedUri.toString() + "\"";
 		// Cursor c = cr.query(SubscribeTableSchema.CONTENT_URI, projection, selection, null, null);
 		//return (c.getCount() == 0);
 		return false;

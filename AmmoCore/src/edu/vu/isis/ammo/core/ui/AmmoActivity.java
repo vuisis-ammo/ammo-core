@@ -25,17 +25,12 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
-import android.widget.RelativeLayout;
 import android.widget.TabHost;
-import android.widget.TextView;
-import android.widget.ToggleButton;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.Channel;
-import edu.vu.isis.ammo.core.model.Gateway;
-import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
@@ -174,13 +169,6 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         getTabHost().addTab(spec);
         */
         
-        intent = new Intent().setClass(this, CorePreferenceActivity.class);
-        /*
-        spec = tabHost.newTabSpec("settings");
-        spec.setIndicator("Preferences", res.getDrawable(R.drawable.cog_32));
-        spec.setContent(intent);
-        tabHost.addTab(spec);
-		*/
         tabHost.setCurrentTab(0);
         
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -318,50 +306,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     // UI Management
     // ===========================================================
 
-    public void onSettingsButtonClick(View view) {
-        logger.trace("::onClick");
-
-        Intent settingIntent = new Intent();
-        settingIntent.setClass(this, CorePreferenceActivity.class);
-        this.startActivity(settingIntent);
-    }
-
-    // public void onGatewayElectionToggle(View view) {
-    //     int position = this.channelList.getPositionForView(view);
-    //     Gateway gw = (Gateway) this.channelAdapter.getItem(position);
-
-    //     // get the button's row
-    //     RelativeLayout row = (RelativeLayout)view.getParent();
-    //     ToggleButton button = (ToggleButton)view;
-
-    //     if (button.isChecked()) {
-    //         gw.enable();
-    //     }
-    //     else {
-    //         TextView t = (TextView)row.findViewById(R.id.gateway_status_text_one);
-    //         t.setText("Disabling...");
-    //         gw.disable();
-    //     }
-
-    //     row.refreshDrawableState();
-    // }
-    
-    // public void onMulticastElectionToggle(View view)
-    // {
-    // 	int position = this.channelList.getPositionForView(view);
-    // 	Multicast  mc = (Multicast) this.channelAdapter.getItem(position);
-    	
-    // 	RelativeLayout row = (RelativeLayout)view.getParent();
-    // 	ToggleButton button = (ToggleButton)view;
-    	
-    // 	if(button.isChecked())
-    // 		mc.enable();
-    // 	else
-    // 		mc.disable();
-    	
-    // 	row.refreshDrawableState();
-    // }
-
+   
 
     /*
      * Used to toggle the netlink view between simple and advanced.
@@ -409,21 +354,4 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
 		
 	}
 
-	// public void editPreferences(View v)
-	// {
-	// 	ListView lv = (ListView) v.getParent().getParent();
-	// 	int position = lv.getPositionForView((View) v.getParent());
-	// 	Channel c = (Channel) lv.getAdapter().getItem(position);
-    //     Intent gatewayIntent = new Intent();
-    //     if(c.getClass().equals(Gateway.class))
-    //     {
-    //     	gatewayIntent.putExtra(ChannelDetailActivity.PREF_TYPE, ChannelDetailActivity.GATEWAY_PREF);
-    //     }
-    //     else
-    //     {
-    //     	gatewayIntent.putExtra(ChannelDetailActivity.PREF_TYPE, ChannelDetailActivity.MULTICAST_PREF);
-    //     }       
-    //     gatewayIntent.setClass(this, ChannelDetailActivity.class);
-    //     this.startActivity(gatewayIntent);
-	// }
 }

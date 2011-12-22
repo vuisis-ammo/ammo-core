@@ -9,34 +9,30 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.FileChannel;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.LinkedList;
+import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.TimeZone;
-import java.util.Date;
-
-import android.content.Context;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.location.LocationProvider;
-import android.location.GpsStatus.NmeaListener;
-import android.telephony.TelephonyManager;
-import android.os.Bundle;
-import android.os.Looper;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.Context;
+import android.location.GpsStatus.NmeaListener;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.location.LocationProvider;
+import android.os.Bundle;
+import android.os.Looper;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
-import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
 /**
@@ -594,7 +590,8 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
+        @SuppressWarnings("unused")
+		public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
         {
             logger.info( "putFromSecurityObject()" );
             mAuthQueue.offer( iMessage );
@@ -604,7 +601,8 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public synchronized void finishedPuttingFromSecurityObject()
+        @SuppressWarnings("unused")
+		public synchronized void finishedPuttingFromSecurityObject()
         {
             logger.info( "finishedPuttingFromSecurityObject()" );
             notifyAll();

@@ -26,9 +26,6 @@ import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.network.INetChannel;
-import edu.vu.isis.ammo.core.network.MulticastChannel;
-import edu.vu.isis.ammo.core.network.SerialChannel;
-import edu.vu.isis.ammo.core.network.TcpChannel;
 
 public class ChannelAdapter extends ArrayAdapter<Channel>
     implements OnTouchListener, OnNameChangeListener

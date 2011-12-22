@@ -2,13 +2,12 @@ package edu.vu.isis.ammo.core.ui;
 
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.preference.Preference;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.MyCheckBoxPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference;
+import edu.vu.isis.ammo.core.MyEditIntegerPreference.Type;
 import edu.vu.isis.ammo.core.MyEditTextPreference;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.MyEditIntegerPreference.Type;
 import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
 
 /**

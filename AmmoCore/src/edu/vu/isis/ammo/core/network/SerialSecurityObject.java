@@ -54,5 +54,6 @@ public class SerialSecurityObject implements ISecurityObject,
     }
 
 
-    private SerialChannel mChannel;
+    @SuppressWarnings("unused")
+	private SerialChannel mChannel;
 }

@@ -3,7 +3,7 @@ package edu.vu.isis.ammo.core.receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.IntentNames;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -34,7 +34,7 @@ public class PackageInstalledReceiver extends BroadcastReceiver {
 				|| action.equalsIgnoreCase(Intent.ACTION_PACKAGE_REPLACED)) {
 			if (packageName.contains("ammo")) {
 
-				final Intent readyIntent = new Intent(IPrefKeys.AMMO_READY);
+				final Intent readyIntent = new Intent(IntentNames.AMMO_READY);
 				//readyIntent.addCategory(packageName);
 				context.sendBroadcast(readyIntent);
 			}

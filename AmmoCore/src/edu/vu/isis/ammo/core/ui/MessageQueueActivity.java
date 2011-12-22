@@ -24,8 +24,10 @@ public class MessageQueueActivity extends Activity {
         setupView();
         setOnClickListeners();
         
-        String tableName = DistributorDataStore.Tables.DISPOSAL.n;
-        Uri uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n);
+        @SuppressWarnings("unused")
+		String tableName = DistributorDataStore.Tables.DISPOSAL.n;
+        @SuppressWarnings("unused")
+		Uri uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n);
         Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.DISPOSAL.n), null, null, null, null);
         logger.info("message{}", c);
         

@@ -415,7 +415,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                              .version(version)
                              .error(error);
                 } else if ( (version & 0xC0) == 0x40 ) {
-                    byte phone_id = (byte) (version & 0x3F);
+                    @SuppressWarnings("unused")
+					byte phone_id = (byte) (version & 0x3F);
 
                     int size = drain.getShort();
 
