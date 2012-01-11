@@ -269,7 +269,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// Lifecycle
 	// ===========================================================
 
-	private ApplicationEx application;
+	private AmmoCoreApp application;
 	
 	private IRegisterReceiver mReceiverRegistrar = null;
 
@@ -278,9 +278,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 
 	@SuppressWarnings("unused")
-	private ApplicationEx getApplicationEx() {
+	private AmmoCoreApp getApplicationEx() {
 		if (this.application == null)
-			this.application = (ApplicationEx) this.getApplication();
+			this.application = (AmmoCoreApp) this.getApplication();
 		return this.application;
 	}
 

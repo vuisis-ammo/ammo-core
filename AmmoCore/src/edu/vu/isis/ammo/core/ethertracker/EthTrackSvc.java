@@ -25,14 +25,14 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
-import edu.vu.isis.ammo.core.ApplicationEx;
+import edu.vu.isis.ammo.core.AmmoCoreApp;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ServiceEx;
 
 public class EthTrackSvc extends ServiceEx {
 
     private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
-	private ApplicationEx application;
+	private AmmoCoreApp application;
 
     private boolean mIsLinkUp = false;
 
@@ -40,7 +40,7 @@ public class EthTrackSvc extends ServiceEx {
 
     @Override
     public void onCreate() {
-        this.application = (ApplicationEx)this.getApplication();
+        this.application = (AmmoCoreApp)this.getApplication();
     }
 
     @Override

@@ -15,6 +15,6 @@ import android.content.Context;
 
 public abstract class ServiceEx extends Service {
     public Context getAppContext(){
-        return (ApplicationEx) getApplicationContext();
+        return (AmmoCoreApp) getApplicationContext();
     }
 }
