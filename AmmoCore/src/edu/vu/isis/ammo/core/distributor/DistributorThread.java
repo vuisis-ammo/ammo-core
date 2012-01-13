@@ -1,3 +1,13 @@
+/*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
+This software was developed by the Institute for Software Integrated
+Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
+Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
+The United States Government has unlimited rights to this software. 
+The US government has the right to use, modify, reproduce, release, 
+perform, display, or disclose computer software or computer software 
+documentation in whole or in part, in any manner and for any 
+purpose whatsoever, and to have or authorize others to do so.
+*/
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
@@ -14,6 +24,8 @@ import net.jcip.annotations.ThreadSafe;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
+import org.slf4j.MarkerFactory;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -29,6 +41,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
@@ -57,6 +70,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger("ammo-dst");
+	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
+	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
+	private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
 
 	// 20 seconds expressed in milliseconds
 	private static final int BURP_TIME = 20 * 1000;
@@ -488,6 +504,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
+		case TERSE_MESSAGE:
 			final boolean subscribeResult = receiveSubscribeResponse(context, mw);
 			logger.debug("subscribe reply {}", subscribeResult);
 			break;
@@ -514,7 +531,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			logger.debug("{} message, no processing", mw.getType());
 			break;
 		default:
-			logger.error("unexpected resply type. {}", mw.getType());
+			logger.error("unexpected reply type. {}", mw.getType());
 		}
 		return true;
 	}
@@ -652,7 +669,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * for which there is, now, an available channel.
 	 */
 	private void processPostalTable(final AmmoService that) {
-		logger.trace("processt table POSTAL");
+		logger.debug(MARK_POSTAL, "process table POSTAL");
 
 		if (!that.isConnected()) 
 			return;
@@ -754,7 +771,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 									dispersal, serializer,
 									new INetworkService.OnSendMessageHandler() {
 										final DistributorThread parent = DistributorThread.this;
-		                                                                final int id_ = id;
+		                                final int id_ = id;
 										@Override
 										public boolean ack(String channel, ChannelDisposal status) {
 											return parent.announceChannelAck( new ChannelAck(id_, Tables.POSTAL, channel, status) );
@@ -794,17 +811,31 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 					logger.error("No Payload");
 					return null;
 				}
-				final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
+				
+				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+				if (encode.getType() != Encoding.Type.TERSE) {
+					final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
 						.newBuilder()
 						.setUri(provider)
 						.setMimeType(msgType)
 						.setEncoding(encode.getType().name())
 						.setData(ByteString.copyFrom(serialized));
+					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+					mw.setDataMessage(pushReq);
 
-				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-				mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
-
-				mw.setDataMessage(pushReq);
+				} else {
+					final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
+					if (mimeId == null) {
+						logger.error("no integer mapping for this mime type {}", msgType);
+						return null;
+					}
+					final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
+							.newBuilder()
+							.setMimeType(mimeId)
+							.setData(ByteString.copyFrom(serialized));
+						mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
+						mw.setTerseMessage(pushReq);
+				}
 
 				logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n", System.currentTimeMillis() - now, serialized.length);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
@@ -978,7 +1009,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * Garbage collect items which are expired.
 	 */
 	private void processRetrievalTable(AmmoService that) {
-		logger.trace("process table RETRIEVAL");
+		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
 
@@ -1211,7 +1242,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 */
 
 	private void processSubscribeTable(AmmoService that) {
-		logger.trace("process table SUBSCRIBE");
+		logger.debug(MARK_SUBSCRIBE, "process table SUBSCRIBE");
 
 		final Cursor pending = this.store.querySubscribeReady();
 
@@ -1223,7 +1254,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
 
-			logger.trace("process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
+			logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
 
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 			final DistributorState dispersal = policy.makeRouteMap();
@@ -1314,15 +1345,30 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			logger.warn("no message");
 			return false;
 		}
-		if (!mw.hasDataMessage()) {
+		if (!mw.hasDataMessage() && !mw.hasTerseMessage() ) {
 			logger.warn("no data in message");
 			return false;
 		}
-		final AmmoMessages.DataMessage resp = mw.getDataMessage();
+		
+		String mime = null;
+		String encode = null;
+		com.google.protobuf.ByteString data = null;
+		if ( mw.hasDataMessage()) {
+			final AmmoMessages.DataMessage resp = mw.getDataMessage();
+			mime = resp.getMimeType();
+			data = resp.getData();
+			encode = resp.getEncoding();
+		} else {
+			final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
+			mime = AmmoMimeTypes.mimeTypes.get( resp.getMimeType());
+			data = resp.getData();	
+			encode = "TERSE";
+		}
+		
 		// final ContentResolver resolver = context.getContentResolver();
 
-		logger.trace("receive response SUBSCRIBE : {} : {}", resp.getMimeType(), resp.getUri());
-		final String topic = resp.getMimeType();
+		logger.trace("receive response SUBSCRIBE : {}", mime );
+		final String topic = mime;
 		final Cursor cursor = this.store.querySubscribeByKey(new String[] { SubscribeTableSchema.PROVIDER.n }, topic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no subscription {}", topic);
@@ -1335,8 +1381,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		cursor.close();
 		final Uri provider = Uri.parse(uriString);
 
-		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		RequestSerializer.deserializeToProvider(context, provider, encoding, resp.getData().toByteArray());
+		final Encoding encoding = Encoding.getInstanceByName( encode );
+		RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
 
 		return true;
 	}

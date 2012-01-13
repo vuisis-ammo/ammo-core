@@ -1,3 +1,13 @@
+/*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
+This software was developed by the Institute for Software Integrated
+Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
+Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
+The United States Government has unlimited rights to this software. 
+The US government has the right to use, modify, reproduce, release, 
+perform, display, or disclose computer software or computer software 
+documentation in whole or in part, in any manner and for any 
+purpose whatsoever, and to have or authorize others to do so.
+*/
 package edu.vu.isis.ammo.core.network;
 
 import java.io.IOException;
@@ -270,6 +280,19 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     }
 
 
+    //public int totalLength( byte version )
+    //{
+    //    if ( version == VERSION_1_FULL ) {
+    //        return HEADER_LENGTH + payload.length;
+    //    } else if ( version == VERSION_1_TERSE ) {
+    //        return HEADER_LENGTH_TERSE + payload.length;
+    //    } else {
+    //        logger.error("invalid version supplied {}", version);
+    //        return -1;
+    //    }    	
+    //}
+    
+    
     /**
      * Serialize the AmmoMessage for transmission to the gateway.
      * @return
@@ -402,7 +425,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                              .version(version)
                              .error(error);
                 } else if ( (version & 0xC0) == 0x40 ) {
-                    byte phone_id = (byte) (version & 0x3F);
+                    @SuppressWarnings("unused")
+					byte phone_id = (byte) (version & 0x3F);
 
                     int size = drain.getShort();
 

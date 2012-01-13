@@ -4,12 +4,13 @@
      ch.qos.logback.classic.encoder.PatternLayoutEncoder 
  -->
 <configuration> 
-  <appender name="LOGCAT" class="ch.qos.logback.android.LogcatAppender"> 
+   
+  <appender name="LOGCAT" class="ch.qos.logback.core.android.LogcatAppender"> 
     <encoder>
       <pattern>%msg%n</pattern>
     </encoder>
   </appender>
-  
+
   <!-- 
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender"> 
     <encoder>

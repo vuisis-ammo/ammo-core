@@ -1,6 +1,13 @@
-/**
- * 
- */
+/*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
+This software was developed by the Institute for Software Integrated
+Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
+Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
+The United States Government has unlimited rights to this software. 
+The US government has the right to use, modify, reproduce, release, 
+perform, display, or disclose computer software or computer software 
+documentation in whole or in part, in any manner and for any 
+purpose whatsoever, and to have or authorize others to do so.
+*/
 package edu.vu.isis.ammo.core.ui;
 
 import java.util.Calendar;
@@ -23,7 +30,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
-import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatch;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
@@ -75,7 +82,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         btnSubscribe.setOnClickListener(this);
         
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        this.uid = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, "transappuser");
+        this.uid = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, "transappuser");
 	}  
 
 	@Override
@@ -119,7 +126,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	
 	private boolean entryDoesNotExist(ContentResolver cr, Uri selectedUri) {
 		// String[] projection = {SubscribeTableSchema.PROVIDER.n, SubscribeTableSchema._ID};
-		String selection = SubscribeTableSchema.PROVIDER.q() + " LIKE \"" + selectedUri.toString() + "\"";
+		// String selection = SubscribeTableSchema.PROVIDER.q() + " LIKE \"" + selectedUri.toString() + "\"";
 		// Cursor c = cr.query(SubscribeTableSchema.CONTENT_URI, projection, selection, null, null);
 		//return (c.getCount() == 0);
 		return false;

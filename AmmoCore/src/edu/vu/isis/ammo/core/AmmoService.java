@@ -1,6 +1,13 @@
-/**
- *
- */
+/*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
+This software was developed by the Institute for Software Integrated
+Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
+Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
+The United States Government has unlimited rights to this software. 
+The US government has the right to use, modify, reproduce, release, 
+perform, display, or disclose computer software or computer software 
+documentation in whole or in part, in any manner and for any 
+purpose whatsoever, and to have or authorize others to do so.
+*/
 package edu.vu.isis.ammo.core;
 
 import java.util.ArrayList;
@@ -13,12 +20,17 @@ import java.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import transapps.settings.CompositeSettings;
+import transapps.settings.Keys;
+import transapps.settings.Settings;
+
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
@@ -32,7 +44,7 @@ import android.telephony.TelephonyManager;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.IPrefKeys;
+import edu.vu.isis.ammo.IntentNames;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
@@ -174,7 +186,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	private String sessionId = "";
 	private String deviceId = null;
-	private String operatorId = "0004";
+	private String operatorId = null;
 	private String operatorKey = "37";
 
 	// journalingSwitch
@@ -183,7 +195,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// Determine if the connection is enabled
 	private boolean gatewayEnabled = true;
     private boolean multicastEnabled = true;
-    private boolean serialEnabled = true;
+    private boolean serialEnabled = false;
 	// for providing networking support
 	// should this be using IPv6?
 	private boolean networkingSwitch = true;
@@ -208,7 +220,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
 	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
 	private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
-	private SerialChannel serialChannel = new SerialChannel( "serial",  this );
+	private SerialChannel serialChannel;
 
 	final private Map<String,NetChannel> mChannelMap = new HashMap<String,NetChannel>();
 
@@ -316,7 +328,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 
 	private PhoneStateListener mListener;
-
+	
+	private SharedPreferences globalSettings;
+	private SharedPreferences localSettings;
+	private SharedPreferences settings;
+	
 	/**
 	 * When the service is first created, we should grab the IP and Port values
 	 * from the SystemPreferences.
@@ -325,6 +341,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public void onCreate() {
 		super.onCreate();
 		logger.info("::onCreate");
+		final Context context = this.getBaseContext();
 
 		// set up the worker thread
 		this.distThread = new DistributorThread(this.getApplicationContext());
@@ -365,13 +382,18 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		mReadyResourceReceiver.checkResourceStatus(this);
 
-		this.policy = DistributorPolicy.newInstance(this.getBaseContext());
+		this.policy = DistributorPolicy.newInstance(context);
 		
 
-		final SharedPreferences prefs = PreferenceManager
-				.getDefaultSharedPreferences(this);
-		prefs.registerOnSharedPreferenceChangeListener(this);
+		this.globalSettings = new Settings(context);
+		this.globalSettings.registerOnSharedPreferenceChangeListener(this);
+		
+		this.localSettings = PreferenceManager.getDefaultSharedPreferences(this);
+		this.localSettings.registerOnSharedPreferenceChangeListener(this);
+		//this.settings = new CompositeSettings(this.localSettings, this.globalSettings);
 
+		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
+		
 		mChannelMap.put("default", this.tcpChannel);
 		mChannelMap.put(this.tcpChannel.name, this.tcpChannel);
 		mChannelMap.put(this.multicastChannel.name, this.multicastChannel);
@@ -398,6 +420,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
         // The serial channel is created in a disabled state.
+		{
+		   final String globalId = this.globalSettings.getString(Keys.UserKeys.USERNAME, null);
+		   if (globalId != null) {
+				final Editor editor = this.localSettings.edit();
+				editor.putString(INetPrefKeys.CORE_OPERATOR_ID, globalId );
+				editor.commit();
+		   }
+		}
 		this.acquirePreferences();
 		if (this.networkingSwitch && this.gatewayEnabled) {
 			this.tcpChannel.enable();
@@ -436,7 +466,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				.getSystemService(Context.TELEPHONY_SERVICE);
 		tm.listen(mListener, PhoneStateListener.LISTEN_DATA_CONNECTION_STATE);
 
-		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		final Intent loginIntent = new Intent(IntentNames.AMMO_LOGIN);
 		
 		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
@@ -455,8 +485,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.distThread.clearTables();
 		
 		// broadcast login event to apps ...
-		final Intent loginIntent = new Intent(INetPrefKeys.AMMO_READY);
-		loginIntent.addCategory(INetPrefKeys.RESET_CATEGORY);
+		final Intent loginIntent = new Intent(IntentNames.AMMO_READY);
+		loginIntent.addCategory(IntentNames.RESET_CATEGORY);
 
 		this.acquirePreferences();
 		this.tcpChannel.reset();
@@ -494,6 +524,15 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// ===========================================================
 
 	/**
+	 * The operator id may be set from the global context.
+	 * 
+	 */
+	private void refreshOperatorId() {
+		this.operatorId = 
+				this.localSettings.getString(INetPrefKeys.CORE_OPERATOR_ID, 
+				this.operatorId);
+	}
+	/**
 	 * Read the system preferences for the network connection information.
 	 */
 	private void acquirePreferences() {
@@ -509,7 +548,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 
 		this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
-		this.operatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, this.operatorId);
+		refreshOperatorId();
 		this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
 
 		String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
@@ -618,16 +657,25 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				this.auth();
 			return;
 		}
-		if (key.equals(IPrefKeys.CORE_OPERATOR_ID)) {
-			this.operatorId = prefs.getString(IPrefKeys.CORE_OPERATOR_ID, this.operatorId);
+		if (key.equals(Keys.UserKeys.USERNAME)) {
+			String globalId = prefs.getString(key, this.operatorId);
 			
-			// Refresh if the operator id changes since that will affect our subscriptions.
-			this.refresh();
-			if (this.isConnected())
-				this.auth(); // TBD SKN: this should really do a setStale rather
-			// than just authenticate
+			final Editor editor = this.localSettings.edit();
+			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, globalId );
+			editor.commit();
+			 
+			//this.refresh();
+			//if (this.isConnected()) this.auth(); 
 			return;
 		}
+		if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
+			this.operatorId = prefs.getString(key, this.operatorId);
+			
+			this.refresh();
+			if (this.isConnected()) this.auth(); 
+			return;
+		}
+		
 		if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
 			this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
 			if (this.isConnected())
@@ -862,7 +910,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @return
 	 */
 	public boolean isConnected() {
-		boolean any = tcpChannel.isConnected() || multicastChannel.isConnected() || serialChannel.isConnected();
+	    boolean any = tcpChannel.isConnected() || multicastChannel.isConnected() || ((serialChannel != null) && serialChannel.isConnected());
 		logger.debug("::isConnected ? {}", any );
 		return any;
 	}
@@ -930,12 +978,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("authentication complete inform applications : ");
 		// TBD SKN - this should not be sent now ...
 		// broadcast login event to apps ...
-		Intent loginIntent = new Intent(INetPrefKeys.AMMO_LOGIN);
+		Intent loginIntent = new Intent(IntentNames.AMMO_LOGIN);
 		loginIntent.putExtra("operatorId", this.operatorId);
 		this.sendBroadcast(loginIntent);
 
 		// broadcast gateway connected to apps ...
-		loginIntent = new Intent(INetPrefKeys.AMMO_CONNECTED);
+		loginIntent = new Intent(IntentNames.AMMO_CONNECTED);
 		loginIntent.putExtra("channel", channel.name);
 		this.sendBroadcast(loginIntent);
 

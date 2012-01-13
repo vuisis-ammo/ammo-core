@@ -1,7 +1,18 @@
+/*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
+This software was developed by the Institute for Software Integrated
+Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
+Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
+The United States Government has unlimited rights to this software. 
+The US government has the right to use, modify, reproduce, release, 
+perform, display, or disclose computer software or computer software 
+documentation in whole or in part, in any manner and for any 
+purpose whatsoever, and to have or authorize others to do so.
+*/
 package edu.vu.isis.ammo.core.model;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
@@ -22,12 +33,14 @@ public class Serial extends Channel
 		return instance;
 	}
 
-	private boolean election;
-	private int[] status;
+	private boolean election = false;
+	private int[] status = null;
 
 	private Serial(Context context, String name)
     {
 		super(context, name);
+
+		election = this.prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false);
 	}
 
 
@@ -46,14 +59,15 @@ public class Serial extends Channel
 	public void enable()
     {
 		this.setElection(true);
-
 	}
 
 
 	private void setElection(boolean b)
     {
 		this.election = b;
-		this.prefs.edit().putBoolean(INetPrefKeys.SERIAL_SHOULD_USE, this.election).commit();
+        Editor editor = this.prefs.edit();
+        editor.putBoolean(INetPrefKeys.SERIAL_SHOULD_USE, this.election);
+        editor.commit();
 	}
 
 
@@ -61,7 +75,6 @@ public class Serial extends Channel
 	public void disable()
     {
 		this.setElection(false);
-
 	}
 
 
