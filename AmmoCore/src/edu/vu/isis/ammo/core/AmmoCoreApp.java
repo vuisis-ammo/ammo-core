@@ -1,3 +1,13 @@
+/*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
+This software was developed by the Institute for Software Integrated
+Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
+Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
+The United States Government has unlimited rights to this software. 
+The US government has the right to use, modify, reproduce, release, 
+perform, display, or disclose computer software or computer software 
+documentation in whole or in part, in any manner and for any 
+purpose whatsoever, and to have or authorize others to do so.
+*/
 package edu.vu.isis.ammo.core;
 /**
  * This is the place for application global information.
@@ -22,16 +32,16 @@ import android.os.Environment;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
-public class ApplicationEx  extends Application {
-    private static final Logger logger = LoggerFactory.getLogger(ApplicationEx.class);
+public class AmmoCoreApp  extends Application {
+    private static final Logger logger = LoggerFactory.getLogger(AmmoCoreApp.class);
 
-    private static ApplicationEx singleton;
+    private static AmmoCoreApp singleton;
 
-    public ApplicationEx() {
+    public AmmoCoreApp() {
         super();
     }
 
-    public static ApplicationEx getInstance() {
+    public static AmmoCoreApp getInstance() {
         return singleton;
     }
 
@@ -59,7 +69,7 @@ public class ApplicationEx  extends Application {
      * But that isn't available until APIv8
      */
     public File getPublicDirectory (String type) {
-        File base = new File(Environment.getExternalStorageDirectory(), ApplicationEx.class.toString());
+        File base = new File(Environment.getExternalStorageDirectory(), AmmoCoreApp.class.toString());
         return new File(base, type);
     }
 }
