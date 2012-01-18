@@ -395,8 +395,17 @@ public class RequestSerializer {
 					for (char charValue : textValue) {
 					    tuple.putChar(charValue);
 					}
-					break;
-				case FIELD_TYPE_BOOL:
+                    // Don't change this to use a char[].  If the key is not present,
+                    // getString() returns an empty string, and we count on this.
+					//String svalue = tupleCursor.getString( tupleCursor.getColumnIndex(key) );
+					//int length = svalue.length();
+					//tuple.putInt( length );
+					//for ( int i = 0; i < length; i++ ) {
+					//    char c = svalue.charAt(i);
+					//	tuple.putChar( c );
+                    //}
+ 					break;
+ 				case FIELD_TYPE_BOOL:
 				case FIELD_TYPE_INTEGER:
 				case FIELD_TYPE_EXCLUSIVE:
 				case FIELD_TYPE_INCLUSIVE:
