@@ -87,7 +87,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
 		this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200, new AmmoGatewayMessage.PriorityOrder());
 		this.store = new DistributorDataStore(context);
+		
 		this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
+		this.channelDelta = new AtomicBoolean(true);
+		
 		this.channelAck = new LinkedBlockingQueue<ChannelAck>(200);
 		logger.debug("constructed");
 	}
@@ -126,8 +129,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * off-line are uninteresting so no signal.
 	 */
 	private final ConcurrentMap<String, ChannelStatus> channelStatus;
-
-	private AtomicBoolean channelDelta = new AtomicBoolean(true);
+	private final AtomicBoolean channelDelta;
 
 	/**
 	 * The status field indicates the table does not yet reflect this state

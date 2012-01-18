@@ -66,4 +66,13 @@ public interface INetChannel {
     ChannelDisposal sendRequest( AmmoGatewayMessage agm );
     //String getLocalIpAddress();
 
+
+    /**
+     * This method indicates that when the channel connects it is not
+     * yet active, ChannelChange.ACTIVATE, until the authentication is complete.
+     * In the default case channels are non-authenticating.
+     * 
+     * @return false if non-authenticating, true for authenticating.
+     */
+	 boolean isAuthenticatingChannel();
 }
