@@ -20,7 +20,6 @@ import java.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import transapps.settings.CompositeSettings;
 import transapps.settings.Keys;
 import transapps.settings.Settings;
 
@@ -341,7 +340,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	
 	private SharedPreferences globalSettings;
 	private SharedPreferences localSettings;
-	private SharedPreferences settings;
 	
 	/**
 	 * When the service is first created, we should grab the IP and Port values
@@ -1078,19 +1076,20 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.debug("status change. channel={}", channel.name );
 
 		mChannels.get(channel.name)
-		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
+		         .setStatus(new int[] { connStatus, sendStatus, recvStatus });
 
-		// TBD needs mapping from channel status to "ACTIVATE/DEACTIVATE"
+        switch (connStatus) {
+        case NetChannel.CONNECTED:
+        	if (channel.isAuthenticatingChannel()) break;
+        case NetChannel.SENDING:
+        case NetChannel.TAKING:
+        	this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.ACTIVATE);
+        	break;
+        default: 
+        	this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.DEACTIVATE);
+        }
 
-        if (connStatus != NetChannel.CONNECTED) {
-		    this.distThread.onChannelChange(this.getBaseContext(), channel.name,
-                     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
-				     ChannelChange.ACTIVATE : ChannelChange.DEACTIVATE);
-            // channel is ACTIVATED by authenticate
-		}
-
-		final Intent broadcastIntent = new Intent(
-				AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
+		final Intent broadcastIntent = new Intent(AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
 		this.sendBroadcast(broadcastIntent);
 	}
 

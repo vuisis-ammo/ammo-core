@@ -1297,4 +1297,10 @@ public class SerialChannel extends NetChannel
 	public boolean isBusy() {
     	return false;
 	}
+
+
+	@Override
+	public boolean isAuthenticatingChannel() {
+		return false;
+	}
 }
