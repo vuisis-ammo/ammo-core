@@ -43,6 +43,8 @@ public class ChannelDetailActivity extends PreferenceActivityEx
 	
 	public static final int GATEWAY_PREF = 0;
 	public static final int MULTICAST_PREF = 1;
+	public static final int RELIABLE_MULTICAST_PREF = 2;
+
 	// ===========================================================
 	// Fields
 	// ===========================================================
@@ -93,39 +95,33 @@ public class ChannelDetailActivity extends PreferenceActivityEx
 			this.netConnPref.setType(Type.TIMEOUT);
 			this.netConnPref.refreshSummaryField();
 			break;
-		case MULTICAST_PREF:
-			this.addPreferencesFromResource(R.xml.multicast_prefs);
+		case RELIABLE_MULTICAST_PREF:
+			this.addPreferencesFromResource(R.xml.reliable_multicast_prefs);
 			// IP Preference Setup
-			this.ipPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.MULTICAST_IP_ADDRESS);
+			this.ipPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS);
 			this.ipPref.setType(MyEditTextPreference.Type.IP);
 			this.ipPref.refreshSummaryField();
 			
 			// Port Preference Setup
-			this.portPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_PORT);
+			this.portPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_PORT);
 			this.portPref.setType(Type.PORT);
 			this.portPref.refreshSummaryField();
 			
 			// Enabled Preference Setup
-			this.enabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.MULTICAST_SHOULD_USE);
+			this.enabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE);
 			this.enabledPref.refreshSummaryField();
 			
 			// Connection Idle Timeout
-			this.connIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT);
+			this.connIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT);
 			this.connIdlePref.setType(Type.TIMEOUT);
 			this.connIdlePref.refreshSummaryField();
 			
 			// Network Connection Timeout
-			this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT);
+			this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_NET_CONN_TIMEOUT);
 			this.netConnPref.setType(Type.TIMEOUT);
 			this.netConnPref.refreshSummaryField();
 			break;
 		}
-		
-
-	
-				
-
-		
 	}
 	
 	@Override

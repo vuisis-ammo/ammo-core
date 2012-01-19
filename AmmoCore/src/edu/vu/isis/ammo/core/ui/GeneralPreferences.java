@@ -56,6 +56,14 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	private MyEditIntegerPreference mcNetConnPref;
 	private MyEditIntegerPreference mcTTLPref;
 
+	// Reliable Multicast
+	private MyEditTextPreference rmcIpPref;
+	private MyEditIntegerPreference rmcPortPref;
+	private MyCheckBoxPreference rmcEnabledPref;
+	private MyEditIntegerPreference rmcConnIdlePref;
+	private MyEditIntegerPreference rmcNetConnPref;
+	private MyEditIntegerPreference rmcTTLPref;
+
     // Serial port
 	private MyCheckBoxPreference serialUsePref;
 	private MyEditTextPreference devicePref;
@@ -117,6 +125,37 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.mcTTLPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_TTL);
 		this.mcTTLPref.setType(Type.TTL);
 		this.mcTTLPref.refreshSummaryField();
+		
+		/*
+		 * Reliable Multicast Setup
+		 */
+		this.rmcIpPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS);
+		this.rmcIpPref.setType(MyEditTextPreference.Type.IP);
+		this.rmcIpPref.refreshSummaryField();
+		
+		// Port Preference Setup
+		this.rmcPortPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_PORT);
+		this.rmcPortPref.setType(Type.PORT);
+		this.rmcPortPref.refreshSummaryField();
+		
+		// Enabled Preference Setup
+		this.rmcEnabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE);
+		this.rmcEnabledPref.refreshSummaryField();
+		
+		// Connection Idle Timeout
+		this.rmcConnIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT);
+		this.rmcConnIdlePref.setType(Type.TIMEOUT);
+		this.rmcConnIdlePref.refreshSummaryField();
+		
+		// Network Connection Timeout
+		this.rmcNetConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_NET_CONN_TIMEOUT);
+		this.rmcNetConnPref.setType(Type.TIMEOUT);
+		this.rmcNetConnPref.refreshSummaryField();
+
+		// Network Connection Timeout
+		this.rmcTTLPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_TTL);
+		this.rmcTTLPref.setType(Type.TTL);
+		this.rmcTTLPref.refreshSummaryField();
 		
 		/*
 		 * Gateway Setup

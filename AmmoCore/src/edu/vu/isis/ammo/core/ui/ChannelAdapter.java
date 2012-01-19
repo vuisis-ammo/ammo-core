@@ -34,6 +34,7 @@ import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
+import edu.vu.isis.ammo.core.model.ReliableMulticast;
 import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.network.INetChannel;
 
@@ -66,6 +67,11 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
                     c.disable();
             } else if ( Multicast.class.isInstance( c )) {
                 if ( prefs.getBoolean( INetPrefKeys.MULTICAST_SHOULD_USE, true ))
+                    c.enable();
+                else
+                    c.disable();
+            } else if ( ReliableMulticast.class.isInstance( c )) {
+                if ( prefs.getBoolean( INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, true ))
                     c.enable();
                 else
                     c.disable();
@@ -143,6 +149,11 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         {
 	        text_one = (TextView)row.findViewById(R.id.multicast_status_one);
 	        text_two = (TextView)row.findViewById(R.id.multicast_status_two);
+        }
+        else if(channelType.equals(ReliableMulticast.KEY))
+        {
+	        text_one = (TextView)row.findViewById(R.id.reliable_multicast_status_one);
+	        text_two = (TextView)row.findViewById(R.id.reliable_multicast_status_two);
         }
         else if ( channelType.equals(Serial.KEY) )
         {
