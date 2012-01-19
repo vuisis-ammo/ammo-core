@@ -1208,7 +1208,5 @@ public class TcpChannel extends NetChannel {
 	}
 
 	@Override
-	public boolean isAuthenticatingChannel() {
-		return true;
-	}
+	public boolean isAuthenticatingChannel() { return true; }
 }

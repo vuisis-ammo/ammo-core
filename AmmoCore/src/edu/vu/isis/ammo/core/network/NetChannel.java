@@ -58,4 +58,6 @@ public abstract class NetChannel implements INetChannel {
     @Override
     public String toString() { return this.name; }
 
+	@Override
+	public boolean isAuthenticatingChannel() { return false; }
 }

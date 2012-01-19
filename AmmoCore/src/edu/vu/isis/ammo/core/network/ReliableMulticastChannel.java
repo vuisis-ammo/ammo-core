@@ -1192,7 +1192,5 @@ public class ReliableMulticastChannel extends NetChannel
 
 
 	@Override
-	public boolean isBusy() {
-		return false;
-	}
+	public boolean isBusy() { return false; }
 }
