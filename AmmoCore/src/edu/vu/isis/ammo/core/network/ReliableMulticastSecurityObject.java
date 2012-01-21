@@ -63,6 +63,6 @@ public class ReliableMulticastSecurityObject implements ISecurityObject,
         return true;
     }
 
-
+    @SuppressWarnings("unused")
 	private ReliableMulticastChannel mChannel;
 }

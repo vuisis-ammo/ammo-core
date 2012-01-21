@@ -8,5 +8,6 @@
 	<classpathentry kind="lib" path="/usr/local/share/java/logback-android.jar"/>
 	<classpathentry kind="lib" path="/usr/local/share/java/slf4j-api.jar"/>
 	<classpathentry kind="lib" path="/usr/local/share/java/tasettingsapi.jar"/>
+	<classpathentry kind="lib" path="/usr/local/share/java/jgroups.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

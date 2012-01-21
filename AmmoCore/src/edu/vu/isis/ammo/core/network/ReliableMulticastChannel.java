@@ -33,6 +33,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.jgroups.Address;
+import org.jgroups.Channel;
+import org.jgroups.ChannelListener;
+import org.jgroups.ExtendedReceiverAdapter;
+import org.jgroups.JChannel;
+import org.jgroups.Message;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
