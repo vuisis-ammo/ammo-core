@@ -12,10 +12,10 @@ package edu.vu.isis.ammo.core.network;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
-import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.jgroups.Address;
+//import org.jgroups.Address;
 import org.jgroups.Channel;
 import org.jgroups.ChannelListener;
 import org.jgroups.ReceiverAdapter;
@@ -42,6 +42,8 @@ import org.jgroups.Message;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import android.os.Environment;
 
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -81,7 +83,7 @@ public class ReliableMulticastChannel extends NetChannel
 
     // New threads
     private SenderThread mSender;
-    private ReceiverThread mReceiver;
+    private ChannelReceiver mReceiver;
 
     @SuppressWarnings("unused")
     private int connectTimeout = 5 * 1000; // this should come from network preferences
@@ -99,7 +101,8 @@ public class ReliableMulticastChannel extends NetChannel
     @SuppressWarnings("unused")
 	private final long flatLineTime;
 
-    private MulticastSocket mSocket;
+	private JChannel mJGroupChannel;
+    //private MulticastSocket mSocket;
     private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
     private int mMulticastPort;
@@ -402,9 +405,8 @@ public class ReliableMulticastChannel extends NetChannel
      * There is no reason to run the thread unless the channel is enabled.
      *
      * Any of the properties of the channel
-     *
      */
-    private class ConnectorThread extends Thread {
+    private class ConnectorThread extends Thread implements ChannelListener {
         private final Logger logger = LoggerFactory.getLogger( "net.mcast.connector" );
 
         // private final String DEFAULT_HOST = "192.168.1.100";
@@ -416,11 +418,11 @@ public class ReliableMulticastChannel extends NetChannel
 
         private AtomicBoolean mIsConnected;
 
-        public void statusChange()
-        {
-            parent.statusChange();
-        }
+        public void statusChange() { parent.statusChange(); }
 
+        public void channelConnected(Channel channel) {}
+        public void channelDisconnected(Channel channel) {}
+        public void channelClosed(Channel channel) {}
 
         // Called by the sender and receiver when they have an exception on the
         // socket.  We only want to call reset() once, so we use an
@@ -684,19 +686,21 @@ public class ReliableMulticastChannel extends NetChannel
             }
 
             // Create the MulticastSocket.
-            if ( parent.mSocket != null )
-                logger.error( "Tried to create mSocket when we already had one." );
+            if ( parent.mJGroupChannel != null )
+                logger.error( "Tried to create mJGroupChannel when we already had one." );
             try
             {
-                parent.mSocket = new MulticastSocket( parent.mMulticastPort );
-                parent.mSocket.joinGroup( parent.mMulticastGroup );
+            	File configFile = new File( Environment.getExternalStorageDirectory()
+											+ "/support/jgroups/udp.xml" );
+            	parent.mJGroupChannel = new JChannel( configFile );
+            	//parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT, Boolean.TRUE ); // deprecated
             }
             catch ( Exception e )
             {
                 logger.warn( "connection to {}:{} failed: " + e.getLocalizedMessage(),
                              parent.mMulticastGroup,
                              parent.mMulticastPort );
-                parent.mSocket = null;
+                parent.mJGroupChannel = null;
                 return false;
             }
 
@@ -720,15 +724,23 @@ public class ReliableMulticastChannel extends NetChannel
             parent.mSender = new SenderThread( this,
                                                parent,
                                                parent.mSenderQueue,
-                                               parent.mSocket );
+                                               parent.mJGroupChannel );
             parent.mSender.start();
 
             // Create the receiving thread.
             if ( parent.mReceiver != null )
                 logger.error( "Tried to create Receiver when we already had one." );
-            parent.mReceiver = new ReceiverThread( this, parent, parent.mSocket );
-            parent.mReceiver.start();
+            parent.mReceiver = new ChannelReceiver( this, parent );
 
+        	parent.mJGroupChannel.setReceiver( parent.mReceiver );
+        	//parent.mJGroupChannel.addChannelListener( this ); // don't do this yet
+        	try {
+        		parent.mJGroupChannel.connect( "AmmoGroup" );
+        	} catch ( Exception ex ) {
+        		// FIXME: shouldn't happen, but figure out how to clean up and return false.
+        	}
+
+        	// Should this be moved to before the construction of the Sender and Receiver?
             // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
             // just a temporary hack.
             //parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest());
@@ -749,29 +761,23 @@ public class ReliableMulticastChannel extends NetChannel
 
                 // Have to close the socket first unless we convert to
                 // an interruptible datagram socket.
-                if ( parent.mSocket != null )
+                if ( parent.mJGroupChannel != null )
                 {
                     logger.debug( "Closing ReliableMulticastSocket." );
-                    parent.mSocket.close();
+                    parent.mJGroupChannel.close(); // will disconnect first if still connected
                     logger.debug( "Done" );
 
-                    parent.mSocket = null;
+                    parent.mJGroupChannel = null;
                 }
 
  				if ( mSender != null ) {
                     logger.debug( "interrupting SenderThread" );
 					mSender.interrupt();
                 }
-				if ( mReceiver != null ) {
-                    logger.debug( "interrupting ReceiverThread" );
-					mReceiver.interrupt();
-                }
 
                 // We need to wait here until the threads have stopped.
                 logger.debug( "calling join() on SenderThread" );
                 mSender.join();
-                logger.debug( "calling join() on ReceiverThread" );
-                mReceiver.join();
 
                 parent.mSender = null;
                 parent.mReceiver = null;
@@ -946,12 +952,12 @@ public class ReliableMulticastChannel extends NetChannel
         public SenderThread( ConnectorThread iParent,
                              ReliableMulticastChannel iChannel,
                              SenderQueue iQueue,
-                             MulticastSocket iSocket )
+                             JChannel iJChannel )
         {
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
-            mSocket = iSocket;
+            mJChannel = iJChannel;
         }
 
 
@@ -1012,10 +1018,9 @@ public class ReliableMulticastChannel extends NetChannel
                     logger.debug( "...{}", mChannel.mMulticastGroup );
                     logger.debug( "...{}", mChannel.mMulticastPort );
 
-                    mSocket.setTimeToLive( mChannel.mMulticastTTL.get() );
-                    mSocket.send( packet );
-
-                    logger.info( "Wrote packet to MulticastSocket." );
+                    mJChannel.send( null, buf );
+                    
+                    logger.info( "Wrote packet to JGroups channel." );
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
@@ -1058,60 +1063,58 @@ public class ReliableMulticastChannel extends NetChannel
         private ConnectorThread mParent;
         private ReliableMulticastChannel mChannel;
         private SenderQueue mQueue;
-        private MulticastSocket mSocket;
+        private JChannel mJChannel;
         private final Logger logger = LoggerFactory.getLogger( "net.mcast.sender" );
     }
 
 
     ///////////////////////////////////////////////////////////////////////////
     //
-     class ReceiverThread extends Thread
+    class ChannelReceiver extends ReceiverAdapter
     {
-        public ReceiverThread( ConnectorThread iParent,
-                               ReliableMulticastChannel iDestination,
-                               MulticastSocket iSocket )
+        public ChannelReceiver( ConnectorThread iParent,
+                                ReliableMulticastChannel iDestination )
         {
             mParent = iParent;
             mDestination = iDestination;
-            mSocket = iSocket;
         }
 
         @Override
-        public void run()
+        public void receive( Message msg )
         {
-            logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
+            logger.info( "Thread <{}>: ChannelReceiver::receive()", Thread.currentThread().getId() );
 
-            // Block on reading from the MulticastSocket until we get some data.
             // If we get an error, notify our parent and go into an error state.
 
             // This code assumes that each datagram contained exactly one message.
             // If this needs to change in the future, this code will need to be
             // revised.
 
-            List<InetAddress> addresses = getLocalIpAddresses();
+            //List<InetAddress> addresses = getLocalIpAddresses();
 
-            byte[] raw = new byte[100000]; // FIXME: What is max datagram size?
-            while ( getReceiverState() != INetChannel.INTERRUPTED )
+            //byte[] raw = new byte[100000]; // FIXME: What is max datagram size?
+            if  ( getReceiverState() != INetChannel.INTERRUPTED )
             {
                 try
                 {
-                    DatagramPacket packet = new DatagramPacket( raw, raw.length );
-                    logger.debug( "Calling receive() on the MulticastSocket." );
+                    //DatagramPacket packet = new DatagramPacket( raw, raw.length );
+                    //logger.debug( "Calling receive() on the MulticastSocket." );
 
                     setReceiverState( INetChannel.START );
 
-                    mSocket.receive( packet );
-                    logger.debug( "Received a packet. length={}", packet.getLength() );
-                    logger.debug( "source IP={}", packet.getAddress() );
-                    if ( addresses.contains( packet.getAddress() ))
-                    {
-                        logger.error( "Discarding packet from self." );
-                        continue;
-                    }
+                    //mSocket.receive( packet );
+                    //logger.debug( "Received a packet. length={}", packet.getLength() );
+                    //logger.debug( "source IP={}", packet.getAddress() );
+                    //if ( addresses.contains( packet.getAddress() ))
+                    //{
+                    //    logger.error( "Discarding packet from self." );
+                    //    continue;
+                    //}
 
-                    ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
-                                                      packet.getOffset(),
-                                                      packet.getLength() );
+                    ByteBuffer buf = ByteBuffer.wrap( msg.getBuffer() );
+                    //ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
+                    //        packet.getOffset(),
+                    //        packet.getLength() );
                     buf.order( endian );
 
                     // wrap() creates a buffer that is ready to be drained,
@@ -1121,7 +1124,7 @@ public class ReliableMulticastChannel extends NetChannel
                     if ( agmb == null )
                     {
                         logger.error( "Deserialization failure. Discarded invalid packet." );
-                        continue;
+                        return;
                     }
 
                     // extract the payload
@@ -1162,7 +1165,6 @@ public class ReliableMulticastChannel extends NetChannel
         private int mState = INetChannel.TAKING; // fixme
         private ConnectorThread mParent;
         private ReliableMulticastChannel mDestination;
-        private MulticastSocket mSocket;
         private final Logger logger
             = LoggerFactory.getLogger( "net.mcast.receiver" );
     }
