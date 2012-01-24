@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.jgroups.Address;
 import org.jgroups.Channel;
 import org.jgroups.ChannelListener;
-import org.jgroups.ExtendedReceiverAdapter;
+import org.jgroups.ReceiverAdapter;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 
