@@ -407,7 +407,7 @@ public class ReliableMulticastChannel extends NetChannel
      * Any of the properties of the channel
      */
     private class ConnectorThread extends Thread implements ChannelListener {
-        private final Logger logger = LoggerFactory.getLogger( "net.mcast.connector" );
+        private final Logger logger = LoggerFactory.getLogger( "net.rmcast.connector" );
 
         // private final String DEFAULT_HOST = "192.168.1.100";
         // private final int DEFAULT_PORT = 33289;
@@ -421,8 +421,8 @@ public class ReliableMulticastChannel extends NetChannel
         public void statusChange() { parent.statusChange(); }
 
         public void channelConnected(Channel channel) {}
-        public void channelDisconnected(Channel channel) {}
-        public void channelClosed(Channel channel) {}
+        public void channelDisconnected(Channel channel) { socketOperationFailed(); } // Is this right?
+        public void channelClosed(Channel channel) { socketOperationFailed(); }       // Is this right?
 
         // Called by the sender and receiver when they have an exception on the
         // socket.  We only want to call reset() once, so we use an
@@ -1018,7 +1018,7 @@ public class ReliableMulticastChannel extends NetChannel
                     logger.debug( "...{}", mChannel.mMulticastGroup );
                     logger.debug( "...{}", mChannel.mMulticastPort );
 
-                    mJChannel.send( null, buf );
+                    mJChannel.send( null, buf.array() );
                     
                     logger.info( "Wrote packet to JGroups channel." );
 
@@ -1064,7 +1064,7 @@ public class ReliableMulticastChannel extends NetChannel
         private ReliableMulticastChannel mChannel;
         private SenderQueue mQueue;
         private JChannel mJChannel;
-        private final Logger logger = LoggerFactory.getLogger( "net.mcast.sender" );
+        private final Logger logger = LoggerFactory.getLogger( "net.rmcast.sender" );
     }
 
 
@@ -1166,7 +1166,7 @@ public class ReliableMulticastChannel extends NetChannel
         private ConnectorThread mParent;
         private ReliableMulticastChannel mDestination;
         private final Logger logger
-            = LoggerFactory.getLogger( "net.mcast.receiver" );
+            = LoggerFactory.getLogger( "net.rmcast.receiver" );
     }
 
 

@@ -10,6 +10,10 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -332,7 +336,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	
 	private SharedPreferences globalSettings;
 	private SharedPreferences localSettings;
-	
+
+
 	/**
 	 * When the service is first created, we should grab the IP and Port values
 	 * from the SystemPreferences.
@@ -343,6 +348,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("::onCreate");
 		final Context context = this.getBaseContext();
 
+		// We need a context, so do this here instead of in the channel.
+		createReliableMulticastConfigFile( context, "udp.xml" );
+		
 		// set up the worker thread
 		this.distThread = new DistributorThread(this.getApplicationContext());
 		this.distThread.execute(this);
@@ -1057,6 +1065,35 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.sendBroadcast(loginIntent);
 
 	}
+
+
+	private void createReliableMulticastConfigFile( Context context, String fileName )
+    {
+		File outFile = new File( Environment.getExternalStorageDirectory()
+				                 + "/support/jgroups/" + fileName);
+		if ( !outFile.exists() ) {
+			try {
+				InputStream inputStream = context.getAssets().open( fileName );
+				outFile = new File( Environment.getExternalStorageDirectory()
+						            + "/support/jgroups/");
+				if ( !outFile.exists() )
+					outFile.mkdirs();
+				outFile = new File( outFile, fileName );
+				OutputStream out = new FileOutputStream( outFile );
+
+				byte[] buffer = new byte[4096];
+				int n = 0;
+				while ( -1 != (n = inputStream.read(buffer)) ) {
+					out.write(buffer, 0, n);
+				}
+				out.close();
+				inputStream.close();
+			} catch ( Exception e ) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 
 	/**
 	 * Deal with the status of the connection changing. 
