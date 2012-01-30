@@ -21,7 +21,7 @@
          max_bundle_size="64K"
          max_bundle_timeout="30"
          ip_ttl="${jgroups.udp.ip_ttl:8}"
-         enable_bundling="true"
+         enable_bundling="false"
          enable_diagnostics="true"
          thread_naming_pattern="cl"
 
@@ -68,7 +68,7 @@
          min_threshold="0.4"/>
     <MFC max_credits="2M"
          min_threshold="0.4"/>
-    <FRAG2 frag_size="60K"  />
+    <FRAG2 frag_size="1400"  />
     <pbcast.STATE_TRANSFER />
     <!-- pbcast.FLUSH  /-->
 </config>
