@@ -281,7 +281,7 @@ public class TcpChannel extends NetChannel {
 		setIsAuthorized( true );
 		mSenderQueue.markAsAuthorized();
 
-		// Tell the NetworkService that we're authorized and have it
+		// Tell the AmmoService that we're authorized and have it
 		// notify the apps.
 		mChannelManager.authorizationSucceeded(this, agm );
 	}
@@ -859,7 +859,7 @@ public class TcpChannel extends NetChannel {
 
 
         // In the new design, aren't we supposed to let the
-        // NetworkService know if the outgoing queue is full or not?
+        // AmmoService know if the outgoing queue is full or not?
         public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
             logger.info( "putFromDistributor()" );

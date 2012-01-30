@@ -53,7 +53,7 @@ public interface INetChannel {
     void reset();
     boolean isConnected();
     void enable();
-    void disable(); // From TcpChannel
+    void disable(); 
     boolean isBusy();
 
 

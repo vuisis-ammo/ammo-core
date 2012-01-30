@@ -40,7 +40,6 @@ public class StartUpReceiver extends BroadcastReceiver {
 	public void onReceive(Context context, Intent intent) {
 		logger.debug("::onReceive");
 		context.startService(AmmoService.LAUNCH);
-		// context.startService(NetworkService.LAUNCH);
 		
 		Intent svc = new Intent();
 		svc.setClass(context, EthTrackSvc.class);  // explicit start

@@ -143,11 +143,11 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         logger.trace("::onCreate");
         this.setContentView(R.layout.ammo_activity);
 
-        // Get a reference to the NetworkService.
+        // Get a reference to the AmmoService.
         Intent networkServiceIntent = new Intent(this, AmmoService.class);
         boolean result = bindService( networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE );
         if ( !result )
-            logger.error( "AmmoActivity failed to bind to the NetworkService!" );
+            logger.error( "AmmoActivity failed to bind to the AmmoService!" );
 
         Intent intent = new Intent();
 

@@ -1001,8 +1001,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 	/**
 	 * Each time the enrollment provider is modified, find out what the changes
-	 * were and if necessary, send the data to the getNetworkServiceBinder()
-	 * server.
+	 * were and if necessary, update the server.
 	 * 
 	 * Be careful about the race condition; don't leave gaps in the time line.
 	 * Originally this method used time stamps to determine if the item had be
@@ -1233,8 +1232,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 	/**
 	 * Each time the subscription provider is modified, find out what the
-	 * changes were and if necessary, send the data to the
-	 * getNetworkServiceBinder() server.
+	 * changes were and if necessary, send the data to the AmmoService.
 	 * 
 	 * Be careful about the race condition; don't leave gaps in the time line.
 	 * Originally this method used time stamps to determine if the item had be
