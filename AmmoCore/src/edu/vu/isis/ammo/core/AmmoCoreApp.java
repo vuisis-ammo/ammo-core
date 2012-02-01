@@ -21,38 +21,29 @@ package edu.vu.isis.ammo.core;
  */
 import java.io.File;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import ch.qos.logback.android.FLogger;
-
 import android.app.Application;
 import android.content.Intent;
 import android.os.Environment;
-import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
-public class ApplicationEx  extends Application {
-    private static final Logger logger = LoggerFactory.getLogger(ApplicationEx.class);
+public class AmmoCoreApp  extends Application {
+    // private static final Logger logger = LoggerFactory.getLogger(AmmoCoreApp.class);
 
-    private static ApplicationEx singleton;
+    private static AmmoCoreApp singleton;
 
-    public ApplicationEx() {
+    public AmmoCoreApp() {
         super();
     }
 
-    public static ApplicationEx getInstance() {
+    public static AmmoCoreApp getInstance() {
         return singleton;
     }
 
     @Override
     public final void onCreate() {
         super.onCreate();
-        logger.debug("::onCreate");
         singleton = this;
         
-        FLogger.configure(this.getApplicationContext(), R.raw.default_logger);
-
         final Intent svc = new Intent();
 
         svc.setClass(this, AmmoService.class);
@@ -69,7 +60,7 @@ public class ApplicationEx  extends Application {
      * But that isn't available until APIv8
      */
     public File getPublicDirectory (String type) {
-        File base = new File(Environment.getExternalStorageDirectory(), ApplicationEx.class.toString());
+        File base = new File(Environment.getExternalStorageDirectory(), AmmoCoreApp.class.toString());
         return new File(base, type);
     }
 }

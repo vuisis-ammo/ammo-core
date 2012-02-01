@@ -10,6 +10,10 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,7 +24,6 @@ import java.util.TimerTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import transapps.settings.CompositeSettings;
 import transapps.settings.Keys;
 import transapps.settings.Settings;
 
@@ -56,6 +59,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorThread;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
+import edu.vu.isis.ammo.core.model.ReliableMulticast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.Serial;
@@ -67,6 +71,7 @@ import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.JournalChannel;
 import edu.vu.isis.ammo.core.network.MulticastChannel;
+import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
@@ -125,6 +130,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public static final String DEFAULT_MULTICAST_NET_CONN = "20";
 	public static final String DEFAULT_MULTICAST_IDLE_TIME = "3";
 	public static final String DEFAULT_MULTICAST_TTL = "1";
+
+	public static final String DEFAULT_RELIABLE_MULTICAST_HOST = "228.10.10.91";
+	public static final String DEFAULT_RELIABLE_MULTICAST_PORT = "9982";
+	public static final String DEFAULT_RELIABLE_MULTICAST_NET_CONN = "20";
+	public static final String DEFAULT_RELIABLE_MULTICAST_IDLE_TIME = "3";
+	public static final String DEFAULT_RELIABLE_MULTICAST_TTL = "1";
 
 	/**
 	 * The channel status map
@@ -195,6 +206,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// Determine if the connection is enabled
 	private boolean gatewayEnabled = true;
     private boolean multicastEnabled = true;
+    private boolean reliableMulticastEnabled = true;
     private boolean serialEnabled = false;
 	// for providing networking support
 	// should this be using IPv6?
@@ -219,6 +231,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// Network Channels
 	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
 	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
+	final private ReliableMulticastChannel reliableMulticastChannel = ReliableMulticastChannel.getInstance("reliablemulticast", this);
 	private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
 	private SerialChannel serialChannel;
 
@@ -269,7 +282,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// Lifecycle
 	// ===========================================================
 
-	private ApplicationEx application;
+	private AmmoCoreApp application;
 	
 	private IRegisterReceiver mReceiverRegistrar = null;
 
@@ -278,9 +291,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 
 	@SuppressWarnings("unused")
-	private ApplicationEx getApplicationEx() {
+	private AmmoCoreApp getApplicationEx() {
 		if (this.application == null)
-			this.application = (ApplicationEx) this.getApplication();
+			this.application = (AmmoCoreApp) this.getApplication();
 		return this.application;
 	}
 
@@ -331,8 +344,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	
 	private SharedPreferences globalSettings;
 	private SharedPreferences localSettings;
-	private SharedPreferences settings;
-	
+
+
 	/**
 	 * When the service is first created, we should grab the IP and Port values
 	 * from the SystemPreferences.
@@ -343,6 +356,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("::onCreate");
 		final Context context = this.getBaseContext();
 
+		// We need a context, so do this here instead of in the channel.
+		createReliableMulticastConfigFile( context, "udp.xml" );
+		
 		// set up the worker thread
 		this.distThread = new DistributorThread(this.getApplicationContext());
 		this.distThread.execute(this);
@@ -397,11 +413,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		mChannelMap.put("default", this.tcpChannel);
 		mChannelMap.put(this.tcpChannel.name, this.tcpChannel);
 		mChannelMap.put(this.multicastChannel.name, this.multicastChannel);
+		mChannelMap.put(this.reliableMulticastChannel.name, this.reliableMulticastChannel);
 		mChannelMap.put(this.journalChannel.name, this.journalChannel);
 		mChannelMap.put(this.serialChannel.name, this.serialChannel);
 
 		mChannels.put(this.tcpChannel.name, Gateway.getInstance(getBaseContext()));
 		mChannels.put(this.multicastChannel.name, Multicast.getInstance(getBaseContext()));
+		mChannels.put(this.reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()));
 		mChannels.put(this.serialChannel.name, Serial.getInstance(getBaseContext()));
 
 		mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
@@ -411,14 +429,15 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		// FIXME: find the appropriate time to release() the multicast lock.
 		logger.error("Acquiring multicast lock()");
 		WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-		WifiManager.MulticastLock multicastLock = wm
-				.createMulticastLock("mydebuginfo");
+		WifiManager.MulticastLock multicastLock =
+            wm.createMulticastLock("mydebuginfo");
 		multicastLock.acquire();
 		logger.error("...acquired multicast lock()");
 
 		// no point in enabling the socket until the preferences have been read
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
+		this.reliableMulticastChannel.disable();
         // The serial channel is created in a disabled state.
 		{
 		   final String globalId = this.globalSettings.getString(Keys.UserKeys.USERNAME, null);
@@ -435,6 +454,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		if (this.networkingSwitch && this.multicastEnabled) {
             this.multicastChannel.enable();
             this.multicastChannel.reset(); // This starts the connector thread.
+        }
+		if (this.networkingSwitch && this.reliableMulticastEnabled) {
+            this.reliableMulticastChannel.enable();
+            this.reliableMulticastChannel.reset(); // This starts the connector thread.
         }
 
 		if (this.networkingSwitch && this.serialEnabled)
@@ -491,6 +514,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.acquirePreferences();
 		this.tcpChannel.reset();
 		this.multicastChannel.reset(); 
+		this.reliableMulticastChannel.reset(); 
 		this.serialChannel.reset(); 
 		
 		loginIntent.putExtra("operatorId", this.operatorId);
@@ -502,6 +526,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.warn("::onDestroy");
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
+		this.reliableMulticastChannel.disable();
 		this.journalChannel.close();
 		this.serialChannel.disable();
 		
@@ -590,6 +615,29 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.multicastChannel.setFlatLineTime(multicastFlatLine);
 		this.multicastChannel.setSocketTimeout(multicastIdleTime);
 		this.multicastChannel.setTTL(multicastTTL);
+
+		/*
+		 * Reliable Multicast
+		 */
+        reliableMulticastEnabled = prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, false);
+		String reliableMulticastHost = prefs.getString(
+				INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS, DEFAULT_RELIABLE_MULTICAST_HOST);
+		int reliableMulticastPort = Integer.parseInt(prefs.getString(
+				INetPrefKeys.RELIABLE_MULTICAST_PORT, DEFAULT_RELIABLE_MULTICAST_PORT));
+		long reliableMulticastFlatLine = Long.parseLong(prefs.getString(
+				INetPrefKeys.RELIABLE_MULTICAST_NET_CONN_TIMEOUT,
+				DEFAULT_RELIABLE_MULTICAST_NET_CONN));
+		int reliableMulticastIdleTime = Integer.parseInt(prefs.getString(
+				INetPrefKeys.RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT,
+				DEFAULT_RELIABLE_MULTICAST_IDLE_TIME));
+		int reliableMulticastTTL = Integer.parseInt(prefs.getString(
+				INetPrefKeys.RELIABLE_MULTICAST_TTL,
+				DEFAULT_RELIABLE_MULTICAST_TTL));
+		this.reliableMulticastChannel.setHost(reliableMulticastHost);
+		this.reliableMulticastChannel.setPort(reliableMulticastPort);
+		this.reliableMulticastChannel.setFlatLineTime(reliableMulticastFlatLine);
+		this.reliableMulticastChannel.setSocketTimeout(reliableMulticastIdleTime);
+		this.reliableMulticastChannel.setTTL(reliableMulticastTTL);
 
 		/*
 		 * SerialChannel
@@ -703,9 +751,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
 			logger.info("explicit opererator reset on channel");
 			this.networkingSwitch = true;
-		
+
 			this.tcpChannel.reset();
 			this.multicastChannel.reset();
+			this.reliableMulticastChannel.reset();
 			this.serialChannel.reset();
 		}
 
@@ -728,6 +777,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			}
 		}
 
+        //
+        // Multicast
+        //
 		if (key.equals(INetPrefKeys.MULTICAST_SHOULD_USE)) {
 			if (prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true)) {
 				this.multicastChannel.enable();
@@ -751,6 +803,34 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			int ttl = Integer.parseInt(prefs.getString(
 					INetPrefKeys.MULTICAST_TTL, DEFAULT_MULTICAST_TTL));
 			this.multicastChannel.setTTL(ttl);
+        }
+
+        //
+        // Reliable Multicast
+        //
+		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE)) {
+			if (prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, true)) {
+				this.reliableMulticastChannel.enable();
+			} else {
+				this.reliableMulticastChannel.disable();
+			}
+		}
+
+		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS)) {
+			String ipAddress = prefs.getString(
+					INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS, DEFAULT_RELIABLE_MULTICAST_HOST);
+			this.reliableMulticastChannel.setHost(ipAddress);
+		}
+
+		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
+			int port = Integer.parseInt(prefs.getString(
+					INetPrefKeys.RELIABLE_MULTICAST_PORT, DEFAULT_RELIABLE_MULTICAST_PORT));
+			this.reliableMulticastChannel.setPort(port);
+		}
+		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
+			int ttl = Integer.parseInt(prefs.getString(
+					INetPrefKeys.RELIABLE_MULTICAST_TTL, DEFAULT_RELIABLE_MULTICAST_TTL));
+			this.reliableMulticastChannel.setTTL(ttl);
         }
 
         //
@@ -827,10 +907,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	/**
 	 * Used to send a message to the android gateway plugin.
-	 * 
-	 * This takes an argument indicating the channel type [tcpchannel, multicast, journal].
-	 * 
-	 * 
+	 *
+	 * This takes an argument indicating the channel type [tcpchannel, multicast,
+     * reliablemulticast, serial, journal].
+	 *
+	 *
 	 * @param outstream
 	 * @param size
 	 * @param payload_checksum
@@ -891,6 +972,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.info("Tearing down NPS");
 		this.tcpChannel.disable();
 		this.multicastChannel.disable();
+		this.reliableMulticastChannel.disable();
 		this.serialChannel.disable();
 
 		Timer t = new Timer();
@@ -910,7 +992,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @return
 	 */
 	public boolean isConnected() {
-	    boolean any = tcpChannel.isConnected() || multicastChannel.isConnected() || ((serialChannel != null) && serialChannel.isConnected());
+	    boolean any = (   tcpChannel.isConnected()
+                       || multicastChannel.isConnected()
+                       || reliableMulticastChannel.isConnected()
+                       || ((serialChannel != null) && serialChannel.isConnected()));
 		logger.debug("::isConnected ? {}", any );
 		return any;
 	}
@@ -989,6 +1074,35 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	}
 
+
+	private void createReliableMulticastConfigFile( Context context, String fileName )
+    {
+		File outFile = new File( Environment.getExternalStorageDirectory()
+				                 + "/support/jgroups/" + fileName);
+		if ( !outFile.exists() ) {
+			try {
+				InputStream inputStream = context.getAssets().open( fileName );
+				outFile = new File( Environment.getExternalStorageDirectory()
+						            + "/support/jgroups/");
+				if ( !outFile.exists() )
+					outFile.mkdirs();
+				outFile = new File( outFile, fileName );
+				OutputStream out = new FileOutputStream( outFile );
+
+				byte[] buffer = new byte[4096];
+				int n = 0;
+				while ( -1 != (n = inputStream.read(buffer)) ) {
+					out.write(buffer, 0, n);
+				}
+				out.close();
+				inputStream.close();
+			} catch ( Exception e ) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
 	/**
 	 * Deal with the status of the connection changing. 
 	 * Report the status to the application who acts as a broker.
@@ -999,19 +1113,20 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.debug("status change. channel={}", channel.name );
 
 		mChannels.get(channel.name)
-		.setStatus(new int[] { connStatus, sendStatus, recvStatus });
+		         .setStatus(new int[] { connStatus, sendStatus, recvStatus });
 
-		// TBD needs mapping from channel status to "ACTIVATE/DEACTIVATE"
+        switch (connStatus) {
+        case NetChannel.CONNECTED:
+        	if (channel.isAuthenticatingChannel()) break;
+        case NetChannel.SENDING:
+        case NetChannel.TAKING:
+        	this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.ACTIVATE);
+        	break;
+        default: 
+        	this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.DEACTIVATE);
+        }
 
-        if (connStatus != NetChannel.CONNECTED) {
-		    this.distThread.onChannelChange(this.getBaseContext(), channel.name,
-                     (connStatus == NetChannel.CONNECTED || connStatus == NetChannel.SENDING || connStatus == NetChannel.TAKING) ?
-				     ChannelChange.ACTIVATE : ChannelChange.DEACTIVATE);
-            // channel is ACTIVATED by authenticate
-		}
-
-		final Intent broadcastIntent = new Intent(
-				AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
+		final Intent broadcastIntent = new Intent(AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
 		this.sendBroadcast(broadcastIntent);
 	}
 
@@ -1074,11 +1189,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 						logger.info("onReceive: Link UP " + action);
 						tcpChannel.linkUp();
 						multicastChannel.linkUp();
+						reliableMulticastChannel.linkUp();
 						break;
 					case AmmoIntents.LINK_DOWN:
 						logger.info("onReceive: Link DOWN " + action);
 						tcpChannel.linkDown();
 						multicastChannel.linkDown();
+						reliableMulticastChannel.linkDown();
 						break;
 					}
 				}

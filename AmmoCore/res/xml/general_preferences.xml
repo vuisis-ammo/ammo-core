@@ -62,48 +62,89 @@
 		
 		</PreferenceScreen>
 		
+        <PreferenceScreen
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/multicast_prefs"
+        android:key="outer_pref_screen"
+        android:title="Multicast Preferences">
+        
+            <edu.vu.isis.ammo.core.MyCheckBoxPreference
+            android:key="MULTICAST_SHOULD_USE"
+            android:name="Enabled"
+            android:title="Enabled"
+            android:defaultValue="true"/>
+            
+            <edu.vu.isis.ammo.core.MyEditTextPreference
+            android:key="MULTICAST_IP_ADDRESS"
+            android:name="IP Address"
+            android:title="IP Address"
+            android:defaultValue="228.10.10.90"/>
+            
+            <edu.vu.isis.ammo.core.MyEditIntegerPreference
+            android:key="MULTICAST_PORT"
+            android:name="Port"
+            android:title="Port"
+            android:defaultValue="9982"/>
+            
+            <edu.vu.isis.ammo.core.MyEditIntegerPreference
+            android:key="MULTICAST_NET_CONN_TIMEOUT"
+            android:name="Network Connection Timeout (s)"
+            android:title="Network Connection Timeout (s)"
+            android:defaultValue="1000"/>
+            
+            <edu.vu.isis.ammo.core.MyEditIntegerPreference
+            android:key="MULTICAST_CONN_IDLE_TIMEOUT"
+            android:name="Connection Idle Timeout (s)"
+            android:title="Connection Idle Timeout (s)"
+            android:defaultValue= "3000"/>
+
+            <edu.vu.isis.ammo.core.MyEditIntegerPreference
+            android:key="MULTICAST_TTL"
+            android:name="Time To Live (s)"
+            android:title="Time To Live (s)"
+            android:defaultValue= "1"/>
+        </PreferenceScreen>
+
 		<PreferenceScreen
 		xmlns:android="http://schemas.android.com/apk/res/android"
-		android:id="@+id/multicast_prefs"
+		android:id="@+id/reliable_multicast_prefs"
 		android:key="outer_pref_screen"
-		android:title="Multicast Preferences">
-		
+		android:title="Reliable Multicast Preferences">
 			<edu.vu.isis.ammo.core.MyCheckBoxPreference
-			android:key="MULTICAST_SHOULD_USE"
+			android:key="RELIABLE_MULTICAST_SHOULD_USE"
 			android:name="Enabled"
 			android:title="Enabled"
 			android:defaultValue="true"/>
-			
+
 			<edu.vu.isis.ammo.core.MyEditTextPreference
-			android:key="MULTICAST_IP_ADDRESS"
+			android:key="RELIABLE_MULTICAST_IP_ADDRESS"
 			android:name="IP Address"
 			android:title="IP Address"
-			android:defaultValue="228.10.10.90"/>
-			
+			android:defaultValue="228.10.10.91"/>
+
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="MULTICAST_PORT"
+			android:key="RELIABLE_MULTICAST_PORT"
 			android:name="Port"
 			android:title="Port"
 			android:defaultValue="9982"/>
-			
+
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="MULTICAST_NET_CONN_TIMEOUT"
+			android:key="RELIABLE_MULTICAST_NET_CONN_TIMEOUT"
 			android:name="Network Connection Timeout (s)"
 			android:title="Network Connection Timeout (s)"
 			android:defaultValue="1000"/>
-			
+
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="MULTICAST_CONN_IDLE_TIMEOUT"
+			android:key="RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT"
 			android:name="Connection Idle Timeout (s)"
 			android:title="Connection Idle Timeout (s)"
 			android:defaultValue= "3000"/>
 
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="MULTICAST_TTL"
+			android:key="RELIABLE_MULTICAST_TTL"
 			android:name="Time To Live (s)"
 			android:title="Time To Live (s)"
 			android:defaultValue= "1"/>
-
 		</PreferenceScreen>
 
 		<PreferenceScreen
