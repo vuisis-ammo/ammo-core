@@ -5,9 +5,9 @@
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
 	<classpathentry kind="lib" path="/usr/share/java/protobuf.jar"/>
-	<classpathentry kind="lib" path="/opt/ammo/libs/java/logback-android.jar" sourcepath="/opt/logback-android"/>
-	<classpathentry kind="lib" path="/opt/ammo/libs/java/jgroups.jar"/>
-	<classpathentry kind="lib" path="/opt/ammo/libs/java/slf4j-api.jar"/>
-	<classpathentry kind="lib" path="/opt/ammo/libs/java/tasettingsapi.jar"/>
+	<classpathentry kind="lib" path="/ref-libs/java/jgroups.jar"/>
+	<classpathentry kind="lib" path="/ref-libs/java/logback-android.jar"/>
+	<classpathentry kind="lib" path="/ref-libs/java/slf4j-api.jar"/>
+	<classpathentry kind="lib" path="/ref-libs/java/tasettingsapi.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>
