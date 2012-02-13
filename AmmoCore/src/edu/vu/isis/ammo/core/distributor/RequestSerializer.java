@@ -389,21 +389,17 @@ public class RequestSerializer {
 					break;
 				case FIELD_TYPE_TEXT:
 				case FIELD_TYPE_GUID:
-					final char[] textValue = tupleCursor.getString( columnIndex ).toCharArray();
-					final int charCount = textValue.length;;
-					tuple.putInt(charCount);
-					for (char charValue : textValue) {
-					    tuple.putChar(charValue);
+					// The database will return null if the string is empty,
+					// so detect that and write a zero length if it happens.
+					// Don't modify this code without testing on the serial
+					// channel using radios.
+					String svalue = tupleCursor.getString( columnIndex );
+					int length = (svalue == null) ? 0 : svalue.length();
+					tuple.putInt( length );
+					for ( int i = 0; i < length; i++ ) {
+					    char c = svalue.charAt(i);
+						tuple.putChar( c );
 					}
-                    // Don't change this to use a char[].  If the key is not present,
-                    // getString() returns an empty string, and we count on this.
-					//String svalue = tupleCursor.getString( tupleCursor.getColumnIndex(key) );
-					//int length = svalue.length();
-					//tuple.putInt( length );
-					//for ( int i = 0; i < length; i++ ) {
-					//    char c = svalue.charAt(i);
-					//	tuple.putChar( c );
-                    //}
  					break;
  				case FIELD_TYPE_BOOL:
 				case FIELD_TYPE_INTEGER:

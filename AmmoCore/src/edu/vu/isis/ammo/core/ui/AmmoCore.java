@@ -54,9 +54,9 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
  * ...registering/unregistering content interest requests.
  *
  */
-public class AmmoActivity extends TabActivityEx implements OnItemClickListener
+public class AmmoCore extends TabActivityEx implements OnItemClickListener
 {
-    public static final Logger logger = LoggerFactory.getLogger( AmmoActivity.class );
+    public static final Logger logger = LoggerFactory.getLogger( AmmoCore.class );
 
     private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
     private static final int CONFIG_MENU = Menu.NONE + 1;
@@ -90,7 +90,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     private INetworkService networkServiceBinder;
 
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
-    	final private AmmoActivity parent = AmmoActivity.this;
+    	final private AmmoCore parent = AmmoCore.this;
     	
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.info("::onServiceConnected - Network Service");
