@@ -34,12 +34,12 @@ import edu.vu.isis.ammo.core.model.Netlink;
 public class NetlinkAdapter extends ArrayAdapter<Netlink>
   implements OnClickListener, OnFocusChangeListener, OnTouchListener
 {
-    public static final Logger logger = LoggerFactory.getLogger( AmmoActivity.class );
-    private final AmmoActivity parent;
+    public static final Logger logger = LoggerFactory.getLogger( AmmoCore.class );
+    private final AmmoCore parent;
     private final Resources res;
     private final List<Netlink> model;
 
-    public NetlinkAdapter(AmmoActivity parent, List<Netlink> model) {
+    public NetlinkAdapter(AmmoCore parent, List<Netlink> model) {
         super(parent,
                 android.R.layout.simple_list_item_1,
                 model);

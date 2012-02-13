@@ -15,7 +15,7 @@ import android.util.AttributeSet;
 import android.widget.ListView;
 public class ChannelListView extends ListView {
 
-	AmmoActivity activity = null;
+	AmmoCore activity = null;
 	public ChannelListView(Context context) {
 		super(context);
 	}
