@@ -41,15 +41,15 @@ import edu.vu.isis.ammo.core.network.INetChannel;
 public class ChannelAdapter extends ArrayAdapter<Channel>
     implements OnTouchListener, OnNameChangeListener
 {
-    public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
+    public static final Logger logger = LoggerFactory.getLogger(AmmoCore.class);
 
-    private final AmmoActivity parent;
+    private final AmmoCore parent;
     private final Resources res;
     private final List<Channel> model;
     private SharedPreferences prefs = null;
 
 
-    public ChannelAdapter( AmmoActivity parent, List<Channel> model )
+    public ChannelAdapter( AmmoCore parent, List<Channel> model )
     {
         super( parent,
                android.R.layout.simple_list_item_1,
