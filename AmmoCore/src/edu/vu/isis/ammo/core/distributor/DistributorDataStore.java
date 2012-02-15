@@ -12,7 +12,10 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -46,7 +49,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo-dds");
-	public static final int VERSION = 21;
+	public static final int VERSION = 22;
 
 	// ===========================================================
 	// Fields
@@ -80,12 +83,15 @@ public class DistributorDataStore {
 	 * The rule for disposition rows is cascade delete.
 	 */
 	public enum Tables {
+		REQUEST(0, "request"),
 		POSTAL(1, "postal"),
 		PUBLISH(2, "publish"),
 		RETRIEVAL(3, "retrieval"),
 		SUBSCRIBE(4, "subscribe"),
 		DISPOSAL(5, "disposal"),
-		CHANNEL(6, "channel");
+		CHANNEL(6, "channel"),
+		PRESENCE(7, "presence"),
+		RECIPIENT(8, "recipient");
 
 		final public int o;
 		final public String n;
@@ -112,19 +118,7 @@ public class DistributorDataStore {
 		public String qIndex() {
 			return new StringBuilder().append('"').append(this.n).append("_index").append('"').toString();
 		}
-		/**
-		 * Produce string builders of the form...
-		 * CREATE TABLE "<table-name>" ( <row defs> );
-		 *
-		 */
-		public String sqlCreate(String fields) {
-			return new StringBuilder()
-			.append("CREATE TABLE ")
-			.append('"').append(this.n).append('"')
-			.append(" (").append(fields).append(");")
-			.toString();
-		}
-
+		
 		/**
 		 * Produce string builders of the form...
 		 * DROP TABLE "<table-name>";
@@ -137,9 +131,80 @@ public class DistributorDataStore {
 			.append(";")
 			.toString();
 		}
+		
+		/**
+		 * Produce string builders of the form...
+		 * CREATE TABLE "<table-name>" ( 
+		 *    <column defs> 
+		 *    FOREIGN KEY(<primary key>) REFERENCES artist(<pk cols>)
+		 *    );
+		 *
+		 */
+		public List<String> sqlCreate() {
+			final StringBuilder sb = new StringBuilder().append("CREATE TABLE ");
+			sb.append('"').append(this.n).append('"');
+			sb.append(" ( ");
+			final List<TableField> fields = Arrays.asList(this.getFields());
+			if (fields.size() > 0) {
+				final TableField first = fields.get(1);
+				sb.append('"').append(first.n()).append('"').append(' ').append(first.t());
+				
+				for (TableField field : fields.subList(1, fields.size()) ) {
+				    sb.append(",");
+					sb.append('"').append(field.n()).append('"').append(' ').append(field.t());
+				}
+			}
+			
+			final String parent_key = this.getParentKey();
+			if (parent_key.length() > 0) {			
+				sb.append(parent_key);
+			}
+			sb.append(", PRIMARY KEY(").append(BaseColumns._ID).append(')');
+			sb.append(");");
+			
+			final List<String> sql = new ArrayList<String>(2);
+			sql.add(sb.toString());
+			
+			final StringBuilder pkidx = new StringBuilder()
+			   .append("CREATE UNIQUE INDEX ").append(this.n).append("_pkidx")
+			   .append(" ON ").append(this.n).append("(").append(BaseColumns._ID)
+			   .append(");");
+			sql.add(pkidx.toString());
+			
+			return sql;
+		}
+		
+		private TableField[] getFields() {		
+			switch (this) {
+			case POSTAL:     return PostalField.values(); 
+			case PUBLISH:    return PublishField.values(); 
+			case RETRIEVAL:  return RetrievalField.values(); 
+			case SUBSCRIBE:  return SubscribeField.values(); 
+			case DISPOSAL:   return DisposalChannelField.values(); 
+			case CHANNEL:    return ChannelField.values(); 
+			case PRESENCE:   return PresenceField.values(); 
+			case RECIPIENT:  return DisposalPresenceField.values(); 
+			}
+			return null;
+		}
+			
+		private String getParentKey() {		
+			switch (this) {
+			case REQUEST:    return RequestTable.PARENT_KEY_REF; 
+			case POSTAL:     return PostalTable.PARENT_KEY_REF; 
+			case PUBLISH:    return PublishTable.PARENT_KEY_REF; 
+			case RETRIEVAL:  return RetrievalTable.PARENT_KEY_REF; 
+			case SUBSCRIBE:  return SubscribeTable.PARENT_KEY_REF; 
+			case DISPOSAL:   return DisposalChannelTable.PARENT_KEY_REF; 
+			case CHANNEL:    return ChannelTable.PARENT_KEY_REF; 
+			case PRESENCE:   return PresenceTable.PARENT_KEY_REF; 
+			case RECIPIENT:  return DisposalPresenceTable.PARENT_KEY_REF; 
+			}
+			return null;
+		}
 
 	};
-
+	
 
 	// ===========================================================
 	// Enumerated types in the tables.
@@ -149,19 +214,21 @@ public class DistributorDataStore {
 	 * Indicates if the provider indicates a table entry or whether the
 	 * data has been pre-serialized.
 	 */
-	public enum SerializeType {
-		DIRECT(1),
-		// the serialized data is found in the data field (or a suitable file)
+	public enum SerialEvent {
+		APRIORI(1),  // DIRECT
+		// the serialized object is placed in the payload directly.
 
-		INDIRECT(2),
-		// the serialized data is obtained from the named provider uri
+		EAGER(2), // a.k.a INDIRECT
+		// the serialized data is obtained from the named 
+		// provider uri as soon as the request is received.
 
-		DEFERRED(3);
-		// the same as INDIRECT but the serialization doesn't happen until the data is sent.
+		LAZY(3); // a.k.a. DEFFERED
+		// the same as INDIRECT but the serialization doesn't 
+		// happen until the data is sent.
 
 		public int o; // ordinal
 
-		private SerializeType(int o) {
+		private SerialEvent(int o) {
 			this.o = o;
 		}
 		/**
@@ -172,25 +239,25 @@ public class DistributorDataStore {
 		public String quote() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
 		}
-		public static SerializeType byOrdinal(int serialType) {
+		public static SerialEvent byOrdinal(int serialType) {
 			switch(serialType) {
 			case 1:
-				return DIRECT;
+				return APRIORI;
 			case 2:
-				return INDIRECT;
+				return EAGER;
 			case 3:
-				return DEFERRED;
+				return LAZY;
 			}
 			throw new IllegalArgumentException("unknown SerialType "+Integer.toString(serialType));
 		}
 		public String cv() {
 			return String.valueOf(this.o);
 		}
-		static public SerializeType getInstance(String ordinal) {
-			return SerializeType.values()[Integer.parseInt(ordinal)];
+		static public SerialEvent getInstance(String ordinal) {
+			return SerialEvent.values()[Integer.parseInt(ordinal)];
 		}
-		static public SerializeType getInstance(int ordinal) {
-			return SerializeType.values()[ordinal];
+		static public SerialEvent getInstance(int ordinal) {
+			return SerialEvent.values()[ordinal];
 		}
 	};
 
@@ -226,7 +293,7 @@ public class DistributorDataStore {
 	 * COMPLETE : the distribution rule has been fulfilled
 	 * INCOMPLETE : the distribution rule cannot be completely fulfilled
 	 */
-	public enum RequestDisposal {
+	public enum DisposalTotalState {
 		NEW(0x01, "new"),
 		DISTRIBUTE(0x02, "distribute"),
 		EXPIRED(0x04, "expired"),
@@ -237,7 +304,7 @@ public class DistributorDataStore {
 		final public int o;
 		final public String t;
 
-		private RequestDisposal(int ordinal, String title) {
+		private DisposalTotalState(int ordinal, String title) {
 			this.o = ordinal;
 			this.t = title;
 		}
@@ -247,11 +314,11 @@ public class DistributorDataStore {
 		public String cv() {
 			return String.valueOf(this.o);
 		}
-		static public RequestDisposal getInstance(String ordinal) {
-			return RequestDisposal.values()[Integer.parseInt(ordinal)];
+		static public DisposalTotalState getInstance(String ordinal) {
+			return DisposalTotalState.values()[Integer.parseInt(ordinal)];
 		}
-		static public RequestDisposal getInstanceById(int o) {
-	    	for (RequestDisposal candidate : RequestDisposal.values()) {
+		static public DisposalTotalState getInstanceById(int o) {
+	    	for (DisposalTotalState candidate : DisposalTotalState.values()) {
 	    		if (candidate.o == o) return candidate;
 	    	}
 	    	return null;
@@ -266,10 +333,10 @@ public class DistributorDataStore {
 	 * of the request across the relevant channels.
 	 */
 	public enum ChannelStatus {
-		READY    (0x0001, "ready"),      // channel is ready to receive requests
-		EMPTY    (0x0002, "empty"),      // channel queue is empty
-		DOWN     (0x0004, "down"),       // channel is temporarily down
-		FULL     (0x0008, "busy"),       // channel queue is full 
+		READY    (0x0001, "ready"),  // channel is ready to receive requests
+		EMPTY    (0x0002, "empty"),  // channel queue is empty
+		DOWN     (0x0004, "down"),   // channel is temporarily down
+		FULL     (0x0008, "busy"),   // channel queue is full 
 		;
 
 		final public int o;
@@ -283,10 +350,10 @@ public class DistributorDataStore {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
 		}
 		
-		public ChannelDisposal inferDisposal() {
+		public DisposalState inferDisposal() {
 			switch (this) {
-			case DOWN: return ChannelDisposal.REJECTED;
-			case FULL: return ChannelDisposal.BUSY;
+			case DOWN: return DisposalState.REJECTED;
+			case FULL: return DisposalState.BUSY;
 			default:
 				logger.warn("don't call with {}", this);
 				throw new IllegalArgumentException();
@@ -296,11 +363,12 @@ public class DistributorDataStore {
 	};
 	/**
 	 * The states of a request over a particular channel.
-	 * The DISTRIBUTE RequestDisposal indicates that the
-	 * total state is an aggregate of the distribution
-	 * of the request across the relevant channels.
+	 * Some of these states are used by the DisposalChannelField.STATE
+	 * and some by the DisposalPresenceField.STATE.
+	 * 
+	 * These aggregate to give the RequestDisposal.DISTRIBUTE value.
 	 */
-	public enum ChannelDisposal {
+	public enum DisposalState {
 		NEW      (0x0001, "new"),
 		REJECTED (0x0002, "rejected"),   // channel is temporarily rejecting req (probably down)
 		BAD      (0x0080, "bad"),        // message is problematic, don't try again
@@ -310,12 +378,13 @@ public class DistributorDataStore {
 		SENT     (0x0010, "sent"),       // message is sent synchronously
 		TOLD     (0x0020, "told"),       // message sent asynchronously
 		DELIVERED(0x0040, "delivered"),  // async message acknowledged
+		RECEIVED (0x0200, "received"),   // async message received
 		;
 
 		final public int o;
 		final public String t;
 
-		private ChannelDisposal(int ordinal, String title) {
+		private DisposalState(int ordinal, String title) {
 			this.o = ordinal;
 			this.t = title;
 		}
@@ -325,8 +394,8 @@ public class DistributorDataStore {
 		public String cv() {
 			return String.valueOf(this.o);
 		}
-		static public ChannelDisposal getInstance(String ordinal) {
-			return ChannelDisposal.values()[Integer.parseInt(ordinal)];
+		static public DisposalState getInstance(String ordinal) {
+			return DisposalState.values()[Integer.parseInt(ordinal)];
 		}
 		/**
 		 * This method indicates if the goal has been met.
@@ -349,9 +418,9 @@ public class DistributorDataStore {
 			}
 			return false;
 		}
-		public ChannelDisposal and(boolean clauseSuccess) {
+		public DisposalState and(boolean clauseSuccess) {
 			if (clauseSuccess) return this;
-			return ChannelDisposal.DELIVERED;
+			return DisposalState.DELIVERED;
 		}
 
 		public int checkAggregate(final int aggregate) {
@@ -362,8 +431,8 @@ public class DistributorDataStore {
 			return this.o | aggregate;
 		}
 		
-	    static public ChannelDisposal getInstanceById(int o) {
-	    	for (ChannelDisposal candidate : ChannelDisposal.values()) {
+	    static public DisposalState getInstanceById(int o) {
+	    	for (DisposalState candidate : DisposalState.values()) {
 	    		if (candidate.o == o) return candidate;
 	    	}
 	    	return null;
@@ -489,28 +558,145 @@ public class DistributorDataStore {
 	// Enumerated types in the tables.
 	// ===========================================================
 
+
+	public interface TableField {	
+		// public List<TableFieldState> getState();
+		public String q(String tableRef);  // get the quoted field name 
+		public String cv(); // get the field name suitable for using in ContentValues
+		public String n(); // get the name from the implementation
+		public String t(); // get the type from the implementation
+	}
+	
+	static public class TableFieldState {
+		final public String n;
+		final public String t;
+		
+		private TableFieldState(String name, String type) {	
+			this.n = name;
+			this.t = type;
+		}
+		
+		//public String quoted() {
+		//	return new StringBuilder()
+		//	.append('"').append(this.n).append('"')
+		//	.toString();
+		//}
+		public String quoted(String tableRef) {
+			if (tableRef == null) {
+				return new StringBuilder()
+				.append('"').append(this.n).append('"')
+				.toString();
+			}
+			return new StringBuilder()
+			.append(tableRef).append('.')
+			.append('"').append(this.n).append('"')
+			.toString();
+		}
+		public String cvQuoted() {
+			return String.valueOf(this.n);
+		}
+		
+		/**
+		 * Produce string of the form...
+		 * "<field-name>" <field-type>
+		 * e.g.
+		 * "dog" TEXT
+		 */
+		public String addfield() {
+			return new StringBuilder()
+			.append('"').append(this.n).append('"').append(' ').append(this.t)
+			.toString();
+		}
+		//public static List<TableField> getFields() {
+		//	final List<TableField>  tf = new ArrayList<TableField>(PostalField.values().length);
+		//	for (PostalField field : PostalField.values()) {
+		//		tf.add(TableField.newInstance(field.n, field.t));
+		//	}
+		//	return tf;
+		//}
+	}
+
 	/**
-	 * The postal table is for holding retrieval requests.
+	 * The presence table is for holding information about visible peers.
+	 * The created field indicates the first time the peer was observed.
+	 * The latest field indicates the last time the peer was observed.
 	 */
-	public static interface PostalTable extends BaseColumns {
+	public static interface PresenceTable extends BaseColumns {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[PostalTableSchema.values().length];
+		public static final String[] COLUMNS = new String[PresenceField.values().length];
 		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PostalTableSchema.values().length);
+				new HashMap<String,String>(PresenceField.values().length);
+		
+		public static final String PARENT_KEY_REF = null;
 	};
 	static {
 		int ix = 0;
-		for (PostalTableSchema field : PostalTableSchema.values()) {
-			PostalTable.COLUMNS[ix++] = field.n;
-			PostalTable.PROJECTION_MAP.put(field.n, field.n);
+		for (PresenceField field : PresenceField.values()) {
+			PresenceTable.COLUMNS[ix++] = field.n();
+			PresenceTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	};
 
-	public enum PostalTableSchema  {
+	public enum PresenceField implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		NAME("name", "TEXT"),
+		// The name of the operator using the channel
+
+		FIRST("first", "INTEGER"),
+		// When the operator first used this channel
+
+		LATEST("latest", "INTEGER"),
+		// When the operator was last seen "speaking" on the channel
+		
+		ENABLE("enable", "INTEGER"),
+		// 0 : intentionally disabled, 
+		// >0 (1) : best knowledge is enabled
+		
+		CHANNEL("channel", "TEXT"),
+		// The channel type
+		
+		ADDRESS("address", "TEXT");
+		// The address for the channel type
+		// For IP networks, sockets, this is the IP address, and port
+		// For TDMA this is the slot number
+
+        final public TableFieldState impl;
+
+		private PresenceField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
+		}
+        
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+
+	
+	/**
+	 * The Request table holds application requests.
+	 * These requests are to express interest in data of certain types 
+	 * or to announce the presence of information of a certain type.
+	 * The request can apply to the past or the future.
+	 *
+	 */
+	
+	public enum RequestField implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		UUID("uuid", "TEXT"),
+		// This is a unique identifier for the request
+		// It is used to look up the appropriate provider
+		
+		TYPE("type", "INTEGER"),
+		// Meaning the parent type: subscribe, retrieval, postal, publish
 
 		CREATED("created", "INTEGER"),
 		// When the request was made
@@ -521,25 +707,75 @@ public class DistributorDataStore {
 		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
+		PRESENCE("presence", "INTEGER"),
+		// The rowid for the originator of this request
+		// 0 is reserved for the local operator
+		// <0 (-1) : indicates that the operator is unknown.
+		
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
-
-		PAYLOAD("payload", "TEXT"),
-		// The payload instead of content provider
 
 		DISPOSITION("disposition", "INTEGER"),
 		// The current best guess of the status of the request.
 
-		NOTICE("notice", "BLOB"),
-		// A description of what is to be done when various state-transition occur.
-
 		PRIORITY("priority", "INTEGER"),
-		// What order should this message be sent. Negative priorities indicated less than normal.
+		// With what priority should this message be sent. 
+		// Negative priorities indicated less than normal.
 
-		ORDER("serialize_type", "INTEGER"),
+		SERIAL_EVENT("serial_event", "INTEGER"),
+		// When the serialization happens.
 
-		EXPIRATION("expiration", "INTEGER"),
-		// Time-stamp at which point entry becomes stale.
+		EXPIRATION("expiration", "INTEGER");
+		// Time-stamp at which point the request 
+		// becomes stale and can be discarded.
+
+
+        final public TableFieldState impl;
+
+		private RequestField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
+		}
+        
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+	
+	public static interface RequestTable {
+
+		public static final String DEFAULT_SORT_ORDER = 
+				new StringBuilder().append(RequestField.MODIFIED.n()).append(" DESC ").toString();
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[RequestField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(RequestField.values().length);
+		
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(RequestTable.COLUMNS);
+		for (RequestField field : RequestField.values()) {
+			columns.add(field.n());
+			RequestTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+
+
+	/**
+	 * The postal table is for holding retrieval requests.
+	 */
+	
+	public enum PostalField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+		
+		PAYLOAD("payload", "TEXT"),
+		// The payload instead of content provider
 
 		UNIT("unit", "TEXT"),
 		// Units associated with {@link #VALUE}. Used to determine whether should occur.
@@ -552,35 +788,31 @@ public class DistributorDataStore {
 		// column name and record id should be used. This is done when the data
 		// size is larger than that allowed for a field contents.
 
-		final public String n; // name
-		final public String t; // type
+		final public TableFieldState impl;
 
-		private PostalTableSchema(String n, String t) {
-			this.n = n;
-			this.t = t;
+		private PostalField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
 		}
+		
 		/**
-		 * Produce string of the form...
-		 * "<field-name>" <field-type>
-		 * e.g.
-		 * "dog" TEXT
+		 * required by TableField interface
 		 */
-		public String addfield() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"').append(' ').append(this.t)
-			.toString();
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>"
-		 */
-		public String q() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"')
-			.toString();
-		}
-		public String cv() {
-			return String.valueOf(this.n);
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+	
+	public static interface PostalTable extends RequestTable {
+		public static final String[] COLUMNS = new String[PostalField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(PostalField.values().length);
+	};
+	static {
+		final List<String> columns = Arrays.asList(PostalTable.COLUMNS);
+		for (PostalField field : PostalField.values()) {
+			columns.add(field.n());
+			PostalTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	};
 
@@ -588,122 +820,47 @@ public class DistributorDataStore {
 	/**
 	 * The publication table is for holding publication requests.
 	 */
-	public static interface PublishTable extends BaseColumns {
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[PublishTableSchema.values().length];
+	public enum PublishField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY");
+		// The parent key
+		
+		final public TableFieldState impl;
+
+		private PublishField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+		
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+	
+	public static interface PublishTable extends RequestTable {
+		public static final String[] COLUMNS = new String[PublishField.values().length];
 		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PublishTableSchema.values().length);
+				new HashMap<String,String>(PublishField.values().length);
 	}
 	static {
-		int ix = 0;
-		for (PublishTableSchema field : PublishTableSchema.values()) {
-			PublishTable.COLUMNS[ix++] = field.n;
-			PublishTable.PROJECTION_MAP.put(field.n, field.n);
+		final List<String> columns = Arrays.asList(PublishTable.COLUMNS);
+		for (PublishField field : PublishField.values()) {
+			columns.add(field.n());
+			PublishTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	}
 
-	public enum PublishTableSchema {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		CREATED("created", "INTEGER"),
-		// When the request was made
-
-		MODIFIED("modified", "INTEGER"),
-		// When the request was last modified
-
-		TOPIC("topic", "TEXT"),
-		// This along with the cost is used to decide how to deliver the specific object.
-
-		PROVIDER("provider", "TEXT"),
-		// The uri of the content provider
-
-		DISPOSITION("disposition", "INTEGER"),
-		// The current best guess of the status of the request.
-
-		EXPIRATION("expiration", "INTEGER");
-		// Time-stamp at which request entry becomes stale.
-
-		final public String n; // name
-		final public String t; // type
-
-		private PublishTableSchema(String name, String type) {
-			this.n = name;
-			this.t = type;
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>" <field-type>
-		 * e.g.
-		 * "dog" TEXT
-		 */
-		public String addfield() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"').append(' ').append(this.t)
-			.toString();
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>"
-		 */
-		public String q() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"')
-			.toString();
-		}
-		public String cv() {
-			return String.valueOf(this.n);
-		}
-	};
 
 	/**
 	 * The retrieval table is for holding retrieval requests.
 	 */
-	public static interface RetrievalTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[RetrievalTableSchema.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(RetrievalTableSchema.values().length);
-	};
-	static {
-		int ix = 0;
-		for (RetrievalTableSchema field : RetrievalTableSchema.values()) {
-			RetrievalTable.COLUMNS[ix++] = field.n;
-			RetrievalTable.PROJECTION_MAP.put(field.n, field.n);
-		}
-	};
-
-
-
-	public enum RetrievalTableSchema {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		CREATED("created", "INTEGER"),
-		// When the request was made
-
-		MODIFIED("modified", "INTEGER"),
-		// When the request was last modified
-
-		UUID("uuid", "TEXT"),
-		// This is a unique identifier for the request
-		// It is used to look up the appropriate provider
-
-		TOPIC("topic", "TEXT"),
-		// This is the data type
-
-		PROVIDER("provider", "TEXT"),
-		// The uri of the content provider
-
-		NOTICE("notice", "BLOB"),
-		// A description of what is to be done when various state-transition occur.
-
-		PRIORITY("priority", "INTEGER"),
-		// What order should this message be sent. Negative priorities indicated less than normal.
-
+	public enum RetrievalField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+		
 		PROJECTION("projection", "TEXT"),
 		// The fields/columns wanted.
 
@@ -719,12 +876,6 @@ public class DistributorDataStore {
 		LIMIT("maxrows", "INTEGER"),
 		// The maximum number of items to retrieve
 		// as items are obtained the count should be decremented
-
-		DISPOSITION("disposition", "INTEGER"),
-		// The current best guess of the status of the request.
-
-		EXPIRATION("expiration", "INTEGER"),
-		// Time-stamp at which request entry becomes stale.
 
 		UNIT("unit", "TEXT"),
 		// Units associated with {@link #VALUE}. Used to determine whether should occur.
@@ -746,190 +897,210 @@ public class DistributorDataStore {
 		//      of the requested objects.
 		// - QUANTITY : the maximum number of objects to return
 
-		final public String n; // name
-		final public String t; // type
+		final public TableFieldState impl;
 
-		private RetrievalTableSchema(String name, String type) {
-			this.n = name;
-			this.t = type;
+		private RetrievalField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
 		}
+		
 		/**
-		 * Produce string of the form...
-		 * "<field-name>" <field-type>
-		 * e.g.
-		 * "dog" TEXT
+		 * required by TableField interface
 		 */
-		public String addfield() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"').append(' ').append(this.t)
-			.toString();
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>"
-		 */
-		public String q() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"')
-			.toString();
-		}
-		public String cv() {
-			return String.valueOf(this.n);
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+	
+	public static interface RetrievalTable extends RequestTable {
+
+		public static final String[] COLUMNS = new String[RetrievalField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(RetrievalField.values().length);
+	};
+	static {
+		final List<String> columns = Arrays.asList(RetrievalTable.COLUMNS);
+		for (RetrievalField field : RetrievalField.values()) {
+			columns.add(field.n());
+			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	};
-
-
+	
 	/**
 	 * The subscription table is for holding subscription requests.
 	 */
-	public static interface SubscribeTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[SubscribeTableSchema.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(SubscribeTableSchema.values().length);
-	}
-	static {
-		int ix = 0;
-		for (SubscribeTableSchema field : SubscribeTableSchema.values()) {
-			SubscribeTable.COLUMNS[ix++] = field.n;
-			SubscribeTable.PROJECTION_MAP.put(field.n, field.n);
-		}
-	}
-
-	public enum SubscribeTableSchema {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		CREATED("created", "INTEGER"),
-		// When the request was made
-
-		MODIFIED("modified", "INTEGER"),
-		// When the request was last modified
-
-		TOPIC("topic", "TEXT"),
-		// This along with the cost is used to decide how to deliver the specific object.
-
-		PROVIDER("provider", "TEXT"),
-		// The uri of the content provider
-
-		DISPOSITION("disposition", "INTEGER"),
-		// The current best guess of the status of the request.
-
-		EXPIRATION("expiration", "INTEGER"),
-		// Time-stamp at which request entry becomes stale.
-
-		SELECTION("selection", "TEXT"),
+	public enum SubscribeField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+		
+		SELECTION("selection", "TEXT");
 		// The rows/tuples wanted.
 
-		NOTICE("notice", "BLOB"),
-		// A description of what is to be done when various state-transition occur.
+		final public TableFieldState impl;
 
-		PRIORITY("priority", "INTEGER");
-		// What order should this message be sent. Negative priorities indicated less than normal.
-
-
-		final public String n; // name
-		final public String t; // type
-
-		private SubscribeTableSchema(String name, String type) {
-			this.n = name;
-			this.t = type;
+		private SubscribeField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
 		}
+		
 		/**
-		 * Produce string of the form...
-		 * "<field-name>" <field-type>
-		 * e.g.
-		 * "dog" TEXT
+		 * required by TableField interface
 		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+	
+	public static interface SubscribeTable {
 
-		public String addfield() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"').append(' ').append(this.t)
-			.toString();
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>"
-		 */
-		public String q() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"')
-			.toString();
-		}
-		public String cv() {
-			return String.valueOf(this.n);
+		public static final String DEFAULT_SORT_ORDER = ""; 
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[SubscribeField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(SubscribeField.values().length);
+		
+		public static final String PARENT_KEY_REF = new StringBuilder()
+		   .append(" FOREIGN KEY(").append(SubscribeField.REQUEST.n()).append(")")
+		   .append(" REFERENCES ").append(Tables.REQUEST.n)
+		   .append("(").append(RequestField._ID.n()).append(")")
+		   .append(" ON DELETE CASCADE ")
+		   .toString();
+	}
+	static {
+		final List<String> columns = Arrays.asList(SubscribeTable.COLUMNS);
+		for (SubscribeField field : SubscribeField.values()) {
+			columns.add(field.n());
+			SubscribeTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	}
+
 
 
 	/**
-	 * The disposal table is for holding request disposition status.
+	 * The channel disposal table is for holding 
+	 * request disposition status for each channel.
+	 * Once the message has been sent acknowledgments 
+	 * will produce multiple additional recipient messages
+	 * which are placed in the recipient table.
 	 */
-	public static interface DisposalTable extends BaseColumns {
+	
+
+	/**
+	 * An association between channel and request.
+	 * This 
+	 */
+	public enum DisposalChannelField  implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		CHANNEL("channel", "TEXT"),
+		// The name of the channel over which the message could-be/was sent
+		
+		REQUEST("parent", "INTEGER"),
+		// The _id of the parent request
+
+		TYPE("type", "INTEGER"),
+		// Meaning the parent type: subscribe, retrieval, postal, publish
+		// This is redundant on the Request tuple, it is provided for performance.
+
+		STATE("state", "INTEGER");
+		// State of the request in the channel
+		// see ChannelDisposalState for valid values
+
+		final public TableFieldState impl;
+
+		private DisposalChannelField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+		
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+	public static interface DisposalChannelTable {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[DisposalTableSchema.values().length];
+		public static final String[] COLUMNS = new String[DisposalChannelField.values().length];
 		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(DisposalTableSchema.values().length);
+				new HashMap<String,String>(DisposalChannelField.values().length);
+		
+		public static final String PARENT_KEY_REF = new StringBuilder()
+		   .append(" FOREIGN KEY(").append(DisposalChannelField.REQUEST.n()).append(")")
+		   .append(" REFERENCES ").append(Tables.REQUEST.n)
+		   .append("(").append(RequestField._ID.n()).append(")")
+		   .append(" ON DELETE CASCADE ")
+		   .append(",")
+		   .append(" FOREIGN KEY(").append(DisposalChannelField.CHANNEL.n()).append(")")
+		   .append(" REFERENCES ").append(Tables.CHANNEL.n)
+		   .append("(").append(ChannelField.NAME.n()).append(")")
+		   .append(" ON UPDATE CASCADE ")
+		   .append(" ON DELETE CASCADE ")
+		   .toString();
 	}
 	static {
-		int ix = 0;
-		for (DisposalTableSchema field : DisposalTableSchema.values()) {
-			DisposalTable.COLUMNS[ix++] = field.n;
-			DisposalTable.PROJECTION_MAP.put(field.n, field.n);
+		final List<String> columns = Arrays.asList(DisposalChannelTable.COLUMNS);
+		for (DisposalChannelField field : DisposalChannelField.values()) {
+			columns.add(field.n());
+			DisposalChannelTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	}
-
-	public enum DisposalTableSchema {
+	
+	/**
+	 * The recipient table extends the disposal table.
+	 * Once the message has been sent any acknowledgments will produce 
+	 * multiple additional recipient messages.
+	 */
+	public enum DisposalPresenceField  implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
-		TYPE("type", "INTEGER"),
+		DISPOSAL("type", "INTEGER"),
 		// Meaning the parent type: subscribe, retrieval, postal, publish
 
-		PARENT("parent", "INTEGER"),
-		// The _id of the parent
-
-		CHANNEL("channel", "TEXT"),
-		// The name of the channel over which the message could be sent
-
 		STATE("state", "INTEGER");
-		// Where the request is on the channel
+		// State of the request on the channel
 
+		final public TableFieldState impl;
 
-		final public String n; // name
-		final public String t; // type
-
-		private DisposalTableSchema(String name, String type) {
-			this.n = name;
-			this.t = type;
+		private DisposalPresenceField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
 		}
+		
 		/**
-		 * Produce string of the form...
-		 * "<field-name>" <field-type>
-		 * e.g.
-		 * "dog" TEXT
+		 * required by TableField interface
 		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+	
+	public static interface DisposalPresenceTable {
 
-		public String addfield() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"').append(' ').append(this.t)
-			.toString();
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>"
-		 */
-		public String q() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"')
-			.toString();
-		}
-		public String cv() {
-			return String.valueOf(this.n);
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[DisposalPresenceField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(DisposalPresenceField.values().length);
+		
+		public static final String PARENT_KEY_REF = new StringBuilder()
+		   .append(" FOREIGN KEY(").append(DisposalPresenceField.DISPOSAL.n()).append(")")
+		   .append(" REFERENCES ").append(Tables.DISPOSAL.n)
+		   .append("(").append(DisposalChannelField._ID.n()).append(")")
+		   .append(" ON DELETE CASCADE ")
+		   .toString();
+	}
+	static {
+		final List<String> columns = Arrays.asList(DisposalPresenceTable.COLUMNS);
+		for (DisposalPresenceField field : DisposalPresenceField.values()) {
+			columns.add(field.n());
+			DisposalPresenceTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	}
 
@@ -939,24 +1110,7 @@ public class DistributorDataStore {
 	 * This could be done with a concurrent hash map but that
 	 * would put more logic in the java code and less in sqlite.
 	 */
-	public static interface ChannelTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[ChannelTableSchema.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(ChannelTableSchema.values().length);
-	}
-	static {
-		int ix = 0;
-		for (ChannelTableSchema field : ChannelTableSchema.values()) {
-			ChannelTable.COLUMNS[ix++] = field.n;
-			ChannelTable.PROJECTION_MAP.put(field.n, field.n);
-		}
-	}
-
-	public enum ChannelTableSchema {
+	public enum ChannelField  implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
 		NAME("name", "TEXT"),
@@ -965,49 +1119,38 @@ public class DistributorDataStore {
 		STATE("state", "INTEGER");
 		// The channel state (active inactive)
 
-		final public String n; // name
-		final public String t; // type
-
-		private ChannelTableSchema(String name, String type) {
-			this.n = name;
-			this.t = type;
+		final public TableFieldState impl;
+		
+		private ChannelField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
 		}
+		
 		/**
-		 * Produce string of the form...
-		 * "<field-name>" <field-type>
-		 * e.g.
-		 * "dog" TEXT
+		 * required by TableField interface
 		 */
-
-		public String addfield() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"').append(' ').append(this.t)
-			.toString();
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>"
-		 */
-		public String q() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"')
-			.toString();
-		}
-		public String cv() {
-			return String.valueOf(this.n);
-		}
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
 	}
+	public static interface ChannelTable extends BaseColumns {
 
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-	// Views.
-	public interface Views {
-		// Nothing to put here yet.
-	}
-
-	public interface Indices {
-		// Nothing to put here yet.
-	}
-
+		public static final String[] COLUMNS = new String[ChannelField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(ChannelField.values().length);
+		
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(ChannelTable.COLUMNS);
+		for (ChannelField field : ChannelField.values()) {
+			columns.add(field.n());
+			ChannelTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
 
 	// ===========================================================
 	// Methods
@@ -1071,24 +1214,111 @@ public class DistributorDataStore {
 	 * @param sortOrder
 	 * @return
 	 */
-	public synchronized Cursor queryPostal(String[] projection, String selection,
+	
+	private static String RequestStatusQuery(Tables table) {
+	return new StringBuilder()
+	.append(" SELECT ").append(" * ")
+	.append(" FROM ")
+	.append(Tables.REQUEST.q()).append(" AS r ")
+	.append(" WHERE ")
+	.append(RequestField.TYPE.q("r")).append("=").append(table.o)
+	.append(" AND EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
+	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
+	.append(" ON ").append(DisposalChannelField.CHANNEL.q("d")).append("=").append(ChannelField.NAME.q("c"))
+	.append(" WHERE ").append(RequestField._ID.q("r")).append("=").append(DisposalChannelField.REQUEST.q("d"))
+	.append("   AND ").append(ChannelField.STATE.q("c")).append('=').append(ChannelState.ACTIVE.q())
+	.append("   AND ").append(DisposalChannelField.STATE.q("d"))
+	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
+	.append(')') // close exists clause	
+	.append(" ORDER BY ").append(RequestField.PRIORITY.q("r")).append(" DESC ")
+	.append(", ").append(RequestField._ID.q("r")).append(" ASC ")	
+	.toString();
+	}
+	
+	private static final String RequestViewCreate(String view, Tables table) {
+	 return new StringBuilder()
+	.append(" CREATE VIEW ").append(view).append(" AS ")
+	.append(" SELECT ").append(" * ")
+	.append(" FROM ")
+	.append(Tables.REQUEST.q()).append(" AS r ")
+	.append(" WHERE ")
+	.append(RequestField.TYPE.q("r")).append('=').append('\'').append(table.o).append('\'')
+	.append(';')
+	.toString();
+	}
+	
+	public synchronized Cursor queryRequest(String rel, 
+			String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		try {
 			this.openRead();
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-			qb.setTables(Tables.POSTAL.n);
-			qb.setProjectionMap(PostalTable.PROJECTION_MAP);
+			qb.setTables(rel);
+			qb.setProjectionMap(RequestTable.PROJECTION_MAP);
 
 			// Get the database and run the query.
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
 			return qb.query(db, projection, selection, selectionArgs, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: PostalTable.DEFAULT_SORT_ORDER);
+							: RequestTable.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
 			logger.error("query postal {} {}", selection, selectionArgs);
 		}
 		return null;
+	}
+	
+	public synchronized Cursor queryRequestByUuid(String[] projection, String uuid, String sortOrder) {
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+			qb.setTables(Tables.REQUEST.n);
+			//qb.setProjectionMap(projection);
+
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, REQUEST_UUID_QUERY, new String[]{ uuid }, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: RetrievalTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query retrieval by key {} {} {}", new Object[]{ projection, uuid });
+		}
+		return null;
+	}
+	static private final String REQUEST_UUID_QUERY = new StringBuilder()
+	.append(RequestField.UUID.q(null)).append("=?")
+	//.append(" AND ")
+	//.append(RequestField.TOPIC.q(null)).append("=?")
+	.toString();
+	
+	public synchronized Cursor queryRequestByTopic(String rel, String[] projection,
+			String topic, String sortOrder) {
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+			qb.setTables(Tables.REQUEST.n);
+			// qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
+
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, REQUEST_TOPIC_QUERY, new String[]{topic}, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: SubscribeTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query subscribe by key {} {}", projection, topic);
+		}
+		return null;
+	}
+	static private final String REQUEST_TOPIC_QUERY = new StringBuilder()
+	.append(RequestField.TOPIC.q(null)).append("=?")
+	.toString();
+	
+	//============ POSTAL METHODS ===================
+	
+	public synchronized Cursor queryPostal(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		return queryRequest(POSTAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
 	}
 
 	public synchronized Cursor queryPostalReady() {
@@ -1100,190 +1330,93 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-	private static final String POSTAL_STATUS_QUERY = new StringBuilder()
-	.append(" SELECT ").append(" * ")
-	.append(" FROM ").append(Tables.POSTAL.q()).append(" AS p ")
-	.append(" WHERE EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
-	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
-	.append(" WHERE p.").append(PostalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
-	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.POSTAL.qv())
-	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
-	.append(')') // close exists clause	
-	.append(" ORDER BY ").append(PostalTableSchema.PRIORITY.q()).append(" DESC ")
-	.append(',').append(PostalTableSchema._ID.q()).append(" ASC ")	
-	.toString();
-
+	private static final String POSTAL_STATUS_QUERY = RequestStatusQuery(Tables.POSTAL);
+	
+	private static final String POSTAL_VIEW_NAME = new StringBuilder()
+	  .append(Tables.POSTAL.q()).append("_view").toString();
+	
+	
+	//============ PUBLISH METHODS ===================
 	public synchronized Cursor queryPublish(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
+		return queryRequest(PUBLISH_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
+	}
+	public synchronized Cursor queryPublishReady() {
+		this.openRead();
 		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.PUBLISH.n);
-			qb.setProjectionMap(PublishTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, selection, selectionArgs, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: PublishTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query publish {} {}", selection, selectionArgs);
+			return db.rawQuery(PUBLISH_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
 		}
 		return null;
 	}
-
-	public synchronized Cursor queryRetrieval(String[] projection, String selection, String[] selectArgs, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.RETRIEVAL.n);
-			qb.setProjectionMap(RetrievalTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, selection, selectArgs, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: RetrievalTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query retrieval {} {}", selection, selectArgs);
-		}
-		return null;
+	private static final String PUBLISH_STATUS_QUERY = RequestStatusQuery(Tables.PUBLISH);
+	
+	private static final String PUBLISH_VIEW_NAME = new StringBuilder()
+	  .append(Tables.PUBLISH.q()).append("_view").toString();
+		
+	//============ RETRIEVAL METHODS ===================
+	public synchronized Cursor queryRetrieval(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		return queryRequest(RETRIEVAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
 	}
-
-	public synchronized Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.RETRIEVAL.n);
-			qb.setProjectionMap(RetrievalTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, RETRIEVAL_QUERY, new String[]{ uuid, topic}, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: RetrievalTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query retrieval by key {} {} {}", new Object[]{ projection, uuid, topic });
-		}
-		return null;
-	}
-	static private final String RETRIEVAL_QUERY = new StringBuilder()
-	.append(RetrievalTableSchema.UUID.q()).append("=?")
-	.append(" AND ")
-	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
-	.toString();
-
 	public synchronized Cursor queryRetrievalReady() {
+		this.openRead();
 		try {
-			logger.trace("retrieval ready {}", RETRIEVAL_STATUS_QUERY);
 			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
 		}
 		return null;
 	}
-	private static final String RETRIEVAL_STATUS_QUERY = new StringBuilder()
-	.append(" SELECT ").append(" * ")
-	.append(" FROM ").append(Tables.RETRIEVAL.q()).append(" AS p ")
-	.append(" WHERE EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
-	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
-	.append(" WHERE p.").append(RetrievalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
-	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.RETRIEVAL.qv())
-	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
-	.append(')') // close exists clause
-	.append(" ORDER BY ").append(RetrievalTableSchema.PRIORITY.q()).append(" DESC ")
-	.append(',').append(RetrievalTableSchema._ID.q()).append(" ASC ")	
-	.toString();
-
-
+	private static final String RETRIEVAL_STATUS_QUERY = RequestStatusQuery(Tables.RETRIEVAL);
+	
+	private static final String RETRIEVAL_VIEW_NAME = new StringBuilder()
+	  .append(Tables.RETRIEVAL.q()).append("_view").toString();
+		
+	public synchronized Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
+		return queryRequestByUuid(projection, uuid, sortOrder);
+	}
+	
+	//============ SUBSCRIBE METHODS ===================
 	public synchronized Cursor querySubscribe(String[] projection, String selection,
-			String[] selectArgs, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.SUBSCRIBE.n);
-			qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, selection, selectArgs, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: SubscribeTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query subscribe {} {}", selection, selectArgs);
-		}
-		return null;
+			String[] selectionArgs, String sortOrder) {
+		return queryRequest(SUBSCRIBE_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
 	}
-
-	public synchronized Cursor querySubscribeByKey(String[] projection,
-			String topic, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.SUBSCRIBE.n);
-			qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, SUSCRIBE_QUERY, new String[]{ topic}, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: SubscribeTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query subscribe by key {} {}", projection, topic);
-		}
-		return null;
-	}
-	static private final String SUSCRIBE_QUERY = new StringBuilder()
-	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
-	.toString();
 
 	public synchronized Cursor querySubscribeReady() {
+		this.openRead();
 		try {
-			return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
+			return db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
 		}
 		return null;
 	}
-	private static final String SUBSCRIBE_STATUS_QUERY = new StringBuilder()
-	.append(" SELECT ").append(" * ")
-	.append(" FROM ").append(Tables.SUBSCRIBE.q()).append(" AS p ")
-	.append(" WHERE EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
-	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
-	.append(" WHERE p.").append(SubscribeTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
-	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.SUBSCRIBE.qv())
-	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
-	.append(')') // close exists clause
-	.append(" ORDER BY ").append(SubscribeTableSchema.PRIORITY.q()).append(" DESC ")
-	.append(',').append(SubscribeTableSchema._ID.q()).append(" ASC ")	
-	.toString();
-
-
-
+	
+	public synchronized Cursor querySubscribeByKey(String[] projection,
+			String topic, String sortOrder) {
+		return queryRequestByTopic(SUBSCRIBE_VIEW_NAME, projection, topic, sortOrder);
+	}
+	
+	private static final String SUBSCRIBE_STATUS_QUERY = RequestStatusQuery(Tables.SUBSCRIBE);
+	
+	private static final String SUBSCRIBE_VIEW_NAME = new StringBuilder()
+	  .append(Tables.SUBSCRIBE.q()).append("_view").toString();
+	
+	//============ DISPOSAL METHODS ===================
 	public synchronized Cursor queryDisposal(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 			qb.setTables(Tables.DISPOSAL.n);
-			qb.setProjectionMap(DisposalTable.PROJECTION_MAP);
+			qb.setProjectionMap(DisposalChannelTable.PROJECTION_MAP);
 
 			// Get the database and run the query.
 			return qb.query(this.db, projection, selection, selectionArgs, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: DisposalTable.DEFAULT_SORT_ORDER);
+							: DisposalChannelTable.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
 			logger.error("query disposal {} {}", selection, selectionArgs);
 		}
@@ -1307,12 +1440,13 @@ public class DistributorDataStore {
 		return null;
 	}
 	private static final String DISPOSAL_STATUS_QUERY = new StringBuilder()
-	.append("SELECT * ")
+	.append(" SELECT * ")
 	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-	.append(" WHERE d.").append(DisposalTableSchema.TYPE.q()).append("=? ")
-	.append("   AND d.").append(DisposalTableSchema.PARENT.q()).append("=? ")
+	.append(" WHERE ").append(DisposalChannelField.TYPE.q("d")).append("=? ")
+	.append("   AND ").append(DisposalChannelField.REQUEST.q("d")).append("=? ")
 	.toString();
 
+	//============ CHANNEL METHODS ===================
 	public synchronized Cursor queryChannel(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
 		try {
@@ -1331,180 +1465,101 @@ public class DistributorDataStore {
 		return null;
 	}
 
+	static final private String REQUEST_UPDATE_CLAUSE = new StringBuilder()
+		.append(RequestField.TOPIC.q(null)).append("=?")
+		.append(" AND ")
+		.append(RequestField.PROVIDER.q(null)).append("=?")
+		.toString();
+	
+	static final private String ROWID_CLAUSE = "_rowid_=?";
+	
+	/**
+	 * Data Manipulation : upsert, delete
+	 */
+	
+	//============ REQUEST METHODS ===================
+	public synchronized long upsertRequest(ContentValues cv, DistributorState status, 
+			String viewName, Tables table ) {
+		try {
+			final String uuid = cv.getAsString(RequestField.UUID.cv());
+			final String topic = cv.getAsString(RequestField.TOPIC.cv());
+			final String provider = cv.getAsString(RequestField.PROVIDER.cv());
 
-
+			final long rowid;
+			final String[] updateArgs = (uuid != null) 
+					? new String[]{ uuid, topic, provider }
+			        : new String[]{ topic, provider };
+			final Cursor cursor = this.db.query(viewName, new String[] {RequestField._ID.q(null)}, 
+					REQUEST_UPDATE_CLAUSE, updateArgs, null, null, null);
+			if (cursor.getCount() > 0) {
+				rowid = cursor.getLong(cursor.getColumnIndex(RequestField._ID.q(null)));
+				final String[] rowid_arg = new String[]{ Long.toString(rowid) };
+				this.db.update(Tables.REQUEST.n, cv, ROWID_CLAUSE, rowid_arg );
+				this.db.update(table.n, cv, ROWID_CLAUSE, rowid_arg );
+			} else {
+				rowid = this.db.insert(Tables.REQUEST.n, RequestField.CREATED.n(), cv);
+				cv.put(PostalField.REQUEST.n(), rowid);
+				this.db.insert(table.n, RequestField.CREATED.n(), cv);
+			}
+			upsertDisposalByRequest(rowid, status);
+			return rowid;
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert {} {}", cv, status);
+		}
+		return -1;
+	}
+	
 	/**
 	 * Upsert is a portmanteau of update and insert, thus,
 	 * if a record with a matching key exists then update
-	 * otherwise insert.
+	 * otherwise insert.INTEGER PRIMARY KEY 
 	 */
+	
+	//============ REQUEST METHODS ===================
 	public synchronized long upsertPostal(ContentValues cv, DistributorState status) {
-		try {
-			final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
-			final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
-
-			final long key;
-			final String[] updateArgs = new String[]{ topic, provider };
-			if (0 < this.db.update(Tables.POSTAL.n, cv, POSTAL_UPDATE_CLAUSE, updateArgs )) {
-				final Cursor cursor = this.db.query(Tables.POSTAL.n, 
-						new String[]{PostalTableSchema._ID.n},
-						POSTAL_UPDATE_CLAUSE, updateArgs, null, null, null);
-				cursor.moveToFirst();
-				key = cursor.getInt(0); // we only asked for one column so it better be it.
-				cursor.close();
-			} else {
-				key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
-			}
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
-				upsertDisposalByParent(Tables.POSTAL, key, entry.getKey(), entry.getValue());
-			}
-			return key;
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert postal {} {}", cv, status);
-		}
-		return 0;
+		return upsertRequest(cv, status, POSTAL_VIEW_NAME, Tables.POSTAL);
 	}
-	static final private String POSTAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(PostalTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ")
-	.append(PostalTableSchema.PROVIDER.q()).append("=?")
-	.toString();
-
+		
 	public synchronized long upsertPublish(ContentValues cv, DistributorState status) {
-		try {
-			final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
-			final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
-
-			final long key;
-			final String[] updateArgs = new String[]{ topic, provider };
-			if (0 < this.db.update(Tables.PUBLISH.n, cv, PUBLISH_UPDATE_CLAUSE, updateArgs )) {
-				final Cursor cursor = this.db.query(Tables.PUBLISH.n, 
-						new String[]{PublishTableSchema._ID.n},
-						PUBLISH_UPDATE_CLAUSE, updateArgs, null, null, null);
-				cursor.moveToFirst();
-				key = cursor.getInt(0); // we only asked for one column so it better be it.
-				cursor.close();
-			} else {
-				key = this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
-			}
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
-				upsertDisposalByParent(Tables.PUBLISH, key, entry.getKey(), entry.getValue());
-			}
-			return key;
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert publish {} {}", cv, status);
-		}
-		return 0;
+		return upsertRequest(cv, status, PUBLISH_VIEW_NAME, Tables.PUBLISH);
 	}
-	static final private String PUBLISH_UPDATE_CLAUSE = new StringBuilder()
-	.append(PublishTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ")
-	.append(PublishTableSchema.PROVIDER.q()).append("=?")
-	.toString();
 
 	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
-		try {
-			final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
-			final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
-			final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
-
-			final long key;
-			final String[] updateArgs = new String[]{ uuid, topic, provider };
-			if (0 < this.db.update(Tables.RETRIEVAL.n, cv, RETRIEVAL_UPDATE_CLAUSE, updateArgs )) {
-				final Cursor cursor = this.db.query(Tables.RETRIEVAL.n, 
-						new String[]{RetrievalTableSchema._ID.n},
-						RETRIEVAL_UPDATE_CLAUSE, updateArgs, null, null, null);
-				cursor.moveToFirst();
-				key = cursor.getInt(0); // we only asked for one column so it better be it.
-				cursor.close();
-			} else {
-				key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
-			}
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
-				final String entityChannel = entry.getKey();
-				final ChannelDisposal entityStatus = entry.getValue();
-				logger.trace("upsert retrieval {} {} {}", new Object[]{key, entityChannel, entityStatus});
-				upsertDisposalByParent(Tables.RETRIEVAL, key, entityChannel, entityStatus);
-			}
-			return key;
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert retrieval {} {}", cv, status);
-		}
-		return 0;
+		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
 	}
-	static final private String RETRIEVAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(RetrievalTableSchema.UUID.q()).append("=?")
-	.append(" AND ")
-	.append(RetrievalTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ")
-	.append(RetrievalTableSchema.PROVIDER.q()).append("=?")
-	.toString();
-
-	/**
-	 *
-	 */
+	
 	public synchronized long upsertSubscribe(ContentValues cv, DistributorState status) {
-		try {
-			final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
-			final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
-
-			final long key;
-			final String[] updateArgs = new String[]{ topic, provider };
-			if (0 < this.db.update(Tables.SUBSCRIBE.n, cv, SUBSCRIBE_UPDATE_CLAUSE, updateArgs )) {
-				final Cursor cursor = this.db.query(Tables.SUBSCRIBE.n, 
-						new String[]{SubscribeTableSchema._ID.n},
-						SUBSCRIBE_UPDATE_CLAUSE, updateArgs, null, null, null);
-				cursor.moveToFirst();
-				key = cursor.getInt(0); // we only asked for one column so it better be it.
-				cursor.close();
-			} else {
-				key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
-			}
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
-				this.upsertDisposalByParent(Tables.SUBSCRIBE, key, entry.getKey(), entry.getValue());
-			}
-			return key;
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert subscribe {} {}", cv, status);
-		}
-		return 0;
+		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
 	}
-	static final private String SUBSCRIBE_UPDATE_CLAUSE = new StringBuilder()
-	.append(SubscribeTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ")
-	.append(SubscribeTableSchema.PROVIDER.q()).append("=?")
-	.toString();
 
-
-	private synchronized long[] upsertDisposalByParent(Tables type, long id, DistributorState status) {
+	//============ DISPOSAL METHODS ===================
+	private synchronized long[] upsertDisposalByRequest(long requestId, DistributorState status) {
 		try {
 			final long[] idArray = new long[status.size()];
 			int ix = 0;
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
-				idArray[ix] = upsertDisposalByParent(type, id, entry.getKey(), entry.getValue());
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
+				idArray[ix] = upsertDisposalByRequest(requestId, entry.getKey(), entry.getValue());
 				ix++;
 			}
 			return idArray;
 		} catch (IllegalArgumentException ex) {
-			logger.error("upsert disposal by parent {} {} {}", new Object[]{id, type, status});
+			logger.error("upsert disposal by parent {} {} {}", new Object[]{requestId, status});
 		}
 		return null;
 	}
-	private synchronized long upsertDisposalByParent(Tables type, long id, String channel, ChannelDisposal status) {
+	private synchronized long upsertDisposalByRequest(long requestId, String channel, DisposalState status) {
 		try {
-			final String typeVal = type.cv();
-
 			final ContentValues cv = new ContentValues();
-			cv.put(DisposalTableSchema.TYPE.cv(), typeVal);
-			cv.put(DisposalTableSchema.PARENT.cv(), id);
-			cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
-			cv.put(DisposalTableSchema.STATE.cv(), (status == null) ? ChannelDisposal.PENDING.o : status.o);
+			cv.put(DisposalChannelField.REQUEST.cv(), requestId);
+			cv.put(DisposalChannelField.CHANNEL.cv(), channel);
+			cv.put(DisposalChannelField.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
 
+			final String requestIdStr = String.valueOf(requestId);
 			final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
-					DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel } );
+					DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr , channel } );
 			if (updateCount > 0) {
-				final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalTableSchema._ID.n}, 
-						DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel },
+				final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalChannelField._ID.n()}, 
+						DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel },
 						null, null, null);
 				final int rowCount = cursor.getCount();
 				if (rowCount > 1) {
@@ -1515,38 +1570,36 @@ public class DistributorDataStore {
 				cursor.close();
 				return key;
 			}
-			return this.db.insert(Tables.DISPOSAL.n, DisposalTableSchema.TYPE.n, cv);
+			return this.db.insert(Tables.DISPOSAL.n, DisposalChannelField.TYPE.n(), cv);
 		} catch (IllegalArgumentException ex) {
-			logger.error("upsert disposal {} {} {} {}", new Object[]{id, type, channel, status});
+			logger.error("upsert disposal {} {} {} {}", new Object[]{requestId, channel, status});
 		}
 		return 0;
 	}
 	static final private String DISPOSAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append("=?")
+	.append(DisposalChannelField.REQUEST.q(null)).append("=?")
 	.append(" AND ")
-	.append(DisposalTableSchema.PARENT.q()).append("=?")
-	.append(" AND ")
-	.append(DisposalTableSchema.CHANNEL.q()).append("=?").toString();
+	.append(DisposalChannelField.CHANNEL.q(null)).append("=?").toString();
 
 
 	public synchronized long upsertChannelByName(String channel, ChannelState status) {
 		try {
 			final ContentValues cv = new ContentValues();		
-			cv.put(ChannelTableSchema.STATE.cv(), status.cv());
+			cv.put(ChannelField.STATE.cv(), status.cv());
 
 			final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
 					CHANNEL_UPDATE_CLAUSE, new String[]{ channel } );
 			if (updateCount > 0) return 0;
 
-			cv.put(ChannelTableSchema.NAME.cv(), channel);
-			db.insert(Tables.CHANNEL.n, ChannelTableSchema.NAME.n, cv);
+			cv.put(ChannelField.NAME.cv(), channel);
+			db.insert(Tables.CHANNEL.n, ChannelField.NAME.n(), cv);
 		} catch (IllegalArgumentException ex) {
 			logger.error("upsert channel {} {}", channel, status);
 		}
 		return 0;
 	}
 	static final private String CHANNEL_UPDATE_CLAUSE = new StringBuilder()
-	.append(ChannelTableSchema.NAME.q()).append("=?").toString();
+	.append(ChannelField.NAME.q(null)).append("=?").toString();
 
 	/**
 	 * These are related to upsertChannelByName() inasmuch as it 
@@ -1557,7 +1610,7 @@ public class DistributorDataStore {
 	static final private ContentValues DISPOSAL_PENDING_VALUES;
 	static {
 		DISPOSAL_PENDING_VALUES = new ContentValues();
-		DISPOSAL_PENDING_VALUES.put(DisposalTableSchema.STATE.cv(), ChannelDisposal.PENDING.o); 
+		DISPOSAL_PENDING_VALUES.put(DisposalChannelField.STATE.cv(), DisposalState.PENDING.o); 
 	}
 
 	/**
@@ -1578,13 +1631,13 @@ public class DistributorDataStore {
 		return 0;
 	}	
 	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
-	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
+	.append(DisposalChannelField.CHANNEL.q(null)).append("=?")
 	.append(" AND ")
-	.append(DisposalTableSchema.TYPE.q()).append(" IN ( ")
+	.append(DisposalChannelField.TYPE.q(null)).append(" IN ( ")
 	.append(Tables.SUBSCRIBE.qv()).append(')')
 	.append(" AND ")
-	.append(DisposalTableSchema.STATE.q())
-	.append(" NOT IN ( ").append(ChannelDisposal.BAD.q()).append(')')
+	.append(DisposalChannelField.STATE.q(null))
+	.append(" NOT IN ( ").append(DisposalState.BAD.q()).append(')')
 	.toString();
 
 	/**
@@ -1613,165 +1666,118 @@ public class DistributorDataStore {
 		return 0;
 	}
 	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
-	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
+	.append(DisposalChannelField.CHANNEL.q(null)).append("=?")
 	.append(" AND ")
-	.append(DisposalTableSchema.STATE.q())
-	.append(" IN ( ").append(ChannelDisposal.BAD.q()).append(')')
+	.append(DisposalChannelField.STATE.q(null))
+	.append(" IN ( ").append(DisposalState.BAD.q()).append(')')
 	.toString();
 
 	/**
 	 * Update an object represented in the database.
 	 * Any reasonable update will need to know how to select an existing object.
 	 */
-	public synchronized long updatePostalByKey(long id, ContentValues cv, DistributorState state) {
+	public synchronized long updateRequestById(long requestId, ContentValues cv, DistributorState state) {
 		if (state == null && cv == null) return -1;
 		if (cv == null) cv = new ContentValues();
 		
 		if (state != null) {
-			this.upsertDisposalByParent(Tables.POSTAL, id, state);
-			cv.put(PostalTableSchema.DISPOSITION.n, state.aggregate().cv());
+			this.upsertDisposalByRequest(requestId, state);
+			cv.put(RequestField.DISPOSITION.n(), state.aggregate().cv());
 		}	
 		try {
-			return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
+			return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(requestId) } );
 		} catch (IllegalArgumentException ex) {
-			logger.error("updatePostalByKey {} {}", id, cv);
+			logger.error("updatePostalByKey {} {}", requestId, cv);
 		}
 		return 0;
 	}
-	public synchronized long updatePostalByKey(long id, String channel, final ChannelDisposal state) {
-		// TODO update the parent object with the aggregate state
-		return this.upsertDisposalByParent(Tables.POSTAL, id, channel, state);
+	public synchronized long updatePostalByKey(long requestId, ContentValues cv, DistributorState state) {
+		return updateRequestById(requestId, cv, state);
+	}
+	public synchronized long updatePostalByKey(long requestId, String channel, final DisposalState state) {
+		return this.upsertDisposalByRequest(requestId, channel, state);
 	}
 
-	public synchronized long updatePublishByKey(long id, ContentValues cv,  final DistributorState state) {
-		if (state == null && cv == null) return -1;
-		if (cv == null) cv = new ContentValues();
+	public synchronized long updatePublishByKey(long requestId, ContentValues cv,  final DistributorState state) {
+		return updateRequestById(requestId, cv, state);
+	}
+	public synchronized long updatePublishByKey(long requestId, String channel, final DisposalState state) {
+		return this.upsertDisposalByRequest(requestId, channel, state);
+	}
+
+	public synchronized long updateRetrievalByKey(long requestId, ContentValues cv, final DistributorState state) {
+		return updateRequestById(requestId, cv, state);
+	}
+	public synchronized long updateRetrievalByKey(long requestId, String channel, final DisposalState state) {
+		return this.upsertDisposalByRequest(requestId, channel, state);
+	}
+
+	public synchronized long updateSubscribeByKey(long requestId, ContentValues cv, final DistributorState state) {
+		return updateRequestById(requestId, cv, state);
+	}
+	public synchronized long updateSubscribeByKey(long requestId, String channel, final DisposalState state) {
+		return this.upsertDisposalByRequest(requestId, channel, state);
+	}
+
+
+	public ContentValues initializeRequestDefaults(ContentValues values) {
+		final Long now = Long.valueOf(System.currentTimeMillis());
 		
-		if (state != null) {
-			this.upsertDisposalByParent(Tables.PUBLISH, id, state);
-			cv.put(PublishTableSchema.DISPOSITION.n, state.aggregate().cv());
-		}	
-		try {
-			return this.db.update(Tables.PUBLISH.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
-		} catch (IllegalArgumentException ex) {
-			logger.error("updatePublishByKey {} {}", id, cv);
+		if (!values.containsKey(RequestField.TOPIC.n())) {
+			values.put(RequestField.TOPIC.n(),"unknown");
 		}
-		return 0;
-	}
-	public synchronized long updatePublishByKey(long id, String channel, final ChannelDisposal state) {
-		return this.upsertDisposalByParent(Tables.PUBLISH, id, channel, state);
-	}
-
-	public synchronized long updateRetrievalByKey(long id, ContentValues cv, final DistributorState state) {
-		if (state == null && cv == null) return -1;
-		if (cv == null) cv = new ContentValues();
+		if (!values.containsKey(RequestField.PROVIDER.n())) {
+			values.put(RequestField.PROVIDER.n(),"unknown");
+		}
+		if (!values.containsKey(RequestField.DISPOSITION.n())) {
+			values.put(RequestField.DISPOSITION.n(),
+					DisposalState.PENDING.o);
+		}
 		
-		if (state != null) {
-			this.upsertDisposalByParent(Tables.RETRIEVAL, id, state);
-			cv.put(RetrievalTableSchema.DISPOSITION.n, state.aggregate().cv());
-		}	
-		try {
-			logger.trace("update retrieval by key {} {}", id, cv);
-			return this.db.update(Tables.RETRIEVAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
-		} catch (IllegalArgumentException ex) {
-			logger.error("updateRetrievalByKey {} {}", id, cv);
+		if (!values.containsKey(RequestField.PRIORITY.n())) {
+			values.put(RequestField.PRIORITY.n(), PriorityType.NORMAL.o);
 		}
-		return 0;
-	}
-	public synchronized long updateRetrievalByKey(long id, String channel, final ChannelDisposal state) {
-		return this.upsertDisposalByParent(Tables.RETRIEVAL, id, channel, state);
-	}
-
-	public synchronized long updateSubscribeByKey(long id, ContentValues cv, final DistributorState state) {
-		if (state == null && cv == null) return -1;
-		if (cv == null) cv = new ContentValues();
 		
-		if (state != null) {
-			this.upsertDisposalByParent(Tables.SUBSCRIBE, id, state);
-			cv.put(SubscribeTableSchema.DISPOSITION.n, state.aggregate().cv());
-		}	
-		try {
-			return this.db.update(Tables.SUBSCRIBE.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
-		} catch (IllegalArgumentException ex) {
-			logger.error("updateSubscribeByKey {} {}", id, cv);
+		if (!values.containsKey(RequestField.SERIAL_EVENT.n())) {
+			values.put(RequestField.SERIAL_EVENT.n(),
+					SerialEvent.EAGER.o);
 		}
-		return 0;
-	}
-	public synchronized long updateSubscribeByKey(long id, String channel, final ChannelDisposal state) {
-		return this.upsertDisposalByParent(Tables.SUBSCRIBE, id, channel, state);
-	}
 
-
+		if (!values.containsKey(RequestField.EXPIRATION.n())) {
+			values.put(RequestField.EXPIRATION.n(), now);
+		}
+		if (!values.containsKey(RequestField.CREATED.n())) {
+			values.put(RequestField.CREATED.n(), now);
+		}
+		if (!values.containsKey(RequestField.MODIFIED.n())) {
+			values.put(RequestField.MODIFIED.n(), now);
+		}
+		return values;
+	}
+		
 	/** Insert method helper */
 	public ContentValues initializePostalDefaults(ContentValues values) {
-		final Long now = Long.valueOf(System.currentTimeMillis());
-
-		if (!values.containsKey(PostalTableSchema.TOPIC.n)) {
-			values.put(PostalTableSchema.TOPIC.n,"unknown");
+		
+		initializeRequestDefaults(values);
+		
+		if (!values.containsKey(PostalField.UNIT.n())) {
+			values.put(PostalField.UNIT.n(), "unknown");
 		}
-		if (!values.containsKey(PostalTableSchema.PROVIDER.n)) {
-			values.put(PostalTableSchema.PROVIDER.n,"unknown");
+		if (!values.containsKey(PostalField.VALUE.n())) {
+			values.put(PostalField.VALUE.n(), -1);
 		}
-		if (!values.containsKey(RetrievalTableSchema.DISPOSITION.n)) {
-			values.put(RetrievalTableSchema.DISPOSITION.n,
-					ChannelDisposal.PENDING.o);
+		if (!values.containsKey(PostalField.DATA.n())) {
+			values.put(PostalField.DATA.n(), "");
 		}
-		if (!values.containsKey(PostalTableSchema.NOTICE.n)) {
-			values.put(PostalTableSchema.NOTICE.n, "");
-		}
-		if (!values.containsKey(PostalTableSchema.PRIORITY.n)) {
-			values.put(PostalTableSchema.PRIORITY.n, PriorityType.NORMAL.o);
-		}
-		if (!values.containsKey(PostalTableSchema.ORDER.n)) {
-			values.put(PostalTableSchema.ORDER.n,
-					SerializeType.INDIRECT.o);
-		}
-
-		if (!values.containsKey(PostalTableSchema.EXPIRATION.n)) {
-			values.put(PostalTableSchema.EXPIRATION.n, now);
-		}
-		if (!values.containsKey(PostalTableSchema.UNIT.n)) {
-			values.put(PostalTableSchema.UNIT.n, "unknown");
-		}
-		if (!values.containsKey(PostalTableSchema.VALUE.n)) {
-			values.put(PostalTableSchema.VALUE.n, -1);
-		}
-		if (!values.containsKey(PostalTableSchema.DATA.n)) {
-			values.put(PostalTableSchema.DATA.n, "");
-		}
-		if (!values.containsKey(PostalTableSchema.CREATED.n)) {
-			values.put(PostalTableSchema.CREATED.n, now);
-		}
-		if (!values.containsKey(PostalTableSchema.MODIFIED.n)) {
-			values.put(PostalTableSchema.MODIFIED.n, now);
-		}
-
 		return values;
 	}
 
 	/** Insert method helper */
 	protected ContentValues initializePublicationDefaults(ContentValues values) {
-		final Long now = Long.valueOf(System.currentTimeMillis());
+		// final Long now = Long.valueOf(System.currentTimeMillis());
 
-		if (!values.containsKey(PublishTableSchema.DISPOSITION.n)) {
-			values.put(PublishTableSchema.DISPOSITION.n,
-					ChannelDisposal.PENDING.o);
-		}
-		if (!values.containsKey(PublishTableSchema.PROVIDER.n)) {
-			values.put(PublishTableSchema.PROVIDER.n, "unknown");
-		}
-		if (!values.containsKey(PublishTableSchema.TOPIC.n)) {
-			values.put(PublishTableSchema.TOPIC.n, "unknown");
-		}
-		if (!values.containsKey(PublishTableSchema.EXPIRATION.n)) {
-			values.put(PublishTableSchema.EXPIRATION.n, now);
-		}
-		if (!values.containsKey(PublishTableSchema.CREATED.n)) {
-			values.put(PublishTableSchema.CREATED.n, now);
-		}
-		if (!values.containsKey(PublishTableSchema.MODIFIED.n)) {
-			values.put(PublishTableSchema.MODIFIED.n, now);
-		}
+		initializeRequestDefaults(values);
+		
 		return values;
 	}
 
@@ -1779,98 +1785,46 @@ public class DistributorDataStore {
 	protected ContentValues initializeRetrievalDefaults(ContentValues values) {
 		final Long now = Long.valueOf(System.currentTimeMillis());
 
-		if (!values.containsKey(RetrievalTableSchema.DISPOSITION.n)) {
-			values.put(RetrievalTableSchema.DISPOSITION.n,
-					ChannelDisposal.PENDING.o);
+		initializeRequestDefaults(values);
+		
+		if (!values.containsKey(RetrievalField.PROJECTION.n())) {
+			values.put(RetrievalField.PROJECTION.n(), "");
 		}
-		if (!values.containsKey(RetrievalTableSchema.NOTICE.n)) {
-			values.put(RetrievalTableSchema.NOTICE.n, "");
+		if (!values.containsKey(RetrievalField.SELECTION.n())) {
+			values.put(RetrievalField.SELECTION.n(), "");
 		}
-		if (!values.containsKey(RetrievalTableSchema.PRIORITY.n)) {
-			values.put(RetrievalTableSchema.PRIORITY.n, PriorityType.NORMAL.o);
+		if (!values.containsKey(RetrievalField.ARGS.n())) {
+			values.put(RetrievalField.ARGS.n(), "");
 		}
-		if (!values.containsKey(RetrievalTableSchema.PROVIDER.n)) {
-			values.put(RetrievalTableSchema.PROVIDER.n, "unknown");
+		if (!values.containsKey(RetrievalField.ORDERING.n())) {
+			values.put(RetrievalField.ORDERING.n(), "");
 		}
-		if (!values.containsKey(RetrievalTableSchema.TOPIC.n)) {
-			values.put(RetrievalTableSchema.TOPIC.n, "unknown");
+		if (!values.containsKey(RetrievalField.LIMIT.n())) {
+			values.put(RetrievalField.LIMIT.n(), -1);
 		}
-		if (!values.containsKey(RetrievalTableSchema.PROJECTION.n)) {
-			values.put(RetrievalTableSchema.PROJECTION.n, "");
-		}
-		if (!values.containsKey(RetrievalTableSchema.SELECTION.n)) {
-			values.put(RetrievalTableSchema.SELECTION.n, "");
-		}
-		if (!values.containsKey(RetrievalTableSchema.ARGS.n)) {
-			values.put(RetrievalTableSchema.ARGS.n, "");
-		}
-		if (!values.containsKey(RetrievalTableSchema.ORDERING.n)) {
-			values.put(RetrievalTableSchema.ORDERING.n, "");
-		}
-		if (!values.containsKey(RetrievalTableSchema.LIMIT.n)) {
-			values.put(RetrievalTableSchema.LIMIT.n, -1);
-		}
-		if (!values.containsKey(RetrievalTableSchema.CONTINUITY_TYPE.n)) {
-			values.put(RetrievalTableSchema.CONTINUITY_TYPE.n,
+		if (!values.containsKey(RetrievalField.CONTINUITY_TYPE.n())) {
+			values.put(RetrievalField.CONTINUITY_TYPE.n(),
 					ContinuityType.ONCE.o);
 		}
-		if (!values.containsKey(RetrievalTableSchema.CONTINUITY_VALUE.n)) {
-			values.put(RetrievalTableSchema.CONTINUITY_VALUE.n, now);
+		if (!values.containsKey(RetrievalField.CONTINUITY_VALUE.n())) {
+			values.put(RetrievalField.CONTINUITY_VALUE.n(), now);
 		}
-		if (!values.containsKey(RetrievalTableSchema.EXPIRATION.n)) {
-			values.put(RetrievalTableSchema.EXPIRATION.n, now);
-		}
-		if (!values.containsKey(RetrievalTableSchema.CREATED.n)) {
-			values.put(RetrievalTableSchema.CREATED.n, now);
-		}
-		if (!values.containsKey(RetrievalTableSchema.MODIFIED.n)) {
-			values.put(RetrievalTableSchema.MODIFIED.n, now);
-		}
-
 		return values;
 	}
 
 	/** Insert method helper */
 	protected ContentValues initializeSubscriptionDefaults(ContentValues values) {
-		final Long now = Long.valueOf(System.currentTimeMillis());
 
-		if (!values.containsKey(SubscribeTableSchema.DISPOSITION.n)) {
-			values.put(SubscribeTableSchema.DISPOSITION.n,
-					ChannelDisposal.PENDING.o);
-		}
-		if (!values.containsKey(SubscribeTableSchema.PROVIDER.n)) {
-			values.put(SubscribeTableSchema.PROVIDER.n, "unknown");
-		}
-		if (!values.containsKey(SubscribeTableSchema.TOPIC.n)) {
-			values.put(SubscribeTableSchema.TOPIC.n, "unknown");
-		}
-
-		if (!values.containsKey(SubscribeTableSchema.SELECTION.n)) {
-			values.put(SubscribeTableSchema.SELECTION.n, "");
-		}
-		if (!values.containsKey(SubscribeTableSchema.EXPIRATION.n)) {
-			values.put(SubscribeTableSchema.EXPIRATION.n, now);
-		}
-		if (!values.containsKey(SubscribeTableSchema.NOTICE.n)) {
-			values.put(SubscribeTableSchema.NOTICE.n, "");
-		}
-		if (!values.containsKey(SubscribeTableSchema.PRIORITY.n)) {
-			values.put(SubscribeTableSchema.PRIORITY.n, PriorityType.NORMAL.o);
-		}
-		if (!values.containsKey(SubscribeTableSchema.CREATED.n)) {
-			values.put(SubscribeTableSchema.CREATED.n, now);
-		}
-		if (!values.containsKey(SubscribeTableSchema.MODIFIED.n)) {
-			values.put(SubscribeTableSchema.MODIFIED.n, now);
+		initializeRequestDefaults(values);
+		
+		if (!values.containsKey(SubscribeField.SELECTION.n())) {
+			values.put(SubscribeField.SELECTION.n(), "");
 		}
 		return values;
 	}
 
 	/**
 	 * Delete set
-	 *
-	 * @param cv
-	 * @return
 	 */
 
 	// ======== HELPER ============
@@ -1880,9 +1834,23 @@ public class DistributorDataStore {
 	}
 
 	private static final String DISPOSAL_PURGE = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q())
+	.append(DisposalChannelField.TYPE.q(null))
 	.append('=').append('?')
 	.toString();
+	
+	public static class SelectArgsBuilder {
+		final private List<String> args;
+		public SelectArgsBuilder() {
+			this.args = new ArrayList<String>();
+		}
+		public SelectArgsBuilder append(String arg) { 
+			this.args.add(arg);
+			return this;
+		}
+		public String[] toArgs() {
+			return this.args.toArray(new String[this.args.size()]);
+		}
+	}
 
 	// ========= POSTAL : DELETE ================
 
@@ -1913,16 +1881,16 @@ public class DistributorDataStore {
 		return 0;
 	}
 	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.POSTAL.cv())
+	.append(DisposalChannelField.TYPE.q(null)).append('=').append(Tables.POSTAL.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.POSTAL.q())
-	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	    .append('=').append(Tables.POSTAL.q()).append(".").append(PostalTableSchema._ID.q())
+	.append(" WHERE ").append(DisposalChannelField.REQUEST.q(null))
+	    .append('=').append(Tables.POSTAL.q()).append(".").append(RequestField._ID.q(null))
 	.append(')')
 	.toString();
 
 	private static final String POSTAL_EXPIRATION_CONDITION = new StringBuilder()
-	.append('"').append(PostalTableSchema.EXPIRATION.n).append('"')
+	.append(RequestField.EXPIRATION.q(null))
 	.append('<').append('?')
 	.toString();
 
@@ -1957,16 +1925,16 @@ public class DistributorDataStore {
 		return 0;
 	}
 	private static final String DISPOSAL_PUBLISH_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.PUBLISH.cv())
+	.append(DisposalChannelField.TYPE.q(null)).append('=').append(Tables.PUBLISH.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.PUBLISH.q())
-	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	    .append('=').append(Tables.PUBLISH.q()).append(".").append(PublishTableSchema._ID.q())
+	.append(" WHERE ").append(DisposalChannelField.REQUEST.q(null))
+	    .append('=').append(Tables.REQUEST.q()).append(".").append(RequestField._ID.q(null))
 	.append(')')
 	.toString();
 
 	private static final String PUBLISH_EXPIRATION_CONDITION = new StringBuilder()
-	.append('"').append(PublishTableSchema.EXPIRATION.n).append('"')
+	.append(RequestField.EXPIRATION.q(null))
 	.append('<').append('?')
 	.toString();
 
@@ -1999,16 +1967,16 @@ public class DistributorDataStore {
 		return 0;
 	}
 	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.RETRIEVAL.cv())
+	.append(DisposalChannelField.TYPE.q(null)).append('=').append(Tables.RETRIEVAL.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.RETRIEVAL.q())
-	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	    .append('=').append(Tables.RETRIEVAL.q()).append(".").append(RetrievalTableSchema._ID.q())
+	.append(" WHERE ").append(DisposalChannelField.REQUEST.q(null))
+	    .append('=').append(Tables.RETRIEVAL.q()).append(".").append(RequestField._ID.q(null))
 	.append(')')
 	.toString();
 
 	private static final String RETRIEVAL_EXPIRATION_CONDITION = new StringBuilder()
-	.append('"').append(RetrievalTableSchema.EXPIRATION.n).append('"')
+	.append(RequestField.EXPIRATION.q(null))
 	.append('<').append('?')
 	.toString();
 
@@ -2035,8 +2003,7 @@ public class DistributorDataStore {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int count = db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
-			logger.trace("Subscribe delete {} {}", count, disposalCount);
+			logger.trace("Subscribe delete {} {}", count);
 			return count;
 		} catch (IllegalArgumentException ex) {
 			logger.error("delete postal {} {}", selection, selectionArgs);
@@ -2047,27 +2014,19 @@ public class DistributorDataStore {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
-					SUBSCRIBE_EXPIRATION_CONDITION, getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-					DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
-			logger.trace("Subscribe garbage {} {} {}", new Object[] {expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION} );
+					SUBSCRIBE_EXPIRATION_CONDITION, 
+					getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
+			
+			logger.trace("Subscribe garbage {} {}", new Object[] {expireCount, SUBSCRIBE_EXPIRATION_CONDITION} );
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
 			logger.error("deleteSubscribeGarbage");
 		}
 		return 0;
 	}
-	private static final String DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.SUBSCRIBE.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.SUBSCRIBE.q())
-	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	    .append('=').append(Tables.SUBSCRIBE.q()).append(".").append(SubscribeTableSchema._ID.q())
-	.append(')')
-	.toString();
-
+	
 	private static final String SUBSCRIBE_EXPIRATION_CONDITION = new StringBuilder()
-	.append('"').append(SubscribeTableSchema.EXPIRATION.n).append('"')
+	.append(RequestField.EXPIRATION.n())
 	.append('<').append('?')
 	.toString();
 
@@ -2192,79 +2151,74 @@ public class DistributorDataStore {
 		// SQLiteOpenHelper Methods
 		// ===========================================================
 
+		private StringBuilder addFieldsToCreation(List<TableField> fields) {
+			if (fields.size() < 1) return null;
+			
+			final StringBuilder sb = new StringBuilder();
+			final TableField first = fields.get(1);
+			sb.append(first.q(null)).append(' ').append(first.t());
+			
+			for (TableField field : fields.subList(1, fields.size()) ) {
+			    sb.append(",").append(field.q(null)).append(' ').append(field.t());
+			}
+			return sb;
+		}
+		
 		@Override
 		public synchronized void onCreate(SQLiteDatabase db) {
 			logger.info("Bootstrapping database");
 
-			try {
-				final StringBuilder sb = new StringBuilder();
-				for (PostalTableSchema field : PostalTableSchema.values()) {
-					if(sb.length() != 0)
-						sb.append(",");
-					sb.append(field.addfield());
-				}
-				db.execSQL(Tables.POSTAL.sqlCreate(sb.toString()).toString());
+			try {	
+				final StringBuilder sb = new StringBuilder().append("CREATE TABLE ");
+				sb.append('"').append(Tables.REQUEST.n).append('"');
+				sb.append(" ( ");
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.REQUEST.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.POSTAL.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.PUBLISH.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.RETRIEVAL.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.SUBSCRIBE.getFields())));
+				sb.append(");");
+				
+				db.execSQL(sb.toString());
+				
+				final StringBuilder pkidx = new StringBuilder()
+				   .append("CREATE UNIQUE INDEX ").append(Tables.REQUEST.n).append("_pkidx")
+				   .append(" ON ").append(Tables.REQUEST.n).append("(").append(RequestField._ID.q(null))
+				   .append(");");
+				
+				db.execSQL(pkidx.toString());
 
+				final StringBuilder spo = new StringBuilder().append("CREATE TABLE ");
+				spo.append('"').append(Tables.REQUEST.n).append('"');
+				sb.append(" ( ");
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.REQUEST.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.POSTAL.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.PUBLISH.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.RETRIEVAL.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.SUBSCRIBE.getFields())));
+				sb.append(");");
+				
+				db.execSQL(RequestViewCreate(POSTAL_VIEW_NAME, Tables.POSTAL));
+				db.execSQL(RequestViewCreate(PUBLISH_VIEW_NAME, Tables.PUBLISH));
+				db.execSQL(RequestViewCreate(RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL));
+				db.execSQL(RequestViewCreate(SUBSCRIBE_VIEW_NAME, Tables.SUBSCRIBE));
+				
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
 
 			try {
-				final StringBuilder sb = new StringBuilder();
-				for (PublishTableSchema field : PublishTableSchema.values()) {
-					if(sb.length() != 0)
-						sb.append(",");
-					sb.append(field.addfield());
-				}
-				db.execSQL(Tables.PUBLISH.sqlCreate(sb.toString()).toString());
-
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-			try {
-				final StringBuilder sb = new StringBuilder();
-				for (RetrievalTableSchema field : RetrievalTableSchema.values()) {
-					if(sb.length() != 0)
-						sb.append(",");
-					sb.append(field.addfield());
-				}
-				db.execSQL(Tables.RETRIEVAL.sqlCreate(sb.toString()).toString());
-
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-			try {
-				final StringBuilder sb = new StringBuilder();
-				for (SubscribeTableSchema field : SubscribeTableSchema.values()) {
-					if(sb.length() != 0)
-						sb.append(",");
-					sb.append(field.addfield());
-				}
-				db.execSQL(Tables.SUBSCRIBE.sqlCreate(sb.toString()).toString());
-
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-			try {
-				final StringBuilder sb = new StringBuilder();
-				for (DisposalTableSchema field : DisposalTableSchema.values()) {
-					if(sb.length() != 0)
-						sb.append(",");
-					sb.append(field.addfield());
-				}
-				db.execSQL(Tables.DISPOSAL.sqlCreate(sb.toString()).toString());
-
-				// === INDICIES ======
+				for(final String sql : Tables.DISPOSAL.sqlCreate() )
+					db.execSQL(sql);
+				
+				// === Additional Indices ======
 				db.execSQL(new StringBuilder()
 				.append("CREATE UNIQUE INDEX ") 
 				.append(Tables.DISPOSAL.qIndex())
 				.append(" ON ").append(Tables.DISPOSAL.q())
-				.append(" ( ").append(DisposalTableSchema.TYPE.q())
-				.append(" , ").append(DisposalTableSchema.PARENT.q())
-				.append(" , ").append(DisposalTableSchema.CHANNEL.q())
+				.append(" ( ").append(DisposalChannelField.TYPE.q(null))
+				.append(" , ").append(DisposalChannelField.REQUEST.q(null))
+				.append(" , ").append(DisposalChannelField.CHANNEL.q(null))
 				.append(" ) ")
 				.toString() );
 
@@ -2273,22 +2227,19 @@ public class DistributorDataStore {
 			}
 
 			try {
-				final StringBuilder sb = new StringBuilder();
-				for (ChannelTableSchema field : ChannelTableSchema.values()) {
-					if(sb.length() != 0)
-						sb.append(",");
-					sb.append(field.addfield());
-				}
-				db.execSQL(Tables.CHANNEL.sqlCreate(sb.toString()).toString());
-
+				for(final String sql : Tables.CHANNEL.sqlCreate() )
+				db.execSQL(sql);
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+			
+			try {
+				for(final String sql : Tables.PRESENCE.sqlCreate() )
+				db.execSQL(sql);
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
 
-
-			// === PRELOAD ======
-
-			// === VIEWS ======
 
 		}
 

@@ -33,16 +33,15 @@ import android.widget.TableRow;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalChannelField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PriorityType;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
-
-
 
 public class RequestPopupWindow extends PopupWindow {
 
@@ -64,43 +63,43 @@ public class RequestPopupWindow extends PopupWindow {
 	private final static HashMap<String, FieldProperty> postalMap;
 	static {
 		postalMap = new HashMap<String, FieldProperty>();
-		postalMap.put(PostalTableSchema.PROVIDER.n, new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
-		postalMap.put(PostalTableSchema.TOPIC.n, new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
-		postalMap.put(PostalTableSchema.PAYLOAD.n, new FieldProperty(R.id.dist_detail_payload, FieldType.TEXT));
-		postalMap.put(PostalTableSchema.MODIFIED.n, new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
-		postalMap.put(PostalTableSchema.CREATED.n, new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
-		postalMap.put(PostalTableSchema.PRIORITY.n, new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
-		postalMap.put(PostalTableSchema.EXPIRATION.n, new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
-		postalMap.put(PostalTableSchema.DISPOSITION.n, new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
+		postalMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
+		postalMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
+		postalMap.put(PostalField.PAYLOAD.n(), new FieldProperty(R.id.dist_detail_payload, FieldType.TEXT));
+		postalMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
+		postalMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
+		postalMap.put(RequestField.PRIORITY.n(), new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
+		postalMap.put(RequestField.EXPIRATION.n(), new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
+		postalMap.put(RequestField.DISPOSITION.n(), new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
 	}
 
 	private final static HashMap<String, FieldProperty> subscribeMap;
 	static {
 		subscribeMap = new HashMap<String, FieldProperty>();
-		subscribeMap.put(SubscribeTableSchema.PROVIDER.n, new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
-		subscribeMap.put(SubscribeTableSchema.TOPIC.n, new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
-		subscribeMap.put(SubscribeTableSchema.SELECTION.n, new FieldProperty(R.id.
+		subscribeMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
+		subscribeMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
+		subscribeMap.put(SubscribeField.SELECTION.n(), new FieldProperty(R.id.
 				dist_detail_selection, FieldType.TEXT));
-		subscribeMap.put(SubscribeTableSchema.MODIFIED.n, new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
-		subscribeMap.put(SubscribeTableSchema.CREATED.n, new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
-		subscribeMap.put(SubscribeTableSchema.PRIORITY.n, new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
-		subscribeMap.put(SubscribeTableSchema.EXPIRATION.n, new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
-		subscribeMap.put(SubscribeTableSchema.DISPOSITION.n, new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
+		subscribeMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
+		subscribeMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
+		subscribeMap.put(RequestField.PRIORITY.n(), new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
+		subscribeMap.put(RequestField.EXPIRATION.n(), new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
+		subscribeMap.put(RequestField.DISPOSITION.n(), new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
 	}
 
 	private final static HashMap<String, FieldProperty> retrievalMap;
 	static {
 		retrievalMap = new HashMap<String, FieldProperty>();
-		retrievalMap.put(RetrievalTableSchema.PROVIDER.n, new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
-		retrievalMap.put(RetrievalTableSchema.TOPIC.n, new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
-		retrievalMap.put(RetrievalTableSchema.PROJECTION.n, new FieldProperty(R.id.dist_detail_projection, FieldType.TEXT));
-		retrievalMap.put(RetrievalTableSchema.SELECTION.n, new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
-		retrievalMap.put(RetrievalTableSchema.ARGS.n, new FieldProperty(R.id.dist_detail_select_args, FieldType.TEXT));
-		retrievalMap.put(RetrievalTableSchema.MODIFIED.n, new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
-		retrievalMap.put(RetrievalTableSchema.CREATED.n, new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
-		retrievalMap.put(RetrievalTableSchema.PRIORITY.n, new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
-		retrievalMap.put(RetrievalTableSchema.EXPIRATION.n, new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
-		retrievalMap.put(RetrievalTableSchema.DISPOSITION.n, new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
+		retrievalMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
+		retrievalMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
+		retrievalMap.put(RetrievalField.PROJECTION.n(), new FieldProperty(R.id.dist_detail_projection, FieldType.TEXT));
+		retrievalMap.put(RetrievalField.SELECTION.n(), new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
+		retrievalMap.put(RetrievalField.ARGS.n(), new FieldProperty(R.id.dist_detail_select_args, FieldType.TEXT));
+		retrievalMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
+		retrievalMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
+		retrievalMap.put(RequestField.PRIORITY.n(), new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
+		retrievalMap.put(RequestField.EXPIRATION.n(), new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
+		retrievalMap.put(RequestField.DISPOSITION.n(), new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
 	}
 
 	public boolean onKeyDown(int keyCode, KeyEvent event)  {
@@ -162,7 +161,7 @@ public class RequestPopupWindow extends PopupWindow {
 				break;
 			case DISPOSITION:
 				final int dispId = requestCursor.getInt(requestCursor.getColumnIndex(colName));
-				final RequestDisposal disp = RequestDisposal.getInstanceById(dispId);
+				final DisposalTotalState disp = DisposalTotalState.getInstanceById(dispId);
 				cell.setText(disp.t);
 				break;
 			case PRIORITY:
@@ -190,10 +189,9 @@ public class RequestPopupWindow extends PopupWindow {
 
 	}
 	static final private String CHANNEL_SELECTION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append("=?")
-	.append(" AND ").append(DisposalTableSchema.PARENT.q()).append("=?")
+	.append(DisposalChannelField.TYPE.q(null)).append("=?")
+	.append(" AND ")
+	.append(DisposalChannelField.REQUEST.q(null)).append("=?")
 	.toString();
-
-
 
 }

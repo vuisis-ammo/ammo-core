@@ -43,7 +43,7 @@ public class MessageQueueActivity extends Activity {
         
         
         while(c.moveToNext()) {
-        	String channelName = c.getString(c.getColumnIndex(DistributorDataStore.DisposalTableSchema.CHANNEL.n));
+        	String channelName = c.getString(c.getColumnIndex(DistributorDataStore.DisposalChannelField.CHANNEL.n()));
         	logger.debug(channelName);
         }
 	}

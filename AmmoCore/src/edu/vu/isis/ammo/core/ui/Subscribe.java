@@ -33,8 +33,8 @@ import android.widget.Toast;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoDispatch;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**
@@ -106,10 +106,10 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         	ContentResolver cr = this.getContentResolver();
         	if (entryDoesNotExist(cr, selectedUri)) {
         		ContentValues values = new ContentValues();
-            	values.put(SubscribeTableSchema.PROVIDER.cv(), selectedUri.toString());
-            	values.put(SubscribeTableSchema.TOPIC.cv(), selectedMime);
-            	values.put(SubscribeTableSchema.DISPOSITION.cv(), ChannelDisposal.PENDING.cv());
-            	// cr.insert(SubscribeTableSchema.CONTENT_URI, values);
+            	values.put(RequestField.PROVIDER.cv(), selectedUri.toString());
+            	values.put(RequestField.TOPIC.cv(), selectedMime);
+            	values.put(RequestField.DISPOSITION.cv(), DisposalState.PENDING.cv());
+            	// cr.insert(RequestField.CONTENT_URI, values);
             	
             	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();
             	try {
@@ -125,9 +125,9 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	}
 	
 	private boolean entryDoesNotExist(ContentResolver cr, Uri selectedUri) {
-		// String[] projection = {SubscribeTableSchema.PROVIDER.n, SubscribeTableSchema._ID};
-		// String selection = SubscribeTableSchema.PROVIDER.q() + " LIKE \"" + selectedUri.toString() + "\"";
-		// Cursor c = cr.query(SubscribeTableSchema.CONTENT_URI, projection, selection, null, null);
+		// String[] projection = {RequestField.PROVIDER.n, RequestField._ID};
+		// String selection = RequestField.PROVIDER.q() + " LIKE \"" + selectedUri.toString() + "\"";
+		// Cursor c = cr.query(RequestField.CONTENT_URI, projection, selection, null, null);
 		//return (c.getCount() == 0);
 		return false;
 	}

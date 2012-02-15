@@ -44,14 +44,15 @@ import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalChannelField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerialEvent;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -150,9 +151,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		public final long id;
 		public final Tables type;
 		public final String channel;
-		public final ChannelDisposal status;
+		public final DisposalState status;
 
-		public ChannelAck(long id, Tables type, String channel, ChannelDisposal status) {
+		public ChannelAck(long id, Tables type, String channel, DisposalState status) {
 			this.id = id;
 			this.type = type;
 			this.channel = channel;
@@ -589,19 +590,19 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 
 			final ContentValues values = new ContentValues();
-			values.put(PostalTableSchema.TOPIC.cv(), topic);
-			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
-			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority);
-			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-			values.put(PostalTableSchema.EXPIRATION.cv(), ar.expire.cv());
+			values.put(RequestField.TOPIC.cv(), topic);
+			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
+			values.put(RequestField.PRIORITY.cv(), policy.routing.priority);
+			values.put(RequestField.SERIAL_EVENT.cv(), ar.order.cv());
+			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
 
-			values.put(PostalTableSchema.PRIORITY.cv(), ar.priority);
-			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
-			// values.put(PostalTableSchema.UNIT.cv(), 50);
+			values.put(RequestField.PRIORITY.cv(), ar.priority);
+			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
+			// values.put(PostalField.UNIT.cv(), 50);
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
-				values.put(PostalTableSchema.DISPOSITION.cv(), RequestDisposal.NEW.cv());
+				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertPostal(values, policy.makeRouteMap());
 				logger.debug("no network connection, added {}", key);
 				return;
@@ -631,8 +632,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							return null;
 						} catch (TupleNotFoundException e) {
 							logger.error("tuple not found when processing postal table");
-							parent.store().deletePostal(new StringBuilder().append(PostalTableSchema.PROVIDER.q()).append("=?").append(" AND ")
-									.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), new String[] {e.missingTupleUri.getPath(), topic});
+							parent.store().deletePostal(new StringBuilder().append(RequestField.PROVIDER.q(null)).append("=?").append(" AND ")
+									.append(RequestField.TOPIC.q(null)).append("=?").toString(), new String[] {e.missingTupleUri.getPath(), topic});
 							return null;
 						} catch (NonConformingAmmoContentProvider e) {
 							e.printStackTrace();
@@ -642,7 +643,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				}
 			});
 
-			values.put(PostalTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+			values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
@@ -654,7 +655,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							final long id_ = id;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(id_, Tables.POSTAL, channel, status));
 							}
 						});
@@ -682,23 +683,23 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		for (boolean moreItems = pending.moveToFirst(); moreItems; 
 				moreItems = pending.moveToNext()) 
 		{
-			final int id = pending.getInt(pending.getColumnIndex(PostalTableSchema._ID.n));
-			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n)));
-			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
-			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
+			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
+			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
+			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
+			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
 
 			logger.debug("serializing: {} as {}", provider,topic);
 
 			final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
-			final int serialType = pending.getInt(pending.getColumnIndex(PostalTableSchema.ORDER.n));
-			int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
+			final int serialType = pending.getInt(pending.getColumnIndex(RequestField.SERIAL_EVENT.n()));
+			int dataColumnIndex = pending.getColumnIndex(PostalField.DATA.n());
 
 			final String data;
 			if (!pending.isNull(dataColumnIndex)) {
 				data = pending.getString(dataColumnIndex);
 			} else {
-                                data = null;
-                        }
+                data = null;
+            }
 			serializer.setSerializer( new RequestSerializer.OnSerialize() {
 					final DistributorThread parent = DistributorThread.this;
 				final RequestSerializer serializer_ = serializer;
@@ -709,16 +710,16 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				@Override
 				public byte[] run(Encoding encode) {
 
-					switch (SerializeType.getInstance(serialType_)) {
-					case DIRECT:
-                                              if (data_.length() > 0) {
+					switch (SerialEvent.getInstance(serialType_)) {
+					case APRIORI:
+                      if (data_.length() > 0) {
 						return data_.getBytes();
- 					      } else {
- 					        return null;
- 					      }
+				      } else {
+				        return null;
+				      }
 
-					case INDIRECT:
-					case DEFERRED:
+					case EAGER:
+					case LAZY:
 					default:
 						try {
 							return RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
@@ -728,8 +729,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 						} catch (TupleNotFoundException e) {
 							logger.error("tuple not found when processing postal table");
 							parent.store().deletePostal(new StringBuilder()
-							        .append(PostalTableSchema.PROVIDER.q()).append("=?").append(" AND ")
-									.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), 
+							        .append(RequestField.PROVIDER.q(null)).append("=?").append(" AND ")
+									.append(RequestField.TOPIC.q(null)).append("=?").toString(), 
 									new String[] {e.missingTupleUri.getPath(), topic});
 						} catch (NonConformingAmmoContentProvider e) {
 							e.printStackTrace();
@@ -747,9 +748,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
+					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalChannelField.CHANNEL.n()));
+					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalChannelField.STATE.n()));
+					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				logger.trace("prior channel states {}", dispersal);
 				channelCursor.close();
@@ -763,7 +764,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				synchronized (this.store) {
 					final ContentValues values = new ContentValues();
 
-					values.put(PostalTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+					values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					long numUpdated = this.store.updatePostalByKey(id, values, null);
 					logger.debug("updated {} postal items", numUpdated);
 
@@ -775,7 +776,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 										final DistributorThread parent = DistributorThread.this;
 		                                final int id_ = id;
 										@Override
-										public boolean ack(String channel, ChannelDisposal status) {
+										public boolean ack(String channel, DisposalState status) {
 											return parent.announceChannelAck( new ChannelAck(id_, Tables.POSTAL, channel, status) );
 										}
 									});
@@ -953,28 +954,28 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 
 			final ContentValues values = new ContentValues();
-			values.put(RetrievalTableSchema.UUID.cv(), uuid);
-			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
-			values.put(RetrievalTableSchema.SELECTION.cv(), select);
+			values.put(RequestField.UUID.cv(), uuid);
+			values.put(RequestField.TOPIC.cv(), topic);
+			values.put(RetrievalField.SELECTION.cv(), select);
 			if (limit != null)
-				values.put(RetrievalTableSchema.LIMIT.cv(), limit);
+				values.put(RetrievalField.LIMIT.cv(), limit);
 
-			values.put(RetrievalTableSchema.PROVIDER.cv(), ar.provider.cv());
-			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
-			values.put(RetrievalTableSchema.EXPIRATION.cv(), ar.expire.cv());
-			values.put(RetrievalTableSchema.UNIT.cv(), 50);
-			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
-			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
+			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
+			values.put(RequestField.PRIORITY.cv(), ar.priority);
+			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
+			values.put(RetrievalField.UNIT.cv(), 50);
+			values.put(RequestField.PRIORITY.cv(), ar.priority);
+			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
-				values.put(RetrievalTableSchema.DISPOSITION.cv(), RequestDisposal.NEW.cv());
+				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				this.store.upsertRetrieval(values, dispersal);
 				logger.debug("no network connection");
 				return;
 			}
 
-			values.put(RetrievalTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+			values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
@@ -987,7 +988,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							final long id_ = id;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(id_, Tables.RETRIEVAL, channel, status));
 							}
 						});
@@ -1017,24 +1018,24 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
-			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
-			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
+			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
+			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 			final DistributorState dispersal = policy.makeRouteMap();
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.RETRIEVAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
+					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalChannelField.CHANNEL.n()));
+					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalChannelField.STATE.n()));
+					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				channelCursor.close();
 			}
 
-			final String uuid = pending.getString(pending.getColumnIndex(RetrievalTableSchema.UUID.cv()));
-			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
+			final String uuid = pending.getString(pending.getColumnIndex(RequestField.UUID.cv()));
+			final String selection = pending.getString(pending.getColumnIndex(RetrievalField.SELECTION.n()));
 
-			final int columnIx = pending.getColumnIndex(RetrievalTableSchema.LIMIT.n);
+			final int columnIx = pending.getColumnIndex(RetrievalField.LIMIT.n());
 			final Integer limit = pending.isNull(columnIx) ? null : pending.getInt(columnIx);
 
 			try {
@@ -1045,7 +1046,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				synchronized (this.store) {
 					final ContentValues values = new ContentValues();
 
-					values.put(RetrievalTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+					values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					@SuppressWarnings("unused")
 					final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
 
@@ -1055,7 +1056,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 								final DistributorThread parent = DistributorThread.this;
 		
 								@Override
-								public boolean ack(String channel, ChannelDisposal status) {
+								public boolean ack(String channel, DisposalState status) {
 									return parent.announceChannelAck(new ChannelAck(id, Tables.RETRIEVAL, channel, status));
 								}
 							});
@@ -1146,7 +1147,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		final String uuid = resp.getRequestUid();
 		final String topic = resp.getMimeType();
 		final Cursor cursor = this.store
-				.queryRetrievalByKey(new String[] { RetrievalTableSchema.PROVIDER.n }, uuid, topic, null);
+				.queryRetrievalByKey(new String[] { RequestField.PROVIDER.n() }, uuid, topic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no retrieval {} {}", topic, uuid);
 			cursor.close();
@@ -1191,22 +1192,22 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 
 			final ContentValues values = new ContentValues();
-			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
-			values.put(SubscribeTableSchema.PROVIDER.cv(), agm.provider.cv());
-			values.put(SubscribeTableSchema.SELECTION.cv(), agm.select.toString());
-			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.expire.cv());
-			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.priority);
-			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
+			values.put(RequestField.TOPIC.cv(), topic);
+			values.put(RequestField.PROVIDER.cv(), agm.provider.cv());
+			values.put(SubscribeField.SELECTION.cv(), agm.select.toString());
+			values.put(RequestField.EXPIRATION.cv(), agm.expire.cv());
+			values.put(RequestField.PRIORITY.cv(), policy.routing.priority);
+			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
-				values.put(SubscribeTableSchema.DISPOSITION.cv(), RequestDisposal.NEW.cv());
+				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertSubscribe(values, dispersal);
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
 
-			values.put(SubscribeTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+			values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
@@ -1218,7 +1219,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							final long id_ = id;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(id_, Tables.SUBSCRIBE, channel, status));
 							}
 						});
@@ -1249,10 +1250,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
-			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
-			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
+			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
+			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
 
-			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
+			final String selection = pending.getString(pending.getColumnIndex(SubscribeField.SELECTION.n()));
 
 			logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
 
@@ -1261,9 +1262,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.SUBSCRIBE.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
+					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalChannelField.CHANNEL.n()));
+					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalChannelField.STATE.n()));
+					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				channelCursor.close();
 			}
@@ -1276,7 +1277,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				synchronized (this.store) {
 					final ContentValues values = new ContentValues();
 
-					values.put(SubscribeTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+					values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					@SuppressWarnings("unused")
 					long numUpdated = this.store.updateSubscribeByKey(id, values, null);
 
@@ -1287,7 +1288,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 								final int id_ = id;
 		
 								@Override
-								public boolean ack(String channel, ChannelDisposal status) {
+								public boolean ack(String channel, DisposalState status) {
 									return parent.announceChannelAck(new ChannelAck(id_, Tables.SUBSCRIBE, channel, status));
 								}
 							});
@@ -1369,7 +1370,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		logger.trace("receive response SUBSCRIBE : {}", mime );
 		final String topic = mime;
-		final Cursor cursor = this.store.querySubscribeByKey(new String[] { SubscribeTableSchema.PROVIDER.n }, topic, null);
+		final Cursor cursor = this.store.querySubscribeByKey(new String[] { RequestField.PROVIDER.n() }, topic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no subscription {}", topic);
 			cursor.close();

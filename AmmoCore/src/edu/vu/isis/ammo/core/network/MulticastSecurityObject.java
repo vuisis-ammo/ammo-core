@@ -15,7 +15,7 @@ package edu.vu.isis.ammo.core.network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -59,7 +59,7 @@ public class MulticastSecurityObject implements ISecurityObject,
     }
 
 
-    public boolean ack( String channel, ChannelDisposal status )
+    public boolean ack( String channel, DisposalState status )
     {
         return true;
     }

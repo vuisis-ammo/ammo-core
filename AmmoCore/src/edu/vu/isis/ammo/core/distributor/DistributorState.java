@@ -19,9 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
 
@@ -36,12 +36,12 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
 public class DistributorState {
 	private static final Logger logger = LoggerFactory.getLogger("ammo-dsp");
 
-	private final Map<String, ChannelDisposal> stateMap;
+	private final Map<String, DisposalState> stateMap;
 	private boolean total;
 	public final Routing policy;
 
 	private DistributorState(Routing policy) {
-		this.stateMap = new HashMap<String, ChannelDisposal>();
+		this.stateMap = new HashMap<String, DisposalState>();
 		this.total = false;
 		this.policy = policy;
 	}
@@ -60,11 +60,11 @@ public class DistributorState {
 	}
 
 
-	public ChannelDisposal put(String key, ChannelDisposal value) {
+	public DisposalState put(String key, DisposalState value) {
 		return stateMap.put(key, value);
 	}
 
-	public ChannelDisposal get(String key) {
+	public DisposalState get(String key) {
 		return stateMap.get(key);
 	}
 
@@ -72,7 +72,7 @@ public class DistributorState {
 		return stateMap.containsKey(key);
 	}
 
-	public Set<Entry<String, ChannelDisposal>> entrySet() {
+	public Set<Entry<String, DisposalState>> entrySet() {
 		return stateMap.entrySet();
 	}
 
@@ -90,7 +90,7 @@ public class DistributorState {
 		final StringBuilder sb = new StringBuilder()
 		        .append("type: ").append(this.type).append(" ")
 				.append("status:");
-		for( final Map.Entry<String,ChannelDisposal> entry : this.stateMap.entrySet()) {
+		for( final Map.Entry<String,DisposalState> entry : this.stateMap.entrySet()) {
 			sb.append('\n').append(entry.getKey()).append(" : ").append(entry.getValue());
 		}
 		return sb.toString();
@@ -119,7 +119,7 @@ public class DistributorState {
 			logger.error("no matching routing topic");
 
 			final ChannelStatus channelStatus = that.checkChannel(DistributorPolicy.DEFAULT);
-			final ChannelDisposal actualCondition;
+			final DisposalState actualCondition;
 			switch (channelStatus) {
 			case READY:
 				actualCondition = serializer.act(that,Encoding.getDefault(),DistributorPolicy.DEFAULT);
@@ -140,7 +140,7 @@ public class DistributorState {
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
 				final boolean goalCondition = literal.condition;
-				final ChannelDisposal priorCondition = (this.containsKey(term)) ? this.get(term) : ChannelDisposal.PENDING;
+				final DisposalState priorCondition = (this.containsKey(term)) ? this.get(term) : DisposalState.PENDING;
 				logger.debug("prior {} {} {}", new Object[]{term, priorCondition, goalCondition});
 				if (priorCondition.goalReached(goalCondition)) {
 					clauseSuccess = true;
@@ -154,9 +154,9 @@ public class DistributorState {
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
 				final boolean goalCondition = literal.condition;
-				final ChannelDisposal priorCondition = (this.containsKey(term)) ? this.get(term) : ChannelDisposal.PENDING;
+				final DisposalState priorCondition = (this.containsKey(term)) ? this.get(term) : DisposalState.PENDING;
 
-				ChannelDisposal actualCondition;
+				DisposalState actualCondition;
 				switch (priorCondition) {
 				case PENDING:
 					final ChannelStatus channelStatus = that.checkChannel(term);
@@ -188,22 +188,22 @@ public class DistributorState {
 	 * examine the states of each channel and generate an aggregate status.
 	 * @return
 	 */
-	public RequestDisposal aggregate() {
-		if (this.total) return RequestDisposal.COMPLETE;
+	public DisposalTotalState aggregate() {
+		if (this.total) return DisposalTotalState.COMPLETE;
 
 		int aggregated = 0x0000;
-		for (final Entry<String,ChannelDisposal> entry : this.stateMap.entrySet()) {
+		for (final Entry<String,DisposalState> entry : this.stateMap.entrySet()) {
 			aggregated |= entry.getValue().o;
 		}
-		if (0 < (aggregated & (ChannelDisposal.REJECTED.o | ChannelDisposal.BUSY.o) ))
-			return RequestDisposal.INCOMPLETE;
-		if (0 < (aggregated & (ChannelDisposal.PENDING.o | ChannelDisposal.NEW.o) ))
-			return RequestDisposal.DISTRIBUTE;
-		if (0 < (aggregated & (ChannelDisposal.SENT.o | ChannelDisposal.TOLD.o | ChannelDisposal.DELIVERED.o) ))
-			return RequestDisposal.COMPLETE;
-		if (0 < (aggregated & (ChannelDisposal.BAD.o) ))
-			return RequestDisposal.FAILED;
-		return RequestDisposal.DISTRIBUTE;
+		if (0 < (aggregated & (DisposalState.REJECTED.o | DisposalState.BUSY.o) ))
+			return DisposalTotalState.INCOMPLETE;
+		if (0 < (aggregated & (DisposalState.PENDING.o | DisposalState.NEW.o) ))
+			return DisposalTotalState.DISTRIBUTE;
+		if (0 < (aggregated & (DisposalState.SENT.o | DisposalState.TOLD.o | DisposalState.DELIVERED.o) ))
+			return DisposalTotalState.COMPLETE;
+		if (0 < (aggregated & (DisposalState.BAD.o) ))
+			return DisposalTotalState.FAILED;
+		return DisposalTotalState.DISTRIBUTE;
 	}
 
 	private String type;

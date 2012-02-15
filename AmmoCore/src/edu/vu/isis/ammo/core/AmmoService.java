@@ -52,7 +52,7 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
@@ -910,14 +910,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @param message
 	 */
 	@Override
-	public ChannelDisposal sendRequest(AmmoGatewayMessage agm, String channelName) {
+	public DisposalState sendRequest(AmmoGatewayMessage agm, String channelName) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
 		if (!gChannelMap.containsKey(channelName))
-			return ChannelDisposal.REJECTED;
+			return DisposalState.REJECTED;
 		final NetChannel channel = gChannelMap.get(channelName);
 		if (!channel.isConnected())
-			return ChannelDisposal.PENDING;
+			return DisposalState.PENDING;
 		return channel.sendRequest(agm);
 	}
 
@@ -1022,7 +1022,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * it in the future.
 	 */
 	@Override
-	public boolean ack(String channel, ChannelDisposal status) {
+	public boolean ack(String channel, DisposalState status) {
 		return false;
 	}
 

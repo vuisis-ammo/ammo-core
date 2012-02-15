@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import android.os.Environment;
 
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -346,7 +346,7 @@ public class ReliableMulticastChannel extends NetChannel
      *  Also, follows the delegation pattern.
      */
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-    		ChannelDisposal status )
+    		DisposalState status )
     {
         return handler.ack( this.name, status );
     }
@@ -814,7 +814,7 @@ public class ReliableMulticastChannel extends NetChannel
      * @param agm AmmoGatewayMessage
      * @return
      */
-    public ChannelDisposal sendRequest( AmmoGatewayMessage agm )
+    public DisposalState sendRequest( AmmoGatewayMessage agm )
     {
         return mSenderQueue.putFromDistributor( agm );
     }
@@ -847,18 +847,18 @@ public class ReliableMulticastChannel extends NetChannel
 
         // In the new design, aren't we supposed to let the
         // AmmoService know if the outgoing queue is full or not?
-        public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
+        public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
         {
             logger.info( "putFromDistributor()" );
             try {
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
-					logger.warn("reliable multicast channel not taking messages {}", ChannelDisposal.BUSY );
-				    return ChannelDisposal.BUSY;
+					logger.warn("reliable multicast channel not taking messages {}", DisposalState.BUSY );
+				    return DisposalState.BUSY;
 				}
 			} catch (InterruptedException e) {
-				return ChannelDisposal.REJECTED;
+				return DisposalState.REJECTED;
 			}
-            return ChannelDisposal.QUEUED;
+            return DisposalState.QUEUED;
         }
 
 
@@ -932,7 +932,7 @@ public class ReliableMulticastChannel extends NetChannel
             while ( msg != null )
             {
                 if ( msg.handler != null )
-                    mChannel.ackToHandler( msg.handler, ChannelDisposal.REJECTED );
+                    mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
                 msg = mDistQueue.poll();
             }
 
@@ -1024,13 +1024,13 @@ public class ReliableMulticastChannel extends NetChannel
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.SENT );
+                        mChannel.ackToHandler( msg.handler, DisposalState.SENT );
                 }
                 catch ( SocketException ex )
                 {
                     logger.debug( "sender caught SocketException" );
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.REJECTED );
+                        mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;
@@ -1039,7 +1039,7 @@ public class ReliableMulticastChannel extends NetChannel
                 {
                     logger.warn("sender threw exception {}", e.getStackTrace() );
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.BAD );
+                        mChannel.ackToHandler( msg.handler, DisposalState.BAD );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;

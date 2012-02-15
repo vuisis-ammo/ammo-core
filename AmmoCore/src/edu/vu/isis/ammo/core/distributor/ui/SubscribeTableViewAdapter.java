@@ -18,7 +18,7 @@ import android.database.Cursor;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 
 /**
  * CursorAdapter used by AmmoCore to display its tables in a human-readable format.
@@ -46,7 +46,7 @@ public class SubscribeTableViewAdapter extends DistributorTableViewAdapter
 		// deal with the displaying of the disposition
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_disposition);
-			int disposition = cursor.getInt(cursor.getColumnIndex(SubscribeTableSchema.DISPOSITION.n));
+			int disposition = cursor.getInt(cursor.getColumnIndex(RequestField.DISPOSITION.n()));
 			if (dispositionStateMap.containsKey(disposition)) {
 				tv.setText(dispositionStateMap.get(disposition));
 				tv.setTextColor(dispositionColorMap.get(disposition));
@@ -58,7 +58,7 @@ public class SubscribeTableViewAdapter extends DistributorTableViewAdapter
 		// deal with the displaying of the timestamp
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_timestamp);
-			long timestamp = cursor.getLong(cursor.getColumnIndex(SubscribeTableSchema.CREATED.n));
+			long timestamp = cursor.getLong(cursor.getColumnIndex(RequestField.CREATED.n()));
 			this.expiration.clear();
 			this.expiration.setTimeInMillis(timestamp);
 			String timed = SDF.format(this.expiration.getTime());
@@ -69,12 +69,12 @@ public class SubscribeTableViewAdapter extends DistributorTableViewAdapter
 		// set the mime-type / topic
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_topic);
-			tv.setText(cursor.getString(cursor.getColumnIndex(SubscribeTableSchema.TOPIC.n)));
+			tv.setText(cursor.getString(cursor.getColumnIndex(RequestField.TOPIC.n())));
 		}
 		// set the provider
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_provider);
-			tv.setText(cursor.getString(cursor.getColumnIndex(SubscribeTableSchema.PROVIDER.n)));
+			tv.setText(cursor.getString(cursor.getColumnIndex(RequestField.PROVIDER.n())));
 		}
 
 	}
