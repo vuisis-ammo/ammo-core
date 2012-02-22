@@ -983,6 +983,8 @@ public class SerialChannel extends NetChannel
                                           currentSlot,
                                           currentTime );
 
+                            header.clear();
+
                             // Set these in buf_header, since extractHeader() expects them.
                             buf_header[0] = first;
                             buf_header[1] = second;
@@ -1071,8 +1073,10 @@ public class SerialChannel extends NetChannel
          */
         private byte readAByte() throws IOException
         {
-            //logger.debug( "Calling read() on the SerialPort's InputStream." );
+            logger.warn( "SerialPort.read()" );
             int val = mInputStream.read();
+            logger.warn( "read() completed. val={}", (byte) val );
+
             if ( val == -1 ) {
                 logger.warn( "The serial port returned -1 from read()." );
                 throw new IOException();
