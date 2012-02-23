@@ -46,7 +46,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo-dds");
-	public static final int VERSION = 22;
+	public static final int VERSION = 26;
 
 	// ===========================================================
 	// Fields
@@ -711,7 +711,7 @@ public class DistributorDataStore {
 		TOPIC("topic", "TEXT"),
 		// This is the data type
 		
-		AUID("uuid", "TEXT"),
+		AUID("auid", "TEXT"),
 		// This is a unique identifier for the request
 		// as specified by the application
 
@@ -1141,7 +1141,8 @@ public class DistributorDataStore {
 	.append(')') // close exists clause	
 	.append(" ORDER BY ")
         .append(PostalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
-        .append(PostalTableSchema._ID.q()).append(" ASC ")	
+        .append(PostalTableSchema._ID.q()).append(" ASC ")
+        .append(';')
 	.toString();
 
 	public synchronized Cursor queryPublish(String[] projection, String selection,
@@ -1937,7 +1938,9 @@ public class DistributorDataStore {
 			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deletePostalGarbage");
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
 		}
 		return 0;
 	}
@@ -2023,8 +2026,11 @@ public class DistributorDataStore {
 			logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteRetrievalGarbage");
+			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
 		}
+		
 		return 0;
 	}
 	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
@@ -2082,7 +2088,9 @@ public class DistributorDataStore {
 			logger.trace("Subscribe garbage {} {} {}", new Object[] {expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION} );
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteSubscribeGarbage");
+			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
 		}
 		return 0;
 	}

@@ -732,6 +732,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			return;
 
 		final Cursor pending = this.store.queryPostalReady();
+		if (pending == null) return;
 
 		// Iterate over each row serializing its data and sending it.
 		for (boolean moreItems = pending.moveToFirst(); moreItems; 
@@ -1094,7 +1095,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
-
+        if (pending == null) return;
+        
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
@@ -1340,6 +1342,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		logger.debug(MARK_SUBSCRIBE, "process table SUBSCRIBE");
 
 		final Cursor pending = this.store.querySubscribeReady();
+		if (pending == null) return;
 
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
