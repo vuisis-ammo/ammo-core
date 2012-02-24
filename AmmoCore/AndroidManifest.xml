@@ -30,7 +30,6 @@
 		</activity>
 
 		<activity android:name=".ui.GatewayActivity" />
-		<activity android:name=".ui.ChannelDetailActivity" />
 		<activity android:name=".ui.NetlinkActivity" />
 		<activity android:name=".ui.NetlinkDetailActivity" />
 
