@@ -82,6 +82,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	public static final String ACTION_MSG_RCVD = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
 	public static final String EXTRA_UUID = "uuid";
 	public static final String EXTRA_CHANNEL = "channel";
+	public static final String EXTRA_STATUS = "status";
 
 	// 20 seconds expressed in milliseconds
 	private static final int BURP_TIME = 20 * 1000;
@@ -237,7 +238,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			numUpdated = this.store.updateSubscribeByKey(ack.id, ack.channel, ack.status);
 			break;
 		default:
-			logger.trace("invalid ack type {}", ack);
+			logger.warn("invalid ack type {}", ack);
 			return;
 		}
 		// generate broadcast intent for everyone who cares about this
@@ -245,11 +246,13 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		      .setAction(ACTION_MSG_SENT)
 		      .setType(ack.topic)
 		      .putExtra(EXTRA_UUID, ack.auid)
-		      .putExtra(EXTRA_CHANNEL, ack.channel);
-		      // ;
+		      .putExtra(EXTRA_CHANNEL, ack.channel)
+		    .putExtra(EXTRA_STATUS, ack.status);
+		      
 		context.sendBroadcast(notice);
+		context.startService(notice);
 	
-		logger.trace("ACK {}: updated {}", ack, numUpdated);
+		logger.debug("ACK {}: updated {}", ack, numUpdated);
 	}
 
 	private void announceChannelActive(final Context context, final String name) {
