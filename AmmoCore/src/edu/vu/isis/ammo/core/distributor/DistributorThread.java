@@ -39,6 +39,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.type.Moment;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
@@ -51,7 +52,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerialEvent;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerialMoment;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
@@ -593,15 +594,44 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			values.put(RequestField.TOPIC.cv(), topic);
 			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
 			values.put(RequestField.PRIORITY.cv(), policy.routing.priority);
-			values.put(RequestField.SERIAL_EVENT.cv(), ar.order.cv());
+			values.put(RequestField.SERIAL_MOMENT.cv(), ar.moment.cv());
 			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
+			
 
 			values.put(RequestField.PRIORITY.cv(), ar.priority);
 			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
 			// values.put(PostalField.UNIT.cv(), 50);
+			
+			final Moment serialMoment = ar.moment;
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
+				switch (serialMoment.type()) {
+				case APRIORI:
+					values.put(PostalField.PAYLOAD.cv(), ar.payload.asBytes());
+					break;
+				case EAGER:				
+					try {
+						final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
+						final byte[] payload = RequestSerializer.serializeFromProvider(that.getContentResolver(), 
+								serializer.provider.asUri(), Encoding.getDefault());
+						
+						values.put(RequestField.EXPIRATION.cv(), payload);
+					} catch (IOException e1) {
+						logger.error("invalid row for serialization");
+					} catch (TupleNotFoundException e) {
+						logger.error("tuple not found when processing postal table");
+						this.store().deletePostal(new StringBuilder()
+						        .append(RequestField.PROVIDER.q(null)).append("=?").append(" AND ")
+								.append(RequestField.TOPIC.q(null)).append("=?").toString(), 
+								new String[] {e.missingTupleUri.getPath(), topic});
+					} catch (NonConformingAmmoContentProvider e) {
+						e.printStackTrace();
+					}
+					break;
+				case LAZY:
+				default:
+				}
 				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertPostal(values, policy.makeRouteMap());
 				logger.debug("no network connection, added {}", key);
@@ -621,7 +651,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 						return serializer_.payload.asBytes();
 					} else {
 						try {
-							final byte[] result = RequestSerializer.serializeFromProvider(that_.getContentResolver(), serializer_.provider.asUri(), encode);
+							final byte[] result = 
+									RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
+											serializer_.provider.asUri(), encode);
 
 							if (result == null) {
 								logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
@@ -691,7 +723,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			logger.debug("serializing: {} as {}", provider,topic);
 
 			final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
-			final int serialType = pending.getInt(pending.getColumnIndex(RequestField.SERIAL_EVENT.n()));
+			final int serialMoment = pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n()));
 			int dataColumnIndex = pending.getColumnIndex(PostalField.DATA.n());
 
 			final String data;
@@ -700,27 +732,32 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			} else {
                 data = null;
             }
-			serializer.setSerializer( new RequestSerializer.OnSerialize() {
-					final DistributorThread parent = DistributorThread.this;
-				final RequestSerializer serializer_ = serializer;
-				final AmmoService that_ = that;
-				final int serialType_ = serialType;
-				final String data_ = data;
-
-				@Override
-				public byte[] run(Encoding encode) {
-
-					switch (SerialEvent.getInstance(serialType_)) {
-					case APRIORI:
-                      if (data_.length() > 0) {
-						return data_.getBytes();
-				      } else {
-				        return null;
-				      }
-
-					case EAGER:
-					case LAZY:
-					default:
+			
+			switch (SerialMoment.getInstance(serialMoment)) {
+			case APRIORI:
+			case EAGER:
+				serializer.setSerializer( new RequestSerializer.OnSerialize() {
+				    final String data_ = data;
+				    
+				    @Override
+					public byte[] run(Encoding encode) {
+		              if (data_.length() < 1) {
+		            	  return null;
+		              }
+					  return data_.getBytes();
+				    }
+				});
+                break;
+             
+			case LAZY:
+			default:
+				serializer.setSerializer( new RequestSerializer.OnSerialize() {
+				    final DistributorThread parent = DistributorThread.this;
+					final RequestSerializer serializer_ = serializer;
+					final AmmoService that_ = that;
+	
+					@Override
+					public byte[] run(Encoding encode) {
 						try {
 							return RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
 									serializer_.provider.asUri(), encode);
@@ -735,11 +772,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 						} catch (NonConformingAmmoContentProvider e) {
 							e.printStackTrace();
 						}
+						logger.error("no serialized data produced");
+						return null;
 					}
-					logger.error("no serialized data produced");
-					return null;
-				}
-			});
+				});
+			}
 
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 			final DistributorState dispersal = policy.makeRouteMap();

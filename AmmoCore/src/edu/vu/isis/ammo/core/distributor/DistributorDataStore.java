@@ -214,21 +214,23 @@ public class DistributorDataStore {
 	 * Indicates if the provider indicates a table entry or whether the
 	 * data has been pre-serialized.
 	 */
-	public enum SerialEvent {
-		APRIORI(1),  // DIRECT
+	public enum SerialMoment {
+		APRIORI(1),  // a.k.a. DIRECT
 		// the serialized object is placed in the payload directly.
 
-		EAGER(2), // a.k.a INDIRECT
+		EAGER(2), // a.k.a. INDIRECT
 		// the serialized data is obtained from the named 
-		// provider uri as soon as the request is received.
+		// provider by uri as soon as the request is received.
 
 		LAZY(3); // a.k.a. DEFFERED
-		// the same as INDIRECT but the serialization doesn't 
-		// happen until the data is sent.
+		// the serialized data is obtained from the named 
+		// provider by uri, but the serialization doesn't 
+		// happen until the data is sent, i.e. the channel
+		// is available.
 
 		public int o; // ordinal
 
-		private SerialEvent(int o) {
+		private SerialMoment(int o) {
 			this.o = o;
 		}
 		/**
@@ -239,7 +241,7 @@ public class DistributorDataStore {
 		public String quote() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
 		}
-		public static SerialEvent byOrdinal(int serialType) {
+		public static SerialMoment byOrdinal(int serialType) {
 			switch(serialType) {
 			case 1:
 				return APRIORI;
@@ -253,11 +255,11 @@ public class DistributorDataStore {
 		public String cv() {
 			return String.valueOf(this.o);
 		}
-		static public SerialEvent getInstance(String ordinal) {
-			return SerialEvent.values()[Integer.parseInt(ordinal)];
+		static public SerialMoment getInstance(String ordinal) {
+			return SerialMoment.values()[Integer.parseInt(ordinal)];
 		}
-		static public SerialEvent getInstance(int ordinal) {
-			return SerialEvent.values()[ordinal];
+		static public SerialMoment getInstance(int ordinal) {
+			return SerialMoment.values()[ordinal];
 		}
 	};
 
@@ -707,6 +709,10 @@ public class DistributorDataStore {
 		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
+		TARGET("target", "TEXT"),
+		// This is used in conjunction with topic. 
+		// It can be used to identify a recipient or group
+		
 		PRESENCE("presence", "INTEGER"),
 		// The rowid for the originator of this request
 		// 0 is reserved for the local operator
@@ -722,8 +728,8 @@ public class DistributorDataStore {
 		// With what priority should this message be sent. 
 		// Negative priorities indicated less than normal.
 
-		SERIAL_EVENT("serial_event", "INTEGER"),
-		// When the serialization happens.
+		SERIAL_MOMENT("serial_event", "INTEGER"),
+		// When the serialization happens. {APRIORI, EAGER, LAZY}
 
 		EXPIRATION("expiration", "INTEGER");
 		// Time-stamp at which point the request 
@@ -1738,9 +1744,9 @@ public class DistributorDataStore {
 			values.put(RequestField.PRIORITY.n(), PriorityType.NORMAL.o);
 		}
 		
-		if (!values.containsKey(RequestField.SERIAL_EVENT.n())) {
-			values.put(RequestField.SERIAL_EVENT.n(),
-					SerialEvent.EAGER.o);
+		if (!values.containsKey(RequestField.SERIAL_MOMENT.n())) {
+			values.put(RequestField.SERIAL_MOMENT.n(),
+					SerialMoment.EAGER.o);
 		}
 
 		if (!values.containsKey(RequestField.EXPIRATION.n())) {
