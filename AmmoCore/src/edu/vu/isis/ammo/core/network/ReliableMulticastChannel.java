@@ -373,7 +373,7 @@ public class ReliableMulticastChannel extends NetChannel
     // Note: the way this currently works, the heartbeat can only be sent
     // in intervals that are multiples of the burp time.  This may change
     // later if I can eliminate some of the wait()s.
-    // @SuppressWarnings("unused")
+    @SuppressWarnings("unused")
 	private void sendHeartbeatIfNeeded()
     {
         //logger.warn( "In sendHeartbeatIfNeeded()." );
@@ -696,6 +696,8 @@ public class ReliableMulticastChannel extends NetChannel
             	File configFile = new File( Environment.getExternalStorageDirectory()
 											+ "/support/jgroups/udp.xml" );
             	parent.mJGroupChannel = new JChannel( configFile );
+            	// Put call to set operator ID here.
+            	
             	//parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT, Boolean.TRUE ); // deprecated
             }
             catch ( Exception e )

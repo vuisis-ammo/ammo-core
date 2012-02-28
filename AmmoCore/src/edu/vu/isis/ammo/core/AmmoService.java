@@ -228,7 +228,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return networkingSwitch = networkingSwitch ? false : true;
 	}
 
-
+    public String getOperatorId() { return operatorId; }
+	
 	private NetworkBroadcastReceiver myNetworkReceiver = null;
 	
 	private DistributorThread distThread;

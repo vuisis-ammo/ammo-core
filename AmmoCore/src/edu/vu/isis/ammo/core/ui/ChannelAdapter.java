@@ -109,16 +109,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         case MotionEvent.ACTION_DOWN:
         case MotionEvent.ACTION_MOVE:
             // NOTE: Do nothing here for now, since no functionality
-            // is implemented behind a click action... Do not display
-            // "this page intentionally left blank" in a major release.
-
-        	/*
-            item.setBackgroundResource(R.drawable.select_gradient);
-            logger.trace("::onClick");
-            Intent gatewayIntent = new Intent();
-            gatewayIntent.setClass(this.parent, ChannelDetailActivity.class);
-            this.parent.startActivity(gatewayIntent);
-            */
+            // is implemented behind a click action...
             break;
 
         default:
