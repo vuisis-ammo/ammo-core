@@ -282,7 +282,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				return null;
 			}
 			this.signal();
-			return request.uuid();
+			return request.uuid;
 
 		} catch (InterruptedException ex) {
 			logger.warn("distribute request {}", ex.getStackTrace());
@@ -634,7 +634,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		// Dispatch the message.
 		try {
 			final UUID uuid = UUID.randomUUID();
-			final String auid = ar.uuid();
+			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 
@@ -707,7 +707,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							final DistributorThread parent = DistributorThread.this;
 							final long id_ = id;
 							final String topic_ = topic;
-							final String auid_ = ar.uuid;
+							final String auid_ = ar.uid;
 		
 							@Override
 							public boolean ack(String channel, ChannelDisposal status) {
@@ -944,7 +944,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	private void processPublishRequest(final AmmoService that, final AmmoRequest ar, int st) {
 		logger.trace("process request PUBLISH : not implemented");
 		final UUID uuid = UUID.randomUUID();
-		final String auid = ar.uuid();
+		final String auid = ar.uid;
 		final String topic = ar.topic.asString();
 		final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 
@@ -1025,7 +1025,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		// Dispatch the message.
 		try {
 			final UUID uuid = UUID.randomUUID();
-			final String auid = ar.uuid();
+			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final String select = ar.select.toString();
 			final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
@@ -1279,7 +1279,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		// Dispatch the message.
 		try {
 			final UUID uuid = UUID.randomUUID();
-			final String auid = ar.uuid();
+			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 
