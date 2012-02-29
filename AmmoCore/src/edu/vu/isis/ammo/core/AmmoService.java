@@ -250,6 +250,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public class DistributorServiceAidl extends IDistributorService.Stub {
 		@Override
 		public String makeRequest(AmmoRequest request) throws RemoteException {
+			if (request == null) {
+				logger.info("bad request");
+				return null;
+			}
 			logger.trace("make request {}", request.action.toString());
 			return AmmoService.this.distThread.distributeRequest(request);
 		}
@@ -314,6 +318,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {
 					try {
 						final AmmoRequest request = intent.getParcelableExtra("request");
+						if (request == null) {
+							logger.info("bad request intent {}", intent);
+							return START_NOT_STICKY;
+						}
 						final String result = this.distThread.distributeRequest(request);
 						logger.info("distributing {}", result);
 					} catch (ArrayIndexOutOfBoundsException ex) {
