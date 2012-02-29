@@ -398,14 +398,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 drain.mark();
                 int start = drain.arrayOffset() + drain.position();
 
-                // Hack for CACI test.  It's inefficient to have this happen
-                // here, since it will happen for verbose, too.  Get the magic
-                // sequence out of this function, since it should be channel-
-                // specific.
-                CRC32 terseHeaderCrc32 = new CRC32();
-                terseHeaderCrc32.update( drain.array(), start, HEADER_DATA_LENGTH_TERSE - 2 );
-                byte[] computedChecksum = convertChecksum( terseHeaderCrc32.getValue() );
-
                 // search for the magic
                 if (drain.get() != MAGIC[2]) continue;
                 if (drain.get() != MAGIC[1]) continue;
@@ -464,6 +456,14 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     drain.getInt();
                     drain.getShort();
 
+                    // Hack for CACI test.  It's inefficient to have this happen
+                    // here, since it will happen for verbose, too.  Get the magic
+                    // sequence out of this function, since it should be channel-
+                    // specific.
+                    CRC32 terseHeaderCrc32 = new CRC32();
+                    terseHeaderCrc32.update( drain.array(), start, HEADER_DATA_LENGTH_TERSE - 2 );
+                    byte[] computedChecksum = convertChecksum( terseHeaderCrc32.getValue() );
+
                     // Return null if the header checksum fails.
                     if ( drain.get() != computedChecksum[0] || drain.get() != computedChecksum[1] ) {
                         logger.warn( "Corrupt terse header; packet discarded." );
@@ -481,7 +481,14 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         } catch (BufferUnderflowException ex) {
             // the data was looking like a header as far as it went
             drain.reset();
+        } catch ( Exception ex ) {
+            // If we did not have enough data to do the header checksum, we
+            // won't get a BufferUnderflowException, but the CRC32 library
+            // will throw when we try to compute the checksum.  Go ahead and
+            // let the function return null, and the SerialChannel will
+            // clear the buffer.
         }
+
         return null;
     }
 

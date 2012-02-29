@@ -219,7 +219,9 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 
         // Read one character at a time.  VTIME defaults to zero, so reads will
         // block indefinitely.
-        cfg.c_cc[VMIN] = 1;
+        cfg.c_cc[VMIN] = 0;
+        cfg.c_cc[VTIME] = 5;  // Hardcoded for testing, but we should set this based on slot size.
+                              // 5 means 500 ms.
 
         // Other "c" bits
 		//cfg.c_iflag |= IGNBRK; // Ignore break condition
