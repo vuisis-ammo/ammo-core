@@ -30,7 +30,7 @@ public class ReliableMulticast extends Channel {
 	String port = "port";
 	protected ReliableMulticast(Context context, String name) {
 		super(context, name);
-		this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS, "228.10.10.91");
+		this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, "228.10.10.91");
 		this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, "9982");
 		this.election = this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, true);
 	}
@@ -46,9 +46,9 @@ public class ReliableMulticast extends Channel {
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
 			String key) {
-		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS))
+		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST))
 		{
-			this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS, "default ip");
+			this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, "default ip");
 		}
 		
 		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT))

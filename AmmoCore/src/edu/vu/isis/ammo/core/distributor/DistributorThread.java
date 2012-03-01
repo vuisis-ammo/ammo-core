@@ -37,7 +37,7 @@ import android.preference.PreferenceManager;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
@@ -556,7 +556,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
 			return false;
 		}
-		PreferenceManager.getDefaultSharedPreferences(context).edit().putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true).commit();
+		PreferenceManager
+		    .getDefaultSharedPreferences(context)
+		    .edit()
+		    .putBoolean(INetDerivedKeys.NET_CONN_PREF_IS_ACTIVE, true)
+		    .commit();
 		// sessionId = mw.getSessionUuid();
 
 		// the distributor doesn't need to know about authentication results.

@@ -116,18 +116,21 @@
 			android:title="Enabled"
 			android:defaultValue="true"/>
 
+<!--
 			<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="RELIABLE_MULTICAST_IP_ADDRESS"
 			android:name="IP Address"
 			android:title="IP Address"
-			android:defaultValue="228.10.10.91"/>
+			android:defaultValue="228.8.8.8"/>
 
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="RELIABLE_MULTICAST_PORT"
 			android:name="Port"
 			android:title="Port"
-			android:defaultValue="9982"/>
+			android:defaultValue="45588"/>
+-->
 
+<!--
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="RELIABLE_MULTICAST_NET_CONN_TIMEOUT"
 			android:name="Network Connection Timeout (s)"
@@ -145,6 +148,7 @@
 			android:name="Time To Live (s)"
 			android:title="Time To Live (s)"
 			android:defaultValue= "1"/>
+-->
 		</PreferenceScreen>
 
 		<PreferenceScreen

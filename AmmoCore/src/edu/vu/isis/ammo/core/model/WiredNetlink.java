@@ -18,7 +18,7 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
 
@@ -54,7 +54,7 @@ public class WiredNetlink extends Netlink
     @Override
     public void onSharedPreferenceChanged( SharedPreferences sharedPreferences, String key )
     {
-        if ( key.equals(INetPrefKeys.WIRED_PREF_SHOULD_USE) )
+        if ( key.equals(INetDerivedKeys.WIRED_PREF_SHOULD_USE) )
         {
               //shouldUse( prefs );
         }
@@ -96,7 +96,7 @@ public class WiredNetlink extends Netlink
         setLinkUp( status );
         
         Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
-        editor.putInt(INetPrefKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, state[0]).commit();   
+        editor.putInt(INetDerivedKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, state[0]).commit();   
         
         setStatus( state );
     }

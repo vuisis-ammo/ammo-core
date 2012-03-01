@@ -30,7 +30,7 @@ public class Multicast extends Channel {
 	String port = "port";
 	protected Multicast(Context context, String name) {
 		super(context, name);
-		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_IP_ADDRESS, "228.10.10.90");
+		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST, "228.10.10.90");
 		this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT, "9982");
 		this.election = this.prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true);
 	}
@@ -46,9 +46,9 @@ public class Multicast extends Channel {
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
 			String key) {
-		if(key.equals(INetPrefKeys.MULTICAST_IP_ADDRESS))
+		if(key.equals(INetPrefKeys.MULTICAST_HOST))
 		{
-			this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_IP_ADDRESS, "default ip");
+			this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST, "default ip");
 			
 		}
 		

@@ -98,7 +98,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		/*
 		 * Multicast Setup
 		 */
-		this.mcIpPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.MULTICAST_IP_ADDRESS);
+		this.mcIpPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.MULTICAST_HOST);
 		this.mcIpPref.setType(MyEditTextPreference.Type.IP);
 		this.mcIpPref.refreshSummaryField();
 		
@@ -129,7 +129,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		/*
 		 * Reliable Multicast Setup
 		 */
-		this.rmcIpPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS);
+		this.rmcIpPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_HOST);
 		this.rmcIpPref.setType(MyEditTextPreference.Type.IP);
 		this.rmcIpPref.refreshSummaryField();
 		
@@ -162,12 +162,12 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		 */
 		
 		// IP Preference Setup
-		this.ipPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.CORE_IP_ADDR);
+		this.ipPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.GATEWAY_HOST);
 		this.ipPref.setType(MyEditTextPreference.Type.IP);
 		this.ipPref.refreshSummaryField();
 		
 		// Port Preference Setup
-		this.portPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.CORE_IP_PORT);
+		this.portPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_PORT);
 		this.portPref.setType(Type.PORT);
 		this.portPref.refreshSummaryField();
 		
@@ -176,12 +176,12 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.enabledPref.refreshSummaryField();
 		
 		// Connection Idle Timeout
-		this.connIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.CORE_SOCKET_TIMEOUT);
+		this.connIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_TIMEOUT);
 		this.connIdlePref.setType(Type.TIMEOUT);
 		this.connIdlePref.refreshSummaryField();
 		
 		// Network Connection Timeout
-		this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.NET_CONN_FLAT_LINE_TIME);
+		this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_FLAT_LINE_TIME);
 		this.netConnPref.setType(Type.TIMEOUT);
 		this.netConnPref.refreshSummaryField();
 

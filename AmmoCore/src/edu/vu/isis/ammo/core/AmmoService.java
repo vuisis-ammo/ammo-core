@@ -46,6 +46,7 @@ import android.telephony.TelephonyManager;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 
+import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IntentNames;
 import edu.vu.isis.ammo.api.AmmoIntents;
@@ -119,24 +120,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.AmmoService.PREPARE_FOR_STOP";
 	public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.AmmoService.SEND_SERIALIZED";
 
-	// Local constants
-	public static final String DEFAULT_GATEWAY_HOST = "192.168.1.100";
-	public static final int DEFAULT_GATEWAY_PORT = 33289;
-	public static final int DEFAULT_FLAT_LINE_TIME = 20; // 20 minutes
-	public static final int DEFAULT_SOCKET_TIMEOUT = 3; // 3 seconds
-
-	public static final String DEFAULT_MULTICAST_HOST = "228.10.10.90";
-	public static final String DEFAULT_MULTICAST_PORT = "9982";
-	public static final String DEFAULT_MULTICAST_NET_CONN = "20";
-	public static final String DEFAULT_MULTICAST_IDLE_TIME = "3";
-	public static final String DEFAULT_MULTICAST_TTL = "1";
-
-	public static final String DEFAULT_RELIABLE_MULTICAST_HOST = "228.10.10.91";
-	public static final String DEFAULT_RELIABLE_MULTICAST_PORT = "9982";
-	public static final String DEFAULT_RELIABLE_MULTICAST_NET_CONN = "20";
-	public static final String DEFAULT_RELIABLE_MULTICAST_IDLE_TIME = "3";
-	public static final String DEFAULT_RELIABLE_MULTICAST_TTL = "1";
-
 	/**
 	 * The channel status map
 	 * It should not be changed by the main thread.
@@ -196,18 +179,18 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// ===========================================================
 
 	private String sessionId = "";
-	private String deviceId = null;
-	private String operatorId = null;
-	private String operatorKey = "37";
+	private String deviceId = INetPrefKeys.DEFAULT_CORE_DEVICE_ID;
+	private String operatorId = INetPrefKeys.DEFAULT_CORE_OPERATOR_ID;
+	private String operatorKey = INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY;
 
 	// journalingSwitch
-	private boolean journalingSwitch = false;
+	private boolean journalingSwitch = INetPrefKeys.DEFAULT_JOURNAL_SHOULD_USE;
 
 	// Determine if the connection is enabled
-	private boolean gatewayEnabled = true;
-    private boolean multicastEnabled = true;
-    private boolean reliableMulticastEnabled = true;
-    private boolean serialEnabled = false;
+	private boolean gatewayEnabled = INetPrefKeys.DEFAULT_GATEWAY_SHOULD_USE;
+    private boolean multicastEnabled = INetPrefKeys.DEFAULT_MULTICAST_SHOULD_USE;
+    private boolean reliableMulticastEnabled = INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_SHOULD_USE;
+    private boolean serialEnabled = INetPrefKeys.DEFAULT_SERIAL_SHOULD_USE;
 	// for providing networking support
 	// should this be using IPv6?
 	private boolean networkingSwitch = true;
@@ -433,7 +416,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.reliableMulticastChannel.disable();
         // The serial channel is created in a disabled state.
 		{
-		   final String globalId = this.globalSettings.getString(Keys.UserKeys.USERNAME, null);
+		   final String globalId = this.globalSettings.getString(Keys.UserKeys.USERNAME, 
+				   INetPrefKeys.DEFAULT_CORE_OPERATOR_ID);
 		   if (globalId != null) {
 				final Editor editor = this.localSettings.edit();
 				editor.putString(INetPrefKeys.CORE_OPERATOR_ID, globalId );
@@ -559,27 +543,29 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				.getDefaultSharedPreferences(getBaseContext());
 
 		this.journalingSwitch = prefs.getBoolean(
-				INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
+				INetPrefKeys.JOURNAL_SHOULD_USE, this.journalingSwitch);
 
-		this.gatewayEnabled = prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
+		this.gatewayEnabled = prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, 
+				INetPrefKeys.DEFAULT_GATEWAY_SHOULD_USE);
 		this.networkingSwitch = prefs.getBoolean(
-				INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
+				INetDerivedKeys.NET_CONN_PREF_SHOULD_USE, this.networkingSwitch);
 
 		this.deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
 		refreshOperatorId();
 		this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
 
-		String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		String gatewayHostname = prefs.getString(INetPrefKeys.GATEWAY_HOST, 
+				INetPrefKeys.DEFAULT_GATEWAY_HOST);
 		this.tcpChannel.setHost(gatewayHostname);
 
-		String gatewayPortStr = prefs.getString(INetPrefKeys.CORE_IP_PORT,
-				String.valueOf(DEFAULT_GATEWAY_PORT));
+		String gatewayPortStr = prefs.getString(INetPrefKeys.GATEWAY_PORT,
+				String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT));
 		int gatewayPort = Integer.valueOf(gatewayPortStr);
 		this.tcpChannel.setPort(gatewayPort);
 
 		String flatLineTimeStr = prefs.getString(
-				INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String
-				.valueOf(DEFAULT_FLAT_LINE_TIME));
+				INetPrefKeys.GATEWAY_FLAT_LINE_TIME, String
+				.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME));
 		long flatLineTime = Integer.valueOf(flatLineTimeStr);
 		this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert
 		// minutes
@@ -589,20 +575,23 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		/*
 		 * Multicast
 		 */
-        multicastEnabled = prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, false);
+        multicastEnabled = prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, 
+        		INetPrefKeys.DEFAULT_MULTICAST_SHOULD_USE);
 		String multicastHost = prefs.getString(
-				INetPrefKeys.MULTICAST_IP_ADDRESS, DEFAULT_MULTICAST_HOST);
+				INetPrefKeys.MULTICAST_HOST, 
+				INetPrefKeys.DEFAULT_MULTICAST_HOST);
 		int multicastPort = Integer.parseInt(prefs.getString(
-				INetPrefKeys.MULTICAST_PORT, DEFAULT_MULTICAST_PORT));
+				INetPrefKeys.MULTICAST_PORT, 
+				INetPrefKeys.DEFAULT_MULTICAST_PORT));
 		long multicastFlatLine = Long.parseLong(prefs.getString(
 				INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT,
-				DEFAULT_MULTICAST_NET_CONN));
+				INetPrefKeys.DEFAULT_MULTICAST_NET_CONN));
 		int multicastIdleTime = Integer.parseInt(prefs.getString(
 				INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT,
-				DEFAULT_MULTICAST_IDLE_TIME));
+				INetPrefKeys.DEFAULT_MULTICAST_IDLE_TIME));
 		int multicastTTL = Integer.parseInt(prefs.getString(
 				INetPrefKeys.MULTICAST_TTL,
-				DEFAULT_MULTICAST_TTL));
+				INetPrefKeys.DEFAULT_MULTICAST_TTL));
 		this.multicastChannel.setHost(multicastHost);
 		this.multicastChannel.setPort(multicastPort);
 		this.multicastChannel.setFlatLineTime(multicastFlatLine);
@@ -612,20 +601,23 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		/*
 		 * Reliable Multicast
 		 */
-        reliableMulticastEnabled = prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, false);
+        reliableMulticastEnabled = prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, 
+        		INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_SHOULD_USE);
 		String reliableMulticastHost = prefs.getString(
-				INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS, DEFAULT_RELIABLE_MULTICAST_HOST);
+				INetPrefKeys.RELIABLE_MULTICAST_HOST, 
+				INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
 		int reliableMulticastPort = Integer.parseInt(prefs.getString(
-				INetPrefKeys.RELIABLE_MULTICAST_PORT, DEFAULT_RELIABLE_MULTICAST_PORT));
+				INetPrefKeys.RELIABLE_MULTICAST_PORT, 
+				INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
 		long reliableMulticastFlatLine = Long.parseLong(prefs.getString(
 				INetPrefKeys.RELIABLE_MULTICAST_NET_CONN_TIMEOUT,
-				DEFAULT_RELIABLE_MULTICAST_NET_CONN));
+				INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_NET_CONN));
 		int reliableMulticastIdleTime = Integer.parseInt(prefs.getString(
 				INetPrefKeys.RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT,
-				DEFAULT_RELIABLE_MULTICAST_IDLE_TIME));
+				INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_IDLE_TIME));
 		int reliableMulticastTTL = Integer.parseInt(prefs.getString(
 				INetPrefKeys.RELIABLE_MULTICAST_TTL,
-				DEFAULT_RELIABLE_MULTICAST_TTL));
+				INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL));
 		this.reliableMulticastChannel.setHost(reliableMulticastHost);
 		this.reliableMulticastChannel.setPort(reliableMulticastPort);
 		this.reliableMulticastChannel.setFlatLineTime(reliableMulticastFlatLine);
@@ -635,26 +627,35 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		/*
 		 * SerialChannel
 		 */
-        serialEnabled = prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false);
+        serialEnabled = prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, 
+        		INetPrefKeys.DEFAULT_SERIAL_SHOULD_USE);
         serialChannel.setDevice(
-            prefs.getString(INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0") );
+            prefs.getString(INetPrefKeys.SERIAL_DEVICE, 
+            		INetPrefKeys.DEFAULT_SERIAL_DEVICE) );
         serialChannel.setBaudRate( Integer.parseInt(
-            prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600") ));
+            prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, 
+            		INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE) ));
 
         serialChannel.setSlotNumber(Integer.parseInt(
-            prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, "8")));
+            prefs.getString(INetPrefKeys.SERIAL_SLOT_NUMBER, 
+            		INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER)));
         serialChannel.setRadiosInGroup(Integer.parseInt(
-            prefs.getString(INetPrefKeys.SERIAL_RADIOS_IN_GROUP, "16")));
+            prefs.getString(INetPrefKeys.SERIAL_RADIOS_IN_GROUP, 
+            		INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP)));
 
         serialChannel.setSlotDuration( Integer.parseInt(
-            prefs.getString(INetPrefKeys.SERIAL_SLOT_DURATION, "125") ));
+            prefs.getString(INetPrefKeys.SERIAL_SLOT_DURATION, 
+            		INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION) ));
         serialChannel.setTransmitDuration( Integer.parseInt(
-            prefs.getString(INetPrefKeys.SERIAL_TRANSMIT_DURATION, "50") ));
+            prefs.getString(INetPrefKeys.SERIAL_TRANSMIT_DURATION, 
+            		INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION) ));
 
         serialChannel.setSenderEnabled(
-            prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, true) );
+            prefs.getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED, 
+            		INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED) );
         serialChannel.setReceiverEnabled(
-            prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, true) );
+            prefs.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, 
+            		INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED) );
 	}
 
 	/**
@@ -669,35 +670,36 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 		logger.info("::onSharedPreferenceChanged {}", key);
 
-		if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
-			String gatewayHostname = prefs.getString(INetPrefKeys.CORE_IP_ADDR, DEFAULT_GATEWAY_HOST);
+		if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
+			String gatewayHostname = prefs.getString(key,INetPrefKeys.DEFAULT_GATEWAY_HOST);
 			this.tcpChannel.setHost(gatewayHostname);
 			return;
 		}
-		if (key.equals(INetPrefKeys.CORE_IP_PORT)) {
+		else
+		if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
 			int gatewayPort = Integer.valueOf(prefs.getString(
-					INetPrefKeys.CORE_IP_PORT, String
-					.valueOf(DEFAULT_GATEWAY_PORT)));
+					key, String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
 			this.tcpChannel.setPort(gatewayPort);
 			return;
 		}
-		if (key.equals(INetPrefKeys.CORE_IS_JOURNALED)) {
-			this.journalingSwitch = prefs.getBoolean(
-					INetPrefKeys.CORE_IS_JOURNALED, this.journalingSwitch);
+		else
+		if (key.equals(INetPrefKeys.JOURNAL_SHOULD_USE)) {
+			this.journalingSwitch = prefs.getBoolean(key, this.journalingSwitch);
 			if (this.journalingSwitch)
 				this.journalChannel.enable();
 			else
 				this.journalChannel.disable();
 			return;
 		}
-
+		else
 		// handle network authentication group
 		if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
-			deviceId = prefs.getString(INetPrefKeys.CORE_DEVICE_ID, deviceId);
+			deviceId = prefs.getString(key, deviceId);
 			if (this.isConnected())
 				this.auth();
 			return;
 		}
+		else
 		if (key.equals(Keys.UserKeys.USERNAME)) {
 			String globalId = prefs.getString(key, this.operatorId);
 			
@@ -709,6 +711,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			//if (this.isConnected()) this.auth(); 
 			return;
 		}
+		else
 		if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
 			this.operatorId = prefs.getString(key, this.operatorId);
 			
@@ -716,24 +719,23 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			if (this.isConnected()) this.auth(); 
 			return;
 		}
-		
+		else
 		if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
-			this.operatorKey = prefs.getString(INetPrefKeys.CORE_OPERATOR_KEY, this.operatorKey);
+			this.operatorKey = prefs.getString(key, this.operatorKey);
 			if (this.isConnected())
 				this.auth();
 			return;
 		}
-
-		if (key.equals(INetPrefKeys.CORE_SOCKET_TIMEOUT)) {
+		else
+		if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
 			Integer timeout = Integer.valueOf(prefs.getString(
-					INetPrefKeys.CORE_SOCKET_TIMEOUT, String
-					.valueOf(DEFAULT_SOCKET_TIMEOUT)));
+					key, String.valueOf(INetPrefKeys.DEFAULT_GW_TIMEOUT)));
 			this.tcpChannel.setSocketTimeout(timeout.intValue() * 1000); // convert
 			// seconds
 			// into
 			// milliseconds
 		}
-
+		else
 		// handle network connectivity group
 		// if (key.equals(INetPrefKeys.WIRED_PREF_SHOULD_USE)) {
 		// shouldUse(prefs);
@@ -741,7 +743,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		// if (key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE)) {
 		// shouldUse(prefs);
 		// }
-		if (key.equals(INetPrefKeys.NET_CONN_PREF_SHOULD_USE)) {
+		if (key.equals(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE)) {
 			logger.info("explicit opererator reset on channel");
 			this.networkingSwitch = true;
 
@@ -750,118 +752,134 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			this.reliableMulticastChannel.reset();
 			this.serialChannel.reset();
 		}
-
-		if (key.equals(INetPrefKeys.NET_CONN_FLAT_LINE_TIME)) {
+		else
+		if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
 			long flatLineTime = Integer.valueOf(prefs.getString(
-					INetPrefKeys.NET_CONN_FLAT_LINE_TIME, String
-					.valueOf(DEFAULT_FLAT_LINE_TIME)));
+					key, String.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME)));
 			this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert
 			// from
 			// minutes
 			// to
 			// milliseconds
 		}
-
+		else
 		if (key.equals(INetPrefKeys.GATEWAY_SHOULD_USE)) {
-			if (prefs.getBoolean(key, true)) {
+			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_SHOULD_USE)) {
 				this.tcpChannel.enable();
 			} else {
 				this.tcpChannel.disable();
 			}
 		}
-
+		else
         //
         // Multicast
         //
 		if (key.equals(INetPrefKeys.MULTICAST_SHOULD_USE)) {
-			if (prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true)) {
+			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_SHOULD_USE)) {
 				this.multicastChannel.enable();
 			} else {
 				this.multicastChannel.disable();
 			}
 		}
-
-		if (key.equals(INetPrefKeys.MULTICAST_IP_ADDRESS)) {
+		else
+		if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
 			String ipAddress = prefs.getString(
-					INetPrefKeys.MULTICAST_IP_ADDRESS, DEFAULT_MULTICAST_HOST);
+					key, INetPrefKeys.DEFAULT_MULTICAST_HOST);
 			this.multicastChannel.setHost(ipAddress);
 		}
-
+		else
 		if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
 			int port = Integer.parseInt(prefs.getString(
-					INetPrefKeys.MULTICAST_PORT, DEFAULT_MULTICAST_PORT));
+					key, INetPrefKeys.DEFAULT_MULTICAST_PORT));
 			this.multicastChannel.setPort(port);
 		}
+		else
 		if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
 			int ttl = Integer.parseInt(prefs.getString(
-					INetPrefKeys.MULTICAST_TTL, DEFAULT_MULTICAST_TTL));
+					key, INetPrefKeys.DEFAULT_MULTICAST_TTL));
 			this.multicastChannel.setTTL(ttl);
         }
-
+		else
         //
         // Reliable Multicast
         //
 		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE)) {
-			if (prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, true)) {
+			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_SHOULD_USE)) {
 				this.reliableMulticastChannel.enable();
 			} else {
 				this.reliableMulticastChannel.disable();
 			}
 		}
-
-		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS)) {
+		else
+		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
 			String ipAddress = prefs.getString(
-					INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS, DEFAULT_RELIABLE_MULTICAST_HOST);
+					key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
 			this.reliableMulticastChannel.setHost(ipAddress);
 		}
-
+		else
 		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
 			int port = Integer.parseInt(prefs.getString(
-					INetPrefKeys.RELIABLE_MULTICAST_PORT, DEFAULT_RELIABLE_MULTICAST_PORT));
+					key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
 			this.reliableMulticastChannel.setPort(port);
 		}
+		else
 		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
 			int ttl = Integer.parseInt(prefs.getString(
-					INetPrefKeys.RELIABLE_MULTICAST_TTL, DEFAULT_RELIABLE_MULTICAST_TTL));
+					key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL));
 			this.reliableMulticastChannel.setTTL(ttl);
         }
-
+		else
         //
         // Serial port
         //
 		if ( key.equals(INetPrefKeys.SERIAL_DEVICE) ) {
-			serialChannel.setDevice( prefs.getString( INetPrefKeys.SERIAL_DEVICE, "/dev/ttyUSB0" ));
+			serialChannel.setDevice( prefs.getString( key, 
+					INetPrefKeys.DEFAULT_SERIAL_DEVICE));
 		}
+		else
 		if ( key.equals(INetPrefKeys.SERIAL_BAUD_RATE) ) {
-			serialChannel.setBaudRate( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_BAUD_RATE, "9600" )));
+			serialChannel.setBaudRate( Integer.parseInt( prefs.getString(key, 
+					INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE )));
 		}
-
+		else
 		if ( key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER) ) {
-			serialChannel.setSlotNumber( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_SLOT_NUMBER, "8" )));
+			serialChannel.setSlotNumber( Integer.parseInt( prefs.getString(key, 
+					INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER )));
 		}
+		else
 		if ( key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP) ) {
-			serialChannel.setRadiosInGroup( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_RADIOS_IN_GROUP, "16" )));
+			serialChannel.setRadiosInGroup( Integer.parseInt( prefs.getString(key, 
+					INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP )));
 		}
-
+		else
 		if ( key.equals(INetPrefKeys.SERIAL_SLOT_DURATION) ) {
-			serialChannel.setSlotDuration( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_SLOT_DURATION, "125" )));
+			serialChannel.setSlotDuration( Integer.parseInt( prefs.getString(key, 
+					INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION )));
 		}
+		else
 		if ( key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION) ) {
-			serialChannel.setTransmitDuration( Integer.parseInt( prefs.getString( INetPrefKeys.SERIAL_TRANSMIT_DURATION, "50" )));
+			serialChannel.setTransmitDuration( Integer.parseInt( prefs.getString(key,
+					INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION )));
 		}
-
+		else
 		if ( key.equals(INetPrefKeys.SERIAL_SEND_ENABLED) ) {
-			serialChannel.setSenderEnabled( prefs.getBoolean( INetPrefKeys.SERIAL_SEND_ENABLED, true ));
+			serialChannel.setSenderEnabled( prefs.getBoolean(key, 
+					INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED ));
 		}
+		else
 		if ( key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED) ) {
-			serialChannel.setReceiverEnabled( prefs.getBoolean( INetPrefKeys.SERIAL_RECEIVE_ENABLED, true ));
+			serialChannel.setReceiverEnabled( prefs.getBoolean(key, 
+					INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED ));
 		}
-
+		else
 		if ( key.equals(INetPrefKeys.SERIAL_SHOULD_USE) ) {
-            if ( prefs.getBoolean( INetPrefKeys.SERIAL_SHOULD_USE, false ))
+            if ( prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_SHOULD_USE ))
 				this.serialChannel.enable();
 			else
 				this.serialChannel.disable();
+		}
+		else {
+			logger.error("shared preference key {} is unknown", key);
 		}
 
 		return;
@@ -1046,7 +1064,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		PreferenceManager
 		.getDefaultSharedPreferences(this)
 		.edit()
-		.putBoolean(INetPrefKeys.NET_CONN_PREF_IS_ACTIVE, true)
+		.putBoolean(INetDerivedKeys.NET_CONN_PREF_IS_ACTIVE, true)
 		.commit();
 		sessionId = mw.getSessionUuid();
 

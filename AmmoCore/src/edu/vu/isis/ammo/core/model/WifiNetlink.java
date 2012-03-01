@@ -17,7 +17,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.preference.PreferenceManager;
-import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.INetDerivedKeys;
 
 
 public class WifiNetlink extends Netlink
@@ -49,7 +49,7 @@ public class WifiNetlink extends Netlink
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key)
     {
-        if ( key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE) )
+        if ( key.equals(INetDerivedKeys.WIFI_PREF_SHOULD_USE) )
         {
               //shouldUse(prefs);
         }
@@ -107,7 +107,7 @@ public class WifiNetlink extends Netlink
             }
         }
         Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
-        editor.putInt(INetPrefKeys.WIFI_PREF_IS_ACTIVE, state[0]).commit();    
+        editor.putInt(INetDerivedKeys.WIFI_PREF_IS_ACTIVE, state[0]).commit();    
         
         logger.error( "Wifi: updating status to {}", state );
         setStatus( state );

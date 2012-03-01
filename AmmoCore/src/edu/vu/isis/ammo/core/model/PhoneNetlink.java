@@ -18,7 +18,7 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
-import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.INetDerivedKeys;
 
 
 public class PhoneNetlink extends Netlink
@@ -50,7 +50,7 @@ public class PhoneNetlink extends Netlink
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key)
     {
-        if ( key.equals(INetPrefKeys.PHONE_PREF_SHOULD_USE) )
+        if ( key.equals(INetDerivedKeys.PHONE_PREF_SHOULD_USE) )
         {
               //shouldUse(prefs);
         }
@@ -85,7 +85,7 @@ public class PhoneNetlink extends Netlink
             break;
         }
         Editor editor = PreferenceManager.getDefaultSharedPreferences(this.mContext).edit();
-        editor.putInt(INetPrefKeys.PHONE_PREF_IS_ACTIVE, state[0]).commit();    
+        editor.putInt(INetDerivedKeys.PHONE_PREF_IS_ACTIVE, state[0]).commit();    
         
         setStatus( state );
     }
