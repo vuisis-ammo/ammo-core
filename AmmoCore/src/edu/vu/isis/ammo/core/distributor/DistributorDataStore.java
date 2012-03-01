@@ -319,6 +319,10 @@ public class DistributorDataStore {
 			this.o = ordinal;
 			this.t = title;
 		}
+		@Override
+		public String toString() {
+		    return this.t;
+		}
 		public String q() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
 		}

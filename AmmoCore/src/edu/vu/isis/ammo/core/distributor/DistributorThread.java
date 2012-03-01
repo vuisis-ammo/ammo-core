@@ -245,10 +245,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		// generate broadcast intent for everyone who cares about this
 		final Intent notice = new Intent()
 		      .setAction(ACTION_MSG_SENT)
-		      .setType(ack.topic)
-		      .putExtra(EXTRA_UID, ack.auid)
-		      .putExtra(EXTRA_CHANNEL, ack.channel)
-		      .putExtra(EXTRA_STATUS, ack.status);
+		    //.setType(ack.topic)
+		    .putExtra(EXTRA_UID, ack.auid.toString())
+		      .putExtra(EXTRA_CHANNEL, ack.channel.toString())
+		      .putExtra(EXTRA_STATUS, ack.status.toString());
 		      
 		context.sendBroadcast(notice);
 		context.startService(notice);
