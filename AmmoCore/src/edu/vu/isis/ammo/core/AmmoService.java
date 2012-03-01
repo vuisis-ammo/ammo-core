@@ -416,7 +416,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.reliableMulticastChannel.disable();
         // The serial channel is created in a disabled state.
 		{
-		   final String globalId = this.globalSettings.getString(Keys.UserKeys.USERNAME, 
+		   final String globalId = this.globalSettings.getString(
+				   Keys.UserKeys.USERNAME,
 				   INetPrefKeys.DEFAULT_CORE_OPERATOR_ID);
 		   if (globalId != null) {
 				final Editor editor = this.localSettings.edit();
