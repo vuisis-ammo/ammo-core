@@ -12,6 +12,7 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -29,6 +30,7 @@ import org.slf4j.MarkerFactory;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -48,6 +50,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PublishTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
@@ -73,17 +76,26 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
 	private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
+	
+	private static final String ACTION_BASE = "edu.vu.isis.ammo.";
+	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
+	public static final String ACTION_MSG_RCVD = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
+	public static final String EXTRA_UID = "uid";
+	public static final String EXTRA_CHANNEL = "channel";
+	public static final String EXTRA_STATUS = "status";
 
 	// 20 seconds expressed in milliseconds
 	private static final int BURP_TIME = 20 * 1000;
 
+	private final Context context;
 	/**
 	 * The backing store for the distributor
 	 */
 	final private DistributorDataStore store;
 
-	public DistributorThread(Context context) {
+	public DistributorThread(final Context context) {
 		super();
+		this.context = context;
 		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
 		this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200, new AmmoGatewayMessage.PriorityOrder());
 		this.store = new DistributorDataStore(context);
@@ -147,24 +159,49 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	private final LinkedBlockingQueue<ChannelAck> channelAck;
 
 	private class ChannelAck {
-		public final long id;
 		public final Tables type;
+		public final long id;
+		
+		public final String topic;
+		public final String auid;
+		
 		public final String channel;
 		public final ChannelDisposal status;
 
-		public ChannelAck(long id, Tables type, String channel, ChannelDisposal status) {
-			this.id = id;
+		public ChannelAck(Tables type, long id, 
+				          String topic, String auid, 
+				          String channel, ChannelDisposal status) 
+		{
 			this.type = type;
+			this.id = id;
+			
+			this.topic = topic;
+			this.auid = auid;
+			
 			this.channel = channel;
 			this.status = status;
 		}
 
 		@Override
 		public String toString() {
-			return new StringBuilder().append(" id ").append(id).append(" type ").append(type).append(" channel ").append(channel).append(" status ").append(status).toString();
+			return new StringBuilder()
+			                .append(" type ").append(type)
+                            .append(" id ").append(id)
+                            .append(" topic ").append(topic)
+                            .append(" aid ").append(auid)
+                            .append(" channel ").append(channel)
+                            .append(" status ").append(status)
+                            .toString();
 		}
 	}
 
+	/**
+	 * Called by the channel acknowledgement once the channel has
+	 * attempted to send the message.
+	 * 
+	 * @param ack
+	 * @return
+	 */
 	private boolean announceChannelAck(ChannelAck ack) {
 		logger.trace("RECV ACK {}", ack);
 		try {
@@ -185,7 +222,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * 
 	 * @param ack
 	 */
-	private void processChannelAck(ChannelAck ack) {
+	private void processChannelAck(final Context context, final ChannelAck ack) {
+		logger.trace("channel ACK {}", ack);
 		final long numUpdated;
 		switch (ack.type) {
 		case POSTAL:
@@ -201,10 +239,21 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			numUpdated = this.store.updateSubscribeByKey(ack.id, ack.channel, ack.status);
 			break;
 		default:
-			logger.trace("invalid ack type {}", ack);
+			logger.warn("invalid ack type {}", ack);
 			return;
 		}
-		logger.trace("ACK {}: request {} : over {} row {} updated to {}", new Object[] { ack.type, ack.id, ack.channel, numUpdated, ack.status });
+		// generate broadcast intent for everyone who cares about this
+		final Intent notice = new Intent()
+		      .setAction(ACTION_MSG_SENT)
+		    //.setType(ack.topic)
+		    .putExtra(EXTRA_UID, ack.auid.toString())
+		      .putExtra(EXTRA_CHANNEL, ack.channel.toString())
+		      .putExtra(EXTRA_STATUS, ack.status.toString());
+		      
+		context.sendBroadcast(notice);
+		context.startService(notice);
+	
+		logger.debug("count {}: intent {}", numUpdated, ack);
 	}
 
 	private void announceChannelActive(final Context context, final String name) {
@@ -234,7 +283,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				return null;
 			}
 			this.signal();
-			return request.uuid();
+			return request.uuid;
 
 		} catch (InterruptedException ex) {
 			logger.warn("distribute request {}", ex.getStackTrace());
@@ -301,9 +350,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				this.store.deactivateDisposalStateByChannel(name);
 			}
 
-			this.processSubscribeTable(that);
-			this.processRetrievalTable(that);
-			this.processPostalTable(that);
+			this.processSubscribeCache(that);
+			this.processRetrievalCache(that);
+			this.processPostalCache(that);
 		}
 
 		try {
@@ -325,7 +374,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
 						try {
 							final ChannelAck ack = this.channelAck.take();
-							this.processChannelAck(ack);
+							this.processChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
 							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -465,10 +514,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		this.store.deleteRetrievalGarbage();
 		this.store.deleteSubscribeGarbage();
 
-		this.processPostalTable(that);
-		this.processPublishTable(that);
-		this.processRetrievalTable(that);
-		this.processSubscribeTable(that);
+		this.processPostalCache(that);
+		this.processPublishCache(that);
+		this.processRetrievalCache(that);
+		this.processSubscribeCache(that);
 	}
 
 	/**
@@ -584,23 +633,28 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @param handler
 	 * @return
 	 */
-	private void processPostalRequest(final AmmoService that, AmmoRequest ar) {
+	private void processPostalRequest(final AmmoService that, final AmmoRequest ar) {
 		logger.trace("process request POSTAL");
 
 		// Dispatch the message.
 		try {
+			final UUID uuid = UUID.randomUUID();
+			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 
 			final ContentValues values = new ContentValues();
+			values.put(PostalTableSchema.UUID.cv(), uuid.toString());
+			values.put(PostalTableSchema.AUID.cv(), auid);
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
-			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority);
-			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
+			
+			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
 			values.put(PostalTableSchema.EXPIRATION.cv(), ar.expire.cv());
-
-			values.put(PostalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
+			
+			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
+
 			// values.put(PostalTableSchema.UNIT.cv(), 50);
 
 			final DistributorState dispersal = policy.makeRouteMap();
@@ -650,16 +704,21 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
+				
 				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
 				final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
 						ar.provider.toString(), topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							final long id_ = id;
+							final String topic_ = topic;
+							final String auid_ = ar.uid;
 		
 							@Override
 							public boolean ack(String channel, ChannelDisposal status) {
-								return parent.announceChannelAck(new ChannelAck(id_, Tables.POSTAL, channel, status));
+								return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
+										                                        topic_, auid_,  
+										                                        channel, status));
 							}
 						});
 				this.store.updatePostalByKey(id, null, dispatchResult);
@@ -674,19 +733,21 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * Check for requests whose delivery policy has not been fully satisfied and
 	 * for which there is, now, an available channel.
 	 */
-	private void processPostalTable(final AmmoService that) {
+	private void processPostalCache(final AmmoService that) {
 		logger.debug(MARK_POSTAL, "process table POSTAL");
 
 		if (!that.isConnected()) 
 			return;
 
 		final Cursor pending = this.store.queryPostalReady();
+		if (pending == null) return;
 
 		// Iterate over each row serializing its data and sending it.
 		for (boolean moreItems = pending.moveToFirst(); moreItems; 
 				moreItems = pending.moveToNext()) 
 		{
 			final int id = pending.getInt(pending.getColumnIndex(PostalTableSchema._ID.n));
+			final String auid = pending.getString(pending.getColumnIndex(PostalTableSchema.AUID.n));
 			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n)));
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
@@ -697,14 +758,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final int serialType = pending.getInt(pending.getColumnIndex(PostalTableSchema.ORDER.n));
 			int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
 
-			final String data;
-			if (!pending.isNull(dataColumnIndex)) {
-				data = pending.getString(dataColumnIndex);
-			} else {
-                                data = null;
-                        }
+			final String data = (pending.isNull(dataColumnIndex)) ? null : pending.getString(dataColumnIndex);
+			
 			serializer.setSerializer( new RequestSerializer.OnSerialize() {
-					final DistributorThread parent = DistributorThread.this;
+				final DistributorThread parent = DistributorThread.this;
 				final RequestSerializer serializer_ = serializer;
 				final AmmoService that_ = that;
 				final int serialType_ = serialType;
@@ -712,14 +769,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 				@Override
 				public byte[] run(Encoding encode) {
-
 					switch (SerializeType.getInstance(serialType_)) {
 					case DIRECT:
-                                              if (data_.length() > 0) {
-						return data_.getBytes();
- 					      } else {
- 					        return null;
- 					      }
+                        return (data_.length() > 0) ? data_.getBytes() : null;
 
 					case INDIRECT:
 					case DEFERRED:
@@ -729,14 +781,14 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 									serializer_.provider.asUri(), encode);
 						} catch (IOException e1) {
 							logger.error("invalid row for serialization");
-						} catch (TupleNotFoundException e) {
+						} catch (TupleNotFoundException ex) {
 							logger.error("tuple not found when processing postal table");
 							parent.store().deletePostal(new StringBuilder()
 							        .append(PostalTableSchema.PROVIDER.q()).append("=?").append(" AND ")
 									.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), 
-									new String[] {e.missingTupleUri.getPath(), topic});
-						} catch (NonConformingAmmoContentProvider e) {
-							e.printStackTrace();
+									new String[] {ex.missingTupleUri.getPath(), topic});
+						} catch (NonConformingAmmoContentProvider ex) {
+							ex.printStackTrace();
 						}
 					}
 					logger.error("no serialized data produced");
@@ -778,9 +830,14 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 									new INetworkService.OnSendMessageHandler() {
 										final DistributorThread parent = DistributorThread.this;
 		                                final int id_ = id;
+		                                final String auid_ = auid;
+		                                final String topic_ = topic;
+		                                
 										@Override
 										public boolean ack(String channel, ChannelDisposal status) {
-											return parent.announceChannelAck( new ChannelAck(id_, Tables.POSTAL, channel, status) );
+											return parent.announceChannelAck( new ChannelAck(Tables.POSTAL, id_, 
+													                                         topic_, auid_, 
+													                                         channel, status) );
 										}
 									});
 					this.store.updatePostalByKey(id, null, dispatchResult);
@@ -803,7 +860,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @param handler
 	 * @return
 	 */
-	private DistributorState dispatchPostalRequest(final AmmoService that, final String provider, final String msgType, final DistributorState dispersal, final RequestSerializer serializer, final INetworkService.OnSendMessageHandler handler) {
+	private DistributorState dispatchPostalRequest(final AmmoService that, 
+			final String provider, final String msgType, 
+			final DistributorState dispersal, final RequestSerializer serializer, 
+			final INetworkService.OnSendMessageHandler handler) 
+	{
 		logger.trace("::dispatchPostalRequest");
 
 		final Long now = System.currentTimeMillis();
@@ -885,11 +946,25 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @return
 	 */
 	@SuppressWarnings("unused")
-	private void processPublishRequest(AmmoService that, AmmoRequest agm, int st) {
+	private void processPublishRequest(final AmmoService that, final AmmoRequest ar, int st) {
 		logger.trace("process request PUBLISH : not implemented");
+		final UUID uuid = UUID.randomUUID();
+		final String auid = ar.uid;
+		final String topic = ar.topic.asString();
+		final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
+
+		final ContentValues values = new ContentValues();
+		values.put(PublishTableSchema.UUID.cv(), uuid.toString());
+		values.put(PublishTableSchema.AUID.cv(), auid);
+		values.put(PublishTableSchema.TOPIC.cv(), topic);
+		values.put(PublishTableSchema.PROVIDER.cv(), ar.provider.cv());
+		
+		values.put(PublishTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
+		values.put(PublishTableSchema.EXPIRATION.cv(), ar.expire.cv());
+		values.put(PublishTableSchema.CREATED.cv(), System.currentTimeMillis());
 	}
 
-	private void processPublishTable(AmmoService that) {
+	private void processPublishCache(AmmoService that) {
 		logger.error("process table PUBLISH : not implemented");
 	}
 
@@ -905,7 +980,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @return
 	 */
 	@SuppressWarnings("unused")
-	private DistributorState dispatchPublishRequest(final AmmoService that, final String provider, final String msgType, final DistributorState dispersal, byte[] data, final INetworkService.OnSendMessageHandler handler) {
+	private DistributorState dispatchPublishRequest(final AmmoService that, 
+			final String provider, final String msgType, 
+			final DistributorState dispersal, byte[] data, 
+			final INetworkService.OnSendMessageHandler handler) 
+	{
 		logger.trace("::dispatchPublishRequest");
 		return null;
 	}
@@ -950,15 +1029,18 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		// Dispatch the message.
 		try {
-			final String uuid = ar.uuid();
+			final UUID uuid = UUID.randomUUID();
+			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final String select = ar.select.toString();
 			final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 
 			final ContentValues values = new ContentValues();
-			values.put(RetrievalTableSchema.UUID.cv(), uuid);
+			values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
+			values.put(RetrievalTableSchema.AUID.cv(), auid);
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
+			
 			values.put(RetrievalTableSchema.SELECTION.cv(), select);
 			if (limit != null)
 				values.put(RetrievalTableSchema.LIMIT.cv(), limit);
@@ -989,10 +1071,14 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							final long id_ = id;
+							final String auid_ = auid;
+							final String topic_ = topic;
 		
 							@Override
 							public boolean ack(String channel, ChannelDisposal status) {
-								return parent.announceChannelAck(new ChannelAck(id_, Tables.RETRIEVAL, channel, status));
+								return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
+										                                        topic_, auid_,  
+										                                        channel, status));
 							}
 						});
 				this.store.updateRetrievalByKey(id, null, dispatchResult);
@@ -1013,11 +1099,12 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * 
 	 * Garbage collect items which are expired.
 	 */
-	private void processRetrievalTable(AmmoService that) {
+	private void processRetrievalCache(AmmoService that) {
 		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
-
+        if (pending == null) return;
+        
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
@@ -1035,7 +1122,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				channelCursor.close();
 			}
 
-			final String uuid = pending.getString(pending.getColumnIndex(RetrievalTableSchema.UUID.cv()));
+			final UUID uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RetrievalTableSchema.UUID.cv())));
+			final String auid = pending.getString(pending.getColumnIndex(RetrievalTableSchema.AUID.cv()));
 			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
 
 			final int columnIx = pending.getColumnIndex(RetrievalTableSchema.LIMIT.n);
@@ -1057,10 +1145,14 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							uuid, topic, selection, limit, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
 								final DistributorThread parent = DistributorThread.this;
+								final String auid_ = auid;
+								final String topic_ = topic;
 		
 								@Override
 								public boolean ack(String channel, ChannelDisposal status) {
-									return parent.announceChannelAck(new ChannelAck(id, Tables.RETRIEVAL, channel, status));
+									return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
+											                                        topic_, auid_, 
+											                                        channel, status));
 								}
 							});
 					this.store.updateRetrievalByKey(id, null, dispatchResult);
@@ -1084,7 +1176,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 */
 
 	private DistributorState dispatchRetrievalRequest(final AmmoService that, 
-			final String retrievalId, final String topic, 
+			final UUID retrievalId, final String topic, 
 			final String selection, final Integer limit, final DistributorState dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
@@ -1096,7 +1188,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		final AmmoMessages.PullRequest.Builder retrieveReq = AmmoMessages.PullRequest
 				.newBuilder()
-				.setRequestUid(retrievalId)
+				.setRequestUid(retrievalId.toString())
 				.setMimeType(topic);
 
 		if (selection != null)
@@ -1186,19 +1278,24 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @param agm
 	 * @param st
 	 */
-	private void processSubscribeRequest(AmmoService that, AmmoRequest agm, int st) {
-		logger.trace("process request SUBSCRIBE {}", agm.topic.toString());
+	private void processSubscribeRequest(final AmmoService that, final AmmoRequest ar, int st) {
+		logger.trace("process request SUBSCRIBE {}", ar.topic.toString());
 
 		// Dispatch the message.
 		try {
-			final String topic = agm.topic.asString();
+			final UUID uuid = UUID.randomUUID();
+			final String auid = ar.uid;
+			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 
 			final ContentValues values = new ContentValues();
+			values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
+			values.put(RetrievalTableSchema.AUID.cv(), auid);
 			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
-			values.put(SubscribeTableSchema.PROVIDER.cv(), agm.provider.cv());
-			values.put(SubscribeTableSchema.SELECTION.cv(), agm.select.toString());
-			values.put(SubscribeTableSchema.EXPIRATION.cv(), agm.expire.cv());
+			
+			values.put(SubscribeTableSchema.PROVIDER.cv(), ar.provider.cv());
+			values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
+			values.put(SubscribeTableSchema.EXPIRATION.cv(), ar.expire.cv());
 			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
@@ -1216,14 +1313,18 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			synchronized (this.store) {
 				final long id = this.store.upsertSubscribe(values, dispersal);
 				final DistributorState dispatchResult = this.dispatchSubscribeRequest(that, 
-						topic, agm.select.toString(), dispersal, 
+						topic, ar.select.toString(), dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							final long id_ = id;
+							final String auid_ = auid;
+							final String topic_ = topic;
 		
 							@Override
 							public boolean ack(String channel, ChannelDisposal status) {
-								return parent.announceChannelAck(new ChannelAck(id_, Tables.SUBSCRIBE, channel, status));
+								return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
+										                                        topic_, auid_, 
+										                                        channel, status));
 							}
 						});
 				this.store.updateSubscribeByKey(id, null, dispatchResult);
@@ -1245,16 +1346,18 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * Garbage collect items which are expired.
 	 */
 
-	private void processSubscribeTable(AmmoService that) {
+	private void processSubscribeCache(AmmoService that) {
 		logger.debug(MARK_SUBSCRIBE, "process table SUBSCRIBE");
 
 		final Cursor pending = this.store.querySubscribeReady();
+		if (pending == null) return;
 
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
 			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
+			final String auid = pending.getString(pending.getColumnIndex(SubscribeTableSchema.AUID.cv()));
 
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeTableSchema.SELECTION.n));
 
@@ -1289,10 +1392,14 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							new INetworkService.OnSendMessageHandler() {
 								final DistributorThread parent = DistributorThread.this;
 								final int id_ = id;
+								final String auid_ = auid;
+								final String topic_ = topic;
 		
 								@Override
 								public boolean ack(String channel, ChannelDisposal status) {
-									return parent.announceChannelAck(new ChannelAck(id_, Tables.SUBSCRIBE, channel, status));
+									return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
+											                                        topic_, auid_,  
+											                                        channel, status));
 								}
 							});
 					this.store.updateSubscribeByKey(id, null, dispatchResult);
@@ -1307,7 +1414,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	/**
 	 * Deliver the subscription request to the network service for processing.
 	 */
-	private DistributorState dispatchSubscribeRequest(final AmmoService that, final String topic, final String selection, final DistributorState dispersal, final INetworkService.OnSendMessageHandler handler) {
+	private DistributorState dispatchSubscribeRequest(final AmmoService that, 
+			final String topic, final String selection, final DistributorState dispersal, 
+			final INetworkService.OnSendMessageHandler handler) 
+	{
 		logger.trace("::dispatchSubscribeRequest {}", topic);
 
 		/** Message Building */

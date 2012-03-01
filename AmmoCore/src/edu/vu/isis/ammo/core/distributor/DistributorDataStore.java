@@ -46,7 +46,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo-dds");
-	public static final int VERSION = 21;
+	public static final int VERSION = 26;
 
 	// ===========================================================
 	// Fields
@@ -319,6 +319,10 @@ public class DistributorDataStore {
 			this.o = ordinal;
 			this.t = title;
 		}
+		@Override
+		public String toString() {
+		    return this.t;
+		}
 		public String q() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
 		}
@@ -512,6 +516,9 @@ public class DistributorDataStore {
 	public enum PostalTableSchema  {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
+        UUID("uuid", "TEXT"),
+		// This is a unique identifier for the request
+
 		CREATED("created", "INTEGER"),
 		// When the request was made
 
@@ -520,6 +527,10 @@ public class DistributorDataStore {
 
 		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
+
+    	AUID("auid", "TEXT"),
+		// (optional) The appplication specific unique identifier
+		// This is used in notice intents so the application can relate.
 
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
@@ -607,6 +618,9 @@ public class DistributorDataStore {
 	public enum PublishTableSchema {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
+        UUID("uuid", "TEXT"),
+		// This is a unique identifier for the request
+
 		CREATED("created", "INTEGER"),
 		// When the request was made
 
@@ -616,8 +630,15 @@ public class DistributorDataStore {
 		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
+		AUID("auid", "TEXT"),
+		// (optional) The appplication specific unique identifier
+		// This is used in notice intents so the application can relate.
+
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
+		
+		PRIORITY("priority", "INTEGER"),
+		// What order should this message be sent. Negative priorities indicated less than normal.
 
 		DISPOSITION("disposition", "INTEGER"),
 		// The current best guess of the status of the request.
@@ -682,18 +703,21 @@ public class DistributorDataStore {
 	public enum RetrievalTableSchema {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
+        UUID("uuid", "TEXT"),
+		// This is a unique identifier for the request
+
 		CREATED("created", "INTEGER"),
 		// When the request was made
 
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
 
-		UUID("uuid", "TEXT"),
-		// This is a unique identifier for the request
-		// It is used to look up the appropriate provider
-
 		TOPIC("topic", "TEXT"),
 		// This is the data type
+		
+		AUID("auid", "TEXT"),
+		// This is a unique identifier for the request
+		// as specified by the application
 
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
@@ -802,6 +826,9 @@ public class DistributorDataStore {
 	public enum SubscribeTableSchema {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
+        UUID("uuid", "TEXT"),
+		// This is a unique identifier for the request
+
 		CREATED("created", "INTEGER"),
 		// When the request was made
 
@@ -809,7 +836,10 @@ public class DistributorDataStore {
 		// When the request was last modified
 
 		TOPIC("topic", "TEXT"),
-		// This along with the cost is used to decide how to deliver the specific object.
+		// The data type of the objects being subscribed to
+		
+		AUID("auid", "TEXT"),
+		// The application UUID for the request
 
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
@@ -1108,13 +1138,15 @@ public class DistributorDataStore {
 	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
 	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
 	.append(" WHERE p.").append(PostalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
-	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.POSTAL.qv())
+	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.POSTAL.qv())
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
 	.append(')') // close exists clause	
-	.append(" ORDER BY ").append(PostalTableSchema.PRIORITY.q()).append(" DESC ")
-	.append(',').append(PostalTableSchema._ID.q()).append(" ASC ")	
+	.append(" ORDER BY ")
+        .append(PostalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
+        .append(PostalTableSchema._ID.q()).append(" ASC ")
+        .append(';')
 	.toString();
 
 	public synchronized Cursor queryPublish(String[] projection, String selection,
@@ -1199,8 +1231,9 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
 	.append(')') // close exists clause
-	.append(" ORDER BY ").append(RetrievalTableSchema.PRIORITY.q()).append(" DESC ")
-	.append(',').append(RetrievalTableSchema._ID.q()).append(" ASC ")	
+	.append(" ORDER BY ")
+        .append(RetrievalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
+        .append(RetrievalTableSchema._ID.q()).append(" ASC ")	
 	.toString();
 
 
@@ -1266,8 +1299,9 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
 	.append(')') // close exists clause
-	.append(" ORDER BY ").append(SubscribeTableSchema.PRIORITY.q()).append(" DESC ")
-	.append(',').append(SubscribeTableSchema._ID.q()).append(" ASC ")	
+	.append(" ORDER BY ")
+        .append(SubscribeTableSchema.PRIORITY.q()).append(" DESC ").append(',')
+        .append(SubscribeTableSchema._ID.q()).append(" ASC ")	
 	.toString();
 
 
@@ -1299,7 +1333,7 @@ public class DistributorDataStore {
 	 */
 	public synchronized Cursor queryDisposalByParent(int type, int parent) {
 		try {
-			logger.trace("disposal ready {} {} {}", new Object[]{ DISPOSAL_STATUS_QUERY, type, parent} );
+			logger.trace("disposal ready {} {} {}", new Object[]{DISPOSAL_STATUS_QUERY, type, parent} );
 			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(type), String.valueOf(parent)});
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
@@ -1580,11 +1614,11 @@ public class DistributorDataStore {
 	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
 	.append(" AND ")
-	.append(DisposalTableSchema.TYPE.q()).append(" IN ( ")
-	.append(Tables.SUBSCRIBE.qv()).append(')')
+	.append(DisposalTableSchema.TYPE.q())
+    .append(" IN (").append(Tables.SUBSCRIBE.qv()).append(')')
 	.append(" AND ")
 	.append(DisposalTableSchema.STATE.q())
-	.append(" NOT IN ( ").append(ChannelDisposal.BAD.q()).append(')')
+	.append(" NOT IN (").append(ChannelDisposal.BAD.q()).append(')')
 	.toString();
 
 	/**
@@ -1908,7 +1942,9 @@ public class DistributorDataStore {
 			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deletePostalGarbage");
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
 		}
 		return 0;
 	}
@@ -1994,8 +2030,11 @@ public class DistributorDataStore {
 			logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteRetrievalGarbage");
+			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
 		}
+		
 		return 0;
 	}
 	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
@@ -2053,7 +2092,9 @@ public class DistributorDataStore {
 			logger.trace("Subscribe garbage {} {} {}", new Object[] {expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION} );
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteSubscribeGarbage");
+			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
 		}
 		return 0;
 	}
