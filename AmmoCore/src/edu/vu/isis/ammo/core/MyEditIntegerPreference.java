@@ -233,9 +233,12 @@ public class MyEditIntegerPreference extends EditTextPreference {
 
 	private boolean validateBaudrate(String uncheckedText) {
         try {
-            // Will we need something different here?  Are other baud rates
-            // even supported?
-            return Integer.parseInt(uncheckedText) == 9600;
+        	// We were only allowing a baudrate of 9600 before.  Sandeep
+        	// wanted to lift this constraint for testing purposes.  I'm
+        	// leaving the previous code here since we may want it in the
+        	// future.
+            return Integer.parseInt(uncheckedText) > 0;
+            //return Integer.parseInt(uncheckedText) == 9600;
         } catch ( NumberFormatException e ) {
             return false;
         }
