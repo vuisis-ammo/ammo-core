@@ -8,6 +8,6 @@
 	<classpathentry kind="lib" path="/Android-libs/java/jgroups.jar"/>
 	<classpathentry kind="lib" path="/Android-libs/java/logback-android.jar" sourcepath="/opt/logback-android"/>
 	<classpathentry kind="lib" path="/Android-libs/java/slf4j-api.jar" sourcepath="/opt/slf4j-android/"/>
-	<classpathentry kind="lib" path="/Android-libs/java/tasettingsapi.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/tasettings-api"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>

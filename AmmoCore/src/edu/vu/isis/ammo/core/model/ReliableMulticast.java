@@ -30,9 +30,12 @@ public class ReliableMulticast extends Channel {
 	String port = "port";
 	protected ReliableMulticast(Context context, String name) {
 		super(context, name);
-		this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, "228.10.10.91");
-		this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, "9982");
-		this.election = this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, true);
+		this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, 
+                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
+		this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, 
+                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
+		this.election = this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, 
+                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_SHOULD_USE);
 	}
 
 	private static ReliableMulticast instance = null;
@@ -48,12 +51,14 @@ public class ReliableMulticast extends Channel {
 			String key) {
 		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST))
 		{
-			this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, "default ip");
+			this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, 
+                  INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
 		}
 		
 		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT))
 		{
-			this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, "port");
+			this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, 
+                  INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
 		}
 
 	}
