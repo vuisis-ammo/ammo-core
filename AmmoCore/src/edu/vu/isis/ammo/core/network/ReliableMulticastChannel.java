@@ -697,6 +697,7 @@ public class ReliableMulticastChannel extends NetChannel
 											+ "/support/jgroups/udp.xml" );
             	parent.mJGroupChannel = new JChannel( configFile );
             	// Put call to set operator ID here.
+            	parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
             	
             	//parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT, Boolean.TRUE ); // deprecated
             }

@@ -52,23 +52,32 @@
             num_initial_members="3"/>
     <MERGE2 max_interval="30000"
             min_interval="10000"/>
+<!--
     <BARRIER />
+-->
     <FD_ALL interval="10000" timeout="30000"/>
+<!--
     <VERIFY_SUSPECT timeout="5000"  />
+-->
     <pbcast.NAKACK exponential_backoff="300"
                    xmit_stagger_timeout="200"
                    use_mcast_xmit="false"
                    discard_delivered_msgs="true"/>
     <UNICAST />
+
+<!--
     <pbcast.STABLE stability_delay="1000" desired_avg_gossip="50000"
                    max_bytes="4M"/>
     <pbcast.GMS print_local_addr="true" join_timeout="3000"
                 view_bundling="true"/>
+-->
     <UFC max_credits="2M"
          min_threshold="0.4"/>
     <MFC max_credits="2M"
          min_threshold="0.4"/>
     <FRAG2 frag_size="1400"  />
+<!--
     <pbcast.STATE_TRANSFER />
+-->
     <!-- pbcast.FLUSH  /-->
 </config>
