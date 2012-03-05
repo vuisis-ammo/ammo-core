@@ -4,6 +4,10 @@
   stack in stacks.xml, but doesn't use streaming state transfer and flushing
   author: Bela Ban
 	 mcast_addr="${jgroups.udp.mcast_addr:228.9.5.1}"
+    <FD_SOCK/>
+
+  DATE: 2012-03-05
+
 -->
 
 <config xmlns="urn:org:jgroups"
@@ -47,28 +51,36 @@
          oob_thread_pool.queue_max_size="100"
          oob_thread_pool.rejection_policy="Run"/>
 
-    <PING timeout="2000"
+    <PING timeout="5000"
             num_initial_members="3"/>
     <MERGE2 max_interval="30000"
             min_interval="10000"/>
-    <FD_SOCK/>
-    <FD_ALL/>
-    <VERIFY_SUSPECT timeout="1500"  />
+<!--
     <BARRIER />
+-->
+    <FD_ALL interval="10000" timeout="30000"/>
+<!--
+    <VERIFY_SUSPECT timeout="5000"  />
+-->
     <pbcast.NAKACK exponential_backoff="300"
                    xmit_stagger_timeout="200"
                    use_mcast_xmit="false"
                    discard_delivered_msgs="true"/>
     <UNICAST />
+
+<!--
     <pbcast.STABLE stability_delay="1000" desired_avg_gossip="50000"
                    max_bytes="4M"/>
     <pbcast.GMS print_local_addr="true" join_timeout="3000"
                 view_bundling="true"/>
+-->
     <UFC max_credits="2M"
          min_threshold="0.4"/>
     <MFC max_credits="2M"
          min_threshold="0.4"/>
     <FRAG2 frag_size="1400"  />
+<!--
     <pbcast.STATE_TRANSFER />
+-->
     <!-- pbcast.FLUSH  /-->
 </config>

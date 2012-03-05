@@ -19,8 +19,8 @@ import edu.vu.isis.ammo.core.model.Netlink;
 
 /**
  * This interface is used by the Distributor and others to interact with the
- * NetworkService. Classes like TcpChannel that are created and managed by
- * the NetworkService should use the IChannelManager interface instead.
+ * AmmoService. Classes like TcpChannel that are created and managed by
+ * the AmmoService should use the IChannelManager interface instead.
  */
 public interface INetworkService {
 

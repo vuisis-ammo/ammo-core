@@ -1,6 +1,12 @@
 <?xml version="1.0"?>
-<!-- put the file in /data/data/edu.vu.isis.ammo.core/app_policy adb push 
-	distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml -->
+<!-- 
+     Put the file in /data/data/edu.vu.isis.ammo.core/app_policy 
+     adb push distribution_policy.xml
+   /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml 
+
+   DATE: 2012-03-05
+
+-->
 <policy>
 	<topic type="">
 		<description>
@@ -15,83 +21,55 @@
 		</routing>
 		<routing priority="high" category="subscribe">
 			<clause>
-				<literal term="gateway" condition="success" />
+				<literal term="gateway" condition="success" encoding="json"/>
 			</clause>
 		</routing>
 		<routing priority="normal" category="retrieval">
 			<clause>
-				<literal term="gateway" condition="success" />
+				<literal term="gateway" condition="success" encoding="json"/>
 			</clause>
 		</routing>
 	</topic>
 	
-	<test name="a1" type="ammo/edu." postal="" />
- 
-	<topic type="ammo/edu.vu.isis.ammo.">
-		<description>
-			The ammo applications.
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="gateway" condition="success" encoding="json" />
-				<literal term="multicast" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
-	
-	<test name="b1"  type="ammo/edu." postal="" />
-	<test name="b2" type="ammo/edu.vu.isis.ammo." postal="ammo/edu.vu.isis.ammo." />
-	<test name="b3" type="ammo/edu.vu.isis.ammo.dash" postal="ammo/edu.vu.isis.ammo." />
-
 	<topic type="ammo/edu.vu.isis.ammo.dash">
 		<description>
-			Dash
+Dash to:
+-  Serial channel first (terse encoding),
+-  Reliable multicast channel next,
+-  Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
 		</description>
 		<routing priority="normal">
 			<clause>
+				<literal term="serial" condition="success" encoding="terse" />
+				<literal term="reliablemulticast" condition="success" encoding="json" />
 				<literal term="gateway" condition="success" encoding="json" />
-				<literal term="multicast" condition="success" encoding="json" />
 			</clause>
 		</routing>
 	</topic>
-	
-	<test name="c1" type="ammo/edu." postal="" />
-	<test name="c2" type="ammo/edu.vu.isis.ammo." postal="ammo/edu.vu.isis.ammo." />
-	<test name="c3" type="ammo/edu.vu.isis.ammo.dash" postal="ammo/edu.vu.isis.ammo.dash" />
-	<test name="c4" type="ammo/edu.vu.isis.ammo.dash.media" postal="ammo/edu.vu.isis.ammo.dash" />
-	
 
+	<topic type="ammo/edu.vu.isis.ammo.sms">
+		<description>
+SMS to:
+-  Serial channel first (terse encoding),
+-  Unreliable multicast channel next,
+-  Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
+		</description>
+		<routing priority="normal">
+			<clause>
+				<literal term="serial" condition="success" encoding="terse" />
+				<literal term="reliablemulticast" condition="success" encoding="json" />
+				<literal term="gateway" condition="success" encoding="json" />
+			</clause>
+		</routing>
+	</topic>
+
+	
 	<topic type="ammo/com.aterrasys.">
 		<description>
 		</description>
 		<routing priority="normal">
-			<clause>
-				<literal term="gateway" condition="success" encoding="json" />
-				<literal term="multicast" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
-
-	<topic type="ammo/edu.vu.isis.ammo.sms.">
-		<description>
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="gateway" condition="true" encoding="json" />
-				<literal term="multicast" condition="true" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
-
-	<topic type="ammo/edu.vu.isis.ammo.sample.">
-		<description>
-			This example illustrates the case where the requests
-			should be sent over both channels.
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="multicast" condition="success" encoding="terse" />
-			</clause>
 			<clause>
 				<literal term="gateway" condition="success" encoding="json" />
 			</clause>
@@ -100,37 +78,19 @@
 
 	<topic type="ammo/com.aterrasys.nevada.locations">
 		<description>
-			PLI : location, for terse messages
+PLI to:
+-          Serial channel first (terse encoding),
+-          Multicast channel next,
+-          Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
 		</description>
 		<routing priority="normal">
 			<clause>
-				<literal term="serial" condition="true" encoding="terse" />
+				<literal term="serial" condition="success" encoding="terse" />
+				<literal term="multicast" condition="success" encoding="json" />
+				<literal term="gateway" condition="success" encoding="json" />
 			</clause>
 		</routing>
 	</topic>
-
-	<topic type="urn:trial:dummy/">
-		<description>
-			Used for testing the routing mechanism.
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="multicast" condition="false" encoding="json" />
-				<literal term="serial" condition="true" encoding="terse" />
-			</clause>
-			<clause>
-				<literal term="gateway" condition="true" encoding="json" />
-				<literal term="serial" condition="false" encoding="terse" />
-			</clause>
-		</routing>
-	</topic>
-	
-	<test name="z1" type="ammo/edu." postal="" />
-	<test name="z2" type="ammo/edu.vu.isis.ammo." postal="ammo/edu.vu.isis.ammo." />
-	<test name="z3" type="ammo/edu.vu.isis.ammo.dash" postal="ammo/edu.vu.isis.ammo.dash" />
-	<test name="z4" type="ammo/edu.vu.isis.ammo.dash.event" postal="ammo/edu.vu.isis.ammo.dash" />
-	<test name="z5" type="ammo/edu.vu.isis.ammo.dash.media" postal="ammo/edu.vu.isis.ammo.dash" />
-	<test name="z6" type="urn:trial:dummy/dog" postal="urn:trial:dummy/" />
-	<test name="z7" type="ammo/com.aterrasys.nevada.locations" postal="ammo/com.aterrasys.nevada.locations" />
 
 </policy>

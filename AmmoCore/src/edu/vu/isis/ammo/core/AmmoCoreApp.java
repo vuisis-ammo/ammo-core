@@ -48,7 +48,7 @@ public class AmmoCoreApp  extends Application {
 
         svc.setClass(this, AmmoService.class);
         this.startService(svc);
-        // context.startService(NetworkService.LAUNCH);
+        // context.startService(AmmoService.LAUNCH);
 
         svc.setClass(this, EthTrackSvc.class);
         this.startService(svc);

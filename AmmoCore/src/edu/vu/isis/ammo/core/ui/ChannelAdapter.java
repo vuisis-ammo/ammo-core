@@ -41,15 +41,15 @@ import edu.vu.isis.ammo.core.network.INetChannel;
 public class ChannelAdapter extends ArrayAdapter<Channel>
     implements OnTouchListener, OnNameChangeListener
 {
-    public static final Logger logger = LoggerFactory.getLogger(AmmoActivity.class);
+    public static final Logger logger = LoggerFactory.getLogger(AmmoCore.class);
 
-    private final AmmoActivity parent;
+    private final AmmoCore parent;
     private final Resources res;
     private final List<Channel> model;
     private SharedPreferences prefs = null;
 
 
-    public ChannelAdapter( AmmoActivity parent, List<Channel> model )
+    public ChannelAdapter( AmmoCore parent, List<Channel> model )
     {
         super( parent,
                android.R.layout.simple_list_item_1,
@@ -109,16 +109,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         case MotionEvent.ACTION_DOWN:
         case MotionEvent.ACTION_MOVE:
             // NOTE: Do nothing here for now, since no functionality
-            // is implemented behind a click action... Do not display
-            // "this page intentionally left blank" in a major release.
-
-        	/*
-            item.setBackgroundResource(R.drawable.select_gradient);
-            logger.trace("::onClick");
-            Intent gatewayIntent = new Intent();
-            gatewayIntent.setClass(this.parent, ChannelDetailActivity.class);
-            this.parent.startActivity(gatewayIntent);
-            */
+            // is implemented behind a click action...
             break;
 
         default:

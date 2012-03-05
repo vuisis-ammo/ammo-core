@@ -50,7 +50,7 @@
      in between standard targets -->
 
 
-    <target name="-pre-build" >
+    <target name="-pre-build">
         <echo>configure ammo core libraries for ${basedir}.</echo>
         <!-- configure protobuf -->
         <mkdir dir="libs"/>
@@ -71,6 +71,20 @@
         </fail>
     </target>
 
+    <property name="proto.dir" value="../../Gateway/common/protocol"/>
+
+    <target name="protobuf">
+        <echo>for running within eclipse, instead of bash script.</echo>
+        <echo>Generating protocol buffers</echo>
+        <mkdir dir="gen"/>
+        <exec executable="protoc" taskname="pb">
+            <arg value="--proto_path"/>
+            <arg value="${proto.dir}"/>
+            <arg value="--java_out=gen"/>
+            <arg value="${proto.dir}/AmmoMessages.proto"/>
+        </exec>
+    </target>
+
     <target name="-pre-compile" depends="protobuf,-ndk-build"/>
 
     <target name="-ndk-build">
@@ -78,8 +92,6 @@
         <exec executable="ndk-build" dir="." 
               searchpath="true"/>
     </target>
-
-    <import file="build-protobuf.xml"/>
 
     <target name="realclean" depends="clean">
         <echo>Cleaning ndk-build generated files...</echo>

@@ -983,6 +983,8 @@ public class SerialChannel extends NetChannel
                                           currentSlot,
                                           currentTime );
 
+                            header.clear();
+
                             // Set these in buf_header, since extractHeader() expects them.
                             buf_header[0] = first;
                             buf_header[1] = second;
@@ -1071,12 +1073,28 @@ public class SerialChannel extends NetChannel
          */
         private byte readAByte() throws IOException
         {
-            //logger.debug( "Calling read() on the SerialPort's InputStream." );
-            int val = mInputStream.read();
-            if ( val == -1 ) {
-                logger.warn( "The serial port returned -1 from read()." );
-                throw new IOException();
+            int val = -1;
+            while ( val == -1 &&  mReceiverState.get() != INetChannel.INTERRUPTED ) {
+                logger.warn( "SerialPort.read()" );
+                val = mInputStream.read();
             }
+
+
+            // try {
+            //     while ( val == -1 )
+            //         val = mInputStream.read();
+            // } catch (IOException ex) {
+            //     logger.warn( "readAByte() IOException: {}", ex.getStackTrace() );
+            // } catch ( Exception ex ) {
+            //     logger.warn( "readAByte() exception: {}", ex.getStackTrace() );
+            // }
+
+            logger.warn( "val={}", (byte) val );
+
+            // if ( val == -1 ) {
+            //     logger.warn( "The serial port returned -1 from read()." );
+            //     throw new IOException();
+            // }
 
             // I was trying to make this interruptable, but it didn't
             // work.  Why not?

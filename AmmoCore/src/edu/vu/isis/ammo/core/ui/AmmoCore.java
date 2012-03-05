@@ -32,8 +32,6 @@ import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
 import android.widget.TabHost;
 import edu.vu.isis.ammo.api.AmmoIntents;
@@ -54,9 +52,9 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
  * ...registering/unregistering content interest requests.
  *
  */
-public class AmmoActivity extends TabActivityEx implements OnItemClickListener
+public class AmmoCore extends TabActivityEx
 {
-    public static final Logger logger = LoggerFactory.getLogger( AmmoActivity.class );
+    public static final Logger logger = LoggerFactory.getLogger( AmmoCore.class );
 
     private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
     private static final int CONFIG_MENU = Menu.NONE + 1;
@@ -90,7 +88,7 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     private INetworkService networkServiceBinder;
 
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
-    	final private AmmoActivity parent = AmmoActivity.this;
+    	final private AmmoCore parent = AmmoCore.this;
     	
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.info("::onServiceConnected - Network Service");
@@ -113,7 +111,6 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         channelList = (ChannelListView)findViewById(R.id.gateway_list);
         channelAdapter = new ChannelAdapter(this, channelModel);
         channelList.setAdapter(channelAdapter);
-        this.channelList.setOnItemClickListener(this);
         
         //reset all rows
         for (int ix=0; ix < channelList.getChildCount(); ix++)
@@ -143,11 +140,11 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         logger.trace("::onCreate");
         this.setContentView(R.layout.ammo_activity);
 
-        // Get a reference to the NetworkService.
+        // Get a reference to the AmmoService.
         Intent networkServiceIntent = new Intent(this, AmmoService.class);
         boolean result = bindService( networkServiceIntent, networkServiceConnection, BIND_AUTO_CREATE );
         if ( !result )
-            logger.error( "AmmoActivity failed to bind to the NetworkService!" );
+            logger.error( "AmmoActivity failed to bind to the AmmoService!" );
 
         Intent intent = new Intent();
 
@@ -199,7 +196,6 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
                 View row = channelList.getChildAt(ix);
                 row.setBackgroundColor(Color.TRANSPARENT);
             }
-            this.channelList.setOnItemClickListener(this);
         }
         
         mReceiver = new StatusReceiver();
@@ -316,11 +312,9 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
     // UI Management
     // ===========================================================
 
-   
-
-    /*
-     * Used to toggle the netlink view between simple and advanced.
-     */
+    //
+    // Used to toggle the netlink view between simple and advanced.
+    //
     public void toggleMode()
     {
         this.netlinkAdvancedView = !this.netlinkAdvancedView;
@@ -328,40 +322,5 @@ public class AmmoActivity extends TabActivityEx implements OnItemClickListener
         prefs.edit().putBoolean("debug_mode", this.netlinkAdvancedView).commit();
         this.netlinkAdapter.notifyDataSetChanged();
         this.channelAdapter.notifyDataSetChanged();
-
-        //ANDROID3.0
-        //Ideally, when this toggles, we need to
-        //refresh the menu. This line will invalidate it so that
-        //onPrepareOptionsMenu(...) will be called when the user
-        //opens it again.
-        //this.activity_menu.invalidateOptionsMenu();
-
     }
-
-	@Override
-	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-		/*Channel c = this.channelAdapter.getItem(arg2);
-		
-        logger.trace("::onClick");
-        Intent gatewayIntent = new Intent();
-        if(c.getClass().equals(Gateway.class))
-        {
-        	gatewayIntent.putExtra("IPKEY", INetPrefKeys.CORE_IP_ADDR);
-        	gatewayIntent.putExtra("PORTKEY", INetPrefKeys.CORE_IP_PORT);
-        	gatewayIntent.putExtra("NetConnTimeoutKey", INetPrefKeys.CORE_SOCKET_TIMEOUT);
-        	gatewayIntent.putExtra("ConIdleTimeoutKey", "AMMO_NET_CONN_FLAT_LINE_TIME");
-        }
-        else
-        {
-        	gatewayIntent.putExtra("IPKEY", INetPrefKeys.MULTICAST_IP_ADDRESS);
-        	gatewayIntent.putExtra("PORTKEY", INetPrefKeys.MULTICAST_PORT);
-        	gatewayIntent.putExtra("NetConnTimeoutKey", INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT);
-        	gatewayIntent.putExtra("ConIdleTimeoutKey", INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT);
-        }
-        gatewayIntent.setClass(this, ChannelDetailActivity.class);
-        this.startActivity(gatewayIntent);
-		*/
-		
-	}
-
 }

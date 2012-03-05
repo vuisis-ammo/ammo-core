@@ -34,11 +34,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 //import org.jgroups.Address;
+import org.jgroups.Address;
 import org.jgroups.Channel;
 import org.jgroups.ChannelListener;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
+import org.jgroups.MembershipListener;
+import org.jgroups.View;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -307,7 +310,7 @@ public class ReliableMulticastChannel extends NetChannel
         setIsAuthorized( true );
         mSenderQueue.markAsAuthorized();
 
-        // Tell the NetworkService that we're authorized and have it
+        // Tell the AmmoService that we're authorized and have it
         // notify the apps.
         mChannelManager.authorizationSucceeded(this, agm );
     }
@@ -370,7 +373,7 @@ public class ReliableMulticastChannel extends NetChannel
     // Note: the way this currently works, the heartbeat can only be sent
     // in intervals that are multiples of the burp time.  This may change
     // later if I can eliminate some of the wait()s.
-    // @SuppressWarnings("unused")
+    @SuppressWarnings("unused")
 	private void sendHeartbeatIfNeeded()
     {
         //logger.warn( "In sendHeartbeatIfNeeded()." );
@@ -622,8 +625,8 @@ public class ReliableMulticastChannel extends NetChannel
                                 synchronized (this.state) {
                                     while (this.isConnected()) // this is IMPORTANT don't remove it.
                                     {
-                                        if ( HEARTBEAT_ENABLED )
-                                            parent.sendHeartbeatIfNeeded();
+                                        if ( HEARTBEAT_ENABLED );
+//                                            parent.sendHeartbeatIfNeeded();
 
                                         // wait for somebody to change the connection status
                                         this.state.wait(BURP_TIME);
@@ -693,6 +696,9 @@ public class ReliableMulticastChannel extends NetChannel
             	File configFile = new File( Environment.getExternalStorageDirectory()
 											+ "/support/jgroups/udp.xml" );
             	parent.mJGroupChannel = new JChannel( configFile );
+            	// Put call to set operator ID here.
+            	parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
+            	
             	//parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT, Boolean.TRUE ); // deprecated
             }
             catch ( Exception e )
@@ -846,7 +852,7 @@ public class ReliableMulticastChannel extends NetChannel
 
 
         // In the new design, aren't we supposed to let the
-        // NetworkService know if the outgoing queue is full or not?
+        // AmmoService know if the outgoing queue is full or not?
         public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
             logger.info( "putFromDistributor()" );
@@ -1070,7 +1076,7 @@ public class ReliableMulticastChannel extends NetChannel
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class ChannelReceiver extends ReceiverAdapter
+    class ChannelReceiver extends ReceiverAdapter implements MembershipListener
     {
         public ChannelReceiver( ConnectorThread iParent,
                                 ReliableMulticastChannel iDestination )
@@ -1149,6 +1155,19 @@ public class ReliableMulticastChannel extends NetChannel
                     mParent.socketOperationFailed();
                 }
             }
+        }
+
+        @Override
+        public void viewAccepted(View new_view)
+        {
+            // I have kept this error, need to change it to info .. NR
+            logger.error( "Membership View Changed: {}", new_view );
+        }
+        
+        @Override
+        public void suspect(Address suspected_mbr)
+        {
+            logger.error( "Member Suspected : {}", suspected_mbr.toString());
         }
 
         private void setReceiverState( int iState )

@@ -91,7 +91,7 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  * 
  * The AmmoService is responsible for prioritizing and serializing
  * requests for data communications between distributed application databases. 
- * The AmmoService issues calls to the NetworkService for updates and then writes the
+ * The AmmoService issues calls to the AmmoService for updates and then writes the
  * results to the correct content provider using the deserialization mechanism
  * defined by each content provider.
  * 
@@ -228,15 +228,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return networkingSwitch = networkingSwitch ? false : true;
 	}
 
-	// Network Channels
-	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
-	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
-	final private ReliableMulticastChannel reliableMulticastChannel = ReliableMulticastChannel.getInstance("reliablemulticast", this);
-	private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
-	private SerialChannel serialChannel;
-
-	final private Map<String,NetChannel> mChannelMap = new HashMap<String,NetChannel>();
-
+    public String getOperatorId() { return operatorId; }
+	
 	private NetworkBroadcastReceiver myNetworkReceiver = null;
 	
 	private DistributorThread distThread;
@@ -257,6 +250,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public class DistributorServiceAidl extends IDistributorService.Stub {
 		@Override
 		public String makeRequest(AmmoRequest request) throws RemoteException {
+			if (request == null) {
+				logger.info("bad request");
+				return null;
+			}
 			logger.trace("make request {}", request.action.toString());
 			return AmmoService.this.distThread.distributeRequest(request);
 		}
@@ -321,6 +318,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {
 					try {
 						final AmmoRequest request = intent.getParcelableExtra("request");
+						if (request == null) {
+							logger.info("bad request intent {}", intent);
+							return START_NOT_STICKY;
+						}
 						final String result = this.distThread.distributeRequest(request);
 						logger.info("distributing {}", result);
 					} catch (ArrayIndexOutOfBoundsException ex) {
@@ -410,17 +411,17 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
 		
-		mChannelMap.put("default", this.tcpChannel);
-		mChannelMap.put(this.tcpChannel.name, this.tcpChannel);
-		mChannelMap.put(this.multicastChannel.name, this.multicastChannel);
-		mChannelMap.put(this.reliableMulticastChannel.name, this.reliableMulticastChannel);
-		mChannelMap.put(this.journalChannel.name, this.journalChannel);
-		mChannelMap.put(this.serialChannel.name, this.serialChannel);
+		gChannelMap.put("default", this.tcpChannel);
+		gChannelMap.put(this.tcpChannel.name, this.tcpChannel);
+		gChannelMap.put(this.multicastChannel.name, this.multicastChannel);
+		gChannelMap.put(this.reliableMulticastChannel.name, this.reliableMulticastChannel);
+		gChannelMap.put(this.journalChannel.name, this.journalChannel);
+		gChannelMap.put(this.serialChannel.name, this.serialChannel);
 
-		mChannels.put(this.tcpChannel.name, Gateway.getInstance(getBaseContext()));
-		mChannels.put(this.multicastChannel.name, Multicast.getInstance(getBaseContext()));
-		mChannels.put(this.reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()));
-		mChannels.put(this.serialChannel.name, Serial.getInstance(getBaseContext()));
+		gChannels.put(this.tcpChannel.name, Gateway.getInstance(getBaseContext()));
+		gChannels.put(this.multicastChannel.name, Multicast.getInstance(getBaseContext()));
+		gChannels.put(this.reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()));
+		gChannels.put(this.serialChannel.name, Serial.getInstance(getBaseContext()));
 
 		mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
 		mNetlinks.add(WiredNetlink.getInstance(getBaseContext()));
@@ -921,19 +922,19 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public ChannelDisposal sendRequest(AmmoGatewayMessage agm, String channelName) {
 		logger.info("::sendGatewayRequest");
 		// agm.setSessionUuid( sessionId );
-		if (!mChannelMap.containsKey(channelName))
+		if (!gChannelMap.containsKey(channelName))
 			return ChannelDisposal.REJECTED;
-		final NetChannel channel = mChannelMap.get(channelName);
+		final NetChannel channel = gChannelMap.get(channelName);
 		if (!channel.isConnected())
 			return ChannelDisposal.PENDING;
 		return channel.sendRequest(agm);
 	}
 
 	public ChannelStatus checkChannel(String channelName) {
-		if (!mChannelMap.containsKey(channelName))
+		if (!gChannelMap.containsKey(channelName))
 			return ChannelStatus.DOWN;
         
-		final NetChannel channel = mChannelMap.get(channelName);
+		final NetChannel channel = gChannelMap.get(channelName);
 		if (channel.isBusy()) // this is to improve performance
 			return ChannelStatus.FULL;
 		if (!channel.isConnected())
@@ -958,7 +959,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 
 	// ===============================================================
-	// BINDING CALLS (NetworkServiceBinder)
+	// BINDING CALLS (AmmoServiceBinder)
 	//
 	// These may be called internally but they are intended to be
 	// called by the distributor service.
@@ -1034,7 +1035,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return false;
 	}
 
-	// The channel lets the NetworkService know that the channel was
+	// The channel lets the AmmoService know that the channel was
 	// successfully authorized by calling this method.
 	public void authorizationSucceeded(NetChannel channel, AmmoGatewayMessage agm) {
 		// HACK! Fixme
@@ -1112,7 +1113,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			int sendStatus, int recvStatus) {
 		logger.debug("status change. channel={}", channel.name );
 
-		mChannels.get(channel.name)
+		gChannels.get(channel.name)
 		         .setStatus(new int[] { connStatus, sendStatus, recvStatus });
 
         switch (connStatus) {
@@ -1152,11 +1153,28 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
 	}
 
-	private final Map<String, Channel> mChannels = new HashMap<String, Channel>();
+	static private final Map<String, Channel> gChannels;
+	// Network Channels
+	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
+	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
+	final private ReliableMulticastChannel reliableMulticastChannel = ReliableMulticastChannel.getInstance("reliablemulticast", this);
+	final private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
+	private SerialChannel serialChannel;
+
+	static final private Map<String,NetChannel> gChannelMap;
+
+	static {
+		gChannels = new HashMap<String, Channel>();
+		gChannelMap = new HashMap<String,NetChannel>();
+	}
+	static void addChannel() {
+		
+	}
+	
 	private final List<Netlink> mNetlinks = new ArrayList<Netlink>();
 
 	public List<Channel> getGatewayList() {
-		return new ArrayList<Channel>(mChannels.values());
+		return new ArrayList<Channel>(gChannels.values());
 	}
 
 	public List<Netlink> getNetlinkList() {
@@ -1225,11 +1243,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			}
 
 			// if (INetworkService.ACTION_RECONNECT.equals(action)) {
-			// //NetworkService.this.connectChannels(true);
+			// //AmmoService.this.connectChannels(true);
 			// return;
 			// }
 			// if (INetworkService.ACTION_DISCONNECT.equals(action)) {
-			// //NetworkService.this.disconnectChannels();
+			// //AmmoService.this.disconnectChannels();
 			// return;
 			// }
 
