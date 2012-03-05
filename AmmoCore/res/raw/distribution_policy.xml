@@ -1,7 +1,11 @@
 <?xml version="1.0"?>
 <!-- 
      Put the file in /data/data/edu.vu.isis.ammo.core/app_policy 
-     adb push distribution_policy.xml /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml 
+     adb push distribution_policy.xml
+   /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml 
+
+   DATE: 2012-03-05
+
 -->
 <policy>
 	<topic type="">

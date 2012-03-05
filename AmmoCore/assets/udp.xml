@@ -5,6 +5,9 @@
   author: Bela Ban
 	 mcast_addr="${jgroups.udp.mcast_addr:228.9.5.1}"
     <FD_SOCK/>
+
+  DATE: 2012-03-05
+
 -->
 
 <config xmlns="urn:org:jgroups"
