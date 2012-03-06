@@ -107,8 +107,7 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  * The real work is delegated to the Distributor Thread, which maintains a queue.
  * 
  */
-public class AmmoService extends Service implements
-OnSharedPreferenceChangeListener, INetworkService,
+public class AmmoService extends Service implements INetworkService,
 INetworkService.OnSendMessageHandler, IChannelManager {
 	// ===========================================================
 	// Constants
@@ -385,21 +384,21 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		
 
 		this.globalSettings = new Settings(context);
-		this.globalSettings.registerOnSharedPreferenceChangeListener(this);
+		this.globalSettings.registerOnSharedPreferenceChangeListener(this.pantherPreferenceChangeListener);
 		
 		this.localSettings = PreferenceManager.getDefaultSharedPreferences(this);
-		this.localSettings.registerOnSharedPreferenceChangeListener(this);
+		this.localSettings.registerOnSharedPreferenceChangeListener(this.ammoPreferenceChangeListener);
 
 		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
 		
-		gChannelMap.put("default", this.tcpChannel);
-		gChannelMap.put(this.tcpChannel.name, this.tcpChannel);
+		gChannelMap.put("default", this.gwChannel);
+		gChannelMap.put(this.gwChannel.name, this.gwChannel);
 		gChannelMap.put(this.multicastChannel.name, this.multicastChannel);
 		gChannelMap.put(this.reliableMulticastChannel.name, this.reliableMulticastChannel);
 		gChannelMap.put(this.journalChannel.name, this.journalChannel);
 		gChannelMap.put(this.serialChannel.name, this.serialChannel);
 
-		gChannels.put(this.tcpChannel.name, Gateway.getInstance(getBaseContext()));
+		gChannels.put(this.gwChannel.name, Gateway.getInstance(getBaseContext()));
 		gChannels.put(this.multicastChannel.name, Multicast.getInstance(getBaseContext()));
 		gChannels.put(this.reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()));
 		gChannels.put(this.serialChannel.name, Serial.getInstance(getBaseContext()));
@@ -417,7 +416,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.error("...acquired multicast lock()");
 
 		// no point in enabling the socket until the preferences have been read
-		this.tcpChannel.disable();
+		this.gwChannel.disable();
 		this.multicastChannel.disable();
 		this.reliableMulticastChannel.disable();
         // The serial channel is created in a disabled state.
@@ -440,7 +439,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		
 		if (this.networkingSwitch) {
             if (! this.isGatewayUserDisabled) {
-			    this.tcpChannel.enable();
+			    this.gwChannel.enable();
 		    }
 		    if (! this.isMulticastUserDisabled) {
 			    this.multicastChannel.enable();
@@ -504,7 +503,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		loginIntent.addCategory(IntentNames.RESET_CATEGORY);
 
 		this.acquirePreferences();
-		this.tcpChannel.reset();
+		this.gwChannel.reset();
 		this.multicastChannel.reset(); 
 		this.reliableMulticastChannel.reset(); 
 		this.serialChannel.reset(); 
@@ -516,7 +515,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	@Override
 	public void onDestroy() {
 		logger.warn("::onDestroy");
-		this.tcpChannel.disable();
+		this.gwChannel.disable();
 		this.multicastChannel.disable();
 		this.reliableMulticastChannel.disable();
 		this.journalChannel.close();
@@ -598,19 +597,19 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		final String gatewayHostname = this
 				.getAgPref(INetPrefKeys.GATEWAY_HOST, 
 				           INetPrefKeys.DEFAULT_GATEWAY_HOST);
-		this.tcpChannel.setHost(gatewayHostname);
+		this.gwChannel.setHost(gatewayHostname);
 
 		final String gatewayPortStr = this.localSettings
 				.getString(INetPrefKeys.GATEWAY_PORT,
 				           String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT));
 		int gatewayPort = Integer.valueOf(gatewayPortStr);
-		this.tcpChannel.setPort(gatewayPort);
+		this.gwChannel.setPort(gatewayPort);
 
 		final String flatLineTimeStr = this.localSettings.
 				getString(INetPrefKeys.GATEWAY_FLAT_LINE_TIME, 
 						  String.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME));
 		final long flatLineTime = Integer.valueOf(flatLineTimeStr);
-		this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); 
+		this.gwChannel.setFlatLineTime(flatLineTime * 60 * 1000); 
 		// convert minutes into milliseconds
 
 		/*
@@ -702,6 +701,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
             		        INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED) );
 	}
 
+
 	/**
 	 * Reset the local copies of the shared preference. Also indicate that the
 	 * gateway connections are stale will need to be refreshed.
@@ -710,224 +710,391 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @param key     a string to signal which preference to access
 	 *
 	 */
-	@Override
-	public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-		logger.info("::onSharedPreferenceChanged {}", key);
+    final OnSharedPreferenceChangeListener pantherPreferenceChangeListener 
+        = new OnSharedPreferenceChangeListener()
+    { 	
+    	final private AmmoService parent = AmmoService.this;
 
-		if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
-			String gatewayHostname = prefs.getString(key,INetPrefKeys.DEFAULT_GATEWAY_HOST);
-			this.tcpChannel.setHost(gatewayHostname);
-			return;
-		}
-		else
-		if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
-			int gatewayPort = Integer.valueOf(prefs.getString(
-					key, String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
-			this.tcpChannel.setPort(gatewayPort);
-			return;
-		}
-		else
-		if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
-			this.isJournalUserDisabled = prefs.getBoolean(key, this.isJournalUserDisabled);
-			if (this.isJournalUserDisabled)
-				this.journalChannel.disable();
+		@Override
+		public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+			logger.info("::onSharedPreferenceChanged panther {}", key);
+		
+			// handle network authentication group
+			if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
+				final String deviceId = prefs.getString(key, parent.deviceId);
+				parent.localSettings.edit().putString(key, deviceId).commit();
+			}
 			else
-				this.journalChannel.enable();
-			return;
-		}
-		else
-		// handle network authentication group
-		if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
-			deviceId = prefs.getString(key, deviceId);
-			if (this.isConnected())
-				this.auth();
-			return;
-		}
-		else
-		if (key.equals(Keys.UserKeys.USERNAME)) {
-			String globalId = prefs.getString(key, this.operatorId);
-			
-			final Editor editor = this.localSettings.edit();
-			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, globalId );
-			editor.commit();
-			 
-			//this.refresh();
-			//if (this.isConnected()) this.auth(); 
-			return;
-		}
-		else
-		if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
-			this.operatorId = prefs.getString(key, this.operatorId);
-			
-			this.refresh();
-			if (this.isConnected()) this.auth(); 
-			return;
-		}
-		else
-		if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
-			this.operatorKey = prefs.getString(key, this.operatorKey);
-			if (this.isConnected())
-				this.auth();
-			return;
-		}
-		else
-		if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
-			Integer timeout = Integer.valueOf(prefs.getString(
-					key, String.valueOf(INetPrefKeys.DEFAULT_GW_TIMEOUT)));
-			this.tcpChannel.setSocketTimeout(timeout.intValue() * 1000); // convert
-			// seconds
-			// into
-			// milliseconds
-		}
-		else
-		// handle network connectivity group
-		// if (key.equals(INetPrefKeys.WIRED_PREF_DISABLED)) {
-		// shouldUse(prefs);
-		// }
-		// if (key.equals(INetPrefKeys.WIFI_PREF_DISABLED)) {
-		// shouldUse(prefs);
-		// }
-		if (key.equals(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE)) {
-			logger.info("explicit opererator reset on channel");
-			this.networkingSwitch = true;
-
-			this.tcpChannel.reset();
-			this.multicastChannel.reset();
-			this.reliableMulticastChannel.reset();
-			this.serialChannel.reset();
-		}
-		else
-		if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
-			long flatLineTime = Integer.valueOf(prefs.getString(
-					key, String.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME)));
-			this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000); // convert
-			// from
-			// minutes
-			// to
-			// milliseconds
-		}
-		else
-		if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
-			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_DISABLED)) {
-				this.tcpChannel.disable();
-			} else {
-				this.tcpChannel.enable();
+			if (key.equals(Keys.UserKeys.USERNAME)) {
+				final String globalId = prefs.getString(key, parent.operatorId);
+				parent.localSettings.edit().putString(INetPrefKeys.CORE_OPERATOR_ID, globalId ).commit();
 			}
-		}
-		else
-        //
-        // Multicast
-        //
-		if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
-			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_DISABLED)) {
-				this.multicastChannel.disable();
-			} else {
-				this.multicastChannel.enable();
-			}
-		}
-		else
-		if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
-			String ipAddress = prefs.getString(
-					key, INetPrefKeys.DEFAULT_MULTICAST_HOST);
-			this.multicastChannel.setHost(ipAddress);
-		}
-		else
-		if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
-			int port = Integer.parseInt(prefs.getString(
-					key, INetPrefKeys.DEFAULT_MULTICAST_PORT));
-			this.multicastChannel.setPort(port);
-		}
-		else
-		if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
-			int ttl = Integer.parseInt(prefs.getString(
-					key, INetPrefKeys.DEFAULT_MULTICAST_TTL));
-			this.multicastChannel.setTTL(ttl);
-        }
-		else
-        //
-        // Reliable Multicast
-        //
-		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
-			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED)) {
-				this.reliableMulticastChannel.disable();
-			} else {
-				this.reliableMulticastChannel.enable();
-			}
-		}
-		else
-		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
-			String ipAddress = prefs.getString(
-					key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
-			this.reliableMulticastChannel.setHost(ipAddress);
-		}
-		else
-		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
-			int port = Integer.parseInt(prefs.getString(
-					key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
-			this.reliableMulticastChannel.setPort(port);
-		}
-		else
-		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
-			int ttl = Integer.parseInt(prefs.getString(
-					key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL));
-			this.reliableMulticastChannel.setTTL(ttl);
-        }
-		else
-        //
-        // Serial port
-        //
-		if ( key.equals(INetPrefKeys.SERIAL_DEVICE) ) {
-			serialChannel.setDevice( prefs.getString( key, 
-					INetPrefKeys.DEFAULT_SERIAL_DEVICE));
-		}
-		else
-		if ( key.equals(INetPrefKeys.SERIAL_BAUD_RATE) ) {
-			serialChannel.setBaudRate( Integer.parseInt( prefs.getString(key, 
-					INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE )));
-		}
-		else
-		if ( key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER) ) {
-			serialChannel.setSlotNumber( Integer.parseInt( prefs.getString(key, 
-					INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER )));
-		}
-		else
-		if ( key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP) ) {
-			serialChannel.setRadiosInGroup( Integer.parseInt( prefs.getString(key, 
-					INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP )));
-		}
-		else
-		if ( key.equals(INetPrefKeys.SERIAL_SLOT_DURATION) ) {
-			serialChannel.setSlotDuration( Integer.parseInt( prefs.getString(key, 
-					INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION )));
-		}
-		else
-		if ( key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION) ) {
-			serialChannel.setTransmitDuration( Integer.parseInt( prefs.getString(key,
-					INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION )));
-		}
-		else
-		if ( key.equals(INetPrefKeys.SERIAL_SEND_ENABLED) ) {
-			serialChannel.setSenderEnabled( prefs.getBoolean(key, 
-					! INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED ));
-		}
-		else
-		if ( key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED) ) {
-			serialChannel.setReceiverEnabled( prefs.getBoolean(key, 
-					! INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED ));
-		}
-		else
-		if ( key.equals(INetPrefKeys.SERIAL_DISABLED) ) {
-			if ( prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_DISABLED ))
-				this.serialChannel.disable();
 			else
-				this.serialChannel.enable();
+			if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
+				final String passkey = prefs.getString(key, 
+						(parent.operatorKey == null) 
+						? INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY : parent.operatorKey);
+				parent.localSettings.edit().putString(key, passkey ).commit();
+			}
+			else
+			//
+	        // Journal
+	        //
+			if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
+				final String disabledStr = prefs.getString(
+						key, String.valueOf(parent.isJournalUserDisabled));
+				final boolean disabled = Boolean.parseBoolean(disabledStr);
+				parent.localSettings.edit().putBoolean(key, disabled).commit();
+			}
+			else
+			//
+	        // Gateway
+	        //
+			if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
+				final String disabledStr = prefs.getString(key, String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_DISABLED));
+				final boolean disabled = Boolean.parseBoolean(disabledStr);
+				parent.localSettings.edit().putBoolean(key, disabled ).commit();
+			}
+			else			
+			if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
+				final String gatewayHostname = prefs.getString(key,INetPrefKeys.DEFAULT_GATEWAY_HOST);
+				parent.localSettings.edit().putString(key, gatewayHostname).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
+				final String gatewayPort = prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT));
+				parent.localSettings.edit().putString(key, gatewayPort).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
+				final String timeout = prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_GW_TIMEOUT));
+				parent.localSettings.edit().putString(key, timeout ).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
+				final String flatLineTime = prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME));
+				parent.localSettings.edit().putString(key, flatLineTime ).commit();
+			}
+			else
+	        //
+	        // Multicast
+	        //
+			if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
+				final String disabledStr = prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_DISABLED));
+				final boolean disabled = Boolean.parseBoolean(disabledStr);
+				parent.localSettings.edit().putBoolean(key, disabled).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
+				final String ipAddress = prefs.getString(
+						key, INetPrefKeys.DEFAULT_MULTICAST_HOST);
+				parent.localSettings.edit().putString(key, ipAddress).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
+				final String ipPort = prefs.getString(
+						key, INetPrefKeys.DEFAULT_MULTICAST_PORT);
+				parent.localSettings.edit().putString(key, ipPort).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
+				final String ttl = prefs.getString(
+						key, INetPrefKeys.DEFAULT_MULTICAST_TTL);
+				parent.localSettings.edit().putString(key, ttl).commit();
+	        }
+			else
+	        //
+	        // Reliable Multicast
+	        //
+			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
+				final String disabledStr = prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED));
+				final boolean disabled = Boolean.parseBoolean(disabledStr);
+				parent.localSettings.edit().putBoolean(key, disabled).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
+				final String ipAddress = prefs.getString(
+						key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
+				parent.localSettings.edit().putString(key, ipAddress).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
+				final String ipPort = prefs.getString(
+						key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
+				parent.localSettings.edit().putString(key, ipPort).commit();
+			}
+			else
+			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
+				final String ttl = prefs.getString(
+						key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL);
+				parent.localSettings.edit().putString(key, ttl).commit();
+	        }
+			else
+	        //
+	        // Serial port
+	        //
+			if ( key.equals(INetPrefKeys.SERIAL_DISABLED) ) {
+				final String disabledStr = prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_SERIAL_DISABLED));
+				final boolean disabled = Boolean.parseBoolean(disabledStr);
+				parent.localSettings.edit().putBoolean(key, disabled).commit();
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_DEVICE) ) {
+				final String device = prefs.getString( key, 
+						INetPrefKeys.DEFAULT_SERIAL_DEVICE);
+				parent.localSettings.edit().putString(key, device).commit();		
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_BAUD_RATE) ) {
+				final String baud =  prefs.getString(key, 
+						INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE );
+				parent.localSettings.edit().putString(key, baud).commit();
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER) ) {
+				final String slot =  prefs.getString(key, 
+						INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER );
+				parent.localSettings.edit().putString(key, slot).commit();
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP) ) {
+				final String radio_count =  prefs.getString(key, 
+						INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP );
+				parent.localSettings.edit().putString(key, radio_count).commit();
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_SLOT_DURATION) ) {
+				final String radio_count =  prefs.getString(key, 
+						INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION );
+				parent.localSettings.edit().putString(key, radio_count).commit();
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION) ) {
+				final String xmit_duration =  prefs.getString(key,
+						INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION );
+				parent.localSettings.edit().putString(key, xmit_duration).commit();
+			}
+			else {		
+				logger.error("shared preference key {} is unknown", key);
+			}
+			return;
 		}
-		else {
-			logger.error("shared preference key {} is unknown", key);
+    };
+    
+    final OnSharedPreferenceChangeListener ammoPreferenceChangeListener 
+    	= new OnSharedPreferenceChangeListener()
+	{
+	    	
+    	final private AmmoService parent = AmmoService.this;
+    	
+		@Override
+		public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+			logger.info("::onSharedPreferenceChanged ammo {}", key);
+		
+			if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
+				parent.isJournalUserDisabled = prefs.getBoolean(key, parent.isJournalUserDisabled);
+				if (parent.isJournalUserDisabled)
+					parent.journalChannel.disable();
+				else
+					parent.journalChannel.enable();
+				return;
+			}
+			else
+			// handle network authentication group
+			if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
+				parent.deviceId = prefs.getString(key, parent.deviceId);
+				parent.auth();
+			}
+			else
+			if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
+				parent.operatorId = prefs.getString(key, 
+						(parent.operatorId == null) 
+						? INetPrefKeys.DEFAULT_CORE_OPERATOR_ID : parent.operatorId);
+				
+				parent.refresh();
+				parent.auth(); 
+			}
+			else
+			if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
+				parent.operatorKey = prefs.getString(key, 
+						(parent.operatorKey == null) 
+						? INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY : parent.operatorKey);
+				parent.auth();
+			}
+			else
+		    /*
+		     * GATEWAY
+		     */
+			if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
+				if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_DISABLED)) {
+					parent.gwChannel.disable();
+				} else {
+					parent.gwChannel.enable();
+				}
+			}
+			else
+			if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
+				String gatewayHostname = prefs.getString(key,INetPrefKeys.DEFAULT_GATEWAY_HOST);
+				parent.gwChannel.setHost(gatewayHostname);
+			}
+			else
+			if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
+				int gatewayPort = Integer.valueOf(prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
+				parent.gwChannel.setPort(gatewayPort);
+			}
+			else
+			if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
+				final Integer timeout = Integer.valueOf(prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_GW_TIMEOUT)));
+				parent.gwChannel.setSocketTimeout(timeout.intValue() * 1000); 
+				// convert seconds into milliseconds
+			}
+			else
+			// handle network connectivity group
+			// if (key.equals(INetPrefKeys.WIRED_PREF_DISABLED)) {
+			// shouldUse(prefs);
+			// }
+			// if (key.equals(INetPrefKeys.WIFI_PREF_DISABLED)) {
+			// shouldUse(prefs);
+			// }
+			if (key.equals(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE)) {
+				logger.info("explicit opererator reset on channel");
+				parent.networkingSwitch = true;
+	
+				parent.gwChannel.reset();
+				parent.multicastChannel.reset();
+				parent.reliableMulticastChannel.reset();
+				parent.serialChannel.reset();
+			}
+			else
+			if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
+				long flatLineTime = Integer.valueOf(prefs.getString(
+						key, String.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME)));
+				parent.gwChannel.setFlatLineTime(flatLineTime * 60 * 1000); 
+				// convert from minutes to milliseconds
+			}
+			else
+	        //
+	        // Multicast
+	        //
+			if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
+				if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_DISABLED)) {
+					parent.multicastChannel.disable();
+				} else {
+					parent.multicastChannel.enable();
+				}
+			}
+			else
+			if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
+				String ipAddress = prefs.getString(
+						key, INetPrefKeys.DEFAULT_MULTICAST_HOST);
+				parent.multicastChannel.setHost(ipAddress);
+			}
+			else
+			if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
+				int port = Integer.parseInt(prefs.getString(
+						key, INetPrefKeys.DEFAULT_MULTICAST_PORT));
+				parent.multicastChannel.setPort(port);
+			}
+			else
+			if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
+				int ttl = Integer.parseInt(prefs.getString(
+						key, INetPrefKeys.DEFAULT_MULTICAST_TTL));
+				parent.multicastChannel.setTTL(ttl);
+	        }
+			else
+	        //
+	        // Reliable Multicast
+	        //
+			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
+				if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED)) {
+					parent.reliableMulticastChannel.disable();
+				} else {
+					parent.reliableMulticastChannel.enable();
+				}
+			}
+			else
+			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
+				String ipAddress = prefs.getString(
+						key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
+				parent.reliableMulticastChannel.setHost(ipAddress);
+			}
+			else
+			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
+				int port = Integer.parseInt(prefs.getString(
+						key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
+				parent.reliableMulticastChannel.setPort(port);
+			}
+			else
+			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
+				int ttl = Integer.parseInt(prefs.getString(
+						key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL));
+				parent.reliableMulticastChannel.setTTL(ttl);
+	        }
+			else
+	        //
+	        // Serial port
+	        //
+			if ( key.equals(INetPrefKeys.SERIAL_DEVICE) ) {
+				serialChannel.setDevice( prefs.getString( key, 
+						INetPrefKeys.DEFAULT_SERIAL_DEVICE));
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_BAUD_RATE) ) {
+				serialChannel.setBaudRate( Integer.parseInt( prefs.getString(key, 
+						INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE )));
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER) ) {
+				serialChannel.setSlotNumber( Integer.parseInt( prefs.getString(key, 
+						INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER )));
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP) ) {
+				serialChannel.setRadiosInGroup( Integer.parseInt( prefs.getString(key, 
+						INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP )));
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_SLOT_DURATION) ) {
+				serialChannel.setSlotDuration( Integer.parseInt( prefs.getString(key, 
+						INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION )));
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION) ) {
+				serialChannel.setTransmitDuration( Integer.parseInt( prefs.getString(key,
+						INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION )));
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_SEND_ENABLED) ) {
+				serialChannel.setSenderEnabled( prefs.getBoolean(key, 
+						! INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED ));
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED) ) {
+				serialChannel.setReceiverEnabled( prefs.getBoolean(key, 
+						! INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED ));
+			}
+			else
+			if ( key.equals(INetPrefKeys.SERIAL_DISABLED) ) {
+				if ( prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_DISABLED ))
+					parent.serialChannel.disable();
+				else
+					parent.serialChannel.enable();
+			}
+			else {
+				logger.error("shared preference key {} is unknown", key);
+			}
+	
+			return;
 		}
-
-		return;
-	}
+    };
 
 	// ===========================================================
 	// Protocol Buffers Methods
@@ -1025,7 +1192,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 */
 	public void teardown() {
 		logger.info("Tearing down NPS");
-		this.tcpChannel.disable();
+		this.gwChannel.disable();
 		this.multicastChannel.disable();
 		this.reliableMulticastChannel.disable();
 		this.serialChannel.disable();
@@ -1047,7 +1214,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @return
 	 */
 	public boolean isConnected() {
-	    boolean any = (   tcpChannel.isConnected()
+	    boolean any = (   gwChannel.isConnected()
                        || multicastChannel.isConnected()
                        || reliableMulticastChannel.isConnected()
                        || ((serialChannel != null) && serialChannel.isConnected()));
@@ -1061,6 +1228,22 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 */
 	public boolean auth() {
 		logger.info("::authenticate");
+		if (! this.isConnected()) {
+			logger.info("no active connection for authentication" );
+			return false;	
+		}
+		if (this.deviceId == null) {
+			logger.warn("no device for authentication" );
+			return false;
+		}
+		if (this.operatorId == null)  {
+			logger.warn("no named operator for authentication" );
+			return false;
+		}
+		if (this.operatorKey == null)  {
+			logger.warn("no operator key for authentication" );
+			return false;
+		}
 
 		/** Message Building */
 		final AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
@@ -1209,7 +1392,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	static private final Map<String, Channel> gChannels;
 	// Network Channels
-	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
+	final private TcpChannel gwChannel = TcpChannel.getInstance("gateway", this);
 	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
 	final private ReliableMulticastChannel reliableMulticastChannel = ReliableMulticastChannel.getInstance("reliablemulticast", this);
 	final private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
@@ -1259,13 +1442,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					switch (state) {
 					case AmmoIntents.LINK_UP:
 						logger.info("onReceive: Link UP " + action);
-						tcpChannel.linkUp();
+						gwChannel.linkUp();
 						multicastChannel.linkUp();
 						reliableMulticastChannel.linkUp();
 						break;
 					case AmmoIntents.LINK_DOWN:
 						logger.info("onReceive: Link DOWN " + action);
-						tcpChannel.linkDown();
+						gwChannel.linkDown();
 						multicastChannel.linkDown();
 						reliableMulticastChannel.linkDown();
 						break;

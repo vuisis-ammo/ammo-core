@@ -71,6 +71,13 @@ public class MyEditTextPreference extends EditTextPreference {
 	// ===========================================================
 	// IP/Port Input Management
 	// ===========================================================
+	
+	@Override
+	public String getText() {
+		final String base = super.getText();
+		return base;
+	}
+	
 	@Override
 	public void setText(String uncheckedText) {
 		// We should do some bounds checking here based on type of ETP.
@@ -137,6 +144,7 @@ public class MyEditTextPreference extends EditTextPreference {
 	public void refreshSummaryField() {
 		this.setSummary(summaryPrefix + this.getText());	
 	}
+
 
 	// ===========================================================
 	// Getters/Setters Methods

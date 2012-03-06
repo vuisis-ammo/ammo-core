@@ -42,38 +42,46 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	private MyEditTextPreference level;
 	private MyEditTextPreference name;
 
-	private MyEditTextPreference ipPref;
-	private MyEditIntegerPreference portPref;
-	private MyCheckBoxPreference enabledPref;
-	private MyEditIntegerPreference connIdlePref;
-	private MyEditIntegerPreference netConnPref;
+	// Gateway
+	private MyCheckBoxPreference gwOpEnablePref;
+	
+	private MyEditTextPreference gwIpPref;
+	private MyEditIntegerPreference gwPortPref;
+	
+	private MyEditIntegerPreference gwConnIdlePref;
+	private MyEditIntegerPreference gwNetConnPref;
 
 	// Multicast
+	private MyCheckBoxPreference mcOpEnablePref;
+	
 	private MyEditTextPreference mcIpPref;
 	private MyEditIntegerPreference mcPortPref;
-	private MyCheckBoxPreference mcEnabledPref;
+	
 	private MyEditIntegerPreference mcConnIdlePref;
 	private MyEditIntegerPreference mcNetConnPref;
 	private MyEditIntegerPreference mcTTLPref;
 
 	// Reliable Multicast
+	private MyCheckBoxPreference rmcOpEnablePref;
+	
 	private MyEditTextPreference rmcIpPref;
 	private MyEditIntegerPreference rmcPortPref;
-	private MyCheckBoxPreference rmcEnabledPref;
+	
 	private MyEditIntegerPreference rmcConnIdlePref;
 	private MyEditIntegerPreference rmcNetConnPref;
-	private MyEditIntegerPreference rmcTTLPref;
+	private MyEditIntegerPreference rmcTtlPref;
 
     // Serial port
-	private MyCheckBoxPreference serialUsePref;
-	private MyEditTextPreference devicePref;
-	private MyEditIntegerPreference baudPref;
-	private MyEditIntegerPreference slotPref;
-	private MyEditIntegerPreference radiosInGroupPref;
-	private MyEditIntegerPreference slotDurationPref;
-	private MyEditIntegerPreference transmitDurationPref;
-	private MyCheckBoxPreference sendingPref;
-	private MyCheckBoxPreference receivingPref;
+	private MyCheckBoxPreference serialOpEnablePref;
+	
+	private MyEditTextPreference serialDevicePref;
+	private MyEditIntegerPreference serialBaudPref;
+	private MyEditIntegerPreference serialSlotPref;
+	private MyEditIntegerPreference serialRadiosInGroupPref;
+	private MyEditIntegerPreference serialSlotDurationPref;
+	private MyEditIntegerPreference serialTransmitDurationPref;
+	private MyCheckBoxPreference serialOpEnableSendingPref;
+	private MyCheckBoxPreference serialOpEnableReceivingPref;
 
 
 	// ===========================================================
@@ -84,7 +92,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		super.onCreate(savedInstanceState);
 		this.addPreferencesFromResource(R.xml.general_preferences);
 		
-		Resources res = this.getResources();
+		final Resources res = this.getResources();
 	
 		level = (MyEditTextPreference) findPreference(PREF_LOG_LEVEL);
 		level.setSummaryPrefix(res.getString(R.string.log_level_label));
@@ -95,6 +103,35 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		name.setType(MyEditTextPreference.Type.OPERATOR_ID);
 		name.refreshSummaryField();
 		
+		/*
+		 * Gateway Setup
+		 */
+		
+		// IP Preference Setup
+		this.gwIpPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.GATEWAY_HOST);
+		this.gwIpPref.setType(MyEditTextPreference.Type.IP);
+		this.gwIpPref.refreshSummaryField();
+		
+		// Port Preference Setup
+		this.gwPortPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_PORT);
+		this.gwPortPref.setType(Type.PORT);
+		this.gwPortPref.refreshSummaryField();
+		
+		// Enabled Preference Setup
+		this.gwOpEnablePref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.GATEWAY_DISABLED);
+		this.gwOpEnablePref.refreshSummaryField();
+		
+		// Connection Idle Timeout
+		this.gwConnIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_TIMEOUT);
+		this.gwConnIdlePref.setType(Type.TIMEOUT);
+		this.gwConnIdlePref.refreshSummaryField();
+		
+		// Network Connection Timeout
+		this.gwNetConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_FLAT_LINE_TIME);
+		this.gwNetConnPref.setType(Type.TIMEOUT);
+		this.gwNetConnPref.refreshSummaryField();
+
+
 		/*
 		 * Multicast Setup
 		 */
@@ -108,8 +145,8 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.mcPortPref.refreshSummaryField();
 		
 		// Enabled Preference Setup
-		this.mcEnabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.MULTICAST_DISABLED);
-		this.mcEnabledPref.refreshSummaryField();
+		this.mcOpEnablePref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.MULTICAST_DISABLED);
+		this.mcOpEnablePref.refreshSummaryField();
 		
 		// Connection Idle Timeout
 		this.mcConnIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT);
@@ -139,8 +176,8 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.rmcPortPref.refreshSummaryField();
 		
 		// Enabled Preference Setup
-		this.rmcEnabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_DISABLED);
-		this.rmcEnabledPref.refreshSummaryField();
+		this.rmcOpEnablePref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_DISABLED);
+		this.rmcOpEnablePref.refreshSummaryField();
 		
 		// Connection Idle Timeout
 		this.rmcConnIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT);
@@ -153,75 +190,47 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.rmcNetConnPref.refreshSummaryField();
 
 		// Network Connection Timeout
-		this.rmcTTLPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_TTL);
-		this.rmcTTLPref.setType(Type.TTL);
-		this.rmcTTLPref.refreshSummaryField();
+		this.rmcTtlPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_TTL);
+		this.rmcTtlPref.setType(Type.TTL);
+		this.rmcTtlPref.refreshSummaryField();
 		
-		/*
-		 * Gateway Setup
-		 */
 		
-		// IP Preference Setup
-		this.ipPref = (MyEditTextPreference) this.findPreference(INetPrefKeys.GATEWAY_HOST);
-		this.ipPref.setType(MyEditTextPreference.Type.IP);
-		this.ipPref.refreshSummaryField();
-		
-		// Port Preference Setup
-		this.portPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_PORT);
-		this.portPref.setType(Type.PORT);
-		this.portPref.refreshSummaryField();
-		
-		// Enabled Preference Setup
-		this.enabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.GATEWAY_DISABLED);
-		this.enabledPref.refreshSummaryField();
-		
-		// Connection Idle Timeout
-		this.connIdlePref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_TIMEOUT);
-		this.connIdlePref.setType(Type.TIMEOUT);
-		this.connIdlePref.refreshSummaryField();
-		
-		// Network Connection Timeout
-		this.netConnPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.GATEWAY_FLAT_LINE_TIME);
-		this.netConnPref.setType(Type.TIMEOUT);
-		this.netConnPref.refreshSummaryField();
-
-
 		/*
 		 * Serial Setup
 		 */
 
-		this.serialUsePref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_DISABLED);
-		this.serialUsePref.refreshSummaryField();
+		this.serialOpEnablePref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_DISABLED);
+		this.serialOpEnablePref.refreshSummaryField();
 
-		this.devicePref = (MyEditTextPreference)this.findPreference(INetPrefKeys.SERIAL_DEVICE);
+		this.serialDevicePref = (MyEditTextPreference)this.findPreference(INetPrefKeys.SERIAL_DEVICE);
 		//this.devicePref.setType(MyEditTextPreference.Type.DEVICE_ID);
-		this.devicePref.refreshSummaryField();
+		this.serialDevicePref.refreshSummaryField();
 
-		this.baudPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_BAUD_RATE);
-		this.baudPref.setType(Type.BAUDRATE);
-		this.baudPref.refreshSummaryField();
+		this.serialBaudPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_BAUD_RATE);
+		this.serialBaudPref.setType(Type.BAUDRATE);
+		this.serialBaudPref.refreshSummaryField();
 
-		this.slotPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_SLOT_NUMBER);
-		this.slotPref.setType(Type.SLOT_NUMBER);
-		this.slotPref.refreshSummaryField();
+		this.serialSlotPref = (MyEditIntegerPreference)this.findPreference(INetPrefKeys.SERIAL_SLOT_NUMBER);
+		this.serialSlotPref.setType(Type.SLOT_NUMBER);
+		this.serialSlotPref.refreshSummaryField();
 
-		this.radiosInGroupPref = (MyEditIntegerPreference) this.findPreference( INetPrefKeys.SERIAL_RADIOS_IN_GROUP );
-		this.radiosInGroupPref.setType(Type.RADIOS_IN_GROUP);
-		this.radiosInGroupPref.refreshSummaryField();
+		this.serialRadiosInGroupPref = (MyEditIntegerPreference) this.findPreference( INetPrefKeys.SERIAL_RADIOS_IN_GROUP );
+		this.serialRadiosInGroupPref.setType(Type.RADIOS_IN_GROUP);
+		this.serialRadiosInGroupPref.refreshSummaryField();
 
-		this.slotDurationPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.SERIAL_SLOT_DURATION);
-		this.slotDurationPref.setType(Type.SLOT_DURATION);
-		this.slotDurationPref.refreshSummaryField();
+		this.serialSlotDurationPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.SERIAL_SLOT_DURATION);
+		this.serialSlotDurationPref.setType(Type.SLOT_DURATION);
+		this.serialSlotDurationPref.refreshSummaryField();
 
-		this.transmitDurationPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.SERIAL_TRANSMIT_DURATION);
-		this.transmitDurationPref.setType(Type.TRANSMIT_DURATION);
-		this.transmitDurationPref.refreshSummaryField();
+		this.serialTransmitDurationPref = (MyEditIntegerPreference) this.findPreference(INetPrefKeys.SERIAL_TRANSMIT_DURATION);
+		this.serialTransmitDurationPref.setType(Type.TRANSMIT_DURATION);
+		this.serialTransmitDurationPref.refreshSummaryField();
 
-		this.sendingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SEND_ENABLED);
-		this.sendingPref.refreshSummaryField();
+		this.serialOpEnableSendingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SEND_ENABLED);
+		this.serialOpEnableSendingPref.refreshSummaryField();
 
-		this.receivingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_RECEIVE_ENABLED);
-		this.receivingPref.refreshSummaryField();
+		this.serialOpEnableReceivingPref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_RECEIVE_ENABLED);
+		this.serialOpEnableReceivingPref.refreshSummaryField();
 
 
 		// System.setProperty(prop, value);
