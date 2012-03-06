@@ -80,6 +80,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	private static final String ACTION_BASE = "edu.vu.isis.ammo.";
 	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
 	public static final String ACTION_MSG_RCVD = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
+	public static final String EXTRA_TOPIC = "topic";
 	public static final String EXTRA_UID = "uid";
 	public static final String EXTRA_CHANNEL = "channel";
 	public static final String EXTRA_STATUS = "status";
@@ -246,6 +247,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		final Intent notice = new Intent()
 		      .setAction(ACTION_MSG_SENT)
 		    //.setType(ack.topic)
+		    .putExtra(EXTRA_TOPIC, ack.topic.toString())
 		    .putExtra(EXTRA_UID, ack.auid.toString())
 		      .putExtra(EXTRA_CHANNEL, ack.channel.toString())
 		      .putExtra(EXTRA_STATUS, ack.status.toString());
