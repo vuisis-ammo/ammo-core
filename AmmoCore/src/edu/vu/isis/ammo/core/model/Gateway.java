@@ -61,7 +61,7 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
     private void setElection(boolean pred) {
         this.election = pred;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, this.election);
+        editor.putBoolean(INetPrefKeys.GATEWAY_DISABLED, this.election);
         editor.commit();
     }
     
@@ -101,7 +101,8 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
         this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST, INetPrefKeys.DEFAULT_GATEWAY_HOST);
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.GATEWAY_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
-        this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
+        this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED, 
+                                              INetPrefKeys.DEFAULT_GATEWAY_DISABLED );
     }
 
 
@@ -133,7 +134,8 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
         logger.trace("pref change: {}", key);
         if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
             if (this.nameView == null) return;
-            this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST, INetPrefKeys.DEFAULT_GATEWAY_HOST);
+            this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST, 
+                                             INetPrefKeys.DEFAULT_GATEWAY_HOST);
             this.nameListener.onFormalChange(this.nameView, this.getFormal());
             return;
         }
@@ -155,7 +157,7 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
         ((TextView)row.findViewById(R.id.channel_type)).setText(Gateway.KEY);
         gateway_name.setText(this.getName());
         ((TextView)row.findViewById(R.id.gateway_formal)).setText(this.getFormal());
-		return row;
+	return row;
     	
     }
 }

@@ -49,7 +49,7 @@ public class WifiNetlink extends Netlink
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key)
     {
-        if ( key.equals(INetDerivedKeys.WIFI_PREF_SHOULD_USE) )
+        //if ( key.equals(INetDerivedKeys.WIFI_PREF_DISABLED) )
         {
               //shouldUse(prefs);
         }

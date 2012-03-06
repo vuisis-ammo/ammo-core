@@ -183,14 +183,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	private String operatorId = INetPrefKeys.DEFAULT_CORE_OPERATOR_ID;
 	private String operatorKey = INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY;
 
-	// journalingSwitch
-	private boolean journalingSwitch = INetPrefKeys.DEFAULT_JOURNAL_SHOULD_USE;
+	// isJournalUserDisabled
+	private boolean isJournalUserDisabled = INetPrefKeys.DEFAULT_JOURNAL_DISABLED;
 
 	// Determine if the connection is enabled
-	private boolean gatewayEnabled = INetPrefKeys.DEFAULT_GATEWAY_SHOULD_USE;
-    private boolean multicastEnabled = INetPrefKeys.DEFAULT_MULTICAST_SHOULD_USE;
-    private boolean reliableMulticastEnabled = INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_SHOULD_USE;
-    private boolean serialEnabled = INetPrefKeys.DEFAULT_SERIAL_SHOULD_USE;
+	private boolean isGatewayUserDisabled = INetPrefKeys.DEFAULT_GATEWAY_DISABLED;
+	private boolean isMulticastUserDisabled = INetPrefKeys.DEFAULT_MULTICAST_DISABLED;
+	private boolean isReliableMulticastUserDisabled = INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED;
+	private boolean isSerialUserDisabled = INetPrefKeys.DEFAULT_SERIAL_DISABLED;
 	// for providing networking support
 	// should this be using IPv6?
 	private boolean networkingSwitch = true;
@@ -438,20 +438,21 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		}
 		this.acquirePreferences();
 		
-		if (this.networkingSwitch && this.gatewayEnabled) {
+		if (this.networkingSwitch && ! this.isGatewayUserDisabled) {
 			this.tcpChannel.enable();
 		}
-		if (this.networkingSwitch && this.multicastEnabled) {
-            this.multicastChannel.enable();
-            this.multicastChannel.reset(); // This starts the connector thread.
-        }
-		if (this.networkingSwitch && this.reliableMulticastEnabled) {
-            this.reliableMulticastChannel.enable();
-            this.reliableMulticastChannel.reset(); // This starts the connector thread.
-        }
+		if (this.networkingSwitch && ! this.isMulticastUserDisabled) {
+			this.multicastChannel.enable();
+			this.multicastChannel.reset(); // This starts the connector thread.
+		}
+		if (this.networkingSwitch && ! this.isReliableMulticastUserDisabled) {
+			this.reliableMulticastChannel.enable();
+			this.reliableMulticastChannel.reset(); // This starts the connector thread.
+		}
 
-		if (this.networkingSwitch && this.serialEnabled)
-            this.serialChannel.enable();
+		if (this.networkingSwitch && ! this.isSerialUserDisabled) {
+			this.serialChannel.enable();
+                }
 
 		this.myNetworkReceiver = new NetworkBroadcastReceiver();
 
@@ -559,8 +560,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		final String local = this.localSettings.getString(key, value);
 		return this.globalSettings.getString(key, local);
 	}
-    private boolean getAgPref(final String key, final boolean value) {
-    	final boolean local = this.localSettings.getBoolean(key, value);
+	private boolean getAgPref(final String key, final boolean value) {
+		final boolean local = this.localSettings.getBoolean(key, value);
 		return this.globalSettings.getBoolean(key, local);
 	}
 
@@ -584,14 +585,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				           this.operatorKey);
 
 		// JOURNAL
-		this.journalingSwitch = this
-        		.getAgPref(INetPrefKeys.JOURNAL_SHOULD_USE, 
-        		           this.journalingSwitch);
+		this.isJournalUserDisabled = this
+        		.getAgPref(INetPrefKeys.JOURNAL_DISABLED, 
+        		           ! this.isJournalUserDisabled);
 			
 		// GATEWAY
-		this.gatewayEnabled = this
-				.getAgPref(INetPrefKeys.GATEWAY_SHOULD_USE, 
-				           INetPrefKeys.DEFAULT_GATEWAY_SHOULD_USE);
+		this.isGatewayUserDisabled = this
+				.getAgPref(INetPrefKeys.GATEWAY_DISABLED, 
+				           INetPrefKeys.DEFAULT_GATEWAY_DISABLED);
 		
 		final String gatewayHostname = this
 				.getAgPref(INetPrefKeys.GATEWAY_HOST, 
@@ -614,9 +615,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		/*
 		 * Multicast
 		 */
-        this.multicastEnabled = this
-        		.getAgPref(INetPrefKeys.MULTICAST_SHOULD_USE, 
-        		           INetPrefKeys.DEFAULT_MULTICAST_SHOULD_USE);
+		this.isMulticastUserDisabled = this
+        		.getAgPref(INetPrefKeys.MULTICAST_DISABLED, 
+        		           INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
 		final String multicastHost = this.localSettings
 				.getString(INetPrefKeys.MULTICAST_HOST, 
 				           INetPrefKeys.DEFAULT_MULTICAST_HOST);
@@ -641,9 +642,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		/*
 		 * Reliable Multicast
 		 */
-        this.reliableMulticastEnabled = this
-        		.getAgPref(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, 
-        		           INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_SHOULD_USE);
+		this.isReliableMulticastUserDisabled = this
+        		.getAgPref(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
+        		           INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED);
 		final String reliableMulticastHost = this.localSettings
 				.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, 
 				           INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
@@ -668,9 +669,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		/*
 		 * SerialChannel
 		 */
-        this.serialEnabled = this
-        		.getAgPref(INetPrefKeys.SERIAL_SHOULD_USE, 
-        		           INetPrefKeys.DEFAULT_SERIAL_SHOULD_USE);
+        this.isSerialUserDisabled = this
+        		.getAgPref(INetPrefKeys.SERIAL_DISABLED, 
+        		           INetPrefKeys.DEFAULT_SERIAL_DISABLED);
         this.serialChannel.setDevice(this.localSettings
         		.getString(INetPrefKeys.SERIAL_DEVICE, 
             		       INetPrefKeys.DEFAULT_SERIAL_DEVICE) );
@@ -725,12 +726,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			return;
 		}
 		else
-		if (key.equals(INetPrefKeys.JOURNAL_SHOULD_USE)) {
-			this.journalingSwitch = prefs.getBoolean(key, this.journalingSwitch);
-			if (this.journalingSwitch)
-				this.journalChannel.enable();
-			else
+		if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
+			this.isJournalUserDisabled = prefs.getBoolean(key, this.isJournalUserDisabled);
+			if (this.isJournalUserDisabled)
 				this.journalChannel.disable();
+			else
+				this.journalChannel.enable();
 			return;
 		}
 		else
@@ -779,10 +780,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		}
 		else
 		// handle network connectivity group
-		// if (key.equals(INetPrefKeys.WIRED_PREF_SHOULD_USE)) {
+		// if (key.equals(INetPrefKeys.WIRED_PREF_DISABLED)) {
 		// shouldUse(prefs);
 		// }
-		// if (key.equals(INetPrefKeys.WIFI_PREF_SHOULD_USE)) {
+		// if (key.equals(INetPrefKeys.WIFI_PREF_DISABLED)) {
 		// shouldUse(prefs);
 		// }
 		if (key.equals(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE)) {
@@ -805,22 +806,22 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			// milliseconds
 		}
 		else
-		if (key.equals(INetPrefKeys.GATEWAY_SHOULD_USE)) {
-			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_SHOULD_USE)) {
-				this.tcpChannel.enable();
-			} else {
+		if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
+			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_DISABLED)) {
 				this.tcpChannel.disable();
+			} else {
+				this.tcpChannel.enable();
 			}
 		}
 		else
         //
         // Multicast
         //
-		if (key.equals(INetPrefKeys.MULTICAST_SHOULD_USE)) {
-			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_SHOULD_USE)) {
-				this.multicastChannel.enable();
-			} else {
+		if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
+			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_DISABLED)) {
 				this.multicastChannel.disable();
+			} else {
+				this.multicastChannel.enable();
 			}
 		}
 		else
@@ -845,11 +846,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
         //
         // Reliable Multicast
         //
-		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE)) {
-			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_SHOULD_USE)) {
-				this.reliableMulticastChannel.enable();
-			} else {
+		if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
+			if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED)) {
 				this.reliableMulticastChannel.disable();
+			} else {
+				this.reliableMulticastChannel.enable();
 			}
 		}
 		else
@@ -906,19 +907,19 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		else
 		if ( key.equals(INetPrefKeys.SERIAL_SEND_ENABLED) ) {
 			serialChannel.setSenderEnabled( prefs.getBoolean(key, 
-					INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED ));
+					! INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED ));
 		}
 		else
 		if ( key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED) ) {
 			serialChannel.setReceiverEnabled( prefs.getBoolean(key, 
-					INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED ));
+					! INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED ));
 		}
 		else
-		if ( key.equals(INetPrefKeys.SERIAL_SHOULD_USE) ) {
-            if ( prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_SHOULD_USE ))
-				this.serialChannel.enable();
-			else
+		if ( key.equals(INetPrefKeys.SERIAL_DISABLED) ) {
+			if ( prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_DISABLED ))
 				this.serialChannel.disable();
+			else
+				this.serialChannel.enable();
 		}
 		else {
 			logger.error("shared preference key {} is unknown", key);

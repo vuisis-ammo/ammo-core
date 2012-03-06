@@ -34,8 +34,8 @@ public class ReliableMulticast extends Channel {
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
 		this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, 
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
-		this.election = this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, 
-                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_SHOULD_USE);
+		this.election = this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
+                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED);
 	}
 
 	private static ReliableMulticast instance = null;
@@ -76,7 +76,7 @@ public class ReliableMulticast extends Channel {
 	{
         this.election = b;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, this.election);
+        editor.putBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, this.election);
         editor.commit();
 	}
 	

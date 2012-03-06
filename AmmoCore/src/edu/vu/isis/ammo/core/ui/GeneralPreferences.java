@@ -108,7 +108,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.mcPortPref.refreshSummaryField();
 		
 		// Enabled Preference Setup
-		this.mcEnabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.MULTICAST_SHOULD_USE);
+		this.mcEnabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.MULTICAST_DISABLED);
 		this.mcEnabledPref.refreshSummaryField();
 		
 		// Connection Idle Timeout
@@ -139,7 +139,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.rmcPortPref.refreshSummaryField();
 		
 		// Enabled Preference Setup
-		this.rmcEnabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE);
+		this.rmcEnabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.RELIABLE_MULTICAST_DISABLED);
 		this.rmcEnabledPref.refreshSummaryField();
 		
 		// Connection Idle Timeout
@@ -172,7 +172,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.portPref.refreshSummaryField();
 		
 		// Enabled Preference Setup
-		this.enabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.GATEWAY_SHOULD_USE);
+		this.enabledPref = (MyCheckBoxPreference) this.findPreference(INetPrefKeys.GATEWAY_DISABLED);
 		this.enabledPref.refreshSummaryField();
 		
 		// Connection Idle Timeout
@@ -190,7 +190,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		 * Serial Setup
 		 */
 
-		this.serialUsePref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_SHOULD_USE);
+		this.serialUsePref = (MyCheckBoxPreference)this.findPreference(INetPrefKeys.SERIAL_DISABLED);
 		this.serialUsePref.refreshSummaryField();
 
 		this.devicePref = (MyEditTextPreference)this.findPreference(INetPrefKeys.SERIAL_DEVICE);
