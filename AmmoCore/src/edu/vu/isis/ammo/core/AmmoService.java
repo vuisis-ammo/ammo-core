@@ -438,21 +438,22 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		}
 		this.acquirePreferences();
 		
-		if (this.networkingSwitch && ! this.isGatewayUserDisabled) {
-			this.tcpChannel.enable();
-		}
-		if (this.networkingSwitch && ! this.isMulticastUserDisabled) {
-			this.multicastChannel.enable();
-			this.multicastChannel.reset(); // This starts the connector thread.
-		}
-		if (this.networkingSwitch && ! this.isReliableMulticastUserDisabled) {
-			this.reliableMulticastChannel.enable();
-			this.reliableMulticastChannel.reset(); // This starts the connector thread.
-		}
-
-		if (this.networkingSwitch && ! this.isSerialUserDisabled) {
-			this.serialChannel.enable();
-                }
+		if (this.networkingSwitch) {
+            if (! this.isGatewayUserDisabled) {
+			    this.tcpChannel.enable();
+		    }
+		    if (! this.isMulticastUserDisabled) {
+			    this.multicastChannel.enable();
+			    this.multicastChannel.reset(); // This starts the connector thread.
+		    }
+		    if (! this.isReliableMulticastUserDisabled) {
+			    this.reliableMulticastChannel.enable();
+			    this.reliableMulticastChannel.reset(); // This starts the connector thread.
+		    }
+		    if (! this.isSerialUserDisabled) {
+			    this.serialChannel.enable();
+            }
+        }
 
 		this.myNetworkReceiver = new NetworkBroadcastReceiver();
 
