@@ -10,10 +10,6 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import transapps.settings.Keys;
 import transapps.settings.Settings;
-
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -59,9 +54,9 @@ import edu.vu.isis.ammo.core.distributor.DistributorThread;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
-import edu.vu.isis.ammo.core.model.ReliableMulticast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
+import edu.vu.isis.ammo.core.model.ReliableMulticast;
 import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
@@ -71,12 +66,11 @@ import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.JournalChannel;
 import edu.vu.isis.ammo.core.network.MulticastChannel;
+import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
-import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
@@ -136,7 +130,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public static final String DEFAULT_RELIABLE_MULTICAST_NET_CONN = "20";
 	public static final String DEFAULT_RELIABLE_MULTICAST_IDLE_TIME = "3";
 	public static final String DEFAULT_RELIABLE_MULTICAST_TTL = "1";
-
+	
 	/**
 	 * The channel status map
 	 * It should not be changed by the main thread.
@@ -356,9 +350,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		super.onCreate();
 		logger.info("::onCreate");
 		final Context context = this.getBaseContext();
-
-		// We need a context, so do this here instead of in the channel.
-		createReliableMulticastConfigFile( context, "udp.xml" );
+		
+		this.journalChannel.init(context);
+		this.tcpChannel.init(context);
+		this.reliableMulticastChannel.init(context);
+		this.multicastChannel.init(context);
 		
 		// set up the worker thread
 		this.distThread = new DistributorThread(this.getApplicationContext());
@@ -410,6 +406,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		//this.settings = new CompositeSettings(this.localSettings, this.globalSettings);
 
 		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
+		//this.serialChannel.init(context);
 		
 		gChannelMap.put("default", this.tcpChannel);
 		gChannelMap.put(this.tcpChannel.name, this.tcpChannel);
@@ -1076,34 +1073,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	}
 
 
-	private void createReliableMulticastConfigFile( Context context, String fileName )
-    {
-		File outFile = new File( Environment.getExternalStorageDirectory()
-				                 + "/support/jgroups/" + fileName);
-		if ( !outFile.exists() ) {
-			try {
-				InputStream inputStream = context.getAssets().open( fileName );
-				outFile = new File( Environment.getExternalStorageDirectory()
-						            + "/support/jgroups/");
-				if ( !outFile.exists() )
-					outFile.mkdirs();
-				outFile = new File( outFile, fileName );
-				OutputStream out = new FileOutputStream( outFile );
-
-				byte[] buffer = new byte[4096];
-				int n = 0;
-				while ( -1 != (n = inputStream.read(buffer)) ) {
-					out.write(buffer, 0, n);
-				}
-				out.close();
-				inputStream.close();
-			} catch ( Exception e ) {
-				e.printStackTrace();
-			}
-		}
-	}
-
-
 	/**
 	 * Deal with the status of the connection changing. 
 	 * Report the status to the application who acts as a broker.
@@ -1157,7 +1126,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// Network Channels
 	final private TcpChannel tcpChannel = TcpChannel.getInstance("gateway", this);
 	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
-	final private ReliableMulticastChannel reliableMulticastChannel = ReliableMulticastChannel.getInstance("reliablemulticast", this);
+	final private ReliableMulticastChannel reliableMulticastChannel 
+	    = ReliableMulticastChannel.getInstance("reliablemulticast", this, this);
 	final private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
 	private SerialChannel serialChannel;
 

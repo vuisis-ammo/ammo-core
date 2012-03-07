@@ -34,6 +34,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.Context;
+
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
@@ -1209,4 +1211,10 @@ public class TcpChannel extends NetChannel {
 
 	@Override
 	public boolean isAuthenticatingChannel() { return true; }
+
+	@Override
+	public void init(Context context) {
+		// TODO Auto-generated method stub
+		
+	}
 }
