@@ -1315,4 +1315,11 @@ public class SerialChannel extends NetChannel
 	public boolean isBusy() {
     	return false;
 	}
+
+
+	@Override
+	public void init(Context context) {
+		// TODO Auto-generated method stub
+		
+	}
 }
