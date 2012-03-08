@@ -32,6 +32,7 @@
 		
 			<edu.vu.isis.ammo.core.MyCheckBoxPreference
 			android:key="@string/network_gw_disable"
+			android:widgetLayout="@layout/cb_disable"
 			android:name="Disable"
 			android:title="Disable"
 			android:defaultValue="false"/>
