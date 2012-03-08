@@ -17,8 +17,8 @@ import android.content.Context;
 import android.preference.CheckBoxPreference;
 import android.util.AttributeSet;
 /**
- * This is a checkbox widget that can be used in the preferences screen of 
- * AmmoCore. It currently is not in use.
+ * This is a checkbox widget that can be used 
+ * in the preferences screen of AmmoCore. 
  * @author demetri
  *
  */
@@ -96,5 +96,15 @@ public class MyCheckBoxPreference extends CheckBoxPreference {
 		return mType;
 	}
 	
+
+	@Override
+	public boolean isChecked() {
+		return super.isChecked();
+	}
+	
+	@Override
+	public void setChecked(boolean checked) {
+		super.setChecked(checked);
+	}
 	
 }

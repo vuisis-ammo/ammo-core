@@ -4,7 +4,7 @@
 	
 	<PreferenceCategory android:title="Operator Information">
 		<edu.vu.isis.ammo.core.MyEditTextPreference
-			android:key="CORE_OPERATOR_ID" 
+			android:key="@string/operator_id" 
 			android:name="name" 
 			android:title="Operator ID"
 			android:summary="The operator id to use when connecting to the gateway" 
@@ -14,7 +14,7 @@
 	
 	<PreferenceCategory android:title="Logging Category">
 		<edu.vu.isis.ammo.core.MyEditTextPreference
-			android:key="CORE_LOG_LEVEL" 
+			android:key="@string/log_level" 
 			android:name="level" 
 			android:title="Logging Level"
 			android:summary="the logging level of the gateway" 
@@ -31,31 +31,31 @@
 		android:title="Gateway Preferences">
 		
 			<edu.vu.isis.ammo.core.MyCheckBoxPreference
-			android:key="GATEWAY_SHOULD_USE"
-			android:name="Enabled"
-			android:title="Enabled"
-			android:defaultValue="true"/>
+			android:key="@string/network_gw_disable"
+			android:name="Disable"
+			android:title="Disable"
+			android:defaultValue="false"/>
 			
 			<edu.vu.isis.ammo.core.MyEditTextPreference
-			android:key="CORE_IP_ADDRESS"
+			android:key="@string/network_gw_host"
 			android:name="IP Address"
 			android:title="IP Address"
 			android:defaultValue="129.59.129.191"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="CORE_IP_PORT"
+			android:key="@string/network_gw_port"
 			android:name="Port"
 			android:title="Port"
 			android:defaultValue="33289"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="AMMO_NET_CONN_FLAT_LINE_TIME"
+			android:key="@string/network_gw_timeout_flat_line"
 			android:name="Network Connection Timeout (s)"
 			android:title="Network Connection Timeout (s)"
 			android:defaultValue="1000"/>
 			
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="CORE_SOCKET_TIMEOUT"
+			android:key="@string/network_gw_timeout_connect"
 			android:name="Connection Idle Timeout (s)"
 			android:title="Connection Idle Timeout (s)"
 			android:defaultValue= "3000"/>
@@ -69,37 +69,37 @@
         android:title="Multicast Preferences">
         
             <edu.vu.isis.ammo.core.MyCheckBoxPreference
-            android:key="MULTICAST_SHOULD_USE"
-            android:name="Enabled"
-            android:title="Enabled"
-            android:defaultValue="true"/>
+            android:key="@string/network_mc_disable"
+            android:name="Disable"
+            android:title="Disable"
+            android:defaultValue="false"/>
             
             <edu.vu.isis.ammo.core.MyEditTextPreference
-            android:key="MULTICAST_IP_ADDRESS"
+            android:key="@string/network_mc_host"
             android:name="IP Address"
             android:title="IP Address"
             android:defaultValue="228.10.10.90"/>
             
             <edu.vu.isis.ammo.core.MyEditIntegerPreference
-            android:key="MULTICAST_PORT"
+            android:key="@string/network_mc_port"
             android:name="Port"
             android:title="Port"
             android:defaultValue="9982"/>
             
             <edu.vu.isis.ammo.core.MyEditIntegerPreference
-            android:key="MULTICAST_NET_CONN_TIMEOUT"
+            android:key="@string/network_mc_timeout_connect"
             android:name="Network Connection Timeout (s)"
             android:title="Network Connection Timeout (s)"
             android:defaultValue="1000"/>
             
             <edu.vu.isis.ammo.core.MyEditIntegerPreference
-            android:key="MULTICAST_CONN_IDLE_TIMEOUT"
+            android:key="@string/network_mc_timeout_idle"
             android:name="Connection Idle Timeout (s)"
             android:title="Connection Idle Timeout (s)"
             android:defaultValue= "3000"/>
 
             <edu.vu.isis.ammo.core.MyEditIntegerPreference
-            android:key="MULTICAST_TTL"
+            android:key="@string/network_mc_ttl"
             android:name="Time To Live (s)"
             android:title="Time To Live (s)"
             android:defaultValue= "1"/>
@@ -111,40 +111,44 @@
 		android:key="outer_pref_screen"
 		android:title="Reliable Multicast Preferences">
 			<edu.vu.isis.ammo.core.MyCheckBoxPreference
-			android:key="RELIABLE_MULTICAST_SHOULD_USE"
-			android:name="Enabled"
-			android:title="Enabled"
-			android:defaultValue="true"/>
+			android:key="@string/network_rmc_disable"
+			android:name="Disable"
+			android:title="Disable"
+			android:defaultValue="false"/>
+
 
 			<edu.vu.isis.ammo.core.MyEditTextPreference
-			android:key="RELIABLE_MULTICAST_IP_ADDRESS"
+			android:key="@string/network_rmc_host"
 			android:name="IP Address"
 			android:title="IP Address"
-			android:defaultValue="228.10.10.91"/>
+			android:defaultValue="228.8.8.8"/>
 
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="RELIABLE_MULTICAST_PORT"
+			android:key="@string/network_rmc_port"
 			android:name="Port"
 			android:title="Port"
-			android:defaultValue="9982"/>
+			android:defaultValue="45588"/>
+
+
 
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="RELIABLE_MULTICAST_NET_CONN_TIMEOUT"
+			android:key="@string/network_rmc_timeout_connect"
 			android:name="Network Connection Timeout (s)"
 			android:title="Network Connection Timeout (s)"
 			android:defaultValue="1000"/>
 
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT"
+			android:key="@string/network_rmc_timeout_idle"
 			android:name="Connection Idle Timeout (s)"
 			android:title="Connection Idle Timeout (s)"
 			android:defaultValue= "3000"/>
 
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
-			android:key="RELIABLE_MULTICAST_TTL"
+			android:key="@string/network_rmc_ttl"
 			android:name="Time To Live (s)"
 			android:title="Time To Live (s)"
 			android:defaultValue= "1"/>
+
 		</PreferenceScreen>
 
 		<PreferenceScreen
@@ -154,55 +158,55 @@
 		    android:title="Serial Preferences">
 
 		  <edu.vu.isis.ammo.core.MyCheckBoxPreference
-		      android:key="SERIAL_SHOULD_USE"
-		      android:title="Channel Enabled"
-		      android:name="Channel Enabled"
-		      android:defaultValue="false"/>
+		      android:key="@string/network_serial_disable"
+		      android:title="Disable"
+		      android:name="Channel Disable"
+		      android:defaultValue="true"/>
 
 		  <edu.vu.isis.ammo.core.MyEditTextPreference
-		      android:key="SERIAL_DEVICE"
+		      android:key="@string/network_serial_device"
 		      android:title="Device"
 		      android:name="Device"
 		      android:defaultValue="/dev/ttyUSB0"/>
 
 		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
-		      android:key="SERIAL_BAUD_RATE"
+		      android:key="@string/network_serial_rate"
 		      android:title="Baud Rate"
 		      android:name="Baud Rate"
 		      android:defaultValue="9600"/>
 
 		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
-		      android:key="SERIAL_SLOT_NUMBER"
+		      android:key="@string/network_serial_slot_id"
 		      android:title="Slot Number"
 		      android:name="Slot Number"
 		      android:defaultValue="8"/>
 
 		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
-		      android:key="SERIAL_RADIOS_IN_GROUP"
+		      android:key="@string/network_serial_slot_count"
 		      android:title="Radios in Group"
 		      android:name="Radios in Group"
 		      android:defaultValue="16"/>
 
 		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
-		      android:key="SERIAL_SLOT_DURATION"
+		      android:key="@string/network_serial_slot_duration"
 		      android:title="Slot Duration (ms)"
 		      android:name="Slot Duration"
 		      android:defaultValue="125"/>
 
 		  <edu.vu.isis.ammo.core.MyEditIntegerPreference
-		      android:key="SERIAL_TRANSMIT_DURATION"
+		      android:key="@string/network_serial_xmit_duration"
 		      android:title="Transmit Duration (ms)"
 		      android:name="Transmit Duration"
 		      android:defaultValue="50"/>
 
 		  <edu.vu.isis.ammo.core.MyCheckBoxPreference
-		      android:key="SERIAL_SEND_ENABLED"
+		      android:key="@string/network_serial_send_enable"
 		      android:title="Sending Enabled"
 		      android:name="Sending Enabled"
 		      android:defaultValue="true"/>
 
 		  <edu.vu.isis.ammo.core.MyCheckBoxPreference
-		      android:key="SERIAL_RECEIVE_ENABLED"
+		      android:key="@string/network_serial_receive_enable"
 		      android:title="Receiving Enabled"
 		      android:name="Receiving Enabled"
 		      android:defaultValue="true"/>

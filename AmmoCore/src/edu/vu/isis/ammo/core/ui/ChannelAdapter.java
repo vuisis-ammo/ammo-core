@@ -61,25 +61,29 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
 
         for ( Channel c : model ) {
             if ( Gateway.class.isInstance( c )) {
-                if ( prefs.getBoolean( INetPrefKeys.GATEWAY_SHOULD_USE, true ))
-                    c.enable();
-                else
+                if ( prefs.getBoolean( INetPrefKeys.GATEWAY_DISABLED, 
+                                       INetPrefKeys.DEFAULT_GATEWAY_DISABLED ))
                     c.disable();
+                else
+                    c.enable();
             } else if ( Multicast.class.isInstance( c )) {
-                if ( prefs.getBoolean( INetPrefKeys.MULTICAST_SHOULD_USE, true ))
-                    c.enable();
-                else
+                if ( prefs.getBoolean( INetPrefKeys.MULTICAST_DISABLED,
+                                       INetPrefKeys.DEFAULT_MULTICAST_DISABLED ))
                     c.disable();
+                else
+                    c.enable();
             } else if ( ReliableMulticast.class.isInstance( c )) {
-                if ( prefs.getBoolean( INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, true ))
-                    c.enable();
-                else
+                if ( prefs.getBoolean( INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
+                                       INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED ))
                     c.disable();
+                else
+                    c.enable();
             } else if ( Serial.class.isInstance( c ) ) {
-                if ( prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false ))
-                    c.enable();
-                else
+                if ( prefs.getBoolean(INetPrefKeys.SERIAL_DISABLED,
+                                      INetPrefKeys.DEFAULT_SERIAL_DISABLED ))
                     c.disable();
+                else
+                    c.enable();
             } else {
                 logger.error( "Invalid channel type." );
             }

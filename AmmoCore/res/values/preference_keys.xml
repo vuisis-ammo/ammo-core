@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  
+    <!-- 
+    These keys are repeated from INetPrefKeys.java in AmmoLib
+    -->
+    
+    <string name="operator_id">transapps_settings_user_username</string>
+    <string name="log_level">CORE_LOG_LEVEL</string>
+ 
+    <!--  Journal channel -->
+    <string name="network_journal_disable">transapps_settings_network_journal_disabled</string>
+    
+    
+     <!--  Gateway channel -->
+	
+   <string name="network_gw_disable">transapps_settings_network_gateway_disabled</string> 
+   <string name="network_gw_host">transapps_settings_network_gw_host</string>
+   <string name="network_gw_port">CORE_IP_PORT</string>
+   <string name="network_gw_timeout_flat_line">FLAT_LINE_TIME</string>
+   <string name="network_gw_timeout_connect">CORE_SOCKET_TIMEOUT</string>
+  
+   <!--  Multicast channel -->
+	
+	<string name="network_mc_disable">transapps_settings_network_multicast_disabled</string> 
+	<string name="network_mc_host">MULTICAST_IP_ADDRESS</string>
+	<string name="network_mc_port">MULTICAST_PORT</string>
+	<string name="network_mc_timeout_connect">MULTICAST_NET_CONN_TIMEOUT</string>
+	<string name="network_mc_timeout_idle">MULTICAST_CONN_IDLE_TIMEOUT</string>
+	<string name="network_mc_ttl">MULTICAST_TTL</string>
+	
+	 <!--  Reliable Multicast channel -->
+	 
+	<string name="network_rmc_disable">transapps_settings_network_reliable_multicast_disabled</string> 
+	<string name="network_rmc_host">RELIABLE_MULTICAST_IP_ADDRESS</string> 
+	<string name="network_rmc_port">RELIABLE_MULTICAST_PORT</string> 
+	<string name="network_rmc_timeout_connect">RELIABLE_MULTICAST_NET_CONN_TIMEOUT</string> 
+	<string name="network_rmc_timeout_idle">RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT</string> 
+	<string name="network_rmc_ttl">RELIABLE_MULTICAST_TTL</string> 
+	
+	<!--  Serial channel -->
+	
+	<string name="network_serial_disable">transapps_settings_network_serial_disabled</string>
+    <string name="network_serial_slot_id">transapps_settings_network_slot_id</string>
+    <string name="network_serial_slot_count">transapps_settings_network_slot_count</string>
+	<string name="network_serial_slot_duration">SERIAL_SLOT_DURATION</string>
+	<string name="network_serial_device">SERIAL_DEVICE</string>
+	<string name="network_serial_send_enable">SERIAL_SEND_ENABLED</string>
+	<string name="network_serial_rate">SERIAL_BAUD_RATE</string>
+	<string name="network_serial_receive_enable">SERIAL_RECEIVE_ENABLED</string>
+	<string name="network_serial_xmit_duration">SERIAL_TRANSMIT_DURATION</string>
+	
+   
+</resources>

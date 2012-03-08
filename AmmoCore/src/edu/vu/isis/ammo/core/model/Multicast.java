@@ -30,9 +30,12 @@ public class Multicast extends Channel {
 	String port = "port";
 	protected Multicast(Context context, String name) {
 		super(context, name);
-		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_IP_ADDRESS, "228.10.10.90");
-		this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT, "9982");
-		this.election = this.prefs.getBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, true);
+		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST, 
+		                                     INetPrefKeys.DEFAULT_MULTICAST_HOST);
+		this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT, 
+		                                 INetPrefKeys.DEFAULT_MULTICAST_PORT);
+		this.election = this.prefs.getBoolean(INetPrefKeys.MULTICAST_DISABLED,
+		                                      INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
 	}
 
 	private static Multicast instance = null;
@@ -46,15 +49,17 @@ public class Multicast extends Channel {
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
 			String key) {
-		if(key.equals(INetPrefKeys.MULTICAST_IP_ADDRESS))
+		if(key.equals(INetPrefKeys.MULTICAST_HOST))
 		{
-			this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_IP_ADDRESS, "default ip");
+			this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST, 
+			                                     INetPrefKeys.DEFAULT_MULTICAST_HOST);
 			
 		}
 		
 		if(key.equals(INetPrefKeys.MULTICAST_PORT))
 		{
-			this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT, "port");
+			this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT,
+			                                 INetPrefKeys.DEFAULT_MULTICAST_PORT);
 		}
 
 	}
@@ -81,7 +86,7 @@ public class Multicast extends Channel {
 	{
         this.election = b;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.MULTICAST_SHOULD_USE, this.election);
+        editor.putBoolean(INetPrefKeys.MULTICAST_DISABLED, this.election);
         editor.commit();
 	}
 	
