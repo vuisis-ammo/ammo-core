@@ -84,7 +84,12 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		switch (mType) {
 		case TIMEOUT:
 			if (!this.validateTimeout(uncheckedText)) {
-				Toast.makeText(context, "Invalid timeout value", Toast.LENGTH_SHORT).show();
+				Toast.makeText(context, new StringBuilder()
+                                                   .append("Invalid timeout value: ")
+                                                   .append(uncheckedText)
+                                                   .toString(), 
+                                               Toast.LENGTH_SHORT)
+                                     .show();
 				checkedText = this.getText();
 			}
 			else
@@ -194,9 +199,11 @@ public class MyEditIntegerPreference extends EditTextPreference {
 			Integer intValue = Integer.valueOf(timeout);
 			if (intValue > 0) {
 				returnValue = true;
-			}
+			} else {
+			   logger.warn("invalid timeout value {}", timeout);
+                        }
 		} catch (NumberFormatException e) {
-			logger.debug("::validateTimeout - NumberFormatException");
+			logger.warn("::validateTimeout - NumberFormatException {}", timeout);
 		}
 
 		return returnValue;

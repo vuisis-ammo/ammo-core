@@ -926,6 +926,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
 			logger.info("::onSharedPreferenceChanged ammo {}", key);
 		
+			try {
 			if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
 				parent.isJournalUserDisabled = prefs.getBoolean(key, parent.isJournalUserDisabled);
 				if (parent.isJournalUserDisabled)
@@ -1119,6 +1120,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			}
 			else {
 				logger.error("shared preference key {} is unknown", key);
+			}
+			} catch (NumberFormatException ex) {
+				logger.error("invalid number value for {}", key);
+			} catch (ClassCastException ex) {
+				logger.error("invalid cast for {}", key);
 			}
 	
 			return;
