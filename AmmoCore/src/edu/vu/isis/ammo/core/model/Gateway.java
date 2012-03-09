@@ -58,10 +58,11 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
     public static String KEY = "GatewayUiChannel";
     private boolean election;
 
+// FIXME : Should this view only user interface be writing this value?
     private void setElection(boolean pred) {
         this.election = pred;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.GATEWAY_DISABLED, this.election);
+        editor.putBoolean(INetPrefKeys.GATEWAY_DISABLED, !this.election);
         editor.commit();
     }
     
@@ -101,7 +102,7 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
         this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST, INetPrefKeys.DEFAULT_GATEWAY_HOST);
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.GATEWAY_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
-        this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED, 
+        this.election = ! this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED, 
                                               INetPrefKeys.DEFAULT_GATEWAY_DISABLED );
     }
 

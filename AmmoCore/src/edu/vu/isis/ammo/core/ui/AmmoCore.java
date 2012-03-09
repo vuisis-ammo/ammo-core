@@ -87,6 +87,11 @@ public class AmmoCore extends TabActivityEx
 
     private INetworkService networkServiceBinder;
 
+    /* FIXME : 
+     * I believe that since the services were combined into a single 
+     * service this is no longer necessary.  That is the calls
+     * should not be deferred but performed directly here.
+     */
     private ServiceConnection networkServiceConnection = new ServiceConnection() {
     	final private AmmoCore parent = AmmoCore.this;
     	

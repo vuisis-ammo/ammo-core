@@ -34,7 +34,7 @@ public class ReliableMulticast extends Channel {
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
 		this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, 
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
-		this.election = this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
+		this.election = ! this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED);
 	}
 
@@ -72,11 +72,12 @@ public class ReliableMulticast extends Channel {
 	@Override
 	public void toggle() { this.setElection(!this.election); }
 
+    // FIXME : Should this view only user interface be writing this value?
 	private void setElection(boolean b)
 	{
         this.election = b;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, this.election);
+        editor.putBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, ! this.election);
         editor.commit();
 	}
 	
