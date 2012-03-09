@@ -77,6 +77,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
 
 		if (mType == null) {
 			super.setText(checkedText);
+			this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
 			return;
 		}
 
@@ -160,6 +161,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		}
 
 		super.setText(checkedText);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
 	}
 
 

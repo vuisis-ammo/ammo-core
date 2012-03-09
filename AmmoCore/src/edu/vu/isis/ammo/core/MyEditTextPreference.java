@@ -85,6 +85,7 @@ public class MyEditTextPreference extends EditTextPreference {
 		
 		if (mType == null) { 
 			super.setText(checkedText);
+			this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
 			return;
 		}
 		
@@ -115,6 +116,7 @@ public class MyEditTextPreference extends EditTextPreference {
 				// do nothing.
 		}
 		super.setText(checkedText);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
 	}
 		
 	/**
