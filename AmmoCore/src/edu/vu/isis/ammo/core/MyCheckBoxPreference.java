@@ -105,6 +105,7 @@ public class MyCheckBoxPreference extends CheckBoxPreference {
 	@Override
 	public void setChecked(boolean checked) {
 		super.setChecked(checked);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(checked).toString());
 	}
 	
 }

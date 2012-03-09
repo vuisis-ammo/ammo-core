@@ -40,7 +40,7 @@ public class Serial extends Channel
     {
 		super(context, name);
 
-		election = this.prefs.getBoolean(INetPrefKeys.SERIAL_DISABLED, 
+		election = ! this.prefs.getBoolean(INetPrefKeys.SERIAL_DISABLED, 
 		                                 INetPrefKeys.DEFAULT_SERIAL_DISABLED);
 	}
 
@@ -62,12 +62,12 @@ public class Serial extends Channel
 		this.setElection(true);
 	}
 
-
+// FIXME : Should this view only user interface be writing this value?
 	private void setElection(boolean b)
     {
 		this.election = b;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.SERIAL_DISABLED, this.election);
+        editor.putBoolean(INetPrefKeys.SERIAL_DISABLED, ! this.election);
         editor.commit();
 	}
 

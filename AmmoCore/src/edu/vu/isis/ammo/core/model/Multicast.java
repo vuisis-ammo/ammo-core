@@ -34,7 +34,7 @@ public class Multicast extends Channel {
 		                                     INetPrefKeys.DEFAULT_MULTICAST_HOST);
 		this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT, 
 		                                 INetPrefKeys.DEFAULT_MULTICAST_PORT);
-		this.election = this.prefs.getBoolean(INetPrefKeys.MULTICAST_DISABLED,
+		this.election = ! this.prefs.getBoolean(INetPrefKeys.MULTICAST_DISABLED,
 		                                      INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
 	}
 
@@ -82,11 +82,12 @@ public class Multicast extends Channel {
 
 	}
 
+// FIXME : Should this view only user interface be writing this value?
 	private void setElection(boolean b)
 	{
         this.election = b;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.MULTICAST_DISABLED, this.election);
+        editor.putBoolean(INetPrefKeys.MULTICAST_DISABLED, ! this.election);
         editor.commit();
 	}
 	
