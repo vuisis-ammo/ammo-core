@@ -10,6 +10,9 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.ui;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.res.Resources;
 import android.os.Bundle;
 import edu.vu.isis.ammo.INetPrefKeys;
@@ -32,6 +35,8 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================
+	private static final Logger logger = LoggerFactory.getLogger(GeneralPreferences.class);
+	
     public static final String LAUNCH = "edu.vu.isis.ammo.core.LoggingPreferences.LAUNCH";
 
 	public static final String PREF_LOG_LEVEL = "CORE_LOG_LEVEL";
@@ -89,6 +94,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	// ===========================================================
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		logger.error("on create");
 		super.onCreate(savedInstanceState);
 		this.addPreferencesFromResource(R.xml.general_preferences);
 		
@@ -211,51 +217,52 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	
 	@Override
 	protected void onResume() {
+		logger.error("on resume");
 		super.onResume();
 		
-		this.name.refreshSummaryField();
+		this.name.refresh();
 		
 		/*
 		 * Gateway Setup
 		 */
-		this.gwIpPref.refreshSummaryField();
-		this.gwPortPref.refreshSummaryField();
-		this.gwOpEnablePref.refreshSummaryField();
-		this.gwConnIdlePref.refreshSummaryField();
-		this.gwNetConnPref.refreshSummaryField();
+		this.gwIpPref.refresh();
+		this.gwPortPref.refresh();
+		this.gwOpEnablePref.refresh();
+		this.gwConnIdlePref.refresh();
+		this.gwNetConnPref.refresh();
 
 		/*
 		 * Multicast Setup
 		 */
-		this.mcIpPref.refreshSummaryField();
-		this.mcPortPref.refreshSummaryField();
-		this.mcOpEnablePref.refreshSummaryField();
-		this.mcConnIdlePref.refreshSummaryField();
-		this.mcNetConnPref.refreshSummaryField();
-		this.mcTTLPref.refreshSummaryField();
+		this.mcIpPref.refresh();
+		this.mcPortPref.refresh();
+		this.mcOpEnablePref.refresh();
+		this.mcConnIdlePref.refresh();
+		this.mcNetConnPref.refresh();
+		this.mcTTLPref.refresh();
 		
 		/*
 		 * Reliable Multicast Setup
 		 */
-		this.rmcIpPref.refreshSummaryField();
-		this.rmcPortPref.refreshSummaryField();
-		this.rmcOpEnablePref.refreshSummaryField();
-		this.rmcConnIdlePref.refreshSummaryField();
-		this.rmcNetConnPref.refreshSummaryField();
-		this.rmcTtlPref.refreshSummaryField();
+		this.rmcIpPref.refresh();
+		this.rmcPortPref.refresh();
+		this.rmcOpEnablePref.refresh();
+		this.rmcConnIdlePref.refresh();
+		this.rmcNetConnPref.refresh();
+		this.rmcTtlPref.refresh();
 		
 		/*
 		 * Serial Setup
 		 */
-		this.serialOpEnablePref.refreshSummaryField();
-		this.serialDevicePref.refreshSummaryField();
-		this.serialBaudPref.refreshSummaryField();
-		this.serialSlotPref.refreshSummaryField();
-		this.serialRadiosInGroupPref.refreshSummaryField();
-		this.serialSlotDurationPref.refreshSummaryField();
-		this.serialTransmitDurationPref.refreshSummaryField();
-		this.serialOpEnableSendingPref.refreshSummaryField();
-		this.serialOpEnableReceivingPref.refreshSummaryField();
+		this.serialOpEnablePref.refresh();
+		this.serialDevicePref.refresh();
+		this.serialBaudPref.refresh();
+		this.serialSlotPref.refresh();
+		this.serialRadiosInGroupPref.refresh();
+		this.serialSlotDurationPref.refresh();
+		this.serialTransmitDurationPref.refresh();
+		this.serialOpEnableSendingPref.refresh();
+		this.serialOpEnableReceivingPref.refresh();
 
 		this.setupViews();
 	}
@@ -271,7 +278,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	public void setupViews() {
 		// Set the summary of each edit text to the current value
 		// of its EditText field.
-		if (level != null) level.refreshSummaryField();
+		if (level != null) level.refresh();
 	}
 	
 	// ===========================================================
