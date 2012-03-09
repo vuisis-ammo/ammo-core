@@ -32,6 +32,7 @@
 		
 			<edu.vu.isis.ammo.core.MyCheckBoxPreference
 			android:key="@string/network_gw_disable"
+			android:widgetLayout="@layout/cb_supress"
 			android:name="Disable"
 			android:title="Disable"
 			android:defaultValue="false"/>
@@ -70,6 +71,7 @@
         
             <edu.vu.isis.ammo.core.MyCheckBoxPreference
             android:key="@string/network_mc_disable"
+            android:widgetLayout="@layout/cb_supress"
             android:name="Disable"
             android:title="Disable"
             android:defaultValue="false"/>
@@ -112,6 +114,7 @@
 		android:title="Reliable Multicast Preferences">
 			<edu.vu.isis.ammo.core.MyCheckBoxPreference
 			android:key="@string/network_rmc_disable"
+			android:widgetLayout="@layout/cb_supress"
 			android:name="Disable"
 			android:title="Disable"
 			android:defaultValue="false"/>
@@ -159,6 +162,7 @@
 
 		  <edu.vu.isis.ammo.core.MyCheckBoxPreference
 		      android:key="@string/network_serial_disable"
+		      android:widgetLayout="@layout/cb_supress"
 		      android:title="Disable"
 		      android:name="Channel Disable"
 		      android:defaultValue="true"/>

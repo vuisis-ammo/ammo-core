@@ -71,10 +71,10 @@ public class MyCheckBoxPreference extends CheckBoxPreference {
 	/**
 	 *  Set the summary field such that it displays the value of the edit text.
 	 */
-	public void refreshSummaryField() {
-		if (!summaryPrefix.equals("")) {
-			this.setSummary(summaryPrefix + this.isChecked());	
-		}
+	public void refresh() {
+		final boolean value = this.getPersistedBoolean(this.isChecked());
+		this.setChecked(value);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(value).toString());	
 	}
 	
 	// ===========================================================

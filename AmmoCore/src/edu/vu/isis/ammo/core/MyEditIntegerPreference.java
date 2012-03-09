@@ -328,16 +328,16 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		super.onDialogClosed(positiveResult);
 		
 		// Set the summary field to newly set value in the edit text.
-		this.refreshSummaryField();
+		this.refresh();
 	}
 	
 	/**
 	 *  Set the summary field such that it displays the value of the edit text.
 	 */
-	public void refreshSummaryField() {
-
-		this.setSummary(summaryPrefix + this.getText());	
-
+	public void refresh() {
+		final String value = this.getPersistedString(this.getText());
+		this.setText(value);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(value).toString() );
 	}
 
 	// ===========================================================
