@@ -94,6 +94,11 @@ public class MyEditIntegerPreference extends EditTextPreference {
 			}
 			else
 			{
+				// FIXME : The checked text can be cleaned up but 
+				// should NEVER be quantitatively changed from 
+				// what the operator entered.
+				// Any quantitative changes should be made when it is read.
+				
 				//Shared enum solution. It's not exactly graceful, but it works.
 				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
 				{
