@@ -23,6 +23,7 @@ import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
 import android.preference.PreferenceManager;
+import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -82,10 +83,10 @@ public class PreferenceProvider extends ContentProvider {
 			Editor editor = prefs.edit();
 			String deviceId = UniqueIdentifiers.device(context);
 			editor.putString(INetPrefKeys.CORE_DEVICE_ID, deviceId);
-			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, "transappuser");
-			editor.putBoolean(INetPrefKeys.NET_IS_ACTIVE, false);
-			editor.putBoolean(INetPrefKeys.NET_IS_AVAILABLE, false);
-			editor.putBoolean("prefsCreated", true);
+			editor.putString(INetPrefKeys.CORE_OPERATOR_ID, INetPrefKeys.DEFAULT_CORE_OPERATOR_ID);
+			editor.putBoolean(INetDerivedKeys.NET_IS_ACTIVE, false);
+			editor.putBoolean(INetDerivedKeys.NET_IS_AVAILABLE, false);
+			editor.putBoolean(INetDerivedKeys.ARE_PREFS_CREATED, true);
 			editor.commit();	
 		}
 		

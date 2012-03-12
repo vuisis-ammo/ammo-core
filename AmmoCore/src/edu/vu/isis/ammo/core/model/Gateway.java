@@ -21,7 +21,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
 
@@ -59,10 +58,11 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
     public static String KEY = "GatewayUiChannel";
     private boolean election;
 
+// FIXME : Should this view only user interface be writing this value?
     private void setElection(boolean pred) {
         this.election = pred;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, this.election);
+        editor.putBoolean(INetPrefKeys.GATEWAY_DISABLED, !this.election);
         editor.commit();
     }
     
@@ -99,10 +99,11 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
     private Gateway(Context context, String name) {
     	super(context, name);
     	
-        this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, AmmoService.DEFAULT_GATEWAY_HOST);
-        this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT,
-                String.valueOf(AmmoService.DEFAULT_GATEWAY_PORT)));
-        this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
+        this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST, INetPrefKeys.DEFAULT_GATEWAY_HOST);
+        this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.GATEWAY_PORT,
+                String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
+        this.election = ! this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED, 
+                                              INetPrefKeys.DEFAULT_GATEWAY_DISABLED );
     }
 
 
@@ -132,16 +133,17 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
     @Override
     public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
         logger.trace("pref change: {}", key);
-        if (key.equals(INetPrefKeys.CORE_IP_ADDR)) {
+        if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
             if (this.nameView == null) return;
-            this.host = this.prefs.getString(INetPrefKeys.CORE_IP_ADDR, AmmoService.DEFAULT_GATEWAY_HOST);
+            this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST, 
+                                             INetPrefKeys.DEFAULT_GATEWAY_HOST);
             this.nameListener.onFormalChange(this.nameView, this.getFormal());
             return;
         }
-        if (key.equals(INetPrefKeys.CORE_IP_PORT)) {
+        if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
             if (this.nameView == null) return;
-            this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.CORE_IP_PORT,
-                    String.valueOf(AmmoService.DEFAULT_GATEWAY_PORT)));
+            this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.GATEWAY_PORT,
+                    String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
             this.nameListener.onFormalChange(this.nameView, this.getFormal());
             return;
         }
@@ -156,7 +158,7 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
         ((TextView)row.findViewById(R.id.channel_type)).setText(Gateway.KEY);
         gateway_name.setText(this.getName());
         ((TextView)row.findViewById(R.id.gateway_formal)).setText(this.getFormal());
-		return row;
+	return row;
     	
     }
 }

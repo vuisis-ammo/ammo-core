@@ -17,8 +17,8 @@ import android.content.Context;
 import android.preference.CheckBoxPreference;
 import android.util.AttributeSet;
 /**
- * This is a checkbox widget that can be used in the preferences screen of 
- * AmmoCore. It currently is not in use.
+ * This is a checkbox widget that can be used 
+ * in the preferences screen of AmmoCore. 
  * @author demetri
  *
  */
@@ -71,10 +71,10 @@ public class MyCheckBoxPreference extends CheckBoxPreference {
 	/**
 	 *  Set the summary field such that it displays the value of the edit text.
 	 */
-	public void refreshSummaryField() {
-		if (!summaryPrefix.equals("")) {
-			this.setSummary(summaryPrefix + this.isChecked());	
-		}
+	public void refresh() {
+		final boolean value = this.getPersistedBoolean(this.isChecked());
+		this.setChecked(value);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(value).toString());	
 	}
 	
 	// ===========================================================
@@ -96,5 +96,16 @@ public class MyCheckBoxPreference extends CheckBoxPreference {
 		return mType;
 	}
 	
+
+	@Override
+	public boolean isChecked() {
+		return super.isChecked();
+	}
+	
+	@Override
+	public void setChecked(boolean checked) {
+		super.setChecked(checked);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(checked).toString());
+	}
 	
 }

@@ -30,9 +30,12 @@ public class ReliableMulticast extends Channel {
 	String port = "port";
 	protected ReliableMulticast(Context context, String name) {
 		super(context, name);
-		this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS, "228.10.10.91");
-		this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, "9982");
-		this.election = this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, true);
+		this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, 
+                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
+		this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, 
+                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
+		this.election = ! this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
+                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED);
 	}
 
 	private static ReliableMulticast instance = null;
@@ -46,14 +49,16 @@ public class ReliableMulticast extends Channel {
 	@Override
 	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
 			String key) {
-		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS))
+		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST))
 		{
-			this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_IP_ADDRESS, "default ip");
+			this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, 
+                  INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
 		}
 		
 		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT))
 		{
-			this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, "port");
+			this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, 
+                  INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
 		}
 
 	}
@@ -67,11 +72,12 @@ public class ReliableMulticast extends Channel {
 	@Override
 	public void toggle() { this.setElection(!this.election); }
 
+    // FIXME : Should this view only user interface be writing this value?
 	private void setElection(boolean b)
 	{
         this.election = b;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, this.election);
+        editor.putBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, ! this.election);
         editor.commit();
 	}
 	

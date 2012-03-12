@@ -36,7 +36,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import android.content.Context;
+
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -1194,5 +1196,12 @@ public class MulticastChannel extends NetChannel
 	@Override
 	public boolean isBusy() {
 		return false;
+	}
+
+
+	@Override
+	public void init(Context context) {
+		// TODO Auto-generated method stub
+		
 	}
 }

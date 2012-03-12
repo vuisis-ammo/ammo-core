@@ -19,6 +19,7 @@ import android.content.SharedPreferences.Editor;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.preference.PreferenceManager;
 import android.view.View;
+import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
@@ -46,7 +47,7 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener
     private void setElection(boolean pred) {
         this.election = pred;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.NET_CONN_PREF_SHOULD_USE, this.election);
+        editor.putBoolean(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE, this.election);
         editor.commit();
     }
     public void enable() { this.setElection(true); }
@@ -81,7 +82,8 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener
         this.election = true;
 
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this.context);
-        this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_SHOULD_USE, true);
+        this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED,
+                                              INetPrefKeys.DEFAULT_GATEWAY_DISABLED);
 
         prefs.registerOnSharedPreferenceChangeListener(this);
     }

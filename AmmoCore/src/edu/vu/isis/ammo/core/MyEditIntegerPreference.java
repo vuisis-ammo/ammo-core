@@ -77,17 +77,28 @@ public class MyEditIntegerPreference extends EditTextPreference {
 
 		if (mType == null) {
 			super.setText(checkedText);
+			this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
 			return;
 		}
 
 		switch (mType) {
 		case TIMEOUT:
 			if (!this.validateTimeout(uncheckedText)) {
-				Toast.makeText(context, "Invalid timeout value", Toast.LENGTH_SHORT).show();
+				Toast.makeText(context, new StringBuilder()
+                                                   .append("Invalid timeout value: ")
+                                                   .append(uncheckedText)
+                                                   .toString(), 
+                                               Toast.LENGTH_SHORT)
+                                     .show();
 				checkedText = this.getText();
 			}
 			else
 			{
+				// FIXME : The checked text can be cleaned up but 
+				// should NEVER be quantitatively changed from 
+				// what the operator entered.
+				// Any quantitative changes should be made when it is read.
+				
 				//Shared enum solution. It's not exactly graceful, but it works.
 				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
 				{
@@ -160,6 +171,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		}
 
 		super.setText(checkedText);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
 	}
 
 
@@ -192,9 +204,11 @@ public class MyEditIntegerPreference extends EditTextPreference {
 			Integer intValue = Integer.valueOf(timeout);
 			if (intValue > 0) {
 				returnValue = true;
-			}
+			} else {
+			   logger.warn("invalid timeout value {}", timeout);
+                        }
 		} catch (NumberFormatException e) {
-			logger.debug("::validateTimeout - NumberFormatException");
+			logger.warn("::validateTimeout - NumberFormatException {}", timeout);
 		}
 
 		return returnValue;
@@ -233,9 +247,12 @@ public class MyEditIntegerPreference extends EditTextPreference {
 
 	private boolean validateBaudrate(String uncheckedText) {
         try {
-            // Will we need something different here?  Are other baud rates
-            // even supported?
-            return Integer.parseInt(uncheckedText) == 9600;
+        	// We were only allowing a baudrate of 9600 before.  Sandeep
+        	// wanted to lift this constraint for testing purposes.  I'm
+        	// leaving the previous code here since we may want it in the
+        	// future.
+            return Integer.parseInt(uncheckedText) > 0;
+            //return Integer.parseInt(uncheckedText) == 9600;
         } catch ( NumberFormatException e ) {
             return false;
         }
@@ -325,16 +342,16 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		super.onDialogClosed(positiveResult);
 		
 		// Set the summary field to newly set value in the edit text.
-		this.refreshSummaryField();
+		this.refresh();
 	}
 	
 	/**
 	 *  Set the summary field such that it displays the value of the edit text.
 	 */
-	public void refreshSummaryField() {
-
-		this.setSummary(summaryPrefix + this.getText());	
-
+	public void refresh() {
+		final String value = this.getPersistedString(this.getText());
+		this.setText(value);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(value).toString() );
 	}
 
 	// ===========================================================

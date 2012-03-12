@@ -61,25 +61,29 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
 
         for ( Channel c : model ) {
             if ( Gateway.class.isInstance( c )) {
-                if ( prefs.getBoolean( INetPrefKeys.GATEWAY_SHOULD_USE, true ))
-                    c.enable();
-                else
+                if ( prefs.getBoolean( INetPrefKeys.GATEWAY_DISABLED, 
+                                       INetPrefKeys.DEFAULT_GATEWAY_DISABLED ))
                     c.disable();
+                else
+                    c.enable();
             } else if ( Multicast.class.isInstance( c )) {
-                if ( prefs.getBoolean( INetPrefKeys.MULTICAST_SHOULD_USE, true ))
-                    c.enable();
-                else
+                if ( prefs.getBoolean( INetPrefKeys.MULTICAST_DISABLED,
+                                       INetPrefKeys.DEFAULT_MULTICAST_DISABLED ))
                     c.disable();
+                else
+                    c.enable();
             } else if ( ReliableMulticast.class.isInstance( c )) {
-                if ( prefs.getBoolean( INetPrefKeys.RELIABLE_MULTICAST_SHOULD_USE, true ))
-                    c.enable();
-                else
+                if ( prefs.getBoolean( INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
+                                       INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED ))
                     c.disable();
+                else
+                    c.enable();
             } else if ( Serial.class.isInstance( c ) ) {
-                if ( prefs.getBoolean(INetPrefKeys.SERIAL_SHOULD_USE, false ))
-                    c.enable();
-                else
+                if ( prefs.getBoolean(INetPrefKeys.SERIAL_DISABLED,
+                                      INetPrefKeys.DEFAULT_SERIAL_DISABLED ))
                     c.disable();
+                else
+                    c.enable();
             } else {
                 logger.error( "Invalid channel type." );
             }
@@ -109,16 +113,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         case MotionEvent.ACTION_DOWN:
         case MotionEvent.ACTION_MOVE:
             // NOTE: Do nothing here for now, since no functionality
-            // is implemented behind a click action... Do not display
-            // "this page intentionally left blank" in a major release.
-
-        	/*
-            item.setBackgroundResource(R.drawable.select_gradient);
-            logger.trace("::onClick");
-            Intent gatewayIntent = new Intent();
-            gatewayIntent.setClass(this.parent, ChannelDetailActivity.class);
-            this.parent.startActivity(gatewayIntent);
-            */
+            // is implemented behind a click action...
             break;
 
         default:

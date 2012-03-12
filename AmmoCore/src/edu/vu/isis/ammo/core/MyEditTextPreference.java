@@ -71,6 +71,13 @@ public class MyEditTextPreference extends EditTextPreference {
 	// ===========================================================
 	// IP/Port Input Management
 	// ===========================================================
+	
+	@Override
+	public String getText() {
+		final String base = super.getText();
+		return base;
+	}
+	
 	@Override
 	public void setText(String uncheckedText) {
 		// We should do some bounds checking here based on type of ETP.
@@ -78,6 +85,7 @@ public class MyEditTextPreference extends EditTextPreference {
 		
 		if (mType == null) { 
 			super.setText(checkedText);
+			this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
 			return;
 		}
 		
@@ -108,6 +116,7 @@ public class MyEditTextPreference extends EditTextPreference {
 				// do nothing.
 		}
 		super.setText(checkedText);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
 	}
 		
 	/**
@@ -128,15 +137,18 @@ public class MyEditTextPreference extends EditTextPreference {
 		super.onDialogClosed(positiveResult);
 		
 		// Set the summary field to newly set value in the edit text.
-		this.refreshSummaryField();
+		this.refresh();
 	}
 	
 	/**
 	 *  Set the summary field such that it displays the value of the edit text.
 	 */
-	public void refreshSummaryField() {
-		this.setSummary(summaryPrefix + this.getText());	
+	public void refresh() {
+		final String value = this.getPersistedString(this.getText());
+		this.setText(value);
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(value).toString() );	
 	}
+
 
 	// ===========================================================
 	// Getters/Setters Methods

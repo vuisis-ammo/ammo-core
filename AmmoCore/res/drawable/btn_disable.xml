@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--  
+The checkbox has four orthogonal states
+
+        android:state_pressed=["true" | "false"]
+        android:state_focused=["true" | "false"]
+        android:state_hovered=["true" | "false"]
+        android:state_selected=["true" | "false"]
+        android:state_checkable=["true" | "false"]
+        android:state_checked=["true" | "false"]
+        android:state_enabled=["true" | "false"]
+        android:state_activated=["true" | "false"]
+        android:state_window_focused=["true" | "false"] />
+ -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="false"
+    	  android:drawable="@drawable/btn_checked_not" />
+    <item android:state_checked="true"
+    	  android:drawable="@drawable/btn_checked" />
+</selector>

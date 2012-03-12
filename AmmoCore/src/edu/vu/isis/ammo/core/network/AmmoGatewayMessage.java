@@ -349,14 +349,26 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             logger.debug( "   size={}", sizeAsShort );
 
             // Only output [0] and [1] of the four byte checksum.
-            byte[] checkSum = convertChecksum( this.payload_checksum );
-            logger.debug( "   payload_checksum as bytes={}", checkSum );
-            buf.put( checkSum[0] );
-            buf.put( checkSum[1] );
+            byte[] payloadCheckSum = convertChecksum( this.payload_checksum );
+            logger.debug( "   payload_checksum as bytes={}", payloadCheckSum );
+            buf.put( payloadCheckSum[0] );
+            buf.put( payloadCheckSum[1] );
             //buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
-            long nowInMillis = System.currentTimeMillis();
-            buf.putLong( nowInMillis );
+            //long nowInMillis = System.currentTimeMillis();
+            //buf.putLong( nowInMillis );
+            buf.putInt( 0 );  // time will go here.
+            buf.put( (byte) 0 );
+            buf.put( (byte) 0 );
+
+            // Put two-byte header checksum here.  The checksum covers the
+            // magic sequence and everything up to and including the six
+            // zero bytes just written.
+            CRC32 crc32 = new CRC32();
+            crc32.update( buf.array(), 0, HEADER_LENGTH_TERSE - 2 );
+            byte[] headerChecksum = convertChecksum( crc32.getValue() );
+            buf.put( headerChecksum[0] );
+            buf.put( headerChecksum[1] );
 
             // payload
             buf.put( this.payload );
@@ -385,6 +397,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             while( drain.remaining() > 0 ) {
                 drain.mark();
                 int start = drain.arrayOffset() + drain.position();
+
                 // search for the magic
                 if (drain.get() != MAGIC[2]) continue;
                 if (drain.get() != MAGIC[1]) continue;
@@ -430,16 +443,32 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
                     int size = drain.getShort();
 
-                    byte[] checkBytes = new byte[ 4 ];
-                    checkBytes[0] = drain.get();
-                    checkBytes[1] = drain.get();
-                    checkBytes[2] = 0;
-                    checkBytes[3] = 0;
+                    byte[] checkPayloadBytes = new byte[ 4 ];
+                    checkPayloadBytes[0] = drain.get();
+                    checkPayloadBytes[1] = drain.get();
+                    checkPayloadBytes[2] = 0;
+                    checkPayloadBytes[3] = 0;
                     //drain.get( checkBytes, 0, 2 );
-                    logger.debug( "   payload check={}", checkBytes );
-                    long payload_checksum = convertChecksum(checkBytes);
+                    logger.debug( "   payload check={}", checkPayloadBytes );
+                    long payload_checksum = convertChecksum(checkPayloadBytes);
 
-                    drain.getLong();
+                    // Discard six bytes of zero
+                    drain.getInt();
+                    drain.getShort();
+
+                    // Hack for CACI test.  It's inefficient to have this happen
+                    // here, since it will happen for verbose, too.  Get the magic
+                    // sequence out of this function, since it should be channel-
+                    // specific.
+                    CRC32 terseHeaderCrc32 = new CRC32();
+                    terseHeaderCrc32.update( drain.array(), start, HEADER_DATA_LENGTH_TERSE - 2 );
+                    byte[] computedChecksum = convertChecksum( terseHeaderCrc32.getValue() );
+
+                    // Return null if the header checksum fails.
+                    if ( drain.get() != computedChecksum[0] || drain.get() != computedChecksum[1] ) {
+                        logger.warn( "Corrupt terse header; packet discarded." );
+                        return null;
+                    }
 
                     return AmmoGatewayMessage.newBuilder()
                             .size(size)
@@ -452,7 +481,14 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         } catch (BufferUnderflowException ex) {
             // the data was looking like a header as far as it went
             drain.reset();
+        } catch ( Exception ex ) {
+            // If we did not have enough data to do the header checksum, we
+            // won't get a BufferUnderflowException, but the CRC32 library
+            // will throw when we try to compute the checksum.  Go ahead and
+            // let the function return null, and the SerialChannel will
+            // clear the buffer.
         }
+
         return null;
     }
 

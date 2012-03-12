@@ -49,7 +49,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("ammo-dds");
-	public static final int VERSION = 22;
+	public static final int VERSION = 27;
 
 	// ===========================================================
 	// Fields
@@ -390,6 +390,10 @@ public class DistributorDataStore {
 			this.o = ordinal;
 			this.t = title;
 		}
+		@Override
+		public String toString() {
+		    return this.t;
+		}
 		public String q() {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
 		}
@@ -718,8 +722,15 @@ public class DistributorDataStore {
 		// 0 is reserved for the local operator
 		// <0 (-1) : indicates that the operator is unknown.
 		
+		AUID("auid", "TEXT"),
+		// (optional) The appplication specific unique identifier
+		// This is used in notice intents so the application can relate.
+
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
+		
+		PRIORITY("priority", "INTEGER"),
+		// What order should this message be sent. Negative priorities indicated less than normal.
 
 		DISPOSITION("disposition", "INTEGER"),
 		// The current best guess of the status of the request.
@@ -982,7 +993,6 @@ public class DistributorDataStore {
 	}
 
 
-
 	/**
 	 * The channel disposal table is for holding 
 	 * request disposition status for each channel.
@@ -1237,8 +1247,9 @@ public class DistributorDataStore {
 	.append("   AND ").append(DisposalChannelField.STATE.q("d"))
 	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause	
-	.append(" ORDER BY ").append(RequestField.PRIORITY.q("r")).append(" DESC ")
-	.append(", ").append(RequestField._ID.q("r")).append(" ASC ")	
+	.append(" ORDER BY ")
+    .append(RequestField.PRIORITY.q("r")).append(" DESC ").append(", ")
+    .append(RequestField._ID.q("r")).append(" ASC ")	
 	.toString();
 	}
 	
@@ -1399,7 +1410,6 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-	
 	public synchronized Cursor querySubscribeByKey(String[] projection,
 			String topic, String sortOrder) {
 		return queryRequestByTopic(SUBSCRIBE_VIEW_NAME, projection, topic, sortOrder);
@@ -1438,7 +1448,7 @@ public class DistributorDataStore {
 	 */
 	public synchronized Cursor queryDisposalByParent(int type, int parent) {
 		try {
-			logger.trace("disposal ready {} {} {}", new Object[]{ DISPOSAL_STATUS_QUERY, type, parent} );
+			logger.trace("disposal ready {} {} {}", new Object[]{DISPOSAL_STATUS_QUERY, type, parent} );
 			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(type), String.valueOf(parent)});
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
@@ -1882,7 +1892,9 @@ public class DistributorDataStore {
 			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deletePostalGarbage");
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
 		}
 		return 0;
 	}
@@ -1968,8 +1980,11 @@ public class DistributorDataStore {
 			logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteRetrievalGarbage");
+			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
 		}
+		
 		return 0;
 	}
 	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
@@ -2026,7 +2041,9 @@ public class DistributorDataStore {
 			logger.trace("Subscribe garbage {} {}", new Object[] {expireCount, SUBSCRIBE_EXPIRATION_CONDITION} );
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteSubscribeGarbage");
+			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
 		}
 		return 0;
 	}

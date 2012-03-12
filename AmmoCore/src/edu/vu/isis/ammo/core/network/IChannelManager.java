@@ -69,5 +69,7 @@ public interface IChannelManager
     // until Nilabja's new code is implemented.  Remove this afterward, and
     // make the AmmoService's method private again (if it doesn't go away).
     public AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest();
+    
+    public String getOperatorId();
 
 }

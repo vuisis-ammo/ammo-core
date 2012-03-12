@@ -6,7 +6,7 @@
 <configuration>
 
   <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
-    <checkLoggable>false</checkLoggable>
+    <checkLoggable>true</checkLoggable>
     <tagEncoder>
        <pattern>%logger{22}</pattern>
     </tagEncoder>

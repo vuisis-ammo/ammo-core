@@ -10,10 +10,11 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.network;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -23,8 +24,10 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -33,19 +36,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-//import org.jgroups.Address;
+import org.jgroups.Address;
 import org.jgroups.Channel;
 import org.jgroups.ChannelListener;
-import org.jgroups.ReceiverAdapter;
 import org.jgroups.JChannel;
+import org.jgroups.MembershipListener;
 import org.jgroups.Message;
-
+import org.jgroups.ReceiverAdapter;
+import org.jgroups.View;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.os.Environment;
-
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import android.content.Context;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -77,6 +80,10 @@ public class ReliableMulticastChannel extends NetChannel
     @SuppressWarnings("unused")
 	private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
     private boolean isEnabled = true;
+    
+	public final static String config_dir = "config";
+	public final static String config_file = "udp.xml";
+	private File configFile = null;
 
     private final Socket socket = null;
     private ConnectorThread connectorThread;
@@ -117,7 +124,7 @@ public class ReliableMulticastChannel extends NetChannel
     // once his stuff is in.
     public final IChannelManager mChannelManager;
 	private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
-
+    private Context context;
 
     private ReliableMulticastChannel(String name, IChannelManager iChannelManager ) {
         super(name);
@@ -137,10 +144,41 @@ public class ReliableMulticastChannel extends NetChannel
         // The thread is start()ed the first time the network disables and
         // reenables it.
         this.connectorThread = new ConnectorThread(this);
+        
+    }
+    
+    @Override
+    public void init( Context context ) {
+    	this.context = context;
+
+		// We need a context, so do this here instead of in the channel.
+		createReliableMulticastConfigFile( this.context);
     }
 
+	private void createReliableMulticastConfigFile( Context context )
+    {
+		final File dir = this.context.getDir(config_dir, Context.MODE_WORLD_READABLE);
+		this.configFile = new File(dir, config_file);
+		if ( !this.configFile.exists() ) {
+			try {
+				InputStream inputStream = context.getAssets().open( "udp.xml" );
+				OutputStream out = new FileOutputStream( this.configFile );
 
-    public static ReliableMulticastChannel getInstance(String name, IChannelManager iChannelManager )
+				byte[] buffer = new byte[4096];
+				int n = 0;
+				while ( -1 != (n = inputStream.read(buffer)) ) {
+					out.write(buffer, 0, n);
+				}
+				out.close();
+				inputStream.close();
+			} catch ( Exception e ) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+
+    public static ReliableMulticastChannel getInstance(String name, IChannelManager iChannelManager, Context context )
     {
         logger.trace("Thread <{}> ReliableMulticastChannel::getInstance()",
                      Thread.currentThread().getId());
@@ -370,7 +408,7 @@ public class ReliableMulticastChannel extends NetChannel
     // Note: the way this currently works, the heartbeat can only be sent
     // in intervals that are multiples of the burp time.  This may change
     // later if I can eliminate some of the wait()s.
-    // @SuppressWarnings("unused")
+    @SuppressWarnings("unused")
 	private void sendHeartbeatIfNeeded()
     {
         //logger.warn( "In sendHeartbeatIfNeeded()." );
@@ -622,8 +660,8 @@ public class ReliableMulticastChannel extends NetChannel
                                 synchronized (this.state) {
                                     while (this.isConnected()) // this is IMPORTANT don't remove it.
                                     {
-                                        if ( HEARTBEAT_ENABLED )
-                                            parent.sendHeartbeatIfNeeded();
+                                        if ( HEARTBEAT_ENABLED );
+//                                            parent.sendHeartbeatIfNeeded();
 
                                         // wait for somebody to change the connection status
                                         this.state.wait(BURP_TIME);
@@ -690,9 +728,10 @@ public class ReliableMulticastChannel extends NetChannel
                 logger.error( "Tried to create mJGroupChannel when we already had one." );
             try
             {
-            	File configFile = new File( Environment.getExternalStorageDirectory()
-											+ "/support/jgroups/udp.xml" );
-            	parent.mJGroupChannel = new JChannel( configFile );
+            	parent.mJGroupChannel = new JChannel( parent.configFile );
+            	// Put call to set operator ID here.
+            	parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
+            	
             	//parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT, Boolean.TRUE ); // deprecated
             }
             catch ( Exception e )
@@ -1070,7 +1109,7 @@ public class ReliableMulticastChannel extends NetChannel
 
     ///////////////////////////////////////////////////////////////////////////
     //
-    class ChannelReceiver extends ReceiverAdapter
+    class ChannelReceiver extends ReceiverAdapter implements MembershipListener
     {
         public ChannelReceiver( ConnectorThread iParent,
                                 ReliableMulticastChannel iDestination )
@@ -1149,6 +1188,19 @@ public class ReliableMulticastChannel extends NetChannel
                     mParent.socketOperationFailed();
                 }
             }
+        }
+
+        @Override
+        public void viewAccepted(View new_view)
+        {
+            // I have kept this error, need to change it to info .. NR
+            logger.error( "Membership View Changed: {}", new_view );
+        }
+        
+        @Override
+        public void suspect(Address suspected_mbr)
+        {
+            logger.error( "Member Suspected : {}", suspected_mbr.toString());
         }
 
         private void setReceiverState( int iState )
