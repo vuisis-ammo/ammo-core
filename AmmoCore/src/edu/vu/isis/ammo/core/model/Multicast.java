@@ -33,7 +33,7 @@ public class Multicast extends Channel {
 		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST, 
 		                                     INetPrefKeys.DEFAULT_MULTICAST_HOST);
 		this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT, 
-		                                 INetPrefKeys.DEFAULT_MULTICAST_PORT);
+				                         String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT));
 		this.election = ! this.prefs.getBoolean(INetPrefKeys.MULTICAST_DISABLED,
 		                                      INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
 	}
@@ -59,7 +59,7 @@ public class Multicast extends Channel {
 		if(key.equals(INetPrefKeys.MULTICAST_PORT))
 		{
 			this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT,
-			                                 INetPrefKeys.DEFAULT_MULTICAST_PORT);
+					String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT));
 		}
 
 	}

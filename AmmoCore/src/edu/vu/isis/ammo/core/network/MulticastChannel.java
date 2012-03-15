@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
@@ -404,7 +405,6 @@ public class MulticastChannel extends NetChannel
 
         // private final String DEFAULT_HOST = "192.168.1.100";
         // private final int DEFAULT_PORT = 33289;
-        private final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
 
         private MulticastChannel parent;
         private final State state;
@@ -462,7 +462,11 @@ public class MulticastChannel extends NetChannel
             public synchronized int get() { return this.value; }
 
             public synchronized boolean isConnected() {
-                return this.value == CONNECTED;
+                return this.value == INetChannel.CONNECTED;
+            }
+            
+            public synchronized boolean isSuppressed() {
+            	return this.value == INetChannel.DISABLED;
             }
 
 
@@ -547,7 +551,7 @@ public class MulticastChannel extends NetChannel
                                 disconnect();
 
                                 // Wait for a link interface.
-                                while (this.state.get() == NetChannel.DISABLED)
+                                while (this.state.isSuppressed())
                                 {
                                     logger.info("Looping in Disabled");
                                     this.state.wait(BURP_TIME);
@@ -567,11 +571,14 @@ public class MulticastChannel extends NetChannel
                     case NetChannel.LINK_WAIT:
                         this.parent.statusChange();
                         try {
-                            synchronized (this.state) {
-                                while (! parent.isAnyLinkUp()) // this is IMPORTANT don't remove it.
-                                    this.state.wait(BURP_TIME);   // wait for a link interface
-                            }
-                            this.state.set(NetChannel.DISCONNECTED);
+                        	synchronized (this.state) {
+	                        	while (! parent.isAnyLinkUp()  && ! this.state.isSuppressed()) {
+	                            	this.state.wait(BURP_TIME);   // wait for a link interface
+	                            }   
+	                            if (! this.state.isSuppressed()) {
+	                            	this.state.set(NetChannel.DISCONNECTED);
+	                            }
+                        	}
                         } catch (InterruptedException ex) {
                             logger.warn("connection intentionally disabled {}", this.state );
                             this.state.set(NetChannel.STALE);
@@ -594,11 +601,15 @@ public class MulticastChannel extends NetChannel
                         try {
                             this.parent.statusChange();
                             long attempt = this.getAttempt();
-                            Thread.sleep(GATEWAY_RETRY_TIME);
-                            if ( this.connect() ) {
-                                this.state.set(NetChannel.CONNECTED);
-                            } else {
-                                this.failure(attempt);
+                            synchronized (this.state) {
+	                            this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
+	                            if (this.state.isSuppressed()) {
+	                            	logger.debug("halt connection attempt");
+	                            } else if ( this.connect() ) {
+	                                this.state.set(NetChannel.CONNECTED);
+	                            } else {
+	                                this.failure(attempt);
+	                            }
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
@@ -634,8 +645,15 @@ public class MulticastChannel extends NetChannel
                         try {
                             long attempt = this.getAttempt();
                             this.parent.statusChange();
-                            Thread.sleep(GATEWAY_RETRY_TIME);
-                            this.failure(attempt);
+                            synchronized (this.state){ 
+	                            this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
+	                            
+	                            if (this.state.isSuppressed()) {
+	                            	logger.debug("halt connection attempt");
+	                            } else {
+	                                this.failure(attempt);
+	                            }
+                            }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
                             logger.info("sleep interrupted - intentional disable, exiting thread ...");
@@ -1203,5 +1221,11 @@ public class MulticastChannel extends NetChannel
 	public void init(Context context) {
 		// TODO Auto-generated method stub
 		
+	}
+
+    @Override
+	public void toLog(String context) {
+    	PLogger.ipc_panthr_mc_log.debug("{} {}:{} ", 
+				new Object[]{context, mMulticastAddress, mMulticastPort});
 	}
 }

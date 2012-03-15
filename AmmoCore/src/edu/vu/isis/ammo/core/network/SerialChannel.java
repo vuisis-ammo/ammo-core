@@ -39,6 +39,7 @@ import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 
 
@@ -267,7 +268,8 @@ public class SerialChannel extends NetChannel
             // We might have been disabled before the thread even gets
             // a chance to run, so check that before doing anything.
             if ( isInterrupted() ) {
-                logger.info( "SenderThread <{}>::run() was interrupted before run().", Thread.currentThread().getId() );
+                logger.info( "SenderThread <{}>::run() was interrupted before run().", 
+                		Thread.currentThread().getId() );
                 return;
             }
 
@@ -1321,5 +1323,12 @@ public class SerialChannel extends NetChannel
 	public void init(Context context) {
 		// TODO Auto-generated method stub
 		
+	}
+
+
+	@Override
+	public void toLog(String context) {
+		PLogger.ipc_panthr_mc_log.debug("{} {} for {} msec", 
+				new Object[]{context, this.mSlotNumber, this.mSlotDuration});
 	}
 }

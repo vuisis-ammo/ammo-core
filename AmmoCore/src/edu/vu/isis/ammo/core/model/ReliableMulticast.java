@@ -33,7 +33,7 @@ public class ReliableMulticast extends Channel {
 		this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, 
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
 		this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, 
-                         INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
+				String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
 		this.election = ! this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED);
 	}
@@ -58,9 +58,8 @@ public class ReliableMulticast extends Channel {
 		if(key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT))
 		{
 			this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT, 
-                  INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
+					String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
 		}
-
 	}
 
 	@Override

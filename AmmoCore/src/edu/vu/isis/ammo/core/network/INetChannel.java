@@ -84,4 +84,9 @@ public interface INetChannel {
 	  * @param context
 	  */
 	 void init(Context context);
+
+	 /**
+	  * Cause object state to be written to the logger.
+	  */
+	 void toLog(String context);
 }
