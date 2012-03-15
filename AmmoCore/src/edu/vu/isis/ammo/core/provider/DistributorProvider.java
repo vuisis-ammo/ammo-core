@@ -106,8 +106,6 @@ public class DistributorProvider extends ContentProvider {
 		switch(Tables.values()[uriMatcher.match(uri)]) {
 		case POSTAL:
 			return dds.deletePostal(selection, selectionArgs);
-		case PUBLISH:
-			return dds.deletePublish(selection, selectionArgs);
 		case RETRIEVAL:
 			return dds.deleteRetrieval(selection, selectionArgs);
 		case SUBSCRIBE:
@@ -120,8 +118,6 @@ public class DistributorProvider extends ContentProvider {
 		switch(Tables.values()[garbageMatcher.match(uri)]) {
 		case POSTAL:
 			return dds.deletePostalGarbage();
-		case PUBLISH:
-			return dds.deletePublishGarbage();
 		case RETRIEVAL:
 			return dds.deleteRetrievalGarbage();
 		case SUBSCRIBE:
@@ -154,9 +150,6 @@ public class DistributorProvider extends ContentProvider {
 		switch(Tables.values()[uriMatch]) {
 		case POSTAL:
 			cursor = dds.queryPostal(projection, selection, selectionArgs, sortOrder);
-			break;
-		case PUBLISH:
-			cursor = dds.queryPublish(projection, selection, selectionArgs, sortOrder);
 			break;
 		case RETRIEVAL:
 			cursor = dds.queryRetrieval(projection, selection, selectionArgs, sortOrder);

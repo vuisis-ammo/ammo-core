@@ -177,7 +177,6 @@ public class DistributorDataStore {
 		private TableField[] getFields() {		
 			switch (this) {
 			case POSTAL:     return PostalField.values(); 
-			case PUBLISH:    return PublishField.values(); 
 			case RETRIEVAL:  return RetrievalField.values(); 
 			case SUBSCRIBE:  return SubscribeField.values(); 
 			case DISPOSAL:   return DisposalChannelField.values(); 
@@ -192,7 +191,6 @@ public class DistributorDataStore {
 			switch (this) {
 			case REQUEST:    return RequestTable.PARENT_KEY_REF; 
 			case POSTAL:     return PostalTable.PARENT_KEY_REF; 
-			case PUBLISH:    return PublishTable.PARENT_KEY_REF; 
 			case RETRIEVAL:  return RetrievalTable.PARENT_KEY_REF; 
 			case SUBSCRIBE:  return SubscribeTable.PARENT_KEY_REF; 
 			case DISPOSAL:   return DisposalChannelTable.PARENT_KEY_REF; 
@@ -729,9 +727,6 @@ public class DistributorDataStore {
 		PROVIDER("provider", "TEXT"),
 		// The uri of the content provider
 		
-		PRIORITY("priority", "INTEGER"),
-		// What order should this message be sent. Negative priorities indicated less than normal.
-
 		DISPOSITION("disposition", "INTEGER"),
 		// The current best guess of the status of the request.
 
@@ -832,44 +827,6 @@ public class DistributorDataStore {
 			PostalTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	};
-
-
-	/**
-	 * The publication table is for holding publication requests.
-	 */
-
-	public enum PublishField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY");
-		// The parent key
-		
-		final public TableFieldState impl;
-
-		private PublishField(String name, String type) {
-			this.impl = new TableFieldState(name,type);
-		}
-		
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	};
-	
-	public static interface PublishTable extends RequestTable {
-		public static final String[] COLUMNS = new String[PublishField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PublishField.values().length);
-	}
-	static {
-		final List<String> columns = Arrays.asList(PublishTable.COLUMNS);
-		for (PublishField field : PublishField.values()) {
-			columns.add(field.n());
-			PublishTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	}
-
 
 	/**
 	 * The retrieval table is for holding retrieval requests.
@@ -1353,25 +1310,6 @@ public class DistributorDataStore {
 	  .append(Tables.POSTAL.q()).append("_view").toString();
 	
 	
-	//============ PUBLISH METHODS ===================
-	public synchronized Cursor queryPublish(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		return queryRequest(PUBLISH_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
-	}
-	public synchronized Cursor queryPublishReady() {
-		this.openRead();
-		try {
-			return db.rawQuery(PUBLISH_STATUS_QUERY, null);
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
-	private static final String PUBLISH_STATUS_QUERY = RequestStatusQuery(Tables.PUBLISH);
-	
-	private static final String PUBLISH_VIEW_NAME = new StringBuilder()
-	  .append(Tables.PUBLISH.q()).append("_view").toString();
-		
 	//============ RETRIEVAL METHODS ===================
 	public synchronized Cursor queryRetrieval(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
@@ -1535,11 +1473,7 @@ public class DistributorDataStore {
 	public synchronized long upsertPostal(ContentValues cv, DistributorState status) {
 		return upsertRequest(cv, status, POSTAL_VIEW_NAME, Tables.POSTAL);
 	}
-		
-	public synchronized long upsertPublish(ContentValues cv, DistributorState status) {
-		return upsertRequest(cv, status, PUBLISH_VIEW_NAME, Tables.PUBLISH);
-	}
-
+	
 	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
 		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
 	}
@@ -1711,13 +1645,6 @@ public class DistributorDataStore {
 		return updateRequestById(requestId, cv, state);
 	}
 	public synchronized long updatePostalByKey(long requestId, String channel, final DisposalState state) {
-		return this.upsertDisposalByRequest(requestId, channel, state);
-	}
-
-	public synchronized long updatePublishByKey(long requestId, ContentValues cv,  final DistributorState state) {
-		return updateRequestById(requestId, cv, state);
-	}
-	public synchronized long updatePublishByKey(long requestId, String channel, final DisposalState state) {
 		return this.upsertDisposalByRequest(requestId, channel, state);
 	}
 
@@ -1914,48 +1841,7 @@ public class DistributorDataStore {
 
 	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
 
-	// ========= PUBLISH : DELETE ================
-
-	public synchronized int deletePublish(String selection, String[] selectionArgs) {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.PUBLISH.n, selection, selectionArgs);
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
-			logger.trace("Publish delete {} {}", count, disposalCount);
-			return count;
-		} catch (IllegalArgumentException ex) {
-			logger.error("delete postal {} {}", selection, selectionArgs);
-		}
-		return 0;
-	}
-	public synchronized int deletePublishGarbage() {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = db.delete(Tables.PUBLISH.n, 
-					PUBLISH_EXPIRATION_CONDITION, getRelativeExpirationTime(0));
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-					DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
-			logger.trace("Publish garbage {} {}", expireCount, disposalCount);
-			return expireCount;
-		} catch (IllegalArgumentException ex) {
-			logger.error("deletePublishGarbage");
-		}
-		return 0;
-	}
-	private static final String DISPOSAL_PUBLISH_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalChannelField.TYPE.q(null)).append('=').append(Tables.PUBLISH.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.PUBLISH.q())
-	.append(" WHERE ").append(DisposalChannelField.REQUEST.q(null))
-	    .append('=').append(Tables.REQUEST.q()).append(".").append(RequestField._ID.q(null))
-	.append(')')
-	.toString();
-
-	private static final String PUBLISH_EXPIRATION_CONDITION = new StringBuilder()
-	.append(RequestField.EXPIRATION.q(null))
-	.append('<').append('?')
-	.toString();
-
+	
 	// ========= RETRIEVAL : DELETE ================
 
 	public synchronized int deleteRetrieval(String selection, String[] selectionArgs) {
@@ -2222,7 +2108,6 @@ public class DistributorDataStore {
 				sb.append(");");
 				
 				db.execSQL(RequestViewCreate(POSTAL_VIEW_NAME, Tables.POSTAL));
-				db.execSQL(RequestViewCreate(PUBLISH_VIEW_NAME, Tables.PUBLISH));
 				db.execSQL(RequestViewCreate(RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL));
 				db.execSQL(RequestViewCreate(SUBSCRIBE_VIEW_NAME, Tables.SUBSCRIBE));
 				

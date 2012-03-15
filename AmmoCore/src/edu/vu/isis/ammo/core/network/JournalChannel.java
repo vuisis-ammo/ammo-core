@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 import android.content.Context;
@@ -365,5 +366,10 @@ public class JournalChannel extends NetChannel {
 	}
 	public void init(Context context) {
 		// TODO Auto-generated method stub
+	}
+	@Override
+	public void toLog(String context) {
+		PLogger.ipc_panthr_journal_log.debug("{} {} ", 
+				new Object[]{context, this.journalFile});
 	}
 }

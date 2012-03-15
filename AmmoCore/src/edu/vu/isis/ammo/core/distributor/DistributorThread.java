@@ -172,7 +172,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		public ChannelAck(Tables type, long id, 
 				          String topic, String auid, 
-				          String channel, ChannelDisposal status) 
+				          String channel, DisposalState status) 
 		{
 			this.type = type;
 			this.id = id;
@@ -230,9 +230,6 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		switch (ack.type) {
 		case POSTAL:
 			numUpdated = this.store.updatePostalByKey(ack.id, ack.channel, ack.status);
-			break;
-		case PUBLISH:
-			numUpdated = this.store.updatePublishByKey(ack.id, ack.channel, ack.status);
 			break;
 		case RETRIEVAL:
 			numUpdated = this.store.updateRetrievalByKey(ack.id, ack.channel, ack.status);
@@ -521,12 +518,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		// we could do a priming query to determine if there are any candidates
 
 		this.store.deletePostalGarbage();
-		this.store.deletePublishGarbage();
 		this.store.deleteRetrievalGarbage();
 		this.store.deleteSubscribeGarbage();
 
 		this.processPostalCache(that);
-		this.processPublishCache(that);
 		this.processRetrievalCache(that);
 		this.processSubscribeCache(that);
 	}
@@ -653,18 +648,19 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
+			final Moment serialMoment = ar.moment;
 
 			final ContentValues values = new ContentValues();
-			values.put(PostalTableSchema.UUID.cv(), uuid.toString());
-			values.put(PostalTableSchema.AUID.cv(), auid);
-			values.put(PostalTableSchema.TOPIC.cv(), topic);
-			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+			values.put(RequestField.UUID.cv(), uuid.toString());
+			values.put(RequestField.AUID.cv(), auid);
+			values.put(RequestField.TOPIC.cv(), topic);
+			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
 			
-			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
-			values.put(PostalTableSchema.EXPIRATION.cv(), ar.expire.cv());
-			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
+			values.put(RequestField.PRIORITY.cv(), policy.routing.priority+ar.priority);
+			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
+			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
 			
-			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
+			// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
 
 			// values.put(PostalTableSchema.UNIT.cv(), 50);
 
@@ -754,7 +750,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							final String auid_ = ar.uid;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
 										                                        topic_, auid_,  
 										                                        channel, status));
@@ -789,6 +785,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
+			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
 
 			logger.debug("serializing: {} as {}", provider,topic);
 
@@ -838,7 +835,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							parent.store().deletePostal(new StringBuilder()
 							        .append(RequestField.PROVIDER.q(null)).append("=?").append(" AND ")
 									.append(RequestField.TOPIC.q(null)).append("=?").toString(), 
-									new String[] {e.missingTupleUri.getPath(), topic});
+									new String[] {ex.missingTupleUri.getPath(), topic});
 						} catch (NonConformingAmmoContentProvider e) {
 							e.printStackTrace();
 						}
@@ -886,7 +883,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		                                final String topic_ = topic;
 		                                
 										@Override
-										public boolean ack(String channel, ChannelDisposal status) {
+										public boolean ack(String channel, DisposalState status) {
 											return parent.announceChannelAck( new ChannelAck(Tables.POSTAL, id_, 
 													                                         topic_, auid_, 
 													                                         channel, status) );
@@ -895,10 +892,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 					this.store.updatePostalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("error sending to gateway {}", ex.getStackTrace());
+				logger.warn("error posting message {}", ex.getStackTrace());
 			}
 		}
 		pending.close();
+		logger.debug(MARK_POSTAL, "processed table POSTAL");
 	}
 
 	/**
@@ -935,7 +933,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				if (encode.getType() != Encoding.Type.TERSE) {
 					final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
 						.newBuilder()
-						.setUri(provider)
+						.setUid(provider)
 						.setMimeType(msgType)
 						.setEncoding(encode.getType().name())
 						.setData(ByteString.copyFrom(serialized));
@@ -983,84 +981,6 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		return true;
 	}
 
-	// =========== PUBLICATION ====================
-
-	/**
-	 * Used when a new postal request arrives. It first tries to dispatch the
-	 * request to the network service. Regardless of whether that works, the
-	 * request is recorded for later use.
-	 * 
-	 * @param that
-	 * @param uri
-	 * @param mimeType
-	 * @param data
-	 * @param handler
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private void processPublishRequest(final AmmoService that, final AmmoRequest ar, int st) {
-		logger.trace("process request PUBLISH : not implemented");
-		final UUID uuid = UUID.randomUUID();
-		final String auid = ar.uid;
-		final String topic = ar.topic.asString();
-		final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
-
-		final ContentValues values = new ContentValues();
-		values.put(PublishTableSchema.UUID.cv(), uuid.toString());
-		values.put(PublishTableSchema.AUID.cv(), auid);
-		values.put(PublishTableSchema.TOPIC.cv(), topic);
-		values.put(PublishTableSchema.PROVIDER.cv(), ar.provider.cv());
-		
-		values.put(PublishTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
-		values.put(PublishTableSchema.EXPIRATION.cv(), ar.expire.cv());
-		values.put(PublishTableSchema.CREATED.cv(), System.currentTimeMillis());
-	}
-
-	private void processPublishCache(AmmoService that) {
-		logger.error("process table PUBLISH : not implemented");
-	}
-
-	/**
-	 * dispatch the request to the network service. It is presumed that the
-	 * connection to the network service exists before this method is called.
-	 * 
-	 * @param that
-	 * @param uri
-	 * @param mimeType
-	 * @param data
-	 * @param handler
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private DistributorState dispatchPublishRequest(final AmmoService that, 
-			final String provider, final String msgType, 
-			final DistributorState dispersal, byte[] data, 
-			final INetworkService.OnSendMessageHandler handler) 
-	{
-		logger.trace("::dispatchPublishRequest");
-		return null;
-	}
-
-	/**
-	 * Get response to PushRequest from the gateway. This should be seen in
-	 * response to a post passing through transition for which a notice has been
-	 * requested.
-	 * 
-	 * @param mw
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private boolean receivePublishResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.trace("receive response PUBLISH");
-
-		if (mw == null)
-			return false;
-		if (!mw.hasPushAcknowledgement())
-			return false;
-		// PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-		return true;
-	}
-
 	// =========== RETRIEVAL ====================
 
 	/**
@@ -1089,11 +1009,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 
 			final ContentValues values = new ContentValues();
-			values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
-			values.put(RetrievalTableSchema.AUID.cv(), auid);
-			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
+			values.put(RequestField.UUID.cv(), uuid.toString());
+			values.put(RequestField.AUID.cv(), auid);
+			values.put(RequestField.TOPIC.cv(), topic);
 			
-			values.put(RetrievalTableSchema.SELECTION.cv(), select);
+			values.put(RetrievalField.SELECTION.cv(), select);
 			if (limit != null)
 				values.put(RetrievalField.LIMIT.cv(), limit);
 
@@ -1127,7 +1047,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							final String topic_ = topic;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
 										                                        topic_, auid_,  
 										                                        channel, status));
@@ -1174,9 +1094,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				channelCursor.close();
 			}
 
-			final UUID uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RetrievalTableSchema.UUID.cv())));
-			final String auid = pending.getString(pending.getColumnIndex(RetrievalTableSchema.AUID.cv()));
-			final String selection = pending.getString(pending.getColumnIndex(RetrievalTableSchema.SELECTION.n));
+			final UUID uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.cv())));
+			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
+			final String selection = pending.getString(pending.getColumnIndex(RetrievalField.SELECTION.cv()));
 
 			final int columnIx = pending.getColumnIndex(RetrievalField.LIMIT.n());
 			final Integer limit = pending.isNull(columnIx) ? null : pending.getInt(columnIx);
@@ -1201,7 +1121,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 								final String topic_ = topic;
 		
 								@Override
-								public boolean ack(String channel, ChannelDisposal status) {
+								public boolean ack(String channel, DisposalState status) {
 									return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
 											                                        topic_, auid_, 
 											                                        channel, status));
@@ -1341,15 +1261,15 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 
 			final ContentValues values = new ContentValues();
-			values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
-			values.put(RetrievalTableSchema.AUID.cv(), auid);
-			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
+			values.put(RequestField.UUID.cv(), uuid.toString());
+			values.put(RequestField.AUID.cv(), auid);
+			values.put(RequestField.TOPIC.cv(), topic);
 			
-			values.put(SubscribeTableSchema.PROVIDER.cv(), ar.provider.cv());
-			values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
-			values.put(SubscribeTableSchema.EXPIRATION.cv(), ar.expire.cv());
-			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.priority);
-			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
+			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
+			values.put(RetrievalField.SELECTION.cv(), ar.select.toString());
+			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
+			values.put(RequestField.PRIORITY.cv(), policy.routing.priority);
+			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
@@ -1373,7 +1293,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 							final String topic_ = topic;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
 										                                        topic_, auid_, 
 										                                        channel, status));
@@ -1407,9 +1327,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
-			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
-			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
-			final String auid = pending.getString(pending.getColumnIndex(SubscribeTableSchema.AUID.cv()));
+			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
+			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
+			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
 
 			final String selection = pending.getString(pending.getColumnIndex(SubscribeField.SELECTION.n()));
 
@@ -1448,7 +1368,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 								final String topic_ = topic;
 		
 								@Override
-								public boolean ack(String channel, ChannelDisposal status) {
+								public boolean ack(String channel, DisposalState status) {
 									return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
 											                                        topic_, auid_,  
 											                                        channel, status));
