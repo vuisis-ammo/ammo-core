@@ -711,6 +711,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.multicastChannel.setSocketTimeout(multicastIdleTime);
 		this.multicastChannel.setTTL(multicastTTL);
 		this.multicastChannel.toLog("acquire ");
+		
 		/*
 		 * Reliable Multicast
 		 */

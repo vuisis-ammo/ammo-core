@@ -281,9 +281,11 @@ public class SerialChannel extends NetChannel
                         logger.debug( "Connect failed. Waiting to retry..." );
                         SerialChannel.this.wait( WAIT_TIME );
                     }
-                    setState( SERIAL_CONNECTED );
+                    if (! isDisabled()) {
+                    	setState( SERIAL_CONNECTED );
+                    }
                 }
-                Looper.loop();
+                if (! isDisabled()) Looper.loop();
             } catch ( IllegalMonitorStateException e ) {
                 logger.error("IllegalMonitorStateException thrown.");
             } catch ( InterruptedException e ) {
@@ -1294,6 +1296,9 @@ public class SerialChannel extends NetChannel
                      state );
         mState.set( state );
         statusChange();
+    }
+    private boolean isDisabled() {
+    	return (getState() == SERIAL_DISABLED);
     }
 
     private Connector mConnector;
