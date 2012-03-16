@@ -7,7 +7,7 @@
 	<classpathentry kind="lib" path="/usr/share/java/protobuf.jar"/>
 	<classpathentry kind="lib" path="/Android-libs/java/logback-android.jar" sourcepath="/opt/logback-android"/>
 	<classpathentry kind="lib" path="/Android-libs/java/slf4j-api.jar" sourcepath="/opt/slf4j-android/"/>
->>>>>>> Stashed changes
 	<classpathentry kind="lib" path="/Android-libs/java/tasettingsapi.jar"/>
+	<classpathentry kind="lib" path="/home/mjames/proj/ammo/ammo/Android-libs/java/jgroups.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>
