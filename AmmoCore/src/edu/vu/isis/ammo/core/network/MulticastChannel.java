@@ -450,7 +450,8 @@ public class MulticastChannel extends NetChannel
                 this.reset();
             }
             public synchronized void set(int state) {
-                logger.info("Thread <{}>State::set", Thread.currentThread().getId());
+                logger.info("Thread <{}>State::set", 
+                		Thread.currentThread().getId());
                 if ( state == STALE ) {
 					this.reset();
                 } else {
@@ -458,13 +459,27 @@ public class MulticastChannel extends NetChannel
                     this.notifyAll();
                 }
             }
+            /**
+			 * changes the state as requested unless
+			 * the current state is disabled.
+			 * 
+			 * @param state
+			 * @return false if disabled; true otherwise
+			 */
+			public synchronized boolean setUnlessDisabled(int state) {
+				logger.info("Thread <{}>State::setUnlessDisabled", 
+						Thread.currentThread().getId());
+				if (state == DISABLED) return false;
+				this.set(state);
+                return true;
+			}
             public synchronized int get() { return this.value; }
 
             public synchronized boolean isConnected() {
                 return this.value == INetChannel.CONNECTED;
             }
             
-            public synchronized boolean isSuppressed() {
+            public synchronized boolean isDisabled() {
             	return this.value == INetChannel.DISABLED;
             }
 
@@ -483,6 +498,10 @@ public class MulticastChannel extends NetChannel
             public synchronized boolean failure(long attempt) {
                 if (attempt != this.attempt) return true;
                 return this.reset();
+            }
+            public synchronized boolean failureUnlessDisabled(long attempt) {
+            	if (this.value == INetChannel.DISABLED) return false; 
+            	return this.failure(attempt);
             }
             public synchronized boolean reset() {
                 attempt++;
@@ -514,9 +533,6 @@ public class MulticastChannel extends NetChannel
             this.state.failure(this.state.attempt);
         }
 
-        public void failure(long attempt) {
-            this.state.failure(attempt);
-        }
 
         /**
          * A value machine based.
@@ -550,7 +566,7 @@ public class MulticastChannel extends NetChannel
                                 disconnect();
 
                                 // Wait for a link interface.
-                                while (this.state.isSuppressed())
+                                while (this.state.isDisabled())
                                 {
                                     logger.info("Looping in Disabled");
                                     this.state.wait(BURP_TIME);
@@ -558,29 +574,27 @@ public class MulticastChannel extends NetChannel
                             }
                         } catch (InterruptedException ex) {
                             logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.set(NetChannel.STALE);
+                            this.state.setUnlessDisabled(NetChannel.STALE);
                             break MAINTAIN_CONNECTION;
                         }
                         break;
                     case NetChannel.STALE:
                         disconnect();
-                        this.state.set(NetChannel.LINK_WAIT);
+                        this.state.setUnlessDisabled(NetChannel.LINK_WAIT);
                         break;
 
                     case NetChannel.LINK_WAIT:
                         this.parent.statusChange();
                         try {
                         	synchronized (this.state) {
-	                        	while (! parent.isAnyLinkUp()  && ! this.state.isSuppressed()) {
+	                        	while (! parent.isAnyLinkUp()  && ! this.state.isDisabled()) {
 	                            	this.state.wait(BURP_TIME);   // wait for a link interface
 	                            }   
-	                            if (! this.state.isSuppressed()) {
-	                            	this.state.set(NetChannel.DISCONNECTED);
-	                            }
+	                            this.state.setUnlessDisabled(NetChannel.DISCONNECTED);
                         	}
                         } catch (InterruptedException ex) {
                             logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.set(NetChannel.STALE);
+                            this.state.setUnlessDisabled(NetChannel.STALE);
                             break MAINTAIN_CONNECTION;
                         }
                         this.parent.statusChange();
@@ -590,9 +604,9 @@ public class MulticastChannel extends NetChannel
                     case NetChannel.DISCONNECTED:
                         this.parent.statusChange();
                         if ( !this.connect() ) {
-                            this.state.set(NetChannel.CONNECTING);
+                            this.state.setUnlessDisabled(NetChannel.CONNECTING);
                         } else {
-                            this.state.set(NetChannel.CONNECTED);
+                            this.state.setUnlessDisabled(NetChannel.CONNECTED);
                         }
                         break;
 
@@ -602,12 +616,10 @@ public class MulticastChannel extends NetChannel
                             long attempt = this.getAttempt();
                             synchronized (this.state) {
 	                            this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
-	                            if (this.state.isSuppressed()) {
-	                            	logger.debug("halt connection attempt");
-	                            } else if ( this.connect() ) {
-	                                this.state.set(NetChannel.CONNECTED);
+	                            if ( this.connect() ) {
+	                                this.state.setUnlessDisabled(NetChannel.CONNECTED);
 	                            } else {
-	                                this.failure(attempt);
+	                                this.state.failureUnlessDisabled(attempt);
 	                            }
                             }
                             this.parent.statusChange();
@@ -634,7 +646,7 @@ public class MulticastChannel extends NetChannel
                                 }
                             } catch (InterruptedException ex) {
                                 logger.warn("connection intentionally disabled {}", this.state );
-                                this.state.set(NetChannel.STALE);
+                                this.state.setUnlessDisabled(NetChannel.STALE);
                                 break MAINTAIN_CONNECTION;
                             }
                             this.parent.statusChange();
@@ -646,12 +658,7 @@ public class MulticastChannel extends NetChannel
                             this.parent.statusChange();
                             synchronized (this.state){ 
 	                            this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
-	                            
-	                            if (this.state.isSuppressed()) {
-	                            	logger.debug("halt connection attempt");
-	                            } else {
-	                                this.failure(attempt);
-	                            }
+	                            this.state.failureUnlessDisabled(attempt);
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {

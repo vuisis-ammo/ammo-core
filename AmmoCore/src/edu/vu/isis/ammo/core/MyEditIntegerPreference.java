@@ -15,6 +15,8 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.INetPrefKeys;
+
 import android.content.Context;
 import android.preference.EditTextPreference;
 import android.util.AttributeSet;
@@ -94,22 +96,21 @@ public class MyEditIntegerPreference extends EditTextPreference {
 			}
 			else
 			{
-				// FIXME : The checked text can be cleaned up but 
-				// should NEVER be quantitatively changed from 
-				// what the operator entered.
-				// Any quantitative changes should be made when it is read.
-				
+			
 				//Shared enum solution. It's not exactly graceful, but it works.
-				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
+				if(this.getKey().equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME))
 				{
 					//Input is in seconds, we need to store as minutes
 					checkedText = Integer.toString((Integer.parseInt(uncheckedText)/60));
 
-				}
-				else if(this.getKey().equals("CORE_SOCKET_TIMEOUT"))
+				} else 
+				if(this.getKey().equals(INetPrefKeys.GATEWAY_TIMEOUT))
 				{
 					//Input is in seconds, we need to store as milliseconds
 					checkedText = Integer.toString((Integer.parseInt(uncheckedText)*1000));
+				}
+				else {
+					checkedText = uncheckedText;
 				}
 			}
             break;
@@ -298,17 +299,20 @@ public class MyEditIntegerPreference extends EditTextPreference {
 
 	public String getText() {
 		// We should do some bounds checking here based on type of ETP.
-		String value = super.getText();
+		final String value = super.getText();
 		switch (mType)
 		{
 		case TIMEOUT:
-				if(this.getKey().equals("AMMO_NET_CONN_FLAT_LINE_TIME"))
+				if(this.getKey().equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME))
 				{
 					return Integer.toString(Integer.parseInt(value)*60);
 				}
-				else if(this.getKey().equals("CORE_SOCKET_TIMEOUT"))
+				else if(this.getKey().equals(INetPrefKeys.GATEWAY_TIMEOUT))
 				{
 					return Integer.toString(Integer.parseInt(value)/1000);
+				}
+				else {
+					return value;
 				}
 
 		default:
@@ -349,9 +353,30 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	 *  Set the summary field such that it displays the value of the edit text.
 	 */
 	public void refresh() {
-		final String value = this.getPersistedString(this.getText());
-		this.setText(value);
-		this.setSummary(new StringBuilder().append(summaryPrefix).append(value).toString() );
+		final String raw_value = this.getPersistedString(super.getText());
+		final String cooked_value;
+		switch (mType)
+		{
+		case TIMEOUT:
+				if(this.getKey().equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME))
+				{
+					cooked_value = Integer.toString(Integer.parseInt(raw_value)*60);
+				}
+				else if(this.getKey().equals(INetPrefKeys.GATEWAY_TIMEOUT))
+				{
+					cooked_value =  Integer.toString(Integer.parseInt(raw_value)/1000);
+				}
+				else {
+					cooked_value = raw_value;
+				}
+            break;
+		default:
+			cooked_value = raw_value;
+		}
+		this.setSummary(new StringBuilder()
+		    .append(summaryPrefix)
+		    .append(cooked_value)
+		    .toString() );
 	}
 
 	// ===========================================================
