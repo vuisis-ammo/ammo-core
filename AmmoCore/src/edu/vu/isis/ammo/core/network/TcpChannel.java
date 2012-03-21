@@ -36,6 +36,7 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
@@ -145,7 +146,7 @@ public class TcpChannel extends NetChannel {
 
                 // if (! this.connectorThread.isAlive()) this.connectorThread.start();
 
-                logger.warn("::enable - Setting the state to STALE");
+                logger.info("::enable - Setting the state to STALE");
                 this.shouldBeDisabled = false;
                 this.connectorThread.state.set(NetChannel.STALE);
             }
@@ -157,11 +158,10 @@ public class TcpChannel extends NetChannel {
 		synchronized (this.syncObj) {
             if ( this.isEnabled ) {
                 this.isEnabled = false;
-                logger.warn("::disable - Setting the state to DISABLED");
+                logger.info("::disable - Setting the state to DISABLED");
                 this.shouldBeDisabled = true;
                 this.connectorThread.state.set(NetChannel.DISABLED);
-
-                //          this.connectorThread.stop();
+                // this.connectorThread.stop();
             }
 		}
 	}
@@ -216,6 +216,7 @@ public class TcpChannel extends NetChannel {
 	 * forces a reconnection.
 	 */
 	public void reset() {
+		// PLogger.proc_debug("reset ")
 		logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
 		logger.info("connector: {} sender: {} receiver: {}",
                     new Object[] {
@@ -244,10 +245,10 @@ public class TcpChannel extends NetChannel {
                                           this.connectorThread.state.value,
                                           senderState,
                                           receiverState );
-        } catch ( Exception e ) {
+        } catch ( Exception ex ) {
             logger.error( "Exception thrown in statusChange() {} \n {}",
-                          e.getLocalizedMessage(),
-                          e.getStackTrace());
+                          ex.getLocalizedMessage(),
+                          ex.getStackTrace());
         }
 	}
 
@@ -407,7 +408,6 @@ public class TcpChannel extends NetChannel {
 
 		private final String DEFAULT_HOST = "192.168.1.100";
 		private final int DEFAULT_PORT = 33289;
-		private final int GATEWAY_RETRY_TIME = 20 * 1000; // 20 seconds
 
 		private TcpChannel parent;
 		private final State state;
@@ -454,7 +454,8 @@ public class TcpChannel extends NetChannel {
 				this.reset();
 			}
 			public synchronized void set(int state) {
-				logger.info("Thread <{}>State::set", Thread.currentThread().getId());
+				logger.info("Thread <{}>State::set", 
+						Thread.currentThread().getId());
                 if ( state == STALE ) {
 					this.reset();
                 } else {
@@ -462,13 +463,30 @@ public class TcpChannel extends NetChannel {
                     this.notifyAll();
                 }
 			}
+			/**
+			 * changes the state as requested unless
+			 * the current state is disabled.
+			 * 
+			 * @param state
+			 * @return false if disabled; true otherwise
+			 */
+			public synchronized boolean setUnlessDisabled(int state) {
+				logger.info("Thread <{}>State::setUnlessDisabled", 
+						Thread.currentThread().getId());
+				if (state == DISABLED) return false;
+				this.set(state);
+                return true;
+			}
 
             public synchronized int get() { return this.value; }
 
             public synchronized boolean isConnected() {
-                return this.value == CONNECTED;
+                return this.value == INetChannel.CONNECTED;
             }
 
+            public synchronized boolean isDisabled() {
+            	return this.value == INetChannel.DISABLED;
+            }
 
             /**
              * Previously this method would only set the state to stale
@@ -484,6 +502,10 @@ public class TcpChannel extends NetChannel {
             public synchronized boolean failure(long attempt) {
                 if (attempt != this.attempt) return true;
                 return this.reset();
+            }
+            public synchronized boolean failureUnlessDisabled(long attempt) {
+            	if (this.value == INetChannel.DISABLED) return false; 
+            	return this.failure(attempt);
             }
             public synchronized boolean reset() {
                 attempt++;
@@ -515,9 +537,6 @@ public class TcpChannel extends NetChannel {
             this.state.failure(this.state.attempt);
         }
 
-        public void failure(long attempt) {
-            this.state.failure(attempt);
-        }
 
         /**
          * A value machine based.
@@ -551,7 +570,7 @@ public class TcpChannel extends NetChannel {
                                 disconnect();
 
                                 // Wait for a link interface.
-                                while (this.state.get() == NetChannel.DISABLED)
+                                while (this.state.isDisabled())
                                 {
                                     logger.info("Looping in Disabled");
                                     this.state.wait(BURP_TIME);
@@ -559,26 +578,27 @@ public class TcpChannel extends NetChannel {
                             }
                         } catch (InterruptedException ex) {
                             logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.set(NetChannel.STALE);
+                            this.state.setUnlessDisabled(NetChannel.STALE);
                             break MAINTAIN_CONNECTION;
                         }
                         break;
                     case NetChannel.STALE:
                         disconnect();
-                        this.state.set(NetChannel.LINK_WAIT);
+                        this.state.setUnlessDisabled(NetChannel.LINK_WAIT);
                         break;
 
                     case NetChannel.LINK_WAIT:
                         this.parent.statusChange();
                         try {
                             synchronized (this.state) {
-                                while (! parent.isAnyLinkUp()) // this is IMPORTANT don't remove it.
-                                    this.state.wait(BURP_TIME);   // wait for a link interface
+                                while (! parent.isAnyLinkUp()  && ! this.state.isDisabled()) {
+                                	this.state.wait(BURP_TIME);   // wait for a link interface
+                                }   
+                                this.state.setUnlessDisabled(NetChannel.DISCONNECTED);
                             }
-                            this.state.set(NetChannel.DISCONNECTED);
                         } catch (InterruptedException ex) {
                             logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.set(NetChannel.STALE);
+                            this.state.setUnlessDisabled(NetChannel.STALE);
                             break MAINTAIN_CONNECTION;
                         }
                         this.parent.statusChange();
@@ -588,9 +608,9 @@ public class TcpChannel extends NetChannel {
                     case NetChannel.DISCONNECTED:
                         this.parent.statusChange();
                         if ( !this.connect() ) {
-                            this.state.set(NetChannel.CONNECTING);
+                            this.state.setUnlessDisabled(NetChannel.CONNECTING);
                         } else {
-                            this.state.set(NetChannel.CONNECTED);
+                            this.state.setUnlessDisabled(NetChannel.CONNECTED);
                         }
                         break;
 
@@ -598,11 +618,13 @@ public class TcpChannel extends NetChannel {
                         try {
                             this.parent.statusChange();
                             long attempt = this.getAttempt();
-                            Thread.sleep(GATEWAY_RETRY_TIME);
-                            if ( this.connect() ) {
-                                this.state.set(NetChannel.CONNECTED);
-                            } else {
-                                this.failure(attempt);
+                            synchronized (this.state) {
+	                            this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
+	                            if ( this.connect() ) {
+	                                this.state.setUnlessDisabled(NetChannel.CONNECTED);
+	                            } else {
+	                                this.state.failureUnlessDisabled(attempt);
+	                            }
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
@@ -624,17 +646,17 @@ public class TcpChannel extends NetChannel {
 
                                     // wait for somebody to change the connection status
                                     this.state.wait(BURP_TIME);
-
+                                    
                                     if ( HEARTBEAT_ENABLED && parent.hasWatchdogExpired() )
                                     {
                                         logger.warn( "Watchdog timer expired!!" );
-                                        failure( getAttempt() );
+                                        this.state.failureUnlessDisabled( getAttempt() );
                                     }
                                 }
                             }
                         } catch (InterruptedException ex) {
                             logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.set(NetChannel.STALE);
+                            this.state.setUnlessDisabled(NetChannel.STALE);
                             break MAINTAIN_CONNECTION;
                         }
                         this.parent.statusChange();
@@ -645,8 +667,10 @@ public class TcpChannel extends NetChannel {
                         try {
                             long attempt = this.getAttempt();
                             this.parent.statusChange();
-                            Thread.sleep(GATEWAY_RETRY_TIME);
-                            this.failure(attempt);
+                            synchronized (this.state){ 
+	                            this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
+	                            this.state.failureUnlessDisabled(attempt);
+                            }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
                             logger.info("sleep interrupted - intentional disable, exiting thread ...");
@@ -657,7 +681,7 @@ public class TcpChannel extends NetChannel {
                 }
 
             } catch (Exception ex) {
-                this.state.set(NetChannel.EXCEPTION);
+                this.state.setUnlessDisabled(NetChannel.EXCEPTION);
                 logger.error("channel exception {} \n {}", ex.getLocalizedMessage(), ex.getStackTrace());
             }
             try {
@@ -1216,5 +1240,11 @@ public class TcpChannel extends NetChannel {
 	public void init(Context context) {
 		// TODO Auto-generated method stub
 		
+	}
+
+	@Override
+	public void toLog(String context) {
+		PLogger.ipc_panthr_gw_log.debug(" {}:{} timeout={} sec", 
+				new Object[]{ gatewayHost, gatewayPort, flatLineTime});
 	}
 }

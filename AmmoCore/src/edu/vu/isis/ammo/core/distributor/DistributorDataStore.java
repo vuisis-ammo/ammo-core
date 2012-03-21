@@ -1141,7 +1141,9 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.POSTAL.qv())
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
+	.append(" IN (")
+	.append(ChannelDisposal.REJECTED.q()).append(',')
+	.append(ChannelDisposal.PENDING.q()).append(')')
 	.append(')') // close exists clause	
 	.append(" ORDER BY ")
         .append(PostalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
@@ -1229,7 +1231,9 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.RETRIEVAL.qv())
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
+	.append(" IN (")
+	.append(ChannelDisposal.REJECTED.q()).append(',')
+	.append(ChannelDisposal.PENDING.q()).append(')')
 	.append(')') // close exists clause
 	.append(" ORDER BY ")
         .append(RetrievalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
@@ -1297,7 +1301,9 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Tables.SUBSCRIBE.qv())
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (").append(ChannelDisposal.PENDING.q()).append(')')
+	.append(" IN (")
+	.append(ChannelDisposal.REJECTED.q()).append(',')
+	.append(ChannelDisposal.PENDING.q()).append(')')
 	.append(')') // close exists clause
 	.append(" ORDER BY ")
         .append(SubscribeTableSchema.PRIORITY.q()).append(" DESC ").append(',')

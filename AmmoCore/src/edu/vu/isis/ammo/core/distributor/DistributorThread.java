@@ -853,10 +853,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 					this.store.updatePostalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("error sending to gateway {}", ex.getStackTrace());
+				logger.warn("error posting message {}", ex.getStackTrace());
 			}
 		}
 		pending.close();
+		logger.debug(MARK_POSTAL, "processed table POSTAL");
 	}
 
 	/**
@@ -975,7 +976,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	}
 
 	private void processPublishCache(AmmoService that) {
-		logger.error("process table PUBLISH : not implemented");
+		logger.trace("process table PUBLISH : not implemented");
 	}
 
 	/**

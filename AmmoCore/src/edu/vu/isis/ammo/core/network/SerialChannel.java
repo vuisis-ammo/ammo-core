@@ -39,6 +39,7 @@ import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 
 
@@ -267,7 +268,8 @@ public class SerialChannel extends NetChannel
             // We might have been disabled before the thread even gets
             // a chance to run, so check that before doing anything.
             if ( isInterrupted() ) {
-                logger.info( "SenderThread <{}>::run() was interrupted before run().", Thread.currentThread().getId() );
+                logger.info( "SenderThread <{}>::run() was interrupted before run().", 
+                		Thread.currentThread().getId() );
                 return;
             }
 
@@ -279,9 +281,11 @@ public class SerialChannel extends NetChannel
                         logger.debug( "Connect failed. Waiting to retry..." );
                         SerialChannel.this.wait( WAIT_TIME );
                     }
-                    setState( SERIAL_CONNECTED );
+                    if (! isDisabled()) {
+                    	setState( SERIAL_CONNECTED );
+                    }
                 }
-                Looper.loop();
+                if (! isDisabled()) Looper.loop();
             } catch ( IllegalMonitorStateException e ) {
                 logger.error("IllegalMonitorStateException thrown.");
             } catch ( InterruptedException e ) {
@@ -1293,6 +1297,9 @@ public class SerialChannel extends NetChannel
         mState.set( state );
         statusChange();
     }
+    private boolean isDisabled() {
+    	return (getState() == SERIAL_DISABLED);
+    }
 
     private Connector mConnector;
     private SerialPort mPort;
@@ -1321,5 +1328,12 @@ public class SerialChannel extends NetChannel
 	public void init(Context context) {
 		// TODO Auto-generated method stub
 		
+	}
+
+
+	@Override
+	public void toLog(String context) {
+		PLogger.ipc_panthr_mc_log.debug("{} {} for {} msec", 
+				new Object[]{context, this.mSlotNumber, this.mSlotDuration});
 	}
 }

@@ -12,4 +12,9 @@
 	<color name="gateway_background">#FF000000</color>
 	<color name="about_background">#FF000000</color>
 	<color name="transparent">#00000000</color>
+	
+	<!-- Logger View -->
+	
+	<color name="headline_font">#FF050505</color>
+	
 </resources>

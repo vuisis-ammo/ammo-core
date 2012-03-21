@@ -298,9 +298,9 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
                 Taking          |   Transmitting
                 Start           |   Transmitting
                 Started         |   Transmitting
-                Exception       |   Error: Restart AmmoCore
-                Waiting         |   Error: Restart AmmoCore
-                Interrupted     |   Error: Restart AmmoCore
+                Exception       |   Error: Restart Omma
+                Waiting         |   Error: Restart Omma
+                Interrupted     |   Error: Restart Omma
                 Connecting      |   Connecting
                 Linking         |   Connecting
                 Linked          |   Connecting
