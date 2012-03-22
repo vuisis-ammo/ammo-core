@@ -10,8 +10,6 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.ui;
 
-import java.util.Calendar;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +29,8 @@ import android.widget.Button;
 import android.widget.Spinner;
 import android.widget.Toast;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.api.AmmoDispatch;
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.type.TimeInterval;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
@@ -56,7 +55,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	// Fields
 	// ===========================================================
 	private Spinner interestSpinner;
-	private AmmoDispatch ad = null;
+	private AmmoRequest.Builder ab = null;
 	private MyOnItemSelectedListener selectionListener = null;
 	private Button btnSubscribe;
 	private String uid;
@@ -65,7 +64,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 	public void onCreate(Bundle savedInstanceState) {
 	    super.onCreate(savedInstanceState);
 	    setContentView(R.layout.subscribe);
-	    this.ad = AmmoDispatch.newInstance(this);
+	    this.ab = AmmoRequest.newBuilder(this);
 
 	    interestSpinner = (Spinner) findViewById(R.id.subscribe_uri);
 	    ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(
@@ -88,7 +87,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 
 	@Override
 	protected void onDestroy() {
-		this.ad.releaseInstance();
+		this.ab.releaseInstance();
 		super.onDestroy();
 	}
 
@@ -112,9 +111,17 @@ public class Subscribe extends ActivityEx implements OnClickListener {
             	values.put(RequestField.DISPOSITION.cv(), DisposalState.PENDING.cv());
             	// cr.insert(RequestField.CONTENT_URI, values);
             	
-            	Toast.makeText(Subscribe.this, "Subscribed to content " + selectedUri.toString(), Toast.LENGTH_SHORT).show();
+            	Toast.makeText(Subscribe.this, 
+            			       "Subscribed to content " + selectedUri.toString(), 
+            			       Toast.LENGTH_SHORT)
+            	     .show();
             	try {
-					ad.subscribe(selectedUri, selectedMime, Calendar.MINUTE, 500, 10.0, ":event");
+					ab.provider(selectedUri)
+					  .topic(selectedMime)
+					  .expire(new TimeInterval(TimeInterval.Unit.HOUR, 9))
+					  .worth(10)
+					  .filter(":event")
+					  .subscribe();
 				} catch (RemoteException ex) {
 					logger.warn("ammo distributor not yet active {}",
 							ex.getLocalizedMessage());
