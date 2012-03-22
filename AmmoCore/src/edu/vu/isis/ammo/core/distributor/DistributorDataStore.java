@@ -56,7 +56,7 @@ public class DistributorDataStore {
 	// ===========================================================
 	private final Context context;
 	private SQLiteDatabase db;
-	private final MyHelper helper;
+	private final DatastoreHelper helper;
 	// ===========================================================
 	// Schema
 	// ===========================================================
@@ -64,12 +64,11 @@ public class DistributorDataStore {
 	/**
 	 * Data Store Table definitions
 	 * 
-	 * The postal and publish tables record requests that data be sent out.
+	 * The postal table records requests that data be sent out.
 	 * POSTed data is specifically named and distributed.
-	 * PUBLISHed data is observed and as it changes in the content provider it is delivered.
-	 * The retrieval and subscribe tables record request that data be obtained.
-	 * RETRIEVAL data is obtained from a source.
-	 * SUBSCRIBEd data is obtained by topic.
+	 * The retrieval and interest tables record request that data be obtained.
+	 * RETRIEVAL data is obtained by topic from a source.
+	 * INTEREST data is obtained by topic.
 	 * 
 	 * The disposition table keeps track of the status of the delivery.
 	 * It is used in conjunction with the distribution policy.
@@ -85,13 +84,13 @@ public class DistributorDataStore {
 	public enum Tables {
 		REQUEST(0, "request"),
 		POSTAL(1, "postal"),
-		PUBLISH(2, "publish"),
-		RETRIEVAL(3, "retrieval"),
-		SUBSCRIBE(4, "subscribe"),
-		DISPOSAL(5, "disposal"),
-		CHANNEL(6, "channel"),
-		PRESENCE(7, "presence"),
-		RECIPIENT(8, "recipient");
+		RETRIEVAL(2, "retrieval"),
+		INTEREST(3, "interest"),
+		DISPOSAL(4, "disposal"),
+		CHANNEL(5, "channel"),
+		PRESENCE(6, "presence"),
+		RECIPIENT(7, "recipient"),
+		NOTICE(8, "notice");
 
 		final public int o;
 		final public String n;
@@ -178,7 +177,7 @@ public class DistributorDataStore {
 			switch (this) {
 			case POSTAL:     return PostalField.values(); 
 			case RETRIEVAL:  return RetrievalField.values(); 
-			case SUBSCRIBE:  return SubscribeField.values(); 
+			case INTEREST:  return InterestField.values(); 
 			case DISPOSAL:   return DisposalChannelField.values(); 
 			case CHANNEL:    return ChannelField.values(); 
 			case PRESENCE:   return PresenceField.values(); 
@@ -192,7 +191,7 @@ public class DistributorDataStore {
 			case REQUEST:    return RequestTable.PARENT_KEY_REF; 
 			case POSTAL:     return PostalTable.PARENT_KEY_REF; 
 			case RETRIEVAL:  return RetrievalTable.PARENT_KEY_REF; 
-			case SUBSCRIBE:  return SubscribeTable.PARENT_KEY_REF; 
+			case INTEREST:  return InterestTable.PARENT_KEY_REF; 
 			case DISPOSAL:   return DisposalChannelTable.PARENT_KEY_REF; 
 			case CHANNEL:    return ChannelTable.PARENT_KEY_REF; 
 			case PRESENCE:   return PresenceTable.PARENT_KEY_REF; 
@@ -622,39 +621,26 @@ public class DistributorDataStore {
 
 	/**
 	 * The presence table is for holding information about visible peers.
+	 * A peer is a particular device over a specific channel.
+	 * 
 	 * The created field indicates the first time the peer was observed.
 	 * The latest field indicates the last time the peer was observed.
 	 */
-	public static interface PresenceTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[PresenceField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PresenceField.values().length);
-		
-		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		int ix = 0;
-		for (PresenceField field : PresenceField.values()) {
-			PresenceTable.COLUMNS[ix++] = field.n();
-			PresenceTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-
 	public enum PresenceField implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
-		NAME("name", "TEXT"),
+		OPERATOR("name", "TEXT"),
 		// The name of the operator using the channel
 
 		FIRST("first", "INTEGER"),
 		// When the operator first used this channel
-
+		
 		LATEST("latest", "INTEGER"),
 		// When the operator was last seen "speaking" on the channel
+		
+		COUNT("count", "INTEGER"),
+		// How many times the peer has been seen since FIRST
+		// Each time LATEST is changed this COUNT should be incremented
 		
 		ENABLE("enable", "INTEGER"),
 		// 0 : intentionally disabled, 
@@ -682,6 +668,92 @@ public class DistributorDataStore {
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
 	};
+	public static interface PresenceTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[PresenceField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(PresenceField.values().length);
+		
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		int ix = 0;
+		for (PresenceField field : PresenceField.values()) {
+			PresenceTable.COLUMNS[ix++] = field.n();
+			PresenceTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+
+	
+	/**
+	 * The notice table is for noticing when a request crosses a threshold.
+	 *
+	 */
+	public enum NoticeField implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		OPERATOR("name", "TEXT"),
+		// The name of the operator using the channel
+
+		FIRST("first", "INTEGER"),
+		// When the operator first used this channel
+		
+		LATEST("latest", "INTEGER"),
+		// When the operator was last seen "speaking" on the channel
+		
+		COUNT("count", "INTEGER"),
+		// How many times the peer has been seen since FIRST
+		// Each time LATEST is changed this COUNT should be incremented
+		
+		ENABLE("enable", "INTEGER"),
+		// 0 : intentionally disabled, 
+		// >0 (1) : best knowledge is enabled
+		
+		CHANNEL("channel", "TEXT"),
+		// The channel type
+		
+		ADDRESS("address", "TEXT");
+		// The address for the channel type
+		// For IP networks, sockets, this is the IP address, and port
+		// For TDMA this is the slot number
+
+        final public TableFieldState impl;
+
+		private NoticeField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
+		}
+        
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+	
+	public static interface NoticeTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[NoticeField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(NoticeField.values().length);
+		
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		int ix = 0;
+		for (NoticeField field : NoticeField.values()) {
+			NoticeTable.COLUMNS[ix++] = field.n();
+			NoticeTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+
 
 	
 	/**
@@ -700,20 +772,24 @@ public class DistributorDataStore {
 		// It is used to look up the appropriate provider
 		
 		TYPE("type", "INTEGER"),
-		// Meaning the parent type: subscribe, retrieval, postal, publish
+		// Meaning the parent type: interest, retrieval, postal
 
 		CREATED("created", "INTEGER"),
 		// When the request was made
 
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
+		
+		COUNT("count", "INTEGER"),
+		// How many times the tuple has been modified since CREATED.
+		// Each time MODIFIED is changed this COUNT should be incremented.
 
 		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
-		TARGET("target", "TEXT"),
+		SUBTOPIC("subtopic", "TEXT"),
 		// This is used in conjunction with topic. 
-		// It can be used to identify a recipient or group
+		// It can be used to identify a recipient, a group, a target, etc.
 		
 		PRESENCE("presence", "INTEGER"),
 		// The rowid for the originator of this request
@@ -903,7 +979,7 @@ public class DistributorDataStore {
 	/**
 	 * The subscription table is for holding subscription requests.
 	 */
-	public enum SubscribeField  implements TableField {
+	public enum InterestField  implements TableField {
 		REQUEST("request", "INTEGER PRIMARY KEY"),
 		// The parent key
 		
@@ -912,7 +988,7 @@ public class DistributorDataStore {
 
 		final public TableFieldState impl;
 
-		private SubscribeField(String name, String type) {
+		private InterestField(String name, String type) {
 			this.impl = new TableFieldState(name,type);
 		}
 		
@@ -925,27 +1001,27 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	}
 	
-	public static interface SubscribeTable {
+	public static interface InterestTable {
 
 		public static final String DEFAULT_SORT_ORDER = ""; 
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[SubscribeField.values().length];
+		public static final String[] COLUMNS = new String[InterestField.values().length];
 		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(SubscribeField.values().length);
+				new HashMap<String,String>(InterestField.values().length);
 		
 		public static final String PARENT_KEY_REF = new StringBuilder()
-		   .append(" FOREIGN KEY(").append(SubscribeField.REQUEST.n()).append(")")
+		   .append(" FOREIGN KEY(").append(InterestField.REQUEST.n()).append(")")
 		   .append(" REFERENCES ").append(Tables.REQUEST.n)
 		   .append("(").append(RequestField._ID.n()).append(")")
 		   .append(" ON DELETE CASCADE ")
 		   .toString();
 	}
 	static {
-		final List<String> columns = Arrays.asList(SubscribeTable.COLUMNS);
-		for (SubscribeField field : SubscribeField.values()) {
+		final List<String> columns = Arrays.asList(InterestTable.COLUMNS);
+		for (InterestField field : InterestField.values()) {
 			columns.add(field.n());
-			SubscribeTable.PROJECTION_MAP.put(field.n(), field.n());
+			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	}
 
@@ -973,7 +1049,7 @@ public class DistributorDataStore {
 		// The _id of the parent request
 
 		TYPE("type", "INTEGER"),
-		// Meaning the parent type: subscribe, retrieval, postal, publish
+		// Meaning the parent type: interest, retrieval, postal, publish
 		// This is redundant on the Request tuple, it is provided for performance.
 
 		STATE("state", "INTEGER");
@@ -1032,8 +1108,11 @@ public class DistributorDataStore {
 	public enum DisposalPresenceField  implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
+		REQUEST("request", "INTEGER"),
+		// The _ID of the parent Request
+		
 		DISPOSAL("type", "INTEGER"),
-		// Meaning the parent type: subscribe, retrieval, postal, publish
+		// Meaning the parent type: interest, retrieval, postal, publish
 
 		STATE("state", "INTEGER");
 		// State of the request on the channel
@@ -1083,6 +1162,25 @@ public class DistributorDataStore {
 	 * This could be done with a concurrent hash map but that
 	 * would put more logic in the java code and less in sqlite.
 	 */
+	public static interface ChannelTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[ChannelField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(ChannelField.values().length);
+		
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(ChannelTable.COLUMNS);
+		for (ChannelField field : ChannelField.values()) {
+			columns.add(field.n());
+			ChannelTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+
 	public enum ChannelField  implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
@@ -1106,32 +1204,14 @@ public class DistributorDataStore {
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
 	}
-	public static interface ChannelTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[ChannelField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(ChannelField.values().length);
-		
-		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(ChannelTable.COLUMNS);
-		for (ChannelField field : ChannelField.values()) {
-			columns.add(field.n());
-			ChannelTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-
+	
 	// ===========================================================
 	// Methods
 	// ===========================================================
 
 	public DistributorDataStore(Context context) {
 		this.context = context;
-		this.helper = new MyHelper(this.context, Tables.NAME, null, VERSION);
+		this.helper = new DatastoreHelper(this.context, Tables.NAME, null, VERSION);
 
 		// ========= INITIALIZE CONSTANTS ========
 		this.applDir = context.getDir("support", Context.MODE_PRIVATE);
@@ -1272,15 +1352,15 @@ public class DistributorDataStore {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 			qb.setTables(Tables.REQUEST.n);
-			// qb.setProjectionMap(SubscribeTable.PROJECTION_MAP);
+			// qb.setProjectionMap(InterestTable.PROJECTION_MAP);
 
 			// Get the database and run the query.
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
 			return qb.query(db, projection, REQUEST_TOPIC_QUERY, new String[]{topic}, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: SubscribeTable.DEFAULT_SORT_ORDER);
+							: InterestTable.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
-			logger.error("query subscribe by key {} {}", projection, topic);
+			logger.error("query interest by key {} {}", projection, topic);
 		}
 		return null;
 	}
@@ -1333,30 +1413,30 @@ public class DistributorDataStore {
 		return queryRequestByUuid(projection, uuid, sortOrder);
 	}
 	
-	//============ SUBSCRIBE METHODS ===================
-	public synchronized Cursor querySubscribe(String[] projection, String selection,
+	//============ INTEREST METHODS ===================
+	public synchronized Cursor queryInterest(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
-		return queryRequest(SUBSCRIBE_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
+		return queryRequest(INTEREST_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
 	}
 
-	public synchronized Cursor querySubscribeReady() {
+	public synchronized Cursor queryInterestReady() {
 		this.openRead();
 		try {
-			return db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
+			return db.rawQuery(INTEREST_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
 		}
 		return null;
 	}
-	public synchronized Cursor querySubscribeByKey(String[] projection,
+	public synchronized Cursor queryInterestByKey(String[] projection,
 			String topic, String sortOrder) {
-		return queryRequestByTopic(SUBSCRIBE_VIEW_NAME, projection, topic, sortOrder);
+		return queryRequestByTopic(INTEREST_VIEW_NAME, projection, topic, sortOrder);
 	}
 	
-	private static final String SUBSCRIBE_STATUS_QUERY = RequestStatusQuery(Tables.SUBSCRIBE);
+	private static final String INTEREST_STATUS_QUERY = RequestStatusQuery(Tables.INTEREST);
 	
-	private static final String SUBSCRIBE_VIEW_NAME = new StringBuilder()
-	  .append(Tables.SUBSCRIBE.q()).append("_view").toString();
+	private static final String INTEREST_VIEW_NAME = new StringBuilder()
+	  .append(Tables.INTEREST.q()).append("_view").toString();
 	
 	//============ DISPOSAL METHODS ===================
 	public synchronized Cursor queryDisposal(String[] projection, String selection,
@@ -1478,7 +1558,7 @@ public class DistributorDataStore {
 		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
 	}
 	
-	public synchronized long upsertSubscribe(ContentValues cv, DistributorState status) {
+	public synchronized long upsertInterest(ContentValues cv, DistributorState status) {
 		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
 	}
 
@@ -1584,7 +1664,7 @@ public class DistributorDataStore {
 	.append(DisposalChannelField.CHANNEL.q(null)).append("=?")
 	.append(" AND ")
 	.append(DisposalChannelField.TYPE.q(null)).append(" IN ( ")
-	.append(Tables.SUBSCRIBE.qv()).append(')')
+	.append(Tables.INTEREST.qv()).append(')')
 	.append(" AND ")
 	.append(DisposalChannelField.STATE.q(null))
 	.append(" NOT IN ( ").append(DisposalState.BAD.q()).append(')')
@@ -1655,10 +1735,10 @@ public class DistributorDataStore {
 		return this.upsertDisposalByRequest(requestId, channel, state);
 	}
 
-	public synchronized long updateSubscribeByKey(long requestId, ContentValues cv, final DistributorState state) {
+	public synchronized long updateInterestByKey(long requestId, ContentValues cv, final DistributorState state) {
 		return updateRequestById(requestId, cv, state);
 	}
-	public synchronized long updateSubscribeByKey(long requestId, String channel, final DisposalState state) {
+	public synchronized long updateInterestByKey(long requestId, String channel, final DisposalState state) {
 		return this.upsertDisposalByRequest(requestId, channel, state);
 	}
 
@@ -1760,8 +1840,8 @@ public class DistributorDataStore {
 
 		initializeRequestDefaults(values);
 		
-		if (!values.containsKey(SubscribeField.SELECTION.n())) {
-			values.put(SubscribeField.SELECTION.n(), "");
+		if (!values.containsKey(InterestField.SELECTION.n())) {
+			values.put(InterestField.SELECTION.n(), "");
 		}
 		return values;
 	}
@@ -1904,54 +1984,54 @@ public class DistributorDataStore {
 		return 0;
 	}
 
-	// ========= SUBSCRIBE : DELETE ================
+	// ========= INTEREST : DELETE ================
 
-	public synchronized int deleteSubscribe(String selection, String[] selectionArgs) {
+	public synchronized int deleteInterest(String selection, String[] selectionArgs) {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.SUBSCRIBE.n, selection, selectionArgs);
-			logger.trace("Subscribe delete {} {}", count);
+			final int count = db.delete(Tables.INTEREST.n, selection, selectionArgs);
+			logger.trace("Interest delete {} {}", count);
 			return count;
 		} catch (IllegalArgumentException ex) {
 			logger.error("delete postal {} {}", selection, selectionArgs);
 		}
 		return 0;
 	}
-	public synchronized int deleteSubscribeGarbage() {
+	public synchronized int deleteInterestGarbage() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
-					SUBSCRIBE_EXPIRATION_CONDITION, 
-					getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
+			final int expireCount = db.delete(Tables.INTEREST.n, 
+					INTEREST_EXPIRATION_CONDITION, 
+					getRelativeExpirationTime(INTEREST_DELAY_OFFSET));
 			
-			logger.trace("Subscribe garbage {} {}", new Object[] {expireCount, SUBSCRIBE_EXPIRATION_CONDITION} );
+			logger.trace("Interest garbage {} {}", new Object[] {expireCount, INTEREST_EXPIRATION_CONDITION} );
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
+			logger.error("deleteInterestGarbage {}", ex.getLocalizedMessage());
 		} catch (SQLiteException ex) {
-			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
+			logger.error("deleteInterestGarbage {}", ex.getLocalizedMessage());
 		}
 		return 0;
 	}
 	
-	private static final String SUBSCRIBE_EXPIRATION_CONDITION = new StringBuilder()
+	private static final String INTEREST_EXPIRATION_CONDITION = new StringBuilder()
 	.append(RequestField.EXPIRATION.n())
 	.append('<').append('?')
 	.toString();
 
-	private static final long SUBSCRIBE_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
+	private static final long INTEREST_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
 
 	/**
-	 * purge all records from the subscribe table and cascade to the disposal table.
+	 * purge all records from the interest table and cascade to the disposal table.
 	 * @return
 	 */
-	public synchronized int purgeSubscribe() {
+	public synchronized int purgeInterest() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.SUBSCRIBE.qv()});
-			return db.delete(Tables.SUBSCRIBE.n, null, null);
+			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.INTEREST.qv()});
+			return db.delete(Tables.INTEREST.n, null, null);
 		} catch (IllegalArgumentException ex) {
-			logger.error("purgeSubscribe");
+			logger.error("purgeInterest");
 		}
 		return 0;
 	}
@@ -2037,11 +2117,11 @@ public class DistributorDataStore {
 		}
 	}
 
-	protected class MyHelper extends SQLiteOpenHelper {
+	protected class DatastoreHelper extends SQLiteOpenHelper {
 		// ===========================================================
 		// Constants
 		// ===========================================================
-		private final Logger logger = LoggerFactory.getLogger(MyHelper.class);
+		private final Logger logger = LoggerFactory.getLogger(DatastoreHelper.class);
 
 		// ===========================================================
 		// Fields
@@ -2052,7 +2132,7 @@ public class DistributorDataStore {
 		// ===========================================================
 		// Constructors
 		// ===========================================================
-		public MyHelper(Context context, String name, CursorFactory factory, int version) {
+		public DatastoreHelper(Context context, String name, CursorFactory factory, int version) {
 			super(context, name, factory, version);
 		}
 
@@ -2083,9 +2163,8 @@ public class DistributorDataStore {
 				sb.append(" ( ");
 				sb.append(addFieldsToCreation(Arrays.asList(Tables.REQUEST.getFields())));
 				sb.append(addFieldsToCreation(Arrays.asList(Tables.POSTAL.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.PUBLISH.getFields())));
 				sb.append(addFieldsToCreation(Arrays.asList(Tables.RETRIEVAL.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.SUBSCRIBE.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.INTEREST.getFields())));
 				sb.append(");");
 				
 				db.execSQL(sb.toString());
@@ -2102,14 +2181,13 @@ public class DistributorDataStore {
 				sb.append(" ( ");
 				sb.append(addFieldsToCreation(Arrays.asList(Tables.REQUEST.getFields())));
 				sb.append(addFieldsToCreation(Arrays.asList(Tables.POSTAL.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.PUBLISH.getFields())));
 				sb.append(addFieldsToCreation(Arrays.asList(Tables.RETRIEVAL.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.SUBSCRIBE.getFields())));
+				sb.append(addFieldsToCreation(Arrays.asList(Tables.INTEREST.getFields())));
 				sb.append(");");
 				
 				db.execSQL(RequestViewCreate(POSTAL_VIEW_NAME, Tables.POSTAL));
 				db.execSQL(RequestViewCreate(RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL));
-				db.execSQL(RequestViewCreate(SUBSCRIBE_VIEW_NAME, Tables.SUBSCRIBE));
+				db.execSQL(RequestViewCreate(INTEREST_VIEW_NAME, Tables.INTEREST));
 				
 			} catch (SQLException ex) {
 				ex.printStackTrace();

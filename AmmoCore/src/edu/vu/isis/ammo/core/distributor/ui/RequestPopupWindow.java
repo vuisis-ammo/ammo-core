@@ -39,7 +39,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PriorityType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.InterestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
@@ -78,7 +78,7 @@ public class RequestPopupWindow extends PopupWindow {
 		subscribeMap = new HashMap<String, FieldProperty>();
 		subscribeMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
 		subscribeMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
-		subscribeMap.put(SubscribeField.SELECTION.n(), new FieldProperty(R.id.
+		subscribeMap.put(InterestField.SELECTION.n(), new FieldProperty(R.id.
 				dist_detail_selection, FieldType.TEXT));
 		subscribeMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
 		subscribeMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
@@ -123,7 +123,7 @@ public class RequestPopupWindow extends PopupWindow {
 		case POSTAL: 
 			fieldMap = postalMap; 
 			break;
-		case SUBSCRIBE: 
+		case INTEREST: 
 			fieldMap = subscribeMap; 
 			break;
 		case RETRIEVAL: 

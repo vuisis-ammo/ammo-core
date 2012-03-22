@@ -237,7 +237,7 @@ public class DistributorPolicy implements ContentHandler {
 	public Topic matchPostal(String key) {
 		return this.postalPolicy.longestPrefix(key);
 	}
-	public Topic matchSubscribe(String key) {
+	public Topic matchInterest(String key) {
 		return this.subscribePolicy.longestPrefix(key);
 	}
 	public Topic matchRetrieval(String key) {
@@ -542,7 +542,7 @@ public class DistributorPolicy implements ContentHandler {
 				
 				final String subscribeMatch = atts.getValue(uri, "subscribe");
 				if (subscribeMatch != null) {
-					final Topic topic = this.matchSubscribe(type);
+					final Topic topic = this.matchInterest(type);
 					if (! topic.type.equals(subscribeMatch)) {
 						logger.error("subscribe test {} failed {} != {}",
 								new String[]{ title, topic.type, subscribeMatch });

@@ -55,7 +55,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerialMoment;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.InterestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -76,7 +76,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	private static final Logger logger = LoggerFactory.getLogger("ammo-dst");
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
-	private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
+	private static final Marker MARK_INTEREST = MarkerFactory.getMarker("interest");
 	
 	private static final String ACTION_BASE = "edu.vu.isis.ammo.";
 	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
@@ -224,7 +224,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * 
 	 * @param ack
 	 */
-	private void processChannelAck(final Context context, final ChannelAck ack) {
+	private void doChannelAck(final Context context, final ChannelAck ack) {
 		logger.trace("channel ACK {}", ack);
 		final long numUpdated;
 		switch (ack.type) {
@@ -234,8 +234,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		case RETRIEVAL:
 			numUpdated = this.store.updateRetrievalByKey(ack.id, ack.channel, ack.status);
 			break;
-		case SUBSCRIBE:
-			numUpdated = this.store.updateSubscribeByKey(ack.id, ack.channel, ack.status);
+		case INTEREST:
+			numUpdated = this.store.updateInterestByKey(ack.id, ack.channel, ack.status);
 			break;
 		default:
 			logger.warn("invalid ack type {}", ack);
@@ -358,9 +358,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 				this.store.deactivateDisposalStateByChannel(name);
 			}
 
-			this.processSubscribeCache(that);
-			this.processRetrievalCache(that);
-			this.processPostalCache(that);
+			this.doInterestCache(that);
+			this.doRetrievalCache(that);
+			this.doPostalCache(that);
 		}
 
 		try {
@@ -374,7 +374,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 					if (this.channelDelta.getAndSet(false)) {
 						logger.trace("channel change");
 						for (AmmoService that : them) {
-							this.processChannelChange(that);
+							this.doChannelChange(that);
 						}
 					}
 
@@ -382,7 +382,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
 						try {
 							final ChannelAck ack = this.channelAck.take();
-							this.processChannelAck(this.context, ack);
+							this.doChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
 							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -393,7 +393,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
 							for (AmmoService that : them) {
-								this.processResponse(that, agm);
+								this.doResponse(that, agm);
 							}
 						} catch (ClassCastException ex) {
 							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
@@ -405,7 +405,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 						try {
 							final AmmoRequest agm = this.requestQueue.take();
 							for (AmmoService that : them) {
-								this.processRequest(that, agm);
+								this.doRequest(that, agm);
 							}
 						} catch (ClassCastException ex) {
 							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
@@ -442,25 +442,17 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	private boolean processRequest(AmmoService that, AmmoRequest agm) {
+	private boolean doRequest(AmmoService that, AmmoRequest agm) {
 		logger.trace("process request {}", agm);
 		switch (agm.action) {
 		case POSTAL:
-			processPostalRequest(that, agm);
-			break;
-		case DIRECTED_POSTAL:
-			processPostalRequest(that, agm);
-			break;
-		case PUBLISH:
+			doPostalRequest(that, agm);
 			break;
 		case RETRIEVAL:
-			processRetrievalRequest(that, agm);
+			doRetrievalRequest(that, agm);
 			break;
-		case SUBSCRIBE:
-			processSubscribeRequest(that, agm, 1);
-			break;
-		case DIRECTED_SUBSCRIBE:
-			processSubscribeRequest(that, agm, 2);
+		case INTEREST:
+			doInterestRequest(that, agm, 1);
 			break;
 		}
 		return true;
@@ -473,7 +465,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * changed. This is all right it just means that this method may be called
 	 * with no work to do.
 	 */
-	private void processChannelChange(AmmoService that) {
+	private void doChannelChange(AmmoService that) {
 		logger.trace("::processChannelChange()");
 
 		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
@@ -519,11 +511,11 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		this.store.deletePostalGarbage();
 		this.store.deleteRetrievalGarbage();
-		this.store.deleteSubscribeGarbage();
+		this.store.deleteInterestGarbage();
 
-		this.processPostalCache(that);
-		this.processRetrievalCache(that);
-		this.processSubscribeCache(that);
+		this.doPostalCache(that);
+		this.doRetrievalCache(that);
+		this.doInterestCache(that);
 	}
 
 	/**
@@ -534,7 +526,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	private boolean processResponse(Context context, AmmoGatewayMessage agm) {
+	private boolean doResponse(Context context, AmmoGatewayMessage agm) {
 		logger.trace("process response");
 
         if ( !agm.hasValidChecksum() ) {
@@ -562,8 +554,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 		case TERSE_MESSAGE:
-			final boolean subscribeResult = receiveSubscribeResponse(context, mw);
-			logger.debug("subscribe reply {}", subscribeResult);
+			final boolean interestResult = receiveInterestResponse(context, mw);
+			logger.debug("interest reply {}", interestResult);
 			break;
 
 		case AUTHENTICATION_RESULT:
@@ -639,7 +631,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @param handler
 	 * @return
 	 */
-	private void processPostalRequest(final AmmoService that, final AmmoRequest ar) {
+	private void doPostalRequest(final AmmoService that, final AmmoRequest ar) {
 		logger.trace("process request POSTAL");
 
 		// Dispatch the message.
@@ -768,7 +760,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * Check for requests whose delivery policy has not been fully satisfied and
 	 * for which there is, now, an available channel.
 	 */
-	private void processPostalCache(final AmmoService that) {
+	private void doPostalCache(final AmmoService that) {
 		logger.debug(MARK_POSTAL, "process table POSTAL");
 
 		if (!that.isConnected()) 
@@ -996,7 +988,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @param ar
 	 * @param st
 	 */
-	private void processRetrievalRequest(AmmoService that, AmmoRequest ar) {
+	private void doRetrievalRequest(AmmoService that, AmmoRequest ar) {
 		logger.trace("process request RETRIEVAL {} {}", ar.topic.toString(), ar.provider.toString());
 
 		// Dispatch the message.
@@ -1071,7 +1063,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * 
 	 * Garbage collect items which are expired.
 	 */
-	private void processRetrievalCache(AmmoService that) {
+	private void doRetrievalCache(AmmoService that) {
 		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
@@ -1235,7 +1227,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		return true;
 	}
 
-	// =========== SUBSCRIBE ====================
+	// =========== INTEREST ====================
 
 	/**
 	 * Process the subscription request. There are two parts: 1) checking to see
@@ -1250,15 +1242,15 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @param agm
 	 * @param st
 	 */
-	private void processSubscribeRequest(final AmmoService that, final AmmoRequest ar, int st) {
-		logger.trace("process request SUBSCRIBE {}", ar.topic.toString());
+	private void doInterestRequest(final AmmoService that, final AmmoRequest ar, int st) {
+		logger.trace("process request INTEREST {}", ar.topic.toString());
 
 		// Dispatch the message.
 		try {
 			final UUID uuid = UUID.randomUUID();
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
-			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
+			final DistributorPolicy.Topic policy = that.policy().matchInterest(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(RequestField.UUID.cv(), uuid.toString());
@@ -1274,7 +1266,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
 				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-				long key = this.store.upsertSubscribe(values, dispersal);
+				long key = this.store.upsertInterest(values, dispersal);
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
@@ -1283,8 +1275,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				final long id = this.store.upsertSubscribe(values, dispersal);
-				final DistributorState dispatchResult = this.dispatchSubscribeRequest(that, 
+				final long id = this.store.upsertInterest(values, dispersal);
+				final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
 						topic, ar.select.toString(), dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
@@ -1294,12 +1286,12 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		
 							@Override
 							public boolean ack(String channel, DisposalState status) {
-								return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
+								return parent.announceChannelAck(new ChannelAck(Tables.INTEREST, id_, 
 										                                        topic_, auid_, 
 										                                        channel, status));
 							}
 						});
-				this.store.updateSubscribeByKey(id, null, dispatchResult);
+				this.store.updateInterestByKey(id, null, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
@@ -1318,10 +1310,10 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * Garbage collect items which are expired.
 	 */
 
-	private void processSubscribeCache(AmmoService that) {
-		logger.debug(MARK_SUBSCRIBE, "process table SUBSCRIBE");
+	private void doInterestCache(AmmoService that) {
+		logger.debug(MARK_INTEREST, "process table INTEREST");
 
-		final Cursor pending = this.store.querySubscribeReady();
+		final Cursor pending = this.store.queryInterestReady();
 		if (pending == null) return;
 
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
@@ -1331,14 +1323,14 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
 			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
 
-			final String selection = pending.getString(pending.getColumnIndex(SubscribeField.SELECTION.n()));
+			final String selection = pending.getString(pending.getColumnIndex(InterestField.SELECTION.n()));
 
-			logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
+			logger.trace(MARK_INTEREST, "process row INTEREST {} {} {}", new Object[] { id, topic, selection });
 
-			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
+			final DistributorPolicy.Topic policy = that.policy().matchInterest(topic);
 			final DistributorState dispersal = policy.makeRouteMap();
 			{
-				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.SUBSCRIBE.o, id);
+				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.INTEREST.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalChannelField.CHANNEL.n()));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalChannelField.STATE.n()));
@@ -1357,9 +1349,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 					values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					@SuppressWarnings("unused")
-					long numUpdated = this.store.updateSubscribeByKey(id, values, null);
+					long numUpdated = this.store.updateInterestByKey(id, values, null);
 
-					final DistributorState dispatchResult = this.dispatchSubscribeRequest(that, 
+					final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
 							topic, selection, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
 								final DistributorThread parent = DistributorThread.this;
@@ -1369,12 +1361,12 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		
 								@Override
 								public boolean ack(String channel, DisposalState status) {
-									return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
+									return parent.announceChannelAck(new ChannelAck(Tables.INTEREST, id_, 
 											                                        topic_, auid_,  
 											                                        channel, status));
 								}
 							});
-					this.store.updateSubscribeByKey(id, null, dispatchResult);
+					this.store.updateInterestByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
 				logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
@@ -1386,31 +1378,31 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	/**
 	 * Deliver the subscription request to the network service for processing.
 	 */
-	private DistributorState dispatchSubscribeRequest(final AmmoService that, 
+	private DistributorState dispatchInterestRequest(final AmmoService that, 
 			final String topic, final String selection, final DistributorState dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
-		logger.trace("::dispatchSubscribeRequest {}", topic);
+		logger.trace("::dispatchInterestRequest {}", topic);
 
 		/** Message Building */
 
-		final AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
-		subscribeReq.setMimeType(topic);
+		final AmmoMessages.SubscribeMessage.Builder interestReq = AmmoMessages.SubscribeMessage.newBuilder();
+		interestReq.setMimeType(topic);
 
-		if (subscribeReq != null)
-			subscribeReq.setQuery(selection);
+		if (interestReq != null)
+			interestReq.setQuery(selection);
 
 		final RequestSerializer serializer = RequestSerializer.newInstance();
 		serializer.setAction(new RequestSerializer.OnReady() {
 
-			final AmmoMessages.SubscribeMessage.Builder subscribeReq_ = subscribeReq;
+			final AmmoMessages.SubscribeMessage.Builder interestReq_ = interestReq;
 
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
 				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 				mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
 				// mw.setSessionUuid(sessionId);
-				mw.setSubscribeMessage(subscribeReq_);
+				mw.setSubscribeMessage(interestReq_);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
 				return agmb.build();
 			}
@@ -1426,7 +1418,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * The subscribing uri isn't sent with the subscription to the gateway
 	 * therefore it needs to be recovered from the subscription table.
 	 */
-	private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw) {
+	private boolean receiveInterestResponse(Context context, AmmoMessages.MessageWrapper mw) {
 		if (mw == null) {
 			logger.warn("no message");
 			return false;
@@ -1453,9 +1445,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		
 		// final ContentResolver resolver = context.getContentResolver();
 
-		logger.trace("receive response SUBSCRIBE : {}", mime );
+		logger.trace("receive response INTEREST : {}", mime );
 		final String topic = mime;
-		final Cursor cursor = this.store.querySubscribeByKey(new String[] { RequestField.PROVIDER.n() }, topic, null);
+		final Cursor cursor = this.store.queryInterestByKey(new String[] { RequestField.PROVIDER.n() }, topic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no subscription {}", topic);
 			cursor.close();
@@ -1479,7 +1471,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 */
 	public void clearTables() {
 		this.store.purgeRetrieval();
-		this.store.purgeSubscribe();
+		this.store.purgeInterest();
 	}
 
 	// =============== UTILITY METHODS ======================== //

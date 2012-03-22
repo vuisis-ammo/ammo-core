@@ -108,8 +108,8 @@ public class DistributorProvider extends ContentProvider {
 			return dds.deletePostal(selection, selectionArgs);
 		case RETRIEVAL:
 			return dds.deleteRetrieval(selection, selectionArgs);
-		case SUBSCRIBE:
-			return dds.deleteSubscribe(selection, selectionArgs);
+		case INTEREST:
+			return dds.deleteInterest(selection, selectionArgs);
 		case DISPOSAL:
 		case CHANNEL:
 			return -1;
@@ -120,8 +120,8 @@ public class DistributorProvider extends ContentProvider {
 			return dds.deletePostalGarbage();
 		case RETRIEVAL:
 			return dds.deleteRetrievalGarbage();
-		case SUBSCRIBE:
-			return dds.deleteSubscribeGarbage();
+		case INTEREST:
+			return dds.deleteInterestGarbage();
 		case DISPOSAL:
 		case CHANNEL:
 			return -1;
@@ -154,8 +154,8 @@ public class DistributorProvider extends ContentProvider {
 		case RETRIEVAL:
 			cursor = dds.queryRetrieval(projection, selection, selectionArgs, sortOrder);
 			break;
-		case SUBSCRIBE:
-			cursor = dds.querySubscribe(projection, selection, selectionArgs, sortOrder);
+		case INTEREST:
+			cursor = dds.queryInterest(projection, selection, selectionArgs, sortOrder);
 			break;
 		case DISPOSAL:
 			cursor = dds.queryDisposal(projection, selection, selectionArgs, sortOrder);

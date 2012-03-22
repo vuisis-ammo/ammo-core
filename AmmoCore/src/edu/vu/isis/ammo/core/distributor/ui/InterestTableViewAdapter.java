@@ -25,11 +25,11 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
  * Each row of the table view is formatted a certain way based on the disposition 
  * of the corresponding row in the content provider's table.
  */
-public class SubscribeTableViewAdapter extends DistributorTableViewAdapter
+public class InterestTableViewAdapter extends DistributorTableViewAdapter
 {
-	public static final Logger logger = LoggerFactory.getLogger(SubscribeTableViewAdapter.class);
+	public static final Logger logger = LoggerFactory.getLogger(InterestTableViewAdapter.class);
 
-	public SubscribeTableViewAdapter(Context context, int layout, Cursor cursor) 
+	public InterestTableViewAdapter(Context context, int layout, Cursor cursor) 
 	{
 		super(context, layout, cursor);
 	}

@@ -42,7 +42,7 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  * 
  * This is to be used primarily for testing (move to AmmoCoreTestDummy?)
  */
-public class Subscribe extends ActivityEx implements OnClickListener {
+public class Interest extends ActivityEx implements OnClickListener {
 	private static final Logger logger = LoggerFactory.getLogger("ammo:api-d");
 	
 	// ===========================================================
@@ -98,7 +98,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 			Uri selectedUri = selectionListener.getLastSelectedUri();
 			String selectedMime = selectionListener.getMime();
         	if (selectedUri == null) {
-        		Toast.makeText(Subscribe.this, "No content selected", Toast.LENGTH_SHORT).show();
+        		Toast.makeText(Interest.this, "No content selected", Toast.LENGTH_SHORT).show();
         		return;
         	}
         	
@@ -111,7 +111,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
             	values.put(RequestField.DISPOSITION.cv(), DisposalState.PENDING.cv());
             	// cr.insert(RequestField.CONTENT_URI, values);
             	
-            	Toast.makeText(Subscribe.this, 
+            	Toast.makeText(Interest.this, 
             			       "Subscribed to content " + selectedUri.toString(), 
             			       Toast.LENGTH_SHORT)
             	     .show();
@@ -127,7 +127,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
 							ex.getLocalizedMessage());
 				}	
         	} else {
-        		Toast.makeText(Subscribe.this, "Already subscribed to this content", Toast.LENGTH_SHORT).show();
+        		Toast.makeText(Interest.this, "Already subscribed to this content", Toast.LENGTH_SHORT).show();
         	}
 		}
 	}

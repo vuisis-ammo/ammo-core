@@ -48,7 +48,7 @@ public class DistributorTabActivity extends TabActivityEx  {
 			spec.setContent(intent);
 			tabHost.addTab(spec);
 			
-			intent = new Intent().setClass(this, SubscribeTableViewer.class);
+			intent = new Intent().setClass(this, InterestTableViewer.class);
 			spec = tabHost.newTabSpec("subscribe");
 			spec.setIndicator("Subscribe", res.getDrawable(R.drawable.subscribe_32));
 			spec.setContent(intent);

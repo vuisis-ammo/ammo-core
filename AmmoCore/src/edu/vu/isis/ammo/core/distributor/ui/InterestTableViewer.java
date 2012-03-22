@@ -19,22 +19,22 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
-public class SubscribeTableViewer extends DistributorTableViewer {
+public class InterestTableViewer extends DistributorTableViewer {
 
 	private TextView tvLabel;
 	
-	public SubscribeTableViewer() {
-		super(Tables.SUBSCRIBE);
+	public InterestTableViewer() {
+		super(Tables.INTEREST);
 	}
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.SUBSCRIBE.n);
+		this.uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.INTEREST.n);
 		
 		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 RequestField._ID + " DESC");
 		
-		this.adapter = new SubscribeTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
+		this.adapter = new InterestTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
 		
 		super.onCreate(bun);
 	}
