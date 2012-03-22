@@ -17,7 +17,7 @@
    <string name="network_gw_disable">transapps_settings_network_gateway_disabled</string> 
    <string name="network_gw_host">transapps_settings_network_gw_host</string>
    <string name="network_gw_port">CORE_IP_PORT</string>
-   <string name="network_gw_timeout_flat_line">FLAT_LINE_TIME</string>
+   <string name="network_gw_timeout_flat_line">CORE_FLAT_LINE_TIME</string>
    <string name="network_gw_timeout_connect">CORE_SOCKET_TIMEOUT</string>
   
    <!--  Multicast channel -->
