@@ -310,6 +310,16 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					this.refresh();
 					return START_NOT_STICKY;
 				}
+				if (action.equals(AmmoSettingsAvailabiltyReceiver.ACTION_AVAILABLE)) {
+					this.globalSettings.reload();
+					this.acquirePreferences();
+					return START_NOT_STICKY;
+				}
+				if (action.equals(AmmoSettingsAvailabiltyReceiver.ACTION_UNAVAILABLE)) {
+					this.globalSettings.reload();
+					this.acquirePreferences();
+					return START_NOT_STICKY;
+				}
 			}
 			logger.info("::onStartCommand {}", intent);
 		} 
@@ -320,7 +330,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	private PhoneStateListener mListener;
 	
-	private SharedPreferences globalSettings;  // from tasettings
+	private Settings globalSettings;  // from tasettings
 	private SharedPreferences localSettings;   // local copy
 
 	/**
