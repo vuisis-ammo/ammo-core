@@ -73,11 +73,11 @@
                    max_bytes="4M"/>
     <pbcast.GMS print_local_addr="true" join_timeout="3000"
                 view_bundling="true"/>
--->
     <UFC max_credits="2M"
          min_threshold="0.4"/>
     <MFC max_credits="2M"
          min_threshold="0.4"/>
+-->
     <FRAG2 frag_size="1400"  />
 <!--
     <pbcast.STATE_TRANSFER />
