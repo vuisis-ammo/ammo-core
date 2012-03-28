@@ -28,6 +28,7 @@ import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
+import android.database.sqlite.SQLiteDiskIOException;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
@@ -56,7 +57,7 @@ public class DistributorDataStore {
 	// ===========================================================
 	private final Context context;
 	private SQLiteDatabase db;
-	private final DatastoreHelper helper;
+	private final DataStoreHelper helper;
 	// ===========================================================
 	// Schema
 	// ===========================================================
@@ -1211,7 +1212,7 @@ public class DistributorDataStore {
 
 	public DistributorDataStore(Context context) {
 		this.context = context;
-		this.helper = new DatastoreHelper(this.context, Tables.NAME, null, VERSION);
+		this.helper = new DataStoreHelper(this.context, Tables.NAME, null, VERSION);
 
 		// ========= INITIALIZE CONSTANTS ========
 		this.applDir = context.getDir("support", Context.MODE_PRIVATE);
@@ -1243,15 +1244,24 @@ public class DistributorDataStore {
 	}
 
 
+	/**
+	 * It is possible for the distributor database to become corrupted.
+	 * While this is not a common behavior it does happen from time to time.
+	 * It is believed that this is caused by abrupt shutdown of the service.
+	 * 
+	 */
 	public synchronized DistributorDataStore openRead() {
 		if (this.db != null && this.db.isReadOnly()) return this;
-		this.db = this.helper.getReadableDatabase();
-		return this;
+	
+	    this.db = this.helper.getReadableDatabase();
+	    return this;
 	}
+	
 	public synchronized DistributorDataStore openWrite() {
 		if (this.db != null && this.db.isOpen() && ! this.db.isReadOnly()) this.db.close();
+	
 		this.db = this.helper.getWritableDatabase();
-		return this;
+	    return this;
 	}
 
 	public synchronized void close() {
@@ -2117,22 +2127,22 @@ public class DistributorDataStore {
 		}
 	}
 
-	protected class DatastoreHelper extends SQLiteOpenHelper {
+	protected class DataStoreHelper extends SQLiteOpenHelper {
 		// ===========================================================
 		// Constants
 		// ===========================================================
-		private final Logger logger = LoggerFactory.getLogger(DatastoreHelper.class);
+		private final Logger logger = LoggerFactory.getLogger(DataStoreHelper.class);
 
 		// ===========================================================
 		// Fields
 		// ===========================================================
 
-		/** Nothing to put here */
-
 		// ===========================================================
 		// Constructors
 		// ===========================================================
-		public DatastoreHelper(Context context, String name, CursorFactory factory, int version) {
+		public DataStoreHelper(Context context, 
+				String name, CursorFactory factory, int version) 
+		{
 			super(context, name, factory, version);
 		}
 
@@ -2155,7 +2165,7 @@ public class DistributorDataStore {
 		
 		@Override
 		public synchronized void onCreate(SQLiteDatabase db) {
-			logger.info("Bootstrapping database");
+			logger.info("bootstrapping database");
 
 			try {	
 				final StringBuilder sb = new StringBuilder().append("CREATE TABLE ");
@@ -2233,6 +2243,56 @@ public class DistributorDataStore {
 		public synchronized void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 			logger.warn("Upgrading database from version {} to {} which will destroy all old data",
 					oldVersion, newVersion);
+			this.clear(db);
+			
+			onCreate(db);
+		}
+		
+		/**
+		 * Called when the database has been opened. 
+		 * The implementation checks isReadOnly() before updating the database.
+		 */
+		@Override
+		public void onOpen (SQLiteDatabase db) {
+			// Examine or otherwise prepare the database
+		}
+
+		@Override
+		public synchronized SQLiteDatabase getWritableDatabase() {
+			try {
+			   return super.getWritableDatabase();
+		  
+			} catch (SQLiteDiskIOException ex) {
+				logger.error("corrupted database {}", ex.getLocalizedMessage());
+			}
+			try {
+			   this.archive();
+			   return super.getReadableDatabase();
+			} catch (SQLiteException ex) {
+				logger.error("unrecoverablly corrupted database {}", ex.getLocalizedMessage());
+			}
+			return null;
+		}
+		
+		@Override
+		public synchronized SQLiteDatabase getReadableDatabase() {
+			try {
+			   return super.getReadableDatabase();
+			} catch (SQLiteDiskIOException ex) {
+				logger.error("corrupted database {}", ex.getLocalizedMessage());		
+			}
+			try {
+				this.archive();
+			   return super.getReadableDatabase();
+			} catch (SQLiteException ex) {
+				logger.error("unrecoverablly corrupted database {}", ex.getLocalizedMessage());
+			}
+			return null;
+		}
+		
+	
+
+		public synchronized void clear(SQLiteDatabase db) {
 			for (Tables table : Tables.values()) {
 				try {
 					db.execSQL(table.sqlDrop().toString());
@@ -2240,10 +2300,33 @@ public class DistributorDataStore {
 					logger.warn("defective database being dropped {}", ex.getLocalizedMessage());
 				}
 			}
-			onCreate(db);
 		}
-
+		
+		public synchronized boolean archive() {
+			logger.info("archival corrupt database");
+			if (db == null) {
+				logger.warn("missing database");
+				return false;
+			} 
+			db.close();
+			db.releaseReference();
+			
+			final File backup = context.getDatabasePath("corrupted.db");  
+			// new File(Environment.getExternalStorageDirectory(), Tables.NAME);
+			if (backup.exists()) backup.delete();
+			
+			final File original = context.getDatabasePath(Tables.NAME);
+			logger.info("backup of database {} -> {}", original, backup);
+			if (original.renameTo(backup)) {
+				logger.info("archival succeeded");
+				return true;
+			}
+			if (! context.deleteDatabase(Tables.NAME)) {
+				logger.warn("file should have been renamed, deleted instead"); 
+			}
+			return false;
+		}
 	}
-
+	
 
 }
