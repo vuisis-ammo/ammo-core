@@ -2241,7 +2241,7 @@ public class DistributorDataStore {
 
 		@Override
 		public synchronized void onCreate(SQLiteDatabase db) {
-			logger.info("Bootstrapping database");
+			logger.trace("Bootstrapping database");
 
 			try {
 				final StringBuilder sb = new StringBuilder();

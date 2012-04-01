@@ -108,7 +108,7 @@ public class TcpChannel extends NetChannel {
 
 	private TcpChannel(String name, IChannelManager iChannelManager ) {
 		super(name);
-		logger.info("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
+		logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
 		this.syncObj = this;
 
 		mIsAuthorized = new AtomicBoolean( false );
@@ -146,7 +146,7 @@ public class TcpChannel extends NetChannel {
 
                 // if (! this.connectorThread.isAlive()) this.connectorThread.start();
 
-                logger.info("::enable - Setting the state to STALE");
+                logger.trace("::enable - Setting the state to STALE");
                 this.shouldBeDisabled = false;
                 this.connectorThread.state.set(NetChannel.STALE);
             }
@@ -158,7 +158,7 @@ public class TcpChannel extends NetChannel {
 		synchronized (this.syncObj) {
             if ( this.isEnabled ) {
                 this.isEnabled = false;
-                logger.info("::disable - Setting the state to DISABLED");
+                logger.trace("::disable - Setting the state to DISABLED");
                 this.shouldBeDisabled = true;
                 this.connectorThread.state.set(NetChannel.DISABLED);
                 // this.connectorThread.stop();
@@ -186,14 +186,14 @@ public class TcpChannel extends NetChannel {
 	}
 
 	public boolean setHost(String host) {
-		logger.info("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
+		logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
 		if ( gatewayHost != null && gatewayHost.equals(host) ) return false;
 		this.gatewayHost = host;
 		this.reset();
 		return true;
 	}
 	public boolean setPort(int port) {
-		logger.info("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
+		logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
 		if (gatewayPort == port) return false;
 		this.gatewayPort = port;
 		this.reset();
@@ -218,7 +218,7 @@ public class TcpChannel extends NetChannel {
 	public void reset() {
 		// PLogger.proc_debug("reset ")
 		logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
-		logger.info("connector: {} sender: {} receiver: {}",
+		logger.trace("connector: {} sender: {} receiver: {}",
                     new Object[] {
                         this.connectorThread.showState(),
                         (this.mSender == null ? "none" : this.mSender.getSenderState()),
@@ -267,7 +267,7 @@ public class TcpChannel extends NetChannel {
 
 	private void setIsAuthorized( boolean iValue )
 	{
-		logger.info( "In setIsAuthorized(). value={}", iValue );
+		logger.trace( "In setIsAuthorized(). value={}", iValue );
 
 		mIsAuthorized.set( iValue );
 	}
@@ -306,12 +306,12 @@ public class TcpChannel extends NetChannel {
 		final boolean result;
 		if ( mIsAuthorized.get() )
 		{
-			logger.info( " delivering to channel manager" );
+			logger.trace( " delivering to channel manager" );
 			result = mChannelManager.deliver( agm );
 		}
 		else
 		{
-			logger.info( " delivering to security object" );
+			logger.trace( " delivering to security object" );
 			ISecurityObject so = getSecurityObject();
 			if (so == null) {
 				logger.warn("security object not set");
@@ -431,7 +431,7 @@ public class TcpChannel extends NetChannel {
 
 
 		private ConnectorThread(TcpChannel parent) {
-			logger.info("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
+			logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.state = new State();
 			mIsConnected = new AtomicBoolean( false );
@@ -454,7 +454,7 @@ public class TcpChannel extends NetChannel {
 				this.reset();
 			}
 			public synchronized void set(int state) {
-				logger.info("Thread <{}>State::set", 
+				logger.trace("Thread <{}>State::set", 
 						Thread.currentThread().getId());
                 if ( state == STALE ) {
 					this.reset();
@@ -471,7 +471,7 @@ public class TcpChannel extends NetChannel {
 			 * @return false if disabled; true otherwise
 			 */
 			public synchronized boolean setUnlessDisabled(int state) {
-				logger.info("Thread <{}>State::setUnlessDisabled", 
+				logger.trace("Thread <{}>State::setUnlessDisabled", 
 						Thread.currentThread().getId());
 				if (state == DISABLED) return false;
 				this.set(state);
@@ -556,23 +556,23 @@ public class TcpChannel extends NetChannel {
         @Override
         public void run() {
             try {
-                logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+                logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
                 MAINTAIN_CONNECTION: while (true) {
-                    logger.info("connector state: {}",this.showState());
+                    logger.trace("connector state: {}",this.showState());
 
                     if(this.parent.shouldBeDisabled) this.state.set(NetChannel.DISABLED);
                     switch (this.state.get()) {
                     case NetChannel.DISABLED:
                         try {
                             synchronized (this.state) {
-                                logger.info("this.state.get() = {}", this.state.get());
+                                logger.trace("this.state.get() = {}", this.state.get());
                                 this.parent.statusChange();
                                 disconnect();
 
                                 // Wait for a link interface.
                                 while (this.state.isDisabled())
                                 {
-                                    logger.info("Looping in Disabled");
+                                    logger.trace("Looping in Disabled");
                                     this.state.wait(BURP_TIME);
                                 }
                             }
@@ -628,7 +628,7 @@ public class TcpChannel extends NetChannel {
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
-                            logger.info("sleep interrupted - intentional disable, exiting thread ...");
+                            logger.trace("sleep interrupted - intentional disable, exiting thread ...");
                             this.reset();
                             break MAINTAIN_CONNECTION;
                         }
@@ -673,7 +673,7 @@ public class TcpChannel extends NetChannel {
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
-                            logger.info("sleep interrupted - intentional disable, exiting thread ...");
+                            logger.trace("sleep interrupted - intentional disable, exiting thread ...");
                             this.reset();
                             break MAINTAIN_CONNECTION;
                         }
@@ -699,7 +699,7 @@ public class TcpChannel extends NetChannel {
 
         private boolean connect()
         {
-            logger.info( "Thread <{}>ConnectorThread::connect",
+            logger.trace( "Thread <{}>ConnectorThread::connect",
                          Thread.currentThread().getId() );
 
             // Resolve the hostname to an IP address.
@@ -787,7 +787,7 @@ public class TcpChannel extends NetChannel {
 
         private boolean disconnect()
         {
-            logger.info( "Thread <{}>ConnectorThread::disconnect",
+            logger.trace( "Thread <{}>ConnectorThread::disconnect",
                          Thread.currentThread().getId() );
             try
             {
@@ -817,7 +817,7 @@ public class TcpChannel extends NetChannel {
                     {
                         logger.debug( "SocketChannel had no underlying socket!" );
                     }
-                    logger.info( "Closing SocketChannel..." );
+                    logger.trace( "Closing SocketChannel..." );
                     parent.mSocketChannel.close();
                     parent.mSocketChannel = null;
                 }
@@ -888,7 +888,7 @@ public class TcpChannel extends NetChannel {
         // AmmoService know if the outgoing queue is full or not?
         public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
-            logger.info( "putFromDistributor()" );
+            logger.trace( "putFromDistributor()" );
             try {
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
 					logger.warn("channel not taking messages {}", ChannelDisposal.BUSY );
@@ -903,14 +903,14 @@ public class TcpChannel extends NetChannel {
 
         public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
         {
-            logger.info( "putFromSecurityObject()" );
+            logger.trace( "putFromSecurityObject()" );
             mAuthQueue.offer( iMessage );
         }
 
 
         public synchronized void finishedPuttingFromSecurityObject()
         {
-            logger.info( "finishedPuttingFromSecurityObject()" );
+            logger.trace( "finishedPuttingFromSecurityObject()" );
             notifyAll();
         }
 
@@ -919,14 +919,14 @@ public class TcpChannel extends NetChannel {
         // authorized the channel.
         public synchronized void markAsAuthorized()
         {
-            logger.info( "Marking channel as authorized" );
+            logger.trace( "Marking channel as authorized" );
             notifyAll();
         }
 
 
         public synchronized AmmoGatewayMessage take() throws InterruptedException
         {
-            logger.info( "taking from SenderQueue" );
+            logger.trace( "taking from SenderQueue" );
             if ( mChannel.getIsAuthorized() )
             {
                 // This is where the authorized SenderThread blocks.
@@ -942,7 +942,7 @@ public class TcpChannel extends NetChannel {
                 }
                 else
                 {
-                    logger.info( "wait()ing in SenderQueue" );
+                    logger.trace( "wait()ing in SenderQueue" );
                     wait(); // This is where the SenderThread blocks.
 
                     if ( mChannel.getIsAuthorized() )
@@ -964,7 +964,7 @@ public class TcpChannel extends NetChannel {
         // Somehow synchronize this here.
         public synchronized void reset()
         {
-            logger.info( "reset()ing the SenderQueue" );
+            logger.trace( "reset()ing the SenderQueue" );
             // Tell the distributor that we couldn't send these
             // packets.
             AmmoGatewayMessage msg = mDistQueue.poll();
@@ -1007,7 +1007,7 @@ public class TcpChannel extends NetChannel {
         @Override
         public void run()
         {
-            logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
+            logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the queue until we get a message to send.
             // Then send it on the socket channel. Upon getting a socket error,
@@ -1036,7 +1036,8 @@ public class TcpChannel extends NetChannel {
                     setSenderState( INetChannel.SENDING );
                     @SuppressWarnings("unused")
                         int bytesWritten = mSocketChannel.write( buf );
-                    logger.info( "Wrote packet to SocketChannel" );
+
+                    logger.info( "Send packet to Network, size ({})", bytesWritten );
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
@@ -1095,7 +1096,7 @@ public class TcpChannel extends NetChannel {
         @Override
         public void run()
         {
-            logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
+            logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
 
 
             ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
@@ -1159,9 +1160,11 @@ public class TcpChannel extends NetChannel {
                             bbuf.get(payload, offset, size);
 
                             AmmoGatewayMessage agm = agmb.payload(payload).build();
+			    logger.info( "Received a packet from gateway size({})", agm.size  );
+
                             setReceiverState( INetChannel.DELIVER );
                             mDestination.deliverMessage( agm );
-                            logger.info( "processed a message {}", 
+                            logger.trace( "processed a message {}", 
                                          Long.toHexString(agm.payload_checksum) );
                             break;
                         }

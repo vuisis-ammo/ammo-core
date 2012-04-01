@@ -102,14 +102,14 @@ public class RequestSerializer {
 		this.readyActor = new RequestSerializer.OnReady() {
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
-				logger.info("ready actor not defined {}", encode);
+				logger.trace("ready actor not defined {}", encode);
 				return null;
 			}
 		};	
 		this.serializeActor = new RequestSerializer.OnSerialize() {
 			@Override
 			public byte[] run(Encoding encode) {
-				logger.info("serialize actor not defined {}", encode);
+				logger.trace("serialize actor not defined {}", encode);
 				return null;
 			}
 		};
@@ -123,34 +123,34 @@ public class RequestSerializer {
 	}
 
 	public ChannelDisposal act(final AmmoService that, final Encoding encode, final String channel) {
+	    final RequestSerializer parent = RequestSerializer.this;
+	    final Encoding local_encode = encode;
+	    final String local_channel = channel;
+	    if (parent.agm == null) {
+		final byte[] agmBytes = parent.serializeActor.run(local_encode);
+		parent.agm = parent.readyActor.run(local_encode, agmBytes);
+	    }
+	    if (parent.agm == null)
+		return null;
+	    that.sendRequest(parent.agm, local_channel);
 
-		final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
-			final RequestSerializer parent = RequestSerializer.this;
-			final Encoding local_encode = encode;
-			final String local_channel = channel;
-			@Override
-			protected Void doInBackground(Void...none) {
-				if (parent.agm == null) {
-					final byte[] agmBytes = parent.serializeActor.run(local_encode);
-					parent.agm = parent.readyActor.run(local_encode, agmBytes);
-				}
-				if (parent.agm == null)
-					return null;
-				that.sendRequest(parent.agm, local_channel);
-				return null;
-			}
+	    // final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
+	    // 	@Override
+	    // 	protected Void doInBackground(Void...none) {
+	    // 	    return null;
+	    // 	}
 
-			@Override
-			protected void onProgressUpdate(Void... none) {
-			}
+	    // 	@Override
+	    // 	protected void onProgressUpdate(Void... none) {
+	    // 	}
 
-			@Override
-			protected void onPostExecute(Void result) {
-			}
-		};
+	    // 	@Override
+	    // 	protected void onPostExecute(Void result) {
+	    // 	}
+	    // };
+	    // action.execute();
 
-		action.execute();
-		return ChannelDisposal.QUEUED;
+	    return ChannelDisposal.QUEUED;
 	}
 
 	public void setAction(OnReady action) {
@@ -228,6 +228,8 @@ public class RequestSerializer {
 			tuple = json.toString().getBytes();
 			tupleCursor.close(); 
 
+			logger.info("Serialized message, content {}", json.toString() );
+ 
 			logger.trace("Serialize the blob data (if any)");
 
 			logger.trace("getting the names of the blob fields");
@@ -278,7 +280,7 @@ public class RequestSerializer {
 					fieldBlobList.add(fieldBlob);
 
 				} catch (IOException ex) {
-					logger.info("unable to create stream {} {}",serialUri, ex.getMessage());
+					logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
 					throw new FileNotFoundException("Unable to create stream");
 				}
 			}
@@ -498,6 +500,7 @@ public class RequestSerializer {
 					logger.warn("could not insert {} into {}", cv, provider);
 					return null;
 				}
+				logger.info("Deserialized Received message, content {}", cv);
 			} catch (JSONException ex) {
 				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
 				return null;

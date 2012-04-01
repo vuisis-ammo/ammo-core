@@ -74,7 +74,7 @@ public class WiredNetlink extends Netlink
 
         public void onServiceDisconnected( ComponentName name )
         {
-            logger.info( "::onServiceDisconnected - Ethernet tracking service" );
+            logger.trace( "::onServiceDisconnected - Ethernet tracking service" );
             ethernetServiceBinder = null;
         }
     };

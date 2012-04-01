@@ -166,7 +166,7 @@ public class DistributorPolicy implements ContentHandler {
 			this.setDefaultRule();
 		}
 
-		logger.info("routing policy:\n {}",this);
+		logger.trace("routing policy:\n {}",this);
 	}
 
 	@Override

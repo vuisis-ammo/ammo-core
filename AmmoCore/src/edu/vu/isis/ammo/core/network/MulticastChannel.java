@@ -115,7 +115,7 @@ public class MulticastChannel extends NetChannel
     private MulticastChannel(String name, IChannelManager iChannelManager ) {
         super(name);
 
-        logger.info("Thread <{}>MulticastChannel::<constructor>", Thread.currentThread().getId());
+        logger.trace("Thread <{}>MulticastChannel::<constructor>", Thread.currentThread().getId());
         this.syncObj = this;
 
         mIsAuthorized = new AtomicBoolean( false );
@@ -199,7 +199,7 @@ public class MulticastChannel extends NetChannel
     }
 
     public boolean setHost(String host) {
-        logger.info("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
+        logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
         if ( this.mMulticastAddress != null && this.mMulticastAddress.equals(host) ) return false;
         this.mMulticastAddress = host;
         this.reset();
@@ -207,7 +207,7 @@ public class MulticastChannel extends NetChannel
     }
 
     public boolean setPort(int port) {
-        logger.info("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
+        logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
         if (this.mMulticastPort == port) return false;
         this.mMulticastPort = port;
         this.reset();
@@ -215,7 +215,7 @@ public class MulticastChannel extends NetChannel
     }
 
     public void setTTL( int ttl ) {
-        logger.info("Thread <{}>::setTTL {}", Thread.currentThread().getId(), ttl);
+        logger.trace("Thread <{}>::setTTL {}", Thread.currentThread().getId(), ttl);
         this.mMulticastTTL.set( ttl );
     }
 
@@ -234,7 +234,7 @@ public class MulticastChannel extends NetChannel
      */
     public void reset() {
         logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
-        logger.info("connector: {} sender: {} receiver: {}",
+        logger.trace("connector: {} sender: {} receiver: {}",
                     new Object[] {
                         this.connectorThread.showState(),
                         (this.mSender == null ? "none" : this.mSender.getSenderState()),
@@ -283,7 +283,7 @@ public class MulticastChannel extends NetChannel
 
     private void setIsAuthorized( boolean iValue )
     {
-        logger.info( "In setIsAuthorized(). value={}", iValue );
+        logger.trace( "In setIsAuthorized(). value={}", iValue );
 
         mIsAuthorized.set( iValue );
     }
@@ -317,17 +317,17 @@ public class MulticastChannel extends NetChannel
     // appropriate destination.
     private boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.error( "In deliverMessage() {} ", agm );
+        logger.trace( "deliverMessage() {} ", agm );
 
         boolean result;
         if ( mIsAuthorized.get() )
         {
-            logger.info( " delivering to channel manager" );
+            logger.trace( " delivering to channel manager" );
             result = mChannelManager.deliver( agm );
         }
         else
         {
-            logger.info( " delivering to security object" );
+            logger.trace( " delivering to security object" );
             result = getSecurityObject().deliverMessage( agm );
         }
         return result;
@@ -372,7 +372,7 @@ public class MulticastChannel extends NetChannel
         if ( nowInMillis < mNextHeartbeatTime.get() ) return;
 
         // Send the heartbeat here.
-        logger.warn( "Sending a heartbeat. t={}", nowInMillis );
+        logger.trace( "Sending a heartbeat. t={}", nowInMillis );
 
         // Create a heartbeat message and call the method to send it.
         final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
@@ -428,7 +428,7 @@ public class MulticastChannel extends NetChannel
 
 
         private ConnectorThread( MulticastChannel parent ) {
-            logger.info("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
+            logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
             this.parent = parent;
             this.state = new State();
             mIsConnected = new AtomicBoolean( false );
@@ -451,7 +451,7 @@ public class MulticastChannel extends NetChannel
                 this.reset();
             }
             public synchronized void set(int state) {
-                logger.info("Thread <{}>State::set", 
+                logger.trace("Thread <{}>State::set", 
                 		Thread.currentThread().getId());
                 if ( state == STALE ) {
 					this.reset();
@@ -468,7 +468,7 @@ public class MulticastChannel extends NetChannel
 			 * @return false if disabled; true otherwise
 			 */
 			public synchronized boolean setUnlessDisabled(int state) {
-				logger.info("Thread <{}>State::setUnlessDisabled", 
+				logger.trace("Thread <{}>State::setUnlessDisabled", 
 						Thread.currentThread().getId());
 				if (state == DISABLED) return false;
 				this.set(state);
@@ -553,23 +553,23 @@ public class MulticastChannel extends NetChannel
         @Override
         public void run() {
             try {
-                logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+                logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
                 MAINTAIN_CONNECTION: while (true) {
-                    logger.info("connector state: {}",this.showState());
+                    logger.trace("connector state: {}",this.showState());
 
                     if(this.parent.shouldBeDisabled) this.state.set(NetChannel.DISABLED);
                     switch (this.state.get()) {
                     case NetChannel.DISABLED:
                         try {
                             synchronized (this.state) {
-                                logger.info("this.state.get() = {}", this.state.get());
+                                logger.trace("this.state.get() = {}", this.state.get());
                                 this.parent.statusChange();
                                 disconnect();
 
                                 // Wait for a link interface.
                                 while (this.state.isDisabled())
                                 {
-                                    logger.info("Looping in Disabled");
+                                    logger.trace("Looping in Disabled");
                                     this.state.wait(BURP_TIME);
                                 }
                             }
@@ -625,7 +625,7 @@ public class MulticastChannel extends NetChannel
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
-                            logger.info("sleep interrupted - intentional disable, exiting thread ...");
+                            logger.warn("sleep interrupted - intentional disable, exiting thread ... {}", ex.getStackTrace());
                             this.reset();
                             break MAINTAIN_CONNECTION;
                         }
@@ -638,8 +638,8 @@ public class MulticastChannel extends NetChannel
                                 synchronized (this.state) {
                                     while (this.isConnected()) // this is IMPORTANT don't remove it.
                                     {
-                                        if ( HEARTBEAT_ENABLED )
-                                            parent.sendHeartbeatIfNeeded();
+                                        // if ( HEARTBEAT_ENABLED )
+                                        //     parent.sendHeartbeatIfNeeded();
 
                                         // wait for somebody to change the connection status
                                         this.state.wait(BURP_TIME);
@@ -663,7 +663,7 @@ public class MulticastChannel extends NetChannel
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
-                            logger.info("sleep interrupted - intentional disable, exiting thread ...");
+                            logger.warn("sleep interrupted - intentional disable, exiting thread ...{}", ex.getStackTrace());
                             this.reset();
                             break MAINTAIN_CONNECTION;
                         }
@@ -671,7 +671,7 @@ public class MulticastChannel extends NetChannel
                 }
 
             } catch (Exception ex) {
-                logger.warn("failed to run multicast {}", ex.getLocalizedMessage());
+                logger.error("failed to run multicast {}", ex.getLocalizedMessage());
                 this.state.set(NetChannel.EXCEPTION);
             }
             try {
@@ -690,7 +690,7 @@ public class MulticastChannel extends NetChannel
 
         private boolean connect()
         {
-            logger.info( "Thread <{}>ConnectorThread::connect",
+            logger.trace( "Thread <{}>ConnectorThread::connect",
                          Thread.currentThread().getId() );
 
             try
@@ -761,7 +761,7 @@ public class MulticastChannel extends NetChannel
 
         private boolean disconnect()
         {
-            logger.info( "Thread <{}>ConnectorThread::disconnect",
+            logger.trace( "Thread <{}>ConnectorThread::disconnect",
                          Thread.currentThread().getId() );
             try
             {
@@ -805,7 +805,7 @@ public class MulticastChannel extends NetChannel
             }
             catch ( Exception e )
             {
-                logger.error( "Caught Exception" );
+                logger.error( "Caught Exception {}", e.getStackTrace() );
                 // Do this here, too, since if we exited early because
                 // of an exception, we want to make sure that we're in
                 // an unauthorized state.
@@ -863,10 +863,10 @@ public class MulticastChannel extends NetChannel
         // AmmoService know if the outgoing queue is full or not?
         public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
         {
-            logger.info( "putFromDistributor()" );
+            logger.info( "putFromDistributor() in ChannelQueue size={}", mDistQueue.size() );
             try {
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
-					logger.warn("multicast channel not taking messages {}", ChannelDisposal.BUSY );
+				    logger.warn("multicast channel not taking messages {} {}", ChannelDisposal.BUSY, mDistQueue.size() );
 				    return ChannelDisposal.BUSY;
 				}
 			} catch (InterruptedException e) {
@@ -878,14 +878,14 @@ public class MulticastChannel extends NetChannel
 
         public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
         {
-            logger.info( "putFromSecurityObject()" );
+            logger.trace( "putFromSecurityObject()" );
             mAuthQueue.offer( iMessage );
         }
 
 
         public synchronized void finishedPuttingFromSecurityObject()
         {
-            logger.info( "finishedPuttingFromSecurityObject()" );
+            logger.trace( "finishedPuttingFromSecurityObject()" );
             notifyAll();
         }
 
@@ -894,14 +894,14 @@ public class MulticastChannel extends NetChannel
         // authorized the channel.
         public synchronized void markAsAuthorized()
         {
-            logger.info( "Marking channel as authorized" );
+            logger.trace( "Marking channel as authorized" );
             notifyAll();
         }
 
 
         public synchronized AmmoGatewayMessage take() throws InterruptedException
         {
-            logger.info( "taking from SenderQueue" );
+            logger.info( "taking from SenderQueue - queue size: {}", mDistQueue.size() );
             if ( mChannel.getIsAuthorized() )
             {
                 // This is where the authorized SenderThread blocks.
@@ -917,7 +917,7 @@ public class MulticastChannel extends NetChannel
                 }
                 else
                 {
-                    logger.info( "wait()ing in SenderQueue" );
+                    logger.trace( "wait()ing in SenderQueue" );
                     wait(); // This is where the SenderThread blocks.
 
                     if ( mChannel.getIsAuthorized() )
@@ -939,7 +939,7 @@ public class MulticastChannel extends NetChannel
         // Somehow synchronize this here.
         public synchronized void reset()
         {
-            logger.info( "reset()ing the SenderQueue" );
+            logger.warn( "reset()ing the SenderQueue" );
             // Tell the distributor that we couldn't send these
             // packets.
             AmmoGatewayMessage msg = mDistQueue.poll();
@@ -982,7 +982,7 @@ public class MulticastChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
+            logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the queue until we get a message to send.
             // Then send it on the socket channel. Upon getting a socket error,
@@ -996,11 +996,11 @@ public class MulticastChannel extends NetChannel
                     setSenderState( INetChannel.TAKING );
                     msg = mQueue.take(); // The main blocking call
 
-                    logger.debug( "Took a message from the send queue" );
+                    // logger.debug( "Took a message from the send queue size{}, msgsize{}", mQueue.size(), msg.size );
                 }
                 catch ( InterruptedException ex )
                 {
-                    logger.debug( "interrupted taking messages from send queue: {}",
+                    logger.error( "interrupted taking messages from send queue: {}",
                                   ex.getLocalizedMessage() );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
@@ -1009,7 +1009,7 @@ public class MulticastChannel extends NetChannel
                 catch ( Exception e )
                 {
                     e.printStackTrace();
-                    logger.warn("sender threw exception while take()ing");
+                    logger.error("sender threw exception while take()ing {}", e.getStackTrace());
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;
@@ -1035,7 +1035,7 @@ public class MulticastChannel extends NetChannel
                     mSocket.setTimeToLive( mChannel.mMulticastTTL.get() );
                     mSocket.send( packet );
 
-                    logger.info( "Wrote packet to MulticastSocket." );
+                    logger.info( "Send packet to Network: size({})", packet.getLength() );
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
@@ -1099,7 +1099,7 @@ public class MulticastChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
+            logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the MulticastSocket until we get some data.
             // If we get an error, notify our parent and go into an error state.
@@ -1121,13 +1121,12 @@ public class MulticastChannel extends NetChannel
                     setReceiverState( INetChannel.START );
 
                     mSocket.receive( packet );
-                    logger.debug( "Received a packet. length={}", packet.getLength() );
-                    logger.debug( "source IP={}", packet.getAddress() );
                     if ( addresses.contains( packet.getAddress() ))
                     {
-                        logger.error( "Discarding packet from self." );
+                        logger.debug( "Discarding packet from self." );
                         continue;
                     }
+                    logger.info( "Received a packet from ({}) size({})", packet.getAddress(), packet.getLength()  );
 
                     ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
                                                       packet.getOffset(),
@@ -1151,7 +1150,7 @@ public class MulticastChannel extends NetChannel
                     AmmoGatewayMessage agm = agmb.payload( payload ).build();
                     setReceiverState( INetChannel.DELIVER );
                     mDestination.deliverMessage( agm );
-                    logger.debug( "processed a message" );
+                    logger.trace( "received a message {}", payload.length );
                 }
                 catch ( ClosedChannelException ex )
                 {

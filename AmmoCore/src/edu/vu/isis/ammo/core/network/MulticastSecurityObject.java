@@ -27,14 +27,14 @@ public class MulticastSecurityObject implements ISecurityObject,
 
     MulticastSecurityObject( MulticastChannel iChannel )
     {
-        logger.info( "Constructor of MulticastSecurityObject." );
+        logger.trace( "Constructor of MulticastSecurityObject." );
         mChannel = iChannel;
     }
 
 
     public void authorize( AmmoMessages.MessageWrapper.Builder mwb  )
     {
-        logger.info( "MulticastSecurityObject::authorize()." );
+        logger.trace( "MulticastSecurityObject::authorize()." );
 
         // This code is a hack to have authentication work before Nilabja's new
         // code is ready.
@@ -47,7 +47,7 @@ public class MulticastSecurityObject implements ISecurityObject,
 
     public boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.info( "Delivering message to MulticastSecurityObject." );
+        logger.trace( "Delivering message to MulticastSecurityObject." );
 
         // For now we haven't implemented any security.  Just
         // authorize if we receive a packet back from the server.
