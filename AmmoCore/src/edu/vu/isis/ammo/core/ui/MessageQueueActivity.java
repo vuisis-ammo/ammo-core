@@ -39,7 +39,7 @@ public class MessageQueueActivity extends Activity {
         @SuppressWarnings("unused")
 		Uri uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n);
         Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.DISPOSAL.n), null, null, null, null);
-        logger.info("message{}", c);
+        logger.trace("message{}", c);
         
         
         while(c.moveToNext()) {

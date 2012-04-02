@@ -16,7 +16,7 @@
  * Author: Yi Sun(beyounn@gmail.com)
  */
 
-#define LOG_TAG "EthernetSVC"
+#define LOG_TAG "net.ethertracker"
 
 #include <jni.h>
 #include <inttypes.h>
@@ -80,6 +80,8 @@ static int nl_socket_poll = NL_SOCK_INV;
 static struct sockaddr_nl addr_poll;
 static int getinterfacename(int index, char *name, size_t len);
 
+static int doQuery = 1;
+
 /*
 
 	Function : parse_msg_detail
@@ -89,8 +91,9 @@ static int getinterfacename(int index, char *name, size_t len);
 
 	@input mlmsghdr : The RTM message
 */
-void parse_msg_detail (struct nlmsghdr* nl_msg)
+int parse_msg_detail (struct nlmsghdr* nl_msg)
 {
+  int ret = 0;
 	int rtl;
 	struct ifinfomsg *linfo;
 	struct rtattr *rtap;
@@ -160,6 +163,7 @@ void parse_msg_detail (struct nlmsghdr* nl_msg)
 							ANDROID_LOG_INFO, 
 							LOG_TAG,  
 							"IF_OPER_UP");
+					ret = 1;
 					break;
 				case (IF_OPER_LOWERLAYERDOWN):
 					__android_log_print(
@@ -198,7 +202,7 @@ void parse_msg_detail (struct nlmsghdr* nl_msg)
 					"interface new operstate %x \n", x);
 		}
 	}
-
+	return ret;
 }
 
 
@@ -226,11 +230,12 @@ static char* process_msg (struct nlmsghdr* nl_msg)
 
 	if (nl_msg->nlmsg_type == RTM_NEWLINK) {
 
-		//parse_msg_detail (nl_msg);
-
-		buffer = (char*)malloc (100);
-		memset (buffer, 0, 100);
-		sprintf (buffer, "Link %s New", iface);
+		int oper = parse_msg_detail (nl_msg);
+		if (oper) {
+		  buffer = (char*)malloc (100);
+		  memset (buffer, 0, 100);
+		  sprintf (buffer, "Interface %s Up NEWLINK", iface);
+		}
 
 	} else if (nl_msg->nlmsg_type == RTM_DELLINK) {
 
@@ -352,8 +357,9 @@ Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_waitForEvent(JNIEnv *env,
 				goto error;
 			}
 
-			if (nh->nlmsg_type == RTM_DELLINK ||
-					nh->nlmsg_type == RTM_NEWADDR )
+			if (nh->nlmsg_type == RTM_DELLINK
+			    ||nh->nlmsg_type == RTM_NEWLINK
+			    ||nh->nlmsg_type == RTM_NEWADDR )
 				ethstatmsg = process_msg (nh);
 			else
 				ethstatmsg = result;
@@ -499,11 +505,15 @@ jint Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative(JNIE
 		goto error;
 	}
 
+	netlink_send_dump_request(nl_socket_poll, RTM_GETLINK, AF_PACKET);
+
+
 	//LOGE("%s exited with success",__FUNCTION__);
 	__android_log_print(ANDROID_LOG_INFO, LOG_TAG,
 			"%s exited with success",__FUNCTION__);
 
 
+	doQuery = 1;
 
 	return 0;
 error:

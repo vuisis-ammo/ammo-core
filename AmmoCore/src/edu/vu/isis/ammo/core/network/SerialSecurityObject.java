@@ -26,14 +26,14 @@ public class SerialSecurityObject implements ISecurityObject,
 
     SerialSecurityObject( SerialChannel iChannel )
     {
-        logger.info( "Constructor of SerialSecurityObject." );
+        logger.trace( "Constructor of SerialSecurityObject." );
         mChannel = iChannel;
     }
 
 
     public void authorize( AmmoMessages.MessageWrapper.Builder mwb  )
     {
-        logger.info( "SerialSecurityObject::authorize()." );
+        logger.trace( "SerialSecurityObject::authorize()." );
 
         // This code is a hack to have authentication work before Nilabja's new
         // code is ready.
@@ -46,7 +46,7 @@ public class SerialSecurityObject implements ISecurityObject,
 
     public boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.info( "Delivering message to SerialSecurityObject." );
+        logger.trace( "Delivering message to SerialSecurityObject." );
 
         // For now we haven't implemented any security.  Just
         // authorize if we receive a packet back from the server.

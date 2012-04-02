@@ -26,14 +26,14 @@ public class ReliableMulticastSecurityObject implements ISecurityObject,
 
     ReliableMulticastSecurityObject( ReliableMulticastChannel iChannel )
     {
-        logger.info( "Constructor of ReliableMulticastSecurityObject." );
+        logger.trace( "Constructor of ReliableMulticastSecurityObject." );
         mChannel = iChannel;
     }
 
 
     public void authorize( AmmoMessages.MessageWrapper.Builder mwb  )
     {
-        logger.info( "ReliableMulticastSecurityObject::authorize()." );
+        logger.trace( "ReliableMulticastSecurityObject::authorize()." );
 
         // This code is a hack to have authentication work before Nilabja's new
         // code is ready.
@@ -46,7 +46,7 @@ public class ReliableMulticastSecurityObject implements ISecurityObject,
 
     public boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.info( "Delivering message to ReliableMulticastSecurityObject." );
+        logger.trace( "Delivering message to ReliableMulticastSecurityObject." );
 
         // For now we haven't implemented any security.  Just
         // authorize if we receive a packet back from the server.
