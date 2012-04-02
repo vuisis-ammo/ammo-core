@@ -866,7 +866,7 @@ public class MulticastChannel extends NetChannel
             try {
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
 
-				    logger.warn("multicast channel not taking messages {} {}", ChannelDisposal.BUSY, mDistQueue.size() );
+				    logger.warn("multicast channel not taking messages {} {}", DisposalState.BUSY, mDistQueue.size() );
 				    return DisposalState.BUSY;
 				}
 			} catch (InterruptedException e) {
