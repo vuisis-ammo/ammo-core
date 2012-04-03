@@ -47,8 +47,8 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
 import edu.vu.isis.ammo.core.model.Channel;
@@ -299,6 +299,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 							return START_NOT_STICKY;
 						}
 						final String result = this.distThread.distributeRequest(request);
+						logger.trace("distribtion result {}", result);
 					} catch (ArrayIndexOutOfBoundsException ex) {
 						logger.error("could not unmarshall the ammo request parcel");
 					}

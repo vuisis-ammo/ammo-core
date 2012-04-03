@@ -362,7 +362,7 @@ public class MulticastChannel extends NetChannel
     // Note: the way this currently works, the heartbeat can only be sent
     // in intervals that are multiples of the burp time.  This may change
     // later if I can eliminate some of the wait()s.
-    // @SuppressWarnings("unused")
+    @SuppressWarnings("unused")
 	private void sendHeartbeatIfNeeded()
     {
         //logger.warn( "In sendHeartbeatIfNeeded()." );

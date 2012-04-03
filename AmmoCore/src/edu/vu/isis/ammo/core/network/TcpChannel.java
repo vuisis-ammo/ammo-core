@@ -1033,9 +1033,7 @@ public class TcpChannel extends NetChannel {
                 {
                     ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
                     setSenderState( INetChannel.SENDING );
-                    @SuppressWarnings("unused")
-                        int bytesWritten = mSocketChannel.write( buf );
-
+                    int bytesWritten = mSocketChannel.write( buf );
                     logger.info( "Send packet to Network, size ({})", bytesWritten );
 
                     // legitimately sent to gateway.
