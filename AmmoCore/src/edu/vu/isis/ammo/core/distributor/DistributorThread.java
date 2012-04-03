@@ -10,6 +10,8 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.distributor;
 
+//import android.os.Debug;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +35,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.AsyncTask;
+import android.os.Process;
 import android.preference.PreferenceManager;
 
 import com.google.protobuf.ByteString;
@@ -349,73 +351,74 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * The method tries to be fair processing the requests in
 	 */
 	@Override
-	    public void run() {
+	    public void run()
+    {
+	Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
+	logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
 
-		logger.trace("started");
+	if (ammoService.isConnected()) {
 
-		if (ammoService.isConnected()) {
+	    for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+		final String name = entry.getKey();
+		this.store.deactivateDisposalStateByChannel(name);
+	    }
 
-		    for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
-			final String name = entry.getKey();
-			this.store.deactivateDisposalStateByChannel(name);
+	    this.processSubscribeCache(ammoService);
+	    this.processRetrievalCache(ammoService);
+	    this.processPostalCache(ammoService);
+	}
+
+
+	try {
+	    while (true) {
+		// condition wait, is there something to process?
+		synchronized (this) {
+		    while (!this.isReady())
+			this.wait(BURP_TIME);
+		}
+		while (this.isReady()) {
+		    if (this.channelDelta.getAndSet(false)) {
+			logger.trace("channel change");
+			this.processChannelChange(ammoService);
 		    }
 
-		    this.processSubscribeCache(ammoService);
-		    this.processRetrievalCache(ammoService);
-		    this.processPostalCache(ammoService);
-		}
-
-
-		try {
-			while (true) {
-				// condition wait, is there something to process?
-				synchronized (this) {
-					while (!this.isReady())
-						this.wait(BURP_TIME);
-				}
-				while (this.isReady()) {
-					if (this.channelDelta.getAndSet(false)) {
-						logger.trace("channel change");
-						this.processChannelChange(ammoService);
-					}
-
-					if (!this.channelAck.isEmpty()) {
-						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
-						try {
-							final ChannelAck ack = this.channelAck.take();
-							this.processChannelAck(this.context, ack);
-						} catch (ClassCastException ex) {
-							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
-						}
-					}
-
-					if (!this.responseQueue.isEmpty()) {
-						logger.info("processing response, remaining {}", this.responseQueue.size());
-						try {
-							final AmmoGatewayMessage agm = this.responseQueue.take();
-							this.processResponse(ammoService, agm);
-						} catch (ClassCastException ex) {
-							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
-						}
-					}
-
-					if (!this.requestQueue.isEmpty()) {
-						try {
-							final AmmoRequest agm = this.requestQueue.take();
-							logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
-							this.processRequest(ammoService, agm);
-						} catch (ClassCastException ex) {
-							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
-						}
-					}
-				}
-				logger.trace("work processed");
+		    if (!this.channelAck.isEmpty()) {
+			logger.trace("processing channel acks, remaining {}", this.channelAck.size());
+			try {
+			    final ChannelAck ack = this.channelAck.take();
+			    this.processChannelAck(this.context, ack);
+			} catch (ClassCastException ex) {
+			    logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
 			}
-		} catch (InterruptedException ex) {
-			logger.warn("task interrupted {}", ex.getStackTrace());
+		    }
+
+		    if (!this.responseQueue.isEmpty()) {
+			try {
+			    final AmmoGatewayMessage agm = this.responseQueue.take();
+			    logger.info("processing response, remaining {}", this.responseQueue.size());
+			    this.processResponse(ammoService, agm);
+			} catch (ClassCastException ex) {
+			    logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
+			}
+		    }
+
+		    if (!this.requestQueue.isEmpty()) {
+			try {
+			    final AmmoRequest agm = this.requestQueue.take();
+			    logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
+			    this.processRequest(ammoService, agm);
+			} catch (ClassCastException ex) {
+			    logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
+			}
+		    }
 		}
-		return;
+		logger.trace("work processed");
+	    }
+	} catch (InterruptedException ex) {
+	    logger.warn("task interrupted {}", ex.getStackTrace());
 	}
+	return;
+    }
 
 
 	// ================= DRIVER METHODS ==================== //
@@ -628,6 +631,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @return
 	 */
 	private void processPostalRequest(final AmmoService that, final AmmoRequest ar) {
+	    // Debug.startMethodTracing("processPostalRequest");
 
 		// Dispatch the message.
 		try {
@@ -699,9 +703,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				
-				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
-				final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
+			    final long id = this.store.upsertPostal(values, policy.makeRouteMap());
+
+			    final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
 						ar.provider.toString(), topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
@@ -716,12 +720,14 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 										                                        channel, status));
 							}
 						});
-				this.store.updatePostalByKey(id, null, dispatchResult);
+
+			    this.store.updatePostalByKey(id, null, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
 			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 		}
+		// Debug.stopMethodTracing();
 	}
 
 	/**
