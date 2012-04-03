@@ -38,10 +38,13 @@ public class StartUpReceiver extends BroadcastReceiver {
 
 	@Override
 	public void onReceive(Context context, Intent intent) {
-		logger.debug("::onReceive");
+		logger.info("::onReceive {}", intent.getAction());
+		
+		logger.info("launching AmmoService");
 		context.startService(AmmoService.LAUNCH);
 		
-		Intent svc = new Intent();
+		logger.info("launching Ether Track Service");
+		final Intent svc = new Intent();
 		svc.setClass(context, EthTrackSvc.class);  // explicit start
         context.startService(svc);
 	}
