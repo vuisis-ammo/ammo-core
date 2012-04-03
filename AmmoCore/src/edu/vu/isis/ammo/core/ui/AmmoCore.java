@@ -59,8 +59,9 @@ public class AmmoCore extends TabActivityEx
     private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
     private static final int CONFIG_MENU = Menu.NONE + 1;
     private static final int DEBUG_MENU = Menu.NONE + 2;
-    private static final int ABOUT_MENU = Menu.NONE + 3;
-    private static final int RESET_MENU = Menu.NONE + 4;
+    private static final int LOGGER_MENU = Menu.NONE + 3;
+    private static final int ABOUT_MENU = Menu.NONE + 4;
+    private static final int RESET_MENU = Menu.NONE + 5;
 
     // ===========================================================
     // Fields
@@ -254,6 +255,7 @@ public class AmmoCore extends TabActivityEx
         menu.add(Menu.NONE, VIEW_TABLES_MENU, Menu.NONE, getResources().getString(R.string.view_tables_label));
         menu.add(Menu.NONE, CONFIG_MENU, Menu.NONE, getResources().getString(R.string.logging_label));
         menu.add(Menu.NONE, DEBUG_MENU, Menu.NONE, getResources().getString((!this.netlinkAdvancedView)?(R.string.debug_label):(R.string.user_label)));
+        menu.add(Menu.NONE, LOGGER_MENU, Menu.NONE, getResources().getString(R.string.logger_viewer_label));
         menu.add(Menu.NONE, ABOUT_MENU, Menu.NONE, getResources().getString(R.string.about_label));
         menu.add(Menu.NONE, RESET_MENU, Menu.NONE, "Hard Reset");
 
@@ -297,6 +299,10 @@ public class AmmoCore extends TabActivityEx
         	intent.setAction("edu.vu.isis.ammo.AMMO_HARD_RESET");
         	intent.setClass(this, AmmoService.class);
         	this.startService(intent);
+        	break;
+        case LOGGER_MENU:
+        	intent.setClass(this, LoggerEditor.class);
+        	this.startActivity(intent);
         	break;
         default:
         		returnValue = false;

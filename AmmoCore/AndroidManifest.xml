@@ -39,6 +39,7 @@
 		<activity android:name=".ui.Subscribe" />
 		<activity android:name=".ui.GeneralPreferences" />
 		<activity android:name=".ui.AboutActivity" />
+		<activity android:name=".ui.LoggerEditor" />
 
 		<activity android:name=".distributor.ui.DistributorTableViewer" />
 		<activity android:name=".distributor.ui.RetrievalTableViewer" />

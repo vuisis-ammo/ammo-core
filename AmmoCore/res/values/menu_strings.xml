@@ -19,5 +19,6 @@
 
 <string name="netlink_title">Available Netlinks</string>
 <string name="gateway_title">AMMO Gateway List</string>
+<string name="logger_viewer_label">Loggers</string>
 
 </resources>
