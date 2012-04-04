@@ -1045,7 +1045,7 @@ public class DistributorDataStore {
 
 	public DistributorDataStore(Context context) {
 		this.context = context;
-		this.helper = new MyHelper(this.context, Tables.NAME, null, VERSION);
+		this.helper = new MyHelper(this.context, null, null, VERSION); // Tables.NAME -- commented to create in memory db
 
 		// ========= INITIALIZE CONSTANTS ========
 		this.applDir = context.getDir("support", Context.MODE_PRIVATE);
