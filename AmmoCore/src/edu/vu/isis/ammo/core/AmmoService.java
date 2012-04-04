@@ -299,7 +299,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 							return START_NOT_STICKY;
 						}
 						final String result = this.distThread.distributeRequest(request);
-						logger.trace("distribtion result {}", result);
+						logger.trace("request result {}", result);
 					} catch (ArrayIndexOutOfBoundsException ex) {
 						logger.error("could not unmarshall the ammo request parcel");
 					}

@@ -10,6 +10,8 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.distributor;
 
+import android.os.Debug;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +35,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Process;
 import android.preference.PreferenceManager;
 
 import com.google.protobuf.ByteString;
@@ -73,6 +76,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger("ammo-dst");
+	private static final boolean RUN_TRACE = false;
+
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
 	private static final Marker MARK_INTEREST = MarkerFactory.getMarker("interest");
@@ -346,16 +351,17 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * The method tries to be fair processing the requests in
 	 */
 	@Override
-	    public void run() {
+	    public void run()
+    {
+	Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
+	logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
 
-		logger.trace("started");
+	if (ammoService.isConnected()) {
 
-		if (ammoService.isConnected()) {
-
-		    for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
-			final String name = entry.getKey();
-			this.store.deactivateDisposalStateByChannel(name);
-		    }
+	    for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+		final String name = entry.getKey();
+		this.store.deactivateDisposalStateByChannel(name);
+	    }
 
 			this.doInterestCache(ammoService);
 			this.doRetrievalCache(ammoService);
@@ -390,7 +396,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 						logger.trace("processing response, remaining {}", this.responseQueue.size());
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
-							this.doResponse(ammoService, agm);
+							 logger.info("processing response, remaining {}", this.responseQueue.size());
+			                 this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
 							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -407,12 +414,12 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 					}
 				}
 				logger.trace("work processed");
-			}
-		} catch (InterruptedException ex) {
-			logger.warn("task interrupted {}", ex.getStackTrace());
-		}
-		return;
+	    }
+	} catch (InterruptedException ex) {
+	    logger.warn("task interrupted {}", ex.getStackTrace());
 	}
+	return;
+    }
 
 
 	// ================= DRIVER METHODS ==================== //
@@ -429,7 +436,13 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		logger.trace("process request {}", agm);
 		switch (agm.action) {
 		case POSTAL:
-			doPostalRequest(that, agm);
+			if (RUN_TRACE) {
+				Debug.startMethodTracing("processPostalRequest");
+				processPostalRequest(that, agm);
+				Debug.stopMethodTracing();
+			} else {
+				processPostalRequest(that, agm);
+			}
 			break;
 		case RETRIEVAL:
 			doRetrievalRequest(that, agm);
@@ -716,9 +729,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				
-				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
-				final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
+			    final long id = this.store.upsertPostal(values, policy.makeRouteMap());
+
+			    final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
 						ar.provider.toString(), topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
@@ -733,7 +746,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 										                                        channel, status));
 							}
 						});
-				this.store.updatePostalByKey(id, null, dispatchResult);
+
+			    this.store.updatePostalByKey(id, null, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {

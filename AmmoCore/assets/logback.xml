@@ -6,7 +6,7 @@
 <configuration>
 
   <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
-    <checkLoggable>true</checkLoggable>
+    <checkLoggable>false</checkLoggable>
     <tagEncoder>
        <pattern>%logger{22}</pattern>
     </tagEncoder>
@@ -14,8 +14,20 @@
        <pattern>[%method] %msg%n</pattern>
     </encoder>
   </appender>
+  
+  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <file>/sdcard/omma.log</file>
+    <append>true</append>
+    <!-- encoders are assigned the type
+         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
+    <encoder>
+      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+    </encoder>
+  </appender>
 
-  <root level="TRACE">
+
+  <root level="ERROR">
     <appender-ref ref="LOGCAT" />
+    <appender-ref ref="FILE" />
   </root>
 </configuration>

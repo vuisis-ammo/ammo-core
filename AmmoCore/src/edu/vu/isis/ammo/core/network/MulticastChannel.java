@@ -712,9 +712,10 @@ public class MulticastChannel extends NetChannel
             }
             catch ( Exception e )
             {
-                logger.warn( "connection to {}:{} failed: " + e.getLocalizedMessage(),
+                logger.warn( "connection to {}:{} failed: {}", new Object[]{
                              parent.mMulticastGroup,
-                             parent.mMulticastPort );
+                             parent.mMulticastPort,
+			     e.getStackTrace() });
                 parent.mSocket = null;
                 return false;
             }
