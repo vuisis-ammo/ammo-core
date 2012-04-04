@@ -10,7 +10,7 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.distributor;
 
-//import android.os.Debug;
+import android.os.Debug;
 
 import java.io.IOException;
 import java.util.Map;
@@ -75,6 +75,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger("ammo-dst");
+	private static final boolean RUN_TRACE = false;
+
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
 	private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
@@ -435,7 +437,14 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		logger.trace("process request {}", agm);
 		switch (agm.action) {
 		case POSTAL:
-			processPostalRequest(that, agm);
+			if (RUN_TRACE) {
+				Debug.startMethodTracing("processPostalRequest");
+				processPostalRequest(that, agm);
+				Debug.stopMethodTracing();
+			} else {
+				processPostalRequest(that, agm);
+			}
+			
 			break;
 		case DIRECTED_POSTAL:
 			processPostalRequest(that, agm);
@@ -631,7 +640,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @return
 	 */
 	private void processPostalRequest(final AmmoService that, final AmmoRequest ar) {
-	    // Debug.startMethodTracing("processPostalRequest");
 
 		// Dispatch the message.
 		try {
@@ -727,7 +735,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		} catch (NullPointerException ex) {
 			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 		}
-		// Debug.stopMethodTracing();
 	}
 
 	/**
