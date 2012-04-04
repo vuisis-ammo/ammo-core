@@ -200,7 +200,11 @@ public class RequestSerializer {
 			if (tupleCursor == null) {
 				throw new TupleNotFoundException("while serializing from provider", tupleUri);
 			}
-
+            if ( tupleCursor.getCount() < 1) {
+            	tupleCursor.close();
+            	logger.warn("tuple no longe present {}", tupleUri);
+            	return null;
+            }
 			if (! tupleCursor.moveToFirst()) {
 				tupleCursor.close();
 				return null;
@@ -550,11 +554,15 @@ public class RequestSerializer {
 				try {
 					final OutputStream outstream = resolver.openOutputStream(fieldUri);
 					if (outstream == null) {
-						logger.error( "could not open output stream to content provider: {} ",fieldUri);
+						logger.error( "failed to open output stream to content provider: {} ",
+								fieldUri);
 						return null;
 					}
 					outstream.write(blob);
 					outstream.close();
+				} catch (SQLiteException ex) {
+					logger.error("in provider {} could not open output stream {}", 
+							fieldUri, ex.getLocalizedMessage());
 				} catch (FileNotFoundException ex) {
 					logger.error( "blob file not found: {}",fieldUri, ex);
 				} catch (IOException ex) {
