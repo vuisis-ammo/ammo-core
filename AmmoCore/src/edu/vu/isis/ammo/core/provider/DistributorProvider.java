@@ -28,7 +28,6 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 
 
-
 public class DistributorProvider extends ContentProvider {
 	// =================================
 	// Constants

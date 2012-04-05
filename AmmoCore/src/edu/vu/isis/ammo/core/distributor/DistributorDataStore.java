@@ -1552,7 +1552,6 @@ public class DistributorDataStore {
 		}
 		return -1;
 	}
-	
 	/**
 	 * Upsert is a portmanteau of update and insert, thus,
 	 * if a record with a matching key exists then update
@@ -1847,6 +1846,7 @@ public class DistributorDataStore {
 
 	/** Insert method helper */
 	protected ContentValues initializeSubscriptionDefaults(ContentValues values) {
+
 
 		initializeRequestDefaults(values);
 		

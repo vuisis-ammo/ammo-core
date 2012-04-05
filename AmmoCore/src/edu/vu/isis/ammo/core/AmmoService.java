@@ -1272,7 +1272,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @param message
 	 */
 	@Override
-
 	public DisposalState sendRequest(AmmoGatewayMessage agm, String channelName) {
 
 	    logger.info("Ammo sending Request size ({}) priority({}) to Channel {}",

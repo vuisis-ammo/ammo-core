@@ -437,11 +437,11 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		switch (agm.action) {
 		case POSTAL:
 			if (RUN_TRACE) {
-				Debug.startMethodTracing("processPostalRequest");
-				processPostalRequest(that, agm);
+				Debug.startMethodTracing("doPostalRequest");
+				doPostalRequest(that, agm);
 				Debug.stopMethodTracing();
 			} else {
-				processPostalRequest(that, agm);
+				doPostalRequest(that, agm);
 			}
 			break;
 		case RETRIEVAL:
@@ -462,7 +462,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * with no work to do.
 	 */
 	private void doChannelChange(AmmoService that) {
-		logger.trace("::processChannelChange()");
+		logger.trace("::doChannelChange()");
 
 		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
 			final String name = entry.getKey();
@@ -470,7 +470,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			if (status.status.getAndSet(true))
 				continue;
 
-			logger.trace("::processChannelChange() : {} , {}", name, status.change);
+			logger.trace("::doChannelChange() : {} , {}", name, status.change);
 			final ChannelChange change = status.change;
 			switch (change) {
 			case DEACTIVATE:
@@ -523,6 +523,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	private boolean doResponse(Context context, AmmoGatewayMessage agm) {
+
 		logger.trace("process response");
 
         if ( !agm.hasValidChecksum() ) {
