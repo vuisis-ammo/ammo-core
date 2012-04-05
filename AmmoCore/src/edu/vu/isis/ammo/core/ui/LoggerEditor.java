@@ -1,16 +1,18 @@
 package edu.vu.isis.ammo.core.ui;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
-import android.R;
-import android.app.AlertDialog;
 import android.app.ListActivity;
-import android.content.DialogInterface;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -20,57 +22,60 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.R;
+
+/**
+ * This class provides a user interface to edit the Level of all Logger objects
+ * active in the application.
+ * @author nick
+ *
+ */
+
 public class LoggerEditor extends ListActivity {
-	
-//	private AlertDialog levelSelector;
-//	private static final CharSequence[] LEVEL_NAMES = { "Trace", "Debug", "Info", "Warn",
-//			"Error", "Off"
-//	};
-//	private static enum LevelEnum {
-//		TRACE, DEBUG, INFO, WARN, ERROR, OFF
-//	};
-//	private DialogInterface.OnClickListener dlgListener;
+
 	private Logger selectedLogger;
 	private TextView selectionText;
 	private Spinner levelSpinner;
-	private String[] levelOptions;
+	private ArrayList<Logger> loggerList;
+	private HashSet<Logger> editedLoggers;
+	private View lastSelected;
+//	private String[] levelOptions;
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		
+		
 		super.onCreate(savedInstanceState);
-		setContentView(edu.vu.isis.ammo.core.R.layout.logger_editor);
+		setContentView(R.layout.logger_editor);
 		
+		// LoggerContext provides access to a List of all active loggers
 		LoggerContext lc = (LoggerContext)LoggerFactory.getILoggerFactory();
-		ArrayList<Logger> loggerList = (ArrayList<Logger>)lc.getLoggerList();
-		
+		loggerList = (ArrayList<Logger>)lc.getLoggerList();
 		setupList(loggerList);
 		
-		selectionText = (TextView) findViewById(edu.vu.isis.ammo.core.
-				R.id.selection_text);
-		levelSpinner = (Spinner) findViewById(edu.vu.isis.ammo.core.
-				R.id.level_spinner);
-		levelOptions = (String[]) getResources()
-				.getStringArray(edu.vu.isis.ammo.core.R.array.level_options);
+		editedLoggers = new HashSet<Logger>();
+		
+		selectionText = (TextView) findViewById(R.id.selection_text);
+		levelSpinner = (Spinner) findViewById(R.id.level_spinner);
+//		levelOptions = (String[]) getResources()
+//				.getStringArray(edu.vu.isis.ammo.core.R.array.level_options);
 		
 		ArrayAdapter<CharSequence> spinAdapter = ArrayAdapter.createFromResource(
-	            this, edu.vu.isis.ammo.core.R.array.level_options, 
+	            this, R.array.level_options, 
 	            android.R.layout.simple_spinner_item);
 	    spinAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 	    levelSpinner.setAdapter(spinAdapter);
 	    levelSpinner.setOnItemSelectedListener(new MyOnItemSelectedListener());
 
-		
+		// Set the selection text to indicate nothing is selected
 		updateSelText(null);
 		
 	}
 		
 	
-	
+	// Sets up the adapter for the Loggers in the ListView
 	private void setupList(ArrayList<Logger> loggerList) {
-		ArrayAdapter<Logger> adapter = new ArrayAdapter<Logger>(this, 
-				android.R.layout.simple_list_item_1,
-				loggerList);
+		LoggerAdapter adapter = new LoggerAdapter();
 		setListAdapter(adapter);
 	}
 	
@@ -79,54 +84,42 @@ public class LoggerEditor extends ListActivity {
 	public void onListItemClick(ListView parent, View v, int position, long id) {
 		
 		selectedLogger = (Logger)parent.getItemAtPosition(position);
+		Level lvl = selectedLogger.getEffectiveLevel();
 		updateSelText(selectedLogger.getName());
-		updateSpinner(selectedLogger.getEffectiveLevel());
+		updateSpinner(lvl);
+		lastSelected = v;
 		
+	}
+
+	
+	private void updateIcon(Level lvl, View v) {
 		
+		ImageView iv =(ImageView)(v.findViewById(R.id.logger_icon));
+		
+		if(lvl.equals(Level.TRACE)) {
+			iv.setImageResource(R.drawable.trace_level_icon);
+		} else if(lvl.equals(Level.DEBUG)) {
+			iv.setImageResource(R.drawable.debug_level_icon);
+		} else if(lvl.equals(Level.INFO)) {
+			iv.setImageResource(R.drawable.info_level_icon);
+		} else if(lvl.equals(Level.WARN)) {
+			iv.setImageResource(R.drawable.warn_level_icon);
+		} else if(lvl.equals(Level.ERROR)) {
+			iv.setImageResource(R.drawable.error_level_icon);
+		} else {
+			iv.setImageResource(R.drawable.off_level_icon);
+		}
 		
 	}
 	
-	
-//	private void createLoggerDialog(Logger logger) {
-//		
-//		int defaultChoice = getDefaultChoice(logger);
-//		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//		builder.setTitle("Select Logger level:");
-//		builder.setSingleChoiceItems(LEVEL_NAMES, defaultChoice, dlgListener);
-//		
-//		levelSelector = builder.create();
-//		
-//	}
-//	
-//	
-//	/**
-//	 * Find the default choice for the AlertDialog list when a Logger
-//	 * is selected.
-//	 * @param logger -- the level of this Logger will be evaluated
-//	 * @return  the matching dialog choice
-//	 */
-//	private int getDefaultChoice(Logger logger) {
-//		Level lvl = logger.getLevel();
-//		if(lvl.equals(Level.TRACE)) return 0;
-//		else if(lvl.equals(Level.DEBUG)) return 1;
-//		else if(lvl.equals(Level.INFO)) return 2;
-//		else if(lvl.equals(Level.WARN)) return 3;
-//		else if(lvl.equals(Level.ERROR)) return 4;
-//		else if(lvl.equals(Level.OFF)) return 5;
-//		else return -1;
-//	}
-	
-//	private Level findLoggerLevel(Logger log) {
-//		
-//		log.get
-//		
-//	}
 	
 	private void updateSelText(String selection) {
 		if(selection == null) selectionText.setText("None selected");
 		else selectionText.setText(selection);
 	}
 	
+	
+	// Sets the current text on the Spinner to match the given Level
 	private void updateSpinner(Level l) {
 		
 		if(l.equals(Level.TRACE)) {
@@ -145,37 +138,78 @@ public class LoggerEditor extends ListActivity {
 		
 	}
 	
+	
+	public class LoggerAdapter extends ArrayAdapter<Logger> {
+		
+		LoggerAdapter() {
+			super(LoggerEditor.this, R.layout.logger_row,
+					R.id.logger_text, loggerList);
+		}
+		
+		@Override
+		public View getView(int position, View convertView, ViewGroup parent) {
+			
+			View row = super.getView(position, convertView, parent);
+			
+			TextView tv = (TextView)row.findViewById(R.id.logger_text);
+			
+			Logger aLogger = loggerList.get(position);
+			tv.setText(aLogger.getName());
+			
+//			if(editedLoggers.contains(aLogger)) {
+//				tv.setTextColor(Color.RED);
+//			} else {
+//				tv.setTextColor(Color.WHITE);
+//			}
+			
+			Level lvl = aLogger.getEffectiveLevel();
+			
+			updateIcon(lvl, row);
+			
+			return row;
+		}
+		
+	}
+
+	
 	public class MyOnItemSelectedListener implements OnItemSelectedListener {
 
-	    public void onItemSelected(AdapterView<?> parent,
-	        View view, int pos, long id) {
-		    
-	    	if(selectedLogger != null) {
-		    		
-			    String nextLevel = parent.getItemAtPosition(pos).toString();
-			      
-			      if(nextLevel.equals("Trace")) {
-			    	  selectedLogger.setLevel(Level.TRACE);
-			      } else if(nextLevel.equals("Debug")) {
-			    	  selectedLogger.setLevel(Level.DEBUG);
-			      } else if(nextLevel.equals("Info")) {
-			    	  selectedLogger.setLevel(Level.INFO);
-			      } else if(nextLevel.equals("Warn")) {
-			    	  selectedLogger.setLevel(Level.WARN);
-			      } else if(nextLevel.equals("Error")) {
-			    	  selectedLogger.setLevel(Level.ERROR);
-			      } else if(nextLevel.equals("Off")) {
-			    	  selectedLogger.setLevel(Level.OFF);
-			      }
-		      
-	    	}
-		      
-	    }
+		public void onItemSelected(AdapterView<?> parent, View view, int pos,
+				long id) {
 
-	    public void onNothingSelected(AdapterView parent) {
-	      // Do nothing.
-	    }
+			if (selectedLogger != null && lastSelected != null) {
+
+				String nextLevel = parent.getItemAtPosition(pos).toString();
+
+				if (nextLevel.equals("Trace")) {
+					selectedLogger.setLevel(Level.TRACE);
+					updateIcon(Level.TRACE, lastSelected);
+				} else if (nextLevel.equals("Debug")) {
+					selectedLogger.setLevel(Level.DEBUG);
+					updateIcon(Level.DEBUG, lastSelected);
+				} else if (nextLevel.equals("Info")) {
+					selectedLogger.setLevel(Level.INFO);
+					updateIcon(Level.INFO, lastSelected);
+				} else if (nextLevel.equals("Warn")) {
+					selectedLogger.setLevel(Level.WARN);
+					updateIcon(Level.WARN, lastSelected);
+				} else if (nextLevel.equals("Error")) {
+					selectedLogger.setLevel(Level.ERROR);
+					updateIcon(Level.ERROR, lastSelected);
+				} else if (nextLevel.equals("Off")) {
+					selectedLogger.setLevel(Level.OFF);
+					updateIcon(Level.OFF, lastSelected);
+				}
+				
+				editedLoggers.add(selectedLogger);
+
+			}
+
+		}
+
+		public void onNothingSelected(AdapterView parent) {
+			// Do nothing.
+		}
 	}
-	
 
 }
