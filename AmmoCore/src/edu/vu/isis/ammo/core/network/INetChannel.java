@@ -11,7 +11,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.network;
 
 import android.content.Context;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 /**
  * The NetChannel is some mechanism for establishing a network connection
@@ -64,7 +64,7 @@ public interface INetChannel {
      * @param req
      * @return
      */
-    ChannelDisposal sendRequest( AmmoGatewayMessage agm );
+    DisposalState sendRequest( AmmoGatewayMessage agm );
     //String getLocalIpAddress();
 
 
