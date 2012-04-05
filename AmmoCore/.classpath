@@ -6,12 +6,8 @@
 	<classpathentry kind="lib" path="/usr/share/java/protobuf.jar"/>
 	<classpathentry kind="lib" path="/Android-libs/java/logback-android.jar" sourcepath="/opt/logback-android"/>
 	<classpathentry kind="lib" path="/Android-libs/java/slf4j-api.jar" sourcepath="/opt/slf4j-android/"/>
-	<classpathentry kind="lib" path="/Android-libs/java/tasettings-api-0.0.4.jar">
-		<attributes>
-			<attribute name="javadoc_location" value="jar:platform:/resource/Android-libs/java/tasettings-api-0.0.2-javadoc.jar!/"/>
-		</attributes>
-	</classpathentry>
 	<classpathentry kind="lib" path="/Android-libs/java/jgroups.jar"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
+	<classpathentry kind="lib" path="/home/mjames/proj/ammo/ammo/Android-libs/java/tasettings-api-0.0.4.jar"/>
 	<classpathentry kind="output" path="bin/classes"/>
 </classpath>
