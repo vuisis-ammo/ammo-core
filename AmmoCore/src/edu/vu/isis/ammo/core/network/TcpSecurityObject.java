@@ -27,14 +27,14 @@ public class TcpSecurityObject implements ISecurityObject,
 
     TcpSecurityObject( TcpChannel iChannel )
     {
-        logger.info( "Constructor of TcpSecurityObject." );
+        logger.trace( "Constructor of TcpSecurityObject." );
         mChannel = iChannel;
     }
 
 
     public void authorize( AmmoMessages.MessageWrapper.Builder mwb  )
     {
-        logger.info( "TcpSecurityObject::authorize()." );
+        logger.trace( "TcpSecurityObject::authorize()." );
 
         // This code is a hack to have authentication work before Nilabja's new
         // code is ready.
@@ -48,7 +48,7 @@ public class TcpSecurityObject implements ISecurityObject,
 
     public boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.info( "Delivering message to TcpSecurityObject." );
+        logger.trace( "Delivering message to TcpSecurityObject." );
 
         // For now we haven't implemented any security.  Just
         // authorize if we receive a packet back from the server.

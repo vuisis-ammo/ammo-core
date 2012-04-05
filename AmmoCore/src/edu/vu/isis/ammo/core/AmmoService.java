@@ -227,7 +227,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		@Override
 		public String makeRequest(AmmoRequest request) throws RemoteException {
 			if (request == null) {
-				logger.info("bad request");
+				logger.error("bad request");
 				return null;
 			}
 			logger.trace("make request {}", request.action.toString());
@@ -280,7 +280,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 */
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		logger.info("::onStartCommand {}", intent);
+		logger.trace("::onStartCommand {}", intent);
 		// If we get this intent, unbind from all services 
 		// so the service can be stopped.
 		if (intent != null) {
@@ -295,11 +295,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					try {
 						final AmmoRequest request = intent.getParcelableExtra("request");
 						if (request == null) {
-							logger.info("bad request intent {}", intent);
+							logger.error("bad request intent {}", intent);
 							return START_NOT_STICKY;
 						}
 						final String result = this.distThread.distributeRequest(request);
-						logger.info("distributing {}", result);
+						logger.trace("request result {}", result);
 					} catch (ArrayIndexOutOfBoundsException ex) {
 						logger.error("could not unmarshall the ammo request parcel");
 					}
@@ -321,10 +321,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					return START_NOT_STICKY;
 				}
 			}
-			logger.info("::onStartCommand {}", intent);
 		} 
 		
-		logger.info("started");
+		logger.trace("Started AmmoService");
 		return START_STICKY;
 	}
 
@@ -340,7 +339,6 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		logger.info("::onCreate");
 		final Context context = this.getBaseContext();
 		
 		this.journalChannel.init(context);
@@ -349,8 +347,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.multicastChannel.init(context);
 		
 		// set up the worker thread
-		this.distThread = new DistributorThread(this.getApplicationContext());
-		this.distThread.execute(this);
+		this.distThread = new DistributorThread(this.getApplicationContext(), this);
+		this.distThread.start();
 		// Initialize our receivers/listeners.
 		/*
          wifiReceiver = new WifiReceiver();
@@ -415,12 +413,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		mNetlinks.add(PhoneNetlink.getInstance(getBaseContext()));
 
 		// FIXME: find the appropriate time to release() the multicast lock.
-		logger.info("Acquiring multicast lock()");
+		logger.trace("Acquiring multicast lock()");
 		WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 		WifiManager.MulticastLock multicastLock =
             wm.createMulticastLock("mydebuginfo");
 		multicastLock.acquire();
-		logger.info("...acquired multicast lock()");
+		logger.trace("...acquired multicast lock()");
 
 		// no point in enabling the socket until the preferences have been read
 		this.gwChannel.disable();
@@ -464,7 +462,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		this.mListener = new PhoneStateListener() {
 			public void onDataConnectionStateChanged(int state) {
-				logger.info("PhoneReceiver::onCallStateChanged()");
+			    logger.trace("PhoneReceive::onCallStateChanged() - 3G status change {}", state);
 				mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
 				netlinkStatusChanged();
 			}
@@ -487,7 +485,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 - now fire up the AMMO_LOGIN intent to force apps to register their subscriptions
 	 */
 	private void refresh() {	
-		logger.info("Forcing applications to register their subscriptions");
+		logger.trace("Forcing applications to register their subscriptions");
 		
 		this.distThread.clearTables();
 		
@@ -506,7 +504,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	@Override
 	public void onDestroy() {
-		logger.warn("::onDestroy");
+		logger.warn("::onDestroy - AmmoService");
 		this.gwChannel.disable();
 		this.multicastChannel.disable();
 		this.reliableMulticastChannel.disable();
@@ -636,7 +634,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * Read the system preferences for the network connection information.
 	 */
 	private void acquirePreferences() {
-		logger.info("::acquirePreferences");
+		logger.trace("::acquirePreferences");
 		
 		this.networkingSwitch = this.localSettings
 				.getBoolean(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE, 
@@ -813,7 +811,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		@Override
 		public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-			logger.info("::onSharedPreferenceChanged panthr {}", key);
+			logger.trace("::onSharedPreferenceChanged panthr {}", key);
 		    //
 			// handle network authentication group
 			//
@@ -1008,7 +1006,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
     	
 		@Override
 		public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-			logger.info("::onSharedPreferenceChanged ammo {}", key);
+			logger.trace("::onSharedPreferenceChanged ammo {}", key);
 		
 			try {
 					
@@ -1094,7 +1092,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				// shouldUse(prefs);
 				// }
 				if (key.equals(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE)) {
-					logger.info("explicit opererator reset on channel");
+					logger.trace("explicit opererator reset on channel");
 					parent.networkingSwitch = true;
 		
 					parent.gwChannel.reset();
@@ -1239,7 +1237,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * with obtaining the sessionId.
 	 */
 	public AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest() {
-		logger.info("::buildAuthenticationRequest");
+		logger.trace("::buildAuthenticationRequest");
 
 		final AmmoMessages.MessageWrapper.Builder mw = 
 				AmmoMessages.MessageWrapper.newBuilder();
@@ -1275,7 +1273,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 */
 	@Override
 	public ChannelDisposal sendRequest(AmmoGatewayMessage agm, String channelName) {
-		logger.info("::sendGatewayRequest");
+	    logger.info("Ammo sending Request size ({}) priority({}) to Channel {}",
+			new Object[]{agm.size, agm.priority, channelName});
 		// agm.setSessionUuid( sessionId );
 		if (!gChannelMap.containsKey(channelName))
 			return ChannelDisposal.REJECTED;
@@ -1325,7 +1324,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * being intentionally shut down.
 	 */
 	public void teardown() {
-		logger.info("Tearing down NPS");
+		logger.trace("Tearing down NPS");
 		this.gwChannel.disable();
 		this.multicastChannel.disable();
 		this.reliableMulticastChannel.disable();
@@ -1361,9 +1360,9 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * been pre-verified.
 	 */
 	public boolean auth() {
-		logger.info("::authenticate");
+		logger.trace("::authenticate");
 		if (! this.isConnected()) {
-			logger.info("no active connection for authentication" );
+			logger.warn("no active connection for authentication" );
 			return false;	
 		}
 		if (this.deviceId == null) {
@@ -1432,7 +1431,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		logger.trace("authentication complete, repost subscriptions and pending data {}", channel);
 		this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.ACTIVATE);
 
-		logger.info("authentication complete inform applications : ");
+		logger.trace("authentication complete inform applications : ");
 		// TBD SKN - this should not be sent now ...
 		// broadcast login event to apps ...
 		Intent loginIntent = new Intent(IntentNames.AMMO_LOGIN);
@@ -1541,7 +1540,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			logger.debug("onReceive: {}", action);
 
 			if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)) {
-				logger.info("Ether Link state changed");
+				logger.trace("Ether Link state changed");
 				int state = aIntent.getIntExtra("state", 0);
 
 				// Should we be doing this here? 
@@ -1549,13 +1548,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				if (state != 0) {
 					switch (state) {
 					case AmmoIntents.LINK_UP:
-						logger.info("onReceive: Link UP " + action);
+						logger.trace("onReceive: Link UP " + action);
 						gwChannel.linkUp();
 						multicastChannel.linkUp();
 						reliableMulticastChannel.linkUp();
 						break;
 					case AmmoIntents.LINK_DOWN:
-						logger.info("onReceive: Link DOWN " + action);
+						logger.trace("onReceive: Link DOWN " + action);
 						gwChannel.linkDown();
 						multicastChannel.linkDown();
 						reliableMulticastChannel.linkDown();
@@ -1572,13 +1571,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					|| WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)
 					|| WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
 					|| WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action)) {
-				logger.info("WIFI state changed");
+				logger.trace("WIFI state changed");
 				mNetlinks.get(linkTypes.WIRED.value).updateStatus();
 				mNetlinks.get(linkTypes.WIFI.value).updateStatus();
 				netlinkStatusChanged();
 				return;
 			} else if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
-				logger.info("3G state changed");
+				logger.trace("3G state changed");
 				mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
 				netlinkStatusChanged();
 				return;
@@ -1607,7 +1606,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 			final String action = aIntent.getAction();
 
-			logger.info("::onReceive: {}", action);
+			logger.trace("::onReceive: {}", action);
 			checkResourceStatus(aContext);
 
 			if (Intent.ACTION_MEDIA_MOUNTED.equals(action)) {
@@ -1615,27 +1614,27 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		}
 
 		public void checkResourceStatus(final Context aContext) { //
-			logger.info("::checkResourceStatus");
+			logger.trace("::checkResourceStatus");
 			{ 
 				final WifiManager wm = (WifiManager) aContext.getSystemService(Context.WIFI_SERVICE);
 				final int wifiState = wm.getWifiState(); // TODO check for permission or catch error
-				logger.info("wifi state={}", wifiState);
+				logger.trace("wifi state={}", wifiState);
 
 				final TelephonyManager tm = (TelephonyManager) aContext.getSystemService(
 						Context.TELEPHONY_SERVICE);
 				final int dataState = tm.getDataState(); // TODO check for permission or catch error
-				logger.info("telephone data state={}", dataState);
+				logger.trace("telephone data state={}", dataState);
 
 				mNetworkConnected = wifiState == WifiManager.WIFI_STATE_ENABLED
 						|| dataState == TelephonyManager.DATA_CONNECTED;
-				logger.info("mConnected={}", mNetworkConnected);
+				logger.trace("mConnected={}", mNetworkConnected);
 			} 
 			{
 				final String state = Environment.getExternalStorageState();
 
-				logger.info("sdcard state={}", state);
+				logger.trace("sdcard state={}", state);
 				mSdCardAvailable = Environment.MEDIA_MOUNTED.equals(state);
-				logger.info("mSdcardAvailable={}", mSdCardAvailable);
+				logger.trace("mSdcardAvailable={}", mSdCardAvailable);
 			}
 		}
 	}

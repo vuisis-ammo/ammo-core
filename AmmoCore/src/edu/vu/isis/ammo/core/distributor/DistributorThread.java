@@ -10,6 +10,8 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.distributor;
 
+import android.os.Debug;
+
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +35,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.AsyncTask;
+import android.os.Process;
 import android.preference.PreferenceManager;
 
 import com.google.protobuf.ByteString;
@@ -68,11 +70,13 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
  * 
  */
 @ThreadSafe
-public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
+    public class DistributorThread extends Thread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger("ammo-dst");
+	private static final boolean RUN_TRACE = false;
+
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
 	private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
@@ -89,14 +93,16 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	private static final int BURP_TIME = 20 * 1000;
 
 	private final Context context;
+    private final AmmoService ammoService;
 	/**
 	 * The backing store for the distributor
 	 */
 	final private DistributorDataStore store;
 
-	public DistributorThread(final Context context) {
+    public DistributorThread(final Context context, AmmoService parent) {
 		super();
 		this.context = context;
+		this.ammoService = parent;
 		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
 		this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200, new AmmoGatewayMessage.PriorityOrder());
 		this.store = new DistributorDataStore(context);
@@ -285,7 +291,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 	public String distributeRequest(AmmoRequest request) {
 		try {
-			logger.trace("received request of type {}", request.toString());
+		    logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
 
 			if (! this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
 				logger.error("could not process request {}", request);
@@ -296,7 +302,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			return request.uuid;
 
 		} catch (InterruptedException ex) {
-			logger.warn("distribute request {}", ex.getStackTrace());
+			logger.error("Exception while distributing request {}", ex.getStackTrace());
 		}
 		return null;
 	}
@@ -327,7 +333,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * network connections then nothing can be distributed, so no work. Either
 	 * incoming requests, responses, or a channel has been activated.
 	 */
-	private boolean isReady(AmmoService[] them) {
+    private boolean isReady() {
 		if (this.channelDelta.get())
 			return true;
 
@@ -347,92 +353,75 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * The method tries to be fair processing the requests in
 	 */
 	@Override
-	protected Void doInBackground(AmmoService... them) {
+	    public void run()
+    {
+	Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
+	logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
 
-		logger.info("started");
+	if (ammoService.isConnected()) {
 
-		for (final AmmoService that : them) {
-			if (!that.isConnected())
-				continue;
+	    for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+		final String name = entry.getKey();
+		this.store.deactivateDisposalStateByChannel(name);
+	    }
 
-			for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
-				final String name = entry.getKey();
-				this.store.deactivateDisposalStateByChannel(name);
-			}
+	    this.processSubscribeCache(ammoService);
+	    this.processRetrievalCache(ammoService);
+	    this.processPostalCache(ammoService);
+	}
 
-			this.processSubscribeCache(that);
-			this.processRetrievalCache(that);
-			this.processPostalCache(that);
+
+	try {
+	    while (true) {
+		// condition wait, is there something to process?
+		synchronized (this) {
+		    while (!this.isReady())
+			this.wait(BURP_TIME);
 		}
+		while (this.isReady()) {
+		    if (this.channelDelta.getAndSet(false)) {
+			logger.trace("channel change");
+			this.processChannelChange(ammoService);
+		    }
 
-		try {
-			while (true) {
-				// condition wait, is there something to process?
-				synchronized (this) {
-					while (!this.isReady(them))
-						this.wait(BURP_TIME);
-				}
-				while (this.isReady(them)) {
-					if (this.channelDelta.getAndSet(false)) {
-						logger.trace("channel change");
-						for (AmmoService that : them) {
-							this.processChannelChange(that);
-						}
-					}
-
-					if (!this.channelAck.isEmpty()) {
-						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
-						try {
-							final ChannelAck ack = this.channelAck.take();
-							this.processChannelAck(this.context, ack);
-						} catch (ClassCastException ex) {
-							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
-						}
-					}
-
-					if (!this.responseQueue.isEmpty()) {
-						logger.trace("processing response, remaining {}", this.responseQueue.size());
-						try {
-							final AmmoGatewayMessage agm = this.responseQueue.take();
-							for (AmmoService that : them) {
-								this.processResponse(that, agm);
-							}
-						} catch (ClassCastException ex) {
-							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
-						}
-					}
-
-					if (!this.requestQueue.isEmpty()) {
-						logger.trace("processing request, remaining {}", this.requestQueue.size());
-						try {
-							final AmmoRequest agm = this.requestQueue.take();
-							for (AmmoService that : them) {
-								this.processRequest(that, agm);
-							}
-						} catch (ClassCastException ex) {
-							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
-						}
-					}
-				}
-				logger.trace("work processed");
+		    if (!this.channelAck.isEmpty()) {
+			logger.trace("processing channel acks, remaining {}", this.channelAck.size());
+			try {
+			    final ChannelAck ack = this.channelAck.take();
+			    this.processChannelAck(this.context, ack);
+			} catch (ClassCastException ex) {
+			    logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
 			}
-		} catch (InterruptedException ex) {
-			logger.warn("task interrupted {}", ex.getStackTrace());
+		    }
+
+		    if (!this.responseQueue.isEmpty()) {
+			try {
+			    final AmmoGatewayMessage agm = this.responseQueue.take();
+			    logger.info("processing response, remaining {}", this.responseQueue.size());
+			    this.processResponse(ammoService, agm);
+			} catch (ClassCastException ex) {
+			    logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
+			}
+		    }
+
+		    if (!this.requestQueue.isEmpty()) {
+			try {
+			    final AmmoRequest agm = this.requestQueue.take();
+			    logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
+			    this.processRequest(ammoService, agm);
+			} catch (ClassCastException ex) {
+			    logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
+			}
+		    }
 		}
-		// this.publishProgress(values);
-		return null;
+		logger.trace("work processed");
+	    }
+	} catch (InterruptedException ex) {
+	    logger.warn("task interrupted {}", ex.getStackTrace());
 	}
+	return;
+    }
 
-	@Override
-	protected void onProgressUpdate(Integer... them) {
-		super.onProgressUpdate(them[0]);
-	}
-
-	@Override
-	protected void onPostExecute(Void result) {
-		super.onPostExecute(result);
-		logger.error("distribution thread finishing {}", result);
-	}
 
 	// ================= DRIVER METHODS ==================== //
 
@@ -448,7 +437,14 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		logger.trace("process request {}", agm);
 		switch (agm.action) {
 		case POSTAL:
-			processPostalRequest(that, agm);
+			if (RUN_TRACE) {
+				Debug.startMethodTracing("processPostalRequest");
+				processPostalRequest(that, agm);
+				Debug.stopMethodTracing();
+			} else {
+				processPostalRequest(that, agm);
+			}
+			
 			break;
 		case DIRECTED_POSTAL:
 			processPostalRequest(that, agm);
@@ -539,7 +535,7 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	private boolean processResponse(Context context, AmmoGatewayMessage agm) {
-		logger.trace("process response");
+	    logger.trace("process response");
 
         if ( !agm.hasValidChecksum() ) {
             return false;
@@ -644,14 +640,15 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 	 * @return
 	 */
 	private void processPostalRequest(final AmmoService that, final AmmoRequest ar) {
-		logger.trace("process request POSTAL");
 
 		// Dispatch the message.
 		try {
-			final UUID uuid = UUID.randomUUID();
+		    final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
+
+			logger.trace("process request topic {}, uuid {}", ar.topic, uuid);
 
 			final ContentValues values = new ContentValues();
 			values.put(PostalTableSchema.UUID.cv(), uuid.toString());
@@ -714,9 +711,9 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				
-				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
-				final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
+			    final long id = this.store.upsertPostal(values, policy.makeRouteMap());
+
+			    final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
 						ar.provider.toString(), topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
@@ -731,7 +728,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 										                                        channel, status));
 							}
 						});
-				this.store.updatePostalByKey(id, null, dispatchResult);
+
+			    this.store.updatePostalByKey(id, null, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
@@ -1492,7 +1490,6 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 		
 		// final ContentResolver resolver = context.getContentResolver();
 
-		logger.trace("receive response SUBSCRIBE : {}", mime );
 		final String topic = mime;
 		final Cursor cursor = this.store.querySubscribeByKey(new String[] { SubscribeTableSchema.PROVIDER.n }, topic, null);
 		if (cursor.getCount() < 1) {
@@ -1508,6 +1505,8 @@ public class DistributorThread extends AsyncTask<AmmoService, Integer, Void> {
 
 		final Encoding encoding = Encoding.getInstanceByName( encode );
 		RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
+
+		logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString );
 
 		return true;
 	}

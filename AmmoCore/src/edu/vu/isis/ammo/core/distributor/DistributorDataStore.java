@@ -1046,7 +1046,7 @@ public class DistributorDataStore {
 
 	public DistributorDataStore(Context context) {
 		this.context = context;
-		this.helper = new DataStoreHelper(this.context, Tables.NAME, null, VERSION);
+		this.helper = new DataStoreHelper(this.context, null, null, VERSION); // Tables.NAME - to create in memory database
 
 		// ========= INITIALIZE CONSTANTS ========
 		this.applDir = context.getDir("support", Context.MODE_PRIVATE);
@@ -2251,7 +2251,7 @@ public class DistributorDataStore {
 
 		@Override
 		public synchronized void onCreate(SQLiteDatabase db) {
-			logger.info("bootstrapping database");
+			logger.trace("bootstrapping database");
 
 			try {
 				final StringBuilder sb = new StringBuilder();
