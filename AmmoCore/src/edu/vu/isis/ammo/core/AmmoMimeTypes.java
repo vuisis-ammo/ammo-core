@@ -34,6 +34,9 @@ public class AmmoMimeTypes {
 
         mimeTypes.put( 3, "ammo/edu.vu.isis.ammo.dash.event" );
         mimeIds.put( "ammo/edu.vu.isis.ammo.dash.event", 3 );
+		
+        mimeTypes.put( 4, "ammo/transapps.chat.message_groupAll" );
+        mimeIds.put( "ammo/transapps.chat.message_groupAll", 4 );
         
         // NO blob, no media
         // mimeTypes.put( 4, "ammo/edu.vu.isis.ammo.dash.media" );
@@ -53,4 +56,10 @@ public class AmmoMimeTypes {
 	}
 
     }
+
+	public static void main(String[] args) {
+		for( Map.Entry<Integer,String> e : mimeTypes ) {
+			System.out.println(e.getKey() + " => " + e.getValue());
+		}
+	}
 }
