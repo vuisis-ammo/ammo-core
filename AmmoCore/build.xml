@@ -54,9 +54,15 @@
         <echo>configure ammo core libraries for ${basedir}.</echo>
         <!-- configure protobuf -->
         <mkdir dir="libs"/>
-        <symlink taskname="add-protobuf-lib" action="single" overwrite="true" 
+
+        <symlink taskname="add-protobuf-libs" action="single" overwrite="true" 
               link="${basedir}/libs/protobuf.jar" 
               resource="/usr/share/java/protobuf.jar"/>
+<!--
+        <symlink taskname="add-protobuf-lib" action="single" overwrite="true" 
+              link="${basedir}/lib/protobuf.jar" 
+              resource="/usr/share/java/protobuf.jar"/>
+-->
 
         <fail message="Files are missing.">
            <condition>
@@ -74,7 +80,6 @@
     <property name="proto.dir" value="../../Gateway/common/protocol"/>
 
     <target name="protobuf">
-        <echo>for running within eclipse, instead of bash script.</echo>
         <echo>Generating protocol buffers</echo>
         <mkdir dir="gen"/>
         <exec executable="protoc" taskname="pb">

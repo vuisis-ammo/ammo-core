@@ -31,10 +31,11 @@ import edu.vu.isis.ammo.core.ServiceEx;
 
 public class EthTrackSvc extends ServiceEx {
 
-    private static final Logger logger = LoggerFactory.getLogger(EthTrackSvc.class);
+    private static final Logger logger = LoggerFactory.getLogger("net.ethertracker");
 	private AmmoCoreApp application;
 
     private boolean mIsLinkUp = false;
+    private EtherStatReceiver mStatReceiver = null; // ether service thread
 
     public boolean isLinkUp() { return mIsLinkUp; }
 
@@ -61,8 +62,8 @@ public class EthTrackSvc extends ServiceEx {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-//      logger.debug("::onStartCommand with intent {}", intent.getAction());
-        handleCommand();
+	// logger.info("::onStartCommand with intent {}", intent.getAction());
+      handleCommand();
 
         //this.application.setWiredState(WIRED_NETLINK_DOWN);
 
@@ -87,17 +88,19 @@ public class EthTrackSvc extends ServiceEx {
      * state changes of the interface
      */
     public void handleCommand() {
+	if (mStatReceiver != null)
+	    return;		// ether service is already running
 
         int ret = this.initEthernetNative();
 
         if (ret == -1)
         {
-            logger.info("Error in InitEthernet: create or socket bind error, Exiting ...");
+            logger.error("Error in InitEthernet: create or socket bind error, Exiting ...");
             return;
         }
 
-        EtherStatReceiver stat = new EtherStatReceiver("ethersvc", this);
-        stat.start();
+        mStatReceiver = new EtherStatReceiver("ethersvc", this);
+        mStatReceiver.start();
     }
 
     private static final int HELLO_ID = 1;
@@ -113,6 +116,8 @@ public class EthTrackSvc extends ServiceEx {
      */
     public int Notify(String msg) {
         this.updateSharedPreferencesForInterfaceStatus(msg);
+
+	logger.info("EtherTracker {}", msg);
 
         // Start specific application respond on selection
 
@@ -228,7 +233,7 @@ public class EthTrackSvc extends ServiceEx {
 
                 if (res.indexOf("Error") > 0)
                 {
-                    logger.info("Error in waitForEvent: Exiting Thread");
+                    logger.error("Error in waitForEvent: Exiting Thread");
                     return;
                 }
 
@@ -244,11 +249,11 @@ public class EthTrackSvc extends ServiceEx {
                 }
 
                 try {
-                    sleep((int) (Math.random() * 1000));
+                    sleep((int) 3000);
                 } catch (InterruptedException e) {
                 }
             }
-            // logger.info("Thread Done");
+            // logger.trace("Thread Done");
         }
     }
 

@@ -26,7 +26,7 @@
   </appender>
 
 
-  <root level="WARN">
+  <root level="ERROR">
     <appender-ref ref="LOGCAT" />
     <appender-ref ref="FILE" />
   </root>

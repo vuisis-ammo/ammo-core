@@ -97,14 +97,14 @@ public class AmmoCore extends TabActivityEx
     	final private AmmoCore parent = AmmoCore.this;
     	
         public void onServiceConnected(ComponentName name, IBinder service) {
-            logger.info("::onServiceConnected - Network Service");
+            logger.trace("::onServiceConnected - Network Service");
             final AmmoService.DistributorServiceAidl binder = (AmmoService.DistributorServiceAidl) service;
             parent.networkServiceBinder = binder.getService();
             initializeGatewayAdapter();
             initializeNetlinkAdapter();
         }
         public void onServiceDisconnected(ComponentName name) {
-            logger.info("::onServiceDisconnected - Network Service");
+            logger.trace("::onServiceDisconnected - Network Service");
             parent.networkServiceBinder = null;
         }
     };
