@@ -18,9 +18,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.type.Moment;
+import edu.vu.isis.ammo.api.type.Payload;
+import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.api.type.TimeTrigger;
+import edu.vu.isis.ammo.core.AmmoService;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -67,11 +75,13 @@ public class DistributorDataStore {
 	 * 
 	 * The postal table records requests that data be sent out.
 	 * POSTed data is specifically named and distributed.
-	 * The retrieval and interest tables record request that data be obtained.
-	 * RETRIEVAL data is obtained by topic from a source.
-	 * INTEREST data is obtained by topic.
+	 * The retrieval and subscribe tables record request that data be obtained.
+	 * RETRIEVAL data is obtained from a source.
+	 * SUBSCRIBEd data is obtained by topic.
+	 * The subscribe table is very similar to the interest table.
+	 * The interest table is for local interest the subscribe table is for remote interest.
 	 * 
-	 * The disposition table keeps track of the status of the delivery.
+	 * The disposal table keeps track of the status of the delivery.
 	 * It is used in conjunction with the distribution policy.
 	 * The disposition table may have several entries for each request.
 	 * There is one row for each potential channel over which the 
@@ -87,11 +97,11 @@ public class DistributorDataStore {
 		POSTAL(1, "postal"),
 		RETRIEVAL(2, "retrieval"),
 		INTEREST(3, "interest"),
-		DISPOSAL(4, "disposal"),
-		CHANNEL(5, "channel"),
-		PRESENCE(6, "presence"),
-		RECIPIENT(7, "recipient"),
-		NOTICE(8, "notice");
+		SUBSCRIBE(4, "interest"),
+		DISPOSAL(5, "disposal"),
+		CHANNEL(6, "channel"),
+		PRESENCE(7, "presence"),
+		RECIPIENT(8, "recipient");
 
 		final public int o;
 		final public String n;
@@ -285,7 +295,7 @@ public class DistributorDataStore {
 	 * The DISTRIBUTE state indicates that the
 	 * total state is an aggregate of the distribution
 	 * of the request across the relevant channels.
-	 * see the ChannelDisposal
+	 * see the ChannelStatus
 	 * 
 	 * NEW : either all pending or none
 	 * DISTRIBUTE : the request is being actively processed
@@ -814,10 +824,14 @@ public class DistributorDataStore {
 		SERIAL_MOMENT("serial_event", "INTEGER"),
 		// When the serialization happens. {APRIORI, EAGER, LAZY}
 
-		EXPIRATION("expiration", "INTEGER");
+		EXPIRATION("expiration", "INTEGER"),
 		// Time-stamp at which point the request 
 		// becomes stale and can be discarded.
-
+		
+		NOTICE("notice", "INTEGER");
+		// indicates which thresholds are to be noticed
+		// see Notice.java for detail
+		
 
         final public TableFieldState impl;
 
@@ -1559,8 +1573,95 @@ public class DistributorDataStore {
 	 */
 	
 	//============ REQUEST METHODS ===================
-	public synchronized long upsertPostal(ContentValues cv, DistributorState status) {
-		return upsertRequest(cv, status, POSTAL_VIEW_NAME, Tables.POSTAL);
+	public PostalRunner getPostalRunner(final AmmoRequest ar, final AmmoService svc) {
+		return new PostalRunner(ar, svc);
+	}
+	public PostalRunner getPostalRunner(final Cursor pending, final AmmoService svc) {
+		return new PostalRunner(pending, svc);
+	}
+	public class PostalRunner {
+		public final UUID uuid;
+		public final String auid;
+		public final String topic;	
+		public final Provider provider;
+		public final DistributorPolicy.Topic policy;
+		public final Moment serialMoment; 
+		public final int priority;
+		public final TimeTrigger expire;
+		
+		public DisposalTotalState totalState = null;
+		public DistributorState status = null;
+		public Payload payload = null;
+		
+		
+		private PostalRunner(final AmmoRequest ar, final AmmoService svc) {
+			
+			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			this.auid = ar.uid;
+			this.topic = ar.topic.asString();
+			this.provider = ar.provider;
+			this.policy = svc.policy().matchPostal(topic);
+			this.serialMoment = ar.moment;
+			
+			this.priority = policy.routing.priority+ar.priority;
+			this.expire = ar.expire;
+		}
+		
+		private PostalRunner(final Cursor pending, final AmmoService svc) {
+			final long id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
+			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
+			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
+			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
+			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
+			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
+			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
+			this.policy = svc.policy().matchPostal(topic);
+		
+			this.priority = 
+		}
+		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
+			synchronized(DistributorDataStore.this) {	
+				final ContentValues rqstValues = new ContentValues();
+				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
+				rqstValues.put(RequestField.AUID.cv(), this.auid);
+				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
+				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
+				
+				rqstValues.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
+				rqstValues.put(RequestField.PRIORITY.cv(), this.policy.routing.priority+this.priority);
+				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
+				
+				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
+				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
+				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
+				
+				final ContentValues noticeValues = new ContentValues();
+				// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
+		
+				// values.put(PostalTableSchema.UNIT.cv(), 50);
+				return upsertRequest(rqstValues, status, POSTAL_VIEW_NAME, Tables.POSTAL);
+			}
+		}
+		
+		public int delete(String tupleId) {
+			final String select = new StringBuilder()
+		        .append(RequestField.PROVIDER.q(null)).append("=?")
+		        .append(" AND ")
+				.append(RequestField.TOPIC.q(null)).append("=?")
+				.toString();
+			final String[] args = new String[] {tupleId, this.topic};
+			
+			try {
+				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
+				final int count = db.delete(Tables.POSTAL.n, select, args);
+				final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+				logger.trace("Postal delete {} {}", count, disposalCount);
+				return count;
+			} catch (IllegalArgumentException ex) {
+				logger.error("delete postal {} {}", select, args);
+			}
+			return 0;
+		}
 	}
 	
 	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
@@ -1887,18 +1988,6 @@ public class DistributorDataStore {
 
 	// ========= POSTAL : DELETE ================
 
-	public synchronized int deletePostal(String selection, String[] selectionArgs) {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.POSTAL.n, selection, selectionArgs);
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
-			logger.trace("Postal delete {} {}", count, disposalCount);
-			return count;
-		} catch (IllegalArgumentException ex) {
-			logger.error("delete postal {} {}", selection, selectionArgs);
-		}
-		return 0;
-	}
 	public synchronized int deletePostalGarbage() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();

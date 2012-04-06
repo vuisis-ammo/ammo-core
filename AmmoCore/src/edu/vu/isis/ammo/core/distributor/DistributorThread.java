@@ -55,6 +55,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.InterestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalRunner;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerialMoment;
@@ -633,58 +634,42 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 		// Dispatch the message.
 		try {
-		    final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
-			final String auid = ar.uid;
-			final String topic = ar.topic.asString();
-			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
-			final Moment serialMoment = ar.moment;
+			final PostalRunner postal = that.store().getPostalRunner(ar, that);
+			logger.trace("process request topic {}, uuid {}", postal.topic, postal.uuid);
 
-			logger.trace("process request topic {}, uuid {}", ar.topic, uuid);
-
-			final ContentValues values = new ContentValues();
-			values.put(RequestField.UUID.cv(), uuid.toString());
-			values.put(RequestField.AUID.cv(), auid);
-			values.put(RequestField.TOPIC.cv(), topic);
-			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
+			final DistributorState dispersal = postal.policy.makeRouteMap();
 			
-			values.put(RequestField.PRIORITY.cv(), policy.routing.priority+ar.priority);
-			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
-			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
+			final byte[] payload;			
+			switch (postal.serialMoment.type()) {
+			case APRIORI:
+				payload = ar.payload.asBytes();
+				break;
+			case EAGER:				
+				try {
+					final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
+					payload = RequestSerializer.serializeFromProvider(that.getContentResolver(), 
+							serializer.provider.asUri(), Encoding.getDefault());
 			
-			// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-
-			// values.put(PostalTableSchema.UNIT.cv(), 50);
-
-			final DistributorState dispersal = policy.makeRouteMap();
-			if (!that.isConnected()) {
-				switch (serialMoment.type()) {
-				case APRIORI:
-					values.put(PostalField.PAYLOAD.cv(), ar.payload.asBytes());
-					break;
-				case EAGER:				
-					try {
-						final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
-						final byte[] payload = RequestSerializer.serializeFromProvider(that.getContentResolver(), 
-								serializer.provider.asUri(), Encoding.getDefault());
-						
-						values.put(RequestField.EXPIRATION.cv(), payload);
-					} catch (IOException e1) {
-						logger.error("invalid row for serialization");
-					} catch (TupleNotFoundException e) {
-						logger.error("tuple not found when processing postal table");
-						this.store().deletePostal(new StringBuilder()
-						        .append(RequestField.PROVIDER.q(null)).append("=?").append(" AND ")
-								.append(RequestField.TOPIC.q(null)).append("=?").toString(), 
-								new String[] {e.missingTupleUri.getPath(), topic});
-					} catch (NonConformingAmmoContentProvider e) {
-						e.printStackTrace();
-					}
-					break;
-				case LAZY:
-				default:
+				} catch (IOException e1) {
+					logger.error("invalid row for serialization");
+					return;
+				} catch (TupleNotFoundException e) {
+					logger.error("tuple not found when processing postal table");
+					postal.delete(e.missingTupleUri.getPath());
+					return;
+				} catch (NonConformingAmmoContentProvider e) {
+					e.printStackTrace();
+					return;
 				}
-				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-				long key = this.store.upsertPostal(values, policy.makeRouteMap());
+				break;
+			case LAZY:
+			default:
+				payload = null;
+			}
+				
+			if (!that.isConnected()) {
+				long key = postal.upsert(DisposalTotalState.DISTRIBUTE, payload);
+				
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
@@ -694,7 +679,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 				final RequestSerializer serializer_ = serializer;
 				final AmmoService that_ = that;
-				final DistributorThread parent = DistributorThread.this;
+				final PostalRunner postal_ = postal;
 				
 				@Override
 				public byte[] run(Encoding encode) {
@@ -715,8 +700,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 							return null;
 						} catch (TupleNotFoundException e) {
 							logger.error("tuple not found when processing postal table");
-							parent.store().deletePostal(new StringBuilder().append(RequestField.PROVIDER.q(null)).append("=?").append(" AND ")
-									.append(RequestField.TOPIC.q(null)).append("=?").toString(), new String[] {e.missingTupleUri.getPath(), topic});
+							postal_.delete(e.missingTupleUri.getPath());
 							return null;
 						} catch (NonConformingAmmoContentProvider e) {
 							e.printStackTrace();
@@ -726,18 +710,17 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				}
 			});
 
-			values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-			    final long id = this.store.upsertPostal(values, policy.makeRouteMap());
-
+				final long id = postal.upsert(DisposalTotalState.DISTRIBUTE, payload);
+				
 			    final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
-						ar.provider.toString(), topic, dispersal, serializer, 
+						ar.provider.toString(), postal.topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							final long id_ = id;
-							final String topic_ = topic;
+							final String topic_ = postal.topic;
 							final String auid_ = ar.uid;
 		
 							@Override
@@ -773,15 +756,11 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		for (boolean moreItems = pending.moveToFirst(); moreItems; 
 				moreItems = pending.moveToNext()) 
 		{
-			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
-			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
-			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
-			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
-			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
+			final PostalRunner postal = this.store().getPostalRunner(pending, that);
+			
+			logger.debug("serializing: {} as {}", postal.provider, postal.topic);
 
-			logger.debug("serializing: {} as {}", provider,topic);
-
-			final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
+			final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
 			final int serialMoment = pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n()));
 			int dataColumnIndex = pending.getColumnIndex(PostalField.DATA.n());
 
