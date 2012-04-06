@@ -57,9 +57,4 @@ public class AmmoMimeTypes {
 
     }
 
-	public static void main(String[] args) {
-		for( Map.Entry<Integer,String> e : mimeTypes ) {
-			System.out.println(e.getKey() + " => " + e.getValue());
-		}
-	}
 }
