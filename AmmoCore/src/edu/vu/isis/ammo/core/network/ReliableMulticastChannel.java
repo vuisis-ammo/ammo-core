@@ -1141,6 +1141,7 @@ public class ReliableMulticastChannel extends NetChannel
         {
             mParent = iParent;
             mDestination = iDestination;
+            setReceiverState( INetChannel.START );
         }
 
         @Override
