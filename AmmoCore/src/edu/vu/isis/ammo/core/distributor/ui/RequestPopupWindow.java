@@ -33,7 +33,7 @@ import android.widget.TableRow;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalChannelField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PriorityType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
@@ -189,9 +189,9 @@ public class RequestPopupWindow extends PopupWindow {
 
 	}
 	static final private String CHANNEL_SELECTION = new StringBuilder()
-	.append(DisposalChannelField.TYPE.q(null)).append("=?")
+	.append(DisposalField.TYPE.q(null)).append("=?")
 	.append(" AND ")
-	.append(DisposalChannelField.REQUEST.q(null)).append("=?")
+	.append(DisposalField.REQUEST.q(null)).append("=?")
 	.toString();
 
 }

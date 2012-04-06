@@ -178,11 +178,11 @@ public class DistributorDataStore {
 			switch (this) {
 			case POSTAL:     return PostalField.values(); 
 			case RETRIEVAL:  return RetrievalField.values(); 
-			case INTEREST:  return InterestField.values(); 
-			case DISPOSAL:   return DisposalChannelField.values(); 
+			case INTEREST:   return InterestField.values(); 
+			case DISPOSAL:   return DisposalField.values(); 
 			case CHANNEL:    return ChannelField.values(); 
 			case PRESENCE:   return PresenceField.values(); 
-			case RECIPIENT:  return DisposalPresenceField.values(); 
+			case RECIPIENT:  return RecipientField.values(); 
 			}
 			return null;
 		}
@@ -192,11 +192,11 @@ public class DistributorDataStore {
 			case REQUEST:    return RequestTable.PARENT_KEY_REF; 
 			case POSTAL:     return PostalTable.PARENT_KEY_REF; 
 			case RETRIEVAL:  return RetrievalTable.PARENT_KEY_REF; 
-			case INTEREST:  return InterestTable.PARENT_KEY_REF; 
-			case DISPOSAL:   return DisposalChannelTable.PARENT_KEY_REF; 
+			case INTEREST:   return InterestTable.PARENT_KEY_REF; 
+			case DISPOSAL:   return DisposalTable.PARENT_KEY_REF; 
 			case CHANNEL:    return ChannelTable.PARENT_KEY_REF; 
 			case PRESENCE:   return PresenceTable.PARENT_KEY_REF; 
-			case RECIPIENT:  return DisposalPresenceTable.PARENT_KEY_REF; 
+			case RECIPIENT:  return RecipientTable.PARENT_KEY_REF; 
 			}
 			return null;
 		}
@@ -1040,7 +1040,7 @@ public class DistributorDataStore {
 	 * An association between channel and request.
 	 * This 
 	 */
-	public enum DisposalChannelField  implements TableField {
+	public enum DisposalField  implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
 		CHANNEL("channel", "TEXT"),
@@ -1059,7 +1059,7 @@ public class DistributorDataStore {
 
 		final public TableFieldState impl;
 
-		private DisposalChannelField(String name, String type) {
+		private DisposalField(String name, String type) {
 			this.impl = new TableFieldState(name,type);
 		}
 		
@@ -1071,22 +1071,22 @@ public class DistributorDataStore {
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
 	}
-	public static interface DisposalChannelTable {
+	public static interface DisposalTable {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[DisposalChannelField.values().length];
+		public static final String[] COLUMNS = new String[DisposalField.values().length];
 		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(DisposalChannelField.values().length);
+				new HashMap<String,String>(DisposalField.values().length);
 		
 		public static final String PARENT_KEY_REF = new StringBuilder()
-		   .append(" FOREIGN KEY(").append(DisposalChannelField.REQUEST.n()).append(")")
+		   .append(" FOREIGN KEY(").append(DisposalField.REQUEST.n()).append(")")
 		   .append(" REFERENCES ").append(Tables.REQUEST.n)
 		   .append("(").append(RequestField._ID.n()).append(")")
 		   .append(" ON DELETE CASCADE ")
 		   .append(",")
-		   .append(" FOREIGN KEY(").append(DisposalChannelField.CHANNEL.n()).append(")")
+		   .append(" FOREIGN KEY(").append(DisposalField.CHANNEL.n()).append(")")
 		   .append(" REFERENCES ").append(Tables.CHANNEL.n)
 		   .append("(").append(ChannelField.NAME.n()).append(")")
 		   .append(" ON UPDATE CASCADE ")
@@ -1094,10 +1094,10 @@ public class DistributorDataStore {
 		   .toString();
 	}
 	static {
-		final List<String> columns = Arrays.asList(DisposalChannelTable.COLUMNS);
-		for (DisposalChannelField field : DisposalChannelField.values()) {
+		final List<String> columns = Arrays.asList(DisposalTable.COLUMNS);
+		for (DisposalField field : DisposalField.values()) {
 			columns.add(field.n());
-			DisposalChannelTable.PROJECTION_MAP.put(field.n(), field.n());
+			DisposalTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	}
 	
@@ -1106,7 +1106,7 @@ public class DistributorDataStore {
 	 * Once the message has been sent any acknowledgments will produce 
 	 * multiple additional recipient messages.
 	 */
-	public enum DisposalPresenceField  implements TableField {
+	public enum RecipientField  implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
 		REQUEST("request", "INTEGER"),
@@ -1120,7 +1120,7 @@ public class DistributorDataStore {
 
 		final public TableFieldState impl;
 
-		private DisposalPresenceField(String name, String type) {
+		private RecipientField(String name, String type) {
 			this.impl = new TableFieldState(name,type);
 		}
 		
@@ -1133,27 +1133,27 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	}
 	
-	public static interface DisposalPresenceTable {
+	public static interface RecipientTable {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[DisposalPresenceField.values().length];
+		public static final String[] COLUMNS = new String[RecipientField.values().length];
 		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(DisposalPresenceField.values().length);
+				new HashMap<String,String>(RecipientField.values().length);
 		
 		public static final String PARENT_KEY_REF = new StringBuilder()
-		   .append(" FOREIGN KEY(").append(DisposalPresenceField.DISPOSAL.n()).append(")")
+		   .append(" FOREIGN KEY(").append(RecipientField.DISPOSAL.n()).append(")")
 		   .append(" REFERENCES ").append(Tables.DISPOSAL.n)
-		   .append("(").append(DisposalChannelField._ID.n()).append(")")
+		   .append("(").append(DisposalField._ID.n()).append(")")
 		   .append(" ON DELETE CASCADE ")
 		   .toString();
 	}
 	static {
-		final List<String> columns = Arrays.asList(DisposalPresenceTable.COLUMNS);
-		for (DisposalPresenceField field : DisposalPresenceField.values()) {
+		final List<String> columns = Arrays.asList(RecipientTable.COLUMNS);
+		for (RecipientField field : RecipientField.values()) {
 			columns.add(field.n());
-			DisposalPresenceTable.PROJECTION_MAP.put(field.n(), field.n());
+			RecipientTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	}
 
@@ -1288,10 +1288,10 @@ public class DistributorDataStore {
 	.append(" AND EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
 	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
-	.append(" ON ").append(DisposalChannelField.CHANNEL.q("d")).append("=").append(ChannelField.NAME.q("c"))
-	.append(" WHERE ").append(RequestField._ID.q("r")).append("=").append(DisposalChannelField.REQUEST.q("d"))
+	.append(" ON ").append(DisposalField.CHANNEL.q("d")).append("=").append(ChannelField.NAME.q("c"))
+	.append(" WHERE ").append(RequestField._ID.q("r")).append("=").append(DisposalField.REQUEST.q("d"))
 	.append("   AND ").append(ChannelField.STATE.q("c")).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND ").append(DisposalChannelField.STATE.q("d"))
+	.append("   AND ").append(DisposalField.STATE.q("d"))
 	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause	
 	.append(" ORDER BY ")
@@ -1455,12 +1455,12 @@ public class DistributorDataStore {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 			qb.setTables(Tables.DISPOSAL.n);
-			qb.setProjectionMap(DisposalChannelTable.PROJECTION_MAP);
+			qb.setProjectionMap(DisposalTable.PROJECTION_MAP);
 
 			// Get the database and run the query.
 			return qb.query(this.db, projection, selection, selectionArgs, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: DisposalChannelTable.DEFAULT_SORT_ORDER);
+							: DisposalTable.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
 			logger.error("query disposal {} {}", selection, selectionArgs);
 		}
@@ -1486,8 +1486,8 @@ public class DistributorDataStore {
 	private static final String DISPOSAL_STATUS_QUERY = new StringBuilder()
 	.append(" SELECT * ")
 	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-	.append(" WHERE ").append(DisposalChannelField.TYPE.q("d")).append("=? ")
-	.append("   AND ").append(DisposalChannelField.REQUEST.q("d")).append("=? ")
+	.append(" WHERE ").append(DisposalField.TYPE.q("d")).append("=? ")
+	.append("   AND ").append(DisposalField.REQUEST.q("d")).append("=? ")
 	.toString();
 
 	//============ CHANNEL METHODS ===================
@@ -1589,15 +1589,15 @@ public class DistributorDataStore {
 	private synchronized long upsertDisposalByRequest(long requestId, String channel, DisposalState status) {
 		try {
 			final ContentValues cv = new ContentValues();
-			cv.put(DisposalChannelField.REQUEST.cv(), requestId);
-			cv.put(DisposalChannelField.CHANNEL.cv(), channel);
-			cv.put(DisposalChannelField.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
+			cv.put(DisposalField.REQUEST.cv(), requestId);
+			cv.put(DisposalField.CHANNEL.cv(), channel);
+			cv.put(DisposalField.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
 
 			final String requestIdStr = String.valueOf(requestId);
 			final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
 					DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr , channel } );
 			if (updateCount > 0) {
-				final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalChannelField._ID.n()}, 
+				final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalField._ID.n()}, 
 						DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel },
 						null, null, null);
 				final int rowCount = cursor.getCount();
@@ -1609,16 +1609,16 @@ public class DistributorDataStore {
 				cursor.close();
 				return key;
 			}
-			return this.db.insert(Tables.DISPOSAL.n, DisposalChannelField.TYPE.n(), cv);
+			return this.db.insert(Tables.DISPOSAL.n, DisposalField.TYPE.n(), cv);
 		} catch (IllegalArgumentException ex) {
 			logger.error("upsert disposal {} {} {} {}", new Object[]{requestId, channel, status});
 		}
 		return 0;
 	}
 	static final private String DISPOSAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(DisposalChannelField.REQUEST.q(null)).append("=?")
+	.append(DisposalField.REQUEST.q(null)).append("=?")
 	.append(" AND ")
-	.append(DisposalChannelField.CHANNEL.q(null)).append("=?").toString();
+	.append(DisposalField.CHANNEL.q(null)).append("=?").toString();
 
 
 	public synchronized long upsertChannelByName(String channel, ChannelState status) {
@@ -1649,7 +1649,7 @@ public class DistributorDataStore {
 	static final private ContentValues DISPOSAL_PENDING_VALUES;
 	static {
 		DISPOSAL_PENDING_VALUES = new ContentValues();
-		DISPOSAL_PENDING_VALUES.put(DisposalChannelField.STATE.cv(), DisposalState.PENDING.o); 
+		DISPOSAL_PENDING_VALUES.put(DisposalField.STATE.cv(), DisposalState.PENDING.o); 
 	}
 
 	/**
@@ -1670,12 +1670,12 @@ public class DistributorDataStore {
 		return 0;
 	}	
 	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
-	.append(DisposalChannelField.CHANNEL.q(null)).append("=?")
+	.append(DisposalField.CHANNEL.q(null)).append("=?")
 	.append(" AND ")
-	.append(DisposalChannelField.TYPE.q(null)).append(" IN ( ")
+	.append(DisposalField.TYPE.q(null)).append(" IN ( ")
 	.append(Tables.INTEREST.qv()).append(')')
 	.append(" AND ")
-	.append(DisposalChannelField.STATE.q(null))
+	.append(DisposalField.STATE.q(null))
 	.append(" NOT IN ( ").append(DisposalState.BAD.q()).append(')')
 	.toString();
 
@@ -1705,9 +1705,9 @@ public class DistributorDataStore {
 		return 0;
 	}
 	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
-	.append(DisposalChannelField.CHANNEL.q(null)).append("=?")
+	.append(DisposalField.CHANNEL.q(null)).append("=?")
 	.append(" AND ")
-	.append(DisposalChannelField.STATE.q(null))
+	.append(DisposalField.STATE.q(null))
 	.append(" IN ( ").append(DisposalState.BAD.q()).append(')')
 	.toString();
 
@@ -1867,7 +1867,7 @@ public class DistributorDataStore {
 	}
 
 	private static final String DISPOSAL_PURGE = new StringBuilder()
-	.append(DisposalChannelField.TYPE.q(null))
+	.append(DisposalField.TYPE.q(null))
 	.append('=').append('?')
 	.toString();
 	
@@ -1916,10 +1916,10 @@ public class DistributorDataStore {
 		return 0;
 	}
 	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalChannelField.TYPE.q(null)).append('=').append(Tables.POSTAL.cv())
+	.append(DisposalField.TYPE.q(null)).append('=').append(Tables.POSTAL.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.POSTAL.q())
-	.append(" WHERE ").append(DisposalChannelField.REQUEST.q(null))
+	.append(" WHERE ").append(DisposalField.REQUEST.q(null))
 	    .append('=').append(Tables.POSTAL.q()).append(".").append(RequestField._ID.q(null))
 	.append(')')
 	.toString();
@@ -1964,10 +1964,10 @@ public class DistributorDataStore {
 		return 0;
 	}
 	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalChannelField.TYPE.q(null)).append('=').append(Tables.RETRIEVAL.cv())
+	.append(DisposalField.TYPE.q(null)).append('=').append(Tables.RETRIEVAL.cv())
 	.append(" AND NOT EXISTS (SELECT * ")
 	.append(" FROM ").append(Tables.RETRIEVAL.q())
-	.append(" WHERE ").append(DisposalChannelField.REQUEST.q(null))
+	.append(" WHERE ").append(DisposalField.REQUEST.q(null))
 	    .append('=').append(Tables.RETRIEVAL.q()).append(".").append(RequestField._ID.q(null))
 	.append(')')
 	.toString();
@@ -2212,9 +2212,9 @@ public class DistributorDataStore {
 				.append("CREATE UNIQUE INDEX ") 
 				.append(Tables.DISPOSAL.qIndex())
 				.append(" ON ").append(Tables.DISPOSAL.q())
-				.append(" ( ").append(DisposalChannelField.TYPE.q(null))
-				.append(" , ").append(DisposalChannelField.REQUEST.q(null))
-				.append(" , ").append(DisposalChannelField.CHANNEL.q(null))
+				.append(" ( ").append(DisposalField.TYPE.q(null))
+				.append(" , ").append(DisposalField.REQUEST.q(null))
+				.append(" , ").append(DisposalField.CHANNEL.q(null))
 				.append(" ) ")
 				.toString() );
 

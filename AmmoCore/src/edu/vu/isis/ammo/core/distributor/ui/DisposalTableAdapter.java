@@ -23,7 +23,7 @@ import android.widget.ResourceCursorAdapter;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalChannelField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalField;
 
 public class DisposalTableAdapter extends ResourceCursorAdapter {
 	private static final Logger logger = LoggerFactory.getLogger("ammo-ca");
@@ -66,13 +66,13 @@ public class DisposalTableAdapter extends ResourceCursorAdapter {
 		final String channel;
 		{ 
 			final TextView nameTv = (TextView)view.findViewById(R.id.dist_channel_name);
-			channel = cursor.getString(cursor.getColumnIndex(DisposalChannelField.CHANNEL.n()));
+			channel = cursor.getString(cursor.getColumnIndex(DisposalField.CHANNEL.n()));
 			nameTv.setText(channel);
 		}
 		final String disposition;
 		{ 
 			final TextView dispTv = (TextView)view.findViewById(R.id.dist_channel_state);
-			final int dispositionId = cursor.getInt(cursor.getColumnIndex(DisposalChannelField.STATE.n()));
+			final int dispositionId = cursor.getInt(cursor.getColumnIndex(DisposalField.STATE.n()));
 		
 			if (dispositionStateMap.containsKey(dispositionId)) {
 				disposition = dispositionStateMap.get(dispositionId);

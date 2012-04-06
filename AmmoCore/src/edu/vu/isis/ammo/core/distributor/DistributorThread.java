@@ -50,7 +50,7 @@ import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalChannelField;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.InterestField;
@@ -844,8 +844,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalChannelField.CHANNEL.n()));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalChannelField.STATE.n()));
+					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
 					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				logger.trace("prior channel states {}", dispersal);
@@ -1079,8 +1079,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.RETRIEVAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalChannelField.CHANNEL.n()));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalChannelField.STATE.n()));
+					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
 					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				channelCursor.close();
@@ -1332,8 +1332,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.INTEREST.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalChannelField.CHANNEL.n()));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalChannelField.STATE.n()));
+					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
 					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				channelCursor.close();
