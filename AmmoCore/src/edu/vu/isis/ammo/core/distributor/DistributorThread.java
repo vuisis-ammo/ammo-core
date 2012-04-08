@@ -761,7 +761,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			logger.debug("serializing: {} as {}", postal.provider, postal.topic);
 
 			final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
-			final int serialMoment = pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n()));
+			
 			int dataColumnIndex = pending.getColumnIndex(PostalField.DATA.n());
 
 			final String data;
@@ -771,7 +771,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
                 data = null;
             }
 			
-			switch (SerialMoment.getInstance(serialMoment)) {
+			switch (postal.serialMoment.type()) {
 			case APRIORI:
 			case EAGER:
 				serializer.setSerializer( new RequestSerializer.OnSerialize() {
@@ -793,6 +793,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				    final DistributorThread parent = DistributorThread.this;
 					final RequestSerializer serializer_ = serializer;
 					final AmmoService that_ = that;
+					final PostalRunner postal_ = postal;
 	
 					@Override
 					public byte[] run(Encoding encode) {
@@ -803,10 +804,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 							logger.error("invalid row for serialization");
 						} catch (TupleNotFoundException ex) {
 							logger.error("tuple not found when processing postal table");
-							parent.store().deletePostal(new StringBuilder()
-							        .append(RequestField.PROVIDER.q(null)).append("=?").append(" AND ")
-									.append(RequestField.TOPIC.q(null)).append("=?").toString(), 
-									new String[] {ex.missingTupleUri.getPath(), topic});
+							postal_.delete(ex.missingTupleUri.getPath());
 						} catch (NonConformingAmmoContentProvider e) {
 							e.printStackTrace();
 						}
@@ -816,7 +814,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				});
 			}
 
-			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
+			final DistributorPolicy.Topic policy = that.policy().matchPostal(postal.topic);
 			final DistributorState dispersal = policy.makeRouteMap();
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.POSTAL.o, id);

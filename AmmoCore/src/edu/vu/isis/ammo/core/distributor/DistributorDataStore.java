@@ -27,6 +27,7 @@ import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Moment;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.api.type.TimeStamp;
 import edu.vu.isis.ammo.api.type.TimeTrigger;
 import edu.vu.isis.ammo.core.AmmoService;
 
@@ -1617,8 +1618,11 @@ public class DistributorDataStore {
 			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
 			this.policy = svc.policy().matchPostal(topic);
 		
-			this.priority = 
+			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
+			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
+			this.expire = new TimeTrigger(expireEnc);
 		}
+		
 		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
 			synchronized(DistributorDataStore.this) {	
 				final ContentValues rqstValues = new ContentValues();
