@@ -18,7 +18,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.widget.ResourceCursorAdapter;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 
 
 
@@ -29,22 +29,22 @@ public abstract class DistributorTableViewAdapter extends ResourceCursorAdapter 
 	static protected HashMap<Integer, String> dispositionStateMap;
 	static {
 		dispositionStateMap = new HashMap<Integer, String>();
-		dispositionStateMap.put(RequestDisposal.EXPIRED.o, "Request Expired");
-		dispositionStateMap.put(RequestDisposal.COMPLETE.o, "Request Complete");
-		dispositionStateMap.put(RequestDisposal.INCOMPLETE.o, "Request Incomplete");
-		dispositionStateMap.put(RequestDisposal.DISTRIBUTE.o, "Request In-progress");
-		dispositionStateMap.put(RequestDisposal.NEW.o, "Request New");
-		dispositionStateMap.put(RequestDisposal.FAILED.o, "Request Failed");
+		dispositionStateMap.put(DisposalTotalState.EXPIRED.o, "Request Expired");
+		dispositionStateMap.put(DisposalTotalState.COMPLETE.o, "Request Complete");
+		dispositionStateMap.put(DisposalTotalState.INCOMPLETE.o, "Request Incomplete");
+		dispositionStateMap.put(DisposalTotalState.DISTRIBUTE.o, "Request In-progress");
+		dispositionStateMap.put(DisposalTotalState.NEW.o, "Request New");
+		dispositionStateMap.put(DisposalTotalState.FAILED.o, "Request Failed");
 	}
 	static protected HashMap<Integer, Integer> dispositionColorMap;
 	static {
 		dispositionColorMap = new HashMap<Integer, Integer>();
-		dispositionColorMap.put(RequestDisposal.EXPIRED.o, Color.RED);
-		dispositionColorMap.put(RequestDisposal.COMPLETE.o, Color.GREEN);
-		dispositionColorMap.put(RequestDisposal.INCOMPLETE.o, Color.RED);
-		dispositionColorMap.put(RequestDisposal.DISTRIBUTE.o, Color.LTGRAY);
-		dispositionColorMap.put(RequestDisposal.NEW.o, Color.CYAN);
-		dispositionColorMap.put(RequestDisposal.FAILED.o, Color.RED);
+		dispositionColorMap.put(DisposalTotalState.EXPIRED.o, Color.RED);
+		dispositionColorMap.put(DisposalTotalState.COMPLETE.o, Color.GREEN);
+		dispositionColorMap.put(DisposalTotalState.INCOMPLETE.o, Color.RED);
+		dispositionColorMap.put(DisposalTotalState.DISTRIBUTE.o, Color.LTGRAY);
+		dispositionColorMap.put(DisposalTotalState.NEW.o, Color.CYAN);
+		dispositionColorMap.put(DisposalTotalState.FAILED.o, Color.RED);
 	}
 
 	final protected Calendar expiration;

@@ -32,7 +32,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.TimeInterval;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
@@ -108,7 +108,7 @@ public class Subscribe extends ActivityEx implements OnClickListener {
         		ContentValues values = new ContentValues();
             	values.put(SubscribeTableSchema.PROVIDER.cv(), selectedUri.toString());
             	values.put(SubscribeTableSchema.TOPIC.cv(), selectedMime);
-            	values.put(SubscribeTableSchema.DISPOSITION.cv(), ChannelDisposal.PENDING.cv());
+            	values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalState.PENDING.cv());
             	// cr.insert(SubscribeTableSchema.CONTENT_URI, values);
             	
             	Toast.makeText(Subscribe.this, 

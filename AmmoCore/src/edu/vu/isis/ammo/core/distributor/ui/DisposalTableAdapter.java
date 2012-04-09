@@ -22,7 +22,7 @@ import android.view.View;
 import android.widget.ResourceCursorAdapter;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
 
 public class DisposalTableAdapter extends ResourceCursorAdapter {
@@ -31,28 +31,28 @@ public class DisposalTableAdapter extends ResourceCursorAdapter {
 	static protected HashMap<Integer, String> dispositionStateMap;
 	static {
 		dispositionStateMap = new HashMap<Integer, String>();
-		dispositionStateMap.put(ChannelDisposal.NEW.o, "new");
-		dispositionStateMap.put(ChannelDisposal.DELIVERED.o, "delivered");
-		dispositionStateMap.put(ChannelDisposal.REJECTED.o, "failed");
-		dispositionStateMap.put(ChannelDisposal.BAD.o, "bad");
-		dispositionStateMap.put(ChannelDisposal.BUSY.o, "busy");
-		dispositionStateMap.put(ChannelDisposal.PENDING.o, "pending");
-		dispositionStateMap.put(ChannelDisposal.QUEUED.o, "queued");
-		dispositionStateMap.put(ChannelDisposal.SENT.o, "sent");
-		dispositionStateMap.put(ChannelDisposal.TOLD.o, "told");
+		dispositionStateMap.put(DisposalState.NEW.o, "new");
+		dispositionStateMap.put(DisposalState.DELIVERED.o, "delivered");
+		dispositionStateMap.put(DisposalState.REJECTED.o, "failed");
+		dispositionStateMap.put(DisposalState.BAD.o, "bad");
+		dispositionStateMap.put(DisposalState.BUSY.o, "busy");
+		dispositionStateMap.put(DisposalState.PENDING.o, "pending");
+		dispositionStateMap.put(DisposalState.QUEUED.o, "queued");
+		dispositionStateMap.put(DisposalState.SENT.o, "sent");
+		dispositionStateMap.put(DisposalState.TOLD.o, "told");
 	}
 	static protected HashMap<Integer, Integer> dispositionColorMap;
 	static {
 		dispositionColorMap = new HashMap<Integer, Integer>();
-		dispositionColorMap.put(ChannelDisposal.NEW.o, Color.CYAN);
-		dispositionColorMap.put(ChannelDisposal.DELIVERED.o, Color.GREEN);
-		dispositionColorMap.put(ChannelDisposal.REJECTED.o, Color.RED);
-		dispositionColorMap.put(ChannelDisposal.BAD.o, Color.DKGRAY);
-		dispositionColorMap.put(ChannelDisposal.BUSY.o, Color.BLUE);
-		dispositionColorMap.put(ChannelDisposal.PENDING.o, Color.LTGRAY);
-		dispositionColorMap.put(ChannelDisposal.QUEUED.o, Color.LTGRAY);
-		dispositionColorMap.put(ChannelDisposal.SENT.o, Color.GREEN);
-		dispositionColorMap.put(ChannelDisposal.TOLD.o, Color.LTGRAY);
+		dispositionColorMap.put(DisposalState.NEW.o, Color.CYAN);
+		dispositionColorMap.put(DisposalState.DELIVERED.o, Color.GREEN);
+		dispositionColorMap.put(DisposalState.REJECTED.o, Color.RED);
+		dispositionColorMap.put(DisposalState.BAD.o, Color.DKGRAY);
+		dispositionColorMap.put(DisposalState.BUSY.o, Color.BLUE);
+		dispositionColorMap.put(DisposalState.PENDING.o, Color.LTGRAY);
+		dispositionColorMap.put(DisposalState.QUEUED.o, Color.LTGRAY);
+		dispositionColorMap.put(DisposalState.SENT.o, Color.GREEN);
+		dispositionColorMap.put(DisposalState.TOLD.o, Color.LTGRAY);
 	}
 	
 	public DisposalTableAdapter(Context context, int layout, Cursor c) {

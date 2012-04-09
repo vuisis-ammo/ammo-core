@@ -42,7 +42,7 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 
 /**
@@ -133,7 +133,7 @@ public class SerialChannel extends NetChannel
     /**
      * Rename this to send() once the merge is done.
      */
-    public ChannelDisposal sendRequest( AmmoGatewayMessage message )
+    public DisposalState sendRequest( AmmoGatewayMessage message )
     {
         return mSenderQueue.putFromDistributor( message );
     }
@@ -650,19 +650,19 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
+        public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
         {
             logger.trace( "putFromDistributor()" );
             try {
                 if ( !mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
                     logger.warn( "serial channel not taking messages {}",
-                                 ChannelDisposal.BUSY );
-                    return ChannelDisposal.BUSY;
+                                 DisposalState.BUSY );
+					return DisposalState.BUSY;
                 }
-            } catch ( InterruptedException e ) {
-                return ChannelDisposal.BAD;
+			} catch ( InterruptedException e ) {
+				return DisposalState.BAD;
             }
-            return ChannelDisposal.QUEUED;
+            return DisposalState.QUEUED;
         }
 
 
@@ -766,7 +766,7 @@ public class SerialChannel extends NetChannel
             while ( msg != null )
             {
                 if ( msg.handler != null )
-                    ackToHandler( msg.handler, ChannelDisposal.PENDING );
+                    ackToHandler( msg.handler, DisposalState.PENDING );
                 msg = mDistQueue.poll();
             }
 
@@ -896,13 +896,13 @@ public class SerialChannel extends NetChannel
                         } catch ( IOException e ) {
                             logger.warn("sender threw exception {}", e.getStackTrace() );
                             if ( msg.handler != null )
-                                ackToHandler( msg.handler, ChannelDisposal.REJECTED );
+                                ackToHandler( msg.handler, DisposalState.REJECTED );
                             setSenderState( INetChannel.INTERRUPTED );
                             ioOperationFailed();
                         } catch ( Exception e ) {
                             logger.warn("sender threw exception {}", e.getStackTrace() );
                             if ( msg.handler != null )
-                                ackToHandler( msg.handler, ChannelDisposal.BAD );
+                                ackToHandler( msg.handler, DisposalState.BAD );
                             setSenderState( INetChannel.INTERRUPTED );
                             ioOperationFailed();
                             break;
@@ -942,7 +942,7 @@ public class SerialChannel extends NetChannel
 
             // legitimately sent to gateway.
             if ( msg.handler != null )
-                ackToHandler(msg.handler, ChannelDisposal.SENT);
+                ackToHandler(msg.handler, DisposalState.SENT);
         }
 
 
@@ -1214,7 +1214,7 @@ public class SerialChannel extends NetChannel
      *
      */
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-                                  ChannelDisposal status )
+                                  DisposalState status )
     {
         return handler.ack( name, status );
     }
