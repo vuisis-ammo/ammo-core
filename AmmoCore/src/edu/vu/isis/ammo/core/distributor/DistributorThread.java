@@ -352,7 +352,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		}
 		this.signal();
 		
-        if (ack.status == ChannelDisposal.SENT)//update recv count and send notify
+        if (ack.status == DisposalState.SENT)//update recv count and send notify
         {
             total_sent.incrementAndGet();
         }
