@@ -32,6 +32,7 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
@@ -331,6 +332,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	
 	private Settings globalSettings;  // from tasettings
 	private SharedPreferences localSettings;   // local copy
+	
+	public Handler notifyMsg = null;
 
 	/**
 	 * When the service is first created, we should grab the IP and Port values
@@ -346,6 +349,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.reliableMulticastChannel.init(context);
 		this.multicastChannel.init(context);
 		
+		notifyMsg = new Handler ();
 		// set up the worker thread
 		this.distThread = new DistributorThread(this.getApplicationContext(), this);
 		this.distThread.start();

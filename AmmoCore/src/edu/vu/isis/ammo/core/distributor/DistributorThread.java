@@ -22,6 +22,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import net.jcip.annotations.ThreadSafe;
 
@@ -30,6 +31,9 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -48,6 +52,7 @@ import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
+import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
@@ -59,6 +64,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -98,6 +104,17 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * The backing store for the distributor
 	 */
 	final private DistributorDataStore store;
+	
+	private static final int SERIAL_NOTIFY_ID = 1;
+    private static final int IP_NOTIFY_ID = 2;
+    
+    private int current_icon_id = 1;
+    private int current_icon = 0;
+    
+    private AtomicInteger total_sent = new AtomicInteger (0);
+    private AtomicInteger total_recv = new AtomicInteger (0);
+    
+    private NotifyMsgNumber notify = null;
 
     public DistributorThread(final Context context, AmmoService parent) {
 		super();
@@ -113,6 +130,50 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		this.channelAck = new LinkedBlockingQueue<ChannelAck>(200);
 		logger.debug("constructed");
 	}
+    
+    private class NotifyMsgNumber implements Runnable {
+        
+        private DistributorThread parent = null;
+        
+        public NotifyMsgNumber (DistributorThread parent) {
+            this.parent = parent;
+        }
+        
+        private AtomicBoolean terminate = new AtomicBoolean (false);
+        
+        public void terminate () {
+            terminate.set(true);
+        }
+        
+        public void run () {
+            updateNotification ();
+        }
+
+        private void updateNotification () {
+
+            //check for variable update ... 
+            int sent = parent.total_sent.getAndSet(0);
+            int recv = parent.total_recv.getAndSet(0);
+            
+            int icon = 0;
+            //figure out the icon ... 
+            if (sent == 0 && recv == 0)
+                icon = R.drawable.nodata;
+            else if (sent > 0 && recv ==0)
+                icon = R.drawable.up;
+            else if (sent == 0 && recv > 0)
+                icon = R.drawable.down;
+            else if (sent > 0 && recv > 0)
+                icon = R.drawable.alldata;
+
+            String contentText = "Sent " + sent + " Received " + recv;
+            
+            parent.notifyIcon("", "Data Channel", contentText, icon);
+            
+            if (terminate.get() != true)
+                parent.ammoService.notifyMsg.postDelayed(this, 5000);
+        }        
+    }
 
 	public DistributorDataStore store() {
 		return this.store;
@@ -140,8 +201,78 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		if (!channelDelta.compareAndSet(false, true))
 			return; // mark as needing processing
 		this.signal(); // signal to perform update
+		
+		setupNotificationIcon(channelName, change);
 	}
 
+	private void setupNotificationIcon(String channelName, ChannelChange change)
+    {
+        String ns = Context.NOTIFICATION_SERVICE;
+        NotificationManager mNotificationManager = 
+                (NotificationManager) context.getSystemService(ns);
+
+        if (change == ChannelChange.DEACTIVATE)
+        {
+            mNotificationManager.cancel(current_icon_id);
+            if (notify != null) {
+                notify.terminate ();
+                notify = null;                
+            }
+            return;
+        }
+        
+        int icon;
+        
+        if (channelName.equals("serial"))
+        {
+//            current_icon = R.drawable.notify_icon_152_small;
+            
+            // right now using the same icon ... once we get new icons, replace this .. 
+            icon = R.drawable.nodata;
+            current_icon_id = SERIAL_NOTIFY_ID;
+        }
+        else
+        {
+//            current_icon = R.drawable.notify_icon_wr_small;
+            icon = R.drawable.nodata;
+            current_icon_id = IP_NOTIFY_ID;
+        }
+        
+        notifyIcon(channelName + " Channel Up", "Data Channel", "Online", icon);
+       
+        
+        if (notify == null) {
+            notify = new NotifyMsgNumber (this);
+            this.ammoService.notifyMsg.postDelayed(notify, 5000);
+        }
+    }
+
+	
+	private void notifyIcon (String tickerTxt,
+	        String contentTitle, 
+	        String contentText,
+	        int icon) 
+	{    
+        String ns = Context.NOTIFICATION_SERVICE;
+        NotificationManager mNotificationManager = 
+                (NotificationManager) context.getSystemService(ns);
+        
+        CharSequence tickerText = tickerTxt;
+        long when = System.currentTimeMillis();
+        
+        Notification notification = new Notification(icon, tickerText, when);
+        notification.flags |= Notification.FLAG_ONGOING_EVENT;
+        
+        Intent notificationIntent = new Intent();
+        
+        PendingIntent contentIntent = PendingIntent
+            .getActivity(context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        notification.setLatestEventInfo(context, contentTitle, contentText,
+                contentIntent);
+
+        mNotificationManager.notify(current_icon_id, notification);        	    
+	}
 	/**
 	 * When a channel comes on-line the disposition table should be checked to
 	 * see if there are any waiting messages for that channel. Channels going
@@ -221,6 +352,12 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			return false;
 		}
 		this.signal();
+		
+        if (ack.status == ChannelDisposal.SENT)//update recv count and send notify
+        {
+            total_sent.incrementAndGet();
+        }
+        
 		return true;
 	}
 
@@ -540,6 +677,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
         if ( !agm.hasValidChecksum() ) {
             return false;
         }
+        
+        total_recv.incrementAndGet();
 
 		final AmmoMessages.MessageWrapper mw;
 		try {
@@ -722,7 +861,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 							final String auid_ = ar.uid;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, ChannelDisposal status) {							    
 								return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
 										                                        topic_, auid_,  
 										                                        channel, status));
