@@ -8,10 +8,8 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
 package edu.vu.isis.ammo.core.distributor;
-
-import android.os.Debug;
 
 import java.io.IOException;
 import java.util.Map;
@@ -36,6 +34,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Debug;
 import android.os.Process;
 import android.preference.PreferenceManager;
 
@@ -44,9 +43,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
-import edu.vu.isis.ammo.api.type.Moment;
-import edu.vu.isis.ammo.api.type.Payload;
-import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
@@ -56,15 +53,15 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.InterestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalRunner;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalWorker;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerialMoment;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 /**
@@ -73,7 +70,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
  * 
  */
 @ThreadSafe
-    public class DistributorThread extends Thread {
+public class DistributorThread extends Thread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -83,7 +80,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
 	private static final Marker MARK_INTEREST = MarkerFactory.getMarker("interest");
-	
+
 	private static final String ACTION_BASE = "edu.vu.isis.ammo.";
 	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
 	public static final String ACTION_MSG_RCVD = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
@@ -96,23 +93,23 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	private static final int BURP_TIME = 20 * 1000;
 
 	private final Context context;
-    private final AmmoService ammoService;
+	private final AmmoService ammoService;
 	/**
 	 * The backing store for the distributor
 	 */
 	final private DistributorDataStore store;
 
-    public DistributorThread(final Context context, AmmoService parent) {
+	public DistributorThread(final Context context, AmmoService parent) {
 		super();
 		this.context = context;
 		this.ammoService = parent;
 		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
 		this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200, new AmmoGatewayMessage.PriorityOrder());
 		this.store = new DistributorDataStore(context);
-		
+
 		this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
 		this.channelDelta = new AtomicBoolean(true);
-		
+
 		this.channelAck = new LinkedBlockingQueue<ChannelAck>(200);
 		logger.debug("constructed");
 	}
@@ -139,7 +136,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		}
 		logger.debug("On Channel Change: {} :: {}", channelName, change);
 		this.channelStatus.put(channelName, new ChannelStatus(change)); // change
-																		// channel
+		// channel
 		if (!channelDelta.compareAndSet(false, true))
 			return; // mark as needing processing
 		this.signal(); // signal to perform update
@@ -171,23 +168,28 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	private class ChannelAck {
 		public final Tables type;
 		public final long id;
-		
+
 		public final String topic;
+		public final String subtopic;
 		public final String auid;
-		
+		public final Notice notice;
+
 		public final String channel;
 		public final DisposalState status;
 
 		public ChannelAck(Tables type, long id, 
-				          String topic, String auid, 
-				          String channel, DisposalState status) 
+				String topic, String subtopic, 
+				String auid, Notice notice,
+				String channel, DisposalState status) 
 		{
 			this.type = type;
 			this.id = id;
-			
+
 			this.topic = topic;
+			this.subtopic = topic;
 			this.auid = auid;
-			
+			this.notice = notice;
+
 			this.channel = channel;
 			this.status = status;
 		}
@@ -195,13 +197,14 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		@Override
 		public String toString() {
 			return new StringBuilder()
-			                .append(" type ").append(type)
-                            .append(" id ").append(id)
-                            .append(" topic ").append(topic)
-                            .append(" aid ").append(auid)
-                            .append(" channel ").append(channel)
-                            .append(" status ").append(status)
-                            .toString();
+			.append(" type ").append(type)
+			.append(" id ").append(id)
+			.append(" topic ").append(topic)
+			.append(" subtopic ").append(subtopic)
+			.append(" aid ").append(auid)
+			.append(" channel ").append(channel)
+			.append(" status ").append(status)
+			.toString();
 		}
 	}
 
@@ -249,26 +252,38 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			logger.warn("invalid ack type {}", ack);
 			return;
 		}
-		// generate broadcast intent for everyone who cares about this
-		final Intent notice = new Intent()
-		      .setAction(ACTION_MSG_SENT)
-		      /*
-		      .setType(ack.topic)
-		       ... or ...
-		      .setData(Uri.Builder()
-		    		  .scheme("ammo")
-		    		  .authority(ack.topic)
-		    		  //.path(ack.target)
-		    		  .build())
-		      */
-		      .putExtra(EXTRA_TOPIC, ack.topic.toString())
-		      .putExtra(EXTRA_UID, ack.auid.toString())
-		      .putExtra(EXTRA_CHANNEL, ack.channel.toString())
-		      .putExtra(EXTRA_STATUS, ack.status.toString());
-		      
-		context.sendBroadcast(notice);
-		context.startService(notice);
-	
+		// generate an intent if it was requested
+		if (ack.notice.whenSent().isActive()) {
+			
+			final Uri.Builder uriBuilder = new Uri.Builder()
+				.scheme("ammo")
+				.authority(ack.topic)
+				.path(ack.subtopic);
+
+			final Intent notice = new Intent()
+				.setAction(ACTION_MSG_SENT)
+				.setData(uriBuilder.build())
+				.putExtra(EXTRA_TOPIC, ack.topic.toString())
+				.putExtra(EXTRA_UID, ack.auid.toString())
+				.putExtra(EXTRA_CHANNEL, ack.channel.toString())
+				.putExtra(EXTRA_STATUS, ack.status.toString());
+
+			switch (ack.notice.whenSent().via) {
+			case ACTIVITY: 
+				context.sendBroadcast(notice); 
+				break;
+			case BROADCAST:
+				context.sendStickyBroadcast(notice);
+				break;
+			case STICKY_BROADCAST:	
+				context.sendBroadcast(notice); 
+				break;
+			case SERVICE: 
+				context.startService(notice);
+				break;
+			}
+		}
+
 		logger.debug("count {}: intent {}", numUpdated, ack);
 	}
 
@@ -291,7 +306,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 	public String distributeRequest(AmmoRequest request) {
 		try {
-		    logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
+			logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
 
 			if (! this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
 				logger.error("could not process request {}", request);
@@ -333,7 +348,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * network connections then nothing can be distributed, so no work. Either
 	 * incoming requests, responses, or a channel has been activated.
 	 */
-    private boolean isReady() {
+	private boolean isReady() {
 		if (this.channelDelta.get())
 			return true;
 
@@ -353,17 +368,17 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * The method tries to be fair processing the requests in
 	 */
 	@Override
-	    public void run()
-    {
-	Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
-	logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
+	public void run()
+	{
+		Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
+		logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
 
-	if (ammoService.isConnected()) {
+		if (ammoService.isConnected()) {
 
-	    for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
-		final String name = entry.getKey();
-		this.store.deactivateDisposalStateByChannel(name);
-	    }
+			for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+				final String name = entry.getKey();
+				this.store.deactivateDisposalStateByChannel(name);
+			}
 
 			this.doInterestCache(ammoService);
 			this.doRetrievalCache(ammoService);
@@ -398,8 +413,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 						logger.trace("processing response, remaining {}", this.responseQueue.size());
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
-							 logger.info("processing response, remaining {}", this.responseQueue.size());
-			                 this.doResponse(ammoService, agm);
+							logger.info("processing response, remaining {}", this.responseQueue.size());
+							this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
 							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -416,12 +431,12 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 					}
 				}
 				logger.trace("work processed");
-	    }
-	} catch (InterruptedException ex) {
-	    logger.warn("task interrupted {}", ex.getStackTrace());
+			}
+		} catch (InterruptedException ex) {
+			logger.warn("task interrupted {}", ex.getStackTrace());
+		}
+		return;
 	}
-	return;
-    }
 
 
 	// ================= DRIVER METHODS ==================== //
@@ -528,9 +543,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 		logger.trace("process response");
 
-        if ( !agm.hasValidChecksum() ) {
-            return false;
-        }
+		if ( !agm.hasValidChecksum() ) {
+			return false;
+		}
 
 		final AmmoMessages.MessageWrapper mw;
 		try {
@@ -542,7 +557,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		if (mw == null) {
 			logger.error("mw was null!");
 			return false; // TBD SKN: this was true, why? if we can't parse it
-							// then its bad
+			// then its bad
 		}
 		final MessageType mtype = mw.getType();
 		if (mtype == MessageType.HEARTBEAT) {
@@ -603,10 +618,10 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			return false;
 		}
 		PreferenceManager
-		    .getDefaultSharedPreferences(context)
-		    .edit()
-		    .putBoolean(INetDerivedKeys.NET_CONN_PREF_IS_ACTIVE, true)
-		    .commit();
+		.getDefaultSharedPreferences(context)
+		.edit()
+		.putBoolean(INetDerivedKeys.NET_CONN_PREF_IS_ACTIVE, true)
+		.commit();
 		// sessionId = mw.getSessionUuid();
 
 		// the distributor doesn't need to know about authentication results.
@@ -635,22 +650,22 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 		// Dispatch the message.
 		try {
-			final PostalRunner postal = that.store().getPostalRunner(ar, that);
+			final PostalWorker postal = that.store().getPostalWorker(ar, that);
 			logger.trace("process request topic {}, uuid {}", postal.topic, postal.uuid);
 
 			final DistributorState dispersal = postal.policy.makeRouteMap();
-			
+
 			final byte[] payload;			
 			switch (postal.serialMoment.type()) {
 			case APRIORI:
-				payload = ar.payload.asBytes();
+				payload = postal.payload.asBytes();
 				break;
 			case EAGER:				
 				try {
-					final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
+					final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
 					payload = RequestSerializer.serializeFromProvider(that.getContentResolver(), 
 							serializer.provider.asUri(), Encoding.getDefault());
-			
+
 				} catch (IOException e1) {
 					logger.error("invalid row for serialization");
 					return;
@@ -667,21 +682,21 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			default:
 				payload = null;
 			}
-				
+
 			if (!that.isConnected()) {
 				long key = postal.upsert(DisposalTotalState.DISTRIBUTE, payload);
-				
+
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
 
-			final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
+			final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
 			serializer.setSerializer(new RequestSerializer.OnSerialize() {
 
 				final RequestSerializer serializer_ = serializer;
 				final AmmoService that_ = that;
-				final PostalRunner postal_ = postal;
-				
+				final PostalWorker postal_ = postal;
+
 				@Override
 				public byte[] run(Encoding encode) {
 					if (serializer_.payload.hasContent()) {
@@ -715,24 +730,27 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			// queuing
 			synchronized (this.store) {
 				final long id = postal.upsert(DisposalTotalState.DISTRIBUTE, payload);
-				
-			    final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
-						ar.provider.toString(), postal.topic, dispersal, serializer, 
+				final INetworkService.OnSendMessageHandler msgHandler = 
 						new INetworkService.OnSendMessageHandler() {
-							final DistributorThread parent = DistributorThread.this;
-							final long id_ = id;
-							final String topic_ = postal.topic;
-							final String auid_ = ar.uid;
-		
-							@Override
-							public boolean ack(String channel, DisposalState status) {
-								return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
-										                                        topic_, auid_,  
-										                                        channel, status));
-							}
-						});
+					final DistributorThread parent = DistributorThread.this;
+					final long id_ = id;
+					final String topic_ = postal.topic;
+					final String subtopic_ = postal.subtopic;
+					final String auid_ = postal.auid;
+					final Notice notice_ = postal.notice;
 
-			    this.store.updatePostalByKey(id, null, dispatchResult);
+					@Override
+					public boolean ack(String channel, DisposalState status) {
+						final ChannelAck ack = new ChannelAck(
+								Tables.POSTAL, id_, topic_, subtopic_, auid_, notice_, channel, status);
+						return parent.announceChannelAck(ack);
+					}
+				};
+				final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
+						postal, dispersal, serializer, 
+						msgHandler);
+
+				this.store.updatePostalByKey(id, null, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
@@ -758,45 +776,44 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				moreItems = pending.moveToNext()) 
 		{
 			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
-			final PostalRunner postal = this.store().getPostalRunner(pending, that);
-			
+			final PostalWorker postal = this.store().getPostalWorker(pending, that);
+
 			logger.debug("serializing: {} as {}", postal.provider, postal.topic);
 
 			final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
-			
+
 			int dataColumnIndex = pending.getColumnIndex(PostalField.DATA.n());
 
 			final String data;
 			if (!pending.isNull(dataColumnIndex)) {
 				data = pending.getString(dataColumnIndex);
 			} else {
-                data = null;
-            }
-			
+				data = null;
+			}
+
 			switch (postal.serialMoment.type()) {
 			case APRIORI:
 			case EAGER:
 				serializer.setSerializer( new RequestSerializer.OnSerialize() {
-				    final String data_ = data;
-				    
-				    @Override
+					final String data_ = data;
+
+					@Override
 					public byte[] run(Encoding encode) {
-		              if (data_.length() < 1) {
-		            	  return null;
-		              }
-					  return data_.getBytes();
-				    }
+						if (data_.length() < 1) {
+							return null;
+						}
+						return data_.getBytes();
+					}
 				});
-                break;
-             
+				break;
+
 			case LAZY:
 			default:
 				serializer.setSerializer( new RequestSerializer.OnSerialize() {
-				    final DistributorThread parent = DistributorThread.this;
 					final RequestSerializer serializer_ = serializer;
 					final AmmoService that_ = that;
-					final PostalRunner postal_ = postal;
-	
+					final PostalWorker postal_ = postal;
+
 					@Override
 					public byte[] run(Encoding encode) {
 						try {
@@ -843,23 +860,26 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 					long numUpdated = this.store.updatePostalByKey(id, values, null);
 					logger.debug("updated {} postal items", numUpdated);
 
-					final DistributorState dispatchResult = 
-							this.dispatchPostalRequest(that,
-									postal.provider.toString(), postal.topic, 
-									dispersal, serializer,
-									new INetworkService.OnSendMessageHandler() {
-										final DistributorThread parent = DistributorThread.this;
-		                                final int id_ = id;
-		                                final String auid_ = postal.auid;
-		                                final String topic_ = postal.topic;
-		                                
-										@Override
-										public boolean ack(String channel, DisposalState status) {
-											return parent.announceChannelAck( new ChannelAck(Tables.POSTAL, id_, 
-													                                         topic_, auid_, 
-													                                         channel, status) );
-										}
-									});
+					final INetworkService.OnSendMessageHandler msgHandler = null;
+					new INetworkService.OnSendMessageHandler() {
+						final DistributorThread parent = DistributorThread.this;
+						final int id_ = id;
+						final String auid_ = postal.auid;
+						final String topic_ = postal.topic;
+						final String subtopic_ = postal.subtopic;
+						final Notice notice_ = postal.notice;
+
+						@Override
+						public boolean ack(String channel, DisposalState status) {
+							final ChannelAck ca = new ChannelAck(Tables.POSTAL, id_, 
+									topic_, subtopic_, auid_, notice_, channel, status);
+							return parent.announceChannelAck(ca);
+						}
+					};
+
+					final DistributorState dispatchResult = this.dispatchPostalRequest(
+							that, postal, dispersal, serializer, msgHandler);
+
 					this.store.updatePostalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
@@ -881,17 +901,22 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @param handler
 	 * @return
 	 */
-	private DistributorState dispatchPostalRequest(final AmmoService that, 
-			final String provider, final String msgType, 
-			final DistributorState dispersal, final RequestSerializer serializer, 
+	private DistributorState dispatchPostalRequest(
+			final AmmoService that,
+			final PostalWorker postal, 
+			final DistributorState dispersal, 
+			final RequestSerializer serializer, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
 		logger.trace("::dispatchPostalRequest");
+		final String provider = postal.provider.toString();
+		final String msgType = postal.topic;
 
 		final Long now = System.currentTimeMillis();
 		logger.debug("Building MessageWrapper @ time {}", now);
 
 		serializer.setAction(new RequestSerializer.OnReady() {
+			private final PostalWorker postal_ = postal;
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
 
@@ -899,32 +924,43 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 					logger.error("No Payload");
 					return null;
 				}
-				
-				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-				if (encode.getType() != Encoding.Type.TERSE) {
-					final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
-						.newBuilder()
-						.setUid(provider)
-						.setMimeType(msgType)
-						.setEncoding(encode.getType().name())
-						.setData(ByteString.copyFrom(serialized));
-					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
-					mw.setDataMessage(pushReq);
 
-				} else {
+				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+
+				final Notice notice = postal_.notice;
+				final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
+						.setDeviceDelivered(notice.whenDelivered().isActive())
+						.setAndroidPluginReceived(notice.whenGateIn().isActive())
+						.setPluginDelivered(notice.whenGateOut().isActive());
+
+				if (encode.getType() == Encoding.Type.TERSE)  {
+					mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
+
 					final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
 					if (mimeId == null) {
 						logger.error("no integer mapping for this mime type {}", msgType);
 						return null;
 					}
-					final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
+					final AmmoMessages.TerseMessage.Builder postReq = AmmoMessages.TerseMessage
 							.newBuilder()
 							.setMimeType(mimeId)
 							.setData(ByteString.copyFrom(serialized));
-						mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
-						mw.setTerseMessage(pushReq);
-				}
 
+					mw.setTerseMessage(postReq);
+				} 
+				else {
+					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+
+					final AmmoMessages.DataMessage.Builder postReq = AmmoMessages.DataMessage
+							.newBuilder()
+							.setUid(provider)
+							.setMimeType(msgType)
+							.setEncoding(encode.getType().name())
+							.setData(ByteString.copyFrom(serialized))
+							.setThresholds(noticeBuilder);
+
+					mw.setDataMessage(postReq);
+				} 
 				logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n", System.currentTimeMillis() - now, serialized.length);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
 				return agmb.build();
@@ -934,7 +970,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	}
 
 	/**
-	 * Get response to PushRequest from the gateway. This should be seen in
+	 * Get response to PostRequest from the gateway. This should be seen in
 	 * response to a post passing through transition for which a notice has been
 	 * requested.
 	 * 
@@ -983,7 +1019,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			values.put(RequestField.UUID.cv(), uuid.toString());
 			values.put(RequestField.AUID.cv(), auid);
 			values.put(RequestField.TOPIC.cv(), topic);
-			
+
 			values.put(RetrievalField.SELECTION.cv(), select);
 			if (limit != null)
 				values.put(RetrievalField.LIMIT.cv(), limit);
@@ -1012,18 +1048,20 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
 						uuid, topic, select, limit, dispersal, 
 						new INetworkService.OnSendMessageHandler() {
-							final DistributorThread parent = DistributorThread.this;
-							final long id_ = id;
-							final String auid_ = auid;
-							final String topic_ = topic;
-		
-							@Override
-							public boolean ack(String channel, DisposalState status) {
-								return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
-										                                        topic_, auid_,  
-										                                        channel, status));
-							}
-						});
+					final DistributorThread parent = DistributorThread.this;
+					final long id_ = id;
+					final String auid_ = auid;
+					final String topic_ = topic;
+					final String subtopic_ = null;
+					final Notice notice_ = null;
+
+					@Override
+					public boolean ack(String channel, DisposalState status) {
+						return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
+								topic_, subtopic_, auid_, notice_, 
+								channel, status));
+					}
+				});
 				this.store.updateRetrievalByKey(id, null, dispatchResult);
 			}
 
@@ -1046,8 +1084,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
-        if (pending == null) return;
-        
+		if (pending == null) return;
+
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
@@ -1087,17 +1125,19 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 					final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
 							uuid, topic, selection, limit, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
-								final DistributorThread parent = DistributorThread.this;
-								final String auid_ = auid;
-								final String topic_ = topic;
-		
-								@Override
-								public boolean ack(String channel, DisposalState status) {
-									return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
-											                                        topic_, auid_, 
-											                                        channel, status));
-								}
-							});
+						final DistributorThread parent = DistributorThread.this;
+						final String auid_ = auid;
+						final String topic_ = topic;
+						final String subtopic_ = null;
+						final Notice notice_ = null;
+
+						@Override
+						public boolean ack(String channel, DisposalState status) {
+							return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
+									topic_, subtopic_, auid_, notice_,
+									channel, status));
+						}
+					});
 					this.store.updateRetrievalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
@@ -1193,7 +1233,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		}
 		cursor.moveToFirst();
 		final String uriString = cursor.getString(0); // only asked for one so
-														// it better be it.
+		// it better be it.
 		cursor.close();
 		final Uri provider = Uri.parse(uriString);
 
@@ -1235,7 +1275,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			values.put(RequestField.UUID.cv(), uuid.toString());
 			values.put(RequestField.AUID.cv(), auid);
 			values.put(RequestField.TOPIC.cv(), topic);
-			
+
 			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
 			values.put(RetrievalField.SELECTION.cv(), ar.select.toString());
 			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
@@ -1258,18 +1298,20 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
 						topic, ar.select.toString(), dispersal, 
 						new INetworkService.OnSendMessageHandler() {
-							final DistributorThread parent = DistributorThread.this;
-							final long id_ = id;
-							final String auid_ = auid;
-							final String topic_ = topic;
-		
-							@Override
-							public boolean ack(String channel, DisposalState status) {
-								return parent.announceChannelAck(new ChannelAck(Tables.INTEREST, id_, 
-										                                        topic_, auid_, 
-										                                        channel, status));
-							}
-						});
+					final DistributorThread parent = DistributorThread.this;
+					final long id_ = id;
+					final String auid_ = auid;
+					final String topic_ = topic;
+					final String subtopic_ = null;
+					final Notice notice_ = null;
+
+					@Override
+					public boolean ack(String channel, DisposalState status) {
+						return parent.announceChannelAck(new ChannelAck(Tables.INTEREST, id_, 
+								topic_, subtopic_, auid_, notice_,
+								channel, status));
+					}
+				});
 				this.store.updateInterestByKey(id, null, dispatchResult);
 			}
 
@@ -1333,18 +1375,20 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 					final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
 							topic, selection, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
-								final DistributorThread parent = DistributorThread.this;
-								final int id_ = id;
-								final String auid_ = auid;
-								final String topic_ = topic;
-		
-								@Override
-								public boolean ack(String channel, DisposalState status) {
-									return parent.announceChannelAck(new ChannelAck(Tables.INTEREST, id_, 
-											                                        topic_, auid_,  
-											                                        channel, status));
-								}
-							});
+						final DistributorThread parent = DistributorThread.this;
+						final int id_ = id;
+						final String auid_ = auid;
+						final String topic_ = topic;
+						final String subtopic_ = null;
+						final Notice notice_ = null;
+
+						@Override
+						public boolean ack(String channel, DisposalState status) {
+							return parent.announceChannelAck(new ChannelAck(Tables.INTEREST, id_, 
+									topic_, subtopic_, auid_,  notice_,
+									channel, status));
+						}
+					});
 					this.store.updateInterestByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
@@ -1406,7 +1450,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			logger.warn("no data in message");
 			return false;
 		}
-		
+
 		String mime = null;
 		String encode = null;
 		com.google.protobuf.ByteString data = null;
@@ -1421,7 +1465,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			data = resp.getData();	
 			encode = "TERSE";
 		}
-		
+
 		// final ContentResolver resolver = context.getContentResolver();
 
 		logger.trace("receive response INTEREST : {}", mime );
@@ -1434,7 +1478,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		}
 		cursor.moveToFirst();
 		final String uriString = cursor.getString(0); // only asked for one so
-														// it better be it.
+		// it better be it.
 		cursor.close();
 		final Uri provider = Uri.parse(uriString);
 

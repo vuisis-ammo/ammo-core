@@ -37,6 +37,7 @@ import android.provider.BaseColumns;
 import android.text.TextUtils;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Moment;
+import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.api.type.TimeTrigger;
@@ -776,6 +777,8 @@ public class DistributorDataStore {
 	
 	public enum RequestField implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+		
+	    FK("request", "INTEGER"), // Foreign key
 
 		UUID("uuid", "TEXT"),
 		// This is a unique identifier for the request
@@ -867,56 +870,6 @@ public class DistributorDataStore {
 		}
 	};
 
-
-	/**
-	 * The postal table is for holding retrieval requests.
-	 */
-	
-	public enum PostalField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
-		// The parent key
-		
-		PAYLOAD("payload", "TEXT"),
-		// The payload instead of content provider
-
-		UNIT("unit", "TEXT"),
-		// Units associated with {@link #VALUE}. Used to determine whether should occur.
-
-		VALUE("value", "INTEGER"),
-		// Arbitrary value linked to importance that entry is transmitted and battery drain.
-
-		DATA("data", "TEXT");
-		// If the If null then the data file corresponding to the
-		// column name and record id should be used. This is done when the data
-		// size is larger than that allowed for a field contents.
-
-		final public TableFieldState impl;
-
-		private PostalField(String n, String t) {
-			this.impl = new TableFieldState(n,t);
-		}
-		
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	};
-	
-	public static interface PostalTable extends RequestTable {
-		public static final String[] COLUMNS = new String[PostalField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PostalField.values().length);
-	};
-	static {
-		final List<String> columns = Arrays.asList(PostalTable.COLUMNS);
-		for (PostalField field : PostalField.values()) {
-			columns.add(field.n());
-			PostalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
 
 	/**
 	 * The retrieval table is for holding retrieval requests.
@@ -1292,37 +1245,37 @@ public class DistributorDataStore {
 	 */
 	
 	private static String RequestStatusQuery(Tables table) {
-	return new StringBuilder()
-	.append(" SELECT ").append(" * ")
-	.append(" FROM ")
-	.append(Tables.REQUEST.q()).append(" AS r ")
-	.append(" WHERE ")
-	.append(RequestField.TYPE.q("r")).append("=").append(table.o)
-	.append(" AND EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-	.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
-	.append(" ON ").append(DisposalField.CHANNEL.q("d")).append("=").append(ChannelField.NAME.q("c"))
-	.append(" WHERE ").append(RequestField._ID.q("r")).append("=").append(DisposalField.REQUEST.q("d"))
-	.append("   AND ").append(ChannelField.STATE.q("c")).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND ").append(DisposalField.STATE.q("d"))
-	.append(" IN (").append(DisposalState.PENDING.q()).append(')')
-	.append(')') // close exists clause	
-	.append(" ORDER BY ")
-    .append(RequestField.PRIORITY.q("r")).append(" DESC ").append(", ")
-    .append(RequestField._ID.q("r")).append(" ASC ")	
-	.toString();
+		return new StringBuilder()
+			.append(" SELECT ").append(" * ")
+			.append(" FROM ")
+			.append(Tables.REQUEST.q()).append(" AS r ")
+			.append(" WHERE ")
+			.append(RequestField.TYPE.q("r")).append("=").append(table.o)
+			.append(" AND EXISTS (SELECT * ")
+			.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
+			.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
+			.append(" ON ").append(DisposalField.CHANNEL.q("d")).append("=").append(ChannelField.NAME.q("c"))
+			.append(" WHERE ").append(RequestField._ID.q("r")).append("=").append(DisposalField.REQUEST.q("d"))
+			.append("   AND ").append(ChannelField.STATE.q("c")).append('=').append(ChannelState.ACTIVE.q())
+			.append("   AND ").append(DisposalField.STATE.q("d"))
+			.append(" IN (").append(DisposalState.PENDING.q()).append(')')
+			.append(')') // close exists clause	
+			.append(" ORDER BY ")
+		    .append(RequestField.PRIORITY.q("r")).append(" DESC ").append(", ")
+		    .append(RequestField._ID.q("r")).append(" ASC ")	
+			.toString();
 	}
 	
 	private static final String RequestViewCreate(String view, Tables table) {
-	 return new StringBuilder()
-	.append(" CREATE VIEW ").append(view).append(" AS ")
-	.append(" SELECT ").append(" * ")
-	.append(" FROM ")
-	.append(Tables.REQUEST.q()).append(" AS r ")
-	.append(" WHERE ")
-	.append(RequestField.TYPE.q("r")).append('=').append('\'').append(table.o).append('\'')
-	.append(';')
-	.toString();
+		 return new StringBuilder()
+			.append(" CREATE VIEW ").append(view).append(" AS ")
+			.append(" SELECT ").append(" * ")
+			.append(" FROM ")
+			.append(Tables.REQUEST.q()).append(" AS r ")
+			.append(" WHERE ")
+			.append(RequestField.TYPE.q("r")).append('=').append('\'').append(table.o).append('\'')
+			.append(';')
+			.toString();
 	}
 	
 	public synchronized Cursor queryRequest(String rel, 
@@ -1341,7 +1294,7 @@ public class DistributorDataStore {
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 							: RequestTable.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
-			logger.error("query postal {} {}", selection, selectionArgs);
+			logger.error("query request {} {}", selection, selectionArgs);
 		}
 		return null;
 	}
@@ -1364,10 +1317,10 @@ public class DistributorDataStore {
 		return null;
 	}
 	static private final String REQUEST_UUID_QUERY = new StringBuilder()
-	.append(RequestField.UUID.q(null)).append("=?")
-	//.append(" AND ")
-	//.append(RequestField.TOPIC.q(null)).append("=?")
-	.toString();
+		.append(RequestField.UUID.q(null)).append("=?")
+		//.append(" AND ")
+		//.append(RequestField.TOPIC.q(null)).append("=?")
+		.toString();
 	
 	public synchronized Cursor queryRequestByTopic(String rel, String[] projection,
 			String topic, String sortOrder) {
@@ -1388,31 +1341,10 @@ public class DistributorDataStore {
 		return null;
 	}
 	static private final String REQUEST_TOPIC_QUERY = new StringBuilder()
-	.append(RequestField.TOPIC.q(null)).append("=?")
-	.toString();
-	
-	//============ POSTAL METHODS ===================
-	
-	public synchronized Cursor queryPostal(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		return queryRequest(POSTAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
-	}
+		.append(RequestField.TOPIC.q(null)).append("=?")
+		.toString();
+		
 
-	public synchronized Cursor queryPostalReady() {
-		this.openRead();
-		try {
-			return db.rawQuery(POSTAL_STATUS_QUERY, null);
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
-	private static final String POSTAL_STATUS_QUERY = RequestStatusQuery(Tables.POSTAL);
-	
-	private static final String POSTAL_VIEW_NAME = new StringBuilder()
-	  .append(Tables.POSTAL.q()).append("_view").toString();
-	
-	
 	//============ RETRIEVAL METHODS ===================
 	public synchronized Cursor queryRetrieval(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
@@ -1555,7 +1487,7 @@ public class DistributorDataStore {
 				this.db.update(table.n, cv, ROWID_CLAUSE, rowid_arg );
 			} else {
 				rowid = this.db.insert(Tables.REQUEST.n, RequestField.CREATED.n(), cv);
-				cv.put(PostalField.REQUEST.n(), rowid);
+				cv.put(RequestField.FK.n(), rowid);
 				this.db.insert(table.n, RequestField.CREATED.n(), cv);
 			}
 			upsertDisposalByRequest(rowid, status);
@@ -1571,47 +1503,127 @@ public class DistributorDataStore {
 	 * otherwise insert.INTEGER PRIMARY KEY 
 	 */
 	
-	//============ REQUEST METHODS ===================
-	public PostalRunner getPostalRunner(final AmmoRequest ar, final AmmoService svc) {
-		return new PostalRunner(ar, svc);
+	//============ POSTAL ===================
+	
+	/** Insert method helper */
+	public ContentValues initializePostalDefaults(ContentValues values) {
+		
+		initializeRequestDefaults(values);
+		
+		if (!values.containsKey(PostalField.UNIT.n())) {
+			values.put(PostalField.UNIT.n(), "unknown");
+		}
+		if (!values.containsKey(PostalField.VALUE.n())) {
+			values.put(PostalField.VALUE.n(), -1);
+		}
+		if (!values.containsKey(PostalField.DATA.n())) {
+			values.put(PostalField.DATA.n(), "");
+		}
+		return values;
 	}
-	public PostalRunner getPostalRunner(final Cursor pending, final AmmoService svc) {
-		return new PostalRunner(pending, svc);
+
+	public PostalWorker getPostalWorker(final AmmoRequest ar, final AmmoService svc) {
+		return new PostalWorker(ar, svc);
 	}
-	public class PostalRunner {
+	public PostalWorker getPostalWorker(final Cursor pending, final AmmoService svc) {
+		return new PostalWorker(pending, svc);
+	}
+	
+	
+
+	/**
+	 * The postal table is for holding retrieval requests.
+	 */
+	
+	public enum PostalField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+		
+		PAYLOAD("payload", "TEXT"),
+		// The payload instead of content provider
+
+		UNIT("unit", "TEXT"),
+		// Units associated with {@link #VALUE}. Used to determine whether should occur.
+
+		VALUE("value", "INTEGER"),
+		// Arbitrary value linked to importance that entry is transmitted and battery drain.
+
+		DATA("data", "TEXT");
+		// If the If null then the data file corresponding to the
+		// column name and record id should be used. This is done when the data
+		// size is larger than that allowed for a field contents.
+
+		final public TableFieldState impl;
+
+		private PostalField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
+		}
+		
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+	
+	public static interface PostalTable extends RequestTable {
+		public static final String[] COLUMNS = new String[PostalField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(PostalField.values().length);
+	};
+	static {
+		final List<String> columns = Arrays.asList(PostalTable.COLUMNS);
+		for (PostalField field : PostalField.values()) {
+			columns.add(field.n());
+			PostalTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+
+	/** 
+	 * Postal store access class
+	 */
+	public class PostalWorker {
 		public final UUID uuid;
 		public final String auid;
 		public final String topic;	
+		public final String subtopic;
 		public final Provider provider;
 		public final DistributorPolicy.Topic policy;
 		public final Moment serialMoment; 
 		public final int priority;
 		public final TimeTrigger expire;
+		public final Notice notice;
 		
 		public DisposalTotalState totalState = null;
 		public DistributorState status = null;
 		public Payload payload = null;
 		
-		private PostalRunner(final AmmoRequest ar, final AmmoService svc) {
+		private PostalWorker(final AmmoRequest ar, final AmmoService svc) {
 			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
 			this.auid = ar.uid;
 			this.topic = ar.topic.asString();
+			this.subtopic = ar.subtopic.asString();
 			this.provider = ar.provider;
 			this.policy = svc.policy().matchPostal(topic);
 			this.serialMoment = ar.moment;
+			this.notice = ar.notice;
 			
 			this.priority = policy.routing.priority+ar.priority;
 			this.expire = ar.expire;
 		}
 		
-		private PostalRunner(final Cursor pending, final AmmoService svc) {
+		private PostalWorker(final Cursor pending, final AmmoService svc) {
 			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
 			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
+			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
 			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
 			this.policy = svc.policy().matchPostal(topic);
+			this.notice = null; // TODO recover notice from store
 		
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
@@ -1634,7 +1646,8 @@ public class DistributorDataStore {
 				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
 				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
 				
-				final ContentValues noticeValues = new ContentValues();
+				// TOCO place notice in store 
+				// final ContentValues noticeValues = new ContentValues();
 				// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
 		
 				// values.put(PostalTableSchema.UNIT.cv(), 50);
@@ -1663,6 +1676,89 @@ public class DistributorDataStore {
 		}
 	}
 	
+	/**
+	 * Nearly direct access to the postal data store.
+	 * Use sparingly, prefer the PostalWorker.
+	 * 
+	 * @param selection
+	 * @param selectionArgs
+	 * @return
+	 */
+	
+	public synchronized Cursor queryPostal(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		return queryRequest(POSTAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
+	}
+
+	public synchronized Cursor queryPostalReady() {
+		this.openRead();
+		try {
+			return db.rawQuery(POSTAL_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
+	}
+	private static final String POSTAL_STATUS_QUERY = RequestStatusQuery(Tables.POSTAL);
+	
+	private static final String POSTAL_VIEW_NAME = new StringBuilder()
+	  .append(Tables.POSTAL.q()).append("_view").toString();
+	
+	
+	public synchronized int deletePostal(String selection, String[] selectionArgs) {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int count = db.delete(Tables.POSTAL.n, selection, selectionArgs);
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+			logger.trace("Postal delete {} {}", count, disposalCount);
+			return count;
+		} catch (IllegalArgumentException ex) {
+			logger.error("delete postal {} {}", selection, selectionArgs);
+		}
+		return 0;
+	}
+	
+	public synchronized int deletePostalGarbage() {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int expireCount = db.delete(Tables.POSTAL.n, 
+					POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+					DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
+			return expireCount;
+		} catch (IllegalArgumentException ex) {
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+		}
+		return 0;
+	}
+	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
+	.append(DisposalField.TYPE.q(null)).append('=').append(Tables.POSTAL.cv())
+	.append(" AND NOT EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.POSTAL.q())
+	.append(" WHERE ").append(DisposalField.REQUEST.q(null))
+	    .append('=').append(Tables.POSTAL.q()).append(".").append(RequestField._ID.q(null))
+	.append(')')
+	.toString();
+
+	private static final String POSTAL_EXPIRATION_CONDITION = new StringBuilder()
+	.append(RequestField.EXPIRATION.q(null))
+	.append('<').append('?')
+	.toString();
+
+	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
+
+	
+	public synchronized long updatePostalByKey(long requestId, ContentValues cv, DistributorState state) {
+		return updateRequestById(Tables.POSTAL.n, requestId, cv, state);
+	}
+	public synchronized long updatePostalByKey(long requestId, String channel, final DisposalState state) {
+		return this.upsertDisposalByRequest(requestId, channel, state);
+	}
+	
+	// ====== UPSERT  =======
 	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
 		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
 	}
@@ -1670,6 +1766,7 @@ public class DistributorDataStore {
 	public synchronized long upsertInterest(ContentValues cv, DistributorState status) {
 		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
 	}
+	
 
 	//============ DISPOSAL METHODS ===================
 	private synchronized long[] upsertDisposalByRequest(long requestId, DistributorState status) {
@@ -1815,7 +1912,7 @@ public class DistributorDataStore {
 	 * Update an object represented in the database.
 	 * Any reasonable update will need to know how to select an existing object.
 	 */
-	public synchronized long updateRequestById(long requestId, ContentValues cv, DistributorState state) {
+	private synchronized long updateRequestById(final String requestType, long requestId, ContentValues cv, DistributorState state) {
 		if (state == null && cv == null) return -1;
 		if (cv == null) cv = new ContentValues();
 		
@@ -1824,28 +1921,23 @@ public class DistributorDataStore {
 			cv.put(RequestField.DISPOSITION.n(), state.aggregate().cv());
 		}	
 		try {
-			return this.db.update(Tables.POSTAL.n, cv, "\"_id\"=?", new String[]{ String.valueOf(requestId) } );
+			return this.db.update(requestType, cv, "\"_id\"=?", new String[]{ String.valueOf(requestId) } );
 		} catch (IllegalArgumentException ex) {
-			logger.error("updatePostalByKey {} {}", requestId, cv);
+			logger.error("updateRequestById {} {}", requestId, cv);
 		}
 		return 0;
 	}
-	public synchronized long updatePostalByKey(long requestId, ContentValues cv, DistributorState state) {
-		return updateRequestById(requestId, cv, state);
-	}
-	public synchronized long updatePostalByKey(long requestId, String channel, final DisposalState state) {
-		return this.upsertDisposalByRequest(requestId, channel, state);
-	}
+	
 
 	public synchronized long updateRetrievalByKey(long requestId, ContentValues cv, final DistributorState state) {
-		return updateRequestById(requestId, cv, state);
+		return updateRequestById(Tables.RETRIEVAL.n, requestId, cv, state);
 	}
 	public synchronized long updateRetrievalByKey(long requestId, String channel, final DisposalState state) {
 		return this.upsertDisposalByRequest(requestId, channel, state);
 	}
 
 	public synchronized long updateInterestByKey(long requestId, ContentValues cv, final DistributorState state) {
-		return updateRequestById(requestId, cv, state);
+		return updateRequestById(Tables.INTEREST.n, requestId, cv, state);
 	}
 	public synchronized long updateInterestByKey(long requestId, String channel, final DisposalState state) {
 		return this.upsertDisposalByRequest(requestId, channel, state);
@@ -1886,33 +1978,7 @@ public class DistributorDataStore {
 		}
 		return values;
 	}
-		
-	/** Insert method helper */
-	public ContentValues initializePostalDefaults(ContentValues values) {
-		
-		initializeRequestDefaults(values);
-		
-		if (!values.containsKey(PostalField.UNIT.n())) {
-			values.put(PostalField.UNIT.n(), "unknown");
-		}
-		if (!values.containsKey(PostalField.VALUE.n())) {
-			values.put(PostalField.VALUE.n(), -1);
-		}
-		if (!values.containsKey(PostalField.DATA.n())) {
-			values.put(PostalField.DATA.n(), "");
-		}
-		return values;
-	}
-
-	/** Insert method helper */
-	protected ContentValues initializePublicationDefaults(ContentValues values) {
-		// final Long now = Long.valueOf(System.currentTimeMillis());
-
-		initializeRequestDefaults(values);
-		
-		return values;
-	}
-
+	
 	/** Insert method helper */
 	protected ContentValues initializeRetrievalDefaults(ContentValues values) {
 		final Long now = Long.valueOf(System.currentTimeMillis());
@@ -1987,39 +2053,6 @@ public class DistributorDataStore {
 
 	// ========= POSTAL : DELETE ================
 
-	public synchronized int deletePostalGarbage() {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = db.delete(Tables.POSTAL.n, 
-					POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-					DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
-			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
-			return expireCount;
-		} catch (IllegalArgumentException ex) {
-			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
-		} catch (SQLiteException ex) {
-			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
-		}
-		return 0;
-	}
-	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalField.TYPE.q(null)).append('=').append(Tables.POSTAL.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.POSTAL.q())
-	.append(" WHERE ").append(DisposalField.REQUEST.q(null))
-	    .append('=').append(Tables.POSTAL.q()).append(".").append(RequestField._ID.q(null))
-	.append(')')
-	.toString();
-
-	private static final String POSTAL_EXPIRATION_CONDITION = new StringBuilder()
-	.append(RequestField.EXPIRATION.q(null))
-	.append('<').append('?')
-	.toString();
-
-	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
-
-	
 	// ========= RETRIEVAL : DELETE ================
 
 	public synchronized int deleteRetrieval(String selection, String[] selectionArgs) {
@@ -2030,7 +2063,7 @@ public class DistributorDataStore {
 			logger.trace("Retrieval delete {} {}", count, disposalCount);
 			return count;
 		} catch (IllegalArgumentException ex) {
-			logger.error("delete postal {} {}", selection, selectionArgs);
+			logger.error("delete retrieval {} {}", selection, selectionArgs);
 		}
 		return 0;
 	}
@@ -2091,7 +2124,7 @@ public class DistributorDataStore {
 			logger.trace("Interest delete {} {}", count);
 			return count;
 		} catch (IllegalArgumentException ex) {
-			logger.error("delete postal {} {}", selection, selectionArgs);
+			logger.error("delete interest {} {}", selection, selectionArgs);
 		}
 		return 0;
 	}
