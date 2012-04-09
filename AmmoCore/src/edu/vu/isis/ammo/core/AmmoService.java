@@ -395,22 +395,22 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
 		//this.serialChannel.init(context);
-		
-		gChannelMap.put("default", this.gwChannel);
-		gChannelMap.put(this.gwChannel.name, this.gwChannel);
-		gChannelMap.put(this.multicastChannel.name, this.multicastChannel);
-		gChannelMap.put(this.reliableMulticastChannel.name, this.reliableMulticastChannel);
-		gChannelMap.put(this.journalChannel.name, this.journalChannel);
-		gChannelMap.put(this.serialChannel.name, this.serialChannel);
 
-		gChannels.put(this.gwChannel.name, Gateway.getInstance(getBaseContext()));
-		gChannels.put(this.multicastChannel.name, Multicast.getInstance(getBaseContext()));
-		gChannels.put(this.reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()));
-		gChannels.put(this.serialChannel.name, Serial.getInstance(getBaseContext()));
+		gChannelMap.put( "default", gwChannel );
+		gChannelMap.put( gwChannel.name, gwChannel );
+		gChannelMap.put( multicastChannel.name, multicastChannel );
+		gChannelMap.put( reliableMulticastChannel.name, reliableMulticastChannel );
+		gChannelMap.put( journalChannel.name, journalChannel );
+		gChannelMap.put( serialChannel.name, serialChannel );
 
-		mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
-		mNetlinks.add(WiredNetlink.getInstance(getBaseContext()));
-		mNetlinks.add(PhoneNetlink.getInstance(getBaseContext()));
+		gChannels.put( gwChannel.name, Gateway.getInstance(getBaseContext()) );
+		gChannels.put( multicastChannel.name, Multicast.getInstance(getBaseContext()) );
+		gChannels.put( reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()) );
+		gChannels.put( serialChannel.name, Serial.getInstance( getBaseContext(), serialChannel ));
+
+		mNetlinks.add( WifiNetlink.getInstance(getBaseContext()) );
+		mNetlinks.add( WiredNetlink.getInstance(getBaseContext()) );
+		mNetlinks.add( PhoneNetlink.getInstance(getBaseContext()) );
 
 		// FIXME: find the appropriate time to release() the multicast lock.
 		logger.trace("Acquiring multicast lock()");
@@ -1444,6 +1444,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.sendBroadcast(loginIntent);
 
 	}
+
+
+    public void receivedCorruptPacketOnSerialChannel()
+    {
+        serialChannel.receivedCorruptPacket();
+    }
 
 
 	/**
