@@ -10,6 +10,7 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.model;
 
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
@@ -19,30 +20,62 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.network.SerialChannel;
+
 
 public class Serial extends Channel
 {
 	public static String KEY = "SerialUiChannel";
 
-	private static Serial instance;
+    // We might want to provide an accessor for this at some point.
+    public static SerialChannel mChannel;
 
-	public static Serial getInstance(Context context)
+
+	public static Serial getInstance( Context context, SerialChannel channel )
     {
-		if(instance == null)
-			instance = new Serial(context, "Serial Channel");
-		return instance;
+		if ( mInstance == null )
+			mInstance = new Serial( context, "Serial Channel" , channel );
+		return mInstance;
 	}
 
-	private boolean election = false;
-	private int[] status = null;
 
-	private Serial(Context context, String name)
+	@Override
+	public void enable() { setElection( true ); }
+
+	@Override
+	public void disable() { setElection( false ); }
+
+	@Override
+	public void toggle() { setElection( !mElection ); }
+
+	@Override
+	public boolean isEnabled() { return mElection; }
+
+
+	@Override
+	public View getView( View row, LayoutInflater inflater )
     {
-		super(context, name);
+		row = inflater.inflate( edu.vu.isis.ammo.core.R.layout.serial_item, null );
 
-		election = ! this.prefs.getBoolean(INetPrefKeys.SERIAL_DISABLED, 
-		                                 INetPrefKeys.DEFAULT_SERIAL_DISABLED);
+		TextView name = (TextView) row.findViewById( R.id.serial_name );
+		TextView device = (TextView) row.findViewById( R.id.serial_device );
+		((TextView) row.findViewById( R.id.channel_type )).setText( Serial.KEY );
+
+		name.setText( this.name );
+		StringBuilder sb = new StringBuilder();
+		sb.append( this.prefs.getString( INetPrefKeys.SERIAL_DEVICE, "def device" ));
+		sb.append( "@" );
+		sb.append( this.prefs.getString( INetPrefKeys.SERIAL_BAUD_RATE, "9600" ));
+		device.setText( sb.toString() );
+		return row;
 	}
+
+
+	@Override
+	public int[] getStatus() { return mStatus; }
+
+	@Override
+	public void setStatus( int[] statusCode ) { mStatus = statusCode; }
 
 
 	@Override
@@ -57,78 +90,39 @@ public class Serial extends Channel
 
 
 	@Override
-	public void enable()
-    {
-		this.setElection(true);
-	}
-
-// FIXME : Should this view only user interface be writing this value?
-	private void setElection(boolean b)
-    {
-		this.election = b;
-        Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.SERIAL_DISABLED, ! this.election);
-        editor.commit();
-	}
-
-
-	@Override
-	public void disable()
-    {
-		this.setElection(false);
-	}
-
-
-	@Override
-	public void toggle()
-    {
-		this.setElection(!this.election);
-	}
-
-
-	@Override
-	public boolean isEnabled()
-    {
-		return this.election;
-	}
-
-
-	@Override
-	public View getView(View row, LayoutInflater inflater)
-    {
-		row = inflater.inflate(edu.vu.isis.ammo.core.R.layout.serial_item, null);
-
-		TextView name = (TextView) row.findViewById(R.id.serial_name);
-		TextView device = (TextView) row.findViewById(R.id.serial_device);
-		((TextView) row.findViewById( R.id.channel_type )).setText( Serial.KEY );
-
-		name.setText(this.name);
-		StringBuilder sb = new StringBuilder();
-		sb.append(this.prefs.getString(INetPrefKeys.SERIAL_DEVICE, "def device"));
-		sb.append("@");
-		sb.append(this.prefs.getString(INetPrefKeys.SERIAL_BAUD_RATE, "9600"));
-		device.setText(sb.toString());
-		return row;
-	}
-
-
-	@Override
-	public int[] getStatus()
-    {
-		return this.status;
-	}
-
-
-	@Override
-	public void setOnNameChangeListener(OnNameChangeListener listener, View view)
+	public void setOnNameChangeListener( OnNameChangeListener listener, View view )
     {
 		// TODO Auto-generated method stub
 	}
 
 
-	@Override
-	public void setStatus(int[] statusCode)
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // Private members
+    //
+
+	private Serial( Context context, String name, SerialChannel channel )
     {
-		this.status = statusCode;
+		super( context, name );
+
+        mChannel = channel;
+		mElection = ! this.prefs.getBoolean( INetPrefKeys.SERIAL_DISABLED,
+                                             INetPrefKeys.DEFAULT_SERIAL_DISABLED );
 	}
+
+
+    // FIXME : Should this view, which is only user interface, be writing this value?
+	private void setElection( boolean b )
+    {
+		mElection = b;
+        Editor editor = this.prefs.edit();
+        editor.putBoolean( INetPrefKeys.SERIAL_DISABLED, !mElection );
+        editor.commit();
+	}
+
+
+	private static Serial mInstance;
+
+	private boolean mElection = false;
+	private int[] mStatus = null;
 }

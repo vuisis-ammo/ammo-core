@@ -544,8 +544,14 @@ public class DistributorThread extends Thread {
 		logger.trace("process response");
 
 		if ( !agm.hasValidChecksum() ) {
-			return false;
-		}
+            // If this message came from the serial channel, let it know that
+            // a corrupt message occured, so it can update its stats.
+            // Make this a more general mechanism later on.
+            if ( agm.isSerialChannel )
+                ammoService.receivedCorruptPacketOnSerialChannel();
+
+            return false;
+        }
 
 		final AmmoMessages.MessageWrapper mw;
 		try {
