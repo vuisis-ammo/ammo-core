@@ -184,12 +184,29 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
                 Serial s = (Serial) channel;
                 SerialChannel ch = s.mChannel;
 
+                switch ( status[0] ) {
+                case INetChannel.DISABLED:
+                    setColor( icon, text_one, R.color.status_disabled );
+                    setColor( icon, text_two, R.color.status_disabled );
+                    break;
+                case INetChannel.LINK_WAIT:
+                    setColor( icon, text_one, R.color.status_connecting );
+                    setColor( icon, text_two, R.color.status_connecting );
+                    break;
+                case INetChannel.CONNECTED:
+                    setColor( icon, text_one, R.color.status_transmitting );
+                    setColor( icon, text_two, R.color.status_transmitting );
+                    break;
+                default:
+                    setColor( icon, text_one, R.color.status_unknown );
+                    setColor( icon, text_two, R.color.status_unknown );
+                    break;
+                }
+
                 // Display the send/receive counts on line one.
                 StringBuilder countsString = new StringBuilder();
                 countsString.append( "S:" ).append( ch.getMessagesSent() ).append( " " );
                 countsString.append( "R:" ).append( ch.getMessagesReceived() );
-
-                setColor( icon, text_one, R.color.status_taking );
                 text_one.setText( countsString.toString() );
 
                 // Display the error counts on line two.
@@ -197,8 +214,6 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
                 errorString.append( "@:" ).append( ch.getCorruptMessages() ).append( " " );
                 errorString.append( "#:" ).append( ch.getBytesSinceMagic() ).append( " " );
                 errorString.append( "N:" ).append( ch.getSecondsSinceByteRead() );
-
-                setColor( icon, text_two, R.color.status_exception );
                 text_two.setText( errorString.toString() );
                 text_two.setVisibility( TextView.VISIBLE );
 
