@@ -1154,7 +1154,7 @@ public class SerialChannel extends NetChannel
             int val = -1;
             mSecondsSinceByteRead.set( 0 );
             while ( val == -1 &&  mReceiverState.get() != INetChannel.INTERRUPTED ) {
-                logger.warn( "SerialPort.read()" );
+                logger.debug( "SerialPort.read()" );
                 val = mInputStream.read();
                 if ( val == -1 )
                     mSecondsSinceByteRead.getAndIncrement();
