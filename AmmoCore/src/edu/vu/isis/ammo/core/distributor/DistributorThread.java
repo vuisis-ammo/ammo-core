@@ -242,7 +242,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
         
         if (notify == null) {
             notify = new NotifyMsgNumber (this);
-            this.ammoService.notifyMsg.postDelayed(notify, 60000);
+            this.ammoService.notifyMsg.postDelayed(notify, 15000);
         }
     }
 
