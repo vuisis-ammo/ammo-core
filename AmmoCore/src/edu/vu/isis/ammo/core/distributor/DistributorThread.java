@@ -170,7 +170,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
             parent.notifyIcon("", "Data Channel", contentText, icon);
             
             if (terminate.get() != true)
-                parent.ammoService.notifyMsg.postDelayed(this, 5000);
+                parent.ammoService.notifyMsg.postDelayed(this, 60000);
         }        
     }
 
@@ -242,7 +242,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
         
         if (notify == null) {
             notify = new NotifyMsgNumber (this);
-            this.ammoService.notifyMsg.postDelayed(notify, 5000);
+            this.ammoService.notifyMsg.postDelayed(notify, 60000);
         }
     }
 
