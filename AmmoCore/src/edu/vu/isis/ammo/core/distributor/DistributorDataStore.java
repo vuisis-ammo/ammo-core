@@ -23,14 +23,6 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.api.AmmoRequest;
-import edu.vu.isis.ammo.api.type.Moment;
-import edu.vu.isis.ammo.api.type.Payload;
-import edu.vu.isis.ammo.api.type.Provider;
-import edu.vu.isis.ammo.api.type.TimeStamp;
-import edu.vu.isis.ammo.api.type.TimeTrigger;
-import edu.vu.isis.ammo.core.AmmoService;
-
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -43,6 +35,12 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
 import android.provider.BaseColumns;
 import android.text.TextUtils;
+import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.type.Moment;
+import edu.vu.isis.ammo.api.type.Payload;
+import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.api.type.TimeTrigger;
+import edu.vu.isis.ammo.core.AmmoService;
 
 /**
  * The Distributor Store Object is managed by the distributor thread.
@@ -1594,9 +1592,7 @@ public class DistributorDataStore {
 		public DistributorState status = null;
 		public Payload payload = null;
 		
-		
 		private PostalRunner(final AmmoRequest ar, final AmmoService svc) {
-			
 			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
 			this.auid = ar.uid;
 			this.topic = ar.topic.asString();
@@ -1609,7 +1605,6 @@ public class DistributorDataStore {
 		}
 		
 		private PostalRunner(final Cursor pending, final AmmoService svc) {
-			final long id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
 			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
 			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));

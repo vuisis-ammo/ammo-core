@@ -1,4 +1,5 @@
-/*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
+/*
+ * Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
 This software was developed by the Institute for Software Integrated
 Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
 Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
@@ -756,6 +757,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		for (boolean moreItems = pending.moveToFirst(); moreItems; 
 				moreItems = pending.moveToNext()) 
 		{
+			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
 			final PostalRunner postal = this.store().getPostalRunner(pending, that);
 			
 			logger.debug("serializing: {} as {}", postal.provider, postal.topic);
@@ -843,13 +845,13 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 					final DistributorState dispatchResult = 
 							this.dispatchPostalRequest(that,
-									provider.toString(), topic, 
+									postal.provider.toString(), postal.topic, 
 									dispersal, serializer,
 									new INetworkService.OnSendMessageHandler() {
 										final DistributorThread parent = DistributorThread.this;
 		                                final int id_ = id;
-		                                final String auid_ = auid;
-		                                final String topic_ = topic;
+		                                final String auid_ = postal.auid;
+		                                final String topic_ = postal.topic;
 		                                
 										@Override
 										public boolean ack(String channel, DisposalState status) {
