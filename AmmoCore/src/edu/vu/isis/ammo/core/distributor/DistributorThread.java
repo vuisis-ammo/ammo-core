@@ -532,9 +532,12 @@ public class DistributorThread extends Thread {
 	}
 
 	/**
-	 * Processes and delivers messages received from the gateway. - Verify the
-	 * check sum for the payload is correct - Parse the payload into a message -
-	 * Receive the message
+	 * Processes and delivers messages received from a channel. 
+	 * <ol>
+	 * <li> Verify the check sum for the payload is correct 
+	 * <li> Parse the payload into a message 
+	 * <li> Receive the message
+	 * </ol>
 	 * 
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
@@ -571,6 +574,25 @@ public class DistributorThread extends Thread {
 			return true;
 		}
 
+		if (mw.hasDataMessage()) {
+			final AmmoMessages.DataMessage dm = mw.getDataMessage();
+			final AmmoMessages.AcknowledgementThresholds at = dm.getThresholds();
+			if (at.getDeviceDelivered()) {
+				final AmmoMessages.MessageWrapper.Builder mwb = 
+						AmmoMessages.MessageWrapper.newBuilder();
+				mwb.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT);
+				
+				final AmmoMessages.PushAcknowledgement.Builder pushAck = 
+						AmmoMessages.PushAcknowledgement
+						.newBuilder()
+						.setUid(dm.getUid())
+						.setDestinationDevice(dm.getOriginDevice())
+						.setAcknowledgingDevice(ammoService.getDeviceId());
+				
+				mwb.setPushAcknowledgement(pushAck);
+				// TODO place in the appropriate channel's queue
+			}
+		}
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 		case TERSE_MESSAGE:

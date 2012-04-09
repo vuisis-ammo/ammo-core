@@ -204,6 +204,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return networkingSwitch = networkingSwitch ? false : true;
 	}
 
+	public String getDeviceId() { return deviceId; }
     public String getOperatorId() { return operatorId; }
 	
 	private NetworkBroadcastReceiver myNetworkReceiver = null;
