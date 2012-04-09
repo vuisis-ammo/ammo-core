@@ -36,7 +36,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PriorityType;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
@@ -162,7 +162,7 @@ public class RequestPopupWindow extends PopupWindow {
 				break;
 			case DISPOSITION:
 				final int dispId = requestCursor.getInt(requestCursor.getColumnIndex(colName));
-				final RequestDisposal disp = RequestDisposal.getInstanceById(dispId);
+				final DisposalTotalState disp = DisposalTotalState.getInstanceById(dispId);
 				cell.setText(disp.t);
 				break;
 			case PRIORITY:

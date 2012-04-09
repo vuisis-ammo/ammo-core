@@ -53,12 +53,11 @@ import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PublishTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
@@ -304,11 +303,11 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		public final String auid;
 		
 		public final String channel;
-		public final ChannelDisposal status;
+		public final DisposalState status;
 
 		public ChannelAck(Tables type, long id, 
 				          String topic, String auid, 
-				          String channel, ChannelDisposal status) 
+				          String channel, DisposalState status) 
 		{
 			this.type = type;
 			this.id = id;
@@ -366,15 +365,12 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * 
 	 * @param ack
 	 */
-	private void processChannelAck(final Context context, final ChannelAck ack) {
+	private void doChannelAck(final Context context, final ChannelAck ack) {
 		logger.trace("channel ACK {}", ack);
 		final long numUpdated;
 		switch (ack.type) {
 		case POSTAL:
 			numUpdated = this.store.updatePostalByKey(ack.id, ack.channel, ack.status);
-			break;
-		case PUBLISH:
-			numUpdated = this.store.updatePublishByKey(ack.id, ack.channel, ack.status);
 			break;
 		case RETRIEVAL:
 			numUpdated = this.store.updateRetrievalByKey(ack.id, ack.channel, ack.status);
@@ -502,9 +498,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		this.store.deactivateDisposalStateByChannel(name);
 	    }
 
-	    this.processSubscribeCache(ammoService);
-	    this.processRetrievalCache(ammoService);
-	    this.processPostalCache(ammoService);
+	    this.doSubscribeCache(ammoService);
+	    this.doRetrievalCache(ammoService);
+	    this.doPostalCache(ammoService);
 	}
 
 
@@ -518,14 +514,14 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		while (this.isReady()) {
 		    if (this.channelDelta.getAndSet(false)) {
 			logger.trace("channel change");
-			this.processChannelChange(ammoService);
+			this.doChannelChange(ammoService);
 		    }
 
 		    if (!this.channelAck.isEmpty()) {
 			logger.trace("processing channel acks, remaining {}", this.channelAck.size());
 			try {
 			    final ChannelAck ack = this.channelAck.take();
-			    this.processChannelAck(this.context, ack);
+			    this.doChannelAck(this.context, ack);
 			} catch (ClassCastException ex) {
 			    logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
 			}
@@ -535,7 +531,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			try {
 			    final AmmoGatewayMessage agm = this.responseQueue.take();
 			    logger.info("processing response, remaining {}", this.responseQueue.size());
-			    this.processResponse(ammoService, agm);
+			    this.doResponse(ammoService, agm);
 			} catch (ClassCastException ex) {
 			    logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
 			}
@@ -545,7 +541,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			try {
 			    final AmmoRequest agm = this.requestQueue.take();
 			    logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
-			    this.processRequest(ammoService, agm);
+			    this.doRequest(ammoService, agm);
 			} catch (ClassCastException ex) {
 			    logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
 			}
@@ -570,32 +566,30 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	private boolean processRequest(AmmoService that, AmmoRequest agm) {
+	private boolean doRequest(AmmoService that, AmmoRequest agm) {
 		logger.trace("process request {}", agm);
 		switch (agm.action) {
 		case POSTAL:
 			if (RUN_TRACE) {
-				Debug.startMethodTracing("processPostalRequest");
-				processPostalRequest(that, agm);
+				Debug.startMethodTracing("doPostalRequest");
+				doPostalRequest(that, agm);
 				Debug.stopMethodTracing();
 			} else {
-				processPostalRequest(that, agm);
+				doPostalRequest(that, agm);
 			}
 			
 			break;
 		case DIRECTED_POSTAL:
-			processPostalRequest(that, agm);
-			break;
-		case PUBLISH:
+			doPostalRequest(that, agm);
 			break;
 		case RETRIEVAL:
-			processRetrievalRequest(that, agm);
+			doRetrievalRequest(that, agm);
 			break;
 		case SUBSCRIBE:
-			processSubscribeRequest(that, agm, 1);
+			doSubscribeRequest(that, agm, 1);
 			break;
 		case DIRECTED_SUBSCRIBE:
-			processSubscribeRequest(that, agm, 2);
+			doSubscribeRequest(that, agm, 2);
 			break;
 		}
 		return true;
@@ -608,8 +602,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * changed. This is all right it just means that this method may be called
 	 * with no work to do.
 	 */
-	private void processChannelChange(AmmoService that) {
-		logger.trace("::processChannelChange()");
+	private void doChannelChange(AmmoService that) {
+		logger.trace("::doChannelChange()");
 
 		for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
 			final String name = entry.getKey();
@@ -617,7 +611,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 			if (status.status.getAndSet(true))
 				continue;
 
-			logger.trace("::processChannelChange() : {} , {}", name, status.change);
+			logger.trace("::doChannelChange() : {} , {}", name, status.change);
 			final ChannelChange change = status.change;
 			switch (change) {
 			case DEACTIVATE:
@@ -653,14 +647,12 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		// we could do a priming query to determine if there are any candidates
 
 		this.store.deletePostalGarbage();
-		this.store.deletePublishGarbage();
 		this.store.deleteRetrievalGarbage();
 		this.store.deleteSubscribeGarbage();
 
-		this.processPostalCache(that);
-		this.processPublishCache(that);
-		this.processRetrievalCache(that);
-		this.processSubscribeCache(that);
+		this.doPostalCache(that);
+		this.doRetrievalCache(that);
+		this.doSubscribeCache(that);
 	}
 
 	/**
@@ -671,10 +663,16 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	private boolean processResponse(Context context, AmmoGatewayMessage agm) {
+	private boolean doResponse(Context context, AmmoGatewayMessage agm) {
 	    logger.trace("process response");
 
         if ( !agm.hasValidChecksum() ) {
+            // If this message came from the serial channel, let it know that
+            // a corrupt message occured, so it can update its stats.
+            // Make this a more general mechanism later on.
+            if ( agm.isSerialChannel )
+                ammoService.receivedCorruptPacketOnSerialChannel();
+
             return false;
         }
         
@@ -778,7 +776,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @param handler
 	 * @return
 	 */
-	private void processPostalRequest(final AmmoService that, final AmmoRequest ar) {
+	private void doPostalRequest(final AmmoService that, final AmmoRequest ar) {
 
 		// Dispatch the message.
 		try {
@@ -805,7 +803,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
-				values.put(PostalTableSchema.DISPOSITION.cv(), RequestDisposal.NEW.cv());
+				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertPostal(values, policy.makeRouteMap());
 				logger.debug("no network connection, added {}", key);
 				return;
@@ -846,7 +844,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				}
 			});
 
-			values.put(PostalTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+			values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
@@ -861,7 +859,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 							final String auid_ = ar.uid;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {							    
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
 										                                        topic_, auid_,  
 										                                        channel, status));
@@ -880,7 +878,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * Check for requests whose delivery policy has not been fully satisfied and
 	 * for which there is, now, an available channel.
 	 */
-	private void processPostalCache(final AmmoService that) {
+	private void doPostalCache(final AmmoService that) {
 		logger.debug(MARK_POSTAL, "process table POSTAL");
 
 		if (!that.isConnected()) 
@@ -952,7 +950,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				{
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
+					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				logger.trace("prior channel states {}", dispersal);
 				channelCursor.close();
@@ -966,7 +964,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				synchronized (this.store) {
 					final ContentValues values = new ContentValues();
 
-					values.put(PostalTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+					values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					long numUpdated = this.store.updatePostalByKey(id, values, null);
 					logger.debug("updated {} postal items", numUpdated);
 
@@ -981,7 +979,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		                                final String topic_ = topic;
 		                                
 										@Override
-										public boolean ack(String channel, ChannelDisposal status) {
+										public boolean ack(String channel, DisposalState status) {
 											return parent.announceChannelAck( new ChannelAck(Tables.POSTAL, id_, 
 													                                         topic_, auid_, 
 													                                         channel, status) );
@@ -1079,84 +1077,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		return true;
 	}
 
-	// =========== PUBLICATION ====================
-
-	/**
-	 * Used when a new postal request arrives. It first tries to dispatch the
-	 * request to the network service. Regardless of whether that works, the
-	 * request is recorded for later use.
-	 * 
-	 * @param that
-	 * @param uri
-	 * @param mimeType
-	 * @param data
-	 * @param handler
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private void processPublishRequest(final AmmoService that, final AmmoRequest ar, int st) {
-		logger.trace("process request PUBLISH : not implemented");
-		final UUID uuid = UUID.randomUUID();
-		final String auid = ar.uid;
-		final String topic = ar.topic.asString();
-		final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
-
-		final ContentValues values = new ContentValues();
-		values.put(PublishTableSchema.UUID.cv(), uuid.toString());
-		values.put(PublishTableSchema.AUID.cv(), auid);
-		values.put(PublishTableSchema.TOPIC.cv(), topic);
-		values.put(PublishTableSchema.PROVIDER.cv(), ar.provider.cv());
-		
-		values.put(PublishTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
-		values.put(PublishTableSchema.EXPIRATION.cv(), ar.expire.cv());
-		values.put(PublishTableSchema.CREATED.cv(), System.currentTimeMillis());
-	}
-
-	private void processPublishCache(AmmoService that) {
-		logger.trace("process table PUBLISH : not implemented");
-	}
-
-	/**
-	 * dispatch the request to the network service. It is presumed that the
-	 * connection to the network service exists before this method is called.
-	 * 
-	 * @param that
-	 * @param uri
-	 * @param mimeType
-	 * @param data
-	 * @param handler
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private DistributorState dispatchPublishRequest(final AmmoService that, 
-			final String provider, final String msgType, 
-			final DistributorState dispersal, byte[] data, 
-			final INetworkService.OnSendMessageHandler handler) 
-	{
-		logger.trace("::dispatchPublishRequest");
-		return null;
-	}
-
-	/**
-	 * Get response to PushRequest from the gateway. This should be seen in
-	 * response to a post passing through transition for which a notice has been
-	 * requested.
-	 * 
-	 * @param mw
-	 * @return
-	 */
-	@SuppressWarnings("unused")
-	private boolean receivePublishResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.trace("receive response PUBLISH");
-
-		if (mw == null)
-			return false;
-		if (!mw.hasPushAcknowledgement())
-			return false;
-		// PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-		return true;
-	}
-
 	// =========== RETRIEVAL ====================
 
 	/**
@@ -1172,7 +1092,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @param ar
 	 * @param st
 	 */
-	private void processRetrievalRequest(AmmoService that, AmmoRequest ar) {
+	private void doRetrievalRequest(AmmoService that, AmmoRequest ar) {
 		logger.trace("process request RETRIEVAL {} {}", ar.topic.toString(), ar.provider.toString());
 
 		// Dispatch the message.
@@ -1202,13 +1122,13 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
-				values.put(RetrievalTableSchema.DISPOSITION.cv(), RequestDisposal.NEW.cv());
+				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				this.store.upsertRetrieval(values, dispersal);
 				logger.debug("no network connection");
 				return;
 			}
 
-			values.put(RetrievalTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+			values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
@@ -1223,7 +1143,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 							final String topic_ = topic;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
 										                                        topic_, auid_,  
 										                                        channel, status));
@@ -1247,7 +1167,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * 
 	 * Garbage collect items which are expired.
 	 */
-	private void processRetrievalCache(AmmoService that) {
+	private void doRetrievalCache(AmmoService that) {
 		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
@@ -1265,7 +1185,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
+					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				channelCursor.close();
 			}
@@ -1285,7 +1205,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				synchronized (this.store) {
 					final ContentValues values = new ContentValues();
 
-					values.put(RetrievalTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+					values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					@SuppressWarnings("unused")
 					final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
 
@@ -1297,7 +1217,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 								final String topic_ = topic;
 		
 								@Override
-								public boolean ack(String channel, ChannelDisposal status) {
+								public boolean ack(String channel, DisposalState status) {
 									return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
 											                                        topic_, auid_, 
 											                                        channel, status));
@@ -1426,7 +1346,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * @param agm
 	 * @param st
 	 */
-	private void processSubscribeRequest(final AmmoService that, final AmmoRequest ar, int st) {
+	private void doSubscribeRequest(final AmmoService that, final AmmoRequest ar, int st) {
 		logger.trace("process request SUBSCRIBE {}", ar.topic.toString());
 
 		// Dispatch the message.
@@ -1449,13 +1369,13 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
-				values.put(SubscribeTableSchema.DISPOSITION.cv(), RequestDisposal.NEW.cv());
+				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertSubscribe(values, dispersal);
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
 
-			values.put(SubscribeTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+			values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
@@ -1469,7 +1389,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 							final String topic_ = topic;
 		
 							@Override
-							public boolean ack(String channel, ChannelDisposal status) {
+							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
 										                                        topic_, auid_, 
 										                                        channel, status));
@@ -1494,7 +1414,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 	 * Garbage collect items which are expired.
 	 */
 
-	private void processSubscribeCache(AmmoService that) {
+	private void doSubscribeCache(AmmoService that) {
 		logger.debug(MARK_SUBSCRIBE, "process table SUBSCRIBE");
 
 		final Cursor pending = this.store.querySubscribeReady();
@@ -1518,7 +1438,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
-					dispersal.put(channel, ChannelDisposal.getInstanceById(channelState));
+					dispersal.put(channel, DisposalState.getInstanceById(channelState));
 				}
 				channelCursor.close();
 			}
@@ -1531,7 +1451,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 				synchronized (this.store) {
 					final ContentValues values = new ContentValues();
 
-					values.put(SubscribeTableSchema.DISPOSITION.cv(), RequestDisposal.DISTRIBUTE.cv());
+					values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					@SuppressWarnings("unused")
 					long numUpdated = this.store.updateSubscribeByKey(id, values, null);
 
@@ -1544,7 +1464,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 								final String topic_ = topic;
 		
 								@Override
-								public boolean ack(String channel, ChannelDisposal status) {
+								public boolean ack(String channel, DisposalState status) {
 									return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
 											                                        topic_, auid_,  
 											                                        channel, status));

@@ -8,7 +8,7 @@
   <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
     <checkLoggable>false</checkLoggable>
     <tagEncoder>
-       <pattern>%logger{22}</pattern>
+       <pattern>ammo.%logger{22}</pattern>
     </tagEncoder>
     <encoder>
        <pattern>[%method] %msg%n</pattern>
@@ -25,9 +25,8 @@
     </encoder>
   </appender>
 
-
   <root level="ERROR">
     <appender-ref ref="LOGCAT" />
-    <appender-ref ref="FILE" />
   </root>
+
 </configuration>

@@ -12,7 +12,7 @@ package edu.vu.isis.ammo.core.network;
 
 import java.util.List;
 
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Netlink;
 
@@ -33,14 +33,14 @@ public interface INetworkService {
 
     // Callback interfaces
     interface OnSendMessageHandler {
-    	boolean ack(String channel, ChannelDisposal status);
+    	boolean ack(String channel, DisposalState status);
     }
 
     // methods
     void teardown();
     boolean isConnected();
 
-    public ChannelDisposal sendRequest(AmmoGatewayMessage agm, String channel);
+    public DisposalState sendRequest(AmmoGatewayMessage agm, String channel);
 
     List<Channel> getGatewayList();
     List<Netlink> getNetlinkList();
