@@ -720,66 +720,66 @@ public class DistributorThread extends Thread {
 			logger.trace("heartbeat");
 			return true;
 		}
-
-		if (mw.hasDataMessage()) {
-			final AmmoMessages.DataMessage dm = mw.getDataMessage();
-			final AmmoMessages.AcknowledgementThresholds at = dm.getThresholds();
-			
-			if (at.getDeviceDelivered()) {
-				final AmmoMessages.MessageWrapper.Builder mwb = 
-						AmmoMessages.MessageWrapper.newBuilder();
-				mwb.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT);
-				
-				final AmmoMessages.PushAcknowledgement.Builder pushAck = 
-						AmmoMessages.PushAcknowledgement
-						.newBuilder()
-						.setUid(dm.getUid())
-						.setDestinationDevice(dm.getOriginDevice())
-						.setAcknowledgingDevice(ammoService.getDeviceId())
-						.setStatus(PushStatus.UNKNOWN);
-				
-				mwb.setPushAcknowledgement(pushAck);
-				// TODO place in the appropriate channel's queue
-				final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder()
-						.payload(mwb.build().toByteArray());
-				
-				final NetChannel channel = agm.channel;
-				if (channel != null) {
-					channel.sendRequest(oagmb.build());
-				}
-			}
-		}
+		
+		final String deviceId;
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 		case TERSE_MESSAGE:
-			final boolean interestResult = receiveInterestResponse(context, mw);
+		    final boolean interestResult = receiveInterestResponse(context, mw, agm.channel);
 			logger.debug("interest reply {}", interestResult);
+			if (mw.hasDataMessage()) {
+			    AmmoMessages.DataMessage dm = mw.getDataMessage();
+			    if (dm.hasOriginDevice()) { 
+				deviceId = dm.getOriginDevice(); 
+			    } else {
+				deviceId = null;
+			    }
+			} else {
+			    deviceId = null;
+			}
 			break;
 
 		case AUTHENTICATION_RESULT:
 			final boolean result = receiveAuthenticateResponse(context, mw);
 			logger.debug("authentication result={}", result);
+			deviceId = null;
 			break;
 
 		case PUSH_ACKNOWLEDGEMENT:
 			final boolean postalResult = receivePostalResponse(context, mw);
 			logger.debug("post acknowledgement {}", postalResult);
+			deviceId = null;
 			break;
 
 		case PULL_RESPONSE:
 			final boolean retrieveResult = receiveRetrievalResponse(context, mw);
 			logger.debug("retrieve response {}", retrieveResult);
+			deviceId = null;
 			break;
 
-		case AUTHENTICATION_MESSAGE:
 		case SUBSCRIBE_MESSAGE:
+		    if (mw.hasSubscribeMessage()) {
+			AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
+			if (sm.hasOriginDevice()) { 
+			    deviceId = sm.getOriginDevice(); 
+			} else {
+				deviceId = null;
+			}
+		    } else {
+			deviceId = null;
+		    }
+		    break;
+		case AUTHENTICATION_MESSAGE:
 		case PULL_REQUEST:
 		case UNSUBSCRIBE_MESSAGE:
 			logger.debug("{} message, no processing", mw.getType());
+			deviceId = null;
 			break;
 		default:
 			logger.error("unexpected reply type. {}", mw.getType());
+			deviceId = null;
 		}
+		ammoService.store().updateDevicePresence(deviceId);
 		return true;
 	}
 
@@ -1658,7 +1658,7 @@ public class DistributorThread extends Thread {
 	 * The subscribing uri isn't sent with the subscription to the gateway
 	 * therefore it needs to be recovered from the subscription table.
 	 */
-	private boolean receiveInterestResponse(Context context, AmmoMessages.MessageWrapper mw) {
+    private boolean receiveInterestResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
 		if (mw == null) {
 			logger.warn("no message");
 			return false;
@@ -1676,6 +1676,31 @@ public class DistributorThread extends Thread {
 			mime = resp.getMimeType();
 			data = resp.getData();
 			encode = resp.getEncoding();
+
+			// Send acknowledgment, if requested by sender
+			final AmmoMessages.AcknowledgementThresholds at = resp.getThresholds();
+			if (at.getDeviceDelivered()) {
+			    final AmmoMessages.MessageWrapper.Builder mwb = 
+				AmmoMessages.MessageWrapper.newBuilder();
+			    mwb.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT);
+		    
+			    final AmmoMessages.PushAcknowledgement.Builder pushAck = 
+				AmmoMessages.PushAcknowledgement
+				.newBuilder()
+				.setUid(resp.getUid())
+				.setDestinationDevice(resp.getOriginDevice())
+				.setAcknowledgingDevice(ammoService.getDeviceId())
+				.setStatus(PushStatus.UNKNOWN);
+		    
+			    mwb.setPushAcknowledgement(pushAck);
+			    // TODO place in the appropriate channel's queue
+			    final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder()
+				.payload(mwb.build().toByteArray());
+		    
+			    if (channel != null) {
+				channel.sendRequest(oagmb.build());
+			    }
+			}
 		} else {
 			final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
 			mime = AmmoMimeTypes.mimeTypes.get( resp.getMimeType());

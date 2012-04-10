@@ -2259,6 +2259,30 @@ public class DistributorDataStore {
 		}
 	}
 
+    /**
+     * Update device presence information for a specified device.
+     *
+     * @param deviceId - String - the device id whose presence information to update
+     */
+    public synchronized void updateDevicePresence(String deviceId) {
+	if (deviceId == null || deviceId.length() == 0) {
+	    return;
+	}
+	logger.trace("Updating device presence for device: {}", deviceId);
+
+	try {
+	    /*
+	     * final SQLiteDatabase db = this.helper.getWritableDatabase();
+	     * db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.INTEREST.qv()});
+	     * return db.delete(Tables.INTEREST.n, null, null);
+	     */
+	    final SQLiteDatabase db = this.helper.getWritableDatabase();
+	} catch (IllegalArgumentException ex) {
+	    logger.error("updateDevicePresence problem");
+	}
+	return;
+    }
+
 	protected class DataStoreHelper extends SQLiteOpenHelper {
 		// ===========================================================
 		// Constants
