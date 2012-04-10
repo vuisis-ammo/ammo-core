@@ -779,7 +779,7 @@ public class DistributorThread extends Thread {
 			logger.error("unexpected reply type. {}", mw.getType());
 			deviceId = null;
 		}
-		ammoService.store().updateDevicePresence(deviceId);
+		ammoService.store().getPresenceWorker(deviceId).upsert();
 		return true;
 	}
 
