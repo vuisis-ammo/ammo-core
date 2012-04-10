@@ -874,8 +874,6 @@ public class DistributorDataStore {
 	.append(PresenceField.DEVICE.q(null)).append("=?").toString();
 
 
-	
-
 
 	/**
 	 * The notice table is for noticing when a request crosses a threshold.
@@ -2442,6 +2440,7 @@ public class DistributorDataStore {
 			return;
 		}
 	}
+
 
 
 	protected class DataStoreHelper extends SQLiteOpenHelper {
