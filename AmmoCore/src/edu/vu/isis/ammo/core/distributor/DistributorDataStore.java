@@ -42,6 +42,8 @@ import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.api.type.TimeTrigger;
 import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.distributor.DistributorThread.ChannelAck;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 
 /**
  * The Distributor Store Object is managed by the distributor thread.
@@ -1528,6 +1530,15 @@ public class DistributorDataStore {
 	public PostalWorker getPostalWorker(final Cursor pending, final AmmoService svc) {
 		return new PostalWorker(pending, svc);
 	}
+	public PostalWorker getPostalWorkerByKey(String uid) {
+		final Cursor cursor = queryRequest(POSTAL_VIEW_NAME, null, 
+				SELECT_POSTAL_BY_KEY, new String[]{ uid }, null);
+		return getPostalWorker(cursor, null);	
+	}
+	
+	private static String SELECT_POSTAL_BY_KEY = new StringBuilder()
+	   .append(RequestField.UUID.cv()).append("=?").toString();
+
 	
 	
 
@@ -1622,7 +1633,7 @@ public class DistributorDataStore {
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
 			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
-			this.policy = svc.policy().matchPostal(topic);
+			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
 			this.notice = null; // TODO recover notice from store
 		
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
@@ -2448,6 +2459,5 @@ public class DistributorDataStore {
 			return false;
 		}
 	}
-	
 
 }

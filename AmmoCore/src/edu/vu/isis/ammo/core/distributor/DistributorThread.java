@@ -52,7 +52,6 @@ import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
@@ -64,12 +63,14 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -95,6 +96,7 @@ public class DistributorThread extends Thread {
 	public static final String EXTRA_UID = "uid";
 	public static final String EXTRA_CHANNEL = "channel";
 	public static final String EXTRA_STATUS = "status";
+	public static final String EXTRA_DEVICE = "device";
 
 	// 20 seconds expressed in milliseconds
 	private static final int BURP_TIME = 20 * 1000;
@@ -297,7 +299,7 @@ public class DistributorThread extends Thread {
 
 	private final LinkedBlockingQueue<ChannelAck> channelAck;
 
-	private class ChannelAck {
+	public class ChannelAck {
 		public final Tables type;
 		public final long id;
 
@@ -580,9 +582,12 @@ public class DistributorThread extends Thread {
 	// ================= DRIVER METHODS ==================== //
 
 	/**
-	 * Processes and delivers messages received from the gateway. - Verify the
-	 * check sum for the payload is correct - Parse the payload into a message -
-	 * Receive the message
+	 * Processes and delivers messages received from the gateway. 
+	 * <ol>
+	 * <li>Verify the check sum for the payload is correct
+	 * <li>Parse the payload into a message
+	 * <li> Receive the message
+	 * </ol>
 	 * 
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
@@ -680,7 +685,9 @@ public class DistributorThread extends Thread {
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	private boolean doResponse(Context context, AmmoGatewayMessage agm) {
+	private boolean doResponse(final Context context, 
+			final AmmoGatewayMessage agm) 
+	{
 
 		logger.trace("process response");
 
@@ -717,6 +724,7 @@ public class DistributorThread extends Thread {
 		if (mw.hasDataMessage()) {
 			final AmmoMessages.DataMessage dm = mw.getDataMessage();
 			final AmmoMessages.AcknowledgementThresholds at = dm.getThresholds();
+			
 			if (at.getDeviceDelivered()) {
 				final AmmoMessages.MessageWrapper.Builder mwb = 
 						AmmoMessages.MessageWrapper.newBuilder();
@@ -727,10 +735,18 @@ public class DistributorThread extends Thread {
 						.newBuilder()
 						.setUid(dm.getUid())
 						.setDestinationDevice(dm.getOriginDevice())
-						.setAcknowledgingDevice(ammoService.getDeviceId());
+						.setAcknowledgingDevice(ammoService.getDeviceId())
+						.setStatus(PushStatus.UNKNOWN);
 				
 				mwb.setPushAcknowledgement(pushAck);
 				// TODO place in the appropriate channel's queue
+				final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder()
+						.payload(mwb.build().toByteArray());
+				
+				final NetChannel channel = agm.channel;
+				if (channel != null) {
+					channel.sendRequest(oagmb.build());
+				}
 			}
 		}
 		switch (mw.getType()) {
@@ -1152,7 +1168,40 @@ public class DistributorThread extends Thread {
 			return false;
 		if (!mw.hasPushAcknowledgement())
 			return false;
-		// PushAcknowledgement pushResp = mw.getPushAcknowledgement();
+		
+		final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
+		// generate an intent if it was requested
+		
+		final PostalWorker worker = this.store().getPostalWorkerByKey(pushResp.getUid());
+		
+		final Uri.Builder uriBuilder = new Uri.Builder()
+			.scheme("ammo")
+			.authority(worker.topic)
+			.path(worker.subtopic);
+
+		final Intent notice = new Intent()
+			.setAction(ACTION_MSG_SENT)
+			.setData(uriBuilder.build())
+			.putExtra(EXTRA_TOPIC, worker.topic.toString())
+			.putExtra(EXTRA_UID, worker.auid.toString())
+			.putExtra(EXTRA_STATUS, worker.status.toString())
+			.putExtra(EXTRA_DEVICE, pushResp.getAcknowledgingDevice().toString());
+
+		switch (worker.notice.whenSent().via) {
+		case ACTIVITY: 
+			context.sendBroadcast(notice); 
+			break;
+		case BROADCAST:
+			context.sendStickyBroadcast(notice);
+			break;
+		case STICKY_BROADCAST:	
+			context.sendBroadcast(notice); 
+			break;
+		case SERVICE: 
+			context.startService(notice);
+			break;
+		}
+		
 		return true;
 	}
 

@@ -1156,7 +1156,10 @@ public class TcpChannel extends NetChannel {
                             }
                             bbuf.get(payload, offset, size);
 
-                            AmmoGatewayMessage agm = agmb.payload(payload).build();
+                            final AmmoGatewayMessage agm = agmb
+                            		.payload(payload)
+                            		.channel( this.mDestination )
+                            		.build();
 			    logger.info( "Received a packet from gateway size({})", agm.size  );
 
                             setReceiverState( INetChannel.DELIVER );
