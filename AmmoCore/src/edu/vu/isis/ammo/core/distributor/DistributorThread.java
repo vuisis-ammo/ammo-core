@@ -1424,9 +1424,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 		final Uri provider = Uri.parse(uriString);
 
 		final Encoding encoding = Encoding.getInstanceByName( encode );
-		RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
+		final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
 
-		logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString );
+		logger.info("Ammo received message on topic: {} for provider: {}, inserted in {}", new Object[]{mime, uriString, tuple} );
 
 		return true;
 	}
