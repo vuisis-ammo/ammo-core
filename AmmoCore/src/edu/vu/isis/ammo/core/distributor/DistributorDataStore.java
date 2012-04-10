@@ -42,8 +42,6 @@ import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.api.type.TimeTrigger;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.distributor.DistributorThread.ChannelAck;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 
 /**
  * The Distributor Store Object is managed by the distributor thread.
@@ -99,11 +97,11 @@ public class DistributorDataStore {
 		POSTAL(1, "postal"),
 		RETRIEVAL(2, "retrieval"),
 		INTEREST(3, "interest"),
-		SUBSCRIBE(4, "interest"),
-		DISPOSAL(5, "disposal"),
-		CHANNEL(6, "channel"),
-		PRESENCE(7, "presence"),
-		RECIPIENT(8, "recipient");
+		DISPOSAL(4, "disposal"),
+		CHANNEL(5, "channel"),
+		RECIPIENT(6, "recipient"),
+		CAPABILITY(7, "capability"),
+		PRESENCE(8, "presence");
 
 		final public int o;
 		final public String n;
@@ -144,47 +142,7 @@ public class DistributorDataStore {
 			.toString();
 		}
 		
-		/**
-		 * Produce string builders of the form...
-		 * CREATE TABLE "<table-name>" ( 
-		 *    <column defs> 
-		 *    FOREIGN KEY(<primary key>) REFERENCES artist(<pk cols>)
-		 *    );
-		 *
-		 */
-		public List<String> sqlCreate() {
-			final StringBuilder sb = new StringBuilder().append("CREATE TABLE ");
-			sb.append('"').append(this.n).append('"');
-			sb.append(" ( ");
-			final List<TableField> fields = Arrays.asList(this.getFields());
-			if (fields.size() > 0) {
-				final TableField first = fields.get(1);
-				sb.append('"').append(first.n()).append('"').append(' ').append(first.t());
-				
-				for (TableField field : fields.subList(1, fields.size()) ) {
-				    sb.append(",");
-					sb.append('"').append(field.n()).append('"').append(' ').append(field.t());
-				}
-			}
-			
-			final String parent_key = this.getParentKey();
-			if (parent_key.length() > 0) {			
-				sb.append(parent_key);
-			}
-			sb.append(", PRIMARY KEY(").append(BaseColumns._ID).append(')');
-			sb.append(");");
-			
-			final List<String> sql = new ArrayList<String>(2);
-			sql.add(sb.toString());
-			
-			final StringBuilder pkidx = new StringBuilder()
-			   .append("CREATE UNIQUE INDEX ").append(this.n).append("_pkidx")
-			   .append(" ON ").append(this.n).append("(").append(BaseColumns._ID)
-			   .append(");");
-			sql.add(pkidx.toString());
-			
-			return sql;
-		}
+	
 		
 		private TableField[] getFields() {		
 			switch (this) {
@@ -193,24 +151,26 @@ public class DistributorDataStore {
 			case INTEREST:   return InterestField.values(); 
 			case DISPOSAL:   return DisposalField.values(); 
 			case CHANNEL:    return ChannelField.values(); 
+			case CAPABILITY: return CapabilityField.values();
 			case PRESENCE:   return PresenceField.values(); 
 			case RECIPIENT:  return RecipientField.values(); 
 			}
 			return null;
 		}
+		
+		public String createFields() {
+			final List<TableField> fields = Arrays.asList(this.getFields());
+			final StringBuilder sb = new StringBuilder();
+			if (fields.size() < 1) return "";
 			
-		private String getParentKey() {		
-			switch (this) {
-			case REQUEST:    return RequestTable.PARENT_KEY_REF; 
-			case POSTAL:     return PostalTable.PARENT_KEY_REF; 
-			case RETRIEVAL:  return RetrievalTable.PARENT_KEY_REF; 
-			case INTEREST:   return InterestTable.PARENT_KEY_REF; 
-			case DISPOSAL:   return DisposalTable.PARENT_KEY_REF; 
-			case CHANNEL:    return ChannelTable.PARENT_KEY_REF; 
-			case PRESENCE:   return PresenceTable.PARENT_KEY_REF; 
-			case RECIPIENT:  return RecipientTable.PARENT_KEY_REF; 
+			final TableField first = fields.get(1);
+			sb.append('"').append(first.n()).append('"').append(' ').append(first.t());
+			
+			for (TableField field : fields.subList(1, fields.size()) ) {
+			    sb.append(",")
+				  .append('"').append(field.n()).append('"').append(' ').append(field.t());
 			}
-			return null;
+			return sb.toString();
 		}
 
 	};
@@ -631,25 +591,84 @@ public class DistributorDataStore {
 		//	return tf;
 		//}
 	}
+	/**
+	 * The capability table is for holding information about current subscriptions.
+	 *
+	 */
+	public enum CapabilityField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+		
+		SELECTION("selection", "TEXT"),
+		// The rows/tuples wanted.
+
+		FIRST("first", "INTEGER"),
+		// When the operator first used this channel
+		
+		LATEST("latest", "INTEGER");
+		// When the operator was last seen "speaking" on the channel
+		
+		final public TableFieldState impl;
+
+		private CapabilityField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+		
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+	
+	public static interface CapabilityTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[CapabilityField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(CapabilityField.values().length);
+		
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(CapabilityTable.COLUMNS);
+		for (RequestField field : RequestField.values()) {
+			columns.add(field.n());
+			CapabilityTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+		for (CapabilityField field : CapabilityField.values()) {
+			columns.add(field.n());
+			CapabilityTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
 
 	/**
 	 * The presence table is for holding information about visible peers.
 	 * A peer is a particular device over a specific channel.
 	 * 
-	 * The created field indicates the first time the peer was observed.
-	 * The latest field indicates the last time the peer was observed.
 	 */
 	public enum PresenceField implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
+		DEVICE("device","TEXT"),
+		// The device identifier, this must be present
+		// required
+
 		OPERATOR("name", "TEXT"),
 		// The name of the operator using the channel
-
+		// optional
+		
 		FIRST("first", "INTEGER"),
 		// When the operator first used this channel
+		// The first field indicates the first time the peer was observed.
 		
 		LATEST("latest", "INTEGER"),
 		// When the operator was last seen "speaking" on the channel
+		// The latest field indicates the last time the peer was observed.
 		
 		COUNT("count", "INTEGER"),
 		// How many times the peer has been seen since FIRST
@@ -693,9 +712,9 @@ public class DistributorDataStore {
 		public static final String PARENT_KEY_REF = null;
 	};
 	static {
-		int ix = 0;
+		final List<String> columns = Arrays.asList(PresenceTable.COLUMNS);
 		for (PresenceField field : PresenceField.values()) {
-			PresenceTable.COLUMNS[ix++] = field.n();
+			columns.add(field.n());
 			PresenceTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	};
@@ -760,9 +779,9 @@ public class DistributorDataStore {
 		public static final String PARENT_KEY_REF = null;
 	};
 	static {
-		int ix = 0;
+		final List<String> columns = Arrays.asList(NoticeTable.COLUMNS);
 		for (NoticeField field : NoticeField.values()) {
-			NoticeTable.COLUMNS[ix++] = field.n();
+			columns.add(field.n());
 			NoticeTable.PROJECTION_MAP.put(field.n(), field.n());
 		}
 	};
@@ -939,6 +958,10 @@ public class DistributorDataStore {
 	};
 	static {
 		final List<String> columns = Arrays.asList(RetrievalTable.COLUMNS);
+		for (RequestField field : RequestField.values()) {
+			columns.add(field.n());
+			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
 		for (RetrievalField field : RetrievalField.values()) {
 			columns.add(field.n());
 			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
@@ -988,6 +1011,10 @@ public class DistributorDataStore {
 	}
 	static {
 		final List<String> columns = Arrays.asList(InterestTable.COLUMNS);
+		for (RequestField field : RequestField.values()) {
+			columns.add(field.n());
+			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
 		for (InterestField field : InterestField.values()) {
 			columns.add(field.n());
 			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
@@ -1131,24 +1158,6 @@ public class DistributorDataStore {
 	 * This could be done with a concurrent hash map but that
 	 * would put more logic in the java code and less in sqlite.
 	 */
-	public static interface ChannelTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[ChannelField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(ChannelField.values().length);
-		
-		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(ChannelTable.COLUMNS);
-		for (ChannelField field : ChannelField.values()) {
-			columns.add(field.n());
-			ChannelTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
 
 	public enum ChannelField  implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
@@ -1173,6 +1182,26 @@ public class DistributorDataStore {
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
 	}
+	
+	public static interface ChannelTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[ChannelField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(ChannelField.values().length);
+		
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(ChannelTable.COLUMNS);
+		for (ChannelField field : ChannelField.values()) {
+			columns.add(field.n());
+			ChannelTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+
 	
 	// ===========================================================
 	// Methods
@@ -2306,68 +2335,75 @@ public class DistributorDataStore {
 		// SQLiteOpenHelper Methods
 		// ===========================================================
 
-		private StringBuilder addFieldsToCreation(List<TableField> fields) {
-			if (fields.size() < 1) return null;
-			
-			final StringBuilder sb = new StringBuilder();
-			final TableField first = fields.get(1);
-			sb.append(first.q(null)).append(' ').append(first.t());
-			
-			for (TableField field : fields.subList(1, fields.size()) ) {
-			    sb.append(",").append(field.q(null)).append(' ').append(field.t());
-			}
-			return sb;
-		}
-		
 		@Override
 		public synchronized void onCreate(SQLiteDatabase db) {
 			logger.trace("bootstrapping database");
 
+			// ===== REQUEST : POSTAL, RETRIEVAL, INTEREST
 			try {	
-				final StringBuilder sb = new StringBuilder().append("CREATE TABLE ");
-				sb.append('"').append(Tables.REQUEST.n).append('"');
-				sb.append(" ( ");
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.REQUEST.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.POSTAL.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.RETRIEVAL.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.INTEREST.getFields())));
-				sb.append(");");
+				final StringBuilder createSql = new StringBuilder().append("CREATE TABLE ")
+				  .append('"').append(Tables.REQUEST.n).append('"')
+				  .append(" ( ")
+				  .append(Tables.REQUEST.createFields()).append(',')
+				  .append(Tables.POSTAL.createFields()).append(',')
+				  .append(Tables.RETRIEVAL.createFields()).append(',')
+				  .append(Tables.INTEREST.createFields()).append(',')
+				  .append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				  .append(");");
 				
-				db.execSQL(sb.toString());
+				db.execSQL(createSql.toString());
 				
 				final StringBuilder pkidx = new StringBuilder()
 				   .append("CREATE UNIQUE INDEX ").append(Tables.REQUEST.n).append("_pkidx")
 				   .append(" ON ").append(Tables.REQUEST.n).append("(").append(RequestField._ID.q(null))
 				   .append(");");
-				
+							
 				db.execSQL(pkidx.toString());
-
-				final StringBuilder spo = new StringBuilder().append("CREATE TABLE ");
-				spo.append('"').append(Tables.REQUEST.n).append('"');
-				sb.append(" ( ");
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.REQUEST.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.POSTAL.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.RETRIEVAL.getFields())));
-				sb.append(addFieldsToCreation(Arrays.asList(Tables.INTEREST.getFields())));
-				sb.append(");");
 				
 				db.execSQL(RequestViewCreate(POSTAL_VIEW_NAME, Tables.POSTAL));
 				db.execSQL(RequestViewCreate(RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL));
 				db.execSQL(RequestViewCreate(INTEREST_VIEW_NAME, Tables.INTEREST));
+	
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+				
+			// ===== CAPABILITY
+			try {	
+				final Tables table = Tables.CAPABILITY;
+				final StringBuilder sb = new StringBuilder()
+					.append("CREATE TABLE ")
+					.append(table.q())
+					.append(" ( ").append(table.createFields()).append(',')
+			        .append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+					.append(");");
+				
+				db.execSQL(sb.toString());
+				
 				
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
 
+			
+			// ===== DISPOSAL
 			try {
-				for(final String sql : Tables.DISPOSAL.sqlCreate() )
-					db.execSQL(sql);
+				final Tables table = Tables.DISPOSAL;
+				
+				final StringBuilder createSql = new StringBuilder()
+				        .append("CREATE TABLE ")
+				        .append(table.q())
+				        .append(" ( ").append(table.createFields()).append(',')
+				        .append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				        .append(");");
+				
+				db.execSQL(createSql.toString());
 				
 				// === Additional Indices ======
 				db.execSQL(new StringBuilder()
 				.append("CREATE UNIQUE INDEX ") 
-				.append(Tables.DISPOSAL.qIndex())
-				.append(" ON ").append(Tables.DISPOSAL.q())
+				.append(table.qIndex())
+				.append(" ON ").append(table.q())
 				.append(" ( ").append(DisposalField.TYPE.q(null))
 				.append(" , ").append(DisposalField.REQUEST.q(null))
 				.append(" , ").append(DisposalField.CHANNEL.q(null))
@@ -2378,16 +2414,33 @@ public class DistributorDataStore {
 				ex.printStackTrace();
 			}
 
+			// ===== CHANNEL
 			try {
-				for(final String sql : Tables.CHANNEL.sqlCreate() )
-				db.execSQL(sql);
+				final Tables table = Tables.CHANNEL;
+				
+				final StringBuilder createSql = new StringBuilder()
+				        .append("CREATE TABLE ")
+				        .append(table.q())
+				        .append(" ( ").append(table.createFields()).append(',')
+				        .append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				        .append(");");
+				
+				db.execSQL(createSql.toString());
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
 			
 			try {
-				for(final String sql : Tables.PRESENCE.sqlCreate() )
-				db.execSQL(sql);
+				final Tables table = Tables.PRESENCE;
+				
+				final StringBuilder createSql = new StringBuilder()
+				        .append("CREATE TABLE ")
+				        .append(table.q())
+				        .append(" ( ").append(table.createFields()).append(',')
+				        .append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				        .append(");");
+				
+				db.execSQL(createSql.toString());
 			} catch (SQLException ex) {
 				ex.printStackTrace();
 			}
