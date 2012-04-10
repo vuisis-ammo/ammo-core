@@ -134,6 +134,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
         
         private DistributorThread parent = null;
         
+        private int last_sent_count = 0;
+        private int last_recv_count = 0;
+        
         public NotifyMsgNumber (DistributorThread parent) {
             this.parent = parent;
         }
@@ -151,8 +154,11 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
         private void updateNotification () {
 
             //check for variable update ... 
-            int sent = parent.total_sent.getAndSet(0);
-            int recv = parent.total_recv.getAndSet(0);
+            int total_sent = parent.total_sent.get();
+            int total_recv = parent.total_recv.get();
+            
+            int sent = total_sent - last_sent_count;
+            int recv = total_recv - last_recv_count;
             
             int icon = 0;
             //figure out the icon ... 
@@ -165,9 +171,13 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
             else if (sent > 0 && recv > 0)
                 icon = R.drawable.alldata;
 
-            String contentText = "Sent " + sent + " Received " + recv;
+            String contentText = "Sent " + total_sent + " Received " + total_recv;
             
             parent.notifyIcon("", "Data Channel", contentText, icon);
+            
+            //save the last sent and recv ...
+            last_sent_count = total_sent;
+            last_recv_count = total_recv;
             
             if (terminate.get() != true)
                 parent.ammoService.notifyMsg.postDelayed(this, 60000);
