@@ -1088,6 +1088,12 @@ public class SerialChannel extends NetChannel
                     case 2:
                         {
                             int payload_size = agmb.size();
+                            if ( payload_size > MAX_RECEIVE_PAYLOAD_SIZE ) {
+                                logger.warn( "Discarding packet of size {}. Maximum payload size exceeded.",
+                                             payload_size );
+                                state = 0;
+                                break;
+                            }
                             byte[] buf_payload = new byte[ payload_size ];
 
                             for ( int i = 0; i < payload_size; ++i ) {
@@ -1309,6 +1315,7 @@ public class SerialChannel extends NetChannel
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
     private static final int WAIT_TIME = 5 * 1000; // 5 s
+    private static final int MAX_RECEIVE_PAYLOAD_SIZE = 2000; // Should this be set based on baud and slot duration?
     private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 
     private String mDevice;
