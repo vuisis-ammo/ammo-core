@@ -23,7 +23,7 @@ import edu.vu.isis.ammo.INetDerivedKeys;
 
 public class PhoneNetlink extends Netlink
 {
-    private static final Logger logger = LoggerFactory.getLogger( PhoneNetlink.class );
+    private static final Logger logger = LoggerFactory.getLogger("class.PhoneNetlink");
 
     private TelephonyManager mTelephonyManager = null;
     private Context mContext = null;

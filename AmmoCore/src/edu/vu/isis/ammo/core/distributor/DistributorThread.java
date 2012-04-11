@@ -83,7 +83,7 @@ public class DistributorThread extends Thread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger("ammo-dst");
+	private static final Logger logger = LoggerFactory.getLogger("class.DistributorThread");
 	private static final boolean RUN_TRACE = false;
 
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");

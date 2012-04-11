@@ -3,8 +3,6 @@ package edu.vu.isis.ammo.core.ui;
 import java.util.ArrayList;
 import java.util.HashSet;
 
-import org.slf4j.LoggerFactory;
-
 import android.app.ListActivity;
 import android.os.Bundle;
 import android.view.View;
@@ -19,6 +17,7 @@ import android.widget.TextView;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
+import org.slf4j.LoggerFactory;
 import edu.vu.isis.ammo.core.R;
 
 /**

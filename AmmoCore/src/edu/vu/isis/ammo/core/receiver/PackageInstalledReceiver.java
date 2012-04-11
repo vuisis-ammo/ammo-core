@@ -24,7 +24,7 @@ public class PackageInstalledReceiver extends BroadcastReceiver {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger("ammo-PIR");
+	public static final Logger logger = LoggerFactory.getLogger("class.PackageInstalledReceiver");
 
 	// ===========================================================
 	// Broadcast Receiver

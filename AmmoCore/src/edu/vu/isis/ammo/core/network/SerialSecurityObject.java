@@ -22,7 +22,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 public class SerialSecurityObject implements ISecurityObject,
                                              INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger( "security.mcast" );
+    private static final Logger logger = LoggerFactory.getLogger("class.SerialSecurityObject");
 
     SerialSecurityObject( SerialChannel iChannel )
     {

@@ -26,7 +26,7 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 public abstract class Netlink implements OnSharedPreferenceChangeListener
 {
-    public static final Logger logger = LoggerFactory.getLogger( Netlink.class );
+    public static final Logger logger = LoggerFactory.getLogger("class.Netlink");
 
     public static final int NETLINK_UP = 1;
     public static final int NETLINK_DOWN = 2;
