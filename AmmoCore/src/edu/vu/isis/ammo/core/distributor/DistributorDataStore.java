@@ -129,21 +129,6 @@ public class DistributorDataStore {
 			return new StringBuilder().append('"').append(this.n).append("_index").append('"').toString();
 		}
 
-		/**
-		 * Produce string builders of the form...
-		 * DROP TABLE "<table-name>";
-		 *
-		 */
-		public String sqlDrop() {
-			return new StringBuilder()
-			.append("DROP TABLE ")
-			.append('"').append(this.n).append('"')
-			.append(";")
-			.toString();
-		}
-
-
-
 		private TableField[] getFields() {		
 			switch (this) {
 			case POSTAL:     return PostalField.values(); 
@@ -151,13 +136,12 @@ public class DistributorDataStore {
 			case INTEREST:   return InterestField.values(); 
 			case DISPOSAL:   return DisposalField.values(); 
 			case CHANNEL:    return ChannelField.values(); 
-			case CAPABILITY: return CapabilityField.values();
-			case PRESENCE:   return PresenceField.values(); 
 			case RECIPIENT:  return RecipientField.values(); 
+			case CAPABILITY: return CapabilityField.values();			
+			case PRESENCE:   return PresenceField.values(); 
 			}
 			return null;
 		}
-
 		public String createFields() {
 			final List<TableField> fields = Arrays.asList(this.getFields());
 			final StringBuilder sb = new StringBuilder();
@@ -174,6 +158,2471 @@ public class DistributorDataStore {
 		}
 
 	};
+
+	/**
+	 * Interface for defining sets of fields.
+	 */
+
+	public interface TableField {	
+		// public List<TableFieldState> getState();
+		
+		/**
+		 * Get the quoted field name.
+		 * If the table ref is provided then prefix
+		 * the quoted string with it.
+		 * e.g. if tableRef is "r" and the name is "foo"
+		 * then the returned value is 'r."foo"'
+		 * 
+		 * @param tableRef
+		 * @return the field name enclosed in double quotes.
+		 */
+		public String q(String tableRef); 
+		
+		/**
+		 * Get the field name suitable for using in ContentValues
+		 * 
+		 * @return the same as n() but returns "null" as a string
+		 *          when the name is null.
+		 */
+		public String cv();
+		
+		/**
+		 * Get the name from the implementation.
+	     *
+		 * @return the unquoted/unmodified field name.
+		 */
+		public String n(); 
+		
+		/**
+		 * Get the type from the implementation.
+		 * 
+		 * @return the unquoted type name.
+		 */
+		public String t(); 
+	}
+
+	/**
+	 * A holder class for the functions implementing the
+	 * methods of the TableField interface.
+	 */
+	static public class TableFieldState {
+		final public String n;
+		final public String t;
+
+		private TableFieldState(String name, String type) {	
+			this.n = name;
+			this.t = type;
+		}
+
+		public String quoted(String tableRef) {
+			if (tableRef == null) {
+				return new StringBuilder()
+				.append('"').append(this.n).append('"')
+				.toString();
+			}
+			return new StringBuilder()
+			.append(tableRef).append('.')
+			.append('"').append(this.n).append('"')
+			.toString();
+		}
+		
+		public String cvQuoted() {
+			return String.valueOf(this.n);
+		}
+
+		/**
+		 * Produce string of the form...
+		 * "<field-name>" <field-type>
+		 * e.g.
+		 * "dog" TEXT
+		 * suitable for use in the table creation.
+		 */
+		public String formCreateClause() {
+			return new StringBuilder()
+			.append('"').append(this.n).append('"').append(' ').append(this.t)
+			.toString();
+		}
+		
+	}
+	/**
+	 * The capability table is for holding information about current subscriptions.
+	 *
+	 */
+	public enum CapabilityField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+
+		SELECTION("selection", "TEXT"),
+		// The rows/tuples wanted.
+
+		FIRST("first", "INTEGER"),
+		// When the operator first used this channel
+
+		LATEST("latest", "INTEGER");
+		// When the operator was last seen "speaking" on the channel
+
+		final public TableFieldState impl;
+
+		private CapabilityField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+
+	public static interface CapabilityTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[CapabilityField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(CapabilityField.values().length);
+
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(CapabilityTable.COLUMNS);
+		for (RequestField field : RequestField.values()) {
+			columns.add(field.n());
+			CapabilityTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+		for (CapabilityField field : CapabilityField.values()) {
+			columns.add(field.n());
+			CapabilityTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+	
+	/** 
+	 * Postal store access class
+	 */
+	public class CapabilityWorker {
+		public final UUID uuid;
+		public final String auid;
+		public final String topic;	
+		public final String subtopic;
+		public final Provider provider;
+		public final DistributorPolicy.Topic policy;
+		public final Moment serialMoment; 
+		public final int priority;
+		public final TimeTrigger expire;
+		public final Notice notice;
+
+		public DisposalTotalState totalState = null;
+		public DistributorState status = null;
+		public Payload payload = null;
+
+		private CapabilityWorker(final AmmoRequest ar, final AmmoService svc) {
+			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			this.auid = ar.uid;
+			this.topic = ar.topic.asString();
+			this.subtopic = ar.subtopic.asString();
+			this.provider = ar.provider;
+			this.policy = svc.policy().matchPostal(topic);
+			this.serialMoment = ar.moment;
+			this.notice = ar.notice;
+
+			this.priority = policy.routing.priority+ar.priority;
+			this.expire = ar.expire;
+		}
+
+		private CapabilityWorker(final Cursor pending, final AmmoService svc) {
+			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
+			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
+			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
+			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
+			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
+			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
+			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
+			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
+			this.notice = null; // TODO recover notice from store
+
+			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
+			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
+			this.expire = new TimeTrigger(expireEnc);
+		}
+
+		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
+			synchronized(DistributorDataStore.this) {	
+				final ContentValues rqstValues = new ContentValues();
+				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
+				rqstValues.put(RequestField.AUID.cv(), this.auid);
+				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
+				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
+
+				rqstValues.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
+				rqstValues.put(RequestField.PRIORITY.cv(), this.policy.routing.priority+this.priority);
+				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
+
+				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
+				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
+				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
+
+				// TOCO place notice in store 
+				// final ContentValues noticeValues = new ContentValues();
+				// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
+
+				// values.put(PostalTableSchema.UNIT.cv(), 50);
+				return upsertRequest(rqstValues, status, POSTAL_VIEW_NAME, Tables.POSTAL);
+			}
+		}
+
+		public int delete(String tupleId) {
+			final String select = new StringBuilder()
+			.append(RequestField.PROVIDER.q(null)).append("=?")
+			.append(" AND ")
+			.append(RequestField.TOPIC.q(null)).append("=?")
+			.toString();
+			final String[] args = new String[] {tupleId, this.topic};
+
+			try {
+				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
+				final int count = db.delete(Tables.POSTAL.n, select, args);
+				final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+				logger.trace("Postal delete {} {}", count, disposalCount);
+				return count;
+			} catch (IllegalArgumentException ex) {
+				logger.error("delete postal {} {}", select, args);
+			}
+			return 0;
+		}
+	}
+
+
+	/**
+	 * The presence table is for holding information about visible peers.
+	 * A peer is a particular device over a specific channel.
+	 * 
+	 */
+	public enum PresenceField implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		DEVICE("device","TEXT"),
+		// The device identifier, this must be present
+		// required
+
+		OPERATOR("name", "TEXT"),
+		// The name of the operator using the channel
+		// optional
+
+		FIRST("first", "INTEGER"),
+		// When the operator first used this channel
+		// The first field indicates the first time the peer was observed.
+
+		LATEST("latest", "INTEGER"),
+		// When the operator was last seen "speaking" on the channel
+		// The latest field indicates the last time the peer was observed.
+
+		COUNT("count", "INTEGER"),
+		// How many times the peer has been seen since FIRST
+		// Each time LATEST is changed this COUNT should be incremented
+
+		ENABLE("enable", "INTEGER"),
+		// 0 : intentionally disabled, 
+		// >0 (1) : best knowledge is enabled
+
+		CHANNEL("channel", "TEXT"),
+		// The channel type
+
+		ADDRESS("address", "TEXT");
+		// The address for the channel type
+		// For IP networks, sockets, this is the IP address, and port
+		// For TDMA this is the slot number
+
+		final public TableFieldState impl;
+
+		private PresenceField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+	public static interface PresenceTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[PresenceField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(PresenceField.values().length);
+
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(PresenceTable.COLUMNS);
+		for (PresenceField field : PresenceField.values()) {
+			columns.add(field.n());
+			PresenceTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+	
+	public PresenceWorker getPresenceWorker(final String deviceId) {
+		return new PresenceWorker(deviceId);
+	}
+	/** 
+	 * Postal store access class
+	 */
+	public class PresenceWorker {
+		public final String deviceId;
+
+		private PresenceWorker(final String deviceId) {
+			this.deviceId = deviceId;
+		}
+
+		/**
+		 * Update device presence information for a specified device.
+		 *
+		 * @param deviceId - String - the device id whose presence information to update
+		 */
+		public void upsert() {
+			final DistributorDataStore parent = DistributorDataStore.this;
+		
+			synchronized(parent) {	
+			if (this.deviceId == null || this.deviceId.length() == 0) {
+				return;
+			}
+			logger.trace("Updating device presence for device: {}", this.deviceId);
+
+			try {
+				final SQLiteDatabase db = parent.helper.getWritableDatabase();
+				final String whereClause = PRESENCE_KEY_QUERY;
+				final String[] whereArgs = new String[]{ deviceId };
+				db.beginTransaction();
+				final Cursor cursor = db.query(Tables.PRESENCE.n, null, 
+						whereClause, whereArgs, null, null, null);
+
+				final ContentValues values = new ContentValues();
+				values.put(PresenceField.DEVICE.n(), deviceId);
+				// values needs some more content
+
+				if (cursor.getCount() < 1) {
+					db.insert(Tables.PRESENCE.n, PresenceField._ID.n(), values);
+				} else {
+					// values needs some more content
+					db.update(Tables.PRESENCE.n, values, whereClause, whereArgs);
+				}
+				db.endTransaction();
+			} catch (IllegalArgumentException ex) {
+				logger.error("updateDevicePresence problem");
+			}
+			return;
+			}
+		}
+		
+	}
+
+	private static final String PRESENCE_KEY_QUERY = new StringBuilder()
+	.append(PresenceField.DEVICE.q(null)).append("=?").toString();
+
+
+
+	/**
+	 * The notice table is for noticing when a request crosses a threshold.
+	 *
+	 */
+	public enum NoticeField implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		OPERATOR("name", "TEXT"),
+		// The name of the operator using the channel
+
+		FIRST("first", "INTEGER"),
+		// When the operator first used this channel
+
+		LATEST("latest", "INTEGER"),
+		// When the operator was last seen "speaking" on the channel
+
+		COUNT("count", "INTEGER"),
+		// How many times the peer has been seen since FIRST
+		// Each time LATEST is changed this COUNT should be incremented
+
+		ENABLE("enable", "INTEGER"),
+		// 0 : intentionally disabled, 
+		// >0 (1) : best knowledge is enabled
+
+		CHANNEL("channel", "TEXT"),
+		// The channel type
+
+		ADDRESS("address", "TEXT");
+		// The address for the channel type
+		// For IP networks, sockets, this is the IP address, and port
+		// For TDMA this is the slot number
+
+		final public TableFieldState impl;
+
+		private NoticeField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+
+	public static interface NoticeTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[NoticeField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(NoticeField.values().length);
+
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(NoticeTable.COLUMNS);
+		for (NoticeField field : NoticeField.values()) {
+			columns.add(field.n());
+			NoticeTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+
+
+	public NoticeWorker getNoticeWorker() {
+		return new NoticeWorker();
+	}
+	/** 
+	 * Postal store access class
+	 */
+	public class NoticeWorker {
+
+		private NoticeWorker() {
+		}
+
+		/**
+		 * Update device presence information for a specified device.
+		 *
+		 * @param deviceId - String - the device id whose presence information to update
+		 */
+		public void upsert() {
+			final DistributorDataStore parent = DistributorDataStore.this;
+		
+			synchronized(parent) {	
+			
+			}
+		}
+		
+	}
+
+	/**
+	 * ===========================
+	 *  REQUEST
+	 * ===========================
+	 */
+
+	/**
+	 * The Request table holds application requests.
+	 * These requests are to express interest in data of certain types 
+	 * or to announce the presence of information of a certain type.
+	 * The request can apply to the past or the future.
+	 *
+	 */
+	
+	public ContentValues initializeRequestDefaults(ContentValues values) {
+		final Long now = Long.valueOf(System.currentTimeMillis());
+
+		if (!values.containsKey(RequestField.TOPIC.n())) {
+			values.put(RequestField.TOPIC.n(),"unknown");
+		}
+		if (!values.containsKey(RequestField.PROVIDER.n())) {
+			values.put(RequestField.PROVIDER.n(),"unknown");
+		}
+		if (!values.containsKey(RequestField.DISPOSITION.n())) {
+			values.put(RequestField.DISPOSITION.n(),
+					DisposalState.PENDING.o);
+		}
+
+		if (!values.containsKey(RequestField.PRIORITY.n())) {
+			values.put(RequestField.PRIORITY.n(), PriorityType.NORMAL.o);
+		}
+
+		if (!values.containsKey(RequestField.SERIAL_MOMENT.n())) {
+			values.put(RequestField.SERIAL_MOMENT.n(),
+					SerialMoment.EAGER.o);
+		}
+
+		if (!values.containsKey(RequestField.EXPIRATION.n())) {
+			values.put(RequestField.EXPIRATION.n(), now);
+		}
+		if (!values.containsKey(RequestField.CREATED.n())) {
+			values.put(RequestField.CREATED.n(), now);
+		}
+		if (!values.containsKey(RequestField.MODIFIED.n())) {
+			values.put(RequestField.MODIFIED.n(), now);
+		}
+		return values;
+	}
+
+
+	public enum RequestField implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		FK("request", "INTEGER"), // Foreign key
+
+		UUID("uuid", "TEXT"),
+		// This is a unique identifier for the request
+		// It is used to look up the appropriate provider
+
+		TYPE("type", "INTEGER"),
+		// Meaning the parent type: interest, retrieval, postal
+
+		CREATED("created", "INTEGER"),
+		// When the request was made
+
+		MODIFIED("modified", "INTEGER"),
+		// When the request was last modified
+
+		COUNT("count", "INTEGER"),
+		// How many times the tuple has been modified since CREATED.
+		// Each time MODIFIED is changed this COUNT should be incremented.
+
+		TOPIC("topic", "TEXT"),
+		// This along with the cost is used to decide how to deliver the specific object.
+
+		SUBTOPIC("subtopic", "TEXT"),
+		// This is used in conjunction with topic. 
+		// It can be used to identify a recipient, a group, a target, etc.
+
+		PRESENCE("presence", "INTEGER"),
+		// The rowid for the originator of this request
+		// 0 is reserved for the local operator
+		// <0 (-1) : indicates that the operator is unknown.
+
+		AUID("auid", "TEXT"),
+		// (optional) The appplication specific unique identifier
+		// This is used in notice intents so the application can relate.
+
+		PROVIDER("provider", "TEXT"),
+		// The uri of the content provider
+
+		DISPOSITION("disposition", "INTEGER"),
+		// The current best guess of the status of the request.
+
+		PRIORITY("priority", "INTEGER"),
+		// With what priority should this message be sent. 
+		// Negative priorities indicated less than normal.
+
+		SERIAL_MOMENT("serial_event", "INTEGER"),
+		// When the serialization happens. {APRIORI, EAGER, LAZY}
+
+		EXPIRATION("expiration", "INTEGER"),
+		// Time-stamp at which point the request 
+		// becomes stale and can be discarded.
+
+		NOTICE("notice", "INTEGER");
+		// indicates which thresholds are to be noticed
+		// see Notice.java for detail
+
+
+		final public TableFieldState impl;
+
+		private RequestField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+
+	public static interface RequestTable {
+
+		public static final String DEFAULT_SORT_ORDER = 
+				new StringBuilder().append(RequestField.MODIFIED.n()).append(" DESC ").toString();
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[RequestField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(RequestField.values().length);
+
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(RequestTable.COLUMNS);
+		for (RequestField field : RequestField.values()) {
+			columns.add(field.n());
+			RequestTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+	
+
+	public RequestWorker getRequestWorker() {
+		return new RequestWorker();
+	}
+	/** 
+	 * Store access class
+	 */
+	public class RequestWorker {
+
+		private RequestWorker() {
+		}
+
+		/**
+		 *
+		 */
+		public void upsert() {
+			final DistributorDataStore parent = DistributorDataStore.this;
+		
+			synchronized(parent) {	
+			
+			}
+		}
+		
+	}
+
+    /**
+     * Create 
+     * 
+     * @param view
+     * @param table
+     * @return
+     */
+	private static final String RequestViewCreate(String view, Tables table) {
+		return new StringBuilder()
+		.append(" CREATE VIEW ").append(view).append(" AS ")
+		.append(" SELECT ").append(" * ")
+		.append(" FROM ")
+		.append(Tables.REQUEST.q()).append(" AS r ")
+		.append(" WHERE ")
+		.append(RequestField.TYPE.q("r")).append('=').append('\'').append(table.o).append('\'')
+		.append(';')
+		.toString();
+	}
+
+	/**
+	 * Query
+	 */
+
+	private static String RequestStatusQuery(Tables table) {
+		return new StringBuilder()
+		.append(" SELECT ").append(" * ")
+		.append(" FROM ")
+		.append(Tables.REQUEST.q()).append(" AS r ")
+		.append(" WHERE ")
+		.append(RequestField.TYPE.q("r")).append("=").append(table.o)
+		.append(" AND EXISTS (SELECT * ")
+		.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
+		.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
+		.append(" ON ").append(DisposalField.CHANNEL.q("d")).append("=").append(ChannelField.NAME.q("c"))
+		.append(" WHERE ").append(RequestField._ID.q("r")).append("=").append(DisposalField.REQUEST.q("d"))
+		.append("   AND ").append(ChannelField.STATE.q("c")).append('=').append(ChannelState.ACTIVE.q())
+		.append("   AND ").append(DisposalField.STATE.q("d"))
+		.append(" IN (").append(DisposalState.PENDING.q()).append(')')
+		.append(')') // close exists clause	
+		.append(" ORDER BY ")
+		.append(RequestField.PRIORITY.q("r")).append(" DESC ").append(", ")
+		.append(RequestField._ID.q("r")).append(" ASC ")	
+		.toString();
+	}
+
+	public synchronized Cursor queryRequest(String rel, 
+			String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		try {
+			this.openRead();
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+			qb.setTables(rel);
+			qb.setProjectionMap(RequestTable.PROJECTION_MAP);
+
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, selection, selectionArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: RequestTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query request {} {}", selection, selectionArgs);
+		}
+		return null;
+	}
+
+	public synchronized Cursor queryRequestByUuid(String[] projection, String uuid, String sortOrder) {
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+			qb.setTables(Tables.REQUEST.n);
+			//qb.setProjectionMap(projection);
+
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, REQUEST_UUID_QUERY, new String[]{ uuid }, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: RetrievalTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query retrieval by key {} {} {}", new Object[]{ projection, uuid });
+		}
+		return null;
+	}
+	static private final String REQUEST_UUID_QUERY = new StringBuilder()
+	.append(RequestField.UUID.q(null)).append("=?")
+	//.append(" AND ")
+	//.append(RequestField.TOPIC.q(null)).append("=?")
+	.toString();
+
+	public synchronized Cursor queryRequestByTopic(String rel, String[] projection,
+			String topic, String sortOrder) {
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+			qb.setTables(Tables.REQUEST.n);
+			// qb.setProjectionMap(InterestTable.PROJECTION_MAP);
+
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, REQUEST_TOPIC_QUERY, new String[]{topic}, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: InterestTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query interest by key {} {}", projection, topic);
+		}
+		return null;
+	}
+	static private final String REQUEST_TOPIC_QUERY = new StringBuilder()
+	.append(RequestField.TOPIC.q(null)).append("=?")
+	.toString();
+
+	/**
+	 * Upsert
+	 */
+	
+	/**
+	 * @param cv
+	 * @param status
+	 * @param viewName
+	 * @param table
+	 * @return
+	 */
+	public synchronized long upsertRequest(ContentValues cv, DistributorState status, 
+			String viewName, Tables table ) {
+		try {
+			final String uuid = cv.getAsString(RequestField.UUID.cv());
+			final String topic = cv.getAsString(RequestField.TOPIC.cv());
+			final String provider = cv.getAsString(RequestField.PROVIDER.cv());
+
+			final long rowid;
+			final String[] updateArgs = (uuid != null) 
+					? new String[]{ uuid, topic, provider }
+			: new String[]{ topic, provider };
+					final Cursor cursor = this.db.query(viewName, new String[] {RequestField._ID.q(null)}, 
+							REQUEST_UPDATE_CLAUSE, updateArgs, null, null, null);
+					if (cursor.getCount() > 0) {
+						rowid = cursor.getLong(cursor.getColumnIndex(RequestField._ID.q(null)));
+						final String[] rowid_arg = new String[]{ Long.toString(rowid) };
+						this.db.update(Tables.REQUEST.n, cv, ROWID_CLAUSE, rowid_arg );
+						this.db.update(table.n, cv, ROWID_CLAUSE, rowid_arg );
+					} else {
+						rowid = this.db.insert(Tables.REQUEST.n, RequestField.CREATED.n(), cv);
+						cv.put(RequestField.FK.n(), rowid);
+						this.db.insert(table.n, RequestField.CREATED.n(), cv);
+					}
+					upsertDisposalByRequest(rowid, status);
+					return rowid;
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert {} {}", cv, status);
+		}
+		return -1;
+	}
+	
+
+	/**
+	 * Update
+	 */
+	/** an object represented in the database.
+	 * Any reasonable update will need to know how to select an existing object.
+	 */
+	private synchronized long updateRequestById(final String requestType, long requestId, ContentValues cv, DistributorState state) {
+		if (state == null && cv == null) return -1;
+		if (cv == null) cv = new ContentValues();
+
+		if (state != null) {
+			this.upsertDisposalByRequest(requestId, state);
+			cv.put(RequestField.DISPOSITION.n(), state.aggregate().cv());
+		}	
+		try {
+			return this.db.update(requestType, cv, "\"_id\"=?", new String[]{ String.valueOf(requestId) } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("updateRequestById {} {}", requestId, cv);
+		}
+		return 0;
+	}
+
+	
+/**
+ * ===========================
+ *  POSTAL
+ * ===========================
+ */
+
+	/** Insert method helper */
+	public ContentValues initializePostalDefaults(ContentValues values) {
+
+		initializeRequestDefaults(values);
+
+		if (!values.containsKey(PostalField.UNIT.n())) {
+			values.put(PostalField.UNIT.n(), "unknown");
+		}
+		if (!values.containsKey(PostalField.VALUE.n())) {
+			values.put(PostalField.VALUE.n(), -1);
+		}
+		if (!values.containsKey(PostalField.DATA.n())) {
+			values.put(PostalField.DATA.n(), "");
+		}
+		return values;
+	}
+
+	public PostalWorker getPostalWorker(final AmmoRequest ar, final AmmoService svc) {
+		return new PostalWorker(ar, svc);
+	}
+	public PostalWorker getPostalWorker(final Cursor pending, final AmmoService svc) {
+		return new PostalWorker(pending, svc);
+	}
+	public PostalWorker getPostalWorkerByKey(String uid) {
+		final Cursor cursor = queryRequest(POSTAL_VIEW_NAME, null, 
+				SELECT_POSTAL_BY_KEY, new String[]{ uid }, null);
+		return getPostalWorker(cursor, null);	
+	}
+
+	private static String SELECT_POSTAL_BY_KEY = new StringBuilder()
+	.append(RequestField.UUID.cv()).append("=?").toString();
+
+
+
+
+	/**
+	 * The postal table is for holding retrieval requests.
+	 */
+
+	public enum PostalField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+
+		PAYLOAD("payload", "TEXT"),
+		// The payload instead of content provider
+
+		UNIT("unit", "TEXT"),
+		// Units associated with {@link #VALUE}. Used to determine whether should occur.
+
+		VALUE("value", "INTEGER"),
+		// Arbitrary value linked to importance that entry is transmitted and battery drain.
+
+		DATA("data", "TEXT");
+		// If the If null then the data file corresponding to the
+		// column name and record id should be used. This is done when the data
+		// size is larger than that allowed for a field contents.
+
+		final public TableFieldState impl;
+
+		private PostalField(String n, String t) {
+			this.impl = new TableFieldState(n,t);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+
+	public static interface PostalTable extends RequestTable {
+		public static final String[] COLUMNS = new String[PostalField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(PostalField.values().length);
+	};
+	static {
+		final List<String> columns = Arrays.asList(PostalTable.COLUMNS);
+		for (PostalField field : PostalField.values()) {
+			columns.add(field.n());
+			PostalTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+
+	/** 
+	 * Postal store access class
+	 */
+	public class PostalWorker {
+		public final UUID uuid;
+		public final String auid;
+		public final String topic;	
+		public final String subtopic;
+		public final Provider provider;
+		public final DistributorPolicy.Topic policy;
+		public final Moment serialMoment; 
+		public final int priority;
+		public final TimeTrigger expire;
+		public final Notice notice;
+
+		public DisposalTotalState totalState = null;
+		public DistributorState status = null;
+		public Payload payload = null;
+
+		private PostalWorker(final AmmoRequest ar, final AmmoService svc) {
+			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			this.auid = ar.uid;
+			this.topic = ar.topic.asString();
+			this.subtopic = ar.subtopic.asString();
+			this.provider = ar.provider;
+			this.policy = svc.policy().matchPostal(topic);
+			this.serialMoment = ar.moment;
+			this.notice = ar.notice;
+
+			this.priority = policy.routing.priority+ar.priority;
+			this.expire = ar.expire;
+		}
+
+		private PostalWorker(final Cursor pending, final AmmoService svc) {
+			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
+			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
+			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
+			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
+			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
+			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
+			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
+			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
+			this.notice = null; // TODO recover notice from store
+
+			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
+			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
+			this.expire = new TimeTrigger(expireEnc);
+		}
+
+		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
+			synchronized(DistributorDataStore.this) {	
+				final ContentValues rqstValues = new ContentValues();
+				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
+				rqstValues.put(RequestField.AUID.cv(), this.auid);
+				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
+				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
+
+				rqstValues.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
+				rqstValues.put(RequestField.PRIORITY.cv(), this.policy.routing.priority+this.priority);
+				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
+
+				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
+				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
+				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
+
+				// TOCO place notice in store 
+				// final ContentValues noticeValues = new ContentValues();
+				// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
+
+				// values.put(PostalTableSchema.UNIT.cv(), 50);
+				return upsertRequest(rqstValues, status, POSTAL_VIEW_NAME, Tables.POSTAL);
+			}
+		}
+
+		public int delete(String tupleId) {
+			final String select = new StringBuilder()
+			.append(RequestField.PROVIDER.q(null)).append("=?")
+			.append(" AND ")
+			.append(RequestField.TOPIC.q(null)).append("=?")
+			.toString();
+			final String[] args = new String[] {tupleId, this.topic};
+
+			try {
+				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
+				final int count = db.delete(Tables.POSTAL.n, select, args);
+				final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+				logger.trace("Postal delete {} {}", count, disposalCount);
+				return count;
+			} catch (IllegalArgumentException ex) {
+				logger.error("delete postal {} {}", select, args);
+			}
+			return 0;
+		}
+	}
+
+	/**
+	 * Query
+	 */
+	/**
+	 * Nearly direct access to the postal data store.
+	 * Use sparingly, prefer the PostalWorker.
+	 * 
+	 * @param selection
+	 * @param selectionArgs
+	 * @return
+	 */
+
+	public synchronized Cursor queryPostal(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		return queryRequest(POSTAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
+	}
+
+	public synchronized Cursor queryPostalReady() {
+		this.openRead();
+		try {
+			return db.rawQuery(POSTAL_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
+	}
+	private static final String POSTAL_STATUS_QUERY = RequestStatusQuery(Tables.POSTAL);
+
+	private static final String POSTAL_VIEW_NAME = new StringBuilder()
+	.append(Tables.POSTAL.q()).append("_view").toString();
+
+	/**
+	 * Update
+	 */
+	
+	/**
+	 * @param requestId
+	 * @param cv
+	 * @param state
+	 * @return
+	 */
+	public synchronized long updatePostalByKey(long requestId, ContentValues cv, DistributorState state) {
+		return updateRequestById(Tables.POSTAL.n, requestId, cv, state);
+	}
+	public synchronized long updatePostalByKey(long requestId, String channel, final DisposalState state) {
+		return this.upsertDisposalByRequest(requestId, channel, state);
+	}
+
+
+	/**
+	 * Delete
+	 */
+	
+	/**
+	 * @param selection
+	 * @param selectionArgs
+	 * @return
+	 */
+	public synchronized int deletePostal(String selection, String[] selectionArgs) {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int count = db.delete(Tables.POSTAL.n, selection, selectionArgs);
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+			logger.trace("Postal delete {} {}", count, disposalCount);
+			return count;
+		} catch (IllegalArgumentException ex) {
+			logger.error("delete postal {} {}", selection, selectionArgs);
+		}
+		return 0;
+	}
+
+	public synchronized int deletePostalGarbage() {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int expireCount = db.delete(Tables.POSTAL.n, 
+					POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+					DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
+			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
+			return expireCount;
+		} catch (IllegalArgumentException ex) {
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+		}
+		return 0;
+	}
+	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
+	.append(DisposalField.TYPE.q(null)).append('=').append(Tables.POSTAL.cv())
+	.append(" AND NOT EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.POSTAL.q())
+	.append(" WHERE ").append(DisposalField.REQUEST.q(null))
+	.append('=').append(Tables.POSTAL.q()).append(".").append(RequestField._ID.q(null))
+	.append(')')
+	.toString();
+
+	private static final String POSTAL_EXPIRATION_CONDITION = new StringBuilder()
+	.append(RequestField.EXPIRATION.q(null))
+	.append('<').append('?')
+	.toString();
+
+	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
+
+
+
+	/**
+	 * ===========================
+	 *  RETRIEVAL
+	 * ===========================
+	 * 
+	 * The retrieval table is for holding retrieval requests.
+	 */
+
+
+	/** Insert method helper */
+	protected ContentValues initializeRetrievalDefaults(ContentValues values) {
+		final Long now = Long.valueOf(System.currentTimeMillis());
+
+		initializeRequestDefaults(values);
+
+		if (!values.containsKey(RetrievalField.PROJECTION.n())) {
+			values.put(RetrievalField.PROJECTION.n(), "");
+		}
+		if (!values.containsKey(RetrievalField.SELECTION.n())) {
+			values.put(RetrievalField.SELECTION.n(), "");
+		}
+		if (!values.containsKey(RetrievalField.ARGS.n())) {
+			values.put(RetrievalField.ARGS.n(), "");
+		}
+		if (!values.containsKey(RetrievalField.ORDERING.n())) {
+			values.put(RetrievalField.ORDERING.n(), "");
+		}
+		if (!values.containsKey(RetrievalField.LIMIT.n())) {
+			values.put(RetrievalField.LIMIT.n(), -1);
+		}
+		if (!values.containsKey(RetrievalField.CONTINUITY_TYPE.n())) {
+			values.put(RetrievalField.CONTINUITY_TYPE.n(),
+					ContinuityType.ONCE.o);
+		}
+		if (!values.containsKey(RetrievalField.CONTINUITY_VALUE.n())) {
+			values.put(RetrievalField.CONTINUITY_VALUE.n(), now);
+		}
+		return values;
+	}
+
+	
+	public enum RetrievalField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+
+		PROJECTION("projection", "TEXT"),
+		// The fields/columns wanted.
+
+		SELECTION("selection", "TEXT"),
+		// The rows/tuples wanted.
+
+		ARGS("args", "TEXT"),
+		// The values using in the selection.
+
+		ORDERING("ordering", "TEXT"),
+		// The order the values are to be returned in.
+
+		LIMIT("maxrows", "INTEGER"),
+		// The maximum number of items to retrieve
+		// as items are obtained the count should be decremented
+
+		UNIT("unit", "TEXT"),
+		// Units associated with {@link #VALUE}. Used to determine whether should occur.
+
+		VALUE("value", "INTEGER"),
+		// Arbitrary value linked to importance that entry is transmitted and battery drain.
+
+		DATA("data", "TEXT"),
+		// If the If null then the data file corresponding to the
+		// column name and record id should be used. This is done when the data
+		// size is larger than that allowed for a field contents.
+
+		CONTINUITY_TYPE("continuity_type", "INTEGER"),
+		CONTINUITY_VALUE("continuity_value", "INTEGER");
+		// The meaning changes based on the continuity type.
+		// - ONCE : undefined
+		// - TEMPORAL : chronic, this differs slightly from the expiration
+		//      which deals with the request this deals with the time stamps
+		//      of the requested objects.
+		// - QUANTITY : the maximum number of objects to return
+
+		final public TableFieldState impl;
+
+		private RetrievalField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	};
+
+	public static interface RetrievalTable extends RequestTable {
+
+		public static final String[] COLUMNS = new String[RetrievalField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(RetrievalField.values().length);
+	};
+	static {
+		final List<String> columns = Arrays.asList(RetrievalTable.COLUMNS);
+		for (RequestField field : RequestField.values()) {
+			columns.add(field.n());
+			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+		for (RetrievalField field : RetrievalField.values()) {
+			columns.add(field.n());
+			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+	
+	public RetrievalWorker getRetrievalWorker() {
+		return new RetrievalWorker();
+	}
+	/** 
+	 * Store access class
+	 */
+	public class RetrievalWorker {
+
+		private RetrievalWorker() {
+		}
+
+		/**
+		 *
+		 */
+		public void upsert() {
+			final DistributorDataStore parent = DistributorDataStore.this;
+		
+			synchronized(parent) {	
+			
+			}
+		}
+		
+	}
+	
+    /**
+     * Query
+     */
+	
+	/**
+     * @param projection
+     * @param selection
+     * @param selectionArgs
+     * @param sortOrder
+     * @return
+     */
+	public synchronized Cursor queryRetrieval(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		return queryRequest(RETRIEVAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
+	}
+	public synchronized Cursor queryRetrievalReady() {
+		this.openRead();
+		try {
+			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
+	}
+	private static final String RETRIEVAL_STATUS_QUERY = RequestStatusQuery(Tables.RETRIEVAL);
+
+	private static final String RETRIEVAL_VIEW_NAME = new StringBuilder()
+	.append(Tables.RETRIEVAL.q()).append("_view").toString();
+
+	public synchronized Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
+		return queryRequestByUuid(projection, uuid, sortOrder);
+	}
+
+	/**
+	 * Upsert
+	 */
+	
+	/**
+	 * @param cv
+	 * @param status
+	 * @return
+	 */
+	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
+		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
+	}
+	
+	/**
+	 * Update
+	 */
+	public synchronized long updateRetrievalByKey(long requestId, ContentValues cv, final DistributorState state) {
+		return updateRequestById(Tables.RETRIEVAL.n, requestId, cv, state);
+	}
+	public synchronized long updateRetrievalByKey(long requestId, String channel, final DisposalState state) {
+		return this.upsertDisposalByRequest(requestId, channel, state);
+	}
+
+	/**
+	 * Update
+	 */
+	public synchronized int deleteRetrieval(String selection, String[] selectionArgs) {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int count = db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
+			logger.trace("Retrieval delete {} {}", count, disposalCount);
+			return count;
+		} catch (IllegalArgumentException ex) {
+			logger.error("delete retrieval {} {}", selection, selectionArgs);
+		}
+		return 0;
+	}
+	public synchronized int deleteRetrievalGarbage() {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int expireCount = db.delete(Tables.RETRIEVAL.n, 
+					RETRIEVAL_EXPIRATION_CONDITION, getRelativeExpirationTime(RETRIEVAL_DELAY_OFFSET));
+			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
+					DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
+			logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
+			return expireCount;
+		} catch (IllegalArgumentException ex) {
+			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
+		}
+
+		return 0;
+	}
+	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
+	.append(DisposalField.TYPE.q(null)).append('=').append(Tables.RETRIEVAL.cv())
+	.append(" AND NOT EXISTS (SELECT * ")
+	.append(" FROM ").append(Tables.RETRIEVAL.q())
+	.append(" WHERE ").append(DisposalField.REQUEST.q(null))
+	.append('=').append(Tables.RETRIEVAL.q()).append(".").append(RequestField._ID.q(null))
+	.append(')')
+	.toString();
+
+	private static final String RETRIEVAL_EXPIRATION_CONDITION = new StringBuilder()
+	.append(RequestField.EXPIRATION.q(null))
+	.append('<').append('?')
+	.toString();
+
+	private static final long RETRIEVAL_DELAY_OFFSET = 8 * 60 * 60; // 8 hrs in seconds
+
+	/**
+	 * purge all records from the retrieval table and cascade to the disposal table.
+	 * @return
+	 */
+	public synchronized int purgeRetrieval() {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.RETRIEVAL.qv()});
+			return db.delete(Tables.RETRIEVAL.n, null, null);
+		} catch (IllegalArgumentException ex) {
+			logger.error("purgeRetrieval");
+		}
+		return 0;
+	}
+
+
+	/**
+	 * ===================
+	 *  INTEREST
+	 * ===================
+	 * 
+	 * The interest table is for holding local subscription requests.
+	 */
+
+	/** Insert method helper */
+	protected ContentValues initializeInterestDefaults(ContentValues values) {
+
+		initializeRequestDefaults(values);
+
+		if (!values.containsKey(InterestField.SELECTION.n())) {
+			values.put(InterestField.SELECTION.n(), "");
+		}
+		return values;
+	}
+	
+	public enum InterestField  implements TableField {
+		REQUEST("request", "INTEGER PRIMARY KEY"),
+		// The parent key
+
+		SELECTION("selection", "TEXT");
+		// The rows/tuples wanted.
+
+		final public TableFieldState impl;
+
+		private InterestField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+
+	public static interface InterestTable {
+
+		public static final String DEFAULT_SORT_ORDER = ""; 
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[InterestField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(InterestField.values().length);
+
+		public static final String PARENT_KEY_REF = new StringBuilder()
+		.append(" FOREIGN KEY(").append(InterestField.REQUEST.n()).append(")")
+		.append(" REFERENCES ").append(Tables.REQUEST.n)
+		.append("(").append(RequestField._ID.n()).append(")")
+		.append(" ON DELETE CASCADE ")
+		.toString();
+	}
+	static {
+		final List<String> columns = Arrays.asList(InterestTable.COLUMNS);
+		for (RequestField field : RequestField.values()) {
+			columns.add(field.n());
+			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+		for (InterestField field : InterestField.values()) {
+			columns.add(field.n());
+			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	}
+
+	public InterestWorker getInterestWorker() {
+		return new InterestWorker();
+	}
+	/** 
+	 * Store access class
+	 */
+	public class InterestWorker {
+
+		private InterestWorker() {
+		}
+
+		/**
+		 *
+		 */
+		public void upsert() {
+			final DistributorDataStore parent = DistributorDataStore.this;
+		
+			synchronized(parent) {	
+			
+			}
+		}
+	}
+	
+	/**
+	 * Query
+	 */
+	public synchronized Cursor queryInterest(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		return queryRequest(INTEREST_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
+	}
+
+	public synchronized Cursor queryInterestReady() {
+		this.openRead();
+		try {
+			return db.rawQuery(INTEREST_STATUS_QUERY, null);
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
+	}
+	public synchronized Cursor queryInterestByKey(String[] projection,
+			String topic, String sortOrder) {
+		return queryRequestByTopic(INTEREST_VIEW_NAME, projection, topic, sortOrder);
+	}
+
+	private static final String INTEREST_STATUS_QUERY = RequestStatusQuery(Tables.INTEREST);
+
+	private static final String INTEREST_VIEW_NAME = new StringBuilder()
+	.append(Tables.INTEREST.q()).append("_view").toString();
+
+	/**
+	 * Upsert
+	 */
+	public synchronized long upsertInterest(ContentValues cv, DistributorState status) {
+		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
+	}
+	
+
+	/**
+	 * Update
+	 */
+	public synchronized long updateInterestByKey(long requestId, ContentValues cv, final DistributorState state) {
+		return updateRequestById(Tables.INTEREST.n, requestId, cv, state);
+	}
+	public synchronized long updateInterestByKey(long requestId, String channel, final DisposalState state) {
+		return this.upsertDisposalByRequest(requestId, channel, state);
+	}
+
+	/**
+	 * Delete
+	 */
+	public synchronized int deleteInterest(String selection, String[] selectionArgs) {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int count = db.delete(Tables.INTEREST.n, selection, selectionArgs);
+			logger.trace("Interest delete {} {}", count);
+			return count;
+		} catch (IllegalArgumentException ex) {
+			logger.error("delete interest {} {}", selection, selectionArgs);
+		}
+		return 0;
+	}
+	public synchronized int deleteInterestGarbage() {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			final int expireCount = db.delete(Tables.INTEREST.n, 
+					INTEREST_EXPIRATION_CONDITION, 
+					getRelativeExpirationTime(INTEREST_DELAY_OFFSET));
+
+			logger.trace("Interest garbage {} {}", new Object[] {expireCount, INTEREST_EXPIRATION_CONDITION} );
+			return expireCount;
+		} catch (IllegalArgumentException ex) {
+			logger.error("deleteInterestGarbage {}", ex.getLocalizedMessage());
+		} catch (SQLiteException ex) {
+			logger.error("deleteInterestGarbage {}", ex.getLocalizedMessage());
+		}
+		return 0;
+	}
+
+	private static final String INTEREST_EXPIRATION_CONDITION = new StringBuilder()
+	.append(RequestField.EXPIRATION.n())
+	.append('<').append('?')
+	.toString();
+
+	private static final long INTEREST_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
+
+	/**
+	 * purge all records from the interest table and cascade to the disposal table.
+	 * @return
+	 */
+	public synchronized int purgeInterest() {
+		try {
+			final SQLiteDatabase db = this.helper.getWritableDatabase();
+			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.INTEREST.qv()});
+			return db.delete(Tables.INTEREST.n, null, null);
+		} catch (IllegalArgumentException ex) {
+			logger.error("purgeInterest");
+		}
+		return 0;
+	}
+
+
+
+	/**
+	 * ===================
+	 *  DISPOSAL
+	 * ===================
+	 * 
+	 * The channel disposal table is for holding 
+	 * request disposition status for each channel.
+	 * Once the message has been sent acknowledgments 
+	 * will produce multiple additional recipient messages
+	 * which are placed in the recipient table.
+	 */
+
+
+	/**
+	 * An association between channel and request.
+	 * This 
+	 */
+	public enum DisposalField  implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		CHANNEL("channel", "TEXT"),
+		// The name of the channel over which the message could-be/was sent
+
+		REQUEST("parent", "INTEGER"),
+		// The _id of the parent request
+
+		TYPE("type", "INTEGER"),
+		// Meaning the parent type: interest, retrieval, postal, publish
+		// This is redundant on the Request tuple, it is provided for performance.
+
+		STATE("state", "INTEGER");
+		// State of the request in the channel
+		// see ChannelDisposalState for valid values
+
+		final public TableFieldState impl;
+
+		private DisposalField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+	
+	public static interface DisposalTable {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[DisposalField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(DisposalField.values().length);
+
+		public static final String PARENT_KEY_REF = new StringBuilder()
+		.append(" FOREIGN KEY(").append(DisposalField.REQUEST.n()).append(")")
+		.append(" REFERENCES ").append(Tables.REQUEST.n)
+		.append("(").append(RequestField._ID.n()).append(")")
+		.append(" ON DELETE CASCADE ")
+		.append(",")
+		.append(" FOREIGN KEY(").append(DisposalField.CHANNEL.n()).append(")")
+		.append(" REFERENCES ").append(Tables.CHANNEL.n)
+		.append("(").append(ChannelField.NAME.n()).append(")")
+		.append(" ON UPDATE CASCADE ")
+		.append(" ON DELETE CASCADE ")
+		.toString();
+	}
+	static {
+		final List<String> columns = Arrays.asList(DisposalTable.COLUMNS);
+		for (DisposalField field : DisposalField.values()) {
+			columns.add(field.n());
+			DisposalTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	}
+	
+	public DisposalWorker getDisposalWorker() {
+		return new DisposalWorker();
+	}
+	/** 
+	 * Store access class
+	 */
+	public class DisposalWorker {
+
+		private DisposalWorker() {
+		}
+
+		/**
+		 *
+		 */
+		public void upsert() {
+			final DistributorDataStore parent = DistributorDataStore.this;
+		
+			synchronized(parent) {	
+			
+			}
+		}
+		
+	}
+	
+	/**
+	 * Query
+	 */
+	public synchronized Cursor queryDisposal(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+			qb.setTables(Tables.DISPOSAL.n);
+			qb.setProjectionMap(DisposalTable.PROJECTION_MAP);
+
+			// Get the database and run the query.
+			return qb.query(this.db, projection, selection, selectionArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: DisposalTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query disposal {} {}", selection, selectionArgs);
+		}
+		return null;
+	}
+
+	/**
+	 * Get the state of the channels for the given request
+	 * 
+	 * @param parent
+	 * @param type
+	 * @return
+	 */
+	public synchronized Cursor queryDisposalByParent(int type, int parent) {
+		try {
+			logger.trace("disposal ready {} {} {}", new Object[]{DISPOSAL_STATUS_QUERY, type, parent} );
+			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(type), String.valueOf(parent)});
+		} catch(SQLiteException ex) {
+			logger.error("sql error {}", ex.getLocalizedMessage());
+		}
+		return null;
+	}
+	private static final String DISPOSAL_STATUS_QUERY = new StringBuilder()
+	.append(" SELECT * ")
+	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
+	.append(" WHERE ").append(DisposalField.TYPE.q("d")).append("=? ")
+	.append("   AND ").append(DisposalField.REQUEST.q("d")).append("=? ")
+	.toString();
+
+	/**
+	 * Upsert
+	 */
+	private synchronized long[] upsertDisposalByRequest(long requestId, DistributorState status) {
+		try {
+			final long[] idArray = new long[status.size()];
+			int ix = 0;
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
+				idArray[ix] = upsertDisposalByRequest(requestId, entry.getKey(), entry.getValue());
+				ix++;
+			}
+			return idArray;
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert disposal by parent {} {} {}", new Object[]{requestId, status});
+		}
+		return null;
+	}
+	private synchronized long upsertDisposalByRequest(long requestId, String channel, DisposalState status) {
+		try {
+			final ContentValues cv = new ContentValues();
+			cv.put(DisposalField.REQUEST.cv(), requestId);
+			cv.put(DisposalField.CHANNEL.cv(), channel);
+			cv.put(DisposalField.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
+
+			final String requestIdStr = String.valueOf(requestId);
+			final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
+					DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr , channel } );
+			if (updateCount > 0) {
+				final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalField._ID.n()}, 
+						DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel },
+						null, null, null);
+				final int rowCount = cursor.getCount();
+				if (rowCount > 1) {
+					logger.error("you have a duplicates {} {}", rowCount, cv);
+				}
+				cursor.moveToFirst();
+				final long key = cursor.getInt(0); // we only asked for one column so it better be it.
+				cursor.close();
+				return key;
+			}
+			return this.db.insert(Tables.DISPOSAL.n, DisposalField.TYPE.n(), cv);
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert disposal {} {} {} {}", new Object[]{requestId, channel, status});
+		}
+		return 0;
+	}
+	static final private String DISPOSAL_UPDATE_CLAUSE = new StringBuilder()
+	.append(DisposalField.REQUEST.q(null)).append("=?")
+	.append(" AND ")
+	.append(DisposalField.CHANNEL.q(null)).append("=?").toString();
+
+
+	/**
+	 * ===================
+	 *  RECIPIENT
+	 * ===================
+	 * 
+	 * The recipient table extends the disposal table.
+	 * Once the message has been sent any acknowledgments will produce 
+	 * multiple additional recipient messages.
+	 */
+	public enum RecipientField  implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		REQUEST("request", "INTEGER"),
+		// The _ID of the parent Request
+
+		DISPOSAL("type", "INTEGER"),
+		// Meaning the parent type: interest, retrieval, postal, publish
+
+		STATE("state", "INTEGER");
+		// State of the request on the channel
+
+		final public TableFieldState impl;
+
+		private RecipientField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+
+	public static interface RecipientTable {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[RecipientField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(RecipientField.values().length);
+
+		public static final String PARENT_KEY_REF = new StringBuilder()
+		.append(" FOREIGN KEY(").append(RecipientField.DISPOSAL.n()).append(")")
+		.append(" REFERENCES ").append(Tables.DISPOSAL.n)
+		.append("(").append(DisposalField._ID.n()).append(")")
+		.append(" ON DELETE CASCADE ")
+		.toString();
+	}
+	static {
+		final List<String> columns = Arrays.asList(RecipientTable.COLUMNS);
+		for (RecipientField field : RecipientField.values()) {
+			columns.add(field.n());
+			RecipientTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	}
+	
+	public RecipientWorker getRecipientWorker() {
+		return new RecipientWorker();
+	}
+	/** 
+	 * Store access class
+	 */
+	public class RecipientWorker {
+
+		private RecipientWorker() {
+		}
+
+		/**
+		 *
+		 */
+		public void upsert() {
+			final DistributorDataStore parent = DistributorDataStore.this;
+		
+			synchronized(parent) {	
+			
+			}
+		}
+		
+	}
+
+	/**
+	 * Query
+	 */
+	/**
+	 * Upsert
+	 */
+	/**
+	 * Update
+	 */
+	/**
+	 * Delete
+	 */
+
+
+	/**
+	 * ===================
+	 *  CHANNEL
+	 * ===================
+	 * The channel table is for holding current channel status.
+	 * This could be done with a concurrent hash map but that
+	 * would put more logic in the java code and less in sqlite.
+	 */
+
+	public enum ChannelField  implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+
+		NAME("name", "TEXT"),
+		// The name of the channel, must match policy channel name
+
+		STATE("state", "INTEGER");
+		// The channel state (active inactive)
+
+		final public TableFieldState impl;
+
+		private ChannelField(String name, String type) {
+			this.impl = new TableFieldState(name,type);
+		}
+
+		/**
+		 * required by TableField interface
+		 */
+		public String q(String tableRef) { return this.impl.quoted(tableRef); }
+		public String cv() { return this.impl.cvQuoted(); }
+		public String n() { return this.impl.n; }
+		public String t() { return this.impl.t; }
+	}
+
+	public static interface ChannelTable extends BaseColumns {
+
+		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
+		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
+
+		public static final String[] COLUMNS = new String[ChannelField.values().length];
+		public static final Map<String,String> PROJECTION_MAP =
+				new HashMap<String,String>(ChannelField.values().length);
+
+		public static final String PARENT_KEY_REF = null;
+	};
+	static {
+		final List<String> columns = Arrays.asList(ChannelTable.COLUMNS);
+		for (ChannelField field : ChannelField.values()) {
+			columns.add(field.n());
+			ChannelTable.PROJECTION_MAP.put(field.n(), field.n());
+		}
+	};
+	
+	public ChannelWorker getChannelWorker() {
+		return new ChannelWorker();
+	}
+	/** 
+	 * Store access class
+	 */
+	public class ChannelWorker {
+
+		private ChannelWorker() {
+		}
+
+		/**
+		 *
+		 */
+		public void upsert() {
+			final DistributorDataStore parent = DistributorDataStore.this;
+		
+			synchronized(parent) {	
+			
+			}
+		}
+		
+	}
+	/**
+	 * Query
+	 */
+	
+	public synchronized Cursor queryChannel(String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+			qb.setTables(Tables.CHANNEL.n);
+			qb.setProjectionMap(ChannelTable.PROJECTION_MAP);
+
+			// Get the database and run the query.
+			return qb.query(this.db, projection, selection, selectionArgs, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: ChannelTable.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query channel {} {}", selection, selectionArgs);
+		}
+		return null;
+	}
+
+	static final private String REQUEST_UPDATE_CLAUSE = new StringBuilder()
+	.append(RequestField.TOPIC.q(null)).append("=?")
+	.append(" AND ")
+	.append(RequestField.PROVIDER.q(null)).append("=?")
+	.toString();
+
+	static final private String ROWID_CLAUSE = "_rowid_=?";
+
+	/**
+	 * Upsert
+	 */
+	
+	public synchronized long upsertChannelByName(String channel, ChannelState status) {
+		try {
+			final ContentValues cv = new ContentValues();		
+			cv.put(ChannelField.STATE.cv(), status.cv());
+
+			final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
+					CHANNEL_UPDATE_CLAUSE, new String[]{ channel } );
+			if (updateCount > 0) return 0;
+
+			cv.put(ChannelField.NAME.cv(), channel);
+			db.insert(Tables.CHANNEL.n, ChannelField.NAME.n(), cv);
+		} catch (IllegalArgumentException ex) {
+			logger.error("upsert channel {} {}", channel, status);
+		}
+		return 0;
+	}
+	static final private String CHANNEL_UPDATE_CLAUSE = new StringBuilder()
+	.append(ChannelField.NAME.q(null)).append("=?").toString();
+
+	/**
+	 * These are related to upsertChannelByName() inasmuch as it 
+	 * resets the failed state to pending.
+	 * @param name
+	 * @return the number of failed items updated
+	 */
+	static final private ContentValues DISPOSAL_PENDING_VALUES;
+	static {
+		DISPOSAL_PENDING_VALUES = new ContentValues();
+		DISPOSAL_PENDING_VALUES.put(DisposalField.STATE.cv(), DisposalState.PENDING.o); 
+	}
+	
+	/**
+	 * Update
+	 */
+	/**
+	 * Delete
+	 */
+
+
+	/**
+	 * When a channel is deactivated all of its subscriptions  
+	 * will need to be re-done on re-connect.
+	 * Retrievals and postals won't have this problem,
+	 * TODO unless they are queued.
+	 * @param channel
+	 * @return
+	 */
+	public synchronized int deactivateDisposalStateByChannel(String channel) {
+		try {
+			return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
+					DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("deactivateDisposalStateByChannel {} ", channel);
+		}
+		return 0;
+	}	
+	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
+	.append(DisposalField.CHANNEL.q(null)).append("=?")
+	.append(" AND ")
+	.append(DisposalField.TYPE.q(null)).append(" IN ( ")
+	.append(Tables.INTEREST.qv()).append(')')
+	.append(" AND ")
+	.append(DisposalField.STATE.q(null))
+	.append(" NOT IN ( ").append(DisposalState.BAD.q()).append(')')
+	.toString();
+
+	/**
+	 * When a channel is activated nothing really needs to be done.
+	 * This method is provided as a place holder.
+	 * 
+	 * @param channel
+	 * @return
+	 */
+	public int activateDisposalStateByChannel(String channel) {
+		return -1;
+	}
+
+	/** 
+	 * When a channel is repaired it any failed requests may be retried.
+	 * @param channel
+	 * @return
+	 */
+	public synchronized int repairDisposalStateByChannel(String channel) {
+		try {
+			return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
+					DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
+		} catch (IllegalArgumentException ex) {
+			logger.error("repairDisposalStateByChannel {}", channel);
+		}
+		return 0;
+	}
+	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
+	.append(DisposalField.CHANNEL.q(null)).append("=?")
+	.append(" AND ")
+	.append(DisposalField.STATE.q(null))
+	.append(" IN ( ").append(DisposalState.BAD.q()).append(')')
+	.toString();
+
+
+	// ===========================================================
+	// Methods
+	// ===========================================================
+
+	public DistributorDataStore(Context context) {
+		this.context = context;
+		this.helper = new DataStoreHelper(this.context, null, null, VERSION); // Tables.NAME - to create in memory database
+
+		// ========= INITIALIZE CONSTANTS ========
+		this.applDir = context.getDir("support", Context.MODE_PRIVATE);
+
+		if (! this.applDir.mkdirs()) {
+			logger.error("cannot create files check permissions in manifest : {}",
+					this.applDir.toString());
+		}
+
+		this.applCacheDir = new File(this.applDir, "cache");
+		this.applCacheDir.mkdir();
+
+		this.applCachePostalDir = new File(this.applCacheDir, "postal");
+		this.applCachePostalDir.mkdir();
+
+		this.applCacheRetrievalDir = new File(this.applCacheDir, "retrieval");
+		this.applCacheRetrievalDir.mkdir();
+
+		this.applCachePublicationDir = new File(this.applCacheDir, "publication");
+		this.applCachePublicationDir.mkdir();
+
+		this.applCacheSubscriptionDir = new File(this.applCacheDir, "subscription");
+		this.applCacheSubscriptionDir.mkdir();
+
+		this.applTempDir = new File(this.applDir, "tmp");
+		this.applTempDir.mkdir();
+
+		this.openWrite();
+	}
+
+
+	/**
+	 * It is possible for the distributor database to become corrupted.
+	 * While this is not a common behavior it does happen from time to time.
+	 * It is believed that this is caused by abrupt shutdown of the service.
+	 * 
+	 */
+	public synchronized DistributorDataStore openRead() {
+		if (this.db != null && this.db.isReadOnly()) return this;
+
+		this.db = this.helper.getReadableDatabase();
+		return this;
+	}
+
+	public synchronized DistributorDataStore openWrite() {
+		if (this.db != null && this.db.isOpen() && ! this.db.isReadOnly()) this.db.close();
+
+		this.db = this.helper.getWritableDatabase();
+		return this;
+	}
+
+	public synchronized void close() {
+		this.db.close();
+	}
+
+
+	// ======== HELPER ============
+	static private String[] getRelativeExpirationTime(long delay) {
+		final long absTime = System.currentTimeMillis() - (delay * 1000);
+		return new String[]{String.valueOf(absTime)}; 
+	}
+
+	private static final String DISPOSAL_PURGE = new StringBuilder()
+	.append(DisposalField.TYPE.q(null))
+	.append('=').append('?')
+	.toString();
+
+	public static class SelectArgsBuilder {
+		final private List<String> args;
+		public SelectArgsBuilder() {
+			this.args = new ArrayList<String>();
+		}
+		public SelectArgsBuilder append(String arg) { 
+			this.args.add(arg);
+			return this;
+		}
+		public String[] toArgs() {
+			return this.args.toArray(new String[this.args.size()]);
+		}
+	}
+	
+
+	// ========= INTEREST : DELETE ================
+
+	public final File applDir;
+	public final File applCacheDir;
+	public final File applCachePostalDir;
+	public final File applCacheRetrievalDir;
+	public final File applCachePublicationDir;
+	public final File applCacheSubscriptionDir;
+	public final File applTempDir;
+
+
+	protected File blobFile(String table, String tuple, String field)
+			throws IOException {
+		File tupleCacheDir = blobDir(table, tuple);
+		File cacheFile = new File(tupleCacheDir, field + ".blob");
+		if (cacheFile.exists())
+			return cacheFile;
+
+		cacheFile.createNewFile();
+		return cacheFile;
+	}
+
+	protected File blobDir(String table, String tuple) throws IOException {
+		File tableCacheDir = new File(applCacheDir, table);
+		File tupleCacheDir = new File(tableCacheDir, tuple);
+		if (!tupleCacheDir.exists())
+			tupleCacheDir.mkdirs();
+		return tupleCacheDir;
+	}
+
+	protected File tempFilePath(String table) throws IOException {
+		return File.createTempFile(table, ".tmp", applTempDir);
+	}
+
+	protected void clearBlobCache(String table, String tuple) {
+		if (table == null) {
+			if (applCacheDir.isDirectory()) {
+				for (File child : applCacheDir.listFiles()) {
+					recursiveDelete(child);
+				}
+				return;
+			}
+		}
+		File tableCacheDir = new File(applCacheDir, table);
+		if (tuple == null) {
+			if (tableCacheDir.isDirectory()) {
+				for (File child : tableCacheDir.listFiles()) {
+					recursiveDelete(child);
+				}
+				return;
+			}
+		}
+		File tupleCacheDir = new File(tableCacheDir, tuple);
+		if (tupleCacheDir.isDirectory()) {
+			for (File child : tupleCacheDir.listFiles()) {
+				recursiveDelete(child);
+			}
+		}
+	}
+
+	/**
+	 * Recursively delete all children of this directory and the directory
+	 * itself.
+	 *
+	 * @param dir
+	 */
+	protected void recursiveDelete(File dir) {
+		if (!dir.exists())
+			return;
+
+		if (dir.isFile()) {
+			dir.delete();
+			return;
+		}
+		if (dir.isDirectory()) {
+			for (File child : dir.listFiles()) {
+				recursiveDelete(child);
+			}
+			dir.delete();
+			return;
+		}
+	}
+
+
+
+	protected class DataStoreHelper extends SQLiteOpenHelper {
+		// ===========================================================
+		// Constants
+		// ===========================================================
+		private final Logger logger = LoggerFactory.getLogger(DataStoreHelper.class);
+
+		// ===========================================================
+		// Fields
+		// ===========================================================
+
+		// ===========================================================
+		// Constructors
+		// ===========================================================
+		public DataStoreHelper(Context context, 
+				String name, CursorFactory factory, int version) 
+		{
+			super(context, name, factory, version);
+		}
+
+		// ===========================================================
+		// SQLiteOpenHelper Methods
+		// ===========================================================
+
+		@Override
+		public synchronized void onCreate(SQLiteDatabase db) {
+			logger.trace("bootstrapping database");
+
+			// ===== REQUEST : POSTAL, RETRIEVAL, INTEREST
+			try {	
+				final StringBuilder createSql = new StringBuilder().append("CREATE TABLE ")
+						.append('"').append(Tables.REQUEST.n).append('"')
+						.append(" ( ")
+						.append(Tables.REQUEST.createFields()).append(',')
+						.append(Tables.POSTAL.createFields()).append(',')
+						.append(Tables.RETRIEVAL.createFields()).append(',')
+						.append(Tables.INTEREST.createFields()).append(',')
+						.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+						.append(");");
+
+				db.execSQL(createSql.toString());
+
+				final StringBuilder pkidx = new StringBuilder()
+				.append("CREATE UNIQUE INDEX ").append(Tables.REQUEST.n).append("_pkidx")
+				.append(" ON ").append(Tables.REQUEST.n).append("(").append(RequestField._ID.q(null))
+				.append(");");
+
+				db.execSQL(pkidx.toString());
+
+				db.execSQL(RequestViewCreate(POSTAL_VIEW_NAME, Tables.POSTAL));
+				db.execSQL(RequestViewCreate(RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL));
+				db.execSQL(RequestViewCreate(INTEREST_VIEW_NAME, Tables.INTEREST));
+
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+
+			// ===== CAPABILITY
+			try {	
+				final Tables table = Tables.CAPABILITY;
+				final StringBuilder sb = new StringBuilder()
+				.append("CREATE TABLE ")
+				.append(table.q())
+				.append(" ( ").append(table.createFields()).append(',')
+				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				.append(");");
+
+				db.execSQL(sb.toString());
+
+
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+
+
+			// ===== DISPOSAL
+			try {
+				final Tables table = Tables.DISPOSAL;
+
+				final StringBuilder createSql = new StringBuilder()
+				.append("CREATE TABLE ")
+				.append(table.q())
+				.append(" ( ").append(table.createFields()).append(',')
+				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				.append(");");
+
+				db.execSQL(createSql.toString());
+
+				// === Additional Indices ======
+				db.execSQL(new StringBuilder()
+				.append("CREATE UNIQUE INDEX ") 
+				.append(table.qIndex())
+				.append(" ON ").append(table.q())
+				.append(" ( ").append(DisposalField.TYPE.q(null))
+				.append(" , ").append(DisposalField.REQUEST.q(null))
+				.append(" , ").append(DisposalField.CHANNEL.q(null))
+				.append(" ) ")
+				.toString() );
+
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+
+			// ===== CHANNEL
+			try {
+				final Tables table = Tables.CHANNEL;
+
+				final StringBuilder createSql = new StringBuilder()
+				.append("CREATE TABLE ")
+				.append(table.q())
+				.append(" ( ").append(table.createFields()).append(',')
+				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				.append(");");
+
+				db.execSQL(createSql.toString());
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+
+			try {
+				final Tables table = Tables.PRESENCE;
+
+				final StringBuilder createSql = new StringBuilder()
+				.append("CREATE TABLE ")
+				.append(table.q())
+				.append(" ( ").append(table.createFields()).append(',')
+				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				.append(");");
+
+				db.execSQL(createSql.toString());
+			} catch (SQLException ex) {
+				ex.printStackTrace();
+			}
+
+
+		}
+
+		@Override
+		public synchronized void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+			logger.warn("Upgrading database from version {} to {} which will destroy all old data",
+					oldVersion, newVersion);
+			this.clear(db);
+
+			onCreate(db);
+		}
+
+		/**
+		 * Called when the database has been opened. 
+		 * The implementation checks isReadOnly() before updating the database.
+		 */
+		@Override
+		public void onOpen (SQLiteDatabase db) {
+			// Examine or otherwise prepare the database
+		}
+
+		@Override
+		public synchronized SQLiteDatabase getWritableDatabase() {
+			try {
+				return super.getWritableDatabase();
+
+			} catch (SQLiteDiskIOException ex) {
+				logger.error("corrupted database {}", ex.getLocalizedMessage());
+			}
+			try {
+				this.archive();
+				return super.getReadableDatabase();
+			} catch (SQLiteException ex) {
+				logger.error("unrecoverablly corrupted database {}", ex.getLocalizedMessage());
+			}
+			return null;
+		}
+
+		@Override
+		public synchronized SQLiteDatabase getReadableDatabase() {
+			try {
+				return super.getReadableDatabase();
+			} catch (SQLiteDiskIOException ex) {
+				logger.error("corrupted database {}", ex.getLocalizedMessage());		
+			}
+			try {
+				this.archive();
+				return super.getReadableDatabase();
+			} catch (SQLiteException ex) {
+				logger.error("unrecoverablly corrupted database {}", ex.getLocalizedMessage());
+			}
+			return null;
+		}
+
+
+
+		/**
+		 * drop all tables.
+		 * 
+		 * @param db
+		 */
+		public synchronized void clear(SQLiteDatabase db) {
+			for (Tables table : Tables.values()) {
+				try {
+					db.execSQL( new StringBuilder()
+						.append("DROP TABLE ")
+						.append(table.q())
+						.append(";")
+						.toString() );
+					
+				} catch (SQLiteException ex) {
+					logger.warn("defective database being dropped {}", ex.getLocalizedMessage());
+				}
+			}
+		}
+
+		public synchronized boolean archive() {
+			logger.info("archival corrupt database");
+			if (db == null) {
+				logger.warn("missing database");
+				return false;
+			} 
+			db.close();
+			db.releaseReference();
+
+			final File backup = context.getDatabasePath("corrupted.db");  
+			// new File(Environment.getExternalStorageDirectory(), Tables.NAME);
+			if (backup.exists()) backup.delete();
+
+			final File original = context.getDatabasePath(Tables.NAME);
+			logger.info("backup of database {} -> {}", original, backup);
+			if (original.renameTo(backup)) {
+				logger.info("archival succeeded");
+				return true;
+			}
+			if (! context.deleteDatabase(Tables.NAME)) {
+				logger.warn("file should have been renamed, deleted instead"); 
+			}
+			return false;
+		}
+	}
+	
 
 
 	// ===========================================================
@@ -530,2142 +2979,5 @@ public class DistributorDataStore {
 		}
 	};
 
-	// ===========================================================
-	// Enumerated types in the tables.
-	// ===========================================================
-
-
-	public interface TableField {	
-		// public List<TableFieldState> getState();
-		public String q(String tableRef);  // get the quoted field name 
-		public String cv(); // get the field name suitable for using in ContentValues
-		public String n(); // get the name from the implementation
-		public String t(); // get the type from the implementation
-	}
-
-	static public class TableFieldState {
-		final public String n;
-		final public String t;
-
-		private TableFieldState(String name, String type) {	
-			this.n = name;
-			this.t = type;
-		}
-
-		//public String quoted() {
-		//	return new StringBuilder()
-		//	.append('"').append(this.n).append('"')
-		//	.toString();
-		//}
-		public String quoted(String tableRef) {
-			if (tableRef == null) {
-				return new StringBuilder()
-				.append('"').append(this.n).append('"')
-				.toString();
-			}
-			return new StringBuilder()
-			.append(tableRef).append('.')
-			.append('"').append(this.n).append('"')
-			.toString();
-		}
-		public String cvQuoted() {
-			return String.valueOf(this.n);
-		}
-
-		/**
-		 * Produce string of the form...
-		 * "<field-name>" <field-type>
-		 * e.g.
-		 * "dog" TEXT
-		 */
-		public String addfield() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"').append(' ').append(this.t)
-			.toString();
-		}
-		//public static List<TableField> getFields() {
-		//	final List<TableField>  tf = new ArrayList<TableField>(PostalField.values().length);
-		//	for (PostalField field : PostalField.values()) {
-		//		tf.add(TableField.newInstance(field.n, field.t));
-		//	}
-		//	return tf;
-		//}
-	}
-	/**
-	 * The capability table is for holding information about current subscriptions.
-	 *
-	 */
-	public enum CapabilityField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
-		// The parent key
-
-		SELECTION("selection", "TEXT"),
-		// The rows/tuples wanted.
-
-		FIRST("first", "INTEGER"),
-		// When the operator first used this channel
-
-		LATEST("latest", "INTEGER");
-		// When the operator was last seen "speaking" on the channel
-
-		final public TableFieldState impl;
-
-		private CapabilityField(String name, String type) {
-			this.impl = new TableFieldState(name,type);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	}
-
-	public static interface CapabilityTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[CapabilityField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(CapabilityField.values().length);
-
-		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(CapabilityTable.COLUMNS);
-		for (RequestField field : RequestField.values()) {
-			columns.add(field.n());
-			CapabilityTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-		for (CapabilityField field : CapabilityField.values()) {
-			columns.add(field.n());
-			CapabilityTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-	
-	/** 
-	 * Postal store access class
-	 */
-	public class CapabilityWorker {
-		public final UUID uuid;
-		public final String auid;
-		public final String topic;	
-		public final String subtopic;
-		public final Provider provider;
-		public final DistributorPolicy.Topic policy;
-		public final Moment serialMoment; 
-		public final int priority;
-		public final TimeTrigger expire;
-		public final Notice notice;
-
-		public DisposalTotalState totalState = null;
-		public DistributorState status = null;
-		public Payload payload = null;
-
-		private CapabilityWorker(final AmmoRequest ar, final AmmoService svc) {
-			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
-			this.auid = ar.uid;
-			this.topic = ar.topic.asString();
-			this.subtopic = ar.subtopic.asString();
-			this.provider = ar.provider;
-			this.policy = svc.policy().matchPostal(topic);
-			this.serialMoment = ar.moment;
-			this.notice = ar.notice;
-
-			this.priority = policy.routing.priority+ar.priority;
-			this.expire = ar.expire;
-		}
-
-		private CapabilityWorker(final Cursor pending, final AmmoService svc) {
-			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
-			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
-			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
-			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
-			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
-			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
-			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
-			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
-			this.notice = null; // TODO recover notice from store
-
-			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
-			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
-			this.expire = new TimeTrigger(expireEnc);
-		}
-
-		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
-			synchronized(DistributorDataStore.this) {	
-				final ContentValues rqstValues = new ContentValues();
-				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
-				rqstValues.put(RequestField.AUID.cv(), this.auid);
-				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
-				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
-
-				rqstValues.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
-				rqstValues.put(RequestField.PRIORITY.cv(), this.policy.routing.priority+this.priority);
-				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
-
-				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
-				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
-				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
-
-				// TOCO place notice in store 
-				// final ContentValues noticeValues = new ContentValues();
-				// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-
-				// values.put(PostalTableSchema.UNIT.cv(), 50);
-				return upsertRequest(rqstValues, status, POSTAL_VIEW_NAME, Tables.POSTAL);
-			}
-		}
-
-		public int delete(String tupleId) {
-			final String select = new StringBuilder()
-			.append(RequestField.PROVIDER.q(null)).append("=?")
-			.append(" AND ")
-			.append(RequestField.TOPIC.q(null)).append("=?")
-			.toString();
-			final String[] args = new String[] {tupleId, this.topic};
-
-			try {
-				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
-				final int count = db.delete(Tables.POSTAL.n, select, args);
-				final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
-				logger.trace("Postal delete {} {}", count, disposalCount);
-				return count;
-			} catch (IllegalArgumentException ex) {
-				logger.error("delete postal {} {}", select, args);
-			}
-			return 0;
-		}
-	}
-
-
-	/**
-	 * The presence table is for holding information about visible peers.
-	 * A peer is a particular device over a specific channel.
-	 * 
-	 */
-	public enum PresenceField implements TableField {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		DEVICE("device","TEXT"),
-		// The device identifier, this must be present
-		// required
-
-		OPERATOR("name", "TEXT"),
-		// The name of the operator using the channel
-		// optional
-
-		FIRST("first", "INTEGER"),
-		// When the operator first used this channel
-		// The first field indicates the first time the peer was observed.
-
-		LATEST("latest", "INTEGER"),
-		// When the operator was last seen "speaking" on the channel
-		// The latest field indicates the last time the peer was observed.
-
-		COUNT("count", "INTEGER"),
-		// How many times the peer has been seen since FIRST
-		// Each time LATEST is changed this COUNT should be incremented
-
-		ENABLE("enable", "INTEGER"),
-		// 0 : intentionally disabled, 
-		// >0 (1) : best knowledge is enabled
-
-		CHANNEL("channel", "TEXT"),
-		// The channel type
-
-		ADDRESS("address", "TEXT");
-		// The address for the channel type
-		// For IP networks, sockets, this is the IP address, and port
-		// For TDMA this is the slot number
-
-		final public TableFieldState impl;
-
-		private PresenceField(String n, String t) {
-			this.impl = new TableFieldState(n,t);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	};
-	public static interface PresenceTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[PresenceField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PresenceField.values().length);
-
-		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(PresenceTable.COLUMNS);
-		for (PresenceField field : PresenceField.values()) {
-			columns.add(field.n());
-			PresenceTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-	
-	public PresenceWorker getPresenceWorker(final String deviceId) {
-		return new PresenceWorker(deviceId);
-	}
-	/** 
-	 * Postal store access class
-	 */
-	public class PresenceWorker {
-		public final String deviceId;
-
-		private PresenceWorker(final String deviceId) {
-			this.deviceId = deviceId;
-		}
-
-		/**
-		 * Update device presence information for a specified device.
-		 *
-		 * @param deviceId - String - the device id whose presence information to update
-		 */
-		public void upsert() {
-			final DistributorDataStore parent = DistributorDataStore.this;
-		
-			synchronized(parent) {	
-			if (this.deviceId == null || this.deviceId.length() == 0) {
-				return;
-			}
-			logger.trace("Updating device presence for device: {}", this.deviceId);
-
-			try {
-				final SQLiteDatabase db = parent.helper.getWritableDatabase();
-				final String whereClause = PRESENCE_KEY_QUERY;
-				final String[] whereArgs = new String[]{ deviceId };
-				db.beginTransaction();
-				final Cursor cursor = db.query(Tables.PRESENCE.n, null, 
-						whereClause, whereArgs, null, null, null);
-
-				final ContentValues values = new ContentValues();
-				values.put(PresenceField.DEVICE.n(), deviceId);
-				// values needs some more content
-
-				if (cursor.getCount() < 1) {
-					db.insert(Tables.PRESENCE.n, PresenceField._ID.n(), values);
-				} else {
-					// values needs some more content
-					db.update(Tables.PRESENCE.n, values, whereClause, whereArgs);
-				}
-				db.endTransaction();
-			} catch (IllegalArgumentException ex) {
-				logger.error("updateDevicePresence problem");
-			}
-			return;
-			}
-		}
-		
-	}
-
-	private static final String PRESENCE_KEY_QUERY = new StringBuilder()
-	.append(PresenceField.DEVICE.q(null)).append("=?").toString();
-
-
-
-	/**
-	 * The notice table is for noticing when a request crosses a threshold.
-	 *
-	 */
-	public enum NoticeField implements TableField {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		OPERATOR("name", "TEXT"),
-		// The name of the operator using the channel
-
-		FIRST("first", "INTEGER"),
-		// When the operator first used this channel
-
-		LATEST("latest", "INTEGER"),
-		// When the operator was last seen "speaking" on the channel
-
-		COUNT("count", "INTEGER"),
-		// How many times the peer has been seen since FIRST
-		// Each time LATEST is changed this COUNT should be incremented
-
-		ENABLE("enable", "INTEGER"),
-		// 0 : intentionally disabled, 
-		// >0 (1) : best knowledge is enabled
-
-		CHANNEL("channel", "TEXT"),
-		// The channel type
-
-		ADDRESS("address", "TEXT");
-		// The address for the channel type
-		// For IP networks, sockets, this is the IP address, and port
-		// For TDMA this is the slot number
-
-		final public TableFieldState impl;
-
-		private NoticeField(String n, String t) {
-			this.impl = new TableFieldState(n,t);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	};
-
-	public static interface NoticeTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[NoticeField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(NoticeField.values().length);
-
-		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(NoticeTable.COLUMNS);
-		for (NoticeField field : NoticeField.values()) {
-			columns.add(field.n());
-			NoticeTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-
-
-
-	/**
-	 * The Request table holds application requests.
-	 * These requests are to express interest in data of certain types 
-	 * or to announce the presence of information of a certain type.
-	 * The request can apply to the past or the future.
-	 *
-	 */
-
-	public enum RequestField implements TableField {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		FK("request", "INTEGER"), // Foreign key
-
-		UUID("uuid", "TEXT"),
-		// This is a unique identifier for the request
-		// It is used to look up the appropriate provider
-
-		TYPE("type", "INTEGER"),
-		// Meaning the parent type: interest, retrieval, postal
-
-		CREATED("created", "INTEGER"),
-		// When the request was made
-
-		MODIFIED("modified", "INTEGER"),
-		// When the request was last modified
-
-		COUNT("count", "INTEGER"),
-		// How many times the tuple has been modified since CREATED.
-		// Each time MODIFIED is changed this COUNT should be incremented.
-
-		TOPIC("topic", "TEXT"),
-		// This along with the cost is used to decide how to deliver the specific object.
-
-		SUBTOPIC("subtopic", "TEXT"),
-		// This is used in conjunction with topic. 
-		// It can be used to identify a recipient, a group, a target, etc.
-
-		PRESENCE("presence", "INTEGER"),
-		// The rowid for the originator of this request
-		// 0 is reserved for the local operator
-		// <0 (-1) : indicates that the operator is unknown.
-
-		AUID("auid", "TEXT"),
-		// (optional) The appplication specific unique identifier
-		// This is used in notice intents so the application can relate.
-
-		PROVIDER("provider", "TEXT"),
-		// The uri of the content provider
-
-		DISPOSITION("disposition", "INTEGER"),
-		// The current best guess of the status of the request.
-
-		PRIORITY("priority", "INTEGER"),
-		// With what priority should this message be sent. 
-		// Negative priorities indicated less than normal.
-
-		SERIAL_MOMENT("serial_event", "INTEGER"),
-		// When the serialization happens. {APRIORI, EAGER, LAZY}
-
-		EXPIRATION("expiration", "INTEGER"),
-		// Time-stamp at which point the request 
-		// becomes stale and can be discarded.
-
-		NOTICE("notice", "INTEGER");
-		// indicates which thresholds are to be noticed
-		// see Notice.java for detail
-
-
-		final public TableFieldState impl;
-
-		private RequestField(String n, String t) {
-			this.impl = new TableFieldState(n,t);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	};
-
-	public static interface RequestTable {
-
-		public static final String DEFAULT_SORT_ORDER = 
-				new StringBuilder().append(RequestField.MODIFIED.n()).append(" DESC ").toString();
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[RequestField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(RequestField.values().length);
-
-		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(RequestTable.COLUMNS);
-		for (RequestField field : RequestField.values()) {
-			columns.add(field.n());
-			RequestTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-
-
-	/**
-	 * The retrieval table is for holding retrieval requests.
-	 */
-	public enum RetrievalField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
-		// The parent key
-
-		PROJECTION("projection", "TEXT"),
-		// The fields/columns wanted.
-
-		SELECTION("selection", "TEXT"),
-		// The rows/tuples wanted.
-
-		ARGS("args", "TEXT"),
-		// The values using in the selection.
-
-		ORDERING("ordering", "TEXT"),
-		// The order the values are to be returned in.
-
-		LIMIT("maxrows", "INTEGER"),
-		// The maximum number of items to retrieve
-		// as items are obtained the count should be decremented
-
-		UNIT("unit", "TEXT"),
-		// Units associated with {@link #VALUE}. Used to determine whether should occur.
-
-		VALUE("value", "INTEGER"),
-		// Arbitrary value linked to importance that entry is transmitted and battery drain.
-
-		DATA("data", "TEXT"),
-		// If the If null then the data file corresponding to the
-		// column name and record id should be used. This is done when the data
-		// size is larger than that allowed for a field contents.
-
-		CONTINUITY_TYPE("continuity_type", "INTEGER"),
-		CONTINUITY_VALUE("continuity_value", "INTEGER");
-		// The meaning changes based on the continuity type.
-		// - ONCE : undefined
-		// - TEMPORAL : chronic, this differs slightly from the expiration
-		//      which deals with the request this deals with the time stamps
-		//      of the requested objects.
-		// - QUANTITY : the maximum number of objects to return
-
-		final public TableFieldState impl;
-
-		private RetrievalField(String name, String type) {
-			this.impl = new TableFieldState(name,type);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	};
-
-	public static interface RetrievalTable extends RequestTable {
-
-		public static final String[] COLUMNS = new String[RetrievalField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(RetrievalField.values().length);
-	};
-	static {
-		final List<String> columns = Arrays.asList(RetrievalTable.COLUMNS);
-		for (RequestField field : RequestField.values()) {
-			columns.add(field.n());
-			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-		for (RetrievalField field : RetrievalField.values()) {
-			columns.add(field.n());
-			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-
-	/**
-	 * The subscription table is for holding subscription requests.
-	 */
-	public enum InterestField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
-		// The parent key
-
-		SELECTION("selection", "TEXT");
-		// The rows/tuples wanted.
-
-		final public TableFieldState impl;
-
-		private InterestField(String name, String type) {
-			this.impl = new TableFieldState(name,type);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	}
-
-	public static interface InterestTable {
-
-		public static final String DEFAULT_SORT_ORDER = ""; 
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[InterestField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(InterestField.values().length);
-
-		public static final String PARENT_KEY_REF = new StringBuilder()
-		.append(" FOREIGN KEY(").append(InterestField.REQUEST.n()).append(")")
-		.append(" REFERENCES ").append(Tables.REQUEST.n)
-		.append("(").append(RequestField._ID.n()).append(")")
-		.append(" ON DELETE CASCADE ")
-		.toString();
-	}
-	static {
-		final List<String> columns = Arrays.asList(InterestTable.COLUMNS);
-		for (RequestField field : RequestField.values()) {
-			columns.add(field.n());
-			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-		for (InterestField field : InterestField.values()) {
-			columns.add(field.n());
-			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	}
-
-
-	/**
-	 * The channel disposal table is for holding 
-	 * request disposition status for each channel.
-	 * Once the message has been sent acknowledgments 
-	 * will produce multiple additional recipient messages
-	 * which are placed in the recipient table.
-	 */
-
-
-	/**
-	 * An association between channel and request.
-	 * This 
-	 */
-	public enum DisposalField  implements TableField {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		CHANNEL("channel", "TEXT"),
-		// The name of the channel over which the message could-be/was sent
-
-		REQUEST("parent", "INTEGER"),
-		// The _id of the parent request
-
-		TYPE("type", "INTEGER"),
-		// Meaning the parent type: interest, retrieval, postal, publish
-		// This is redundant on the Request tuple, it is provided for performance.
-
-		STATE("state", "INTEGER");
-		// State of the request in the channel
-		// see ChannelDisposalState for valid values
-
-		final public TableFieldState impl;
-
-		private DisposalField(String name, String type) {
-			this.impl = new TableFieldState(name,type);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	}
-	public static interface DisposalTable {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[DisposalField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(DisposalField.values().length);
-
-		public static final String PARENT_KEY_REF = new StringBuilder()
-		.append(" FOREIGN KEY(").append(DisposalField.REQUEST.n()).append(")")
-		.append(" REFERENCES ").append(Tables.REQUEST.n)
-		.append("(").append(RequestField._ID.n()).append(")")
-		.append(" ON DELETE CASCADE ")
-		.append(",")
-		.append(" FOREIGN KEY(").append(DisposalField.CHANNEL.n()).append(")")
-		.append(" REFERENCES ").append(Tables.CHANNEL.n)
-		.append("(").append(ChannelField.NAME.n()).append(")")
-		.append(" ON UPDATE CASCADE ")
-		.append(" ON DELETE CASCADE ")
-		.toString();
-	}
-	static {
-		final List<String> columns = Arrays.asList(DisposalTable.COLUMNS);
-		for (DisposalField field : DisposalField.values()) {
-			columns.add(field.n());
-			DisposalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	}
-
-	/**
-	 * The recipient table extends the disposal table.
-	 * Once the message has been sent any acknowledgments will produce 
-	 * multiple additional recipient messages.
-	 */
-	public enum RecipientField  implements TableField {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		REQUEST("request", "INTEGER"),
-		// The _ID of the parent Request
-
-		DISPOSAL("type", "INTEGER"),
-		// Meaning the parent type: interest, retrieval, postal, publish
-
-		STATE("state", "INTEGER");
-		// State of the request on the channel
-
-		final public TableFieldState impl;
-
-		private RecipientField(String name, String type) {
-			this.impl = new TableFieldState(name,type);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	}
-
-	public static interface RecipientTable {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[RecipientField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(RecipientField.values().length);
-
-		public static final String PARENT_KEY_REF = new StringBuilder()
-		.append(" FOREIGN KEY(").append(RecipientField.DISPOSAL.n()).append(")")
-		.append(" REFERENCES ").append(Tables.DISPOSAL.n)
-		.append("(").append(DisposalField._ID.n()).append(")")
-		.append(" ON DELETE CASCADE ")
-		.toString();
-	}
-	static {
-		final List<String> columns = Arrays.asList(RecipientTable.COLUMNS);
-		for (RecipientField field : RecipientField.values()) {
-			columns.add(field.n());
-			RecipientTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	}
-
-
-	/**
-	 * The channel table is for holding current channel status.
-	 * This could be done with a concurrent hash map but that
-	 * would put more logic in the java code and less in sqlite.
-	 */
-
-	public enum ChannelField  implements TableField {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		NAME("name", "TEXT"),
-		// The name of the channel, must match policy channel name
-
-		STATE("state", "INTEGER");
-		// The channel state (active inactive)
-
-		final public TableFieldState impl;
-
-		private ChannelField(String name, String type) {
-			this.impl = new TableFieldState(name,type);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	}
-
-	public static interface ChannelTable extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[ChannelField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(ChannelField.values().length);
-
-		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(ChannelTable.COLUMNS);
-		for (ChannelField field : ChannelField.values()) {
-			columns.add(field.n());
-			ChannelTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-
-
-	// ===========================================================
-	// Methods
-	// ===========================================================
-
-	public DistributorDataStore(Context context) {
-		this.context = context;
-		this.helper = new DataStoreHelper(this.context, null, null, VERSION); // Tables.NAME - to create in memory database
-
-		// ========= INITIALIZE CONSTANTS ========
-		this.applDir = context.getDir("support", Context.MODE_PRIVATE);
-
-		if (! this.applDir.mkdirs()) {
-			logger.error("cannot create files check permissions in manifest : {}",
-					this.applDir.toString());
-		}
-
-		this.applCacheDir = new File(this.applDir, "cache");
-		this.applCacheDir.mkdir();
-
-		this.applCachePostalDir = new File(this.applCacheDir, "postal");
-		this.applCachePostalDir.mkdir();
-
-		this.applCacheRetrievalDir = new File(this.applCacheDir, "retrieval");
-		this.applCacheRetrievalDir.mkdir();
-
-		this.applCachePublicationDir = new File(this.applCacheDir, "publication");
-		this.applCachePublicationDir.mkdir();
-
-		this.applCacheSubscriptionDir = new File(this.applCacheDir, "subscription");
-		this.applCacheSubscriptionDir.mkdir();
-
-		this.applTempDir = new File(this.applDir, "tmp");
-		this.applTempDir.mkdir();
-
-		this.openWrite();
-	}
-
-
-	/**
-	 * It is possible for the distributor database to become corrupted.
-	 * While this is not a common behavior it does happen from time to time.
-	 * It is believed that this is caused by abrupt shutdown of the service.
-	 * 
-	 */
-	public synchronized DistributorDataStore openRead() {
-		if (this.db != null && this.db.isReadOnly()) return this;
-
-		this.db = this.helper.getReadableDatabase();
-		return this;
-	}
-
-	public synchronized DistributorDataStore openWrite() {
-		if (this.db != null && this.db.isOpen() && ! this.db.isReadOnly()) this.db.close();
-
-		this.db = this.helper.getWritableDatabase();
-		return this;
-	}
-
-	public synchronized void close() {
-		this.db.close();
-	}
-
-	/**
-	 * Query set.
-	 *
-	 * @param projection
-	 * @param selection
-	 * @param selectionArgs
-	 * @param sortOrder
-	 * @return
-	 */
-
-	private static String RequestStatusQuery(Tables table) {
-		return new StringBuilder()
-		.append(" SELECT ").append(" * ")
-		.append(" FROM ")
-		.append(Tables.REQUEST.q()).append(" AS r ")
-		.append(" WHERE ")
-		.append(RequestField.TYPE.q("r")).append("=").append(table.o)
-		.append(" AND EXISTS (SELECT * ")
-		.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-		.append(" INNER JOIN ").append(Tables.CHANNEL.q()).append(" AS c ")
-		.append(" ON ").append(DisposalField.CHANNEL.q("d")).append("=").append(ChannelField.NAME.q("c"))
-		.append(" WHERE ").append(RequestField._ID.q("r")).append("=").append(DisposalField.REQUEST.q("d"))
-		.append("   AND ").append(ChannelField.STATE.q("c")).append('=').append(ChannelState.ACTIVE.q())
-		.append("   AND ").append(DisposalField.STATE.q("d"))
-		.append(" IN (").append(DisposalState.PENDING.q()).append(')')
-		.append(')') // close exists clause	
-		.append(" ORDER BY ")
-		.append(RequestField.PRIORITY.q("r")).append(" DESC ").append(", ")
-		.append(RequestField._ID.q("r")).append(" ASC ")	
-		.toString();
-	}
-
-	private static final String RequestViewCreate(String view, Tables table) {
-		return new StringBuilder()
-		.append(" CREATE VIEW ").append(view).append(" AS ")
-		.append(" SELECT ").append(" * ")
-		.append(" FROM ")
-		.append(Tables.REQUEST.q()).append(" AS r ")
-		.append(" WHERE ")
-		.append(RequestField.TYPE.q("r")).append('=').append('\'').append(table.o).append('\'')
-		.append(';')
-		.toString();
-	}
-
-	public synchronized Cursor queryRequest(String rel, 
-			String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		try {
-			this.openRead();
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(rel);
-			qb.setProjectionMap(RequestTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, selection, selectionArgs, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: RequestTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query request {} {}", selection, selectionArgs);
-		}
-		return null;
-	}
-
-	public synchronized Cursor queryRequestByUuid(String[] projection, String uuid, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.REQUEST.n);
-			//qb.setProjectionMap(projection);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, REQUEST_UUID_QUERY, new String[]{ uuid }, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: RetrievalTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query retrieval by key {} {} {}", new Object[]{ projection, uuid });
-		}
-		return null;
-	}
-	static private final String REQUEST_UUID_QUERY = new StringBuilder()
-	.append(RequestField.UUID.q(null)).append("=?")
-	//.append(" AND ")
-	//.append(RequestField.TOPIC.q(null)).append("=?")
-	.toString();
-
-	public synchronized Cursor queryRequestByTopic(String rel, String[] projection,
-			String topic, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.REQUEST.n);
-			// qb.setProjectionMap(InterestTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, REQUEST_TOPIC_QUERY, new String[]{topic}, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: InterestTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query interest by key {} {}", projection, topic);
-		}
-		return null;
-	}
-	static private final String REQUEST_TOPIC_QUERY = new StringBuilder()
-	.append(RequestField.TOPIC.q(null)).append("=?")
-	.toString();
-
-
-	//============ RETRIEVAL METHODS ===================
-	public synchronized Cursor queryRetrieval(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		return queryRequest(RETRIEVAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
-	}
-	public synchronized Cursor queryRetrievalReady() {
-		this.openRead();
-		try {
-			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
-	private static final String RETRIEVAL_STATUS_QUERY = RequestStatusQuery(Tables.RETRIEVAL);
-
-	private static final String RETRIEVAL_VIEW_NAME = new StringBuilder()
-	.append(Tables.RETRIEVAL.q()).append("_view").toString();
-
-	public synchronized Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
-		return queryRequestByUuid(projection, uuid, sortOrder);
-	}
-
-	//============ INTEREST METHODS ===================
-	public synchronized Cursor queryInterest(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		return queryRequest(INTEREST_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
-	}
-
-	public synchronized Cursor queryInterestReady() {
-		this.openRead();
-		try {
-			return db.rawQuery(INTEREST_STATUS_QUERY, null);
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
-	public synchronized Cursor queryInterestByKey(String[] projection,
-			String topic, String sortOrder) {
-		return queryRequestByTopic(INTEREST_VIEW_NAME, projection, topic, sortOrder);
-	}
-
-	private static final String INTEREST_STATUS_QUERY = RequestStatusQuery(Tables.INTEREST);
-
-	private static final String INTEREST_VIEW_NAME = new StringBuilder()
-	.append(Tables.INTEREST.q()).append("_view").toString();
-
-	//============ DISPOSAL METHODS ===================
-	public synchronized Cursor queryDisposal(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.DISPOSAL.n);
-			qb.setProjectionMap(DisposalTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			return qb.query(this.db, projection, selection, selectionArgs, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: DisposalTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query disposal {} {}", selection, selectionArgs);
-		}
-		return null;
-	}
-
-	/**
-	 * Get the state of the channels for the given request
-	 * 
-	 * @param parent
-	 * @param type
-	 * @return
-	 */
-	public synchronized Cursor queryDisposalByParent(int type, int parent) {
-		try {
-			logger.trace("disposal ready {} {} {}", new Object[]{DISPOSAL_STATUS_QUERY, type, parent} );
-			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(type), String.valueOf(parent)});
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
-	private static final String DISPOSAL_STATUS_QUERY = new StringBuilder()
-	.append(" SELECT * ")
-	.append(" FROM ").append(Tables.DISPOSAL.q()).append(" AS d ")
-	.append(" WHERE ").append(DisposalField.TYPE.q("d")).append("=? ")
-	.append("   AND ").append(DisposalField.REQUEST.q("d")).append("=? ")
-	.toString();
-
-	//============ CHANNEL METHODS ===================
-	public synchronized Cursor queryChannel(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.CHANNEL.n);
-			qb.setProjectionMap(ChannelTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			return qb.query(this.db, projection, selection, selectionArgs, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: ChannelTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query channel {} {}", selection, selectionArgs);
-		}
-		return null;
-	}
-
-	static final private String REQUEST_UPDATE_CLAUSE = new StringBuilder()
-	.append(RequestField.TOPIC.q(null)).append("=?")
-	.append(" AND ")
-	.append(RequestField.PROVIDER.q(null)).append("=?")
-	.toString();
-
-	static final private String ROWID_CLAUSE = "_rowid_=?";
-
-	/**
-	 * Data Manipulation : upsert, delete
-	 */
-
-	//============ REQUEST METHODS ===================
-	public synchronized long upsertRequest(ContentValues cv, DistributorState status, 
-			String viewName, Tables table ) {
-		try {
-			final String uuid = cv.getAsString(RequestField.UUID.cv());
-			final String topic = cv.getAsString(RequestField.TOPIC.cv());
-			final String provider = cv.getAsString(RequestField.PROVIDER.cv());
-
-			final long rowid;
-			final String[] updateArgs = (uuid != null) 
-					? new String[]{ uuid, topic, provider }
-			: new String[]{ topic, provider };
-					final Cursor cursor = this.db.query(viewName, new String[] {RequestField._ID.q(null)}, 
-							REQUEST_UPDATE_CLAUSE, updateArgs, null, null, null);
-					if (cursor.getCount() > 0) {
-						rowid = cursor.getLong(cursor.getColumnIndex(RequestField._ID.q(null)));
-						final String[] rowid_arg = new String[]{ Long.toString(rowid) };
-						this.db.update(Tables.REQUEST.n, cv, ROWID_CLAUSE, rowid_arg );
-						this.db.update(table.n, cv, ROWID_CLAUSE, rowid_arg );
-					} else {
-						rowid = this.db.insert(Tables.REQUEST.n, RequestField.CREATED.n(), cv);
-						cv.put(RequestField.FK.n(), rowid);
-						this.db.insert(table.n, RequestField.CREATED.n(), cv);
-					}
-					upsertDisposalByRequest(rowid, status);
-					return rowid;
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert {} {}", cv, status);
-		}
-		return -1;
-	}
-	/**
-	 * Upsert is a portmanteau of update and insert, thus,
-	 * if a record with a matching key exists then update
-	 * otherwise insert.INTEGER PRIMARY KEY 
-	 */
-
-	//============ POSTAL ===================
-
-	/** Insert method helper */
-	public ContentValues initializePostalDefaults(ContentValues values) {
-
-		initializeRequestDefaults(values);
-
-		if (!values.containsKey(PostalField.UNIT.n())) {
-			values.put(PostalField.UNIT.n(), "unknown");
-		}
-		if (!values.containsKey(PostalField.VALUE.n())) {
-			values.put(PostalField.VALUE.n(), -1);
-		}
-		if (!values.containsKey(PostalField.DATA.n())) {
-			values.put(PostalField.DATA.n(), "");
-		}
-		return values;
-	}
-
-	public PostalWorker getPostalWorker(final AmmoRequest ar, final AmmoService svc) {
-		return new PostalWorker(ar, svc);
-	}
-	public PostalWorker getPostalWorker(final Cursor pending, final AmmoService svc) {
-		return new PostalWorker(pending, svc);
-	}
-	public PostalWorker getPostalWorkerByKey(String uid) {
-		final Cursor cursor = queryRequest(POSTAL_VIEW_NAME, null, 
-				SELECT_POSTAL_BY_KEY, new String[]{ uid }, null);
-		return getPostalWorker(cursor, null);	
-	}
-
-	private static String SELECT_POSTAL_BY_KEY = new StringBuilder()
-	.append(RequestField.UUID.cv()).append("=?").toString();
-
-
-
-
-	/**
-	 * The postal table is for holding retrieval requests.
-	 */
-
-	public enum PostalField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
-		// The parent key
-
-		PAYLOAD("payload", "TEXT"),
-		// The payload instead of content provider
-
-		UNIT("unit", "TEXT"),
-		// Units associated with {@link #VALUE}. Used to determine whether should occur.
-
-		VALUE("value", "INTEGER"),
-		// Arbitrary value linked to importance that entry is transmitted and battery drain.
-
-		DATA("data", "TEXT");
-		// If the If null then the data file corresponding to the
-		// column name and record id should be used. This is done when the data
-		// size is larger than that allowed for a field contents.
-
-		final public TableFieldState impl;
-
-		private PostalField(String n, String t) {
-			this.impl = new TableFieldState(n,t);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-	};
-
-	public static interface PostalTable extends RequestTable {
-		public static final String[] COLUMNS = new String[PostalField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PostalField.values().length);
-	};
-	static {
-		final List<String> columns = Arrays.asList(PostalTable.COLUMNS);
-		for (PostalField field : PostalField.values()) {
-			columns.add(field.n());
-			PostalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
-
-	/** 
-	 * Postal store access class
-	 */
-	public class PostalWorker {
-		public final UUID uuid;
-		public final String auid;
-		public final String topic;	
-		public final String subtopic;
-		public final Provider provider;
-		public final DistributorPolicy.Topic policy;
-		public final Moment serialMoment; 
-		public final int priority;
-		public final TimeTrigger expire;
-		public final Notice notice;
-
-		public DisposalTotalState totalState = null;
-		public DistributorState status = null;
-		public Payload payload = null;
-
-		private PostalWorker(final AmmoRequest ar, final AmmoService svc) {
-			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
-			this.auid = ar.uid;
-			this.topic = ar.topic.asString();
-			this.subtopic = ar.subtopic.asString();
-			this.provider = ar.provider;
-			this.policy = svc.policy().matchPostal(topic);
-			this.serialMoment = ar.moment;
-			this.notice = ar.notice;
-
-			this.priority = policy.routing.priority+ar.priority;
-			this.expire = ar.expire;
-		}
-
-		private PostalWorker(final Cursor pending, final AmmoService svc) {
-			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
-			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
-			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
-			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
-			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
-			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
-			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
-			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
-			this.notice = null; // TODO recover notice from store
-
-			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
-			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
-			this.expire = new TimeTrigger(expireEnc);
-		}
-
-		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
-			synchronized(DistributorDataStore.this) {	
-				final ContentValues rqstValues = new ContentValues();
-				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
-				rqstValues.put(RequestField.AUID.cv(), this.auid);
-				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
-				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
-
-				rqstValues.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
-				rqstValues.put(RequestField.PRIORITY.cv(), this.policy.routing.priority+this.priority);
-				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
-
-				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
-				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
-				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
-
-				// TOCO place notice in store 
-				// final ContentValues noticeValues = new ContentValues();
-				// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-
-				// values.put(PostalTableSchema.UNIT.cv(), 50);
-				return upsertRequest(rqstValues, status, POSTAL_VIEW_NAME, Tables.POSTAL);
-			}
-		}
-
-		public int delete(String tupleId) {
-			final String select = new StringBuilder()
-			.append(RequestField.PROVIDER.q(null)).append("=?")
-			.append(" AND ")
-			.append(RequestField.TOPIC.q(null)).append("=?")
-			.toString();
-			final String[] args = new String[] {tupleId, this.topic};
-
-			try {
-				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
-				final int count = db.delete(Tables.POSTAL.n, select, args);
-				final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
-				logger.trace("Postal delete {} {}", count, disposalCount);
-				return count;
-			} catch (IllegalArgumentException ex) {
-				logger.error("delete postal {} {}", select, args);
-			}
-			return 0;
-		}
-	}
-
-	/**
-	 * Nearly direct access to the postal data store.
-	 * Use sparingly, prefer the PostalWorker.
-	 * 
-	 * @param selection
-	 * @param selectionArgs
-	 * @return
-	 */
-
-	public synchronized Cursor queryPostal(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		return queryRequest(POSTAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
-	}
-
-	public synchronized Cursor queryPostalReady() {
-		this.openRead();
-		try {
-			return db.rawQuery(POSTAL_STATUS_QUERY, null);
-		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
-		}
-		return null;
-	}
-	private static final String POSTAL_STATUS_QUERY = RequestStatusQuery(Tables.POSTAL);
-
-	private static final String POSTAL_VIEW_NAME = new StringBuilder()
-	.append(Tables.POSTAL.q()).append("_view").toString();
-
-
-	public synchronized int deletePostal(String selection, String[] selectionArgs) {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.POSTAL.n, selection, selectionArgs);
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
-			logger.trace("Postal delete {} {}", count, disposalCount);
-			return count;
-		} catch (IllegalArgumentException ex) {
-			logger.error("delete postal {} {}", selection, selectionArgs);
-		}
-		return 0;
-	}
-
-	public synchronized int deletePostalGarbage() {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = db.delete(Tables.POSTAL.n, 
-					POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-					DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
-			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
-			return expireCount;
-		} catch (IllegalArgumentException ex) {
-			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
-		} catch (SQLiteException ex) {
-			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
-		}
-		return 0;
-	}
-	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalField.TYPE.q(null)).append('=').append(Tables.POSTAL.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.POSTAL.q())
-	.append(" WHERE ").append(DisposalField.REQUEST.q(null))
-	.append('=').append(Tables.POSTAL.q()).append(".").append(RequestField._ID.q(null))
-	.append(')')
-	.toString();
-
-	private static final String POSTAL_EXPIRATION_CONDITION = new StringBuilder()
-	.append(RequestField.EXPIRATION.q(null))
-	.append('<').append('?')
-	.toString();
-
-	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
-
-
-	public synchronized long updatePostalByKey(long requestId, ContentValues cv, DistributorState state) {
-		return updateRequestById(Tables.POSTAL.n, requestId, cv, state);
-	}
-	public synchronized long updatePostalByKey(long requestId, String channel, final DisposalState state) {
-		return this.upsertDisposalByRequest(requestId, channel, state);
-	}
-
-	// ====== UPSERT  =======
-	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
-		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
-	}
-
-	public synchronized long upsertInterest(ContentValues cv, DistributorState status) {
-		return upsertRequest(cv, status, RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL);
-	}
-
-
-	//============ DISPOSAL METHODS ===================
-	private synchronized long[] upsertDisposalByRequest(long requestId, DistributorState status) {
-		try {
-			final long[] idArray = new long[status.size()];
-			int ix = 0;
-			for (Entry<String,DisposalState> entry : status.entrySet()) {
-				idArray[ix] = upsertDisposalByRequest(requestId, entry.getKey(), entry.getValue());
-				ix++;
-			}
-			return idArray;
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert disposal by parent {} {} {}", new Object[]{requestId, status});
-		}
-		return null;
-	}
-	private synchronized long upsertDisposalByRequest(long requestId, String channel, DisposalState status) {
-		try {
-			final ContentValues cv = new ContentValues();
-			cv.put(DisposalField.REQUEST.cv(), requestId);
-			cv.put(DisposalField.CHANNEL.cv(), channel);
-			cv.put(DisposalField.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
-
-			final String requestIdStr = String.valueOf(requestId);
-			final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
-					DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr , channel } );
-			if (updateCount > 0) {
-				final Cursor cursor = this.db.query(Tables.DISPOSAL.n, new String[]{DisposalField._ID.n()}, 
-						DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel },
-						null, null, null);
-				final int rowCount = cursor.getCount();
-				if (rowCount > 1) {
-					logger.error("you have a duplicates {} {}", rowCount, cv);
-				}
-				cursor.moveToFirst();
-				final long key = cursor.getInt(0); // we only asked for one column so it better be it.
-				cursor.close();
-				return key;
-			}
-			return this.db.insert(Tables.DISPOSAL.n, DisposalField.TYPE.n(), cv);
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert disposal {} {} {} {}", new Object[]{requestId, channel, status});
-		}
-		return 0;
-	}
-	static final private String DISPOSAL_UPDATE_CLAUSE = new StringBuilder()
-	.append(DisposalField.REQUEST.q(null)).append("=?")
-	.append(" AND ")
-	.append(DisposalField.CHANNEL.q(null)).append("=?").toString();
-
-
-	public synchronized long upsertChannelByName(String channel, ChannelState status) {
-		try {
-			final ContentValues cv = new ContentValues();		
-			cv.put(ChannelField.STATE.cv(), status.cv());
-
-			final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
-					CHANNEL_UPDATE_CLAUSE, new String[]{ channel } );
-			if (updateCount > 0) return 0;
-
-			cv.put(ChannelField.NAME.cv(), channel);
-			db.insert(Tables.CHANNEL.n, ChannelField.NAME.n(), cv);
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert channel {} {}", channel, status);
-		}
-		return 0;
-	}
-	static final private String CHANNEL_UPDATE_CLAUSE = new StringBuilder()
-	.append(ChannelField.NAME.q(null)).append("=?").toString();
-
-	/**
-	 * These are related to upsertChannelByName() inasmuch as it 
-	 * resets the failed state to pending.
-	 * @param name
-	 * @return the number of failed items updated
-	 */
-	static final private ContentValues DISPOSAL_PENDING_VALUES;
-	static {
-		DISPOSAL_PENDING_VALUES = new ContentValues();
-		DISPOSAL_PENDING_VALUES.put(DisposalField.STATE.cv(), DisposalState.PENDING.o); 
-	}
-
-	/**
-	 * When a channel is deactivated all of its subscriptions  
-	 * will need to be re-done on re-connect.
-	 * Retrievals and postals won't have this problem,
-	 * TODO unless they are queued.
-	 * @param channel
-	 * @return
-	 */
-	public synchronized int deactivateDisposalStateByChannel(String channel) {
-		try {
-			return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
-					DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
-		} catch (IllegalArgumentException ex) {
-			logger.error("deactivateDisposalStateByChannel {} ", channel);
-		}
-		return 0;
-	}	
-	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
-	.append(DisposalField.CHANNEL.q(null)).append("=?")
-	.append(" AND ")
-	.append(DisposalField.TYPE.q(null)).append(" IN ( ")
-	.append(Tables.INTEREST.qv()).append(')')
-	.append(" AND ")
-	.append(DisposalField.STATE.q(null))
-	.append(" NOT IN ( ").append(DisposalState.BAD.q()).append(')')
-	.toString();
-
-	/**
-	 * When a channel is activated nothing really needs to be done.
-	 * This method is provided as a place holder.
-	 * 
-	 * @param channel
-	 * @return
-	 */
-	public int activateDisposalStateByChannel(String channel) {
-		return -1;
-	}
-
-	/** 
-	 * When a channel is repaired it any failed requests may be retried.
-	 * @param channel
-	 * @return
-	 */
-	public synchronized int repairDisposalStateByChannel(String channel) {
-		try {
-			return this.db.update(Tables.DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
-					DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
-		} catch (IllegalArgumentException ex) {
-			logger.error("repairDisposalStateByChannel {}", channel);
-		}
-		return 0;
-	}
-	static final private String DISPOSAL_REPAIR_CLAUSE = new StringBuilder()
-	.append(DisposalField.CHANNEL.q(null)).append("=?")
-	.append(" AND ")
-	.append(DisposalField.STATE.q(null))
-	.append(" IN ( ").append(DisposalState.BAD.q()).append(')')
-	.toString();
-
-	/**
-	 * Update an object represented in the database.
-	 * Any reasonable update will need to know how to select an existing object.
-	 */
-	private synchronized long updateRequestById(final String requestType, long requestId, ContentValues cv, DistributorState state) {
-		if (state == null && cv == null) return -1;
-		if (cv == null) cv = new ContentValues();
-
-		if (state != null) {
-			this.upsertDisposalByRequest(requestId, state);
-			cv.put(RequestField.DISPOSITION.n(), state.aggregate().cv());
-		}	
-		try {
-			return this.db.update(requestType, cv, "\"_id\"=?", new String[]{ String.valueOf(requestId) } );
-		} catch (IllegalArgumentException ex) {
-			logger.error("updateRequestById {} {}", requestId, cv);
-		}
-		return 0;
-	}
-
-
-	public synchronized long updateRetrievalByKey(long requestId, ContentValues cv, final DistributorState state) {
-		return updateRequestById(Tables.RETRIEVAL.n, requestId, cv, state);
-	}
-	public synchronized long updateRetrievalByKey(long requestId, String channel, final DisposalState state) {
-		return this.upsertDisposalByRequest(requestId, channel, state);
-	}
-
-	public synchronized long updateInterestByKey(long requestId, ContentValues cv, final DistributorState state) {
-		return updateRequestById(Tables.INTEREST.n, requestId, cv, state);
-	}
-	public synchronized long updateInterestByKey(long requestId, String channel, final DisposalState state) {
-		return this.upsertDisposalByRequest(requestId, channel, state);
-	}
-
-
-	public ContentValues initializeRequestDefaults(ContentValues values) {
-		final Long now = Long.valueOf(System.currentTimeMillis());
-
-		if (!values.containsKey(RequestField.TOPIC.n())) {
-			values.put(RequestField.TOPIC.n(),"unknown");
-		}
-		if (!values.containsKey(RequestField.PROVIDER.n())) {
-			values.put(RequestField.PROVIDER.n(),"unknown");
-		}
-		if (!values.containsKey(RequestField.DISPOSITION.n())) {
-			values.put(RequestField.DISPOSITION.n(),
-					DisposalState.PENDING.o);
-		}
-
-		if (!values.containsKey(RequestField.PRIORITY.n())) {
-			values.put(RequestField.PRIORITY.n(), PriorityType.NORMAL.o);
-		}
-
-		if (!values.containsKey(RequestField.SERIAL_MOMENT.n())) {
-			values.put(RequestField.SERIAL_MOMENT.n(),
-					SerialMoment.EAGER.o);
-		}
-
-		if (!values.containsKey(RequestField.EXPIRATION.n())) {
-			values.put(RequestField.EXPIRATION.n(), now);
-		}
-		if (!values.containsKey(RequestField.CREATED.n())) {
-			values.put(RequestField.CREATED.n(), now);
-		}
-		if (!values.containsKey(RequestField.MODIFIED.n())) {
-			values.put(RequestField.MODIFIED.n(), now);
-		}
-		return values;
-	}
-
-	/** Insert method helper */
-	protected ContentValues initializeRetrievalDefaults(ContentValues values) {
-		final Long now = Long.valueOf(System.currentTimeMillis());
-
-		initializeRequestDefaults(values);
-
-		if (!values.containsKey(RetrievalField.PROJECTION.n())) {
-			values.put(RetrievalField.PROJECTION.n(), "");
-		}
-		if (!values.containsKey(RetrievalField.SELECTION.n())) {
-			values.put(RetrievalField.SELECTION.n(), "");
-		}
-		if (!values.containsKey(RetrievalField.ARGS.n())) {
-			values.put(RetrievalField.ARGS.n(), "");
-		}
-		if (!values.containsKey(RetrievalField.ORDERING.n())) {
-			values.put(RetrievalField.ORDERING.n(), "");
-		}
-		if (!values.containsKey(RetrievalField.LIMIT.n())) {
-			values.put(RetrievalField.LIMIT.n(), -1);
-		}
-		if (!values.containsKey(RetrievalField.CONTINUITY_TYPE.n())) {
-			values.put(RetrievalField.CONTINUITY_TYPE.n(),
-					ContinuityType.ONCE.o);
-		}
-		if (!values.containsKey(RetrievalField.CONTINUITY_VALUE.n())) {
-			values.put(RetrievalField.CONTINUITY_VALUE.n(), now);
-		}
-		return values;
-	}
-
-	/** Insert method helper */
-	protected ContentValues initializeSubscriptionDefaults(ContentValues values) {
-
-
-		initializeRequestDefaults(values);
-
-		if (!values.containsKey(InterestField.SELECTION.n())) {
-			values.put(InterestField.SELECTION.n(), "");
-		}
-		return values;
-	}
-
-	/**
-	 * Delete set
-	 */
-
-	// ======== HELPER ============
-	static private String[] getRelativeExpirationTime(long delay) {
-		final long absTime = System.currentTimeMillis() - (delay * 1000);
-		return new String[]{String.valueOf(absTime)}; 
-	}
-
-	private static final String DISPOSAL_PURGE = new StringBuilder()
-	.append(DisposalField.TYPE.q(null))
-	.append('=').append('?')
-	.toString();
-
-	public static class SelectArgsBuilder {
-		final private List<String> args;
-		public SelectArgsBuilder() {
-			this.args = new ArrayList<String>();
-		}
-		public SelectArgsBuilder append(String arg) { 
-			this.args.add(arg);
-			return this;
-		}
-		public String[] toArgs() {
-			return this.args.toArray(new String[this.args.size()]);
-		}
-	}
-
-	// ========= RETRIEVAL : DELETE ================
-
-	public synchronized int deleteRetrieval(String selection, String[] selectionArgs) {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
-			logger.trace("Retrieval delete {} {}", count, disposalCount);
-			return count;
-		} catch (IllegalArgumentException ex) {
-			logger.error("delete retrieval {} {}", selection, selectionArgs);
-		}
-		return 0;
-	}
-	public synchronized int deleteRetrievalGarbage() {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = db.delete(Tables.RETRIEVAL.n, 
-					RETRIEVAL_EXPIRATION_CONDITION, getRelativeExpirationTime(RETRIEVAL_DELAY_OFFSET));
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-					DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
-			logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
-			return expireCount;
-		} catch (IllegalArgumentException ex) {
-			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
-		} catch (SQLiteException ex) {
-			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
-		}
-
-		return 0;
-	}
-	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalField.TYPE.q(null)).append('=').append(Tables.RETRIEVAL.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.RETRIEVAL.q())
-	.append(" WHERE ").append(DisposalField.REQUEST.q(null))
-	.append('=').append(Tables.RETRIEVAL.q()).append(".").append(RequestField._ID.q(null))
-	.append(')')
-	.toString();
-
-	private static final String RETRIEVAL_EXPIRATION_CONDITION = new StringBuilder()
-	.append(RequestField.EXPIRATION.q(null))
-	.append('<').append('?')
-	.toString();
-
-	private static final long RETRIEVAL_DELAY_OFFSET = 8 * 60 * 60; // 8 hrs in seconds
-
-	/**
-	 * purge all records from the retrieval table and cascade to the disposal table.
-	 * @return
-	 */
-	public synchronized int purgeRetrieval() {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.RETRIEVAL.qv()});
-			return db.delete(Tables.RETRIEVAL.n, null, null);
-		} catch (IllegalArgumentException ex) {
-			logger.error("purgeRetrieval");
-		}
-		return 0;
-	}
-
-	// ========= INTEREST : DELETE ================
-
-	public synchronized int deleteInterest(String selection, String[] selectionArgs) {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.INTEREST.n, selection, selectionArgs);
-			logger.trace("Interest delete {} {}", count);
-			return count;
-		} catch (IllegalArgumentException ex) {
-			logger.error("delete interest {} {}", selection, selectionArgs);
-		}
-		return 0;
-	}
-	public synchronized int deleteInterestGarbage() {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = db.delete(Tables.INTEREST.n, 
-					INTEREST_EXPIRATION_CONDITION, 
-					getRelativeExpirationTime(INTEREST_DELAY_OFFSET));
-
-			logger.trace("Interest garbage {} {}", new Object[] {expireCount, INTEREST_EXPIRATION_CONDITION} );
-			return expireCount;
-		} catch (IllegalArgumentException ex) {
-			logger.error("deleteInterestGarbage {}", ex.getLocalizedMessage());
-		} catch (SQLiteException ex) {
-			logger.error("deleteInterestGarbage {}", ex.getLocalizedMessage());
-		}
-		return 0;
-	}
-
-	private static final String INTEREST_EXPIRATION_CONDITION = new StringBuilder()
-	.append(RequestField.EXPIRATION.n())
-	.append('<').append('?')
-	.toString();
-
-	private static final long INTEREST_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
-
-	/**
-	 * purge all records from the interest table and cascade to the disposal table.
-	 * @return
-	 */
-	public synchronized int purgeInterest() {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			db.delete(Tables.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Tables.INTEREST.qv()});
-			return db.delete(Tables.INTEREST.n, null, null);
-		} catch (IllegalArgumentException ex) {
-			logger.error("purgeInterest");
-		}
-		return 0;
-	}
-
-	public final File applDir;
-	public final File applCacheDir;
-	public final File applCachePostalDir;
-	public final File applCacheRetrievalDir;
-	public final File applCachePublicationDir;
-	public final File applCacheSubscriptionDir;
-	public final File applTempDir;
-
-
-	protected File blobFile(String table, String tuple, String field)
-			throws IOException {
-		File tupleCacheDir = blobDir(table, tuple);
-		File cacheFile = new File(tupleCacheDir, field + ".blob");
-		if (cacheFile.exists())
-			return cacheFile;
-
-		cacheFile.createNewFile();
-		return cacheFile;
-	}
-
-	protected File blobDir(String table, String tuple) throws IOException {
-		File tableCacheDir = new File(applCacheDir, table);
-		File tupleCacheDir = new File(tableCacheDir, tuple);
-		if (!tupleCacheDir.exists())
-			tupleCacheDir.mkdirs();
-		return tupleCacheDir;
-	}
-
-	protected File tempFilePath(String table) throws IOException {
-		return File.createTempFile(table, ".tmp", applTempDir);
-	}
-
-	protected void clearBlobCache(String table, String tuple) {
-		if (table == null) {
-			if (applCacheDir.isDirectory()) {
-				for (File child : applCacheDir.listFiles()) {
-					recursiveDelete(child);
-				}
-				return;
-			}
-		}
-		File tableCacheDir = new File(applCacheDir, table);
-		if (tuple == null) {
-			if (tableCacheDir.isDirectory()) {
-				for (File child : tableCacheDir.listFiles()) {
-					recursiveDelete(child);
-				}
-				return;
-			}
-		}
-		File tupleCacheDir = new File(tableCacheDir, tuple);
-		if (tupleCacheDir.isDirectory()) {
-			for (File child : tupleCacheDir.listFiles()) {
-				recursiveDelete(child);
-			}
-		}
-	}
-
-	/**
-	 * Recursively delete all children of this directory and the directory
-	 * itself.
-	 *
-	 * @param dir
-	 */
-	protected void recursiveDelete(File dir) {
-		if (!dir.exists())
-			return;
-
-		if (dir.isFile()) {
-			dir.delete();
-			return;
-		}
-		if (dir.isDirectory()) {
-			for (File child : dir.listFiles()) {
-				recursiveDelete(child);
-			}
-			dir.delete();
-			return;
-		}
-	}
-
-
-
-	protected class DataStoreHelper extends SQLiteOpenHelper {
-		// ===========================================================
-		// Constants
-		// ===========================================================
-		private final Logger logger = LoggerFactory.getLogger(DataStoreHelper.class);
-
-		// ===========================================================
-		// Fields
-		// ===========================================================
-
-		// ===========================================================
-		// Constructors
-		// ===========================================================
-		public DataStoreHelper(Context context, 
-				String name, CursorFactory factory, int version) 
-		{
-			super(context, name, factory, version);
-		}
-
-		// ===========================================================
-		// SQLiteOpenHelper Methods
-		// ===========================================================
-
-		@Override
-		public synchronized void onCreate(SQLiteDatabase db) {
-			logger.trace("bootstrapping database");
-
-			// ===== REQUEST : POSTAL, RETRIEVAL, INTEREST
-			try {	
-				final StringBuilder createSql = new StringBuilder().append("CREATE TABLE ")
-						.append('"').append(Tables.REQUEST.n).append('"')
-						.append(" ( ")
-						.append(Tables.REQUEST.createFields()).append(',')
-						.append(Tables.POSTAL.createFields()).append(',')
-						.append(Tables.RETRIEVAL.createFields()).append(',')
-						.append(Tables.INTEREST.createFields()).append(',')
-						.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-						.append(");");
-
-				db.execSQL(createSql.toString());
-
-				final StringBuilder pkidx = new StringBuilder()
-				.append("CREATE UNIQUE INDEX ").append(Tables.REQUEST.n).append("_pkidx")
-				.append(" ON ").append(Tables.REQUEST.n).append("(").append(RequestField._ID.q(null))
-				.append(");");
-
-				db.execSQL(pkidx.toString());
-
-				db.execSQL(RequestViewCreate(POSTAL_VIEW_NAME, Tables.POSTAL));
-				db.execSQL(RequestViewCreate(RETRIEVAL_VIEW_NAME, Tables.RETRIEVAL));
-				db.execSQL(RequestViewCreate(INTEREST_VIEW_NAME, Tables.INTEREST));
-
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-			// ===== CAPABILITY
-			try {	
-				final Tables table = Tables.CAPABILITY;
-				final StringBuilder sb = new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(table.createFields()).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
-
-				db.execSQL(sb.toString());
-
-
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-
-			// ===== DISPOSAL
-			try {
-				final Tables table = Tables.DISPOSAL;
-
-				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(table.createFields()).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
-
-				db.execSQL(createSql.toString());
-
-				// === Additional Indices ======
-				db.execSQL(new StringBuilder()
-				.append("CREATE UNIQUE INDEX ") 
-				.append(table.qIndex())
-				.append(" ON ").append(table.q())
-				.append(" ( ").append(DisposalField.TYPE.q(null))
-				.append(" , ").append(DisposalField.REQUEST.q(null))
-				.append(" , ").append(DisposalField.CHANNEL.q(null))
-				.append(" ) ")
-				.toString() );
-
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-			// ===== CHANNEL
-			try {
-				final Tables table = Tables.CHANNEL;
-
-				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(table.createFields()).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
-
-				db.execSQL(createSql.toString());
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-			try {
-				final Tables table = Tables.PRESENCE;
-
-				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(table.createFields()).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
-
-				db.execSQL(createSql.toString());
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-
-		}
-
-		@Override
-		public synchronized void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-			logger.warn("Upgrading database from version {} to {} which will destroy all old data",
-					oldVersion, newVersion);
-			this.clear(db);
-
-			onCreate(db);
-		}
-
-		/**
-		 * Called when the database has been opened. 
-		 * The implementation checks isReadOnly() before updating the database.
-		 */
-		@Override
-		public void onOpen (SQLiteDatabase db) {
-			// Examine or otherwise prepare the database
-		}
-
-		@Override
-		public synchronized SQLiteDatabase getWritableDatabase() {
-			try {
-				return super.getWritableDatabase();
-
-			} catch (SQLiteDiskIOException ex) {
-				logger.error("corrupted database {}", ex.getLocalizedMessage());
-			}
-			try {
-				this.archive();
-				return super.getReadableDatabase();
-			} catch (SQLiteException ex) {
-				logger.error("unrecoverablly corrupted database {}", ex.getLocalizedMessage());
-			}
-			return null;
-		}
-
-		@Override
-		public synchronized SQLiteDatabase getReadableDatabase() {
-			try {
-				return super.getReadableDatabase();
-			} catch (SQLiteDiskIOException ex) {
-				logger.error("corrupted database {}", ex.getLocalizedMessage());		
-			}
-			try {
-				this.archive();
-				return super.getReadableDatabase();
-			} catch (SQLiteException ex) {
-				logger.error("unrecoverablly corrupted database {}", ex.getLocalizedMessage());
-			}
-			return null;
-		}
-
-
-
-		public synchronized void clear(SQLiteDatabase db) {
-			for (Tables table : Tables.values()) {
-				try {
-					db.execSQL(table.sqlDrop().toString());
-				} catch (SQLiteException ex) {
-					logger.warn("defective database being dropped {}", ex.getLocalizedMessage());
-				}
-			}
-		}
-
-		public synchronized boolean archive() {
-			logger.info("archival corrupt database");
-			if (db == null) {
-				logger.warn("missing database");
-				return false;
-			} 
-			db.close();
-			db.releaseReference();
-
-			final File backup = context.getDatabasePath("corrupted.db");  
-			// new File(Environment.getExternalStorageDirectory(), Tables.NAME);
-			if (backup.exists()) backup.delete();
-
-			final File original = context.getDatabasePath(Tables.NAME);
-			logger.info("backup of database {} -> {}", original, backup);
-			if (original.renameTo(backup)) {
-				logger.info("archival succeeded");
-				return true;
-			}
-			if (! context.deleteDatabase(Tables.NAME)) {
-				logger.warn("file should have been renamed, deleted instead"); 
-			}
-			return false;
-		}
-	}
 
 }
