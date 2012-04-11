@@ -49,8 +49,8 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 
 public class ReliableMulticastChannel extends NetChannel
@@ -1288,7 +1288,7 @@ public class ReliableMulticastChannel extends NetChannel
 
 	@Override
 	public void toLog(String context) {
-		PLogger.ipc_panthr_rmc_log.debug("{} {}:{} ", 
+		PLogger.IPC_PANTHR_RMC.debug("{} {}:{} ", 
 				new Object[]{context, mMulticastAddress, mMulticastPort});
 	}
 }

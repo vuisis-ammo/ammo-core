@@ -18,8 +18,9 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
+import edu.vu.isis.ammo.core.store.DistributorDataStore;
+import edu.vu.isis.ammo.core.store.Tables;
 
 public class MessageQueueActivity extends Activity {
 	public static final Logger logger = LoggerFactory.getLogger("Ammo-MQA");
@@ -35,10 +36,10 @@ public class MessageQueueActivity extends Activity {
         setOnClickListeners();
         
         @SuppressWarnings("unused")
-		String tableName = DistributorDataStore.Tables.DISPOSAL.n;
+		String tableName = Tables.DISPOSAL.n;
         @SuppressWarnings("unused")
-		Uri uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n);
-        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.DISPOSAL.n), null, null, null, null);
+		Uri uri = DistributorSchema.CONTENT_URI.get(Tables.CHANNEL.n);
+        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(Tables.DISPOSAL.n), null, null, null, null);
         logger.trace("message{}", c);
         
         

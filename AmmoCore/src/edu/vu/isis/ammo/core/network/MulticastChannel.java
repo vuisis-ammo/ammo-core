@@ -38,8 +38,8 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 
 public class MulticastChannel extends NetChannel
@@ -1235,7 +1235,7 @@ public class MulticastChannel extends NetChannel
 
     @Override
 	public void toLog(String context) {
-    	PLogger.ipc_panthr_mc_log.debug("{} {}:{} ", 
+    	PLogger.IPC_PANTHR_MC.debug("{} {}:{} ", 
 				new Object[]{context, mMulticastAddress, mMulticastPort});
 	}
 }

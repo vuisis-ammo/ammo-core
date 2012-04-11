@@ -24,8 +24,8 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.store.DistributorDataStore;
+import edu.vu.isis.ammo.core.store.Tables;
 
 
 public class DistributorProvider extends ContentProvider {
@@ -38,7 +38,8 @@ public class DistributorProvider extends ContentProvider {
 	   static {
 		   uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
 		   garbageMatcher = new UriMatcher(UriMatcher.NO_MATCH);
-		   for (final Tables table : Tables.values()) {
+		   final Tables[] values = Tables.values();
+		   for (final Tables table : values) {
 			   uriMatcher.addURI(DistributorSchema.AUTHORITY, table.n, table.ordinal());
 			   garbageMatcher.addURI(DistributorSchema.AUTHORITY, table.n+"/garbage", table.ordinal());
 		   }

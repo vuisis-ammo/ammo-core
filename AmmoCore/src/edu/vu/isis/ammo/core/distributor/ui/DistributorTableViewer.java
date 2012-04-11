@@ -31,7 +31,7 @@ import android.widget.ListView;
 import android.widget.PopupWindow;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.store.Tables;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
@@ -147,7 +147,9 @@ implements IAmmoActivitySetup
 		int popoverWidth = (int) (display.getWidth()*0.9);
 		int popoverHeight = (int) (display.getHeight()*0.75);
 		
-	    pw = new RequestPopupWindow(this, inflater, popoverWidth, popoverHeight, position, this.adapter.getCursor(), this.table);
+	    pw = new RequestPopupWindow(this, inflater, 
+	    		popoverWidth, popoverHeight, position, 
+	    		this.adapter.getCursor(), this.table);
 	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
 	}

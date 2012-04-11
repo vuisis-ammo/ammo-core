@@ -17,13 +17,12 @@ import java.util.Map;
 import android.content.ContentResolver;
 import android.net.Uri;
 import android.provider.BaseColumns;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.store.Tables;
 
 public class DistributorSchema implements BaseColumns {
 	
 	public static final String AUTHORITY = "edu.vu.isis.ammo.core.provider.distributorprovider";
-	public static final String DATABASE_NAME = DistributorDataStore.Tables.NAME;
+	public static final String DATABASE_NAME = Tables.NAME;
 
 	
 	

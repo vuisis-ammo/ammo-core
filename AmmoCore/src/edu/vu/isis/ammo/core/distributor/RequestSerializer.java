@@ -43,9 +43,9 @@ import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 /**
  * The purpose of these objects is lazily serialize an object.

@@ -8,7 +8,7 @@ perform, display, or disclose computer software or computer software
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
  */
-package edu.vu.isis.ammo.core.distributor;
+package edu.vu.isis.ammo.core.store;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +42,9 @@ import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.api.type.TimeTrigger;
 import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
+import edu.vu.isis.ammo.core.distributor.DistributorState;
 
 /**
  * The Distributor Store Object is managed by the distributor thread.
@@ -58,7 +61,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger(DistributorDataStore.class);
-	public static final int VERSION = 27;
+	public static final int VERSION = 28;
 
 	// ===========================================================
 	// Fields
@@ -70,94 +73,7 @@ public class DistributorDataStore {
 	// Schema
 	// ===========================================================
 
-	/**
-	 * Data Store Table definitions
-	 * 
-	 * The postal table records requests that data be sent out.
-	 * POSTed data is specifically named and distributed.
-	 * The retrieval and subscribe tables record request that data be obtained.
-	 * RETRIEVAL data is obtained from a source.
-	 * SUBSCRIBEd data is obtained by topic.
-	 * The subscribe table is very similar to the interest table.
-	 * The interest table is for local interest the subscribe table is for remote interest.
-	 * 
-	 * The disposal table keeps track of the status of the delivery.
-	 * It is used in conjunction with the distribution policy.
-	 * The disposition table may have several entries for each request.
-	 * There is one row for each potential channel over which the 
-	 * request could be sent.
-	 * There will be one row for each potential channel from the policy.
-	 * As the channel is used it will be marked.
-	 * Once all clauses which may use a channel become true the 
-	 * clauses are removed.
-	 * The rule for disposition rows is cascade delete.
-	 */
-	public enum Tables {
-		REQUEST(0, "request"),
-		POSTAL(1, "postal"),
-		RETRIEVAL(2, "retrieval"),
-		INTEREST(3, "interest"),
-		DISPOSAL(4, "disposal"),
-		CHANNEL(5, "channel"),
-		RECIPIENT(6, "recipient"),
-		CAPABILITY(7, "capability"),
-		PRESENCE(8, "presence");
-
-		final public int o;
-		final public String n;
-
-		private Tables(int ordinal, String name) {
-			this.o = ordinal;
-			this.n = name;
-		}
-
-		public static final String NAME = "distributor.db";
-
-		// The quoted table name
-		public String q() {
-			return new StringBuilder().append('"').append(this.n).append('"').toString();
-		}
-		// The quoted table name as a value
-		public String qv() {
-			return new StringBuilder().append('\'').append(this.cv()).append('\'').toString();
-		}
-		public String cv() {
-			return String.valueOf(this.o);
-		}
-		// The quoted index name
-		public String qIndex() {
-			return new StringBuilder().append('"').append(this.n).append("_index").append('"').toString();
-		}
-
-		private TableField[] getFields() {		
-			switch (this) {
-			case POSTAL:     return PostalField.values(); 
-			case RETRIEVAL:  return RetrievalField.values(); 
-			case INTEREST:   return InterestField.values(); 
-			case DISPOSAL:   return DisposalField.values(); 
-			case CHANNEL:    return ChannelField.values(); 
-			case RECIPIENT:  return RecipientField.values(); 
-			case CAPABILITY: return CapabilityField.values();			
-			case PRESENCE:   return PresenceField.values(); 
-			}
-			return null;
-		}
-		public String createFields() {
-			final List<TableField> fields = Arrays.asList(this.getFields());
-			final StringBuilder sb = new StringBuilder();
-			if (fields.size() < 1) return "";
-
-			final TableField first = fields.get(1);
-			sb.append('"').append(first.n()).append('"').append(' ').append(first.t());
-
-			for (TableField field : fields.subList(1, fields.size()) ) {
-				sb.append(",")
-				.append('"').append(field.n()).append('"').append(' ').append(field.t());
-			}
-			return sb.toString();
-		}
-
-	};
+	
 
 	/**
 	 * Interface for defining sets of fields.
@@ -242,8 +158,23 @@ public class DistributorDataStore {
 			.append('"').append(this.n).append('"').append(' ').append(this.t)
 			.toString();
 		}
-		
 	}
+
+	public String ddl(TableField[] values) {
+		final List<TableField> fields = Arrays.asList(values);
+		final StringBuilder sb = new StringBuilder();
+		if (fields.size() < 1) return "";
+
+		final TableField first = fields.get(1);
+		sb.append('"').append(first.n()).append('"').append(' ').append(first.t());
+
+		for (TableField field : fields.subList(1, fields.size()) ) {
+			sb.append(",")
+			.append('"').append(field.n()).append('"').append(' ').append(field.t());
+		}
+		return sb.toString();
+	}
+	
 	/**
 	 * The capability table is for holding information about current subscriptions.
 	 *
@@ -276,28 +207,35 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	}
 
-	public static interface CapabilityTable extends BaseColumns {
+	public static interface CapabilityConstants extends BaseColumns {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[CapabilityField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(CapabilityField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
 		public static final String PARENT_KEY_REF = null;
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (CapabilityField field : CapabilityField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+
+				for (CapabilityField field : CapabilityField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	};
-	static {
-		final List<String> columns = Arrays.asList(CapabilityTable.COLUMNS);
-		for (RequestField field : RequestField.values()) {
-			columns.add(field.n());
-			CapabilityTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-		for (CapabilityField field : CapabilityField.values()) {
-			columns.add(field.n());
-			CapabilityTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
+	
 	
 	/** 
 	 * Postal store access class
@@ -448,24 +386,35 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+
 	};
-	public static interface PresenceTable extends BaseColumns {
+	
+	public static interface PresenceConstants extends BaseColumns {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[PresenceField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PresenceField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
 		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(PresenceTable.COLUMNS);
-		for (PresenceField field : PresenceField.values()) {
-			columns.add(field.n());
-			PresenceTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (PresenceField field : PresenceField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (PresenceField field : PresenceField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	};
 	
 	public PresenceWorker getPresenceWorker(final String deviceId) {
@@ -575,23 +524,32 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	};
 
-	public static interface NoticeTable extends BaseColumns {
+	public static interface NoticeConstants extends BaseColumns {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[NoticeField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(NoticeField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
 		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(NoticeTable.COLUMNS);
-		for (NoticeField field : NoticeField.values()) {
-			columns.add(field.n());
-			NoticeTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (NoticeField field : NoticeField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (NoticeField field : NoticeField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	};
 
 
@@ -746,24 +704,33 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	};
 
-	public static interface RequestTable {
+	public static interface RequestConstants {
 
 		public static final String DEFAULT_SORT_ORDER = 
 				new StringBuilder().append(RequestField.MODIFIED.n()).append(" DESC ").toString();
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[RequestField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(RequestField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
 		public static final String PARENT_KEY_REF = null;
-	};
-	static {
-		final List<String> columns = Arrays.asList(RequestTable.COLUMNS);
-		for (RequestField field : RequestField.values()) {
-			columns.add(field.n());
-			RequestTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (RequestField field : RequestField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (RequestField field : RequestField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	};
 	
 
@@ -844,13 +811,13 @@ public class DistributorDataStore {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 			qb.setTables(rel);
-			qb.setProjectionMap(RequestTable.PROJECTION_MAP);
+			qb.setProjectionMap(RequestConstants.PROJECTION_MAP);
 
 			// Get the database and run the query.
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
 			return qb.query(db, projection, selection, selectionArgs, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: RequestTable.DEFAULT_SORT_ORDER);
+							: RequestConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
 			logger.error("query request {} {}", selection, selectionArgs);
 		}
@@ -868,7 +835,7 @@ public class DistributorDataStore {
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
 			return qb.query(db, projection, REQUEST_UUID_QUERY, new String[]{ uuid }, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: RetrievalTable.DEFAULT_SORT_ORDER);
+							: RetrievalConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
 			logger.error("query retrieval by key {} {} {}", new Object[]{ projection, uuid });
 		}
@@ -892,7 +859,7 @@ public class DistributorDataStore {
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
 			return qb.query(db, projection, REQUEST_TOPIC_QUERY, new String[]{topic}, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: InterestTable.DEFAULT_SORT_ORDER);
+							: InterestConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
 			logger.error("query interest by key {} {}", projection, topic);
 		}
@@ -1046,18 +1013,34 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	};
 
-	public static interface PostalTable extends RequestTable {
-		public static final String[] COLUMNS = new String[PostalField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PostalField.values().length);
+	public static interface PostalConstants extends RequestConstants {
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (RequestField field : RequestField.values()) {
+					columns.add(field.n());
+				}
+				for (PostalField field : PostalField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (RequestField field : RequestField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				for (PostalField field : PostalField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	};
-	static {
-		final List<String> columns = Arrays.asList(PostalTable.COLUMNS);
-		for (PostalField field : PostalField.values()) {
-			columns.add(field.n());
-			PostalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
+	
 
 	/** 
 	 * Postal store access class
@@ -1355,23 +1338,35 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	};
 
-	public static interface RetrievalTable extends RequestTable {
+	public static interface RetrievalConstants extends RequestConstants {
 
-		public static final String[] COLUMNS = new String[RetrievalField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(RetrievalField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
+				
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (RequestField field : RequestField.values()) {
+					columns.add(field.n());
+				}
+				for (RetrievalField field : RetrievalField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (RequestField field : RequestField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				for (RetrievalField field : RetrievalField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	};
-	static {
-		final List<String> columns = Arrays.asList(RetrievalTable.COLUMNS);
-		for (RequestField field : RequestField.values()) {
-			columns.add(field.n());
-			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-		for (RetrievalField field : RetrievalField.values()) {
-			columns.add(field.n());
-			RetrievalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
+
 	
 	public RetrievalWorker getRetrievalWorker() {
 		return new RetrievalWorker();
@@ -1558,14 +1553,13 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	}
 
-	public static interface InterestTable {
+	public static interface InterestConstants {
 
 		public static final String DEFAULT_SORT_ORDER = ""; 
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[InterestField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(InterestField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
 		public static final String PARENT_KEY_REF = new StringBuilder()
 		.append(" FOREIGN KEY(").append(InterestField.REQUEST.n()).append(")")
@@ -1573,17 +1567,29 @@ public class DistributorDataStore {
 		.append("(").append(RequestField._ID.n()).append(")")
 		.append(" ON DELETE CASCADE ")
 		.toString();
-	}
-	static {
-		final List<String> columns = Arrays.asList(InterestTable.COLUMNS);
-		for (RequestField field : RequestField.values()) {
-			columns.add(field.n());
-			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-		for (InterestField field : InterestField.values()) {
-			columns.add(field.n());
-			InterestTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (RequestField field : RequestField.values()) {
+					columns.add(field.n());
+				}
+				for (InterestField field : InterestField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (RequestField field : RequestField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				for (InterestField field : InterestField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	}
 
 	public InterestWorker getInterestWorker() {
@@ -1758,14 +1764,13 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	}
 	
-	public static interface DisposalTable {
+	public static interface DisposalConstants {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[DisposalField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(DisposalField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
 		public static final String PARENT_KEY_REF = new StringBuilder()
 		.append(" FOREIGN KEY(").append(DisposalField.REQUEST.n()).append(")")
@@ -1779,13 +1784,23 @@ public class DistributorDataStore {
 		.append(" ON UPDATE CASCADE ")
 		.append(" ON DELETE CASCADE ")
 		.toString();
-	}
-	static {
-		final List<String> columns = Arrays.asList(DisposalTable.COLUMNS);
-		for (DisposalField field : DisposalField.values()) {
-			columns.add(field.n());
-			DisposalTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (DisposalField field : DisposalField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (DisposalField field : DisposalField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	}
 	
 	public DisposalWorker getDisposalWorker() {
@@ -1821,12 +1836,12 @@ public class DistributorDataStore {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 			qb.setTables(Tables.DISPOSAL.n);
-			qb.setProjectionMap(DisposalTable.PROJECTION_MAP);
+			qb.setProjectionMap(DisposalConstants.PROJECTION_MAP);
 
 			// Get the database and run the query.
 			return qb.query(this.db, projection, selection, selectionArgs, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: DisposalTable.DEFAULT_SORT_ORDER);
+							: DisposalConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
 			logger.error("query disposal {} {}", selection, selectionArgs);
 		}
@@ -1944,14 +1959,13 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	}
 
-	public static interface RecipientTable {
+	public static interface RecipientConstants {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[RecipientField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(RecipientField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
 		public static final String PARENT_KEY_REF = new StringBuilder()
 		.append(" FOREIGN KEY(").append(RecipientField.DISPOSAL.n()).append(")")
@@ -1959,14 +1973,25 @@ public class DistributorDataStore {
 		.append("(").append(DisposalField._ID.n()).append(")")
 		.append(" ON DELETE CASCADE ")
 		.toString();
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (RecipientField field : RecipientField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (RecipientField field : RecipientField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	}
-	static {
-		final List<String> columns = Arrays.asList(RecipientTable.COLUMNS);
-		for (RecipientField field : RecipientField.values()) {
-			columns.add(field.n());
-			RecipientTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	}
+	
 	
 	public RecipientWorker getRecipientWorker() {
 		return new RecipientWorker();
@@ -2039,24 +2064,34 @@ public class DistributorDataStore {
 		public String t() { return this.impl.t; }
 	}
 
-	public static interface ChannelTable extends BaseColumns {
+	public static interface ChannelConstants extends BaseColumns {
 
 		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
 
-		public static final String[] COLUMNS = new String[ChannelField.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(ChannelField.values().length);
+		public static final String[] COLUMNS = Initializer.getColumns();
+		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
 		public static final String PARENT_KEY_REF = null;
+		
+		public class Initializer {
+			private static String[] getColumns() {
+				final List<String> columns = new ArrayList<String>();
+				for (ChannelField field : ChannelField.values()) {
+					columns.add(field.n());
+				}
+				return columns.toArray(new String[columns.size()]);
+			}
+			private static Map<String,String> getProjection() {
+				final Map<String,String> projection = new HashMap<String,String>();
+				for (ChannelField field : ChannelField.values()) {
+					projection.put(field.n(), field.n());
+				}
+				return projection;
+			}
+		};
 	};
-	static {
-		final List<String> columns = Arrays.asList(ChannelTable.COLUMNS);
-		for (ChannelField field : ChannelField.values()) {
-			columns.add(field.n());
-			ChannelTable.PROJECTION_MAP.put(field.n(), field.n());
-		}
-	};
+	
 	
 	public ChannelWorker getChannelWorker() {
 		return new ChannelWorker();
@@ -2091,12 +2126,12 @@ public class DistributorDataStore {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 			qb.setTables(Tables.CHANNEL.n);
-			qb.setProjectionMap(ChannelTable.PROJECTION_MAP);
+			qb.setProjectionMap(ChannelConstants.PROJECTION_MAP);
 
 			// Get the database and run the query.
 			return qb.query(this.db, projection, selection, selectionArgs, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: ChannelTable.DEFAULT_SORT_ORDER);
+							: ChannelConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
 			logger.error("query channel {} {}", selection, selectionArgs);
 		}
@@ -2239,11 +2274,8 @@ public class DistributorDataStore {
 		this.applCacheRetrievalDir = new File(this.applCacheDir, "retrieval");
 		this.applCacheRetrievalDir.mkdir();
 
-		this.applCachePublicationDir = new File(this.applCacheDir, "publication");
-		this.applCachePublicationDir.mkdir();
-
-		this.applCacheSubscriptionDir = new File(this.applCacheDir, "subscription");
-		this.applCacheSubscriptionDir.mkdir();
+		this.applCacheInterestDir = new File(this.applCacheDir, "interest");
+		this.applCacheInterestDir.mkdir();
 
 		this.applTempDir = new File(this.applDir, "tmp");
 		this.applTempDir.mkdir();
@@ -2309,8 +2341,7 @@ public class DistributorDataStore {
 	public final File applCacheDir;
 	public final File applCachePostalDir;
 	public final File applCacheRetrievalDir;
-	public final File applCachePublicationDir;
-	public final File applCacheSubscriptionDir;
+	public final File applCacheInterestDir;
 	public final File applTempDir;
 
 
@@ -2414,20 +2445,108 @@ public class DistributorDataStore {
 		@Override
 		public synchronized void onCreate(SQLiteDatabase db) {
 			logger.trace("bootstrapping database");
+			PLogger.STORE_DDL.debug("creating data store {}", db);
 
-			// ===== REQUEST : POSTAL, RETRIEVAL, INTEREST
+			db.beginTransaction();
+			String sqlCreateRef = null;
+
+			// ===== PRESENCE
+			try {
+				final Tables table = Tables.PRESENCE;
+
+				/*
+				private TableField[] getFields() {		
+					switch (this) {
+					case CAPABILITY: return CapabilityField.values();			
+					case PRESENCE:   return PresenceField.values(); 
+					
+					case CHANNEL:    return ChannelField.values(); 
+					
+					case POSTAL:     return PostalField.values(); 
+					case RETRIEVAL:  return RetrievalField.values(); 
+					case INTEREST:   return InterestField.values(); 
+					case DISPOSAL:   return DisposalField.values(); 
+					case RECIPIENT:  return RecipientField.values(); 
+					}
+					return null;
+				}
+				*/
+				final StringBuilder createSql = new StringBuilder()
+				.append("CREATE TABLE ")
+				.append(table.q())
+				.append(" ( ").append(ddl(PresenceField.values())).append(',')
+				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				.append(");");
+
+				sqlCreateRef = createSql.toString();
+				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+				db.execSQL(sqlCreateRef);
+				
+			} catch (SQLException ex) {
+				logger.error("create PRESENCE {} {}",
+						sqlCreateRef.toString(),
+						ex.getLocalizedMessage());
+				return;
+			}
+
+			// ===== CAPABILITY
+			try {	
+				final Tables table = Tables.CAPABILITY;
+				final StringBuilder createSql = new StringBuilder()
+				.append("CREATE TABLE ")
+				.append(table.q())
+				.append(" ( ").append(ddl(CapabilityField.values())).append(',')
+				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				.append(");");
+
+				sqlCreateRef = createSql.toString();
+				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+				db.execSQL(sqlCreateRef);
+
+			} catch (SQLException ex) {
+				logger.error("create CAPABILITY {} {}",
+						sqlCreateRef, ex.getLocalizedMessage());
+				return;
+			}
+			
+			// ===== CHANNEL
+			try {
+				final Tables table = Tables.CHANNEL;
+
+				final StringBuilder createSql = new StringBuilder()
+				.append("CREATE TABLE ")
+				.append(table.q())
+				.append(" ( ").append(ddl(ChannelField.values())).append(',')
+				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
+				.append(");");
+
+				sqlCreateRef = createSql.toString();
+				PLogger.STORE.trace("{}", sqlCreateRef);
+				db.execSQL(sqlCreateRef);
+				
+			} catch (SQLException ex) {
+				logger.error("create CHANNEL {} {}",
+						sqlCreateRef, ex.getLocalizedMessage());
+				return;
+			}
+
+			/**
+			 *  ===== REQUEST : 
+			 *  POSTAL, RETRIEVAL, INTEREST
+			 */
 			try {	
 				final StringBuilder createSql = new StringBuilder().append("CREATE TABLE ")
-						.append('"').append(Tables.REQUEST.n).append('"')
+						.append(Tables.REQUEST.q())
 						.append(" ( ")
-						.append(Tables.REQUEST.createFields()).append(',')
-						.append(Tables.POSTAL.createFields()).append(',')
-						.append(Tables.RETRIEVAL.createFields()).append(',')
-						.append(Tables.INTEREST.createFields()).append(',')
+						.append(ddl(RequestField.values())).append(',')
+						.append(ddl(PostalField.values())).append(',')
+						.append(ddl(RetrievalField.values())).append(',')
+						.append(ddl(InterestField.values())).append(',')
 						.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
 						.append(");");
-
-				db.execSQL(createSql.toString());
+				sqlCreateRef = createSql.toString();
+				PLogger.STORE.trace("{}", sqlCreateRef);
+				db.execSQL(sqlCreateRef);
 
 				final StringBuilder pkidx = new StringBuilder()
 				.append("CREATE UNIQUE INDEX ").append(Tables.REQUEST.n).append("_pkidx")
@@ -2441,26 +2560,10 @@ public class DistributorDataStore {
 				db.execSQL(RequestViewCreate(INTEREST_VIEW_NAME, Tables.INTEREST));
 
 			} catch (SQLException ex) {
-				ex.printStackTrace();
+				logger.error("create REQUEST {} {}",
+						sqlCreateRef, ex.getLocalizedMessage());
+				return;
 			}
-
-			// ===== CAPABILITY
-			try {	
-				final Tables table = Tables.CAPABILITY;
-				final StringBuilder sb = new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(table.createFields()).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
-
-				db.execSQL(sb.toString());
-
-
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
 
 			// ===== DISPOSAL
 			try {
@@ -2469,11 +2572,13 @@ public class DistributorDataStore {
 				final StringBuilder createSql = new StringBuilder()
 				.append("CREATE TABLE ")
 				.append(table.q())
-				.append(" ( ").append(table.createFields()).append(',')
+				.append(" ( ").append(ddl(DisposalField.values())).append(',')
 				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
 				.append(");");
 
-				db.execSQL(createSql.toString());
+				sqlCreateRef = createSql.toString();
+				PLogger.STORE.trace("{}", sqlCreateRef);
+				db.execSQL(sqlCreateRef);
 
 				// === Additional Indices ======
 				db.execSQL(new StringBuilder()
@@ -2487,50 +2592,20 @@ public class DistributorDataStore {
 				.toString() );
 
 			} catch (SQLException ex) {
-				ex.printStackTrace();
+				logger.error("create DISPOSAL {} {}",
+						sqlCreateRef, ex.getLocalizedMessage());
+				return;
 			}
 
-			// ===== CHANNEL
-			try {
-				final Tables table = Tables.CHANNEL;
-
-				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(table.createFields()).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
-
-				db.execSQL(createSql.toString());
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-			try {
-				final Tables table = Tables.PRESENCE;
-
-				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(table.createFields()).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
-
-				db.execSQL(createSql.toString());
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
-
-
+			db.endTransaction();
 		}
 
 		@Override
 		public synchronized void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
 			logger.warn("Upgrading database from version {} to {} which will destroy all old data",
 					oldVersion, newVersion);
-			this.clear(db);
-
-			onCreate(db);
+			this.dropAll(db);
+			this.onCreate(db);
 		}
 
 		/**
@@ -2575,14 +2650,12 @@ public class DistributorDataStore {
 			return null;
 		}
 
-
-
 		/**
 		 * drop all tables.
 		 * 
 		 * @param db
 		 */
-		public synchronized void clear(SQLiteDatabase db) {
+		public synchronized void dropAll(SQLiteDatabase db) {
 			for (Tables table : Tables.values()) {
 				try {
 					db.execSQL( new StringBuilder()
@@ -2592,7 +2665,8 @@ public class DistributorDataStore {
 						.toString() );
 					
 				} catch (SQLiteException ex) {
-					logger.warn("defective database being dropped {}", ex.getLocalizedMessage());
+					logger.warn("defective table {} being dropped {}", 
+							table, ex.getLocalizedMessage());
 				}
 			}
 		}

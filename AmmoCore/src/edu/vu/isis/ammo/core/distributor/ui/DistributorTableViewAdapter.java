@@ -18,7 +18,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.widget.ResourceCursorAdapter;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
 
 
 

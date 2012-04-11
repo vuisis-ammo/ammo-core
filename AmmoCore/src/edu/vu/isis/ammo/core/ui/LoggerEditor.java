@@ -2,10 +2,10 @@ package edu.vu.isis.ammo.core.ui;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Set;
+
+import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,12 +16,9 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
-import org.slf4j.LoggerFactory;
-
 import edu.vu.isis.ammo.core.R;
 
 /**
@@ -207,7 +204,7 @@ public class LoggerEditor extends ListActivity {
 
 		}
 
-		public void onNothingSelected(AdapterView parent) {
+		public void onNothingSelected(AdapterView<?> parent) {
 			// Do nothing.
 		}
 	}

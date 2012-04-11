@@ -42,7 +42,7 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 
 /**
@@ -295,7 +295,7 @@ public class SerialChannel extends NetChannel
     @Override
     public void toLog( String context )
     {
-        PLogger.ipc_panthr_mc_log.debug( "{} {} for {} msec",
+        PLogger.IPC_PANTHR_MC.debug( "{} {} for {} msec",
                                          new Object[] { context,
                                                         mSlotNumber,
                                                         mSlotDuration } );

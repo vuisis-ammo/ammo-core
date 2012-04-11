@@ -52,16 +52,6 @@ import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.InterestField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalWorker;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
@@ -71,6 +61,17 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
+import edu.vu.isis.ammo.core.store.DistributorDataStore;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.ChannelState;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.InterestField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalWorker;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.RequestField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.RetrievalField;
+import edu.vu.isis.ammo.core.store.Tables;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -112,7 +113,8 @@ public class DistributorThread extends Thread {
     private static final int IP_NOTIFY_ID = 2;
     
     private int current_icon_id = 1;
-    private int current_icon = 0;
+    @SuppressWarnings("unused")
+	private int current_icon = 0;
     
     private AtomicInteger total_sent = new AtomicInteger (0);
     private AtomicInteger total_recv = new AtomicInteger (0);

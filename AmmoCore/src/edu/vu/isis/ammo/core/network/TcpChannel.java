@@ -36,8 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 
 /**
@@ -1247,7 +1247,7 @@ public class TcpChannel extends NetChannel {
 
 	@Override
 	public void toLog(String context) {
-		PLogger.ipc_panthr_gw_log.debug(" {}:{} timeout={} sec", 
+		PLogger.IPC_PANTHR_GW.debug(" {}:{} timeout={} sec", 
 				new Object[]{ gatewayHost, gatewayPort, flatLineTime});
 	}
 }

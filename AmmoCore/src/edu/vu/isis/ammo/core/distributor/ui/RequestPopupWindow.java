@@ -32,16 +32,15 @@ import android.widget.PopupWindow;
 import android.widget.TableRow;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PriorityType;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RequestField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.InterestField;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.InterestField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.PriorityType;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.RequestField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.RetrievalField;
+import edu.vu.isis.ammo.core.store.Tables;
 
 public class RequestPopupWindow extends PopupWindow {
 
@@ -174,7 +173,7 @@ public class RequestPopupWindow extends PopupWindow {
 			row.setVisibility(View.VISIBLE);
 		}
 		// Now handle the channel disposition
-		final Uri channelUri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.DISPOSAL.n);
+		final Uri channelUri = DistributorSchema.CONTENT_URI.get(Tables.DISPOSAL.n);
 		final int id = requestCursor.getInt(requestCursor.getColumnIndex(BaseColumns._ID));
 		// final Uri disposalUri = ContentUris.withAppendedId(channelUri, id);
 
