@@ -14,6 +14,7 @@ import android.os.Debug;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,6 +69,7 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
+import edu.vu.isis.ammo.core.ui.AmmoCore;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -148,7 +150,8 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
         }
         
         public void run () {
-            updateNotification ();
+            if (terminate.get() != true)
+                updateNotification ();
         }
 
         private void updateNotification () {
@@ -179,8 +182,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
             last_sent_count = total_sent;
             last_recv_count = total_recv;
             
-            if (terminate.get() != true)
-                parent.ammoService.notifyMsg.postDelayed(this, 60000);
+            parent.ammoService.notifyMsg.postDelayed(this, 30000);
         }        
     }
 
@@ -222,11 +224,19 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 
         if (change == ChannelChange.DEACTIVATE)
         {
-            mNotificationManager.cancel(current_icon_id);
+            for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+                if (entry.getValue().change == ChannelChange.ACTIVATE) {
+                    return; // leave, since at least one channel is still active 
+                }
+            }
+            
+            // none of the channels are active ...
             if (notify != null) {
+                this.ammoService.notifyMsg.removeCallbacks(notify);
                 notify.terminate ();
                 notify = null;                
             }
+            mNotificationManager.cancel(current_icon_id);
             return;
         }
         
@@ -237,13 +247,13 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 //            current_icon = R.drawable.notify_icon_152_small;
             
             // right now using the same icon ... once we get new icons, replace this .. 
-            icon = R.drawable.nodata;
+            icon = R.drawable.alldata;
             current_icon_id = SERIAL_NOTIFY_ID;
         }
         else
         {
 //            current_icon = R.drawable.notify_icon_wr_small;
-            icon = R.drawable.nodata;
+            icon = R.drawable.alldata;
             current_icon_id = IP_NOTIFY_ID;
         }
         
@@ -272,7 +282,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
         Notification notification = new Notification(icon, tickerText, when);
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
         
-        Intent notificationIntent = new Intent();
+        Intent notificationIntent = new Intent(context, AmmoCore.class);
         
         PendingIntent contentIntent = PendingIntent
             .getActivity(context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
