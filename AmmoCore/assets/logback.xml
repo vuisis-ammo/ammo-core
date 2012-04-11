@@ -1,8 +1,5 @@
 <?xml version="1.0" ?>
- <!--
-   By default encoders are assigned the type
-     ch.qos.logback.classic.encoder.PatternLayoutEncoder
- -->
+ 
 <configuration>
 
   <property name="LOG_DIR" value="/sdcard" />
@@ -20,8 +17,6 @@
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
     <file>${LOG_DIR}/omma.log</file>
     <append>true</append>
-    <!-- encoders are assigned the type
-         ch.qos.logback.classic.encoder.PatternLayoutEncoder by default -->
     <encoder>
       <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
     </encoder>
@@ -30,9 +25,19 @@
   <logger name="store" level="TRACE">
        <appender-ref ref="FILE" />
   </logger>
+  
+  <logger name="class.DistributorDataStore" level="WARN">
+       <appender-ref ref="FILE" />
+  </logger>
+  
+  <logger name="class.DataStoreHelper" level="INFO">
+       <appender-ref ref="FILE" />
+  </logger>
+  
 
   <root level="ERROR">
     <appender-ref ref="LOGCAT" />
+    <appender-ref ref="FILE" />
   </root>
 
 </configuration>

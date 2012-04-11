@@ -60,8 +60,8 @@ public class DistributorDataStore {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private final static Logger logger = LoggerFactory.getLogger(DistributorDataStore.class);
-	public static final int VERSION = 28;
+	private final static Logger logger = LoggerFactory.getLogger("class.DistributorDataStore");
+	public static final int VERSION = 29;
 
 	// ===========================================================
 	// Fields
@@ -115,6 +115,12 @@ public class DistributorDataStore {
 		 * @return the unquoted type name.
 		 */
 		public String t(); 
+		
+		/**
+		 * form the field clause suitable for use in sql create
+		 * @return
+		 */
+		public String ddl();
 	}
 
 	/**
@@ -153,7 +159,7 @@ public class DistributorDataStore {
 		 * "dog" TEXT
 		 * suitable for use in the table creation.
 		 */
-		public String formCreateClause() {
+		public String ddl() {
 			return new StringBuilder()
 			.append('"').append(this.n).append('"').append(' ').append(this.t)
 			.toString();
@@ -165,12 +171,11 @@ public class DistributorDataStore {
 		final StringBuilder sb = new StringBuilder();
 		if (fields.size() < 1) return "";
 
-		final TableField first = fields.get(1);
-		sb.append('"').append(first.n()).append('"').append(' ').append(first.t());
+		final TableField first = fields.get(0);
+		sb.append(first.ddl());
 
 		for (TableField field : fields.subList(1, fields.size()) ) {
-			sb.append(",")
-			.append('"').append(field.n()).append('"').append(' ').append(field.t());
+			sb.append(",").append(field.ddl());
 		}
 		return sb.toString();
 	}
@@ -205,6 +210,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	}
 
 	public static interface CapabilityConstants extends BaseColumns {
@@ -345,7 +351,7 @@ public class DistributorDataStore {
 		// The device identifier, this must be present
 		// required
 
-		OPERATOR("name", "TEXT"),
+		OPERATOR("operator", "TEXT"),
 		// The name of the operator using the channel
 		// optional
 
@@ -386,7 +392,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
-
+		public String ddl() { return this.impl.ddl(); }
 	};
 	
 	public static interface PresenceConstants extends BaseColumns {
@@ -522,6 +528,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	};
 
 	public static interface NoticeConstants extends BaseColumns {
@@ -702,6 +709,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	};
 
 	public static interface RequestConstants {
@@ -1011,6 +1019,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	};
 
 	public static interface PostalConstants extends RequestConstants {
@@ -1336,6 +1345,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	};
 
 	public static interface RetrievalConstants extends RequestConstants {
@@ -1551,6 +1561,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	}
 
 	public static interface InterestConstants {
@@ -1762,6 +1773,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	}
 	
 	public static interface DisposalConstants {
@@ -1957,6 +1969,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	}
 
 	public static interface RecipientConstants {
@@ -2062,6 +2075,7 @@ public class DistributorDataStore {
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
 		public String t() { return this.impl.t; }
+		public String ddl() { return this.impl.ddl(); }
 	}
 
 	public static interface ChannelConstants extends BaseColumns {
@@ -2423,7 +2437,7 @@ public class DistributorDataStore {
 		// ===========================================================
 		// Constants
 		// ===========================================================
-		private final Logger logger = LoggerFactory.getLogger(DataStoreHelper.class);
+		private final Logger logger = LoggerFactory.getLogger("class.DataStoreHelper");
 
 		// ===========================================================
 		// Fields
@@ -2454,25 +2468,8 @@ public class DistributorDataStore {
 			try {
 				final Tables table = Tables.PRESENCE;
 
-				/*
-				private TableField[] getFields() {		
-					switch (this) {
-					case CAPABILITY: return CapabilityField.values();			
-					case PRESENCE:   return PresenceField.values(); 
-					
-					case CHANNEL:    return ChannelField.values(); 
-					
-					case POSTAL:     return PostalField.values(); 
-					case RETRIEVAL:  return RetrievalField.values(); 
-					case INTEREST:   return InterestField.values(); 
-					case DISPOSAL:   return DisposalField.values(); 
-					case RECIPIENT:  return RecipientField.values(); 
-					}
-					return null;
-				}
-				*/
 				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
+				.append(" CREATE TABLE ")
 				.append(table.q())
 				.append(" ( ").append(ddl(PresenceField.values())).append(',')
 				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
@@ -2483,7 +2480,7 @@ public class DistributorDataStore {
 				db.execSQL(sqlCreateRef);
 				
 			} catch (SQLException ex) {
-				logger.error("create PRESENCE {} {}",
+				logger.error("failed create PRESENCE {} {}",
 						sqlCreateRef.toString(),
 						ex.getLocalizedMessage());
 				return;
@@ -2492,8 +2489,9 @@ public class DistributorDataStore {
 			// ===== CAPABILITY
 			try {	
 				final Tables table = Tables.CAPABILITY;
+				
 				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
+				.append(" CREATE TABLE ")
 				.append(table.q())
 				.append(" ( ").append(ddl(CapabilityField.values())).append(',')
 				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
@@ -2504,7 +2502,7 @@ public class DistributorDataStore {
 				db.execSQL(sqlCreateRef);
 
 			} catch (SQLException ex) {
-				logger.error("create CAPABILITY {} {}",
+				logger.error("failed create CAPABILITY {} {}",
 						sqlCreateRef, ex.getLocalizedMessage());
 				return;
 			}
