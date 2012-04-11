@@ -47,7 +47,7 @@ public class DistributorProvider extends ContentProvider {
 	// =================================
 	// Fields
 	// =================================
-	Logger logger = LoggerFactory.getLogger(DistributorProvider.class);
+	Logger logger = LoggerFactory.getLogger("class.DistributorProvider");
 
 	// =================================
 	// setup

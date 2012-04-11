@@ -35,7 +35,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger(GeneralPreferences.class);
+	private static final Logger logger = LoggerFactory.getLogger("class.GeneralPreferences");
 	
     public static final String LAUNCH = "edu.vu.isis.ammo.core.LoggingPreferences.LAUNCH";
 
@@ -44,7 +44,6 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	// ===========================================================
 	// Fields
 	// ===========================================================
-	private MyEditTextPreference level;
 	private MyEditTextPreference name;
 
 	// Gateway
@@ -99,10 +98,6 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.addPreferencesFromResource(R.xml.general_preferences);
 		
 		final Resources res = this.getResources();
-	
-		level = (MyEditTextPreference) findPreference(PREF_LOG_LEVEL);
-		level.setSummaryPrefix(res.getString(R.string.log_level_label));
-		level.setType(MyEditTextPreference.Type.LOG_LEVEL);
 		
 		name = (MyEditTextPreference) this.findPreference(INetPrefKeys.CORE_OPERATOR_ID);
 		name.setSummaryPrefix(res.getString(R.string.operator_id_label));
@@ -278,7 +273,6 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	public void setupViews() {
 		// Set the summary of each edit text to the current value
 		// of its EditText field.
-		if (level != null) level.refresh();
 	}
 	
 	// ===========================================================

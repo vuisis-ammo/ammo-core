@@ -2,10 +2,8 @@ package edu.vu.isis.ammo.core.ui;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Set;
 
 import android.app.ListActivity;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -207,7 +205,7 @@ public class LoggerEditor extends ListActivity {
 
 		}
 
-		public void onNothingSelected(AdapterView parent) {
+		public void onNothingSelected(AdapterView<?> parent) {
 			// Do nothing.
 		}
 	}

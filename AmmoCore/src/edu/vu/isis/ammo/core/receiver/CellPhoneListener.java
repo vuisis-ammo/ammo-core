@@ -34,7 +34,7 @@ public class CellPhoneListener extends PhoneStateListener {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-        private static final Logger logger = LoggerFactory.getLogger(CellPhoneListener.class);
+        private static final Logger logger = LoggerFactory.getLogger("CellPhoneListener.class");
 	
 	// ===========================================================
 	// Fields

@@ -11,16 +11,6 @@
 			android:defaultValue="operator"/>
 
 	</PreferenceCategory>
-	
-	<PreferenceCategory android:title="Logging Category">
-		<edu.vu.isis.ammo.core.MyEditTextPreference
-			android:key="@string/log_level" 
-			android:name="level" 
-			android:title="Logging Level"
-			android:summary="the logging level of the gateway" 
-			android:defaultValue="trace"/>
-
-	</PreferenceCategory>
 
 	<PreferenceCategory
 	android:title="Network Information">
