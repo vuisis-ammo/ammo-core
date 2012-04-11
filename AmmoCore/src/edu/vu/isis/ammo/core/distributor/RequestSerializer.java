@@ -43,7 +43,7 @@ import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
@@ -121,7 +121,7 @@ public class RequestSerializer {
 		return new RequestSerializer(provider, payload);
 	}
 
-	public ChannelDisposal act(final AmmoService that, final Encoding encode, final String channel) {
+	public DisposalState act(final AmmoService that, final Encoding encode, final String channel) {
 	    final RequestSerializer parent = RequestSerializer.this;
 	    final Encoding local_encode = encode;
 	    final String local_channel = channel;
@@ -149,7 +149,7 @@ public class RequestSerializer {
 	    // };
 	    // action.execute();
 
-	    return ChannelDisposal.QUEUED;
+	    return DisposalState.QUEUED;
 	}
 
 	public void setAction(OnReady action) {

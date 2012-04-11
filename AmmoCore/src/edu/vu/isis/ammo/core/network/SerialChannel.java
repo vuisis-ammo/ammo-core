@@ -1,14 +1,16 @@
 /*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
 This software was developed by the Institute for Software Integrated
-Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
+Systems (ISIS) at Vanderbilt University, Tennessee, USA for the
 Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
-The United States Government has unlimited rights to this software. 
-The US government has the right to use, modify, reproduce, release, 
-perform, display, or disclose computer software or computer software 
-documentation in whole or in part, in any manner and for any 
+The United States Government has unlimited rights to this software.
+The US government has the right to use, modify, reproduce, release,
+perform, display, or disclose computer software or computer software
+documentation in whole or in part, in any manner and for any
 purpose whatsoever, and to have or authorize others to do so.
 */
+
 package edu.vu.isis.ammo.core.network;
+
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,7 +42,7 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 
 /**
@@ -48,18 +50,17 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
  */
 public class SerialChannel extends NetChannel
 {
+    static
+    {
+        System.loadLibrary( "serialchan" );
+    }
+
+
     // Move these to the interface class later.
     public static final int SERIAL_DISABLED        = INetChannel.DISABLED;
     public static final int SERIAL_WAITING_FOR_TTY = INetChannel.LINK_WAIT;
     public static final int SERIAL_CONNECTED       = INetChannel.CONNECTED;
 
-    private LocationManager mLocationManager;
-    private NmeaListener mNmeaListener;
-    private LocationListener mLocationListener;
-
-    static {
-        System.loadLibrary("serialchan");
-    }
 
     /**
      *
@@ -122,7 +123,7 @@ public class SerialChannel extends NetChannel
     {
         logger.trace( "SerialChannel::reset()" );
         disable();
-        
+
         // What is reset() is called on a disabled() channel?  Should we
         // enable() here if we were already disabled?
         enable();
@@ -132,7 +133,7 @@ public class SerialChannel extends NetChannel
     /**
      * Rename this to send() once the merge is done.
      */
-    public ChannelDisposal sendRequest( AmmoGatewayMessage message )
+    public DisposalState sendRequest( AmmoGatewayMessage message )
     {
         return mSenderQueue.putFromDistributor( message );
     }
@@ -224,6 +225,7 @@ public class SerialChannel extends NetChannel
         mSenderEnabled.set( enabled );
     }
 
+
     /**
      *
      */
@@ -231,6 +233,72 @@ public class SerialChannel extends NetChannel
     {
         logger.error( "Receiver enabled set to {}", enabled );
         mReceiverEnabled.set( enabled );
+    }
+
+
+    /**
+     *
+     */
+    public int getMessagesSent() { return mMessagesSent.get(); }
+
+
+    /**
+     *
+     */
+    public int getMessagesReceived() { return mMessagesReceived.get(); }
+
+
+    /**
+     *
+     */
+    public int getCorruptMessages() { return mCorruptMessages.get(); }
+
+
+    /**
+     *
+     */
+    public void receivedCorruptPacket() { mCorruptMessages.getAndIncrement(); }
+
+
+    /**
+     *
+     */
+    public int getBytesSinceMagic() { return mBytesSinceMagic.get(); }
+
+
+    /**
+     *
+     */
+    public int getSecondsSinceByteRead() { return mSecondsSinceByteRead.get(); }
+
+
+    /**
+     *
+     */
+    @Override
+    public boolean isBusy() { return false; }
+
+
+    /**
+     *
+     */
+    @Override
+    public void init(Context context)
+    {
+        // TODO Auto-generated method stub
+    }
+
+
+    /**
+     *
+     */
+    @Override
+    public void toLog( String context )
+    {
+        PLogger.ipc_panthr_mc_log.debug( "{} {} for {} msec",
+                                         new Object[] { context,
+                                                        mSlotNumber,
+                                                        mSlotDuration } );
     }
 
 
@@ -268,8 +336,8 @@ public class SerialChannel extends NetChannel
             // We might have been disabled before the thread even gets
             // a chance to run, so check that before doing anything.
             if ( isInterrupted() ) {
-                logger.trace( "SenderThread <{}>::run() was interrupted before run().", 
-                		Thread.currentThread().getId() );
+                logger.trace( "SenderThread <{}>::run() was interrupted before run().",
+                        Thread.currentThread().getId() );
                 return;
             }
 
@@ -281,11 +349,11 @@ public class SerialChannel extends NetChannel
                         logger.debug( "Connect failed. Waiting to retry..." );
                         SerialChannel.this.wait( WAIT_TIME );
                     }
-                    if (! isDisabled()) {
-                    	setState( SERIAL_CONNECTED );
-                    }
+                    if ( !isDisabled() )
+                        setState( SERIAL_CONNECTED );
                 }
-                if (! isDisabled()) Looper.loop();
+                if ( !isDisabled() )
+                    Looper.loop();
             } catch ( IllegalMonitorStateException e ) {
                 logger.error("IllegalMonitorStateException thrown.");
             } catch ( InterruptedException e ) {
@@ -582,19 +650,19 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
+        public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
         {
             logger.trace( "putFromDistributor()" );
             try {
-				if ( !mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
-					logger.warn( "serial channel not taking messages {}",
-                                 ChannelDisposal.BUSY );
-					return ChannelDisposal.BUSY;
+                if ( !mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
+                    logger.warn( "serial channel not taking messages {}",
+                                 DisposalState.BUSY );
+					return DisposalState.BUSY;
                 }
 			} catch ( InterruptedException e ) {
-				return ChannelDisposal.BAD;
+				return DisposalState.BAD;
             }
-            return ChannelDisposal.QUEUED;
+            return DisposalState.QUEUED;
         }
 
 
@@ -602,7 +670,7 @@ public class SerialChannel extends NetChannel
          *
          */
         @SuppressWarnings("unused")
-		public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
+        public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
         {
             logger.trace( "putFromSecurityObject()" );
             mAuthQueue.offer( iMessage );
@@ -613,7 +681,7 @@ public class SerialChannel extends NetChannel
          *
          */
         @SuppressWarnings("unused")
-		public synchronized void finishedPuttingFromSecurityObject()
+        public synchronized void finishedPuttingFromSecurityObject()
         {
             logger.trace( "finishedPuttingFromSecurityObject()" );
             notifyAll();
@@ -649,7 +717,7 @@ public class SerialChannel extends NetChannel
            if ( getIsAuthorized() ) {
                return mDistQueue.peek();
            } else {
-        	   return mAuthQueue.peek();
+               return mAuthQueue.peek();
            }
        }
 
@@ -698,7 +766,7 @@ public class SerialChannel extends NetChannel
             while ( msg != null )
             {
                 if ( msg.handler != null )
-                    ackToHandler( msg.handler, ChannelDisposal.PENDING );
+                    ackToHandler( msg.handler, DisposalState.PENDING );
                 msg = mDistQueue.poll();
             }
 
@@ -802,7 +870,7 @@ public class SerialChannel extends NetChannel
                         long timeLeftToTransmit = (endOfSlot - WINDOW_DURATION) - currentGpsTime; // in ms
                         double bytesPerMs = mBaudRate / 8000.0;
                         long bytesThatWillFit = (long) (timeLeftToTransmit * bytesPerMs);
-                        		
+
                         // At this point, we've woken up near the start of our
                         // window and should send a message if one is available.
                         if (!mSenderQueue.messageIsAvailable()) {
@@ -814,26 +882,27 @@ public class SerialChannel extends NetChannel
                         int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
                         if ( peekedMsgLength > bytesThatWillFit ) {
                             logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
-                            			  peekedMsgLength,
-                            			  bytesThatWillFit );
+                                          peekedMsgLength,
+                                          bytesThatWillFit );
                             break;
                         }
-                        
+
                         msg = mSenderQueue.take(); // Will not block
 
                         logger.debug("Took a message from the send queue");
                         try {
                             sendMessage(msg);
+                            mMessagesSent.getAndIncrement();
                         } catch ( IOException e ) {
                             logger.warn("sender threw exception {}", e.getStackTrace() );
                             if ( msg.handler != null )
-                                ackToHandler( msg.handler, ChannelDisposal.REJECTED );
+                                ackToHandler( msg.handler, DisposalState.REJECTED );
                             setSenderState( INetChannel.INTERRUPTED );
                             ioOperationFailed();
                         } catch ( Exception e ) {
                             logger.warn("sender threw exception {}", e.getStackTrace() );
                             if ( msg.handler != null )
-                                ackToHandler( msg.handler, ChannelDisposal.BAD );
+                                ackToHandler( msg.handler, DisposalState.BAD );
                             setSenderState( INetChannel.INTERRUPTED );
                             ioOperationFailed();
                             break;
@@ -873,7 +942,7 @@ public class SerialChannel extends NetChannel
 
             // legitimately sent to gateway.
             if ( msg.handler != null )
-                ackToHandler(msg.handler, ChannelDisposal.SENT);
+                ackToHandler(msg.handler, DisposalState.SENT);
         }
 
 
@@ -987,6 +1056,8 @@ public class SerialChannel extends NetChannel
                                           currentSlot,
                                           currentTime );
 
+                            mBytesSinceMagic.set( 0 );
+
                             header.clear();
 
                             // Set these in buf_header, since extractHeader() expects them.
@@ -1006,6 +1077,7 @@ public class SerialChannel extends NetChannel
                             agmb = AmmoGatewayMessage.extractHeader( header );
                             if ( agmb == null ) {
                                 logger.error( "Deserialization failure." );
+                                mCorruptMessages.getAndIncrement();
                                 state = 0;
                             } else {
                                 state = 2;
@@ -1023,6 +1095,7 @@ public class SerialChannel extends NetChannel
                                 buf_payload[i] = c;
                             }
 
+                            agmb.isSerialChannel( true );
                             AmmoGatewayMessage agm = agmb.payload( buf_payload ).build();
 
                             long currentTime = System.currentTimeMillis();
@@ -1035,6 +1108,7 @@ public class SerialChannel extends NetChannel
                             logger.debug( "Finished reading payload in slot {} at {}",
                                           currentSlot,
                                           currentTime );
+                            mMessagesReceived.getAndIncrement();
                             logger.trace( "received message size={}, checksum={}, data:{}",
                                          new Object[] {
                                              agm.size,
@@ -1078,53 +1152,17 @@ public class SerialChannel extends NetChannel
         private byte readAByte() throws IOException
         {
             int val = -1;
+            mSecondsSinceByteRead.set( 0 );
             while ( val == -1 &&  mReceiverState.get() != INetChannel.INTERRUPTED ) {
-                logger.warn( "SerialPort.read()" );
+                logger.debug( "SerialPort.read()" );
                 val = mInputStream.read();
+                if ( val == -1 )
+                    mSecondsSinceByteRead.getAndIncrement();
             }
 
-
-            // try {
-            //     while ( val == -1 )
-            //         val = mInputStream.read();
-            // } catch (IOException ex) {
-            //     logger.warn( "readAByte() IOException: {}", ex.getStackTrace() );
-            // } catch ( Exception ex ) {
-            //     logger.warn( "readAByte() exception: {}", ex.getStackTrace() );
-            // }
-
             logger.warn( "val={}", (byte) val );
+            mBytesSinceMagic.getAndIncrement();
 
-            // if ( val == -1 ) {
-            //     logger.warn( "The serial port returned -1 from read()." );
-            //     throw new IOException();
-            // }
-
-            // I was trying to make this interruptable, but it didn't
-            // work.  Why not?
-
-            // FileChannel fc = mInputStream.getChannel();
-            // byte[] buf = new byte[1];
-            // ByteBuffer bb = ByteBuffer.wrap( buf );
-
-            // int bytesRead = 0;
-            // while ( bytesRead == 0 ) {
-            //     logger.debug( "before read()" );
-            //     try {
-            //         bytesRead = fc.read( bb );
-            //     } catch ( Exception e ) {
-            //         logger.warn( "Caught an exception from the read" );
-            //     }
-            //     logger.debug( "after read()" );
-            // }
-
-            // if ( bytesRead == -1 ) {
-            //     logger.warn( "The serial port returned -1 from read()." );
-            //     throw new IOException();
-            // }
-
-            // int val = buf[0];
-            //logger.debug( "Read: {}", Integer.toHexString(val) );
             return (byte) val;
         }
 
@@ -1176,7 +1214,7 @@ public class SerialChannel extends NetChannel
      *
      */
     private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-                                  ChannelDisposal status )
+                                  DisposalState status )
     {
         return handler.ack( name, status );
     }
@@ -1297,9 +1335,7 @@ public class SerialChannel extends NetChannel
         mState.set( state );
         statusChange();
     }
-    private boolean isDisabled() {
-    	return (getState() == SERIAL_DISABLED);
-    }
+    private boolean isDisabled() { return (getState() == SERIAL_DISABLED); }
 
     private Connector mConnector;
     private SerialPort mPort;
@@ -1316,24 +1352,15 @@ public class SerialChannel extends NetChannel
     private long mCount = 0;
     private long mLast = 0;
 
-    private static final Logger logger = LoggerFactory.getLogger("class.SerialChannel");
+    private final AtomicInteger mMessagesSent = new AtomicInteger();
+    private final AtomicInteger mMessagesReceived = new AtomicInteger();
+    private final AtomicInteger mCorruptMessages = new AtomicInteger();
+    private final AtomicInteger mBytesSinceMagic = new AtomicInteger();
+    private final AtomicInteger mSecondsSinceByteRead = new AtomicInteger();
 
-    @Override
-	public boolean isBusy() {
-    	return false;
-	}
+    private LocationManager mLocationManager;
+    private NmeaListener mNmeaListener;
+    private LocationListener mLocationListener;
 
-
-	@Override
-	public void init(Context context) {
-		// TODO Auto-generated method stub
-		
-	}
-
-
-	@Override
-	public void toLog(String context) {
-		PLogger.ipc_panthr_mc_log.debug("{} {} for {} msec", 
-				new Object[]{context, this.mSlotNumber, this.mSlotDuration});
-	}
+    private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
 }

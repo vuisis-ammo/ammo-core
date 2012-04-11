@@ -62,9 +62,8 @@ public class DistributorDataStore {
 	/**
 	 * Data Store Table definitions
 	 * 
-	 * The postal and publish tables record requests that data be sent out.
+	 * The postal tables record requests that data be sent out.
 	 * POSTed data is specifically named and distributed.
-	 * PUBLISHed data is observed and as it changes in the content provider it is delivered.
 	 * The retrieval and subscribe tables record request that data be obtained.
 	 * RETRIEVAL data is obtained from a source.
 	 * SUBSCRIBEd data is obtained by topic.
@@ -82,7 +81,6 @@ public class DistributorDataStore {
 	 */
 	public enum Tables {
 		POSTAL(1, "postal"),
-		PUBLISH(2, "publish"),
 		RETRIEVAL(3, "retrieval"),
 		SUBSCRIBE(4, "subscribe"),
 		DISPOSAL(5, "disposal"),
@@ -227,7 +225,7 @@ public class DistributorDataStore {
 	 * COMPLETE : the distribution rule has been fulfilled
 	 * INCOMPLETE : the distribution rule cannot be completely fulfilled
 	 */
-	public enum RequestDisposal {
+	public enum DisposalTotalState {
 		NEW(0x01, "new"),
 		DISTRIBUTE(0x02, "distribute"),
 		EXPIRED(0x04, "expired"),
@@ -238,7 +236,7 @@ public class DistributorDataStore {
 		final public int o;
 		final public String t;
 
-		private RequestDisposal(int ordinal, String title) {
+		private DisposalTotalState(int ordinal, String title) {
 			this.o = ordinal;
 			this.t = title;
 		}
@@ -248,11 +246,11 @@ public class DistributorDataStore {
 		public String cv() {
 			return String.valueOf(this.o);
 		}
-		static public RequestDisposal getInstance(String ordinal) {
-			return RequestDisposal.values()[Integer.parseInt(ordinal)];
+		static public DisposalTotalState getInstance(String ordinal) {
+			return DisposalTotalState.values()[Integer.parseInt(ordinal)];
 		}
-		static public RequestDisposal getInstanceById(int o) {
-	    	for (RequestDisposal candidate : RequestDisposal.values()) {
+		static public DisposalTotalState getInstanceById(int o) {
+	    	for (DisposalTotalState candidate : DisposalTotalState.values()) {
 	    		if (candidate.o == o) return candidate;
 	    	}
 	    	return null;
@@ -284,10 +282,10 @@ public class DistributorDataStore {
 			return new StringBuilder().append("'").append(this.o).append("'").toString();
 		}
 		
-		public ChannelDisposal inferDisposal() {
+		public DisposalState inferDisposal() {
 			switch (this) {
-			case DOWN: return ChannelDisposal.REJECTED;
-			case FULL: return ChannelDisposal.BUSY;
+			case DOWN: return DisposalState.REJECTED;
+			case FULL: return DisposalState.BUSY;
 			default:
 				logger.warn("don't call with {}", this);
 				throw new IllegalArgumentException();
@@ -301,7 +299,7 @@ public class DistributorDataStore {
 	 * total state is an aggregate of the distribution
 	 * of the request across the relevant channels.
 	 */
-	public enum ChannelDisposal {
+	public enum DisposalState {
 		NEW      (0x0001, "new"),
 		REJECTED (0x0002, "rejected"),   // channel is temporarily rejecting req (probably down)
 		BAD      (0x0080, "bad"),        // message is problematic, don't try again
@@ -316,7 +314,7 @@ public class DistributorDataStore {
 		final public int o;
 		final public String t;
 
-		private ChannelDisposal(int ordinal, String title) {
+		private DisposalState(int ordinal, String title) {
 			this.o = ordinal;
 			this.t = title;
 		}
@@ -330,8 +328,8 @@ public class DistributorDataStore {
 		public String cv() {
 			return String.valueOf(this.o);
 		}
-		static public ChannelDisposal getInstance(String ordinal) {
-			return ChannelDisposal.values()[Integer.parseInt(ordinal)];
+		static public DisposalState getInstance(String ordinal) {
+			return DisposalState.values()[Integer.parseInt(ordinal)];
 		}
 		/**
 		 * This method indicates if the goal has been met.
@@ -354,9 +352,9 @@ public class DistributorDataStore {
 			}
 			return false;
 		}
-		public ChannelDisposal and(boolean clauseSuccess) {
+		public DisposalState and(boolean clauseSuccess) {
 			if (clauseSuccess) return this;
-			return ChannelDisposal.DELIVERED;
+			return DisposalState.DELIVERED;
 		}
 
 		public int checkAggregate(final int aggregate) {
@@ -367,8 +365,8 @@ public class DistributorDataStore {
 			return this.o | aggregate;
 		}
 		
-	    static public ChannelDisposal getInstanceById(int o) {
-	    	for (ChannelDisposal candidate : ChannelDisposal.values()) {
+	    static public DisposalState getInstanceById(int o) {
+	    	for (DisposalState candidate : DisposalState.values()) {
 	    		if (candidate.o == o) return candidate;
 	    	}
 	    	return null;
@@ -596,88 +594,6 @@ public class DistributorDataStore {
 		}
 	};
 
-
-	/**
-	 * The publication table is for holding publication requests.
-	 */
-	public static interface PublishTable extends BaseColumns {
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = new String[PublishTableSchema.values().length];
-		public static final Map<String,String> PROJECTION_MAP =
-				new HashMap<String,String>(PublishTableSchema.values().length);
-	}
-	static {
-		int ix = 0;
-		for (PublishTableSchema field : PublishTableSchema.values()) {
-			PublishTable.COLUMNS[ix++] = field.n;
-			PublishTable.PROJECTION_MAP.put(field.n, field.n);
-		}
-	}
-
-	public enum PublishTableSchema {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-        UUID("uuid", "TEXT"),
-		// This is a unique identifier for the request
-
-		CREATED("created", "INTEGER"),
-		// When the request was made
-
-		MODIFIED("modified", "INTEGER"),
-		// When the request was last modified
-
-		TOPIC("topic", "TEXT"),
-		// This along with the cost is used to decide how to deliver the specific object.
-
-		AUID("auid", "TEXT"),
-		// (optional) The appplication specific unique identifier
-		// This is used in notice intents so the application can relate.
-
-		PROVIDER("provider", "TEXT"),
-		// The uri of the content provider
-		
-		PRIORITY("priority", "INTEGER"),
-		// What order should this message be sent. Negative priorities indicated less than normal.
-
-		DISPOSITION("disposition", "INTEGER"),
-		// The current best guess of the status of the request.
-
-		EXPIRATION("expiration", "INTEGER");
-		// Time-stamp at which request entry becomes stale.
-
-		final public String n; // name
-		final public String t; // type
-
-		private PublishTableSchema(String name, String type) {
-			this.n = name;
-			this.t = type;
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>" <field-type>
-		 * e.g.
-		 * "dog" TEXT
-		 */
-		public String addfield() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"').append(' ').append(this.t)
-			.toString();
-		}
-		/**
-		 * Produce string of the form...
-		 * "<field-name>"
-		 */
-		public String q() {
-			return new StringBuilder()
-			.append('"').append(this.n).append('"')
-			.toString();
-		}
-		public String cv() {
-			return String.valueOf(this.n);
-		}
-	};
 
 	/**
 	 * The retrieval table is for holding retrieval requests.
@@ -919,7 +835,7 @@ public class DistributorDataStore {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
 		TYPE("type", "INTEGER"),
-		// Meaning the parent type: subscribe, retrieval, postal, publish
+		// Meaning the parent type: subscribe, retrieval, postal
 
 		PARENT("parent", "INTEGER"),
 		// The _id of the parent
@@ -1152,8 +1068,8 @@ public class DistributorDataStore {
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (")
-	.append(ChannelDisposal.REJECTED.q()).append(',')
-	.append(ChannelDisposal.PENDING.q()).append(')')
+	.append(DisposalState.REJECTED.q()).append(',')
+	.append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause	
 	.append(" ORDER BY ")
         .append(PostalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
@@ -1161,24 +1077,6 @@ public class DistributorDataStore {
         .append(';')
 	.toString();
 
-	public synchronized Cursor queryPublish(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.PUBLISH.n);
-			qb.setProjectionMap(PublishTable.PROJECTION_MAP);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, selection, selectionArgs, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: PublishTable.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query publish {} {}", selection, selectionArgs);
-		}
-		return null;
-	}
 
 	public synchronized Cursor queryRetrieval(String[] projection, String selection, String[] selectArgs, String sortOrder) {
 		try {
@@ -1242,8 +1140,8 @@ public class DistributorDataStore {
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (")
-	.append(ChannelDisposal.REJECTED.q()).append(',')
-	.append(ChannelDisposal.PENDING.q()).append(')')
+	.append(DisposalState.REJECTED.q()).append(',')
+	.append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause
 	.append(" ORDER BY ")
         .append(RetrievalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
@@ -1312,8 +1210,8 @@ public class DistributorDataStore {
 	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (")
-	.append(ChannelDisposal.REJECTED.q()).append(',')
-	.append(ChannelDisposal.PENDING.q()).append(')')
+	.append(DisposalState.REJECTED.q()).append(',')
+	.append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause
 	.append(" ORDER BY ")
         .append(SubscribeTableSchema.PRIORITY.q()).append(" DESC ").append(',')
@@ -1405,7 +1303,7 @@ public class DistributorDataStore {
 			} else {
 				key = this.db.insert(Tables.POSTAL.n, PostalTableSchema.CREATED.n, cv);
 			}
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
 				upsertDisposalByParent(Tables.POSTAL, key, entry.getKey(), entry.getValue());
 			}
 			return key;
@@ -1420,37 +1318,6 @@ public class DistributorDataStore {
 	.append(PostalTableSchema.PROVIDER.q()).append("=?")
 	.toString();
 
-	public synchronized long upsertPublish(ContentValues cv, DistributorState status) {
-		try {
-			final String topic = cv.getAsString(PublishTableSchema.TOPIC.cv());
-			final String provider = cv.getAsString(PublishTableSchema.PROVIDER.cv());
-
-			final long key;
-			final String[] updateArgs = new String[]{ topic, provider };
-			if (0 < this.db.update(Tables.PUBLISH.n, cv, PUBLISH_UPDATE_CLAUSE, updateArgs )) {
-				final Cursor cursor = this.db.query(Tables.PUBLISH.n, 
-						new String[]{PublishTableSchema._ID.n},
-						PUBLISH_UPDATE_CLAUSE, updateArgs, null, null, null);
-				cursor.moveToFirst();
-				key = cursor.getInt(0); // we only asked for one column so it better be it.
-				cursor.close();
-			} else {
-				key = this.db.insert(Tables.PUBLISH.n, PublishTableSchema.CREATED.n, cv);
-			}
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
-				upsertDisposalByParent(Tables.PUBLISH, key, entry.getKey(), entry.getValue());
-			}
-			return key;
-		} catch (IllegalArgumentException ex) {
-			logger.error("upsert publish {} {}", cv, status);
-		}
-		return 0;
-	}
-	static final private String PUBLISH_UPDATE_CLAUSE = new StringBuilder()
-	.append(PublishTableSchema.TOPIC.q()).append("=?")
-	.append(" AND ")
-	.append(PublishTableSchema.PROVIDER.q()).append("=?")
-	.toString();
 
 	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
 		try {
@@ -1470,9 +1337,9 @@ public class DistributorDataStore {
 			} else {
 				key = this.db.insert(Tables.RETRIEVAL.n, RetrievalTableSchema.CREATED.n, cv);
 			}
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
 				final String entityChannel = entry.getKey();
-				final ChannelDisposal entityStatus = entry.getValue();
+				final DisposalState entityStatus = entry.getValue();
 				logger.trace("upsert retrieval {} {} {}", new Object[]{key, entityChannel, entityStatus});
 				upsertDisposalByParent(Tables.RETRIEVAL, key, entityChannel, entityStatus);
 			}
@@ -1510,7 +1377,7 @@ public class DistributorDataStore {
 			} else {
 				key = this.db.insert(Tables.SUBSCRIBE.n, SubscribeTableSchema.CREATED.n, cv);
 			}
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
 				this.upsertDisposalByParent(Tables.SUBSCRIBE, key, entry.getKey(), entry.getValue());
 			}
 			return key;
@@ -1530,7 +1397,7 @@ public class DistributorDataStore {
 		try {
 			final long[] idArray = new long[status.size()];
 			int ix = 0;
-			for (Entry<String,ChannelDisposal> entry : status.entrySet()) {
+			for (Entry<String,DisposalState> entry : status.entrySet()) {
 				idArray[ix] = upsertDisposalByParent(type, id, entry.getKey(), entry.getValue());
 				ix++;
 			}
@@ -1540,7 +1407,7 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-	private synchronized long upsertDisposalByParent(Tables type, long id, String channel, ChannelDisposal status) {
+	private synchronized long upsertDisposalByParent(Tables type, long id, String channel, DisposalState status) {
 		try {
 			final String typeVal = type.cv();
 
@@ -1548,7 +1415,7 @@ public class DistributorDataStore {
 			cv.put(DisposalTableSchema.TYPE.cv(), typeVal);
 			cv.put(DisposalTableSchema.PARENT.cv(), id);
 			cv.put(DisposalTableSchema.CHANNEL.cv(), channel);
-			cv.put(DisposalTableSchema.STATE.cv(), (status == null) ? ChannelDisposal.PENDING.o : status.o);
+			cv.put(DisposalTableSchema.STATE.cv(), (status == null) ? DisposalState.PENDING.o : status.o);
 
 			final int updateCount = this.db.update(Tables.DISPOSAL.n, cv, 
 					DISPOSAL_UPDATE_CLAUSE, new String[]{ typeVal, String.valueOf(id), channel } );
@@ -1607,7 +1474,7 @@ public class DistributorDataStore {
 	static final private ContentValues DISPOSAL_PENDING_VALUES;
 	static {
 		DISPOSAL_PENDING_VALUES = new ContentValues();
-		DISPOSAL_PENDING_VALUES.put(DisposalTableSchema.STATE.cv(), ChannelDisposal.PENDING.o); 
+		DISPOSAL_PENDING_VALUES.put(DisposalTableSchema.STATE.cv(), DisposalState.PENDING.o); 
 	}
 
 	/**
@@ -1634,7 +1501,7 @@ public class DistributorDataStore {
     .append(" IN (").append(Tables.SUBSCRIBE.qv()).append(')')
 	.append(" AND ")
 	.append(DisposalTableSchema.STATE.q())
-	.append(" NOT IN (").append(ChannelDisposal.BAD.q()).append(')')
+	.append(" NOT IN (").append(DisposalState.BAD.q()).append(')')
 	.toString();
 
 	/**
@@ -1666,7 +1533,7 @@ public class DistributorDataStore {
 	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
 	.append(" AND ")
 	.append(DisposalTableSchema.STATE.q())
-	.append(" IN ( ").append(ChannelDisposal.BAD.q()).append(')')
+	.append(" IN ( ").append(DisposalState.BAD.q()).append(')')
 	.toString();
 
 	/**
@@ -1688,29 +1555,11 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	public synchronized long updatePostalByKey(long id, String channel, final ChannelDisposal state) {
+	public synchronized long updatePostalByKey(long id, String channel, final DisposalState state) {
 		// TODO update the parent object with the aggregate state
 		return this.upsertDisposalByParent(Tables.POSTAL, id, channel, state);
 	}
 
-	public synchronized long updatePublishByKey(long id, ContentValues cv,  final DistributorState state) {
-		if (state == null && cv == null) return -1;
-		if (cv == null) cv = new ContentValues();
-		
-		if (state != null) {
-			this.upsertDisposalByParent(Tables.PUBLISH, id, state);
-			cv.put(PublishTableSchema.DISPOSITION.n, state.aggregate().cv());
-		}	
-		try {
-			return this.db.update(Tables.PUBLISH.n, cv, "\"_id\"=?", new String[]{ String.valueOf(id) } );
-		} catch (IllegalArgumentException ex) {
-			logger.error("updatePublishByKey {} {}", id, cv);
-		}
-		return 0;
-	}
-	public synchronized long updatePublishByKey(long id, String channel, final ChannelDisposal state) {
-		return this.upsertDisposalByParent(Tables.PUBLISH, id, channel, state);
-	}
 
 	public synchronized long updateRetrievalByKey(long id, ContentValues cv, final DistributorState state) {
 		if (state == null && cv == null) return -1;
@@ -1728,7 +1577,7 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	public synchronized long updateRetrievalByKey(long id, String channel, final ChannelDisposal state) {
+	public synchronized long updateRetrievalByKey(long id, String channel, final DisposalState state) {
 		return this.upsertDisposalByParent(Tables.RETRIEVAL, id, channel, state);
 	}
 
@@ -1747,7 +1596,7 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	public synchronized long updateSubscribeByKey(long id, String channel, final ChannelDisposal state) {
+	public synchronized long updateSubscribeByKey(long id, String channel, final DisposalState state) {
 		return this.upsertDisposalByParent(Tables.SUBSCRIBE, id, channel, state);
 	}
 
@@ -1764,7 +1613,7 @@ public class DistributorDataStore {
 		}
 		if (!values.containsKey(RetrievalTableSchema.DISPOSITION.n)) {
 			values.put(RetrievalTableSchema.DISPOSITION.n,
-					ChannelDisposal.PENDING.o);
+					DisposalState.PENDING.o);
 		}
 		if (!values.containsKey(PostalTableSchema.NOTICE.n)) {
 			values.put(PostalTableSchema.NOTICE.n, "");
@@ -1800,38 +1649,12 @@ public class DistributorDataStore {
 	}
 
 	/** Insert method helper */
-	protected ContentValues initializePublicationDefaults(ContentValues values) {
-		final Long now = Long.valueOf(System.currentTimeMillis());
-
-		if (!values.containsKey(PublishTableSchema.DISPOSITION.n)) {
-			values.put(PublishTableSchema.DISPOSITION.n,
-					ChannelDisposal.PENDING.o);
-		}
-		if (!values.containsKey(PublishTableSchema.PROVIDER.n)) {
-			values.put(PublishTableSchema.PROVIDER.n, "unknown");
-		}
-		if (!values.containsKey(PublishTableSchema.TOPIC.n)) {
-			values.put(PublishTableSchema.TOPIC.n, "unknown");
-		}
-		if (!values.containsKey(PublishTableSchema.EXPIRATION.n)) {
-			values.put(PublishTableSchema.EXPIRATION.n, now);
-		}
-		if (!values.containsKey(PublishTableSchema.CREATED.n)) {
-			values.put(PublishTableSchema.CREATED.n, now);
-		}
-		if (!values.containsKey(PublishTableSchema.MODIFIED.n)) {
-			values.put(PublishTableSchema.MODIFIED.n, now);
-		}
-		return values;
-	}
-
-	/** Insert method helper */
 	protected ContentValues initializeRetrievalDefaults(ContentValues values) {
 		final Long now = Long.valueOf(System.currentTimeMillis());
 
 		if (!values.containsKey(RetrievalTableSchema.DISPOSITION.n)) {
 			values.put(RetrievalTableSchema.DISPOSITION.n,
-					ChannelDisposal.PENDING.o);
+					DisposalState.PENDING.o);
 		}
 		if (!values.containsKey(RetrievalTableSchema.NOTICE.n)) {
 			values.put(RetrievalTableSchema.NOTICE.n, "");
@@ -1886,7 +1709,7 @@ public class DistributorDataStore {
 
 		if (!values.containsKey(SubscribeTableSchema.DISPOSITION.n)) {
 			values.put(SubscribeTableSchema.DISPOSITION.n,
-					ChannelDisposal.PENDING.o);
+					DisposalState.PENDING.o);
 		}
 		if (!values.containsKey(SubscribeTableSchema.PROVIDER.n)) {
 			values.put(SubscribeTableSchema.PROVIDER.n, "unknown");
@@ -1979,48 +1802,7 @@ public class DistributorDataStore {
 	.toString();
 
 	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
-
-	// ========= PUBLISH : DELETE ================
-
-	public synchronized int deletePublish(String selection, String[] selectionArgs) {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.PUBLISH.n, selection, selectionArgs);
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
-			logger.trace("Publish delete {} {}", count, disposalCount);
-			return count;
-		} catch (IllegalArgumentException ex) {
-			logger.error("delete postal {} {}", selection, selectionArgs);
-		}
-		return 0;
-	}
-	public synchronized int deletePublishGarbage() {
-		try {
-			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = db.delete(Tables.PUBLISH.n, 
-					PUBLISH_EXPIRATION_CONDITION, getRelativeExpirationTime(0));
-			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
-					DISPOSAL_PUBLISH_ORPHAN_CONDITION, null);
-			logger.trace("Publish garbage {} {}", expireCount, disposalCount);
-			return expireCount;
-		} catch (IllegalArgumentException ex) {
-			logger.error("deletePublishGarbage");
-		}
-		return 0;
-	}
-	private static final String DISPOSAL_PUBLISH_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Tables.PUBLISH.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Tables.PUBLISH.q())
-	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	    .append('=').append(Tables.PUBLISH.q()).append(".").append(PublishTableSchema._ID.q())
-	.append(')')
-	.toString();
-
-	private static final String PUBLISH_EXPIRATION_CONDITION = new StringBuilder()
-	.append('"').append(PublishTableSchema.EXPIRATION.n).append('"')
-	.append('<').append('?')
-	.toString();
+	
 
 	// ========= RETRIEVAL : DELETE ================
 
@@ -2266,18 +2048,6 @@ public class DistributorDataStore {
 				ex.printStackTrace();
 			}
 
-			try {
-				final StringBuilder sb = new StringBuilder();
-				for (PublishTableSchema field : PublishTableSchema.values()) {
-					if(sb.length() != 0)
-						sb.append(",");
-					sb.append(field.addfield());
-				}
-				db.execSQL(Tables.PUBLISH.sqlCreate(sb.toString()).toString());
-
-			} catch (SQLException ex) {
-				ex.printStackTrace();
-			}
 
 			try {
 				final StringBuilder sb = new StringBuilder();

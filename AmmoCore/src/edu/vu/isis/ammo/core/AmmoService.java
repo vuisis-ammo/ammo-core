@@ -32,6 +32,7 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
@@ -47,8 +48,8 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
 import edu.vu.isis.ammo.core.model.Channel;
@@ -331,6 +332,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	
 	private Settings globalSettings;  // from tasettings
 	private SharedPreferences localSettings;   // local copy
+	
+	public Handler notifyMsg = null;
 
 	/**
 	 * When the service is first created, we should grab the IP and Port values
@@ -346,6 +349,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.reliableMulticastChannel.init(context);
 		this.multicastChannel.init(context);
 		
+		notifyMsg = new Handler ();
 		// set up the worker thread
 		this.distThread = new DistributorThread(this.getApplicationContext(), this);
 		this.distThread.start();
@@ -395,22 +399,22 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
 		//this.serialChannel.init(context);
-		
-		gChannelMap.put("default", this.gwChannel);
-		gChannelMap.put(this.gwChannel.name, this.gwChannel);
-		gChannelMap.put(this.multicastChannel.name, this.multicastChannel);
-		gChannelMap.put(this.reliableMulticastChannel.name, this.reliableMulticastChannel);
-		gChannelMap.put(this.journalChannel.name, this.journalChannel);
-		gChannelMap.put(this.serialChannel.name, this.serialChannel);
 
-		gChannels.put(this.gwChannel.name, Gateway.getInstance(getBaseContext()));
-		gChannels.put(this.multicastChannel.name, Multicast.getInstance(getBaseContext()));
-		gChannels.put(this.reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()));
-		gChannels.put(this.serialChannel.name, Serial.getInstance(getBaseContext()));
+		gChannelMap.put( "default", gwChannel );
+		gChannelMap.put( gwChannel.name, gwChannel );
+		gChannelMap.put( multicastChannel.name, multicastChannel );
+		gChannelMap.put( reliableMulticastChannel.name, reliableMulticastChannel );
+		gChannelMap.put( journalChannel.name, journalChannel );
+		gChannelMap.put( serialChannel.name, serialChannel );
 
-		mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
-		mNetlinks.add(WiredNetlink.getInstance(getBaseContext()));
-		mNetlinks.add(PhoneNetlink.getInstance(getBaseContext()));
+		gChannels.put( gwChannel.name, Gateway.getInstance(getBaseContext()) );
+		gChannels.put( multicastChannel.name, Multicast.getInstance(getBaseContext()) );
+		gChannels.put( reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()) );
+		gChannels.put( serialChannel.name, Serial.getInstance( getBaseContext(), serialChannel ));
+
+		mNetlinks.add( WifiNetlink.getInstance(getBaseContext()) );
+		mNetlinks.add( WiredNetlink.getInstance(getBaseContext()) );
+		mNetlinks.add( PhoneNetlink.getInstance(getBaseContext()) );
 
 		// FIXME: find the appropriate time to release() the multicast lock.
 		logger.trace("Acquiring multicast lock()");
@@ -1272,15 +1276,15 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * @param message
 	 */
 	@Override
-	public ChannelDisposal sendRequest(AmmoGatewayMessage agm, String channelName) {
+	public DisposalState sendRequest(AmmoGatewayMessage agm, String channelName) {
 	    logger.info("Ammo sending Request size ({}) priority({}) to Channel {}",
 			new Object[]{agm.size, agm.priority, channelName});
 		// agm.setSessionUuid( sessionId );
 		if (!gChannelMap.containsKey(channelName))
-			return ChannelDisposal.REJECTED;
+			return DisposalState.REJECTED;
 		final NetChannel channel = gChannelMap.get(channelName);
 		if (!channel.isConnected())
-			return ChannelDisposal.PENDING;
+			return DisposalState.PENDING;
 		return channel.sendRequest(agm);
 	}
 
@@ -1401,7 +1405,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	 * it in the future.
 	 */
 	@Override
-	public boolean ack(String channel, ChannelDisposal status) {
+	public boolean ack(String channel, DisposalState status) {
 		return false;
 	}
 
@@ -1444,6 +1448,12 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.sendBroadcast(loginIntent);
 
 	}
+
+
+    public void receivedCorruptPacketOnSerialChannel()
+    {
+        serialChannel.receivedCorruptPacket();
+    }
 
 
 	/**

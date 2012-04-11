@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 
@@ -328,7 +328,7 @@ public class TcpChannel extends NetChannel {
 	 *  Also, follows the delegation pattern.
 	 */
 	private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-                                  ChannelDisposal status )
+                                  DisposalState status )
 	{
 		return handler.ack( this.name, status );
 	}
@@ -853,7 +853,7 @@ public class TcpChannel extends NetChannel {
      * @param agm AmmoGatewayMessage
      * @return
      */
-    public ChannelDisposal sendRequest( AmmoGatewayMessage agm )
+    public DisposalState sendRequest( AmmoGatewayMessage agm )
     {
         return mSenderQueue.putFromDistributor( agm );
     }
@@ -886,18 +886,18 @@ public class TcpChannel extends NetChannel {
 
         // In the new design, aren't we supposed to let the
         // AmmoService know if the outgoing queue is full or not?
-        public ChannelDisposal putFromDistributor( AmmoGatewayMessage iMessage )
+        public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
         {
             logger.trace( "putFromDistributor()" );
             try {
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
-					logger.warn("channel not taking messages {}", ChannelDisposal.BUSY );
-				    return ChannelDisposal.BUSY;
+					logger.warn("channel not taking messages {}", DisposalState.BUSY );
+				    return DisposalState.BUSY;
 				}
 			} catch (InterruptedException e) {
-				return ChannelDisposal.BAD;
+				return DisposalState.BAD;
 			}
-            return ChannelDisposal.QUEUED;
+            return DisposalState.QUEUED;
         }
 
 
@@ -971,7 +971,7 @@ public class TcpChannel extends NetChannel {
             while ( msg != null )
             {
                 if ( msg.handler != null )
-                    mChannel.ackToHandler( msg.handler, ChannelDisposal.PENDING );
+                    mChannel.ackToHandler( msg.handler, DisposalState.PENDING );
                 msg = mDistQueue.poll();
             }
 
@@ -1034,20 +1034,19 @@ public class TcpChannel extends NetChannel {
                 {
                     ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
                     setSenderState( INetChannel.SENDING );
-                    // @SuppressWarnings("unused")
                     int bytesWritten = mSocketChannel.write( buf );
 
                     logger.info( "Send packet to Network, size ({})", bytesWritten );
 
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.SENT );
+                        mChannel.ackToHandler( msg.handler, DisposalState.SENT );
                 }
                 catch ( Exception ex )
                 {
                     logger.warn("sender threw exception {}", ex.getStackTrace());
                     if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, ChannelDisposal.REJECTED );
+                        mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
