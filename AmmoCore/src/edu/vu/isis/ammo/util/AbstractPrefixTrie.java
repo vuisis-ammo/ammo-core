@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * This is a Trie which uses bits on bytes as potential branches.
  */
 abstract public class AbstractPrefixTrie<V> implements IPrefixTrie<V> {
-	private static final Logger logger = LoggerFactory.getLogger("ammo-pretrie");
+	private static final Logger logger = LoggerFactory.getLogger("class.AbstractPrefixTrie");
 
 	public void insert(String key, V value) {
 		this.insert(new Node( new Key(key.getBytes()), value));

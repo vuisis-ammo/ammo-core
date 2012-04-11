@@ -26,7 +26,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelDisposal;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
 
 public class DisposalTableAdapter extends ResourceCursorAdapter {
-	private static final Logger logger = LoggerFactory.getLogger("ammo-ca");
+	private static final Logger logger = LoggerFactory.getLogger("class.DisposalTableAdapter");
 	
 	static protected HashMap<Integer, String> dispositionStateMap;
 	static {

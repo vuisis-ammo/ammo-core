@@ -245,7 +245,7 @@ public class SerialChannel extends NetChannel
      */
     private class Connector extends Thread
     {
-        private final Logger logger = LoggerFactory.getLogger( "net.serial.connector" );
+        private final Logger logger = LoggerFactory.getLogger( "class.SerialChannel.Connector" );
 
         /**
          *
@@ -896,7 +896,7 @@ public class SerialChannel extends NetChannel
         private static final int WINDOW_DURATION = 100;
 
         private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
-        private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
+        private final Logger logger = LoggerFactory.getLogger( "class.SerialChannel.SenderThread" );
     }
 
 
@@ -1146,7 +1146,7 @@ public class SerialChannel extends NetChannel
         private AtomicInteger mReceiverState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
         private FileInputStream mInputStream;
         private final Logger logger
-            = LoggerFactory.getLogger( "net.serial.receiver" );
+            = LoggerFactory.getLogger( "class.SerialChannel.ReceiverThread" );
     }
 
 
@@ -1316,7 +1316,7 @@ public class SerialChannel extends NetChannel
     private long mCount = 0;
     private long mLast = 0;
 
-    private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
+    private static final Logger logger = LoggerFactory.getLogger("class.SerialChannel");
 
     @Override
 	public boolean isBusy() {

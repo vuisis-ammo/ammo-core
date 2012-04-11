@@ -105,7 +105,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger("ammo-service");
+	private static final Logger logger = LoggerFactory.getLogger("class.AmmoService");
 
 	public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
 	public static final String BIND = "edu.vu.isis.ammo.core.distributor.AmmoService.BIND";

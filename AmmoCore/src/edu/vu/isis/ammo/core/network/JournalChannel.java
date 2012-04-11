@@ -40,7 +40,7 @@ import android.os.Environment;
  * The sent messages are placed into a queue if the socket is connected.
  */
 public class JournalChannel extends NetChannel {
-	private static final Logger logger = LoggerFactory.getLogger( "net.journal" );
+	private static final Logger logger = LoggerFactory.getLogger("class.JournalChannel");
 	
 	private BlockingQueue<AmmoGatewayMessage> sendQueue = new LinkedBlockingQueue<AmmoGatewayMessage>(20);
 	

@@ -43,7 +43,7 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  * This is to be used primarily for testing (move to AmmoCoreTestDummy?)
  */
 public class Subscribe extends ActivityEx implements OnClickListener {
-	private static final Logger logger = LoggerFactory.getLogger("ammo:api-d");
+	private static final Logger logger = LoggerFactory.getLogger("class.Subscribe");
 	
 	// ===========================================================
 	// Constants
