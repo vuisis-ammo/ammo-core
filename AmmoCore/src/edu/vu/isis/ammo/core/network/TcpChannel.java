@@ -49,7 +49,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  *
  */
 public class TcpChannel extends NetChannel {
-    private static final Logger logger = LoggerFactory.getLogger( "net.tcp" );
+    private static final Logger logger = LoggerFactory.getLogger("class.TcpChannel");
 
     private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
     
@@ -404,7 +404,7 @@ public class TcpChannel extends NetChannel {
 	 *
 	 */
 	private class ConnectorThread extends Thread {
-		private final Logger logger = LoggerFactory.getLogger( "net.tcp.connector" );
+		private final Logger logger = LoggerFactory.getLogger( "class.TcpChannel.ConnectorThread" );
 
 		private final String DEFAULT_HOST = "192.168.1.100";
 		private final int DEFAULT_PORT = 33289;
@@ -1070,7 +1070,7 @@ public class TcpChannel extends NetChannel {
         private TcpChannel mChannel;
         private SenderQueue mQueue;
         private SocketChannel mSocketChannel;
-        private final Logger logger = LoggerFactory.getLogger( "net.tcp.sender" );
+        private final Logger logger = LoggerFactory.getLogger( "class.TcpChannel.SenderThread" );
     }
 
 
@@ -1200,7 +1200,7 @@ public class TcpChannel extends NetChannel {
         private TcpChannel mDestination;
         private SocketChannel mSocketChannel;
         private final Logger logger
-        = LoggerFactory.getLogger( "net.tcp.receiver" );
+        = LoggerFactory.getLogger( "class.TcpChannel.ReceiverThread" );
     }
 
 
