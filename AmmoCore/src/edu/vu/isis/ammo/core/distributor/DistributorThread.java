@@ -344,7 +344,12 @@ public class DistributorThread extends Thread {
 			this.topic = topic;
 			this.subtopic = topic;
 			this.auid = auid;
-			this.notice = notice;
+			
+			if (notice != null) { 
+			    this.notice = notice;
+			} else {
+			    this.notice = new Notice();
+			}
 
 			this.channel = channel;
 			this.status = status;
