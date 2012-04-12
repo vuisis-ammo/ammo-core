@@ -172,7 +172,7 @@ public class RequestPopupWindow extends PopupWindow {
 			row.setVisibility(View.VISIBLE);
 		}
 		// Now handle the channel disposition
-		final Uri channelUri = DistributorSchema.CONTENT_URI.get(Tables.DISPOSAL.n);
+		final Uri channelUri = DistributorSchema.CONTENT_URI.get(Tables.CHANNEL.n);
 		final int id = requestCursor.getInt(requestCursor.getColumnIndex(BaseColumns._ID));
 		// final Uri disposalUri = ContentUris.withAppendedId(channelUri, id);
 

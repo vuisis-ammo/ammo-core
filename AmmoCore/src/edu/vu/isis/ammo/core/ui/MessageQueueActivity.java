@@ -14,13 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.app.Activity;
-import android.database.Cursor;
-import android.net.Uri;
 import android.os.Bundle;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.DistributorSchema;
-import edu.vu.isis.ammo.core.store.DistributorDataStore;
-import edu.vu.isis.ammo.core.store.Tables;
 
 public class MessageQueueActivity extends Activity {
 	public static final Logger logger = LoggerFactory.getLogger("class.MessageQueueActivity");
@@ -35,11 +30,13 @@ public class MessageQueueActivity extends Activity {
         setupView();
         setOnClickListeners();
         
-        @SuppressWarnings("unused")
-		String tableName = Tables.DISPOSAL.n;
+       /*
+         FIXME : What is this used for?
+        
         @SuppressWarnings("unused")
 		Uri uri = DistributorSchema.CONTENT_URI.get(Tables.CHANNEL.n);
-        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(Tables.DISPOSAL.n), null, null, null, null);
+        final Cursor c = this.getContentResolver()
+        		.query(DistributorSchema.CONTENT_URI.get(Tables.DISPOSAL.n), null, null, null, null);
         logger.trace("message{}", c);
         
         
@@ -47,6 +44,7 @@ public class MessageQueueActivity extends Activity {
         	String channelName = c.getString(c.getColumnIndex(DistributorDataStore.DisposalField.CHANNEL.n()));
         	logger.debug(channelName);
         }
+        */
 	}
 	
 	// ===============================================

@@ -24,15 +24,17 @@ package edu.vu.isis.ammo.core.store;
  * The rule for disposition rows is cascade delete.
  */
 public enum Tables {
-	PRESENCE(1, "presence"),
-	CAPABILITY(2, "capability"),
-	CHANNEL(3, "channel"),
-	REQUEST(4, "request"),
-	POSTAL(5, "postal"),
-	RETRIEVAL(6, "retrieval"),
-	INTEREST(7, "interest"),
-	DISPOSAL(8, "disposal"),
-	RECIPIENT(9, "recipient");
+	PRESENCE(101, "presence"),
+	CAPABILITY(102, "capability"),
+	CHANNEL(103, "channel"),
+	REQUEST(200, "request"),
+	POSTAL(2100, "postal"),
+	POSTAL_DISPOSAL(211, "postal_disposal"),
+	RETRIEVAL(220, "retrieval"),
+	RETRIEVAL_DISPOSAL(221, "retrieval_disposal"),
+	INTEREST(230, "interest"),
+	INTEREST_DISPOSAL(231, "interest_disposal"),
+	RECIPIENT(300, "recipient");
 
 	final public int o;
 	final public String n;
@@ -41,8 +43,6 @@ public enum Tables {
 		this.o = ordinal;
 		this.n = name;
 	}
-
-	public static final String NAME = "distributor.db";
 
 	// The quoted table name
 	public String q() {

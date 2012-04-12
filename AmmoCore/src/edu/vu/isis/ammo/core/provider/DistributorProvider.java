@@ -110,7 +110,9 @@ public class DistributorProvider extends ContentProvider {
 			return dds.deleteRetrieval(selection, selectionArgs);
 		case INTEREST:
 			return dds.deleteInterest(selection, selectionArgs);
-		case DISPOSAL:
+		case POSTAL_DISPOSAL:
+		case RETRIEVAL_DISPOSAL:
+		case INTEREST_DISPOSAL:
 		case CHANNEL:
 			return -1;
 		}
@@ -122,7 +124,9 @@ public class DistributorProvider extends ContentProvider {
 			return dds.deleteRetrievalGarbage();
 		case INTEREST:
 			return dds.deleteInterestGarbage();
-		case DISPOSAL:
+		case POSTAL_DISPOSAL:
+		case RETRIEVAL_DISPOSAL:
+		case INTEREST_DISPOSAL:
 		case CHANNEL:
 			return -1;
 		}
@@ -151,14 +155,20 @@ public class DistributorProvider extends ContentProvider {
 		case POSTAL:
 			cursor = dds.queryPostal(projection, selection, selectionArgs, sortOrder);
 			break;
+		case POSTAL_DISPOSAL:
+			cursor = dds.getPostalDisposalWorker().query(projection, selection, selectionArgs, sortOrder);
+			break;
 		case RETRIEVAL:
 			cursor = dds.queryRetrieval(projection, selection, selectionArgs, sortOrder);
+			break;
+		case RETRIEVAL_DISPOSAL:
+			cursor = dds.getRetrievalDisposalWorker().query(projection, selection, selectionArgs, sortOrder);
 			break;
 		case INTEREST:
 			cursor = dds.queryInterest(projection, selection, selectionArgs, sortOrder);
 			break;
-		case DISPOSAL:
-			cursor = dds.queryDisposal(projection, selection, selectionArgs, sortOrder);
+		case INTEREST_DISPOSAL:
+			cursor = dds.getInterestDisposalWorker().query(projection, selection, selectionArgs, sortOrder);
 			break;
 		case CHANNEL:
 			cursor = dds.queryChannel(projection, selection, selectionArgs, sortOrder);

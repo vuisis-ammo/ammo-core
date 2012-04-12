@@ -22,9 +22,6 @@ import edu.vu.isis.ammo.core.store.Tables;
 public class DistributorSchema implements BaseColumns {
 	
 	public static final String AUTHORITY = "edu.vu.isis.ammo.core.provider.distributorprovider";
-	public static final String DATABASE_NAME = Tables.NAME;
-
-	
 	
 	  /**
 	    * The content:// style URL for this table

@@ -1042,7 +1042,7 @@ public class DistributorThread extends Thread {
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(postal.topic);
 			final DistributorState dispersal = policy.makeRouteMap();
 			{
-				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.POSTAL.o, id);
+				final Cursor channelCursor = this.store.getPostalDisposalWorker().queryByParent(id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -1332,7 +1332,7 @@ public class DistributorThread extends Thread {
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 			final DistributorState dispersal = policy.makeRouteMap();
 			{
-				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.RETRIEVAL.o, id);
+				final Cursor channelCursor = this.store.getRetrievalDisposalWorker().queryByParent(id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
@@ -1589,7 +1589,7 @@ public class DistributorThread extends Thread {
 			final DistributorPolicy.Topic policy = that.policy().matchInterest(topic);
 			final DistributorState dispersal = policy.makeRouteMap();
 			{
-				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.INTEREST.o, id);
+				final Cursor channelCursor = this.store.getInterestDisposalWorker().queryByParent(id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));

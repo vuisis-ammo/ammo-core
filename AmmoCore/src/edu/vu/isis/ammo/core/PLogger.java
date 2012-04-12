@@ -39,6 +39,8 @@ public interface PLogger {
 	// omma data store
 	public static final Logger STORE = LoggerFactory.getLogger( "store" );
 	public static final Logger STORE_DDL = LoggerFactory.getLogger( "store.ddl" );
+	public static final Logger STORE_DML = LoggerFactory.getLogger( "store.dml" );
+	public static final Logger STORE_DQL = LoggerFactory.getLogger( "store.dql" );
 	public static final Logger STORE_POSTAL = LoggerFactory.getLogger( "store.postal" );
 	
 	// omma intents
