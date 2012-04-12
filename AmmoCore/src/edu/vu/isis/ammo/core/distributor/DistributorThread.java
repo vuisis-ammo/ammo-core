@@ -13,6 +13,7 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,6 +73,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalWorker;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.RetrievalField;
 import edu.vu.isis.ammo.core.store.Tables;
+import edu.vu.isis.ammo.core.ui.AmmoCore;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -154,7 +156,8 @@ public class DistributorThread extends Thread {
         }
         
         public void run () {
-            updateNotification ();
+            if (terminate.get() != true)
+                updateNotification ();
         }
 
         private void updateNotification () {
@@ -185,8 +188,7 @@ public class DistributorThread extends Thread {
             last_sent_count = total_sent;
             last_recv_count = total_recv;
             
-            if (terminate.get() != true)
-                parent.ammoService.notifyMsg.postDelayed(this, 60000);
+            parent.ammoService.notifyMsg.postDelayed(this, 30000);
         }        
     }
 
@@ -228,11 +230,19 @@ public class DistributorThread extends Thread {
 
         if (change == ChannelChange.DEACTIVATE)
         {
-            mNotificationManager.cancel(current_icon_id);
+            for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+                if (entry.getValue().change == ChannelChange.ACTIVATE) {
+                    return; // leave, since at least one channel is still active 
+                }
+            }
+            
+            // none of the channels are active ...
             if (notify != null) {
+                this.ammoService.notifyMsg.removeCallbacks(notify);
                 notify.terminate ();
                 notify = null;                
             }
+            mNotificationManager.cancel(current_icon_id);
             return;
         }
         
@@ -243,13 +253,13 @@ public class DistributorThread extends Thread {
 //            current_icon = R.drawable.notify_icon_152_small;
             
             // right now using the same icon ... once we get new icons, replace this .. 
-            icon = R.drawable.nodata;
+            icon = R.drawable.alldata;
             current_icon_id = SERIAL_NOTIFY_ID;
         }
         else
         {
 //            current_icon = R.drawable.notify_icon_wr_small;
-            icon = R.drawable.nodata;
+            icon = R.drawable.alldata;
             current_icon_id = IP_NOTIFY_ID;
         }
         
@@ -278,7 +288,7 @@ public class DistributorThread extends Thread {
         Notification notification = new Notification(icon, tickerText, when);
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
         
-        Intent notificationIntent = new Intent();
+        Intent notificationIntent = new Intent(context, AmmoCore.class);
         
         PendingIntent contentIntent = PendingIntent
             .getActivity(context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
@@ -1256,7 +1266,6 @@ public class DistributorThread extends Thread {
 			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
 			values.put(RequestField.PRIORITY.cv(), ar.priority);
 			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
-			values.put(RetrievalField.UNIT.cv(), 50);
 			values.put(RequestField.PRIORITY.cv(), ar.priority);
 			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
 
@@ -1573,7 +1582,7 @@ public class DistributorThread extends Thread {
 			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
 			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
 
-			final String selection = pending.getString(pending.getColumnIndex(InterestField.SELECTION.n()));
+			final String selection = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));
 
 			logger.trace(MARK_INTEREST, "process row INTEREST {} {} {}", new Object[] { id, topic, selection });
 

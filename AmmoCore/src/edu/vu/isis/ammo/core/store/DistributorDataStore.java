@@ -185,7 +185,7 @@ public class DistributorDataStore {
 	 *
 	 */
 	public enum CapabilityField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
+		_ID("request", "INTEGER PRIMARY KEY AUTOINCREMENT"),
 		// The parent key
 
 		SELECTION("selection", "TEXT"),
@@ -954,12 +954,6 @@ public class DistributorDataStore {
 
 		initializeRequestDefaults(values);
 
-		if (!values.containsKey(PostalField.UNIT.n())) {
-			values.put(PostalField.UNIT.n(), "unknown");
-		}
-		if (!values.containsKey(PostalField.VALUE.n())) {
-			values.put(PostalField.VALUE.n(), -1);
-		}
 		if (!values.containsKey(PostalField.DATA.n())) {
 			values.put(PostalField.DATA.n(), "");
 		}
@@ -987,23 +981,15 @@ public class DistributorDataStore {
 	/**
 	 * The postal table is for holding retrieval requests.
 	 */
-
 	public enum PostalField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
-		// The parent key
-
+		
 		PAYLOAD("payload", "TEXT"),
 		// The payload instead of content provider
 
-		UNIT("unit", "TEXT"),
-		// Units associated with {@link #VALUE}. Used to determine whether should occur.
-
-		VALUE("value", "INTEGER"),
-		// Arbitrary value linked to importance that entry is transmitted and battery drain.
-
 		DATA("data", "TEXT");
-		// If the If null then the data file corresponding to the
-		// column name and record id should be used. This is done when the data
+		// If null then the data file corresponding to the
+		// column name and record id should be used. 
+		// This is done when the data
 		// size is larger than that allowed for a field contents.
 
 		final public TableFieldState impl;
@@ -1174,8 +1160,7 @@ public class DistributorDataStore {
 	}
 	private static final String POSTAL_STATUS_QUERY = RequestStatusQuery(Tables.POSTAL);
 
-	private static final String POSTAL_VIEW_NAME = new StringBuilder()
-	.append(Tables.POSTAL.q()).append("_view").toString();
+	private static final String POSTAL_VIEW_NAME = Tables.POSTAL.n;
 
 	/**
 	 * Update
@@ -1293,8 +1278,6 @@ public class DistributorDataStore {
 
 	
 	public enum RetrievalField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
-		// The parent key
 
 		PROJECTION("projection", "TEXT"),
 		// The fields/columns wanted.
@@ -1311,17 +1294,6 @@ public class DistributorDataStore {
 		LIMIT("maxrows", "INTEGER"),
 		// The maximum number of items to retrieve
 		// as items are obtained the count should be decremented
-
-		UNIT("unit", "TEXT"),
-		// Units associated with {@link #VALUE}. Used to determine whether should occur.
-
-		VALUE("value", "INTEGER"),
-		// Arbitrary value linked to importance that entry is transmitted and battery drain.
-
-		DATA("data", "TEXT"),
-		// If the If null then the data file corresponding to the
-		// column name and record id should be used. This is done when the data
-		// size is larger than that allowed for a field contents.
 
 		CONTINUITY_TYPE("continuity_type", "INTEGER"),
 		CONTINUITY_VALUE("continuity_value", "INTEGER");
@@ -1428,8 +1400,7 @@ public class DistributorDataStore {
 	}
 	private static final String RETRIEVAL_STATUS_QUERY = RequestStatusQuery(Tables.RETRIEVAL);
 
-	private static final String RETRIEVAL_VIEW_NAME = new StringBuilder()
-	.append(Tables.RETRIEVAL.q()).append("_view").toString();
+	private static final String RETRIEVAL_VIEW_NAME = Tables.RETRIEVAL.n;
 
 	public synchronized Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
 		return queryRequestByUuid(projection, uuid, sortOrder);
@@ -1535,17 +1506,15 @@ public class DistributorDataStore {
 
 		initializeRequestDefaults(values);
 
-		if (!values.containsKey(InterestField.SELECTION.n())) {
-			values.put(InterestField.SELECTION.n(), "");
+		if (!values.containsKey(InterestField.FILTER.n())) {
+			values.put(InterestField.FILTER.n(), "");
 		}
 		return values;
 	}
 	
 	public enum InterestField  implements TableField {
-		REQUEST("request", "INTEGER PRIMARY KEY"),
-		// The parent key
 
-		SELECTION("selection", "TEXT");
+		FILTER("filter", "TEXT");
 		// The rows/tuples wanted.
 
 		final public TableFieldState impl;
@@ -1572,12 +1541,7 @@ public class DistributorDataStore {
 		public static final String[] COLUMNS = Initializer.getColumns();
 		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
-		public static final String PARENT_KEY_REF = new StringBuilder()
-		.append(" FOREIGN KEY(").append(InterestField.REQUEST.n()).append(")")
-		.append(" REFERENCES ").append(Tables.REQUEST.n)
-		.append("(").append(RequestField._ID.n()).append(")")
-		.append(" ON DELETE CASCADE ")
-		.toString();
+		public static final String PARENT_KEY_REF = null;
 		
 		public class Initializer {
 			private static String[] getColumns() {
@@ -1650,8 +1614,7 @@ public class DistributorDataStore {
 
 	private static final String INTEREST_STATUS_QUERY = RequestStatusQuery(Tables.INTEREST);
 
-	private static final String INTEREST_VIEW_NAME = new StringBuilder()
-	.append(Tables.INTEREST.q()).append("_view").toString();
+	private static final String INTEREST_VIEW_NAME = Tables.INTEREST.n;
 
 	/**
 	 * Upsert
@@ -2459,7 +2422,7 @@ public class DistributorDataStore {
 		@Override
 		public synchronized void onCreate(SQLiteDatabase db) {
 			logger.trace("bootstrapping database");
-			PLogger.STORE_DDL.debug("creating data store {}", db);
+			PLogger.STORE_DDL.debug("creating data store {}", db.getPath());
 
 			db.beginTransaction();
 			String sqlCreateRef = null;
@@ -2471,9 +2434,8 @@ public class DistributorDataStore {
 				final StringBuilder createSql = new StringBuilder()
 				.append(" CREATE TABLE ")
 				.append(table.q())
-				.append(" ( ").append(ddl(PresenceField.values())).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
+				.append(" ( ").append(ddl(PresenceField.values())).append(')')
+				.append(';');
 
 				sqlCreateRef = createSql.toString();
 				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
@@ -2493,9 +2455,8 @@ public class DistributorDataStore {
 				final StringBuilder createSql = new StringBuilder()
 				.append(" CREATE TABLE ")
 				.append(table.q())
-				.append(" ( ").append(ddl(CapabilityField.values())).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
+				.append(" ( ").append(ddl(CapabilityField.values())).append(')')
+				.append(';');
 
 				sqlCreateRef = createSql.toString();
 				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
@@ -2514,9 +2475,8 @@ public class DistributorDataStore {
 				final StringBuilder createSql = new StringBuilder()
 				.append("CREATE TABLE ")
 				.append(table.q())
-				.append(" ( ").append(ddl(ChannelField.values())).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
+				.append(" ( ").append(ddl(ChannelField.values())).append(')')
+				.append(';');
 
 				sqlCreateRef = createSql.toString();
 				PLogger.STORE.trace("{}", sqlCreateRef);
@@ -2539,9 +2499,8 @@ public class DistributorDataStore {
 						.append(ddl(RequestField.values())).append(',')
 						.append(ddl(PostalField.values())).append(',')
 						.append(ddl(RetrievalField.values())).append(',')
-						.append(ddl(InterestField.values())).append(',')
-						.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-						.append(");");
+						.append(ddl(InterestField.values())).append(')')
+						.append(';');
 				sqlCreateRef = createSql.toString();
 				PLogger.STORE.trace("{}", sqlCreateRef);
 				db.execSQL(sqlCreateRef);
@@ -2568,11 +2527,10 @@ public class DistributorDataStore {
 				final Tables table = Tables.DISPOSAL;
 
 				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
+				.append(" CREATE TABLE ")
 				.append(table.q())
-				.append(" ( ").append(ddl(DisposalField.values())).append(',')
-				.append(" PRIMARY KEY(").append(BaseColumns._ID).append(')')
-				.append(");");
+				.append(" ( ").append(ddl(DisposalField.values())).append(')')
+				.append(';');
 
 				sqlCreateRef = createSql.toString();
 				PLogger.STORE.trace("{}", sqlCreateRef);

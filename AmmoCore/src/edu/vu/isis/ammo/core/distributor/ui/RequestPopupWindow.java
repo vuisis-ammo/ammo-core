@@ -77,8 +77,7 @@ public class RequestPopupWindow extends PopupWindow {
 		subscribeMap = new HashMap<String, FieldProperty>();
 		subscribeMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
 		subscribeMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
-		subscribeMap.put(InterestField.SELECTION.n(), new FieldProperty(R.id.
-				dist_detail_selection, FieldType.TEXT));
+		subscribeMap.put(InterestField.FILTER.n(), new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
 		subscribeMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
 		subscribeMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
 		subscribeMap.put(RequestField.PRIORITY.n(), new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));

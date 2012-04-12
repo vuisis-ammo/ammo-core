@@ -22,16 +22,14 @@
     </encoder>
   </appender>
   
-  <logger name="store" level="TRACE">
-       <appender-ref ref="FILE" />
+  <logger name="store" level="TRACE"  additivity="false">
+     <appender-ref ref="FILE" />
   </logger>
   
   <logger name="class.DistributorDataStore" level="WARN">
-       <appender-ref ref="FILE" />
   </logger>
   
   <logger name="class.DataStoreHelper" level="INFO">
-       <appender-ref ref="FILE" />
   </logger>
   
 
