@@ -23,6 +23,10 @@ public interface PLogger {
 	public static final Logger CHANNEL = LoggerFactory.getLogger( "proc.serve.channel" );
 	
 	// omma queues
+	public static final Logger IPC_REQ_IN = LoggerFactory.getLogger( "ipc.request.inbound" );
+	public static final Logger IPC_REQ_CACHE = LoggerFactory.getLogger( "ipc.request.cached" );
+		
+	// omma queues
 	public static final Logger IPC_CONN = LoggerFactory.getLogger( "ipc.channel.conn" );
 	public static final Logger IPC_SEND = LoggerFactory.getLogger( "ipc.channel.send" );
 	public static final Logger IPC_RECV = LoggerFactory.getLogger( "ipc.channel.recv" );

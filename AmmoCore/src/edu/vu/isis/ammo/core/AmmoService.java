@@ -228,6 +228,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public class DistributorServiceAidl extends IDistributorService.Stub {
 		@Override
 		public String makeRequest(AmmoRequest request) throws RemoteException {
+			PLogger.IPC_REQ_IN.trace("request via bind {}", request);
 			if (request == null) {
 				logger.error("bad request");
 				return null;
@@ -293,9 +294,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					this.stopSelf();
 					return START_NOT_STICKY;
 				}
-				if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {
+				if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {			
 					try {
 						final AmmoRequest request = intent.getParcelableExtra("request");
+						PLogger.IPC_REQ_IN.trace("request via start {}", request);
 						if (request == null) {
 							logger.error("bad request intent {}", intent);
 							return START_NOT_STICKY;
