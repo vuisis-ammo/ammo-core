@@ -415,7 +415,7 @@ public class DistributorThread extends Thread {
 			return;
 		}
 		// generate an intent if it was requested
-		if (ack.notice.whenSent().isActive()) {
+		if (ack.notice.atSend.isActive()) {
 			
 			final Uri.Builder uriBuilder = new Uri.Builder()
 				.scheme("ammo")
@@ -430,7 +430,7 @@ public class DistributorThread extends Thread {
 				.putExtra(EXTRA_CHANNEL, ack.channel.toString())
 				.putExtra(EXTRA_STATUS, ack.status.toString());
 
-			switch (ack.notice.whenSent().via) {
+			switch (ack.notice.atSend.via) {
 			case ACTIVITY: 
 				context.sendBroadcast(notice); 
 				break;
@@ -1135,9 +1135,9 @@ public class DistributorThread extends Thread {
 
 				final Notice notice = postal_.notice;
 				final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
-						.setDeviceDelivered(notice.whenDelivered().isActive())
-						.setAndroidPluginReceived(notice.whenGateIn().isActive())
-						.setPluginDelivered(notice.whenGateOut().isActive());
+						.setDeviceDelivered(notice.atDelivery.isActive())
+						.setAndroidPluginReceived(notice.atGateIn.isActive())
+						.setPluginDelivered(notice.atGateOut.isActive());
 
 				if (encode.getType() == Encoding.Type.TERSE)  {
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
@@ -1209,7 +1209,7 @@ public class DistributorThread extends Thread {
 			.putExtra(EXTRA_STATUS, worker.status.toString())
 			.putExtra(EXTRA_DEVICE, pushResp.getAcknowledgingDevice().toString());
 
-		switch (worker.notice.whenSent().via) {
+		switch (worker.notice.atDelivery.via) {
 		case ACTIVITY: 
 			context.sendBroadcast(notice); 
 			break;
@@ -1515,10 +1515,11 @@ public class DistributorThread extends Thread {
 			values.put(RequestField.TOPIC.cv(), topic);
 
 			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
-			values.put(RetrievalField.SELECTION.cv(), ar.select.toString());
 			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
 			values.put(RequestField.PRIORITY.cv(), policy.routing.priority);
 			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
+			
+			values.put(InterestField.FILTER.cv(), ar.select.toString());
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {

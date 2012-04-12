@@ -32,6 +32,9 @@
   <logger name="class.DataStoreHelper" level="INFO">
   </logger>
   
+  <logger name="ipc.request" level="TRACE">
+  </logger>
+  
 
   <root level="ERROR">
     <appender-ref ref="LOGCAT" />

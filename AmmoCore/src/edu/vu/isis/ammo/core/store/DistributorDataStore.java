@@ -790,6 +790,7 @@ public class DistributorDataStore {
 		 */
 		public long upsert(ContentValues cv, DistributorState status) {
 			synchronized (DistributorDataStore.this) {
+				Cursor cursor = null;
 				try {
 					final String uuid = cv.getAsString(RequestField.UUID.cv());
 					final String topic = cv.getAsString(RequestField.TOPIC.cv());
@@ -805,24 +806,23 @@ public class DistributorDataStore {
 						whereClause = REQUEST_UPDATE_CLAUSE;
 						whereArgs = new String[]{ topic, provider };
 					}
-					final Cursor cursor = this.db.query(this.table.n, 
+					cursor = this.db.query(this.table.n, 
 							new String[] {RequestField._ID.q(null)}, 
 							whereClause, whereArgs, null, null, null);
 					if (cursor.getCount() > 0) {
 						rowid = cursor.getLong(cursor.getColumnIndex(RequestField._ID.q(null)));
 						final String[] rowid_arg = new String[]{ Long.toString(rowid) };
-						this.db.update(Tables.REQUEST.n, cv, ROWID_CLAUSE, rowid_arg );
 						this.db.update(table.n, cv, ROWID_CLAUSE, rowid_arg );
 					} else {
-						rowid = this.db.insert(Tables.REQUEST.n, RequestField.CREATED.n(), cv);
-						cv.put(RequestField.FK.n(), rowid);
-						this.db.insert(table.n, RequestField.CREATED.n(), cv);
+						rowid = this.db.insert(this.table.n, RequestField.CREATED.n(), cv);
 					}
-
+				
 					this.getDispose().upsertByRequest(rowid, status);
 					return rowid;
 				} catch (IllegalArgumentException ex) {
 					logger.error("upsert {} {}", cv, status);
+				} finally {
+					if (cursor != null) cursor.close();
 				}
 				return -1;
 			}
@@ -879,8 +879,8 @@ public class DistributorDataStore {
 	}
 
 	public synchronized Cursor queryRequest(String rel, 
-			String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
+			String[] projection, String whereClause,
+			String[] whereArgs, String sortOrder) {
 		try {
 			this.openRead();
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -890,11 +890,11 @@ public class DistributorDataStore {
 
 			// Get the database and run the query.
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, selection, selectionArgs, null, null,
+			return qb.query(db, projection, whereClause, whereArgs, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 							: RequestConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
-			logger.error("query request {} {}", selection, selectionArgs);
+			logger.error("query request {} {}", whereClause, whereArgs);
 		}
 		return null;
 	}
@@ -1143,14 +1143,14 @@ public class DistributorDataStore {
 	 * Nearly direct access to the postal data store.
 	 * Use sparingly, prefer the PostalWorker.
 	 * 
-	 * @param selection
-	 * @param selectionArgs
+	 * @param whereClause
+	 * @param whereArgs
 	 * @return
 	 */
 
-	public synchronized Cursor queryPostal(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		return queryRequest(Tables.POSTAL.n, projection, selection, selectionArgs, sortOrder);
+	public synchronized Cursor queryPostal(String[] projection, String whereClause,
+			String[] whereArgs, String sortOrder) {
+		return queryRequest(Tables.POSTAL.n, projection, whereClause, whereArgs, sortOrder);
 	}
 
 	public synchronized Cursor queryPostalReady() {
@@ -1190,19 +1190,19 @@ public class DistributorDataStore {
 	 */
 
 	/**
-	 * @param selection
-	 * @param selectionArgs
+	 * @param whereClause
+	 * @param whereArgs
 	 * @return
 	 */
-	public synchronized int deletePostal(String selection, String[] selectionArgs) {
+	public synchronized int deletePostal(String whereClause, String[] whereArgs) {
 		try {
-			final int count = this.db.delete(Tables.POSTAL.n, selection, selectionArgs);
+			final int count = this.db.delete(Tables.POSTAL.n, whereClause, whereArgs);
 			final int disposalCount = db.delete(
 					Tables.POSTAL_DISPOSAL.n, DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
 			logger.trace("Postal delete {} {}", count, disposalCount);
 			return count;
 		} catch (IllegalArgumentException ex) {
-			logger.error("delete postal {} {}", selection, selectionArgs);
+			logger.error("delete postal {} {}", whereClause, whereArgs);
 		}
 		return 0;
 	}
@@ -1384,14 +1384,14 @@ public class DistributorDataStore {
 
 	/**
 	 * @param projection
-	 * @param selection
-	 * @param selectionArgs
+	 * @param whereClause
+	 * @param whereArgs
 	 * @param sortOrder
 	 * @return
 	 */
-	public synchronized Cursor queryRetrieval(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		return queryRequest(RETRIEVAL_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
+	public synchronized Cursor queryRetrieval(String[] projection, String whereClause,
+			String[] whereArgs, String sortOrder) {
+		return queryRequest(RETRIEVAL_VIEW_NAME, projection, whereClause, whereArgs, sortOrder);
 	}
 	public synchronized Cursor queryRetrievalReady() {
 		this.openRead();
@@ -1440,16 +1440,16 @@ public class DistributorDataStore {
 	/**
 	 * Update
 	 */
-	public synchronized int deleteRetrieval(String selection, String[] selectionArgs) {
+	public synchronized int deleteRetrieval(String whereClause, String[] whereArgs) {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.RETRIEVAL.n, selection, selectionArgs);
+			final int count = db.delete(Tables.RETRIEVAL.n, whereClause, whereArgs);
 			final int disposalCount = db.delete(
 					Tables.RETRIEVAL_DISPOSAL.n, DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
 			logger.trace("Retrieval delete {} {}", count, disposalCount);
 			return count;
 		} catch (IllegalArgumentException ex) {
-			logger.error("delete retrieval {} {}", selection, selectionArgs);
+			logger.error("delete retrieval {} {}", whereClause, whereArgs);
 		}
 		return 0;
 	}
@@ -1603,9 +1603,9 @@ public class DistributorDataStore {
 	/**
 	 * Query
 	 */
-	public synchronized Cursor queryInterest(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
-		return queryRequest(INTEREST_VIEW_NAME, projection, selection, selectionArgs, sortOrder);
+	public synchronized Cursor queryInterest(String[] projection, String whereClause,
+			String[] whereArgs, String sortOrder) {
+		return queryRequest(INTEREST_VIEW_NAME, projection, whereClause, whereArgs, sortOrder);
 	}
 
 	public synchronized Cursor queryInterestReady() {
@@ -1651,14 +1651,14 @@ public class DistributorDataStore {
 	/**
 	 * Delete
 	 */
-	public synchronized int deleteInterest(String selection, String[] selectionArgs) {
+	public synchronized int deleteInterest(String whereClause, String[] whereArgs) {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.INTEREST.n, selection, selectionArgs);
+			final int count = db.delete(Tables.INTEREST.n, whereClause, whereArgs);
 			logger.trace("Interest delete {} {}", count);
 			return count;
 		} catch (IllegalArgumentException ex) {
-			logger.error("delete interest {} {}", selection, selectionArgs);
+			logger.error("delete interest {} {}", whereClause, whereArgs);
 		}
 		return 0;
 	}
@@ -1822,8 +1822,8 @@ public class DistributorDataStore {
 			.append(DisposalField.CHANNEL.q(null)).append("=?").toString();
 		}
 
-		public Cursor query(String[] projection, String selection,
-				String[] selectionArgs, String sortOrder) {
+		public Cursor query(String[] projection, String whereClause,
+				String[] whereArgs, String sortOrder) {
 			synchronized (DistributorDataStore.this) {
 				try {
 					final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -1832,11 +1832,11 @@ public class DistributorDataStore {
 					qb.setProjectionMap(DisposalConstants.PROJECTION_MAP);
 
 					// Get the database and run the query.
-					return qb.query(this.db, projection, selection, selectionArgs, null, null,
+					return qb.query(this.db, projection, whereClause, whereArgs, null, null,
 							(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 									: DisposalConstants.DEFAULT_SORT_ORDER);
 				} catch (IllegalArgumentException ex) {
-					logger.error("query disposal {} {}", selection, selectionArgs);
+					logger.error("query disposal {} {}", whereClause, whereArgs);
 				}
 				return null;
 			}
@@ -2129,8 +2129,8 @@ public class DistributorDataStore {
 	 * Query
 	 */
 
-	public synchronized Cursor queryChannel(String[] projection, String selection,
-			String[] selectionArgs, String sortOrder) {
+	public synchronized Cursor queryChannel(String[] projection, String whereClause,
+			String[] whereArgs, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
@@ -2138,11 +2138,11 @@ public class DistributorDataStore {
 			qb.setProjectionMap(ChannelConstants.PROJECTION_MAP);
 
 			// Get the database and run the query.
-			return qb.query(this.db, projection, selection, selectionArgs, null, null,
+			return qb.query(this.db, projection, whereClause, whereArgs, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 							: ChannelConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
-			logger.error("query channel {} {}", selection, selectionArgs);
+			logger.error("query channel {} {}", whereClause, whereArgs);
 		}
 		return null;
 	}
