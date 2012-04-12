@@ -192,14 +192,18 @@ public class DistributorDataStore {
 	 */
 	public enum CapabilityField  implements TableField {
 	
-		SELECTION("selection", "TEXT"),
+		FILTER("filter", "TEXT"),
 		// The rows/tuples wanted.
 
 		FIRST("first", "INTEGER"),
 		// When the operator first used this channel
 
-		LATEST("latest", "INTEGER");
+		LATEST("latest", "INTEGER"),
 		// When the operator was last seen "speaking" on the channel
+		
+		ORIGIN("origin", "TEXT");
+		// where did the request originate, device id
+
 
 		final public TableFieldState impl;
 
@@ -256,9 +260,6 @@ public class DistributorDataStore {
 		public final String topic;	
 		public final String subtopic;
 		public final Provider provider;
-		public final DistributorPolicy.Topic policy;
-		public final Moment serialMoment; 
-		public final int priority;
 		public final TimeTrigger expire;
 		public final Notice notice;
 
@@ -272,11 +273,8 @@ public class DistributorDataStore {
 			this.topic = ar.topic.asString();
 			this.subtopic = ar.subtopic.asString();
 			this.provider = ar.provider;
-			this.policy = svc.policy().matchPostal(topic);
-			this.serialMoment = ar.moment;
 			this.notice = ar.notice;
 
-			this.priority = policy.routing.priority+ar.priority;
 			this.expire = ar.expire;
 		}
 
@@ -287,11 +285,8 @@ public class DistributorDataStore {
 			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
-			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
-			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
 			this.notice = null; // TODO recover notice from store
 
-			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
 			this.expire = new TimeTrigger(expireEnc);
 		}
@@ -303,21 +298,12 @@ public class DistributorDataStore {
 				rqstValues.put(RequestField.AUID.cv(), this.auid);
 				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
 				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
-
-				rqstValues.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
-				rqstValues.put(RequestField.PRIORITY.cv(), this.policy.routing.priority+this.priority);
 				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
 
 				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
 				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
 				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
 
-				// TODO place notice in store 
-				// final ContentValues noticeValues = new ContentValues();
-				// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-
-				// values.put(PostalTableSchema.UNIT.cv(), 50);
-				//return upsertRequest(rqstValues, status, Tables.CAPABILITY);
 				return -1;
 			}
 		}
@@ -337,7 +323,7 @@ public class DistributorDataStore {
 				logger.trace("Capability delete {}", count);
 				return count;
 			} catch (IllegalArgumentException ex) {
-				logger.error("delete postal {} {}", select, args);
+				logger.error("delete capablity {} {}", select, args);
 			}
 			return 0;
 		}
