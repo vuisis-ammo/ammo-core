@@ -42,7 +42,7 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger("class.DistributorTableViewer");
+	public static final Logger logger = LoggerFactory.getLogger("ammo.class.DistributorTableViewer");
 	
 	private static final int MENU_PURGE = 1;
 	private static final int MENU_GARBAGE = 2;

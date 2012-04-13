@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  * http://www.cs.mu.oz.au/~jz/fulltext/acmtois02.pdf
  */
 public class PrefixTrie<V> extends AbstractPrefixTrie<V> {
-	private static final Logger logger = LoggerFactory.getLogger("class.PrefixTrie");
+	private static final Logger logger = LoggerFactory.getLogger("ammo.class.PrefixTrie");
 	
     private byte[] frag;
 	private List< PrefixTrie<V> > burst;

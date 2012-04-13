@@ -32,7 +32,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger("class.MyEditIntegerPreference");
+	public static final Logger logger = LoggerFactory.getLogger("ammo.class.MyEditIntegerPreference");
 	public static enum Type {
 		PORT, TIMEOUT, BAUDRATE, SLOT_NUMBER, RADIOS_IN_GROUP, SLOT_DURATION, TRANSMIT_DURATION, TTL
 	};

@@ -31,7 +31,7 @@ public class SubscriptionStatus extends ListActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger(SubscriptionStatus.class);
+	public static final Logger logger = LoggerFactory.getLogger("ammo.class.SubscriptionStatus");
 	
 	public static final String LAUNCH = "edu.vu.isis.ammo.core.SubscriptionStatus.LAUNCH";
 	public static final int MENU_PURGE_SUBSCRIPTIONS = Menu.FIRST;
