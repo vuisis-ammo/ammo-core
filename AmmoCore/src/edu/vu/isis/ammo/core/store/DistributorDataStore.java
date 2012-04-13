@@ -36,6 +36,7 @@ import android.database.sqlite.SQLiteQueryBuilder;
 import android.provider.BaseColumns;
 import android.text.TextUtils;
 import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.api.type.Moment;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Threshold;
@@ -262,8 +263,8 @@ public class DistributorDataStore {
 	 * @param deviceId
 	 * @return
 	 */
-	public CapabilityWorker getCapabilityWorker(final AmmoRequest ar, final AmmoService svc) {
-		return new CapabilityWorker(ar, svc);
+	public CapabilityWorker getCapabilityWorker(final IAmmoRequest ar, final AmmoService svc) {
+		return new CapabilityWorker((AmmoRequest) ar, svc);
 	}
 	/** 
 	 * Capability store access class
@@ -281,7 +282,7 @@ public class DistributorDataStore {
 		public Payload payload = null;
 
 		private CapabilityWorker(final AmmoRequest ar, final AmmoService svc) {
-			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			this.uuid = UUID.fromString(ar.uuid); 
 			this.auid = ar.uid;
 			this.topic = ar.topic.asString();
 			this.subtopic = ar.subtopic.asString();
@@ -308,6 +309,7 @@ public class DistributorDataStore {
 				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
 				rqstValues.put(RequestField.AUID.cv(), this.auid);
 				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
+				rqstValues.put(RequestField.SUBTOPIC.cv(), this.subtopic);
 				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
 				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
 
@@ -321,11 +323,12 @@ public class DistributorDataStore {
 
 		public int delete(String tupleId) {
 			final String select = new StringBuilder()
-			.append(RequestField.PROVIDER.q(null)).append("=?")
-			.append(" AND ")
 			.append(RequestField.TOPIC.q(null)).append("=?")
+			.append(" AND ")
+			.append(RequestField.SUBTOPIC.q(null)).append("=?")
 			.toString();
-			final String[] args = new String[] {tupleId, this.topic};
+			
+			final String[] args = new String[] {tupleId, this.topic, this.subtopic};
 
 			try {
 				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
@@ -512,6 +515,9 @@ public class DistributorDataStore {
 		if (!values.containsKey(RequestField.TOPIC.n())) {
 			values.put(RequestField.TOPIC.n(),"unknown");
 		}
+		if (!values.containsKey(RequestField.SUBTOPIC.n())) {
+			values.put(RequestField.SUBTOPIC.n(),"");
+		}
 		if (!values.containsKey(RequestField.PROVIDER.n())) {
 			values.put(RequestField.PROVIDER.n(),"unknown");
 		}
@@ -537,6 +543,10 @@ public class DistributorDataStore {
 		}
 		if (!values.containsKey(RequestField.MODIFIED.n())) {
 			values.put(RequestField.MODIFIED.n(), now);
+		}
+		
+		if (!values.containsKey(RequestField.NOTICE.n())) {
+			values.put(RequestField.NOTICE.n(), 0);
 		}
 		return values;
 	}
@@ -695,6 +705,7 @@ public class DistributorDataStore {
 				try {
 					final String uuid = cv.getAsString(RequestField.UUID.cv());
 					final String topic = cv.getAsString(RequestField.TOPIC.cv());
+					final String subtopic = cv.getAsString(RequestField.SUBTOPIC.cv());
 					final String provider = cv.getAsString(RequestField.PROVIDER.cv());
 
 					final long rowid;
@@ -705,7 +716,7 @@ public class DistributorDataStore {
 						whereArgs = new String[]{ uuid };
 					} else {
 						whereClause = REQUEST_UPDATE_CLAUSE;
-						whereArgs = new String[]{ topic, provider };
+						whereArgs = new String[]{ topic, subtopic, provider };
 					}
 					cursor = this.db.query(this.table.n, 
 							new String[] {RequestField._ID.q(null)}, 
@@ -819,30 +830,28 @@ public class DistributorDataStore {
 	}
 	static private final String REQUEST_UUID_QUERY = new StringBuilder()
 	.append(RequestField.UUID.q(null)).append("=?")
-	//.append(" AND ")
-	//.append(RequestField.TOPIC.q(null)).append("=?")
 	.toString();
 
 	public synchronized Cursor queryRequestByTopic(String rel, String[] projection,
-			String topic, String sortOrder) {
+			final String topic, final String subtopic, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
-			qb.setTables(Tables.REQUEST.n);
-			// qb.setProjectionMap(InterestTable.PROJECTION_MAP);
+			qb.setTables(rel);
 
 			// Get the database and run the query.
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, REQUEST_TOPIC_QUERY, new String[]{topic}, null, null,
+			return qb.query(db, projection, REQUEST_TOPIC_QUERY, new String[]{topic, subtopic}, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
 							: InterestConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
-			logger.error("query interest by key {} {}", projection, topic);
+			logger.error("query interest by key {} [{}:{}]", new Object[]{ projection, topic, subtopic });
 		}
 		return null;
 	}
 	static private final String REQUEST_TOPIC_QUERY = new StringBuilder()
 	.append(RequestField.TOPIC.q(null)).append("=?")
+	.append(RequestField.SUBTOPIC.q(null)).append("=?")
 	.toString();
 
 
@@ -1013,6 +1022,7 @@ public class DistributorDataStore {
 				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
 				rqstValues.put(RequestField.AUID.cv(), this.auid);
 				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
+				rqstValues.put(RequestField.SUBTOPIC.cv(), this.subtopic);
 				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
 
 				rqstValues.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
@@ -1040,8 +1050,11 @@ public class DistributorDataStore {
 			.append(RequestField.PROVIDER.q(null)).append("=?")
 			.append(" AND ")
 			.append(RequestField.TOPIC.q(null)).append("=?")
+			.append(" AND ")
+			.append(RequestField.SUBTOPIC.q(null)).append("=?")
 			.toString();
-			final String[] args = new String[] {tupleId, this.topic};
+			
+			final String[] args = new String[] {tupleId, this.topic, this.subtopic};
 
 			try {
 				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
@@ -1328,7 +1341,8 @@ public class DistributorDataStore {
 
 	private static final String RETRIEVAL_VIEW_NAME = Tables.RETRIEVAL.n;
 
-	public synchronized Cursor queryRetrievalByKey(String[] projection, String uuid, String topic, String sortOrder) {
+	public synchronized Cursor queryRetrievalByKey(String[] projection, 
+			final String uuid, final String topic, final String subtopic, final String sortOrder) {
 		return queryRequestByUuid(projection, uuid, sortOrder);
 	}
 
@@ -1541,8 +1555,8 @@ public class DistributorDataStore {
 		return null;
 	}
 	public synchronized Cursor queryInterestByKey(String[] projection,
-			String topic, String sortOrder) {
-		return queryRequestByTopic(INTEREST_VIEW_NAME, projection, topic, sortOrder);
+			final String topic, final String subtopic, String sortOrder) {
+		return queryRequestByTopic(INTEREST_VIEW_NAME, projection, topic, subtopic, sortOrder);
 	}
 
 	private static final String INTEREST_STATUS_QUERY = 
@@ -2059,6 +2073,8 @@ public class DistributorDataStore {
 
 	static final private String REQUEST_UPDATE_CLAUSE = new StringBuilder()
 	.append(RequestField.TOPIC.q(null)).append("=?")
+	.append(" AND ")
+	.append(RequestField.SUBTOPIC.q(null)).append("=?")
 	.append(" AND ")
 	.append(RequestField.PROVIDER.q(null)).append("=?")
 	.toString();

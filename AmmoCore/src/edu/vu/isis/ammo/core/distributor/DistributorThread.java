@@ -116,6 +116,7 @@ public class DistributorThread extends Thread {
 	
 	private static final int SERIAL_NOTIFY_ID = 1;
     private static final int IP_NOTIFY_ID = 2;
+	private static final String TOPIC_JOIN_CHAR = "+";
     
     private int current_icon_id = 1;
     @SuppressWarnings("unused")
@@ -434,6 +435,7 @@ public class DistributorThread extends Thread {
 				.setAction(ACTION_MSG_SENT)
 				.setData(uriBuilder.build())
 				.putExtra(EXTRA_TOPIC, ack.topic.toString())
+				.putExtra(EXTRA_SUBTOPIC, ack.subtopic.toString())
 				.putExtra(EXTRA_UID, ack.auid.toString())
 				.putExtra(EXTRA_CHANNEL, ack.channel.toString())
 				.putExtra(EXTRA_STATUS, ack.status.toString());
@@ -790,16 +792,24 @@ public class DistributorThread extends Thread {
 			if (mw.hasSubscribeMessage()) {
 				final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
 
+				final String totalTopic = sm.getMimeType();
+				final String[] topicList = totalTopic.split(TOPIC_JOIN_CHAR);
+				
 				final AmmoRequest.Builder ab = AmmoRequest.newBuilder(this.context);
+				if (topicList.length > 0) {
+						ab.topic(topicList[0]);
+						if (topicList.length > 1) {
+							ab.subtopic(topicList[1]);
+						}
+				}						
 				if (sm.hasOriginDevice()) { 
 					deviceId = sm.getOriginDevice();
+					final CapabilityWorker worker = 
+							this.store.getCapabilityWorker(ab.base(), this.ammoService);
+					worker.upsert(deviceId);
 				} else {
 					deviceId = null;
 				}
-
-				final CapabilityWorker worker = 
-						this.store.getCapabilityWorker((AmmoRequest) ab.base(), this.ammoService);
-				worker.upsert(deviceId);
 			} else {
 				deviceId = null;
 			}
@@ -1527,12 +1537,14 @@ public class DistributorThread extends Thread {
 			final UUID uuid = UUID.randomUUID();
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
+			final String subtopic = ar.subtopic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchInterest(topic);
 
 			final ContentValues values = new ContentValues();
 			values.put(RequestField.UUID.cv(), uuid.toString());
 			values.put(RequestField.AUID.cv(), auid);
 			values.put(RequestField.TOPIC.cv(), topic);
+			values.put(RequestField.SUBTOPIC.cv(), subtopic);
 
 			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
 			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
@@ -1551,17 +1563,18 @@ public class DistributorThread extends Thread {
 
 			values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
-			// queuing
+			// queuingupsertInterest
 			synchronized (this.store) {
 				final long id = this.store.upsertInterest(values, dispersal);
+				
 				final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
-						topic, ar.select.toString(), dispersal, 
+						topic, subtopic, ar.select.toString(), dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
 					final long id_ = id;
 					final String auid_ = auid;
 					final String topic_ = topic;
-					final String subtopic_ = null;
+					final String subtopic_ = subtopic;
 					final Notice notice_ = null;
 
 					@Override
@@ -1601,6 +1614,7 @@ public class DistributorThread extends Thread {
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
 			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
+			final String subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
 			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
 
 			final String selection = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));
@@ -1632,7 +1646,7 @@ public class DistributorThread extends Thread {
 					long numUpdated = this.store.updateInterestByKey(id, values, null);
 
 					final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
-							topic, selection, dispersal, 
+							topic, subtopic, selection, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
 						final DistributorThread parent = DistributorThread.this;
 						final int id_ = id;
@@ -1661,15 +1675,24 @@ public class DistributorThread extends Thread {
 	 * Deliver the subscription request to the network service for processing.
 	 */
 	private DistributorState dispatchInterestRequest(final AmmoService that, 
-			final String topic, final String selection, final DistributorState dispersal, 
+			final String topic, final String subtopic, 
+			final String selection, final DistributorState dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
-		logger.trace("::dispatchInterestRequest {}", topic);
+		final String fulltopic;
+		{
+			final StringBuilder sb = new StringBuilder().append(topic);
+			if (subtopic != null && subtopic.length() > 0) {
+				sb.append(TOPIC_JOIN_CHAR).append(subtopic);
+			}
+			fulltopic = sb.toString();
+		}
+		logger.trace("::dispatchInterestRequest {}", fulltopic);
 
 		/** Message Building */
 
 		final AmmoMessages.SubscribeMessage.Builder interestReq = AmmoMessages.SubscribeMessage.newBuilder();
-		interestReq.setMimeType(topic);
+		interestReq.setMimeType(fulltopic);
 
 		if (interestReq != null)
 			interestReq.setQuery(selection);
@@ -1753,8 +1776,23 @@ public class DistributorThread extends Thread {
 		// final ContentResolver resolver = context.getContentResolver();
 
 		logger.trace("receive response INTEREST : {}", mime );
-		final String topic = mime;
-		final Cursor cursor = this.store.queryInterestByKey(new String[] { RequestField.PROVIDER.n() }, topic, null);
+		final String[] topicList = mime.split(TOPIC_JOIN_CHAR);
+		final String topic;
+		final String subtopic;
+		if (topicList.length < 1) {
+			topic = null;
+			subtopic = null;
+		} else {
+			topic = topicList[0];
+			if (topicList.length < 2) {
+				subtopic = null;
+			} else {
+				subtopic = topicList[1];
+			} 
+		}
+		
+		final Cursor cursor = this.store.queryInterestByKey(
+				new String[] { RequestField.PROVIDER.n() }, topic, subtopic, null);
 		if (cursor.getCount() < 1) {
 			logger.error("received a message for which there is no subscription {}", topic);
 			cursor.close();
