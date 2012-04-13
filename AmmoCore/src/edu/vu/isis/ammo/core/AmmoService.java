@@ -456,6 +456,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		networkFilter.addAction(INetworkService.ACTION_DISCONNECT);
 
 		networkFilter.addAction(AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE);
+		networkFilter.addAction(AmmoIntents.ACTION_SERIAL_LINK_CHANGE);
 		networkFilter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
 		networkFilter.addAction(WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION);
 		networkFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
@@ -1576,7 +1577,13 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				mNetlinks.get(linkTypes.WIRED.value).updateStatus();
 				mNetlinks.get(linkTypes.WIFI.value).updateStatus();
 				netlinkStatusChanged();
-				return;
+            } else if ( AmmoIntents.ACTION_SERIAL_LINK_CHANGE.equals( action )) {
+				logger.debug("Serial link state changed");
+                int state = aIntent.getIntExtra( "state", 0 );
+                String devname = aIntent.getStringExtra( "devname" );
+
+                logger.debug( "devname: {}, state: {}", devname, state );
+
 			} else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)
 					|| WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)
 					|| WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
@@ -1585,12 +1592,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				mNetlinks.get(linkTypes.WIRED.value).updateStatus();
 				mNetlinks.get(linkTypes.WIFI.value).updateStatus();
 				netlinkStatusChanged();
-				return;
 			} else if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
 				logger.trace("3G state changed");
 				mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
 				netlinkStatusChanged();
-				return;
 			}
 
 			// if (INetworkService.ACTION_RECONNECT.equals(action)) {
