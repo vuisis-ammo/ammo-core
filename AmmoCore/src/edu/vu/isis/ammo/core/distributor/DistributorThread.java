@@ -786,17 +786,22 @@ public class DistributorThread extends Thread {
 			break;
 
 		case SUBSCRIBE_MESSAGE:
-		    if (mw.hasSubscribeMessage()) {
-			AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
-			if (sm.hasOriginDevice()) { 
-			    deviceId = sm.getOriginDevice(); 
+			if (mw.hasSubscribeMessage()) {
+				final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
+
+				final AmmoRequest.Builder ab = AmmoRequest.newBuilder(this.context);
+				if (sm.hasOriginDevice()) { 
+					deviceId = sm.getOriginDevice();
+				} else {
+					deviceId = null;
+				}
+
+				final boolean capabilityResult = 
+						this.store.getCapabilityWorker(ab.base(), this.ammoService, deviceId);
 			} else {
 				deviceId = null;
 			}
-		    } else {
-			deviceId = null;
-		    }
-		    break;
+			break;
 		case AUTHENTICATION_MESSAGE:
 		case PULL_REQUEST:
 		case UNSUBSCRIBE_MESSAGE:

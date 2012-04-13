@@ -255,8 +255,18 @@ public class DistributorDataStore {
 	};
 
 
+	/**
+	 * CapabilityWorker
+	 * An actor for updating the PRESENCE component of the store.
+	 * 
+	 * @param deviceId
+	 * @return
+	 */
+	public CapabilityWorker getCapabilityWorker(final AmmoRequest ar, final AmmoService svc, final String deviceId) {
+		return new CapabilityWorker(ar, svc);
+	}
 	/** 
-	 * Postal store access class
+	 * Capability store access class
 	 */
 	public class CapabilityWorker {
 		public final UUID uuid;
@@ -265,7 +275,6 @@ public class DistributorDataStore {
 		public final String subtopic;
 		public final Provider provider;
 		public final TimeTrigger expire;
-		public final Notice notice;
 
 		public DisposalTotalState totalState = null;
 		public DistributorState status = null;
@@ -277,7 +286,6 @@ public class DistributorDataStore {
 			this.topic = ar.topic.asString();
 			this.subtopic = ar.subtopic.asString();
 			this.provider = ar.provider;
-			this.notice = ar.notice;
 
 			this.expire = ar.expire;
 		}
@@ -289,7 +297,6 @@ public class DistributorDataStore {
 			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
-			this.notice = null; // TODO recover notice from store
 
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
 			this.expire = new TimeTrigger(expireEnc);
@@ -418,6 +425,13 @@ public class DistributorDataStore {
 		};
 	};
 
+	/**
+	 * PresenceWorker
+	 * An actor for updating the PRESENCE component of the store.
+	 * 
+	 * @param deviceId
+	 * @return
+	 */
 	public PresenceWorker getPresenceWorker(final String deviceId) {
 		return new PresenceWorker(deviceId);
 	}
