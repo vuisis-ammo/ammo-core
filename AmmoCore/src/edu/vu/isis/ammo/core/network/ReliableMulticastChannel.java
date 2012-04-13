@@ -55,7 +55,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 public class ReliableMulticastChannel extends NetChannel
 {
-    private static final Logger logger = LoggerFactory.getLogger("class.ReliableMulticastChannel");
+    private static final Logger logger = LoggerFactory.getLogger("ammo.class.ReliableMulticastChannel");
 
     private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
 
@@ -446,7 +446,7 @@ public class ReliableMulticastChannel extends NetChannel
      * Any of the properties of the channel
      */
     private class ConnectorThread extends Thread implements ChannelListener {
-        private final Logger logger = LoggerFactory.getLogger( "class.ReliableMulticastChannel.ConnectorThread" );
+        private final Logger logger = LoggerFactory.getLogger( "ammo.class.ReliableMulticastChannel.ConnectorThread" );
 
         // private final String DEFAULT_HOST = "192.168.1.100";
         // private final int DEFAULT_PORT = 33289;
@@ -1128,7 +1128,7 @@ public class ReliableMulticastChannel extends NetChannel
         private ReliableMulticastChannel mChannel;
         private SenderQueue mQueue;
         private JChannel mJChannel;
-        private final Logger logger = LoggerFactory.getLogger( "class.ReliableMulticastChannel.SenderThread" );
+        private final Logger logger = LoggerFactory.getLogger( "ammo.class.ReliableMulticastChannel.SenderThread" );
     }
 
 
@@ -1249,7 +1249,7 @@ public class ReliableMulticastChannel extends NetChannel
         private ConnectorThread mParent;
         private ReliableMulticastChannel mDestination;
         private final Logger logger
-            = LoggerFactory.getLogger( "class.ReliableMulticastChannel.ChannelReceiver" );
+            = LoggerFactory.getLogger( "ammo.class.ReliableMulticastChannel.ChannelReceiver" );
     }
 
 

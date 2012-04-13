@@ -50,7 +50,7 @@ public class PreferenceProvider extends ContentProvider {
 	// =================================
 	// Fields
 	// =================================
-	Logger logger = LoggerFactory.getLogger("class.PreferenceProvider");
+	Logger logger = LoggerFactory.getLogger("ammo.class.PreferenceProvider");
 	
 	
 	// =================================

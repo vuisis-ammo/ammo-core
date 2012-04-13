@@ -27,7 +27,7 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
  *
  */
 public class DistributorTabActivity extends TabActivityEx  {
-		public static final Logger logger = LoggerFactory.getLogger("class.DistributorTabActivity");
+		public static final Logger logger = LoggerFactory.getLogger("ammo.class.DistributorTabActivity");
 		
 		@Override
 		public void onCreate(Bundle savedInstanceState) {

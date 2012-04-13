@@ -48,7 +48,7 @@ public class DistributorProvider extends ContentProvider {
 	// =================================
 	// Fields
 	// =================================
-	Logger logger = LoggerFactory.getLogger("class.DistributorProvider");
+	Logger logger = LoggerFactory.getLogger("ammo.class.DistributorProvider");
 
 	// =================================
 	// setup

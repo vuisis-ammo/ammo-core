@@ -27,7 +27,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.RequestField;
  */
 public class RetrievalTableViewAdapter extends DistributorTableViewAdapter
 {
-	public static final Logger logger = LoggerFactory.getLogger("class.RetrievalTableViewAdapter");
+	public static final Logger logger = LoggerFactory.getLogger("ammo.class.RetrievalTableViewAdapter");
 
 	public RetrievalTableViewAdapter(Context context, int layout, Cursor cursor) 
 	{

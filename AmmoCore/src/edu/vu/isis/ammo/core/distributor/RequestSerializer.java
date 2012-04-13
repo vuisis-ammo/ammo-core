@@ -53,7 +53,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
  *
  */
 public class RequestSerializer {
-	private static final Logger logger = LoggerFactory.getLogger("class.RequestSerializer");
+	private static final Logger logger = LoggerFactory.getLogger("ammo.class.RequestSerializer");
 
 	public static final int FIELD_TYPE_NULL = 0;
 	public static final int FIELD_TYPE_BOOL = 1;

@@ -43,7 +43,7 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  * This is to be used primarily for testing (move to AmmoCoreTestDummy?)
  */
 public class Interest extends ActivityEx implements OnClickListener {
-	private static final Logger logger = LoggerFactory.getLogger("class.Interest");
+	private static final Logger logger = LoggerFactory.getLogger("ammo.class.Interest");
 	
 	// ===========================================================
 	// Constants
