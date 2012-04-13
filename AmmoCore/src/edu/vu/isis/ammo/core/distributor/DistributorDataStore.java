@@ -46,7 +46,7 @@ public class DistributorDataStore {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private final static Logger logger = LoggerFactory.getLogger("class.DistributorDataStore");
+	private final static Logger logger = LoggerFactory.getLogger("ammo.class.DistributorDataStore");
 	public static final int VERSION = 39;
 
 	// ===========================================================
@@ -2012,7 +2012,7 @@ public class DistributorDataStore {
 		// ===========================================================
 		// Constants
 		// ===========================================================
-		private final Logger logger = LoggerFactory.getLogger("class.DistributorDataStore.DataStoreHelper");
+		private final Logger logger = LoggerFactory.getLogger("ammo.class.DistributorDataStore.DataStoreHelper");
 
 		// ===========================================================
 		// Fields

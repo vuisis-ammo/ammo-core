@@ -34,7 +34,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
  *
  */
 public class DistributorState {
-	private static final Logger logger = LoggerFactory.getLogger("class.DistributorState");
+	private static final Logger logger = LoggerFactory.getLogger("ammo.class.DistributorState");
 
 	private final Map<String, DisposalState> stateMap;
 	private boolean total;

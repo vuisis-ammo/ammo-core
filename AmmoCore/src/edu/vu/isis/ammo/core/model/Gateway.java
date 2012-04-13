@@ -53,7 +53,7 @@ import edu.vu.isis.ammo.core.R;
  * @author phreed
  */
 public class Gateway extends Channel implements OnSharedPreferenceChangeListener {
-    public static final Logger logger = LoggerFactory.getLogger("class.Gateway");
+    public static final Logger logger = LoggerFactory.getLogger("ammo.class.Gateway");
     // does the operator wish to use this gateway?
     public static String KEY = "GatewayUiChannel";
     private boolean election;
