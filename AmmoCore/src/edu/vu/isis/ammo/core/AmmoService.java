@@ -1578,11 +1578,14 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				mNetlinks.get(linkTypes.WIFI.value).updateStatus();
 				netlinkStatusChanged();
             } else if ( AmmoIntents.ACTION_SERIAL_LINK_CHANGE.equals( action )) {
-				logger.debug("Serial link state changed");
                 int state = aIntent.getIntExtra( "state", 0 );
                 String devname = aIntent.getStringExtra( "devname" );
+                logger.error( "Serial link changed. devname: {}, state: {}", devname, state );
 
-                logger.debug( "devname: {}, state: {}", devname, state );
+                if ( state == 1 )
+                    serialChannel.linkUp( devname );
+                else
+                    serialChannel.linkDown();
 
 			} else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)
 					|| WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)
