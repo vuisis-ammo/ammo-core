@@ -1342,7 +1342,7 @@ public class DistributorDataStore {
 	private static final String RETRIEVAL_VIEW_NAME = Tables.RETRIEVAL.n;
 
 	public synchronized Cursor queryRetrievalByKey(String[] projection, 
-			final String uuid, final String topic, final String subtopic, final String sortOrder) {
+			final String uuid, final String sortOrder) {
 		return queryRequestByUuid(projection, uuid, sortOrder);
 	}
 

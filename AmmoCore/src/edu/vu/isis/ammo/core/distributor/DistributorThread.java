@@ -116,7 +116,6 @@ public class DistributorThread extends Thread {
 	
 	private static final int SERIAL_NOTIFY_ID = 1;
     private static final int IP_NOTIFY_ID = 2;
-	private static final String TOPIC_JOIN_CHAR = "+";
     
     private int current_icon_id = 1;
     @SuppressWarnings("unused")
@@ -792,16 +791,11 @@ public class DistributorThread extends Thread {
 			if (mw.hasSubscribeMessage()) {
 				final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
 
-				final String totalTopic = sm.getMimeType();
-				final String[] topicList = totalTopic.split(TOPIC_JOIN_CHAR);
-				
-				final AmmoRequest.Builder ab = AmmoRequest.newBuilder(this.context);
-				if (topicList.length > 0) {
-						ab.topic(topicList[0]);
-						if (topicList.length > 1) {
-							ab.subtopic(topicList[1]);
-						}
-				}						
+				final FullTopic fulltopic = new FullTopic(sm.getMimeType());
+				final AmmoRequest.Builder ab = AmmoRequest.newBuilder(this.context)
+					.topic(fulltopic.topic)
+					.subtopic(fulltopic.subtopic);
+								
 				if (sm.hasOriginDevice()) { 
 					deviceId = sm.getOriginDevice();
 					final CapabilityWorker worker = 
@@ -1491,11 +1485,14 @@ public class DistributorThread extends Thread {
 
 		// find the provider to use
 		final String uuid = resp.getRequestUid();
-		final String topic = resp.getMimeType();
+		final FullTopic fulltopic = new FullTopic(resp.getMimeType());
+		
 		final Cursor cursor = this.store
-				.queryRetrievalByKey(new String[] { RequestField.PROVIDER.n() }, uuid, topic, null);
+				.queryRetrievalByKey(
+						new String[] { RequestField.PROVIDER.n() }, 
+						uuid, null);
 		if (cursor.getCount() < 1) {
-			logger.error("received a message for which there is no retrieval {} {}", topic, uuid);
+			logger.error("received a message for which there is no retrieval {} {}", fulltopic, uuid);
 			cursor.close();
 			return false;
 		}
@@ -1679,20 +1676,14 @@ public class DistributorThread extends Thread {
 			final String selection, final DistributorState dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
-		final String fulltopic;
-		{
-			final StringBuilder sb = new StringBuilder().append(topic);
-			if (subtopic != null && subtopic.length() > 0) {
-				sb.append(TOPIC_JOIN_CHAR).append(subtopic);
-			}
-			fulltopic = sb.toString();
-		}
+		final FullTopic fulltopic = new FullTopic(topic, subtopic);
+		
 		logger.trace("::dispatchInterestRequest {}", fulltopic);
 
 		/** Message Building */
 
 		final AmmoMessages.SubscribeMessage.Builder interestReq = AmmoMessages.SubscribeMessage.newBuilder();
-		interestReq.setMimeType(fulltopic);
+		interestReq.setMimeType(fulltopic.mime);
 
 		if (interestReq != null)
 			interestReq.setQuery(selection);
@@ -1772,29 +1763,13 @@ public class DistributorThread extends Thread {
 			data = resp.getData();	
 			encode = "TERSE";
 		}
-
-		// final ContentResolver resolver = context.getContentResolver();
-
-		logger.trace("receive response INTEREST : {}", mime );
-		final String[] topicList = mime.split(TOPIC_JOIN_CHAR);
-		final String topic;
-		final String subtopic;
-		if (topicList.length < 1) {
-			topic = null;
-			subtopic = null;
-		} else {
-			topic = topicList[0];
-			if (topicList.length < 2) {
-				subtopic = null;
-			} else {
-				subtopic = topicList[1];
-			} 
-		}
+		final FullTopic fulltopic = new FullTopic(mime);
+		logger.trace("receive response INTEREST : {}", fulltopic );
 		
 		final Cursor cursor = this.store.queryInterestByKey(
-				new String[] { RequestField.PROVIDER.n() }, topic, subtopic, null);
+				new String[] { RequestField.PROVIDER.n() }, fulltopic.topic, fulltopic.subtopic, null);
 		if (cursor.getCount() < 1) {
-			logger.error("received a message for which there is no subscription {}", topic);
+			logger.error("received a message for which there is no subscription {}", fulltopic);
 			cursor.close();
 			return false;
 		}
@@ -1807,7 +1782,8 @@ public class DistributorThread extends Thread {
 		final Encoding encoding = Encoding.getInstanceByName( encode );
 		final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
 
-		logger.info("Ammo received message on topic: {} for provider: {}, inserted in {}", new Object[]{mime, uriString, tuple} );
+		logger.info("Ammo received message on topic: {} for provider: {}, inserted in {}", 
+				new Object[]{mime, uriString, tuple} );
 
 		return true;
 	}
@@ -1823,4 +1799,55 @@ public class DistributorThread extends Thread {
 
 	// =============== UTILITY METHODS ======================== //
 
+	/**
+	 * Assist in combining the topic object.
+	 * This should probably be moved to 
+	 * AmmoLib/edu/vu/isis/ammo/core/api/type/Topic.java but
+	 * it can stay here for now.
+	 *
+	 */
+	private static final String TOPIC_JOIN_CHAR = "+";
+	
+	public class FullTopic {
+		final public String topic;
+		final public String subtopic;
+		final public String mime;
+		
+		public FullTopic(final String mime) {
+			this.mime = mime;
+			
+			final String[] list = mime.split(TOPIC_JOIN_CHAR, 2);
+			
+			if (list.length < 1) {
+				this.topic = "";
+				this.subtopic = "";
+				return;
+			}
+			
+			this.topic = list[0];
+			if (list.length < 2) {
+				this.subtopic = "";
+				return;
+			} 
+			
+			this.subtopic = list[1];
+		}
+		
+		public FullTopic(final String topic, final String subtopic) {
+			this.topic = topic;
+			this.subtopic = subtopic;
+			
+			final StringBuilder sb = new StringBuilder().append(topic);
+			if (subtopic != null && subtopic.length() > 0) {
+				sb.append(TOPIC_JOIN_CHAR).append(subtopic);
+			}
+			this.mime = sb.toString();
+		}
+		
+		@Override
+		public String toString() {
+			return this.mime;
+		}
+
+	}
 }
