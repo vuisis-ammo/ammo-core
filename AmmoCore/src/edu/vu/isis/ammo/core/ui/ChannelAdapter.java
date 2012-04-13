@@ -212,7 +212,8 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
                 // Display the error counts on line two.
                 StringBuilder errorString = new StringBuilder();
                 errorString.append( "@:" ).append( ch.getCorruptMessages() ).append( " " );
-                errorString.append( "#:" ).append( ch.getBytesSinceMagic() ).append( " " );
+                errorString.append( ch.getReceiverSubstate() );
+                errorString.append( ":" ).append( ch.getBytesSinceMagic() ).append( " " );
                 errorString.append( "N:" ).append( ch.getSecondsSinceByteRead() );
                 text_two.setText( errorString.toString() );
                 text_two.setVisibility( TextView.VISIBLE );
