@@ -49,6 +49,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
+import edu.vu.isis.ammo.api.type.Notice.Via;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
@@ -96,6 +97,7 @@ public class DistributorThread extends Thread {
 	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
 	public static final String ACTION_MSG_RCVD = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
 	public static final String EXTRA_TOPIC = "topic";
+	public static final String EXTRA_SUBTOPIC = "subtopic";
 	public static final String EXTRA_UID = "uid";
 	public static final String EXTRA_CHANNEL = "channel";
 	public static final String EXTRA_STATUS = "status";
@@ -419,8 +421,8 @@ public class DistributorThread extends Thread {
 			logger.warn("invalid ack type {}", ack);
 			return;
 		}
-		// generate an intent if it was requested
-		if (ack.notice.atSend.isActive()) {
+		
+		if (ack.notice.atSend.via.isActive()) {
 			
 			final Uri.Builder uriBuilder = new Uri.Builder()
 				.scheme("ammo")
@@ -435,19 +437,18 @@ public class DistributorThread extends Thread {
 				.putExtra(EXTRA_CHANNEL, ack.channel.toString())
 				.putExtra(EXTRA_STATUS, ack.status.toString());
 
-			switch (ack.notice.atSend.via) {
-			case ACTIVITY: 
+			final int aggregate = ack.notice.atSend.via.v;
+			if (0 < (aggregate | Via.Type.ACTIVITY.v)) { 
+				context.startActivity(notice); 
+			}
+			if (0 < (aggregate | Via.Type.BROADCAST.v)) { 
 				context.sendBroadcast(notice); 
-				break;
-			case BROADCAST:
-				context.sendStickyBroadcast(notice);
-				break;
-			case STICKY_BROADCAST:	
-				context.sendBroadcast(notice); 
-				break;
-			case SERVICE: 
-				context.startService(notice);
-				break;
+			}
+			if (0 < (aggregate | Via.Type.STICKY_BROADCAST.v)) { 
+				context.sendStickyBroadcast(notice); 
+			}
+			if (0 < (aggregate | Via.Type.SERVICE.v)) { 
+				context.startService(notice); 
 			}
 		}
 
@@ -1140,9 +1141,9 @@ public class DistributorThread extends Thread {
 
 				final Notice notice = postal_.notice;
 				final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
-						.setDeviceDelivered(notice.atDelivery.isActive())
-						.setAndroidPluginReceived(notice.atGateIn.isActive())
-						.setPluginDelivered(notice.atGateOut.isActive());
+						.setDeviceDelivered(notice.atDelivery.via.isActive())
+						.setAndroidPluginReceived(notice.atGateIn.via.isActive())
+						.setPluginDelivered(notice.atGateOut.via.isActive());
 
 				if (encode.getType() == Encoding.Type.TERSE)  {
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
@@ -1200,33 +1201,40 @@ public class DistributorThread extends Thread {
 		// generate an intent if it was requested
 		
 		final PostalWorker worker = this.store().getPostalWorkerByKey(pushResp.getUid());
-		
-		final Uri.Builder uriBuilder = new Uri.Builder()
-			.scheme("ammo")
-			.authority(worker.topic)
-			.path(worker.subtopic);
 
-		final Intent notice = new Intent()
-			.setAction(ACTION_MSG_SENT)
-			.setData(uriBuilder.build())
-			.putExtra(EXTRA_TOPIC, worker.topic.toString())
-			.putExtra(EXTRA_UID, worker.auid.toString())
-			.putExtra(EXTRA_STATUS, worker.status.toString())
-			.putExtra(EXTRA_DEVICE, pushResp.getAcknowledgingDevice().toString());
+		if (worker.notice.atDelivery.via.isHeartbeat()) {
+			// TODO update CAPABILITY or RECIPIENT table
+		}
+		if (worker.notice.atDelivery.via.isActive()) {
 
-		switch (worker.notice.atDelivery.via) {
-		case ACTIVITY: 
-			context.sendBroadcast(notice); 
-			break;
-		case BROADCAST:
-			context.sendStickyBroadcast(notice);
-			break;
-		case STICKY_BROADCAST:	
-			context.sendBroadcast(notice); 
-			break;
-		case SERVICE: 
-			context.startService(notice);
-			break;
+			final Uri.Builder uriBuilder = new Uri.Builder()
+				.scheme("ammo")
+				.authority(worker.topic)
+				.path(worker.subtopic);
+
+			final Intent notice = new Intent()
+				.setAction(ACTION_MSG_SENT)
+				.setData(uriBuilder.build())
+				.putExtra(EXTRA_TOPIC, worker.topic.toString())
+				.putExtra(EXTRA_SUBTOPIC, worker.topic.toString())
+				.putExtra(EXTRA_UID, worker.auid.toString())
+				.putExtra(EXTRA_STATUS, worker.status.toString())
+				.putExtra(EXTRA_DEVICE, pushResp.getAcknowledgingDevice().toString());
+
+			final int aggregate = worker.notice.atDelivery.via.v;
+			
+			if (0 < (aggregate | Via.Type.ACTIVITY.v)) { 
+				context.startActivity(notice); 
+			}
+			if (0 < (aggregate | Via.Type.BROADCAST.v)) { 
+				context.sendBroadcast(notice); 
+			}
+			if (0 < (aggregate | Via.Type.STICKY_BROADCAST.v)) { 
+				context.sendStickyBroadcast(notice); 
+			}
+			if (0 < (aggregate | Via.Type.SERVICE.v)) { 
+				context.startService(notice); 
+			}
 		}
 		
 		return true;

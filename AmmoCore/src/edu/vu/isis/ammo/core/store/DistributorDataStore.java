@@ -38,6 +38,7 @@ import android.text.TextUtils;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Moment;
 import edu.vu.isis.ammo.api.type.Notice;
+import edu.vu.isis.ammo.api.type.Notice.Threshold;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.api.type.TimeTrigger;
@@ -203,6 +204,9 @@ public class DistributorDataStore {
 		
 		ORIGIN("origin", "TEXT");
 		// where did the request originate, device id
+
+		
+		// TODO : what about message rates?
 
 
 		final public TableFieldState impl;
@@ -473,109 +477,6 @@ public class DistributorDataStore {
 	.append(PresenceField.DEVICE.q(null)).append("=?").toString();
 
 
-
-	/**
-	 * The notice table is for noticing when a request crosses a threshold.
-	 *
-	 */
-	public enum NoticeField implements TableField {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		OPERATOR("name", "TEXT"),
-		// The name of the operator using the channel
-
-		FIRST("first", "INTEGER"),
-		// When the operator first used this channel
-
-		LATEST("latest", "INTEGER"),
-		// When the operator was last seen "speaking" on the channel
-
-		COUNT("count", "INTEGER"),
-		// How many times the peer has been seen since FIRST
-		// Each time LATEST is changed this COUNT should be incremented
-
-		ENABLE("enable", "INTEGER"),
-		// 0 : intentionally disabled, 
-		// >0 (1) : best knowledge is enabled
-
-		CHANNEL("channel", "TEXT"),
-		// The channel type
-
-		ADDRESS("address", "TEXT");
-		// The address for the channel type
-		// For IP networks, sockets, this is the IP address, and port
-		// For TDMA this is the slot number
-
-		final public TableFieldState impl;
-
-		private NoticeField(String n, String t) {
-			this.impl = new TableFieldState(n,t);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-		public String ddl() { return this.impl.ddl(); }
-	};
-
-	public static interface NoticeConstants extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = Initializer.getColumns();
-		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
-
-		public static final String PARENT_KEY_REF = null;
-
-		public class Initializer {
-			private static String[] getColumns() {
-				final List<String> columns = new ArrayList<String>();
-				for (NoticeField field : NoticeField.values()) {
-					columns.add(field.n());
-				}
-				return columns.toArray(new String[columns.size()]);
-			}
-			private static Map<String,String> getProjection() {
-				final Map<String,String> projection = new HashMap<String,String>();
-				for (NoticeField field : NoticeField.values()) {
-					projection.put(field.n(), field.n());
-				}
-				return projection;
-			}
-		};
-	};
-
-
-	public NoticeWorker getNoticeWorker() {
-		return new NoticeWorker();
-	}
-	/** 
-	 * Postal store access class
-	 */
-	public class NoticeWorker {
-
-		private NoticeWorker() {
-		}
-
-		/**
-		 * Update device presence information for a specified device.
-		 *
-		 * @param deviceId - String - the device id whose presence information to update
-		 */
-		public void upsert() {
-			final DistributorDataStore parent = DistributorDataStore.this;
-
-			synchronized(parent) {	
-
-			}
-		}
-
-	}
 
 	/**
 	 * ===========================
@@ -974,11 +875,23 @@ public class DistributorDataStore {
 		PAYLOAD("payload", "TEXT"),
 		// The payload instead of content provider
 
-		DATA("data", "TEXT");
+		DATA("data", "TEXT"),
 		// If null then the data file corresponding to the
 		// column name and record id should be used. 
 		// This is done when the data
 		// size is larger than that allowed for a field contents.
+		
+		NOTICE_SENT("notice_sent", "INTEGER"),
+		NOTICE_DELIVERY("notice_delivery", "INTEGER"),
+		NOTICE_RECEIPT("notice_receipt", "INTEGER"),
+		NOTICE_GATE_IN("notice_gate_in", "INTEGER"),
+		NOTICE_GATE_OUT("notice_gate_out", "INTEGER");
+		/**
+		 * These notices represent the action to be taken 
+		 * as the message crosses the threshold specified.
+		 * 0x00 or null indicate that no action is to be taken.
+		 * Otherwise the integer represents a list of bits.
+		 */
 
 		final public TableFieldState impl;
 
@@ -1067,11 +980,17 @@ public class DistributorDataStore {
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
 			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
 			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
-			this.notice = null; // TODO recover notice from store
-
+			
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
 			this.expire = new TimeTrigger(expireEnc);
+			
+			this.notice = Notice.newInstance(); 
+			this.notice.setItem(Threshold.SENT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_SENT.n())));
+			this.notice.setItem(Threshold.DELIVERED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DELIVERY.n())));
+			this.notice.setItem(Threshold.RECEIVED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_RECEIPT.n())));
+			this.notice.setItem(Threshold.GATE_IN, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_IN.n())));
+			this.notice.setItem(Threshold.GATE_OUT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_OUT.n())));
 		}
 
 		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
@@ -1090,9 +1009,11 @@ public class DistributorDataStore {
 				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
 				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
 
-				// TOCO place notice in store 
-				// final ContentValues noticeValues = new ContentValues();
-				// values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
+				rqstValues.put(PostalField.NOTICE_SENT.cv(), this.notice.atSend.via.v);	
+				rqstValues.put(PostalField.NOTICE_DELIVERY.cv(), this.notice.atDelivery.via.v);	
+				rqstValues.put(PostalField.NOTICE_RECEIPT.cv(), this.notice.atReceipt.via.v);	
+				rqstValues.put(PostalField.NOTICE_GATE_IN.cv(), this.notice.atGateIn.via.v);	
+				rqstValues.put(PostalField.NOTICE_GATE_OUT.cv(), this.notice.atGateOut.via.v);	
 
 				// values.put(PostalTableSchema.UNIT.cv(), 50);
 				final RequestWorker requestor = DistributorDataStore.this.getPostalRequestWorker();
@@ -1512,6 +1433,8 @@ public class DistributorDataStore {
 
 		FILTER("filter", "TEXT");
 		// The rows/tuples wanted.
+		
+		// TODO : what about message rates?
 
 		final public TableFieldState impl;
 
@@ -2010,19 +1933,6 @@ public class DistributorDataStore {
 		}
 
 	}
-
-	/**
-	 * Query
-	 */
-	/**
-	 * Upsert
-	 */
-	/**
-	 * Update
-	 */
-	/**
-	 * Delete
-	 */
 
 
 	/**
