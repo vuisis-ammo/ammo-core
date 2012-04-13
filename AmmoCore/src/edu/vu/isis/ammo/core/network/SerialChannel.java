@@ -87,14 +87,10 @@ public class SerialChannel extends NetChannel
     {
         logger.trace( "SerialChannel::enable()" );
 
-        if ( mState.compareAndSet( SERIAL_DISABLED, SERIAL_WAITING_FOR_TTY )) {
-            setState( SERIAL_WAITING_FOR_TTY ); // Need this to update the GUI.
-            mConnector = new Connector();
-            mConnector.start();
-        }
-        else {
-            logger.error( "enable() called on an already enabled channel" );
-        }
+        mEnabled = true;
+
+        if ( mLinkUp )
+            start();
     }
 
 
@@ -105,28 +101,85 @@ public class SerialChannel extends NetChannel
     {
         logger.trace( "SerialChannel::disable()" );
 
-        if ( getState() == SERIAL_DISABLED ) {
-            logger.error( "disable() called on an already disabled channel" );
-        } else {
-            disconnect();
-            setState( SERIAL_DISABLED );
+        mEnabled = false;
+
+        stop();
+    }
+
+
+    /**
+     *
+     */
+    public synchronized void linkUp( String devname )
+    {
+        logger.error( "SerialChannel::linkUp()" );
+
+        mLinkUp = true;
+        mDevice = devname;
+
+        if ( mEnabled )
+            start();
+    }
+
+
+    /**
+     *
+     */
+    public synchronized void linkDown()
+    {
+        logger.error( "SerialChannel::linkDown()" );
+
+        mLinkUp = false;
+
+        stop();
+    }
+
+
+    /**
+     *
+     */
+    public synchronized void reset()
+    {
+        logger.trace( "SerialChannel::reset()" );
+
+        // If we are disabled or have no link, there was no connection to
+        // reset, so do nothing in that case.
+
+        if ( mLinkUp && mEnabled ) {
+            stop();
+            start();
         }
     }
 
 
     /**
-     * Do we even need this? Does it need to be public? Couldn't the
-     * NS just call enable/disable in sequence? Ah, reset() might be
-     * more explicit about what is going on.
+     *
      */
-    public synchronized void reset()
+    private void start()
     {
-        logger.trace( "SerialChannel::reset()" );
-        disable();
+        logger.error( "SerialChannel::start()" );
+        if ( mState.compareAndSet( SERIAL_DISABLED, SERIAL_WAITING_FOR_TTY )) {
+            setState( SERIAL_WAITING_FOR_TTY ); // Need this to update the GUI.
+            mConnector = new Connector();
+            mConnector.start();
+        } else {
+            logger.warn( "enable() called on an already enabled channel" );
+        }
+    }
 
-        // What is reset() is called on a disabled() channel?  Should we
-        // enable() here if we were already disabled?
-        enable();
+
+    /**
+     *
+     */
+    private void stop()
+    {
+        logger.error( "SerialChannel::stop()" );
+        if ( getState() == SERIAL_DISABLED ) {
+            logger.warn( "disable() called on an already disabled channel" );
+        } else {
+            disconnect();
+            setState( SERIAL_DISABLED );
+        }
     }
 
 
@@ -155,12 +208,13 @@ public class SerialChannel extends NetChannel
     // needed, but fix this at some point.
 
     /**
-     * FIXME
+     * FIXME: This call is no longer needed.  Go through the code and remove it
+     * and the prefs that correspond to it.
      */
     public void setDevice( String device )
     {
-        logger.trace( "Device set to {}", device );
-        mDevice = device;
+        //logger.trace( "Device set to {}", device );
+        //mDevice = device;
     }
 
 
@@ -405,7 +459,7 @@ public class SerialChannel extends NetChannel
 
             // FIXME: Do better error handling.  If we can't enable Nmea
             // messages, should we close the channel?
-        // TBD SKN: Start the NMEA Message after we have made a connection to the serial port
+            // TBD SKN: Start the NMEA Message after we have made a connection to the serial port
             try {
                 if ( !enableNmeaMessages() )
                 {
@@ -518,10 +572,15 @@ public class SerialChannel extends NetChannel
      */
     private void ioOperationFailed()
     {
-        if ( mIsConnected.compareAndSet( true, false )) {
-            logger.error( "I/O operation failed.  Resetting channel." );
-            reset();
-        }
+        // FIXME: Given the new design, do we still need this?  It may be that
+        // we were only calling this because a link went down.  Just commenting
+        // this out may do well enough for testing, but rethink how the connector
+        // thread and resetting should work.
+
+        // if ( mIsConnected.compareAndSet( true, false )) {
+        //     logger.error( "I/O operation failed.  Resetting channel." );
+        //     reset();
+        // }
     }
 
 
@@ -1320,6 +1379,9 @@ public class SerialChannel extends NetChannel
     private static final int WAIT_TIME = 5 * 1000; // 5 s
     private static final int MAX_RECEIVE_PAYLOAD_SIZE = 2000; // Should this be set based on baud and slot duration?
     private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
+
+    private boolean mLinkUp = false;
+    private boolean mEnabled = false;
 
     private String mDevice;
     private int mBaudRate;
