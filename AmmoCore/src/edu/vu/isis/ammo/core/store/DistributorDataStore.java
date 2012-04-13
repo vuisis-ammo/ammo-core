@@ -262,7 +262,7 @@ public class DistributorDataStore {
 	 * @param deviceId
 	 * @return
 	 */
-	public CapabilityWorker getCapabilityWorker(final AmmoRequest ar, final AmmoService svc, final String deviceId) {
+	public CapabilityWorker getCapabilityWorker(final AmmoRequest ar, final AmmoService svc) {
 		return new CapabilityWorker(ar, svc);
 	}
 	/** 
@@ -302,7 +302,7 @@ public class DistributorDataStore {
 			this.expire = new TimeTrigger(expireEnc);
 		}
 
-		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
+		public long upsert(final String device) {
 			synchronized(DistributorDataStore.this) {	
 				final ContentValues rqstValues = new ContentValues();
 				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
@@ -311,9 +311,9 @@ public class DistributorDataStore {
 				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
 				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
 
-				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
-				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
-				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
+				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());
+				
+				rqstValues.put(CapabilityField.ORIGIN.cv(), device);
 
 				return -1;
 			}

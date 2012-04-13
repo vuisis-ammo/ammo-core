@@ -64,6 +64,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.store.DistributorDataStore;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.CapabilityWorker;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.ChannelState;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
@@ -796,8 +797,9 @@ public class DistributorThread extends Thread {
 					deviceId = null;
 				}
 
-				final boolean capabilityResult = 
-						this.store.getCapabilityWorker(ab.base(), this.ammoService, deviceId);
+				final CapabilityWorker worker = 
+						this.store.getCapabilityWorker((AmmoRequest) ab.base(), this.ammoService);
+				worker.upsert(deviceId);
 			} else {
 				deviceId = null;
 			}
