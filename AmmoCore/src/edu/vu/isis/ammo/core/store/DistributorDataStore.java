@@ -277,15 +277,13 @@ public class DistributorDataStore {
 		public final Provider provider;
 		public final TimeTrigger expire;
 
-		public DisposalTotalState totalState = null;
-		public DistributorState status = null;
 		public Payload payload = null;
 
 		private CapabilityWorker(final AmmoRequest ar, final AmmoService svc) {
 			this.uuid = UUID.fromString(ar.uuid); 
 			this.auid = ar.uid;
 			this.topic = ar.topic.asString();
-			this.subtopic = ar.subtopic.asString();
+			this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
 			this.provider = ar.provider;
 
 			this.expire = ar.expire;
@@ -984,7 +982,7 @@ public class DistributorDataStore {
 			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
 			this.auid = ar.uid;
 			this.topic = ar.topic.asString();
-			this.subtopic = ar.subtopic.asString();
+			this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
 			this.provider = ar.provider;
 			this.policy = svc.policy().matchPostal(topic);
 			this.serialMoment = ar.moment;
@@ -992,6 +990,9 @@ public class DistributorDataStore {
 
 			this.priority = policy.routing.priority+ar.priority;
 			this.expire = ar.expire;
+			
+			this.status = policy.makeRouteMap();
+			this.totalState = DisposalTotalState.NEW;
 		}
 
 		private PostalWorker(final Cursor pending, final AmmoService svc) {
@@ -1802,7 +1803,7 @@ public class DistributorDataStore {
 		/**
 		 * Upsert
 		 */
-		private long[] upsertByRequest(long requestId, DistributorState status) {
+		private long[] upsertByRequest(final long requestId, final DistributorState status) {
 			synchronized(DistributorDataStore.this) {	
 				try {
 					final long[] idArray = new long[status.size()];

@@ -889,6 +889,7 @@ public class TcpChannel extends NetChannel {
         {
             logger.trace( "putFromDistributor()" );
             try {
+            	PLogger.QUEUE_CHANNEL_GW_ENTER.trace("offer msg: {}", iMessage);
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
 					logger.warn("channel not taking messages {}", DisposalState.BUSY );
 				    return DisposalState.BUSY;
@@ -929,7 +930,9 @@ public class TcpChannel extends NetChannel {
             if ( mChannel.getIsAuthorized() )
             {
                 // This is where the authorized SenderThread blocks.
-                return mDistQueue.take();
+            	final AmmoGatewayMessage msg = mDistQueue.take();
+                PLogger.QUEUE_CHANNEL_SERIAL_EXIT.trace("take msg: {}", msg);
+                return msg;
             }
             else
             {
@@ -946,7 +949,9 @@ public class TcpChannel extends NetChannel {
 
                     if ( mChannel.getIsAuthorized() )
                     {
-                        return mDistQueue.take();
+                    	final AmmoGatewayMessage msg = mDistQueue.take();
+                        PLogger.QUEUE_CHANNEL_SERIAL_EXIT.trace("take msg: {}", msg);
+                        return msg;
                     }
                     else
                     {

@@ -23,20 +23,19 @@
   </appender>
   
   <logger name="store" level="TRACE"  additivity="false">
+     <appender-ref ref="LOGCAT" />
      <appender-ref ref="FILE" />
   </logger>
   
-  <logger name="class.DistributorDataStore" level="WARN">
-  </logger>
+  <logger name="store" level="TRACE" />
   
-  <logger name="class.DataStoreHelper" level="INFO">
-  </logger>
+  <logger name="ipc.request" level="TRACE" />
   
-  <logger name="ipc.request" level="TRACE">
-  </logger>
+  <logger name="class.IncompleteRequest" level="TRACE" />
   
+  <logger name="queue" level="TRACE" />
 
-  <root level="ERROR">
+  <root level="WARN">
     <appender-ref ref="LOGCAT" />
     <appender-ref ref="FILE" />
   </root>

@@ -865,8 +865,10 @@ public class MulticastChannel extends NetChannel
         {
             logger.info( "putFromDistributor() in ChannelQueue size={}", mDistQueue.size() );
             try {
+            	PLogger.QUEUE_CHANNEL_MC_ENTER.trace("offer msg: {}", iMessage);
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
-				    logger.warn("multicast channel not taking messages {} {}", DisposalState.BUSY, mDistQueue.size() );
+				    logger.warn("multicast channel not taking messages {} {}", 
+				    		DisposalState.BUSY, mDistQueue.size() );
 				    return DisposalState.BUSY;
 				}
 			} catch (InterruptedException e) {
@@ -905,7 +907,9 @@ public class MulticastChannel extends NetChannel
             if ( mChannel.getIsAuthorized() )
             {
                 // This is where the authorized SenderThread blocks.
-                return mDistQueue.take();
+            	final AmmoGatewayMessage msg = mDistQueue.take();
+                PLogger.QUEUE_CHANNEL_MC_EXIT.trace("take msg: {}", msg);
+                return msg;
             }
             else
             {
@@ -922,7 +926,9 @@ public class MulticastChannel extends NetChannel
 
                     if ( mChannel.getIsAuthorized() )
                     {
-                        return mDistQueue.take();
+                    	final AmmoGatewayMessage msg = mDistQueue.take();
+                        PLogger.QUEUE_CHANNEL_MC_EXIT.trace("take msg: {}", msg);
+                        return msg;
                     }
                     else
                     {

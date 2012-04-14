@@ -53,6 +53,7 @@ import edu.vu.isis.ammo.api.type.Notice.Via;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -373,7 +374,7 @@ public class DistributorThread extends Thread {
 	}
 
 	/**
-	 * Called by the channel acknowledgement once the channel has
+	 * Called by the channel acknowledgment once the channel has
 	 * attempted to send the message.
 	 * 
 	 * @param ack
@@ -382,6 +383,7 @@ public class DistributorThread extends Thread {
 	private boolean announceChannelAck(ChannelAck ack) {
 		logger.trace("RECV ACK {}", ack);
 		try {
+			PLogger.QUEUE_ACK_ENTER.trace("offer ack: {}", ack);
 			if (!this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
 				logger.warn("announcing channel ack queue is full");
 				return false;
@@ -477,7 +479,7 @@ public class DistributorThread extends Thread {
 	public String distributeRequest(AmmoRequest request) {
 		try {
 			logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
-
+            PLogger.QUEUE_REQ_ENTER.trace("offer request: {}", request);
 			if (! this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
 				logger.error("could not process request {}", request);
 				this.signal();
@@ -498,6 +500,7 @@ public class DistributorThread extends Thread {
 	private final PriorityBlockingQueue<AmmoGatewayMessage> responseQueue;
 
 	public boolean distributeResponse(AmmoGatewayMessage agm) {
+		PLogger.QUEUE_RESP_ENTER.trace("offer response: {}", agm);
 		if (! this.responseQueue.offer(agm, 1, TimeUnit.SECONDS)) {
 			logger.error("could not process response {}", agm);
 			this.signal();
@@ -573,6 +576,7 @@ public class DistributorThread extends Thread {
 						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
 						try {
 							final ChannelAck ack = this.channelAck.take();
+							PLogger.QUEUE_ACK_EXIT.trace("ack: {}", ack);
 							this.doChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
 							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
@@ -583,7 +587,8 @@ public class DistributorThread extends Thread {
 						logger.trace("processing response, remaining {}", this.responseQueue.size());
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
-							logger.info("processing response, remaining {}", this.responseQueue.size());
+							PLogger.QUEUE_RESP_EXIT.trace("taking response: {}", agm);
+							logger.trace("processing response, remaining {}", this.responseQueue.size());
 							this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
 							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
@@ -591,10 +596,12 @@ public class DistributorThread extends Thread {
 					}
 
 					if (!this.requestQueue.isEmpty()) {
-						try {
-							final AmmoRequest agm = this.requestQueue.take();
-							logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
-							this.doRequest(ammoService, agm);
+						try {					
+							final AmmoRequest ar = this.requestQueue.take();
+							PLogger.QUEUE_REQ_EXIT.trace("taking request: {}", ar);
+							logger.info("processing request uuid {}, remaining {}", 
+									ar.uuid, this.requestQueue.size());
+							this.doRequest(ammoService, ar);
 						} catch (ClassCastException ex) {
 							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -622,23 +629,23 @@ public class DistributorThread extends Thread {
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
 	 */
-	private boolean doRequest(AmmoService that, AmmoRequest agm) {
-		logger.trace("process request {}", agm);
-		switch (agm.action) {
+	private boolean doRequest(AmmoService that, AmmoRequest ar) {
+		logger.trace("process request {}", ar);
+		switch (ar.action) {
 		case POSTAL:
 			if (RUN_TRACE) {
 				Debug.startMethodTracing("doPostalRequest");
-				doPostalRequest(that, agm);
+				doPostalRequest(that, ar);
 				Debug.stopMethodTracing();
 			} else {
-				doPostalRequest(that, agm);
+				doPostalRequest(that, ar);
 			}
 			break;
 		case RETRIEVAL:
-			doRetrievalRequest(that, agm);
+			doRetrievalRequest(that, ar);
 			break;
 		case INTEREST:
-			doInterestRequest(that, agm, 1);
+			doInterestRequest(that, ar, 1);
 			break;
 		}
 		return true;
@@ -1807,6 +1814,7 @@ public class DistributorThread extends Thread {
 	 *
 	 */
 	private static final String TOPIC_JOIN_CHAR = "+";
+	private static final String TOPIC_SPLIT_PATTERN = "\\+";
 	
 	public class FullTopic {
 		final public String topic;
@@ -1816,7 +1824,7 @@ public class DistributorThread extends Thread {
 		public FullTopic(final String mime) {
 			this.mime = mime;
 			
-			final String[] list = mime.split(TOPIC_JOIN_CHAR, 2);
+			final String[] list = mime.split(TOPIC_SPLIT_PATTERN, 2);
 			
 			if (list.length < 1) {
 				this.topic = "";

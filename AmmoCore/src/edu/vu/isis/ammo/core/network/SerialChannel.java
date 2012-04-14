@@ -713,6 +713,7 @@ public class SerialChannel extends NetChannel
         {
             logger.trace( "putFromDistributor()" );
             try {
+            	PLogger.QUEUE_CHANNEL_SERIAL_ENTER.trace("offer msg: {}", iMessage);
                 if ( !mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
                     logger.warn( "serial channel not taking messages {}",
                                  DisposalState.BUSY );
@@ -789,7 +790,9 @@ public class SerialChannel extends NetChannel
             logger.trace( "taking from SenderQueue" );
             if ( getIsAuthorized() ) {
                 // This is where the authorized SenderThread blocks.
-                return mDistQueue.take();
+            	final AmmoGatewayMessage msg = mDistQueue.take();
+                PLogger.QUEUE_CHANNEL_SERIAL_EXIT.trace("take msg: {}", msg);
+                return msg;
             } else {
                 if ( mAuthQueue.size() > 0 ) {
                     // return the first item in mAuthqueue and remove
@@ -800,7 +803,9 @@ public class SerialChannel extends NetChannel
                     wait(); // This is where the SenderThread blocks.
 
                     if ( getIsAuthorized() ) {
-                        return mDistQueue.take();
+                    	final AmmoGatewayMessage msg = mDistQueue.take();
+                        PLogger.QUEUE_CHANNEL_SERIAL_EXIT.trace("take msg: {}", msg);
+                        return msg;
                     } else {
                         // We are not yet authorized, so return the
                         // first item in mAuthqueue and remove
