@@ -329,6 +329,12 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
+    public int getReceiverSubstate() { return mReceiverSubstate.get(); }
+
+
+    /**
+     *
+     */
     @Override
     public boolean isBusy() { return false; }
 
@@ -1086,26 +1092,38 @@ public class SerialChannel extends NetChannel
                     case 0:
                         logger.debug( "Waiting for magic sequence." );
                         c = readAByte();
-                        if ( c == first )
+                        if ( c == first ) {
                             state = c;
+                            mReceiverSubstate.set( 11 );
+                        }
                         break;
 
                     case first:
                         c = readAByte();
-                        if ( c == second || c == first )
+                        if ( c == first ) {
                             state = c;
-                        else
+                            mReceiverSubstate.set( 11 );
+                        } else if ( c == second ) {
+                            state = c;
+                            mReceiverSubstate.set( 12 );
+                        } else {
                             state = 0;
+                            mReceiverSubstate.set( state );
+                        }
                         break;
 
                     case second:
                         c = readAByte();
-                        if ( c == third )
+                        if ( c == third ) {
                             state = 1;
-                        else if ( c == 0xef )
+                            mReceiverSubstate.set( state );
+                        } else if ( c == first ) {
                             state = c;
-                        else
+                            mReceiverSubstate.set( 11 );
+                        } else {
                             state = 0;
+                            mReceiverSubstate.set( state );
+                        }
                         break;
 
                     case 1:
@@ -1146,6 +1164,7 @@ public class SerialChannel extends NetChannel
                             } else {
                                 state = 2;
                             }
+                            mReceiverSubstate.set( state );
                         }
                         break;
 
@@ -1156,6 +1175,7 @@ public class SerialChannel extends NetChannel
                                 logger.warn( "Discarding packet of size {}. Maximum payload size exceeded.",
                                              payload_size );
                                 state = 0;
+                                mReceiverSubstate.set( state );
                                 break;
                             }
                             byte[] buf_payload = new byte[ payload_size ];
@@ -1198,6 +1218,7 @@ public class SerialChannel extends NetChannel
                             header.clear();
                             setReceiverState( INetChannel.START );
                             state = 0;
+                            mReceiverSubstate.set( state );
                         }
                         break;
 
@@ -1428,6 +1449,8 @@ public class SerialChannel extends NetChannel
     private long mDelta = 0;
     private long mCount = 0;
     private long mLast = 0;
+
+    private final AtomicInteger mReceiverSubstate = new AtomicInteger( 0 );
 
     private final AtomicInteger mMessagesSent = new AtomicInteger();
     private final AtomicInteger mMessagesReceived = new AtomicInteger();
