@@ -1030,7 +1030,7 @@ public class SerialChannel extends NetChannel
         private static final int WINDOW_DURATION = 100;
 
         private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
-        private final Logger logger = LoggerFactory.getLogger( "ammoclass.SerialChannel.SenderThread" );
+        private final Logger logger = LoggerFactory.getLogger( "ammo.class.SerialChannel.SenderThread" );
     }
 
 
