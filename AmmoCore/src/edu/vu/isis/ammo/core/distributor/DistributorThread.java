@@ -50,6 +50,7 @@ import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Via;
+import edu.vu.isis.ammo.api.type.SerialMoment;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
@@ -1030,12 +1031,15 @@ public class DistributorThread extends Thread {
 			case APRIORI:
 			case EAGER:
 				serializer.setSerializer( new RequestSerializer.OnSerialize() {
+					final SerialMoment serialMoment_ = postal.serialMoment;
 					final String data_ = data;
 
 					@Override
 					public byte[] run(Encoding encode) {
-						if (data_.length() < 1) {
-							return null;
+						if (data_ == null || data_.length() < 1) {
+							logger.warn("your {} payload has no content: {}", 
+									serialMoment_, data_);
+							return new byte[0];
 						}
 						return data_.getBytes();
 					}

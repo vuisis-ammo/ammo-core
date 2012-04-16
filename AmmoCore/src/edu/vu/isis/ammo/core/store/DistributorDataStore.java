@@ -1091,6 +1091,7 @@ public class DistributorDataStore {
 	public synchronized Cursor queryPostalReady() {
 		this.openRead();
 		try {
+			PLogger.STORE_DQL.trace("postal query \n {}", POSTAL_STATUS_QUERY);
 			return db.rawQuery(POSTAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
@@ -1331,6 +1332,7 @@ public class DistributorDataStore {
 	public synchronized Cursor queryRetrievalReady() {
 		this.openRead();
 		try {
+			PLogger.STORE_DQL.trace("retrieval query \n {}", RETRIEVAL_STATUS_QUERY);
 			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
@@ -1549,6 +1551,7 @@ public class DistributorDataStore {
 	public synchronized Cursor queryInterestReady() {
 		this.openRead();
 		try {
+			PLogger.STORE_DQL.trace("interest query \n {}", INTEREST_STATUS_QUERY);
 			return db.rawQuery(INTEREST_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
