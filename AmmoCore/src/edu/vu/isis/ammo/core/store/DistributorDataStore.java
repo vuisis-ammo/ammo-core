@@ -37,7 +37,7 @@ import android.provider.BaseColumns;
 import android.text.TextUtils;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
-import edu.vu.isis.ammo.api.type.Moment;
+import edu.vu.isis.ammo.api.type.SerialMoment;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Threshold;
 import edu.vu.isis.ammo.api.type.Payload;
@@ -530,7 +530,7 @@ public class DistributorDataStore {
 
 		if (!values.containsKey(RequestField.SERIAL_MOMENT.n())) {
 			values.put(RequestField.SERIAL_MOMENT.n(),
-					SerialMoment.EAGER.o);
+					SerialMoment.EAGER.cv());
 		}
 
 		if (!values.containsKey(RequestField.EXPIRATION.n())) {
@@ -969,7 +969,7 @@ public class DistributorDataStore {
 		public final String subtopic;
 		public final Provider provider;
 		public final DistributorPolicy.Topic policy;
-		public final Moment serialMoment; 
+		public final SerialMoment serialMoment; 
 		public final int priority;
 		public final TimeTrigger expire;
 		public final Notice notice;
@@ -1002,7 +1002,7 @@ public class DistributorDataStore {
 			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
-			this.serialMoment = new Moment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
+			this.serialMoment = new SerialMoment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
 			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
 			
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
@@ -2717,58 +2717,6 @@ public class DistributorDataStore {
 	// Enumerated types in the tables.
 	// ===========================================================
 
-	/**
-	 * Indicates if the provider indicates a table entry or whether the
-	 * data has been pre-serialized.
-	 */
-	public enum SerialMoment {
-		APRIORI(1),  // a.k.a. DIRECT
-		// the serialized object is placed in the payload directly.
-
-		EAGER(2), // a.k.a. INDIRECT
-		// the serialized data is obtained from the named 
-		// provider by uri as soon as the request is received.
-
-		LAZY(3); // a.k.a. DEFFERED
-		// the serialized data is obtained from the named 
-		// provider by uri, but the serialization doesn't 
-		// happen until the data is sent, i.e. the channel
-		// is available.
-
-		public int o; // ordinal
-
-		private SerialMoment(int o) {
-			this.o = o;
-		}
-		/**
-		 * Produce string of the form...
-		 * '<field-ordinal-value>';
-		 *
-		 */
-		public String quote() {
-			return new StringBuilder().append("'").append(this.o).append("'").toString();
-		}
-		public static SerialMoment byOrdinal(int serialType) {
-			switch(serialType) {
-			case 1:
-				return APRIORI;
-			case 2:
-				return EAGER;
-			case 3:
-				return LAZY;
-			}
-			throw new IllegalArgumentException("unknown SerialType "+Integer.toString(serialType));
-		}
-		public String cv() {
-			return String.valueOf(this.o);
-		}
-		static public SerialMoment getInstance(String ordinal) {
-			return SerialMoment.values()[Integer.parseInt(ordinal)];
-		}
-		static public SerialMoment getInstance(int ordinal) {
-			return SerialMoment.values()[ordinal];
-		}
-	};
 
 	public enum ChannelState {
 		ACTIVE(1), INACTIVE(2);
