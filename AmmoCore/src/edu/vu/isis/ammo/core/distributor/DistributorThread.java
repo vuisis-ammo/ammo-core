@@ -890,7 +890,7 @@ public class DistributorThread extends Thread {
 			case APRIORI:
 				if (postal.payload == null) {
 					logger.error("apriori serialization requires payload");
-					payload = "";
+					payload = new byte[0];
 				} else {
 					payload = postal.payload.asBytes();
 				}
