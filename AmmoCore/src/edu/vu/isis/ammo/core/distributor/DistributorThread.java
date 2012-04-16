@@ -888,7 +888,12 @@ public class DistributorThread extends Thread {
 			final byte[] payload;			
 			switch (postal.serialMoment.type()) {
 			case APRIORI:
-				payload = postal.payload.asBytes();
+				if (postal.payload == null) {
+					logger.error("apriori serialization requires payload");
+					payload = "";
+				} else {
+					payload = postal.payload.asBytes();
+				}
 				break;
 			case EAGER:				
 				try {
