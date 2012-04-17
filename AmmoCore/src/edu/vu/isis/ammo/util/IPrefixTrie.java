@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
  * This is a Trie which uses bits on bytes as potential branches.
  */
 public interface IPrefixTrie<V> {
-	public static final Logger logger = LoggerFactory.getLogger("ammo.class.IPrefixTrie");
+	public static final Logger logger = LoggerFactory.getLogger("util.iptrie");
 
 	public void insert(INode node);
 

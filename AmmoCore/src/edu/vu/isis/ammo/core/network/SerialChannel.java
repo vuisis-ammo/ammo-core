@@ -83,21 +83,23 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
-    public synchronized void enable()
+    public void enable()
     {
         logger.trace( "SerialChannel::enable()" );
 
         mEnabled = true;
 
-        if ( mLinkUp )
-            start();
+		// For now, start without worrying about a link up, till we
+		// have a reliable way of knowing that link is up when AMMO
+		// starts or restarts.
+        start();
     }
 
 
     /**
      *
      */
-    public synchronized void disable()
+    public void disable()
     {
         logger.trace( "SerialChannel::disable()" );
 
@@ -108,46 +110,52 @@ public class SerialChannel extends NetChannel
 
 
     /**
-     *
+     * Should only be called from main thread in response to any intent (so no
+     * need for synchonized.
      */
-    public synchronized void linkUp( String devname )
+    public void linkUp( String devname )
     {
-        logger.error( "SerialChannel::linkUp()" );
+        logger.error( "SerialChannel::linkUp() old: {}, new: {}", mDevice, devname );
 
-        mLinkUp = true;
-        mDevice = devname;
+        // Ff device name changed and the channel was running for some
+        // reason, we should stop and then start again.
+        if ( !devname.equals( mDevice )) {
+            mDevice = devname;
+            reset();
+        }
+    }
 
-        if ( mEnabled )
-            start();
+
+    /**
+     * Should only be called from main thread in response to any intent (so no
+     * need for synchonized.
+     */
+    public void linkDown( String devname )
+    {
+        logger.error( "SerialChannel::linkDown() old: {}, new: {}", mDevice, devname );
+
+        if ( devname.equals( mDevice )) {
+            logger.error( "SerialChannel::linkDown(). Resetting channel." );
+            reset();
+        }
     }
 
 
     /**
      *
      */
-    public synchronized void linkDown()
-    {
-        logger.error( "SerialChannel::linkDown()" );
-
-        mLinkUp = false;
-
-        stop();
-    }
-
-
-    /**
-     *
-     */
-    public synchronized void reset()
+    public void reset()
     {
         logger.trace( "SerialChannel::reset()" );
 
-        // If we are disabled or have no link, there was no connection to
-        // reset, so do nothing in that case.
-
-        if ( mLinkUp && mEnabled ) {
-            stop();
-            start();
+        if ( mIsConnected.compareAndSet( true, false )) {
+            logger.error( "I/O operation failed.  Resetting channel." );
+            synchronized ( this ) {
+                stop();
+                if ( mEnabled ) {
+                    start();
+                }
+            }
         }
     }
 
@@ -174,11 +182,22 @@ public class SerialChannel extends NetChannel
     private void stop()
     {
         logger.error( "SerialChannel::stop()" );
-        if ( getState() == SERIAL_DISABLED ) {
+        if ( mState.getAndSet(SERIAL_DISABLED) == SERIAL_DISABLED )
             logger.warn( "disable() called on an already disabled channel" );
-        } else {
-            disconnect();
-            setState( SERIAL_DISABLED );
+        else {
+            //disconnect();
+            if ( mConnector != null) {
+                mConnector.interrupt();  // tell connector thread to stop
+                mConnector.mLooper.quit();
+                // now join the connector thread to make sure it stops
+                try {
+                    mConnector.join();
+                } catch (InterruptedException ex) {
+                    logger.warn("Interrupted while trying to join connector thread {}", ex.getStackTrace() );
+                }
+                mConnector = null;
+            }
+            //setState( SERIAL_DISABLED );
         }
     }
 
@@ -373,7 +392,9 @@ public class SerialChannel extends NetChannel
      */
     private class Connector extends Thread
     {
-        private final Logger logger = LoggerFactory.getLogger( "ammo.class.SerialChannel.Connector" );
+        private final Logger logger = LoggerFactory.getLogger( "net.serial.connector" );
+
+        protected Looper mLooper;
 
         /**
          *
@@ -402,15 +423,23 @@ public class SerialChannel extends NetChannel
             }
 
             try {
+                // For a thread to receive the NMEA messages and location
+                // updates, it must have a looper.  We create one here so that
+                // our callback gets called.
                 Looper.prepare();
+                mLooper = Looper.myLooper();
                 // The channel is already in the SERIAL_WAITING_FOR_TTY state.
                 synchronized ( SerialChannel.this ) {
-                    while ( !connect() ) {
-                        logger.debug( "Connect failed. Waiting to retry..." );
-                        SerialChannel.this.wait( WAIT_TIME );
+                    while ( !this.isInterrupted() ) {
+                        if  ( !connect()  ) {
+                            logger.debug( "Connect failed. Waiting to retry..." );
+                            SerialChannel.this.wait( WAIT_TIME );
+                        }
+                        else if ( !isDisabled() ) {
+                            setState( SERIAL_CONNECTED );
+                            break;
+                        }
                     }
-                    if ( !isDisabled() )
-                        setState( SERIAL_CONNECTED );
                 }
                 if ( !isDisabled() )
                     Looper.loop();
@@ -426,8 +455,9 @@ public class SerialChannel extends NetChannel
 
             // Do we need to call some sort of quit() for the looper here? The
             // docs disagree.
+            Looper.myLooper().quit();
+            disconnect();
 
-            mConnector = null;
             logger.trace( "Connector <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
@@ -438,7 +468,7 @@ public class SerialChannel extends NetChannel
         public void terminate()
         {
             logger.trace( "SerialChannel.Connector::terminate()" );
-            interrupt();
+            this.interrupt();
         }
 
 
@@ -461,7 +491,6 @@ public class SerialChannel extends NetChannel
             }
 
             logger.trace( "Connection to serial port established " );
-            mIsConnected.set( true );
 
             // FIXME: Do better error handling.  If we can't enable Nmea
             // messages, should we close the channel?
@@ -479,8 +508,6 @@ public class SerialChannel extends NetChannel
                 logger.trace( "Connection to serial port failed" );
                 return false;
             }
-
-
 
             // Create the security object.  This must be done before
             // the ReceiverThread is created in case we receive a
@@ -513,6 +540,8 @@ public class SerialChannel extends NetChannel
             // packets out.
             mSenderQueue.markAsAuthorized();
 
+            mIsConnected.set( true );
+
             return true;
         }
     }
@@ -526,12 +555,10 @@ public class SerialChannel extends NetChannel
         logger.trace( "SerialChannel::disconnect()" );
 
         try {
-            disableNmeaMessages();
-
             mIsConnected.set( false );
 
-            if ( mConnector != null )
-                mConnector.terminate();
+            disableNmeaMessages();
+
             if ( mSender != null )
                 mSender.interrupt();
             if ( mReceiver != null )
@@ -555,7 +582,20 @@ public class SerialChannel extends NetChannel
             setIsAuthorized( false );
 
             setSecurityObject( null );
-            mConnector = null;
+
+            // Need to do a join here
+            try {
+                if ( mSender != null
+                     && Thread.currentThread().getId() != mSender.getId() )
+                    mSender.join();
+                if ( mReceiver != null
+                     && Thread.currentThread().getId() != mReceiver.getId() )
+                    mReceiver.join();
+            } catch (java.lang.InterruptedException ex ) {
+                logger.warn( "disconnect: interrupted exception while waiting for threads to die: {}",
+                             ex.getStackTrace() );
+            }
+
             mSender = null;
             mReceiver = null;
         } catch ( Exception e ) {
@@ -578,15 +618,8 @@ public class SerialChannel extends NetChannel
      */
     private void ioOperationFailed()
     {
-        // FIXME: Given the new design, do we still need this?  It may be that
-        // we were only calling this because a link went down.  Just commenting
-        // this out may do well enough for testing, but rethink how the connector
-        // thread and resetting should work.
-
-        // if ( mIsConnected.compareAndSet( true, false )) {
-        //     logger.error( "I/O operation failed.  Resetting channel." );
-        //     reset();
-        // }
+        logger.error( "I/O operation failed.  Resetting channel." );
+        reset();
     }
 
 
@@ -911,13 +944,17 @@ public class SerialChannel extends NetChannel
 
                     // Calculate things here that will remain valid for the
                     // rest of the slot.
-                    slotDuration = mSlotDuration.get();
-                    offset = mSlotNumber.get() * slotDuration;
-                    cycleDuration = slotDuration * mRadiosInGroup.get();
+
+                    // slotDuration, offset, and cycleDuration may have changed
+                    // while sleeping, but they are not something that will
+                    // usually change in the field, and even if they change,
+                    // the will pick up the new value the next time through.
 
                     thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration;
                     thisCycleTakeTime = thisCycleStartTime + offset;
-                    long endOfSlot = thisCycleTakeTime + slotDuration;
+
+
+                    long endOfTransmitWindow = thisCycleTakeTime + mTransmitDuration.get();
                     logger.debug( "Woke up: slotNumber={}, (time, mu-s)={}, jitter={}",
                                  new Object[] {
                                       mSlotNumber.get(),
@@ -930,30 +967,49 @@ public class SerialChannel extends NetChannel
                         currentTime = System.currentTimeMillis();
                         currentGpsTime = currentTime - mDelta;
 
-                        if (endOfSlot - currentGpsTime < WINDOW_DURATION) {
-                            logger.debug( "currentGptTime={}, endOfSlot={}", currentGpsTime, endOfSlot);
+
+                        if ( endOfTransmitWindow < currentGpsTime ) {
+                            logger.debug( "currentGpsTime={}, endOfTransmitWindow={}", currentGpsTime, endOfTransmitWindow);
                             logger.debug( "Out of time in slot: time remaining={}",
-                                          endOfSlot - currentGpsTime );
+                                          endOfTransmitWindow - currentGpsTime );
                             break;
                         }
 
-                        long timeLeftToTransmit = (endOfSlot - WINDOW_DURATION) - currentGpsTime; // in ms
-                        double bytesPerMs = mBaudRate / 8000.0;
+                        long timeLeftToTransmit = endOfTransmitWindow - currentGpsTime; // in ms
+
+                        // baudrate == symbols/sec, 1 byte == 10 symbols, 1 sec = 1000msec
+                        double bytesPerMs = mBaudRate / (10*1000.0);
                         long bytesThatWillFit = (long) (timeLeftToTransmit * bytesPerMs);
+
+                        long MAX_SEND_PAYLOAD_SIZE = (long) (mTransmitDuration.get() * bytesPerMs);
 
                         // At this point, we've woken up near the start of our
                         // window and should send a message if one is available.
                         if (!mSenderQueue.messageIsAvailable()) {
                             logger.debug( "Time remaining in slot={}, but no messages in queue",
-                                          endOfSlot - currentGpsTime );
+                                          endOfTransmitWindow - currentGpsTime );
                             break;
                         }
                         AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
                         int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
+
+                        if ( peekedMsgLength > MAX_SEND_PAYLOAD_SIZE ) {
+                            logger.warn( "Rejecting: messageLength={}, maxSize={}",
+                                         peekedMsgLength,
+                                         MAX_SEND_PAYLOAD_SIZE );
+                            // Take the message out of the queue and discard it,
+                            // since it's too big to ever send.
+                            msg = mSenderQueue.take(); // Will not block
+                            if ( msg.handler != null )
+                                ackToHandler( msg.handler, DisposalState.BAD );
+                            break;
+                        }
+
                         if ( peekedMsgLength > bytesThatWillFit ) {
                             logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
                                           peekedMsgLength,
                                           bytesThatWillFit );
+                            // Leave the message in the queue and try to send it next time.
                             break;
                         }
 
@@ -1030,12 +1086,8 @@ public class SerialChannel extends NetChannel
          */
         public int getSenderState() { return mSenderState.get(); }
 
-        // If we wake up and have less than this number of milliseconds left
-        // in our slot, skip this slot and wait for the next cycle.
-        private static final int WINDOW_DURATION = 100;
-
         private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
-        private final Logger logger = LoggerFactory.getLogger( "ammoclass.SerialChannel.SenderThread" );
+        private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
     }
 
 
@@ -1278,7 +1330,7 @@ public class SerialChannel extends NetChannel
         private AtomicInteger mReceiverState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
         private FileInputStream mInputStream;
         private final Logger logger
-            = LoggerFactory.getLogger( "ammo.class.SerialChannel.ReceiverThread" );
+            = LoggerFactory.getLogger( "net.serial.receiver" );
     }
 
 
@@ -1406,10 +1458,9 @@ public class SerialChannel extends NetChannel
     private static final int MAX_RECEIVE_PAYLOAD_SIZE = 2000; // Should this be set based on baud and slot duration?
     private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 
-    private boolean mLinkUp = false;
     private boolean mEnabled = false;
 
-    private String mDevice;
+    private String mDevice = "/dev/ttyUSB0";
     private int mBaudRate;
 
     private AtomicInteger mSlotNumber = new AtomicInteger();
@@ -1462,5 +1513,5 @@ public class SerialChannel extends NetChannel
     private NmeaListener mNmeaListener;
     private LocationListener mLocationListener;
 
-    private static final Logger logger = LoggerFactory.getLogger( "ammo.class.SerialChannel" );
+    private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
 }

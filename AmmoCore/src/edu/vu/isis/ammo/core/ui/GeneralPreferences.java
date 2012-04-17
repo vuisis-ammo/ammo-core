@@ -35,7 +35,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger("ammo.class.GeneralPreferences");
+	private static final Logger logger = LoggerFactory.getLogger("ui.gprefs");
 	
     public static final String LAUNCH = "edu.vu.isis.ammo.core.LoggingPreferences.LAUNCH";
 

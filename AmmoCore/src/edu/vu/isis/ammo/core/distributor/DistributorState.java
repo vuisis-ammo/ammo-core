@@ -34,7 +34,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
  *
  */
 public class DistributorState {
-	private static final Logger logger = LoggerFactory.getLogger("ammo.class.DistributorState");
+	private static final Logger logger = LoggerFactory.getLogger("dist.state");
 
 	private final Map<String, DisposalState> stateMap;
 	private boolean total;

@@ -23,7 +23,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 public class TcpSecurityObject implements ISecurityObject,
                                           INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger("ammo.class.TcpSecurityObject");
+    private static final Logger logger = LoggerFactory.getLogger("net.gateway.security");
 
     TcpSecurityObject( TcpChannel iChannel )
     {

@@ -43,7 +43,7 @@ import edu.vu.isis.ammo.core.network.SerialChannel;
 public class ChannelAdapter extends ArrayAdapter<Channel>
     implements OnTouchListener, OnNameChangeListener
 {
-    public static final Logger logger = LoggerFactory.getLogger("ammo.class.AmmoCore");
+    public static final Logger logger = LoggerFactory.getLogger("ui.channel");
 
     private final AmmoCore parent;
     private final Resources res;

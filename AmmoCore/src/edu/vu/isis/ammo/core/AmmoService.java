@@ -106,7 +106,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	private static final Logger logger = LoggerFactory.getLogger("ammo.class.AmmoService");
+	private static final Logger logger = LoggerFactory.getLogger("service");
 
 	public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
 	public static final String BIND = "edu.vu.isis.ammo.core.distributor.AmmoService.BIND";
@@ -1590,7 +1590,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
                 if ( state == 1 )
                     serialChannel.linkUp( devname );
                 else
-                    serialChannel.linkDown();
+                    serialChannel.linkDown( devname );
 
 			} else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)
 					|| WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)

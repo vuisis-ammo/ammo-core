@@ -44,7 +44,7 @@ import edu.vu.isis.ammo.core.store.Tables;
 
 public class RequestPopupWindow extends PopupWindow {
 
-	private static final Logger logger = LoggerFactory.getLogger("ammo.class.RequestPopupWindow");
+	private static final Logger logger = LoggerFactory.getLogger("ui.dist.request");
 
 	private static final SimpleDateFormat SDF = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss z");
 

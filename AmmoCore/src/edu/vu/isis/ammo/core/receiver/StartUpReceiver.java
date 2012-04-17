@@ -24,7 +24,7 @@ public class StartUpReceiver extends BroadcastReceiver {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger("ammo.class.StartUpReceiver");
+	public static final Logger logger = LoggerFactory.getLogger("receiver.start");
 	
 	public static final String RESET = "edu.vu.isis.ammo.action.RESET";
 	

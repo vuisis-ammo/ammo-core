@@ -13,12 +13,12 @@ import org.slf4j.LoggerFactory;
  */
 public interface DLogger {
 	// the main omma component
-	public static final Logger top_log = LoggerFactory.getLogger( "omma" );
-	public static final Logger network_log = LoggerFactory.getLogger( "omma.net" );
-	public static final Logger api_log = LoggerFactory.getLogger( "omma.api" );
-	public static final Logger policy_log = LoggerFactory.getLogger( "omma.api.policy" );
+	public static final Logger top_log = LoggerFactory.getLogger( "top" );
+	public static final Logger network_log = LoggerFactory.getLogger( "net" );
+	public static final Logger api_log = LoggerFactory.getLogger( "api" );
+	public static final Logger policy_log = LoggerFactory.getLogger( "api.policy" );
 	
-	public static final Logger channel_log = LoggerFactory.getLogger( "omma.net.channel" );
-	public static final Logger multicast_log = LoggerFactory.getLogger( "omma.net.channel.multicast" );
-	public static final Logger reliable_log = LoggerFactory.getLogger( "omma.net.channel.reliable" );
+	public static final Logger channel_log = LoggerFactory.getLogger( "net.channel" );
+	public static final Logger multicast_log = LoggerFactory.getLogger( "net.channel.multicast" );
+	public static final Logger reliable_log = LoggerFactory.getLogger( "net.channel.reliable" );
 }

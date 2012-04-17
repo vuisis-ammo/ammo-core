@@ -24,7 +24,7 @@ public class PackageInstalledReceiver extends BroadcastReceiver {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger("ammo.class.PackageInstalledReceiver");
+	public static final Logger logger = LoggerFactory.getLogger("receiver.install");
 
 	// ===========================================================
 	// Broadcast Receiver

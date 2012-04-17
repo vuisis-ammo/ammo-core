@@ -23,7 +23,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 public class MulticastSecurityObject implements ISecurityObject,
                                                 INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger("ammo.class.MulticastSecurityObject");
+    private static final Logger logger = LoggerFactory.getLogger("net.mcast.security");
 
     MulticastSecurityObject( MulticastChannel iChannel )
     {
