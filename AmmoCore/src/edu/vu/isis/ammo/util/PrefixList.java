@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
  * This is a Trie which uses bits on bytes as potential branches.
  */
 public class PrefixList<V> extends AbstractPrefixTrie<V> {
-	private static final Logger logger = LoggerFactory.getLogger("PrefixList");
+	private static final Logger logger = LoggerFactory.getLogger("util.plist");
 
 	final private List< Node > nodes;
 	final private Map< Key, Node > prefixMap;

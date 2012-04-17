@@ -31,7 +31,7 @@ public class USBReceiver extends BroadcastReceiver {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-private static final Logger logger = LoggerFactory.getLogger("USBReceiver");
+private static final Logger logger = LoggerFactory.getLogger("receiver.usb");
 	
 	// ===========================================================
 	// Fields

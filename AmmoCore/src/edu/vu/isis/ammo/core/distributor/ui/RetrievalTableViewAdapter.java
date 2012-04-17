@@ -27,7 +27,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSche
  */
 public class RetrievalTableViewAdapter extends DistributorTableViewAdapter
 {
-	public static final Logger logger = LoggerFactory.getLogger("RetrievalTableViewAdapter");
+	public static final Logger logger = LoggerFactory.getLogger("ui.dist.retrieval");
 
 	public RetrievalTableViewAdapter(Context context, int layout, Cursor cursor) 
 	{

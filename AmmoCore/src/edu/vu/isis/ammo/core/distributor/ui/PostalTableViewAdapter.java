@@ -27,7 +27,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
  */
 public class PostalTableViewAdapter extends DistributorTableViewAdapter 
 {
-	public static final Logger logger = LoggerFactory.getLogger("PostalTableViewAdapter");
+	public static final Logger logger = LoggerFactory.getLogger("ui.dist.postal.view");
 
 	public PostalTableViewAdapter(Context context, int layout, Cursor cursor) 
 	{

@@ -45,7 +45,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 public class MulticastChannel extends NetChannel
 {
-    private static final Logger logger = LoggerFactory.getLogger("MulticastChannel");
+    private static final Logger logger = LoggerFactory.getLogger("net.mcast");
 
     private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
 
@@ -401,7 +401,7 @@ public class MulticastChannel extends NetChannel
      *
      */
     private class ConnectorThread extends Thread {
-        private final Logger logger = LoggerFactory.getLogger( "MulticastChannel.ConnectorThread" );
+        private final Logger logger = LoggerFactory.getLogger( "net.mcast.connector" );
 
         // private final String DEFAULT_HOST = "192.168.1.100";
         // private final int DEFAULT_PORT = 33289;
@@ -1080,7 +1080,7 @@ public class MulticastChannel extends NetChannel
         private MulticastChannel mChannel;
         private SenderQueue mQueue;
         private MulticastSocket mSocket;
-        private final Logger logger = LoggerFactory.getLogger( "MulticastChannel.SenderThread" );
+        private final Logger logger = LoggerFactory.getLogger( "net.mcast.sender" );
     }
 
 
@@ -1184,7 +1184,7 @@ public class MulticastChannel extends NetChannel
         private MulticastChannel mDestination;
         private MulticastSocket mSocket;
         private final Logger logger
-            = LoggerFactory.getLogger( "MulticastChannel.ReceiverThread" );
+            = LoggerFactory.getLogger( "net.mcast.receiver" );
     }
 
 

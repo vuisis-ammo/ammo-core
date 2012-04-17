@@ -49,7 +49,7 @@ public class PreferenceProvider extends ContentProvider {
 	// =================================
 	// Fields
 	// =================================
-	Logger logger = LoggerFactory.getLogger("PreferenceProvider");
+	Logger logger = LoggerFactory.getLogger("provider.prefs");
 	
 	
 	// =================================

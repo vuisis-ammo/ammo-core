@@ -22,7 +22,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class MessageQueueActivity extends Activity {
-	public static final Logger logger = LoggerFactory.getLogger("MessageQueueActivity");
+	public static final Logger logger = LoggerFactory.getLogger("ui.messagequeue");
 
 	// ===============================================
 	// Activity Lifecycle

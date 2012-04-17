@@ -59,7 +59,7 @@ import edu.vu.isis.ammo.util.PrefixList;
  *
  */
 public class DistributorPolicy implements ContentHandler {
-	private static final Logger logger = LoggerFactory.getLogger("DistributorPolicy");
+	private static final Logger logger = LoggerFactory.getLogger("dist.policy");
 
 	public static final String DEFAULT = "_default_";
 

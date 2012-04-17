@@ -27,6 +27,6 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  */
 public class NetlinkDetailActivity extends ActivityEx 
 {
-	public static final Logger logger = LoggerFactory.getLogger("NetlinkDetailActivity");
+	public static final Logger logger = LoggerFactory.getLogger("ui.netlink.detail");
 	
 }

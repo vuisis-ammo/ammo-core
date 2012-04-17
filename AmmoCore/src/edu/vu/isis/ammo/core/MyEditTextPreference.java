@@ -30,7 +30,7 @@ public class MyEditTextPreference extends EditTextPreference {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger("MyEditTextPreference");
+	public static final Logger logger = LoggerFactory.getLogger("ui.etprefs");
 	public static enum Type {
 		IP, DEVICE_ID, OPERATOR_ID, OPERATOR_KEY,
 		LOG_LEVEL

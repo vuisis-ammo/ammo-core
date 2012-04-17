@@ -27,7 +27,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSche
  */
 public class SubscribeTableViewAdapter extends DistributorTableViewAdapter
 {
-	public static final Logger logger = LoggerFactory.getLogger("SubscribeTableViewAdapter");
+	public static final Logger logger = LoggerFactory.getLogger("ui.dist.subscribe");
 
 	public SubscribeTableViewAdapter(Context context, int layout, Cursor cursor) 
 	{

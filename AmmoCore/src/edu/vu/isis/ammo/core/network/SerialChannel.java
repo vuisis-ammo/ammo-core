@@ -392,7 +392,7 @@ public class SerialChannel extends NetChannel
      */
     private class Connector extends Thread
     {
-        private final Logger logger = LoggerFactory.getLogger( "SerialChannel.Connector" );
+        private final Logger logger = LoggerFactory.getLogger( "net.serial.connector" );
 
         protected Looper mLooper;
 
@@ -1082,7 +1082,7 @@ public class SerialChannel extends NetChannel
         public int getSenderState() { return mSenderState.get(); }
 
         private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
-        private final Logger logger = LoggerFactory.getLogger( "s.s" );
+        private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
     }
 
 
@@ -1322,7 +1322,7 @@ public class SerialChannel extends NetChannel
         private AtomicInteger mReceiverState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
         private FileInputStream mInputStream;
         private final Logger logger
-            = LoggerFactory.getLogger( "s.r" );
+            = LoggerFactory.getLogger( "net.serial.receiver" );
     }
 
 
@@ -1505,5 +1505,5 @@ public class SerialChannel extends NetChannel
     private NmeaListener mNmeaListener;
     private LocationListener mLocationListener;
 
-    private static final Logger logger = LoggerFactory.getLogger( "SerialChannel" );
+    private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
 }
