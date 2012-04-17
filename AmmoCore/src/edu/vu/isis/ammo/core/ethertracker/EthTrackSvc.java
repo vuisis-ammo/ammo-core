@@ -31,7 +31,7 @@ import edu.vu.isis.ammo.core.ServiceEx;
 
 public class EthTrackSvc extends ServiceEx {
 
-    private static final Logger logger = LoggerFactory.getLogger("ammo.class.EthTrackSvc");
+    private static final Logger logger = LoggerFactory.getLogger("EthTrackSvc");
 	private AmmoCoreApp application;
 
     private boolean mIsLinkUp = false;

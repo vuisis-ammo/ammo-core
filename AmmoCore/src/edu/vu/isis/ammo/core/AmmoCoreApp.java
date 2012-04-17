@@ -27,7 +27,7 @@ import android.os.Environment;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
 public class AmmoCoreApp  extends Application {
-    // private static final Logger logger = LoggerFactory.getLogger("ammo.class.AmmoCoreApp");
+    // private static final Logger logger = LoggerFactory.getLogger("AmmoCoreApp");
 
     private static AmmoCoreApp singleton;
 

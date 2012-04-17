@@ -25,7 +25,7 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  */
 public class AboutActivity extends ActivityEx
 {
-    public static final Logger logger = LoggerFactory.getLogger("ammo.class.AboutActivity");
+    public static final Logger logger = LoggerFactory.getLogger("AboutActivity");
 
 
     /**

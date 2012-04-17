@@ -22,7 +22,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class SerialSecurityObject implements ISecurityObject,
                                              INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger("ammo.class.SerialSecurityObject");
+    private static final Logger logger = LoggerFactory.getLogger("SerialSecurityObject");
 
     SerialSecurityObject( SerialChannel iChannel )
     {

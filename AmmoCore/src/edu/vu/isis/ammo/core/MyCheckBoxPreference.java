@@ -27,7 +27,7 @@ public class MyCheckBoxPreference extends CheckBoxPreference {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-	public static final Logger logger = LoggerFactory.getLogger("ammo.class.MyCheckBoxPreference");
+	public static final Logger logger = LoggerFactory.getLogger("MyCheckBoxPreference");
 	
 	public static enum Type {
 		JOURNAL

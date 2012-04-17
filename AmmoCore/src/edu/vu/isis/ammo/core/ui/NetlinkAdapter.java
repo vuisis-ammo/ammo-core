@@ -34,7 +34,7 @@ import edu.vu.isis.ammo.core.model.Netlink;
 public class NetlinkAdapter extends ArrayAdapter<Netlink>
   implements OnClickListener, OnFocusChangeListener, OnTouchListener
 {
-    public static final Logger logger = LoggerFactory.getLogger( "ammo.class.AmmoCore" );
+    public static final Logger logger = LoggerFactory.getLogger( "AmmoCore" );
     private final AmmoCore parent;
     private final Resources res;
     private final List<Netlink> model;

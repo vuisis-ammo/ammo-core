@@ -43,7 +43,7 @@ import android.widget.Toast;
  */
 
 public class WifiReceiver extends BroadcastReceiver {
-private static final Logger logger = LoggerFactory.getLogger("ammo.class.WifiReceiver");
+private static final Logger logger = LoggerFactory.getLogger("WifiReceiver");
 	// ===========================================================
 	// Constants
 	// ===========================================================

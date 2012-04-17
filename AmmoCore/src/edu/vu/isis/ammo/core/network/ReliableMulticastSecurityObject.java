@@ -22,7 +22,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class ReliableMulticastSecurityObject implements ISecurityObject,
                                                         INetworkService.OnSendMessageHandler
 {
-    private static final Logger logger = LoggerFactory.getLogger("ammo.class.ReliableMulticastSecurityObject");
+    private static final Logger logger = LoggerFactory.getLogger("ReliableMulticastSecurityObject");
 
     ReliableMulticastSecurityObject( ReliableMulticastChannel iChannel )
     {

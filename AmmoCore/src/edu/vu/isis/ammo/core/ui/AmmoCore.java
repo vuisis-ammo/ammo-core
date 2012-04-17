@@ -54,7 +54,7 @@ import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
  */
 public class AmmoCore extends TabActivityEx
 {
-    public static final Logger logger = LoggerFactory.getLogger( "ammo.class.AmmoCore" );
+    public static final Logger logger = LoggerFactory.getLogger( "AmmoCore" );
 
     private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
     private static final int CONFIG_MENU = Menu.NONE + 1;

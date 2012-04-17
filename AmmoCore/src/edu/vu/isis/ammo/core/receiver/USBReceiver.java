@@ -31,7 +31,7 @@ public class USBReceiver extends BroadcastReceiver {
 	// ===========================================================
 	// Constants
 	// ===========================================================
-private static final Logger logger = LoggerFactory.getLogger("ammo.class.USBReceiver");
+private static final Logger logger = LoggerFactory.getLogger("USBReceiver");
 	
 	// ===========================================================
 	// Fields
