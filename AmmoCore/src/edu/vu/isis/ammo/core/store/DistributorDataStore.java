@@ -322,22 +322,22 @@ public class DistributorDataStore {
 		}
 
 		public int delete(String tupleId) {
-			final String select = new StringBuilder()
+			final String whereClause = new StringBuilder()
 			.append(RequestField.TOPIC.q(null)).append("=?")
 			.append(" AND ")
 			.append(RequestField.SUBTOPIC.q(null)).append("=?")
 			.toString();
 			
-			final String[] args = new String[] {tupleId, this.topic, this.subtopic};
+			final String[] whereArgs = new String[] {tupleId, this.topic, this.subtopic};
 
 			try {
 				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
-				final int count = db.delete(Tables.CAPABILITY.n, select, args);
+				final int count = db.delete(Tables.CAPABILITY.n, whereClause, whereArgs);
 
 				logger.trace("Capability delete {}", count);
 				return count;
 			} catch (IllegalArgumentException ex) {
-				logger.error("delete capablity {} {}", select, args);
+				logger.error("delete capablity {} {}", whereClause, whereArgs);
 			}
 			return 0;
 		}
@@ -758,8 +758,13 @@ public class DistributorDataStore {
 					cv.put(RequestField.DISPOSITION.n(), state.aggregate().cv());
 				}	
 				try {
-					return this.db.update(this.table.n, cv, 
-							"\"_id\"=?", new String[]{ String.valueOf(requestId) } );
+					final String whereClause = new StringBuilder()
+					.append(RequestField._ID.q(null)).append("=?")
+                    .toString();
+ 
+					final String[] whereArgs = new String[]{ String.valueOf(requestId) };
+					return this.db.update(this.table.n, cv, whereClause, whereArgs); 
+
 				} catch (IllegalArgumentException ex) {
 					logger.error("updateRequestById {} {}", requestId, cv);
 				}
@@ -851,6 +856,7 @@ public class DistributorDataStore {
 	}
 	static private final String REQUEST_TOPIC_QUERY = new StringBuilder()
 	.append(RequestField.TOPIC.q(null)).append("=?")
+	.append(" AND ")
 	.append(RequestField.SUBTOPIC.q(null)).append("=?")
 	.toString();
 
@@ -1050,26 +1056,27 @@ public class DistributorDataStore {
 			}
 		}
 
-		public int delete(String tupleId) {
-			final String select = new StringBuilder()
-			.append(RequestField.PROVIDER.q(null)).append("=?")
-			.append(" AND ")
+		public int delete(String providerId) {
+			final String whereClause = new StringBuilder()	
 			.append(RequestField.TOPIC.q(null)).append("=?")
 			.append(" AND ")
-			.append(RequestField.SUBTOPIC.q(null)).append("=?")
+			.append(RequestField.SUBTOPIC.q(null)).append("=?")		
+			.append(" AND ")
+			.append(RequestField.PROVIDER.q(null)).append("=?")
 			.toString();
 			
-			final String[] args = new String[] {tupleId, this.topic, this.subtopic};
+			final String[] whereArgs = new String[] {this.topic, this.subtopic, providerId};
 
 			try {
 				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
-				final int count = db.delete(Tables.POSTAL.n, select, args);
+				final int count = db.delete(Tables.POSTAL.n, whereClause, whereArgs);
+				// proper use of foreign keys can help the following...
 				final int disposalCount = db.delete(Tables.POSTAL_DISPOSAL.n, 
 						DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
 				logger.trace("Postal delete {} {}", count, disposalCount);
 				return count;
 			} catch (IllegalArgumentException ex) {
-				logger.error("delete postal {} {}", select, args);
+				logger.error("delete postal {} {}", whereClause, whereArgs);
 			}
 			return 0;
 		}
