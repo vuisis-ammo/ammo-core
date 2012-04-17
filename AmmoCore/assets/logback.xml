@@ -27,9 +27,7 @@
      <appender-ref ref="FILE" />
   </logger>
   
-  <logger name="store" level="TRACE" />
-  
-  <logger name="ipc.request" level="TRACE" />
+  <logger name="ipc.request" level="WARN" />
   
   <logger name="class.IncompleteRequest" level="TRACE" />
   

@@ -302,6 +302,8 @@ public class DistributorDataStore {
 		}
 
 		public long upsert(final String device) {
+			PLogger.STORE_CAPABILITY_DML.trace("upsert capability: {} @ {}",
+					device, this);
 			synchronized(DistributorDataStore.this) {	
 				final ContentValues rqstValues = new ContentValues();
 				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
@@ -453,7 +455,7 @@ public class DistributorDataStore {
 		 */
 		public void upsert() {
 			final DistributorDataStore parent = DistributorDataStore.this;
-
+			PLogger.STORE_PRESENCE_DML.trace("upsert presence: {}", this);
 			synchronized(parent) {	
 				if (this.deviceId == null || this.deviceId.length() == 0) {
 					return;
@@ -1041,6 +1043,8 @@ public class DistributorDataStore {
 				rqstValues.put(PostalField.NOTICE_GATE_OUT.cv(), this.notice.atGateOut.via.v);	
 
 				// values.put(PostalTableSchema.UNIT.cv(), 50);
+				PLogger.STORE_POSTAL_DML.trace("upsert postal: {} @ {}",
+						totalState, rqstValues);
 				final RequestWorker requestor = DistributorDataStore.this.getPostalRequestWorker();
 				return requestor.upsert(rqstValues, status);
 			}
@@ -1091,7 +1095,6 @@ public class DistributorDataStore {
 	public synchronized Cursor queryPostalReady() {
 		this.openRead();
 		try {
-			PLogger.STORE_DQL.trace("postal query \n {}", POSTAL_STATUS_QUERY);
 			return db.rawQuery(POSTAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
@@ -1332,7 +1335,6 @@ public class DistributorDataStore {
 	public synchronized Cursor queryRetrievalReady() {
 		this.openRead();
 		try {
-			PLogger.STORE_DQL.trace("retrieval query \n {}", RETRIEVAL_STATUS_QUERY);
 			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
@@ -1359,6 +1361,8 @@ public class DistributorDataStore {
 	 * @return
 	 */
 	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
+		PLogger.STORE_RETRIEVE_DML.trace("upsert retrieval: {} @ {}",
+				cv, status);
 		final RequestWorker requestor = this.getRetrievalRequestWorker();
 		return requestor.upsert(cv, status);
 	}
@@ -1551,7 +1555,6 @@ public class DistributorDataStore {
 	public synchronized Cursor queryInterestReady() {
 		this.openRead();
 		try {
-			PLogger.STORE_DQL.trace("interest query \n {}", INTEREST_STATUS_QUERY);
 			return db.rawQuery(INTEREST_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
@@ -1572,6 +1575,8 @@ public class DistributorDataStore {
 	 * Upsert
 	 */
 	public synchronized long upsertInterest(ContentValues cv, DistributorState status) {
+		PLogger.STORE_INTEREST_DML.trace("upsert interest: {} @ {}",
+				cv, status);
 		final RequestWorker requestor = this.getInterestRequestWorker();
 		return requestor.upsert(cv, status);
 	}
@@ -2096,6 +2101,8 @@ public class DistributorDataStore {
 		try {
 			final ContentValues cv = new ContentValues();		
 			cv.put(ChannelField.STATE.cv(), status.cv());
+			PLogger.STORE_CHANNEL_DML.trace("upsert channel: {} @ {}",
+					channel, status);
 
 			final int updateCount = this.db.update(Tables.CHANNEL.n, cv, 
 					CHANNEL_UPDATE_CLAUSE, new String[]{ channel } );
