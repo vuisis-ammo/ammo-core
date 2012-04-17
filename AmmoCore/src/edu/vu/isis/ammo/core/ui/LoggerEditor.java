@@ -199,7 +199,7 @@ public class LoggerEditor extends ListActivity {
 					updateIcon(Level.OFF, lastSelected);
 				}
 				
-				editedLoggers.add(selectedLogger);
+				//editedLoggers.add(selectedLogger);
 
 			}
 
