@@ -169,31 +169,31 @@ public class DistributorThread extends Thread {
 
 			//check for variable update ... 
 			int total_sent = parent.total_sent.get();
-					int total_recv = parent.total_recv.get();
+			int total_recv = parent.total_recv.get();
 
-					int sent = total_sent - last_sent_count;
-					int recv = total_recv - last_recv_count;
+			int sent = total_sent - last_sent_count;
+			int recv = total_recv - last_recv_count;
 
-					int icon = 0;
-					//figure out the icon ... 
-					if (sent == 0 && recv == 0)
-						icon = R.drawable.nodata;
-					else if (sent > 0 && recv ==0)
-						icon = R.drawable.up;
-					else if (sent == 0 && recv > 0)
-						icon = R.drawable.down;
-					else if (sent > 0 && recv > 0)
-						icon = R.drawable.alldata;
+			int icon = 0;
+			//figure out the icon ... 
+			if (sent == 0 && recv == 0)
+				icon = R.drawable.nodata;
+			else if (sent > 0 && recv ==0)
+				icon = R.drawable.up;
+			else if (sent == 0 && recv > 0)
+				icon = R.drawable.down;
+			else if (sent > 0 && recv > 0)
+				icon = R.drawable.alldata;
 
-					String contentText = "Sent " + total_sent + " Received " + total_recv;
+			String contentText = "Sent " + total_sent + " Received " + total_recv;
 
-					parent.notifyIcon("", "Data Channel", contentText, icon);
+			parent.notifyIcon("", "Data Channel", contentText, icon);
 
-					//save the last sent and recv ...
-					last_sent_count = total_sent;
-					last_recv_count = total_recv;
+			//save the last sent and recv ...
+			last_sent_count = total_sent;
+			last_recv_count = total_recv;
 
-					parent.ammoService.notifyMsg.postDelayed(this, 30000);
+			parent.ammoService.notifyMsg.postDelayed(this, 30000);
 		}        
 	}
 
@@ -827,8 +827,8 @@ public class DistributorThread extends Thread {
 			deviceId = null;
 		}
 		ammoService.store()
-		     .getPresenceWorker(deviceId)
-		     .upsert();
+		.getPresenceWorker(deviceId)
+		.upsert();
 		return true;
 	}
 
@@ -1007,130 +1007,138 @@ public class DistributorThread extends Thread {
 		if (!that.isConnected()) 
 			return;
 
-		final Cursor pending = this.store.queryPostalReady();
-		if (pending == null) return;
+		Cursor pending = null;
+		try {
+			pending = this.store.queryPostalReady();
+			if (pending == null) return;
 
-		// Iterate over each row serializing its data and sending it.
-		for (boolean moreItems = pending.moveToFirst(); moreItems; 
-				moreItems = pending.moveToNext()) 
-		{
-			PLogger.STORE_POSTAL_DQL.trace("postal cursor: {}", pending);
-			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
-			final PostalWorker postal = this.store().getPostalWorker(pending, that);
-
-			logger.debug("serializing: {} as {}", postal.provider, postal.topic);
-
-			final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
-
-			int dataColumnIndex = pending.getColumnIndex(PostalField.DATA.n());
-
-			final String data;
-			if (!pending.isNull(dataColumnIndex)) {
-				data = pending.getString(dataColumnIndex);
-			} else {
-				data = null;
-			}
-
-			switch (postal.serialMoment.type()) {
-			case APRIORI:
-			case EAGER:
-				serializer.setSerializer( new RequestSerializer.OnSerialize() {
-					final SerialMoment serialMoment_ = postal.serialMoment;
-					final String data_ = data;
-
-					@Override
-					public byte[] run(Encoding encode) {
-						if (data_ == null || data_.length() < 1) {
-							logger.warn("your {} payload has no content: {}", 
-									serialMoment_, data_);
-							return new byte[0];
-						}
-						return data_.getBytes();
-					}
-				});
-				break;
-
-			case LAZY:
-			default:
-				serializer.setSerializer( new RequestSerializer.OnSerialize() {
-					final RequestSerializer serializer_ = serializer;
-					final AmmoService that_ = that;
-					final PostalWorker postal_ = postal;
-
-					@Override
-					public byte[] run(Encoding encode) {
-						try {
-							return RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
-									serializer_.provider.asUri(), encode);
-						} catch (IOException e1) {
-							logger.error("invalid row for serialization");
-						} catch (TupleNotFoundException ex) {
-							logger.error("tuple not found when processing postal table");
-							postal_.delete(ex.missingTupleUri.getPath());
-						} catch (NonConformingAmmoContentProvider e) {
-							e.printStackTrace();
-						}
-						logger.error("no serialized data produced");
-						return null;
-					}
-				});
-			}
-
-			final DistributorPolicy.Topic policy = that.policy().matchPostal(postal.topic);
-			final DistributorState dispersal = policy.makeRouteMap();
+			// Iterate over each row serializing its data and sending it.
+			for (boolean moreItems = pending.moveToFirst(); moreItems; 
+					moreItems = pending.moveToNext()) 
 			{
-				final Cursor channelCursor = this.store.getPostalDisposalWorker().queryByParent(id);
-				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
-						moreChannels = channelCursor.moveToNext()) 
-				{
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
-					dispersal.put(channel, DisposalState.getInstanceById(channelState));
+				PLogger.STORE_POSTAL_DQL.trace("postal cursor: {}", pending);
+				final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
+				final PostalWorker postal = this.store().getPostalWorker(pending, that);
+
+				logger.debug("serializing: {} as {}", postal.provider, postal.topic);
+
+				final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
+
+				int dataColumnIndex = pending.getColumnIndex(PostalField.DATA.n());
+
+				final String data;
+				if (!pending.isNull(dataColumnIndex)) {
+					data = pending.getString(dataColumnIndex);
+				} else {
+					data = null;
 				}
-				logger.trace("prior channel states {}", dispersal);
-				channelCursor.close();
-			}
-			// Dispatch the request.
-			try {
-				if (!that.isConnected()) {
-					logger.debug("no network connection while processing table");
-					continue;
-				} 
-				synchronized (this.store) {
-					final ContentValues values = new ContentValues();
 
-					values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
-					long numUpdated = this.store.updatePostalByKey(id, values, null);
-					logger.debug("updated {} postal items", numUpdated);
-
-					final INetworkService.OnSendMessageHandler msgHandler = null;
-					new INetworkService.OnSendMessageHandler() {
-						final DistributorThread parent = DistributorThread.this;
-						final int id_ = id;
-						final String auid_ = postal.auid;
-						final String topic_ = postal.topic;
-						final String subtopic_ = postal.subtopic;
-						final Notice notice_ = postal.notice;
+				switch (postal.serialMoment.type()) {
+				case APRIORI:
+				case EAGER:
+					serializer.setSerializer( new RequestSerializer.OnSerialize() {
+						final SerialMoment serialMoment_ = postal.serialMoment;
+						final String data_ = data;
 
 						@Override
-						public boolean ack(String channel, DisposalState status) {
-							final ChannelAck ca = new ChannelAck(Tables.POSTAL, id_, 
-									topic_, subtopic_, auid_, notice_, channel, status);
-							return parent.announceChannelAck(ca);
+						public byte[] run(Encoding encode) {
+							if (data_ == null || data_.length() < 1) {
+								logger.warn("your {} payload has no content: {}", 
+										serialMoment_, data_);
+								return new byte[0];
+							}
+							return data_.getBytes();
 						}
-					};
+					});
+					break;
 
-					final DistributorState dispatchResult = this.dispatchPostalRequest(
-							that, postal, dispersal, serializer, msgHandler);
+				case LAZY:
+				default:
+					serializer.setSerializer( new RequestSerializer.OnSerialize() {
+						final RequestSerializer serializer_ = serializer;
+						final AmmoService that_ = that;
+						final PostalWorker postal_ = postal;
 
-					this.store.updatePostalByKey(id, null, dispatchResult);
+						@Override
+						public byte[] run(Encoding encode) {
+							try {
+								return RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
+										serializer_.provider.asUri(), encode);
+							} catch (IOException e1) {
+								logger.error("invalid row for serialization");
+							} catch (TupleNotFoundException ex) {
+								logger.error("tuple not found when processing postal table");
+								postal_.delete(ex.missingTupleUri.getPath());
+							} catch (NonConformingAmmoContentProvider e) {
+								e.printStackTrace();
+							}
+							logger.error("no serialized data produced");
+							return null;
+						}
+					});
 				}
-			} catch (NullPointerException ex) {
-				logger.warn("processing postal request from cache failed {} {}", 
-						ex, ex.getStackTrace());
+
+				final DistributorPolicy.Topic policy = that.policy().matchPostal(postal.topic);
+				final DistributorState dispersal = policy.makeRouteMap();	
+				Cursor channelCursor = null;
+				try {
+					channelCursor = this.store.getPostalDisposalWorker().queryByParent(id);
+					for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
+							moreChannels = channelCursor.moveToNext()) 
+					{
+						final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+						final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
+						dispersal.put(channel, DisposalState.getInstanceById(channelState));
+					}
+					logger.trace("prior channel states {}", dispersal);
+				} finally {
+					if (channelCursor != null) channelCursor.close();
+				}
+
+				// Dispatch the request.
+				try {
+					if (!that.isConnected()) {
+						logger.debug("no network connection while processing table");
+						continue;
+					} 
+					synchronized (this.store) {
+						final ContentValues values = new ContentValues();
+
+						values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
+						long numUpdated = this.store.updatePostalByKey(id, values, null);
+						logger.debug("updated {} postal items", numUpdated);
+
+						final INetworkService.OnSendMessageHandler msgHandler = null;
+						new INetworkService.OnSendMessageHandler() {
+							final DistributorThread parent = DistributorThread.this;
+							final int id_ = id;
+							final String auid_ = postal.auid;
+							final String topic_ = postal.topic;
+							final String subtopic_ = postal.subtopic;
+							final Notice notice_ = postal.notice;
+
+							@Override
+							public boolean ack(String channel, DisposalState status) {
+								final ChannelAck ca = new ChannelAck(Tables.POSTAL, id_, 
+										topic_, subtopic_, auid_, notice_, channel, status);
+								return parent.announceChannelAck(ca);
+							}
+						};
+
+						final DistributorState dispatchResult = this.dispatchPostalRequest(
+								that, postal, dispersal, serializer, msgHandler);
+
+						this.store.updatePostalByKey(id, null, dispatchResult);
+					}
+				} catch (NullPointerException ex) {
+					logger.warn("processing postal request from cache failed {} {}", 
+							ex, ex.getStackTrace());
+				}
 			}
+			pending.close();
+		} finally {
+			if (pending != null) pending.close();
 		}
-		pending.close();
 		logger.debug(MARK_POSTAL, "processed table POSTAL");
 	}
 
@@ -1368,72 +1376,80 @@ public class DistributorThread extends Thread {
 	private void doRetrievalCache(AmmoService that) {
 		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
-		final Cursor pending = this.store.queryRetrievalReady();
-		if (pending == null) return;
+		Cursor pending = null;
+		try {
+			pending = this.store.queryRetrievalReady();
 
-		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
-			PLogger.STORE_RETRIEVE_DQL.trace("retrieval cursor: {}", pending);
-			
-			// For each item in the cursor, ask the content provider to
-			// serialize it, then pass it off to the NPS.
-			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
-			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
-			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
-			final DistributorState dispersal = policy.makeRouteMap();
-			{
-				final Cursor channelCursor = this.store.getRetrievalDisposalWorker().queryByParent(id);
-				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
-					dispersal.put(channel, DisposalState.getInstanceById(channelState));
+			if (pending == null) return;
+
+			for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
+				PLogger.STORE_RETRIEVE_DQL.trace("retrieval cursor: {}", pending);
+
+				// For each item in the cursor, ask the content provider to
+				// serialize it, then pass it off to the NPS.
+				final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
+				final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
+				final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
+				final DistributorState dispersal = policy.makeRouteMap();
+				Cursor channelCursor = null;
+				try {
+					channelCursor = this.store.getRetrievalDisposalWorker().queryByParent(id);
+					for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
+						final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+						final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
+						dispersal.put(channel, DisposalState.getInstanceById(channelState));
+					}
+				} finally {
+					channelCursor.close();
 				}
-				channelCursor.close();
+
+				final UUID uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.cv())));
+				final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
+				final String selection = pending.getString(pending.getColumnIndex(RetrievalField.SELECTION.cv()));
+
+				final int columnIx = pending.getColumnIndex(RetrievalField.LIMIT.n());
+				final Integer limit = pending.isNull(columnIx) ? null : pending.getInt(columnIx);
+
+				try {
+					if (!that.isConnected()) {
+						logger.debug("no network connection");
+						continue;
+					}
+					synchronized (this.store) {
+						final ContentValues values = new ContentValues();
+
+						values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
+						@SuppressWarnings("unused")
+						final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
+
+						final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
+								uuid, topic, selection, limit, dispersal, 
+								new INetworkService.OnSendMessageHandler() {
+							final DistributorThread parent = DistributorThread.this;
+							final String auid_ = auid;
+							final String topic_ = topic;
+							final String subtopic_ = null;
+							final Notice notice_ = null;
+
+							@Override
+							public boolean ack(String channel, DisposalState status) {
+								return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
+										topic_, subtopic_, auid_, notice_,
+										channel, status));
+							}
+						});
+						this.store.updateRetrievalByKey(id, null, dispatchResult);
+					}
+
+				} catch (NullPointerException ex) {
+					logger.warn("processing retrieval request from cache failed {} {}", 
+							ex, ex.getStackTrace());
+				}
 			}
-
-			final UUID uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.cv())));
-			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
-			final String selection = pending.getString(pending.getColumnIndex(RetrievalField.SELECTION.cv()));
-
-			final int columnIx = pending.getColumnIndex(RetrievalField.LIMIT.n());
-			final Integer limit = pending.isNull(columnIx) ? null : pending.getInt(columnIx);
-
-			try {
-				if (!that.isConnected()) {
-					logger.debug("no network connection");
-					continue;
-				}
-				synchronized (this.store) {
-					final ContentValues values = new ContentValues();
-
-					values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
-					@SuppressWarnings("unused")
-					final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
-
-					final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
-							uuid, topic, selection, limit, dispersal, 
-							new INetworkService.OnSendMessageHandler() {
-						final DistributorThread parent = DistributorThread.this;
-						final String auid_ = auid;
-						final String topic_ = topic;
-						final String subtopic_ = null;
-						final Notice notice_ = null;
-
-						@Override
-						public boolean ack(String channel, DisposalState status) {
-							return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
-									topic_, subtopic_, auid_, notice_,
-									channel, status));
-						}
-					});
-					this.store.updateRetrievalByKey(id, null, dispatchResult);
-				}
-
-			} catch (NullPointerException ex) {
-				logger.warn("processing retrieval request from cache failed {} {}", 
-						ex, ex.getStackTrace());
-			}
+			pending.close();
+		} finally {
+			if (pending != null) pending.close();
 		}
-		pending.close();
 	}
 
 	/**
@@ -1514,26 +1530,32 @@ public class DistributorThread extends Thread {
 		final String uuid = resp.getRequestUid();
 		final FullTopic fulltopic = new FullTopic(resp.getMimeType());
 
-		final Cursor cursor = this.store
-				.queryRetrievalByKey(
-						new String[] { RequestField.PROVIDER.n() }, 
-						uuid, null);
-		if (cursor.getCount() < 1) {
-			logger.error("received a message for which there is no retrieval {} {}", fulltopic, uuid);
+		Cursor cursor = null;
+		try {
+			cursor = this.store
+					.queryRetrievalByKey(
+							new String[] { RequestField.PROVIDER.n() }, 
+							uuid, null);
+			if (cursor.getCount() < 1) {
+				logger.error("received a message for which there is no retrieval {} {}", fulltopic, uuid);
+				cursor.close();
+				return false;
+			}
+			cursor.moveToFirst();
+			final String uriString = cursor.getString(0); // only asked for one so
+			// it better be it.
 			cursor.close();
-			return false;
+
+			final Uri provider = Uri.parse(uriString);
+
+			// update the actual provider
+
+			final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
+			final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, resp.getData().toByteArray());
+			logger.debug("tuple upserted {}", tuple);
+		} finally {
+			if (cursor != null) cursor.close();
 		}
-		cursor.moveToFirst();
-		final String uriString = cursor.getString(0); // only asked for one so
-		// it better be it.
-		cursor.close();
-		final Uri provider = Uri.parse(uriString);
-
-		// update the actual provider
-
-		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, resp.getData().toByteArray());
-		logger.debug("tuple upserted {}", tuple);
 
 		return true;
 	}
@@ -1631,73 +1653,83 @@ public class DistributorThread extends Thread {
 	private void doInterestCache(AmmoService that) {
 		logger.debug(MARK_INTEREST, "process table INTEREST");
 
-		final Cursor pending = this.store.queryInterestReady();
-		if (pending == null) return;
+		Cursor pending = null;
+		try {
+			pending = this.store.queryInterestReady();
 
-		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
-			PLogger.STORE_INTEREST_DQL.trace("postal cursor: {}", pending);
-			
-			// For each item in the cursor, ask the content provider to
-			// serialize it, then pass it off to the NPS.
-			final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
-			final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
-			final String subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
-			final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
+			if (pending == null) return;
 
-			final String selection = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));
+			for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
+				PLogger.STORE_INTEREST_DQL.trace("postal cursor: {}", pending);
 
-			logger.trace(MARK_INTEREST, "process row INTEREST {} {} {}", new Object[] { id, topic, selection });
+				// For each item in the cursor, ask the content provider to
+				// serialize it, then pass it off to the NPS.
+				final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
+				final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
+				final String subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
+				final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
 
-			final DistributorPolicy.Topic policy = that.policy().matchInterest(topic);
-			final DistributorState dispersal = policy.makeRouteMap();
-			{
-				final Cursor channelCursor = this.store.getInterestDisposalWorker().queryByParent(id);
-				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
-					dispersal.put(channel, DisposalState.getInstanceById(channelState));
+				final String selection = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));
+
+				logger.trace(MARK_INTEREST, "process row INTEREST {} {} {}", new Object[] { id, topic, selection });
+
+				final DistributorPolicy.Topic policy = that.policy().matchInterest(topic);
+				final DistributorState dispersal = policy.makeRouteMap();
+
+				Cursor channelCursor = null;
+				try { 
+					channelCursor = this.store.getInterestDisposalWorker().queryByParent(id);
+
+					for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
+						final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+						final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
+						dispersal.put(channel, DisposalState.getInstanceById(channelState));
+					}
+				} finally {
+					if (channelCursor != null) channelCursor.close();
 				}
-				channelCursor.close();
+
+				try {
+					if (!that.isConnected()) {
+						logger.debug("no network connection");
+						continue;
+					}
+					synchronized (this.store) {
+						final ContentValues values = new ContentValues();
+
+						values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
+						@SuppressWarnings("unused")
+						long numUpdated = this.store.updateInterestByKey(id, values, null);
+
+						final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
+								topic, subtopic, selection, dispersal, 
+								new INetworkService.OnSendMessageHandler() {
+							final DistributorThread parent = DistributorThread.this;
+							final int id_ = id;
+							final String auid_ = auid;
+							final String topic_ = topic;
+							final String subtopic_ = null;
+							final Notice notice_ = null;
+
+							@Override
+							public boolean ack(String channel, DisposalState status) {
+								return parent.announceChannelAck(new ChannelAck(Tables.INTEREST, id_, 
+										topic_, subtopic_, auid_,  notice_,
+										channel, status));
+							}
+						});
+						this.store.updateInterestByKey(id, null, dispatchResult);
+					}
+
+				} catch (NullPointerException ex) {
+					logger.warn("processing interest request from cache failed {} {}", 
+							ex, ex.getStackTrace());
+				}
 			}
-
-			try {
-				if (!that.isConnected()) {
-					logger.debug("no network connection");
-					continue;
-				}
-				synchronized (this.store) {
-					final ContentValues values = new ContentValues();
-
-					values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
-					@SuppressWarnings("unused")
-					long numUpdated = this.store.updateInterestByKey(id, values, null);
-
-					final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
-							topic, subtopic, selection, dispersal, 
-							new INetworkService.OnSendMessageHandler() {
-						final DistributorThread parent = DistributorThread.this;
-						final int id_ = id;
-						final String auid_ = auid;
-						final String topic_ = topic;
-						final String subtopic_ = null;
-						final Notice notice_ = null;
-
-						@Override
-						public boolean ack(String channel, DisposalState status) {
-							return parent.announceChannelAck(new ChannelAck(Tables.INTEREST, id_, 
-									topic_, subtopic_, auid_,  notice_,
-									channel, status));
-						}
-					});
-					this.store.updateInterestByKey(id, null, dispatchResult);
-				}
-
-			} catch (NullPointerException ex) {
-				logger.warn("processing interest request from cache failed {} {}", 
-						ex, ex.getStackTrace());
-			}
+			pending.close();
+		} finally {
+			if (pending != null) pending.close();
 		}
-		pending.close();
 	}
 
 	/**
@@ -1798,25 +1830,30 @@ public class DistributorThread extends Thread {
 		final FullTopic fulltopic = new FullTopic(mime);
 		logger.trace("receive response INTEREST : {}", fulltopic );
 
-		final Cursor cursor = this.store.queryInterestByKey(
-				new String[] { RequestField.PROVIDER.n() }, fulltopic.topic, fulltopic.subtopic, null);
-		if (cursor.getCount() < 1) {
-			logger.error("received a message for which there is no subscription {}", fulltopic);
+		Cursor cursor = null;
+		try {
+			cursor = this.store.queryInterestByKey(
+					new String[] { RequestField.PROVIDER.n() }, fulltopic.topic, fulltopic.subtopic, null);
+			if (cursor.getCount() < 1) {
+				logger.error("received a message for which there is no subscription {}", fulltopic);
+				cursor.close();
+				return false;
+			}
+			cursor.moveToFirst();
+			final String uriString = cursor.getString(0); 
+			// only asked for one so it better be it.
 			cursor.close();
-			return false;
+			final Uri provider = Uri.parse(uriString);
+
+			final Encoding encoding = Encoding.getInstanceByName( encode );
+			final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
+
+			logger.info("Ammo received message on topic: {} for provider: {}, inserted in {}", 
+					new Object[]{mime, uriString, tuple} );
+
+		} finally {
+			if (cursor != null) cursor.close();
 		}
-		cursor.moveToFirst();
-		final String uriString = cursor.getString(0); // only asked for one so
-		// it better be it.
-		cursor.close();
-		final Uri provider = Uri.parse(uriString);
-
-		final Encoding encoding = Encoding.getInstanceByName( encode );
-		final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
-
-		logger.info("Ammo received message on topic: {} for provider: {}, inserted in {}", 
-				new Object[]{mime, uriString, tuple} );
-
 		return true;
 	}
 

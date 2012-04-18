@@ -461,13 +461,13 @@ public class DistributorDataStore {
 					return;
 				}
 				logger.trace("Updating device presence for device: {}", this.deviceId);
-
+				Cursor cursor = null;
 				try {
 					final SQLiteDatabase db = parent.helper.getWritableDatabase();
 					final String whereClause = PRESENCE_KEY_QUERY;
 					final String[] whereArgs = new String[]{ deviceId };
 					db.beginTransaction();
-					final Cursor cursor = db.query(Tables.PRESENCE.n, null, 
+					cursor = db.query(Tables.PRESENCE.n, null, 
 							whereClause, whereArgs, null, null, null);
 
 					final ContentValues values = new ContentValues();
@@ -480,9 +480,12 @@ public class DistributorDataStore {
 						// values needs some more content
 						db.update(Tables.PRESENCE.n, values, whereClause, whereArgs);
 					}
+					cursor.close();
 					db.endTransaction();
 				} catch (IllegalArgumentException ex) {
 					logger.error("updateDevicePresence problem");
+				} finally {
+					if (cursor != null) cursor.close();
 				}
 				return;
 			}
@@ -701,7 +704,7 @@ public class DistributorDataStore {
 		 */
 		public long upsert(ContentValues cv, DistributorState status) {
 			synchronized (DistributorDataStore.this) {
-				Cursor cursor = null;
+				Cursor cursor  = null;
 				try {
 					final String uuid = cv.getAsString(RequestField.UUID.cv());
 					final String topic = cv.getAsString(RequestField.TOPIC.cv());
@@ -725,10 +728,10 @@ public class DistributorDataStore {
 						rowid = cursor.getLong(cursor.getColumnIndex(RequestField._ID.q(null)));
 						final String[] rowid_arg = new String[]{ Long.toString(rowid) };
 						this.db.update(table.n, cv, ROWID_CLAUSE, rowid_arg );
+						cursor.close();
 					} else {
 						rowid = this.db.insert(this.table.n, RequestField.CREATED.n(), cv);
 					}
-				
 					this.getDispose().upsertByRequest(rowid, status);
 					return rowid;
 				} catch (IllegalArgumentException ex) {
@@ -795,7 +798,7 @@ public class DistributorDataStore {
 		.toString();
 	}
 
-	public synchronized Cursor queryRequest(String rel, 
+	private synchronized Cursor queryRequest(String rel, 
 			String[] projection, String whereClause,
 			String[] whereArgs, String sortOrder) {
 		try {
@@ -816,7 +819,7 @@ public class DistributorDataStore {
 		return null;
 	}
 
-	public synchronized Cursor queryRequestByUuid(String[] projection, String uuid, String sortOrder) {
+	private synchronized Cursor queryRequestByUuid(String[] projection, String uuid, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
@@ -837,7 +840,7 @@ public class DistributorDataStore {
 	.append(RequestField.UUID.q(null)).append("=?")
 	.toString();
 
-	public synchronized Cursor queryRequestByTopic(String rel, String[] projection,
+	private synchronized Cursor queryRequestByTopic(String rel, String[] projection,
 			final String topic, final String subtopic, String sortOrder) {
 		try {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
@@ -885,9 +888,16 @@ public class DistributorDataStore {
 		return new PostalWorker(pending, svc);
 	}
 	public PostalWorker getPostalWorkerByKey(String uid) {
-		final Cursor cursor = queryRequest(Tables.POSTAL.q(), null, 
+		Cursor cursor = null;
+		try {
+			cursor = queryRequest(Tables.POSTAL.q(), null, 
 				SELECT_POSTAL_BY_KEY, new String[]{ uid }, null);
-		return getPostalWorker(cursor, null);	
+			final PostalWorker worker = getPostalWorker(cursor, null);
+		    cursor.close();
+		    return worker;
+		} finally {
+			if (cursor != null) cursor.close();
+		}		
 	}
 
 	private static String SELECT_POSTAL_BY_KEY = new StringBuilder()
@@ -1836,6 +1846,7 @@ public class DistributorDataStore {
 		}
 		private long upsertByRequest(long requestId, String channel, DisposalState status) {
 			synchronized(DistributorDataStore.this) {	
+				Cursor cursor = null;
 				try {
 
 					final ContentValues cv = new ContentValues();
@@ -1847,7 +1858,7 @@ public class DistributorDataStore {
 					final int updateCount = this.db.update(this.disposal.n, cv, 
 							DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr , channel } );
 					if (updateCount > 0) {
-						final Cursor cursor = this.db.query(this.disposal.n, new String[]{DisposalField._ID.n()}, 
+						cursor = this.db.query(this.disposal.n, new String[]{DisposalField._ID.n()}, 
 								DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel },
 								null, null, null);
 						final int rowCount = cursor.getCount();
@@ -1862,6 +1873,8 @@ public class DistributorDataStore {
 					return this.db.insert(this.disposal.n, DisposalField.TYPE.n(), cv);
 				} catch (IllegalArgumentException ex) {
 					logger.error("upsert disposal {} {} {} {}", new Object[]{requestId, channel, status});
+				} finally {
+					if (cursor != null) cursor.close();
 				}
 				return 0;
 			}
