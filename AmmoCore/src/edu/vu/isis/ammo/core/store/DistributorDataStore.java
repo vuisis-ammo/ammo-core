@@ -43,6 +43,7 @@ import edu.vu.isis.ammo.api.type.Notice.Threshold;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.api.type.TimeTrigger;
+import edu.vu.isis.ammo.api.type.Topic;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
@@ -64,11 +65,11 @@ public class DistributorDataStore {
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("class.DistributorDataStore");
 	public static final int VERSION = 29;
-	
+
 	public static final String NAME = 
 			"distributor.db";   // to create .../databases/distributor.db
-	        // null;            // to create in memory database
-	
+	// null;            // to create in memory database
+
 
 
 	// ===========================================================
@@ -193,7 +194,7 @@ public class DistributorDataStore {
 	 *
 	 */
 	public enum CapabilityField  implements TableField {
-	
+
 		FILTER("filter", "TEXT"),
 		// The rows/tuples wanted.
 
@@ -202,11 +203,11 @@ public class DistributorDataStore {
 
 		LATEST("latest", "INTEGER"),
 		// When the operator was last seen "speaking" on the channel
-		
+
 		ORIGIN("origin", "TEXT");
 		// where did the request originate, device id
 
-		
+
 		// TODO : what about message rates?
 
 
@@ -314,7 +315,7 @@ public class DistributorDataStore {
 				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
 
 				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());
-				
+
 				rqstValues.put(CapabilityField.ORIGIN.cv(), device);
 
 				return -1;
@@ -327,7 +328,7 @@ public class DistributorDataStore {
 			.append(" AND ")
 			.append(RequestField.SUBTOPIC.q(null)).append("=?")
 			.toString();
-			
+
 			final String[] whereArgs = new String[] {tupleId, this.topic, this.subtopic};
 
 			try {
@@ -547,7 +548,7 @@ public class DistributorDataStore {
 		if (!values.containsKey(RequestField.MODIFIED.n())) {
 			values.put(RequestField.MODIFIED.n(), now);
 		}
-		
+
 		if (!values.containsKey(RequestField.NOTICE.n())) {
 			values.put(RequestField.NOTICE.n(), 0);
 		}
@@ -763,8 +764,8 @@ public class DistributorDataStore {
 				try {
 					final String whereClause = new StringBuilder()
 					.append(RequestField._ID.q(null)).append("=?")
-                    .toString();
- 
+					.toString();
+
 					final String[] whereArgs = new String[]{ String.valueOf(requestId) };
 					return this.db.update(this.table.n, cv, whereClause, whereArgs); 
 
@@ -774,7 +775,7 @@ public class DistributorDataStore {
 				return 0;
 			}
 		}
-		
+
 	}
 
 	private static String RequestStatusQuery(Tables request, Tables disposal) {
@@ -891,10 +892,10 @@ public class DistributorDataStore {
 		Cursor cursor = null;
 		try {
 			cursor = queryRequest(Tables.POSTAL.q(), null, 
-				SELECT_POSTAL_BY_KEY, new String[]{ uid }, null);
+					SELECT_POSTAL_BY_KEY, new String[]{ uid }, null);
 			final PostalWorker worker = getPostalWorker(cursor, null);
-		    cursor.close();
-		    return worker;
+			cursor.close();
+			return worker;
 		} finally {
 			if (cursor != null) cursor.close();
 		}		
@@ -919,7 +920,7 @@ public class DistributorDataStore {
 		// column name and record id should be used. 
 		// This is done when the data
 		// size is larger than that allowed for a field contents.
-		
+
 		NOTICE_SENT("notice_sent", "INTEGER"),
 		NOTICE_DELIVERY("notice_delivery", "INTEGER"),
 		NOTICE_RECEIPT("notice_receipt", "INTEGER"),
@@ -1008,7 +1009,7 @@ public class DistributorDataStore {
 
 			this.priority = policy.routing.priority+ar.priority;
 			this.expire = ar.expire;
-			
+
 			this.status = policy.makeRouteMap();
 			this.totalState = DisposalTotalState.NEW;
 		}
@@ -1022,11 +1023,11 @@ public class DistributorDataStore {
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
 			this.serialMoment = new SerialMoment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
 			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
-			
+
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
 			this.expire = new TimeTrigger(expireEnc);
-			
+
 			this.notice = Notice.newInstance(); 
 			this.notice.setItem(Threshold.SENT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_SENT.n())));
 			this.notice.setItem(Threshold.DELIVERED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DELIVERY.n())));
@@ -1074,7 +1075,7 @@ public class DistributorDataStore {
 			.append(" AND ")
 			.append(RequestField.PROVIDER.q(null)).append("=?")
 			.toString();
-			
+
 			final String[] whereArgs = new String[] {this.topic, this.subtopic, providerId};
 
 			try {
@@ -1485,7 +1486,7 @@ public class DistributorDataStore {
 
 		FILTER("filter", "TEXT");
 		// The rows/tuples wanted.
-		
+
 		// TODO : what about message rates?
 
 		final public TableFieldState impl;
@@ -1538,17 +1539,58 @@ public class DistributorDataStore {
 		};
 	}
 
-	public InterestWorker getInterestWorker() {
-		return new InterestWorker();
+	public InterestWorker getInterestWorker(final Cursor pending) {
+		return new InterestWorker(pending);
+	}
+	public InterestWorker getInterestWorker(final AmmoRequest request) {
+		return new InterestWorker(request);
 	}
 	/** 
 	 * Store access class
 	 */
 	public class InterestWorker {
 
-		private InterestWorker() {
+		final public int id;
+		final public String topic;
+		final public String subtopic;
+		final public String auid;
+		final public UUID uuid;
+
+		private InterestWorker(final Cursor pending) {
+
+			// For each item in the cursor, ask the content provider to
+			// serialize it, then pass it off to the NPS.
+			this.id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
+			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
+			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
+			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.cv())));
+			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
+	}
+
+		private InterestWorker(final AmmoRequest request) {
+			this.id = -1;
+			this.uuid = UUID.randomUUID();
+			this.auid = request.uid;
+			this.topic = request.topic.asString();
+			this.subtopic = (request.subtopic == null) ? Topic.DEFAULT : request.subtopic.asString();
 		}
 
+		@Override
+		public String toString() {
+			final StringBuilder sb = new StringBuilder();
+			sb.append("\n\t").append("id=[")
+			.append(this.id).append(':')
+			.append(this.uuid).append(':')
+			.append(this.auid).append(']');
+			sb.append("\n\t").append("topic=[").append(this.topic).append(':')
+			.append(this.subtopic).append(']');
+			/*
+			if (this.selection != null && this.selection.length() > 0) {
+				sb.append("\n\t").append("filter=[").append(this.selection).append(']');
+			}
+			*/
+			return sb.toString();
+		}
 		/**
 		 *
 		 */
@@ -2699,7 +2741,7 @@ public class DistributorDataStore {
 		 */
 		public synchronized void dropAll(SQLiteDatabase db) {
 			PLogger.STORE_DDL.trace("dropping all tables");
-			
+
 			for (Tables table : Tables.values()) {
 				try {
 					db.execSQL( new StringBuilder()

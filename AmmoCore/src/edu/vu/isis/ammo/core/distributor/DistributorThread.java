@@ -72,6 +72,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.InterestField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.InterestWorker;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalWorker;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.RequestField;
@@ -1576,10 +1577,13 @@ public class DistributorThread extends Thread {
 	 * @param st
 	 */
 	private void doInterestRequest(final AmmoService that, final AmmoRequest ar, int st) {
-		logger.trace("process request INTEREST {}", ar.topic.toString());
+		logger.trace("process request INTEREST {}", ar);
 
 		// Dispatch the message.
 		try {
+			final InterestWorker worker = this.store().getInterestWorker(ar);
+			PLogger.STORE_INTEREST_DQL.trace("do interest request: {}", worker);
+
 			final UUID uuid = UUID.randomUUID();
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
@@ -1660,25 +1664,20 @@ public class DistributorThread extends Thread {
 			if (pending == null) return;
 
 			for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
-				PLogger.STORE_INTEREST_DQL.trace("postal cursor: {}", pending);
+				
+				final InterestWorker worker = this.store().getInterestWorker(pending);
+				PLogger.STORE_INTEREST_DQL.trace("interest cursor: {}", worker);
 
-				// For each item in the cursor, ask the content provider to
-				// serialize it, then pass it off to the NPS.
-				final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
-				final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
-				final String subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
-				final String auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
+				final String selection = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));		
+				logger.trace(MARK_INTEREST, "process row INTEREST {} {} {}", 
+						new Object[] { worker.id, worker.topic, selection });
 
-				final String selection = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));
-
-				logger.trace(MARK_INTEREST, "process row INTEREST {} {} {}", new Object[] { id, topic, selection });
-
-				final DistributorPolicy.Topic policy = that.policy().matchInterest(topic);
+				final DistributorPolicy.Topic policy = that.policy().matchInterest(worker.topic);
 				final DistributorState dispersal = policy.makeRouteMap();
 
 				Cursor channelCursor = null;
 				try { 
-					channelCursor = this.store.getInterestDisposalWorker().queryByParent(id);
+					channelCursor = this.store.getInterestDisposalWorker().queryByParent(worker.id);
 
 					for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 						final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
@@ -1699,15 +1698,15 @@ public class DistributorThread extends Thread {
 
 						values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 						@SuppressWarnings("unused")
-						long numUpdated = this.store.updateInterestByKey(id, values, null);
+						long numUpdated = this.store.updateInterestByKey(worker.id, values, null);
 
 						final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
-								topic, subtopic, selection, dispersal, 
+								worker.topic, worker.subtopic, selection, dispersal, 
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
-							final int id_ = id;
-							final String auid_ = auid;
-							final String topic_ = topic;
+							final int id_ = worker.id;
+							final String auid_ = worker.auid;
+							final String topic_ = worker.topic;
 							final String subtopic_ = null;
 							final Notice notice_ = null;
 
@@ -1718,7 +1717,7 @@ public class DistributorThread extends Thread {
 										channel, status));
 							}
 						});
-						this.store.updateInterestByKey(id, null, dispatchResult);
+						this.store.updateInterestByKey(worker.id, null, dispatchResult);
 					}
 
 				} catch (NullPointerException ex) {

@@ -2,12 +2,12 @@
  
 <configuration>
 
-  <property name="LOG_DIR" value="/sdcard" />
+  <property name="LOG_DIR" value="/mnt/sdcard" />
 
   <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
     <checkLoggable>false</checkLoggable>
     <tagEncoder>
-       <pattern>ammo.%logger{22}</pattern>
+       <pattern>AMMO.%logger{15}</pattern>
     </tagEncoder>
     <encoder>
        <pattern>[%method] %msg%n</pattern>
@@ -27,7 +27,7 @@
      <appender-ref ref="FILE" />
   </logger>
   
-  <logger name="ipc.request" level="WARN" />
+  <logger name="api.request" level="WARN" />
   
   <logger name="class.IncompleteRequest" level="TRACE" />
   
