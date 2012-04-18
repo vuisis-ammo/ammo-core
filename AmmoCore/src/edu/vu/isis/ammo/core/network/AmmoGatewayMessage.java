@@ -102,13 +102,19 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 	public final long buildTime;
 	/**
 	 * This is used by PriorityBlockingQueue() to prioritize it contents.
+     * when no specialized comparator is provided.
+     * Specialized comparitors such as PriorityOrder should be preferred.
+     *
 	 * @return
 	 * a negative integer if this instance is less than another;
 	 * a positive integer if this instance is greater than another;
 	 * 0 if this instance has the same order as another.
 	 *
-	 * priority first
-	 * smaller message have higher priority.
+     * The ordering is as follows:
+     * priority : larger
+     * receive time : earlier
+     * message size : smaller
+     * checksum : smaller
 	 *
 	 * @throws
 	 * ClassCastException
@@ -120,7 +126,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 		// TBD SKN --- this method doesn't appear to get called, why is it here??
 
 		AmmoGatewayMessage that = (AmmoGatewayMessage) another;
-		logger.trace("compare msgs: priority [{}:{}] build time: [{}:{}]", 
+		logger.debug("default compare msgs: priority [{}:{}] build time: [{}:{}]", 
 				new Object[]{this.priority, that.priority, 
 				             this.buildTime, that.buildTime} );
 		
@@ -149,11 +155,16 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 	/**
 	 * A functor to be used in cases such as PriorityQueue.
 	 * This gives a partial ordering, rather than total ordering of the natural order.
+     * This overrides the default comparison of the AmmoGatewayMessage.
+     *
+     * The ordering is as follows:
+     * priority : larger
+     * receive time : earlier
 	 */
 	public static class PriorityOrder implements Comparator<AmmoGatewayMessage> {
 		@Override
 		public int compare(AmmoGatewayMessage o1, AmmoGatewayMessage o2) {
-			logger.trace("compare msgs: priority [{}:{}] build time: [{}:{}]", 
+			logger.debug("compare msgs: priority [{}:{}] build time: [{}:{}]", 
 					new Object[]{o1.priority, o2.priority, 
 					             o1.buildTime, o2.buildTime} );
 			
