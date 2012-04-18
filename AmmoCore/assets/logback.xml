@@ -25,6 +25,8 @@
     </encoder>
   </appender>
 
+  <logger name="net.message" level="DEBUG" />
+
   <root level="ERROR">
     <appender-ref ref="LOGCAT" />
   </root>

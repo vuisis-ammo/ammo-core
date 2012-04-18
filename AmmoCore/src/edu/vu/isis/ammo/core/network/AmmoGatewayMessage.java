@@ -101,14 +101,20 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
     public final long buildTime;
     /**
-	 * This is used by PriorityBlockingQueue() to prioritize it contents.
+     * This is used by PriorityBlockingQueue() to prioritize it contents.
+     * when no specialized comparator is provided.
+     * Specialized comparitors such as PriorityOrder should be preferred.
+     *
      * @return
      * a negative integer if this instance is less than another;
      * a positive integer if this instance is greater than another;
      * 0 if this instance has the same order as another.
      *
-     * priority first
-     * smaller message have higher priority.
+     * The ordering is as follows:
+     * priority : larger
+     * receive time : earlier
+     * message size : smaller
+     * checksum : smaller
      *
      * @throws
      * ClassCastException
@@ -117,16 +123,17 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public int compareTo(Object another) {
 		if (!(another instanceof AmmoGatewayMessage)) 
             throw new ClassCastException("does not compare with AmmoGatewayMessage");
-		// TBD SKN --- this method doesn't appear to get called, why is it here??
 
         AmmoGatewayMessage that = (AmmoGatewayMessage) another;
+		logger.debug("default compare msgs: priority [{}:{}] build time: [{}:{}]", 
+				new Object[]{this.priority, that.priority, 
+				             this.buildTime, that.buildTime} );
         if (this.priority > that.priority) return 1;
         if (this.priority < that.priority) return -1;
 
-	// within the same priority - preserve send/receive time order
-	logger.error("Priority compare: {} {}", this.buildTime, that.buildTime);
-	if (this.buildTime > that.buildTime) return 1;
-	if (this.buildTime < that.buildTime) return -1;
+		// within the same priority - preserve send/receive time order
+		if (this.buildTime > that.buildTime) return 1;
+		if (this.buildTime < that.buildTime) return -1;
 
         if (this.size < that.size) return 1;
         if (this.size > that.size) return -1;
@@ -145,14 +152,21 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     /**
      * A functor to be used in cases such as PriorityQueue.
      * This gives a partial ordering, rather than total ordering of the natural order.
+     * This overrides the default comparison of the AmmoGatewayMessage.
+     *
+     * The ordering is as follows:
+     * priority : larger
+     * receive time : earlier
      */
     public static class PriorityOrder implements Comparator<AmmoGatewayMessage> {
         @Override
         public int compare(AmmoGatewayMessage o1, AmmoGatewayMessage o2) {
+			logger.debug("compare msgs: priority [{}:{}] build time: [{}:{}]", 
+					new Object[]{o1.priority, o2.priority, 
+					             o1.buildTime, o2.buildTime} );
              if (o1.priority > o2.priority) return 1;
              if (o1.priority < o2.priority) return -1;
 	     // if priority is same then process in the time order of arrival
-	     logger.error("Priority compare: {} {}", o1.buildTime, o2.buildTime);
 	     if (o1.buildTime > o2.buildTime) return 1;
 	     if (o1.buildTime < o2.buildTime) return -1;
              return 0;
@@ -165,6 +179,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         sb.append("[addr=").append(this.hashCode()).append(" ");
         sb.append("size=").append(this.size).append(" ");
         sb.append("priority=").append(this.priority).append(" ");
+		sb.append("received=").append(this.buildTime).append(" ");
 		sb.append("checksum=").append(Long.toHexString(this.payload_checksum)).append(" ]");
         return sb.toString();
     }
