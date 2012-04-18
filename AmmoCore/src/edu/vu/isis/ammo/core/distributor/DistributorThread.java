@@ -363,13 +363,12 @@ public class DistributorThread extends Thread {
 		@Override
 		public String toString() {
 			return new StringBuilder()
-			.append(" type ").append(type)
-			.append(" id ").append(id)
-			.append(" topic ").append(topic)
-			.append(" subtopic ").append(subtopic)
-			.append(" aid ").append(auid)
-			.append(" channel ").append(channel)
-			.append(" status ").append(status)
+			.append(" type=[").append(type).append(']')
+			.append(" id=[").append(id).append(']')
+			.append(" topic=[").append(topic).append(':').append(subtopic).append(']')
+			.append(" aid=[").append(auid).append(']')
+			.append(" channel=[").append(channel).append(']')
+			.append(" status=[").append(status).append(']')
 			.toString();
 		}
 	}
@@ -377,6 +376,7 @@ public class DistributorThread extends Thread {
 	/**
 	 * Called by the channel acknowledgment once the channel has
 	 * attempted to send the message.
+	 * It will indicate whether the attempt succeeded or not.
 	 * 
 	 * @param ack
 	 * @return
@@ -574,7 +574,6 @@ public class DistributorThread extends Thread {
 						this.doChannelChange(ammoService);
 					}
 
-<<<<<<< HEAD
 					if (!this.channelAck.isEmpty()) {
 						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
 						try {
