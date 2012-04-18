@@ -1052,6 +1052,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 						.setUri(provider)
 						.setMimeType(msgType)
 						.setEncoding(encode.getType().name())
+					        .setUserId(ammoService.getOperatorId())
 						.setData(ByteString.copyFrom(serialized));
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
 					mw.setDataMessage(pushReq);
