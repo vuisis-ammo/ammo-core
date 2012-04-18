@@ -28,6 +28,7 @@
   </logger>
   
   <logger name="api.request" level="WARN" />
+  <logger name="api.parcel" level="TRACE" />
   
   <logger name="class.IncompleteRequest" level="TRACE" />
   

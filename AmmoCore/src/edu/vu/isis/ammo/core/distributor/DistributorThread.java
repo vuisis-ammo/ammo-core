@@ -1243,7 +1243,7 @@ public class DistributorThread extends Thread {
 
 		final PostalWorker worker = this.store().getPostalWorkerByKey(pushResp.getUid());
 
-		if (worker.notice.atDelivery.via.isHeartbeat()) {
+		if (worker.notice.atDelivery.via.hasHeartbeat()) {
 			// TODO update CAPABILITY or RECIPIENT table
 		}
 		if (worker.notice.atDelivery.via.isActive()) {
@@ -1707,8 +1707,9 @@ public class DistributorThread extends Thread {
 							final int id_ = worker.id;
 							final String auid_ = worker.auid;
 							final String topic_ = worker.topic;
-							final String subtopic_ = null;
-							final Notice notice_ = null;
+							final String subtopic_ = worker.subtopic;
+							
+							final Notice notice_ = Notice.RESET;
 
 							@Override
 							public boolean ack(String channel, DisposalState status) {
