@@ -550,7 +550,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		    if (!this.responseQueue.isEmpty()) {
 			try {
 			    final AmmoGatewayMessage agm = this.responseQueue.take();
-			    logger.info("processing response, remaining {}", this.responseQueue.size());
+			    logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
 			    this.doResponse(ammoService, agm);
 			} catch (ClassCastException ex) {
 			    logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
