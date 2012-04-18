@@ -574,6 +574,7 @@ public class DistributorThread extends Thread {
 						this.doChannelChange(ammoService);
 					}
 
+<<<<<<< HEAD
 					if (!this.channelAck.isEmpty()) {
 						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
 						try {
@@ -584,7 +585,6 @@ public class DistributorThread extends Thread {
 							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
 					}
-
 					if (!this.responseQueue.isEmpty()) {
 						logger.trace("processing response, remaining {}", this.responseQueue.size());
 						try {

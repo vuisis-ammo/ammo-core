@@ -98,9 +98,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public final boolean isMulticast;
     public final boolean isSerialChannel;
     public final boolean isGateway;
-    
     public final NetChannel channel;
-    
+    public final long buildTime;
     /**
 	 * This is used by PriorityBlockingQueue() to prioritize it contents.
      * @return
@@ -118,10 +117,17 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public int compareTo(Object another) {
 		if (!(another instanceof AmmoGatewayMessage)) 
             throw new ClassCastException("does not compare with AmmoGatewayMessage");
+		// TBD SKN --- this method doesn't appear to get called, why is it here??
 
         AmmoGatewayMessage that = (AmmoGatewayMessage) another;
         if (this.priority > that.priority) return 1;
         if (this.priority < that.priority) return -1;
+
+	// within the same priority - preserve send/receive time order
+	logger.error("Priority compare: {} {}", this.buildTime, that.buildTime);
+	if (this.buildTime > that.buildTime) return 1;
+	if (this.buildTime < that.buildTime) return -1;
+
         if (this.size < that.size) return 1;
         if (this.size > that.size) return -1;
         if (this.payload_checksum < that.payload_checksum) return 1;
@@ -145,6 +151,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public int compare(AmmoGatewayMessage o1, AmmoGatewayMessage o2) {
              if (o1.priority > o2.priority) return 1;
              if (o1.priority < o2.priority) return -1;
+	     // if priority is same then process in the time order of arrival
+	     logger.error("Priority compare: {} {}", o1.buildTime, o2.buildTime);
+	     if (o1.buildTime > o2.buildTime) return 1;
+	     if (o1.buildTime < o2.buildTime) return -1;
              return 0;
         }
     }
@@ -210,7 +220,15 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 			this.payload_serialized = val;
 			return this;
 		}
-		
+			private AmmoMessages payload;
+		public AmmoMessages payload(Class<?> clazz) { 
+			return this.payload; 
+		}
+		public Builder payload(AmmoMessages val) { 
+            this.payload = val;
+            return this;
+        }
+
         /**
          * delivery channel
          */
@@ -255,8 +273,12 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.isMulticast = builder.isMulticast;
         this.isSerialChannel = builder.isSerialChannel;
         this.isGateway = builder.isGateway;
-        
         this.channel = builder.channel;
+
+        // record the time when the message is built so we can sort it by time
+    	// if the priority is same
+		this.buildTime = System.currentTimeMillis();
+
     }
 
     public static AmmoGatewayMessage.Builder newBuilder( AmmoMessages.MessageWrapper.Builder mwb,
