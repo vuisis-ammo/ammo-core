@@ -41,6 +41,7 @@ import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
+import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
@@ -150,12 +151,10 @@ public class SerialChannel extends NetChannel
 
         if ( mIsConnected.compareAndSet( true, false )) {
             logger.error( "I/O operation failed.  Resetting channel." );
-            synchronized ( this ) {
-                stop();
-                if ( mEnabled ) {
-                    start();
-                }
-            }
+	    stop();		// this was wrapped in synchronized, took that out to prevent deadlock
+	    if ( mEnabled ) {
+		start();
+	    }
         }
     }
 
@@ -899,7 +898,8 @@ public class SerialChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.trace( "SenderThread <{}>::run()", Thread.currentThread().getId() );
+	    Process.setThreadPriority( -7 ); // this is a jitter sensitive thread, it should run on real-time-priority
+            logger.trace( "SenderThread <{}>::run() @prio: {}", Thread.currentThread().getId(), Process.getThreadPriority( Process.myTid() ) );
 
             // Sleep until our slot in the round.  If, upon waking, we find that
             // we are in the right slot, check to see if a packet is available
