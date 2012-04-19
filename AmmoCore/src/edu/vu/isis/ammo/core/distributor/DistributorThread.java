@@ -427,14 +427,16 @@ public class DistributorThread extends Thread {
 			return;
 		}
 
-		if (ack.notice.atSend.via.isActive()) {
+		final Notice.Item note = ack.notice.atSend;
+		
+		if (note.via.isActive()) {
 
 			final Uri.Builder uriBuilder = new Uri.Builder()
 			.scheme("ammo")
 			.authority(ack.topic)
 			.path(ack.subtopic);
 
-			final Intent notice = new Intent()
+			final Intent noticed = new Intent()
 			.setAction(ACTION_MSG_SENT)
 			.setData(uriBuilder.build())
 			.putExtra(EXTRA_TOPIC, ack.topic.toString())
@@ -443,18 +445,22 @@ public class DistributorThread extends Thread {
 			.putExtra(EXTRA_CHANNEL, ack.channel.toString())
 			.putExtra(EXTRA_STATUS, ack.status.toString());
 
-			final int aggregate = ack.notice.atSend.via.v;
-			if (0 < (aggregate | Via.Type.ACTIVITY.v)) { 
-				context.startActivity(notice); 
+			
+			final int aggregate = note.via.v;
+			PLogger.API_INTENT.debug("gen intent: [{}]", note.via);
+			
+			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
+				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				context.startActivity(noticed); 
 			}
-			if (0 < (aggregate | Via.Type.BROADCAST.v)) { 
-				context.sendBroadcast(notice); 
+			if (0 < (aggregate & Via.Type.BROADCAST.v)) { 
+				context.sendBroadcast(noticed); 
 			}
-			if (0 < (aggregate | Via.Type.STICKY_BROADCAST.v)) { 
-				context.sendStickyBroadcast(notice); 
+			if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) { 
+				context.sendStickyBroadcast(noticed); 
 			}
-			if (0 < (aggregate | Via.Type.SERVICE.v)) { 
-				context.startService(notice); 
+			if (0 < (aggregate & Via.Type.SERVICE.v)) { 
+				context.startService(noticed); 
 			}
 		}
 
@@ -1246,14 +1252,15 @@ public class DistributorThread extends Thread {
 		if (worker.notice.atDelivery.via.hasHeartbeat()) {
 			// TODO update CAPABILITY or RECIPIENT table
 		}
-		if (worker.notice.atDelivery.via.isActive()) {
+		final Notice.Item note = worker.notice.atDelivery;
+		if (note.via.isActive()) {
 
 			final Uri.Builder uriBuilder = new Uri.Builder()
 			.scheme("ammo")
 			.authority(worker.topic)
 			.path(worker.subtopic);
 
-			final Intent notice = new Intent()
+			final Intent noticed = new Intent()
 			.setAction(ACTION_MSG_SENT)
 			.setData(uriBuilder.build())
 			.putExtra(EXTRA_TOPIC, worker.topic.toString())
@@ -1262,19 +1269,21 @@ public class DistributorThread extends Thread {
 			.putExtra(EXTRA_STATUS, worker.status.toString())
 			.putExtra(EXTRA_DEVICE, pushResp.getAcknowledgingDevice().toString());
 
-			final int aggregate = worker.notice.atDelivery.via.v;
-
-			if (0 < (aggregate | Via.Type.ACTIVITY.v)) { 
-				context.startActivity(notice); 
+			final int aggregate = note.via.v;	
+			PLogger.API_INTENT.debug("gen intent: [{}]", note);
+			
+			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
+				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				context.startActivity(noticed); 
 			}
-			if (0 < (aggregate | Via.Type.BROADCAST.v)) { 
-				context.sendBroadcast(notice); 
+			if (0 < (aggregate & Via.Type.BROADCAST.v)) { 
+				context.sendBroadcast(noticed); 
 			}
-			if (0 < (aggregate | Via.Type.STICKY_BROADCAST.v)) { 
-				context.sendStickyBroadcast(notice); 
+			if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) { 
+				context.sendStickyBroadcast(noticed); 
 			}
-			if (0 < (aggregate | Via.Type.SERVICE.v)) { 
-				context.startService(notice); 
+			if (0 < (aggregate & Via.Type.SERVICE.v)) { 
+				context.startService(noticed); 
 			}
 		}
 
@@ -1664,7 +1673,7 @@ public class DistributorThread extends Thread {
 			if (pending == null) return;
 
 			for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
-				
+
 				final InterestWorker worker = this.store().getInterestWorker(pending);
 				PLogger.STORE_INTEREST_DQL.trace("interest cursor: {}", worker);
 
@@ -1708,7 +1717,7 @@ public class DistributorThread extends Thread {
 							final String auid_ = worker.auid;
 							final String topic_ = worker.topic;
 							final String subtopic_ = worker.subtopic;
-							
+
 							final Notice notice_ = Notice.RESET;
 
 							@Override

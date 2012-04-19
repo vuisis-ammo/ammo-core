@@ -235,8 +235,16 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 			return this.payload_serialized; 
 		}
 		public Builder payload(byte[] val) {
-			//if (this.size != val.length)
-				//    throw new IllegalArgumentException("payload size incorrect");
+			if (this.size != val.length) {
+				final String msg = new StringBuilder()
+				      .append("payload size incorrect ")
+				      .append(this.size).append(" != ")
+				      .append(val.length)
+				      .toString();
+				logger.error(msg);
+				// throw new IllegalArgumentException(msg);
+			}
+			
 			this.payload_serialized = val;
 			return this;
 		}
@@ -261,9 +269,24 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 			return this;
 		}
 
+		/**
+		 * The builder does its job it builds the message.
+		 *
+			 * FIXME : why is size checked? Why don't they match?
+			 * 
+		 * @return
+		 */
 		public AmmoGatewayMessage build() {
-			if (this.size != this.payload_serialized.length)
-				throw new IllegalArgumentException("payload size incorrect");
+			
+			if (this.size != this.payload_serialized.length) {
+				final String msg = new StringBuilder()
+				      .append("payload size incorrect ")
+				      .append(this.size).append(" != ")
+				      .append(this.payload_serialized.length)
+				      .toString();
+				logger.error(msg);
+				// throw new IllegalArgumentException(msg);
+			}
 			return new AmmoGatewayMessage(this, this.payload_serialized);
 		}
 
@@ -282,8 +305,15 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
 	private AmmoGatewayMessage(Builder builder, byte[] payload) {
 		this.size = builder.size;
-		if (this.size != payload.length)
-			throw new IllegalArgumentException("payload size incorrect");
+		if (this.size != payload.length) {
+			final String msg = new StringBuilder()
+			      .append("payload size incorrect ")
+			      .append(this.size).append(" != ")
+			      .append(payload.length)
+			      .toString();
+			logger.error(msg);
+			// throw new IllegalArgumentException(msg);
+		}
 		this.priority = builder.priority;
 		this.version = builder.version;
 		this.payload_checksum = builder.checksum;

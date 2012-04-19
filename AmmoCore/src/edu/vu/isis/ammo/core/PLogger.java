@@ -80,7 +80,5 @@ public interface PLogger {
 	public static final Logger STORE_PRESENCE_DQL = LoggerFactory.getLogger( "store.presence.dql" );
 
 	// omma intents
-	public static final Logger IPC_INTENT = LoggerFactory.getLogger( "ipc.intent.service" );
-	public static final Logger IPC_BCAST = LoggerFactory.getLogger( "ipc.broadcast" );
-	public static final Logger IPC_ACTIVITY = LoggerFactory.getLogger( "ipc.activity" );
+	public static final Logger API_INTENT = LoggerFactory.getLogger( "api.intent" );
 }
