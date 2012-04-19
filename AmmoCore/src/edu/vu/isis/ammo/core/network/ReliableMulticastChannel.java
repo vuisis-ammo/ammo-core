@@ -1293,7 +1293,7 @@ public class ReliableMulticastChannel extends NetChannel
 
 	@Override
 	public void toLog(String context) {
-		PLogger.IPC_PANTHR_RMC.debug("{} {}:{} ", 
+		PLogger.SET_PANTHR_RMC.debug("{} {}:{} ", 
 				new Object[]{context, mMulticastAddress, mMulticastPort});
 	}
 }

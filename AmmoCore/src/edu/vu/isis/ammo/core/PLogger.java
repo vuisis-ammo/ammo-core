@@ -23,8 +23,8 @@ public interface PLogger {
 	public static final Logger CHANNEL = LoggerFactory.getLogger( "proc.serve.channel" );
 
 	// omma queues
-	public static final Logger IPC_REQ_IN = LoggerFactory.getLogger( "ipc.request.inbound" );
-	public static final Logger IPC_REQ_CACHE = LoggerFactory.getLogger( "ipc.request.cached" );
+	public static final Logger API_REQ_RECV = LoggerFactory.getLogger( "api.request.recv" );
+	public static final Logger API_PARCEL_RECV = LoggerFactory.getLogger( "api.parcel.recv" );
 
 	public static final Logger QUEUE_REQ_ENTER = LoggerFactory.getLogger( "queue.request.in" );
 	public static final Logger QUEUE_REQ_EXIT = LoggerFactory.getLogger( "queue.request.out" );
@@ -48,20 +48,18 @@ public interface PLogger {
 	public static final Logger QUEUE_CHANNEL_SERIAL_EXIT = LoggerFactory.getLogger( "queue.channel.serial.out" );
 
 	// omma network channel
-	public static final Logger IPC_CONN = LoggerFactory.getLogger( "ipc.channel.conn" );
-	public static final Logger IPC_SEND = LoggerFactory.getLogger( "ipc.channel.send" );
-	public static final Logger IPC_RECV = LoggerFactory.getLogger( "ipc.channel.recv" );
+	public static final Logger NET_GW_CONN = LoggerFactory.getLogger( "net.gw.conn" );
+	public static final Logger NET_GW_SEND = LoggerFactory.getLogger( "net.gw.send" );
+	public static final Logger NET_GW_RECV = LoggerFactory.getLogger( "net.gw.recv" );
 
-	// other IPC
+	// settings
 
-	public static final Logger IPC_LOCAL = LoggerFactory.getLogger( "ipc.local" );
-
-	public static final Logger IPC_PANTHR = LoggerFactory.getLogger( "ipc.panthr" );
-	public static final Logger IPC_PANTHR_GW = LoggerFactory.getLogger( "ipc.panthr.gateway" );
-	public static final Logger IPC_PANTHR_MC = LoggerFactory.getLogger( "ipc.panthr.multicast" );
-	public static final Logger IPC_PANTHR_RMC = LoggerFactory.getLogger( "ipc.panthr.reliable" );
-	public static final Logger IPC_PANTHR_SERIAL = LoggerFactory.getLogger( "ipc.panthr.serial" );
-	public static final Logger IPC_PANTHR_JOURNAL = LoggerFactory.getLogger( "ipc.panthr.journal" );
+	public static final Logger SET_PANTHR = LoggerFactory.getLogger( "pref.panthr" );
+	public static final Logger SET_PANTHR_GW = LoggerFactory.getLogger( "pref.panthr.gateway" );
+	public static final Logger SET_PANTHR_MC = LoggerFactory.getLogger( "pref.panthr.multicast" );
+	public static final Logger SET_PANTHR_RMC = LoggerFactory.getLogger( "pref.panthr.reliable" );
+	public static final Logger SET_PANTHR_SERIAL = LoggerFactory.getLogger( "pref.panthr.serial" );
+	public static final Logger SET_PANTHR_JOURNAL = LoggerFactory.getLogger( "pref.panthr.journal" );
 
 	// omma data store
 	public static final Logger STORE = LoggerFactory.getLogger( "store" );

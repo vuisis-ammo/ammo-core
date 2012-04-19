@@ -369,7 +369,7 @@ public class JournalChannel extends NetChannel {
 	}
 	@Override
 	public void toLog(String context) {
-		PLogger.IPC_PANTHR_JOURNAL.debug("{} {} ", 
+		PLogger.SET_PANTHR_JOURNAL.debug("{} {} ", 
 				new Object[]{context, this.journalFile});
 	}
 }

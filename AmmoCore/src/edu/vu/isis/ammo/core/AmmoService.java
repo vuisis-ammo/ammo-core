@@ -228,7 +228,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public class DistributorServiceAidl extends IDistributorService.Stub {
 		@Override
 		public String makeRequest(AmmoRequest request) throws RemoteException {
-			PLogger.IPC_REQ_IN.trace("request via bind {}", request);
+			PLogger.API_REQ_RECV.trace("request via bind {}", request);
 			if (request == null) {
 				logger.error("bad request");
 				return null;
@@ -297,7 +297,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {			
 					try {
 						final AmmoRequest request = intent.getParcelableExtra("request");
-						PLogger.IPC_REQ_IN.trace("request via start {}", request);
+						PLogger.API_REQ_RECV.trace("request via start {}", request);
 						if (request == null) {
 							logger.error("bad request intent {}", intent);
 							return START_NOT_STICKY;
@@ -660,7 +660,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				.aggregatePref(INetPrefKeys.CORE_OPERATOR_KEY, 
 				           this.operatorKey);
 		
-		PLogger.IPC_PANTHR.debug("acquire device={} operator={} pass={}", 
+		PLogger.SET_PANTHR.debug("acquire device={} operator={} pass={}", 
 				new Object[]{this.deviceId, this.operatorId, this.operatorKey});
 
 		// JOURNAL
@@ -825,19 +825,19 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			//
 			if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
 				final String id = parent.updatePref(key, parent.deviceId);
-				PLogger.IPC_PANTHR.debug("device[{} -> {}]", parent.deviceId, id);
+				PLogger.SET_PANTHR.debug("device[{} -> {}]", parent.deviceId, id);
 			}
 			else
 			if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
 				final String id = parent.updatePref(key, parent.operatorId);
-				PLogger.IPC_PANTHR.debug("operator[{} -> {}]", parent.operatorId, id);
+				PLogger.SET_PANTHR.debug("operator[{} -> {}]", parent.operatorId, id);
 			}
 			else
 			if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
 				final String prev = (parent.operatorKey == null) 
 				        ? INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY : parent.operatorKey;
 				final String pass = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR.debug("pass[{} -> {}]", prev, pass);
+				PLogger.SET_PANTHR.debug("pass[{} -> {}]", prev, pass);
 			}
 			else
 			//
@@ -845,7 +845,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	        //
 			if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
 				final boolean active = parent.updatePref(key, parent.isJournalUserDisabled);
-				PLogger.IPC_PANTHR_JOURNAL.debug("suppress[{} -> {}]", 
+				PLogger.SET_PANTHR_JOURNAL.debug("suppress[{} -> {}]", 
 						parent.isJournalUserDisabled, active);
 			}
 			else
@@ -854,29 +854,29 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	        //
 			if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
 				final boolean active = parent.updatePref(key, parent.isGatewaySuppressed);
-				PLogger.IPC_PANTHR_GW.debug("suppress[{} -> {}]", parent.isGatewaySuppressed, active);
+				PLogger.SET_PANTHR_GW.debug("suppress[{} -> {}]", parent.isGatewaySuppressed, active);
 			}
 			else			
 			if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
 				final String prev = (parent.gwChannel == null) ? INetPrefKeys.DEFAULT_GATEWAY_HOST 
 						                                       : parent.gwChannel.getLocalIpAddress();
 				final String host = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR_GW.debug("host[{} -> {}]", prev, host);
+				PLogger.SET_PANTHR_GW.debug("host[{} -> {}]", prev, host);
 			}
 			else
 			if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
 				final int port = parent.updatePref(key, INetPrefKeys.DEFAULT_GATEWAY_PORT);
-				PLogger.IPC_PANTHR_GW.debug("port[{} -> {}]", INetPrefKeys.DEFAULT_GATEWAY_PORT, port);
+				PLogger.SET_PANTHR_GW.debug("port[{} -> {}]", INetPrefKeys.DEFAULT_GATEWAY_PORT, port);
 			}
 			else
 			if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
 				final int to = parent.updatePref(key, INetPrefKeys.DEFAULT_GW_TIMEOUT);
-				PLogger.IPC_PANTHR_GW.debug("timeout[{} -> {}]", INetPrefKeys.DEFAULT_GW_TIMEOUT, to);
+				PLogger.SET_PANTHR_GW.debug("timeout[{} -> {}]", INetPrefKeys.DEFAULT_GW_TIMEOUT, to);
 			}
 			else
 			if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
 				final int to = parent.updatePref(key, INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME);
-				PLogger.IPC_PANTHR_GW.debug("flatline[{} -> {}]", INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME, to);
+				PLogger.SET_PANTHR_GW.debug("flatline[{} -> {}]", INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME, to);
 			}
 			else
 	        //
@@ -884,7 +884,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	        //
 			if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
 				final boolean active = parent.updatePref(key, parent.isMulticastSuppressed);
-				PLogger.IPC_PANTHR_MC.debug("suppress[{} -> {}]", 
+				PLogger.SET_PANTHR_MC.debug("suppress[{} -> {}]", 
 						parent.isMulticastSuppressed, active);
 			}
 			else
@@ -893,17 +893,17 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				final String prev = (parent.multicastChannel == null) ? INetPrefKeys.DEFAULT_MULTICAST_HOST 
                         : parent.multicastChannel.getLocalIpAddresses().get(0).toString();
 				final String host = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR_MC.debug("host[{} -> {}]", prev, host);
+				PLogger.SET_PANTHR_MC.debug("host[{} -> {}]", prev, host);
 			}
 			else
 			if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
 				final int port = parent.updatePref(key, INetPrefKeys.DEFAULT_MULTICAST_PORT);
-				PLogger.IPC_PANTHR_MC.debug("port[{} -> {}]", INetPrefKeys.DEFAULT_MULTICAST_PORT, port);
+				PLogger.SET_PANTHR_MC.debug("port[{} -> {}]", INetPrefKeys.DEFAULT_MULTICAST_PORT, port);
 			}
 			else
 			if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
 				final int ttl = parent.updatePref(key, INetPrefKeys.DEFAULT_MULTICAST_TTL);
-				PLogger.IPC_PANTHR_MC.debug("ttl[{} -> {}]", INetPrefKeys.DEFAULT_MULTICAST_TTL, ttl);
+				PLogger.SET_PANTHR_MC.debug("ttl[{} -> {}]", INetPrefKeys.DEFAULT_MULTICAST_TTL, ttl);
 	        }
 			else
 	        //
@@ -911,7 +911,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	        //
 			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
 				final boolean active = parent.updatePref(key, parent.isReliableMulticastSuppressed);
-				PLogger.IPC_PANTHR_RMC.debug("suppress[{} -> {}]", 
+				PLogger.SET_PANTHR_RMC.debug("suppress[{} -> {}]", 
 						parent.isReliableMulticastSuppressed, active);
 			}
 			else
@@ -921,18 +921,18 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 						? INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST 
                         : parent.reliableMulticastChannel.getLocalIpAddresses().get(0).toString();
 				final String host = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR_RMC.debug("host[{} -> {}]", prev, host);
+				PLogger.SET_PANTHR_RMC.debug("host[{} -> {}]", prev, host);
 			}
 			else
 			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
 				final int port = parent.updatePref(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
-				PLogger.IPC_PANTHR_RMC.debug("port[{} -> {}]", 
+				PLogger.SET_PANTHR_RMC.debug("port[{} -> {}]", 
 						INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT, port);
 			}
 			else
 			if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
 				final int ttl = parent.updatePref(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL);
-				PLogger.IPC_PANTHR_MC.debug("ttl[{} -> {}]", 
+				PLogger.SET_PANTHR_MC.debug("ttl[{} -> {}]", 
 						INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL, ttl);
 	        }
 			else
@@ -941,44 +941,44 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	        //
 			if ( key.equals(INetPrefKeys.SERIAL_DISABLED) ) {
 				final boolean active = parent.updatePref(key, parent.isSerialSuppressed);
-				PLogger.IPC_PANTHR_SERIAL.debug("suppress[{} -> {}]", 
+				PLogger.SET_PANTHR_SERIAL.debug("suppress[{} -> {}]", 
 						parent.isSerialSuppressed, active);
 			}
 			else
 			if ( key.equals(INetPrefKeys.SERIAL_DEVICE) ) {
 				final String prev = parent.deviceId;
 				final String device = parent.updatePref(key, prev);	
-				PLogger.IPC_PANTHR_SERIAL.debug("device[{} -> {}]", prev, device);
+				PLogger.SET_PANTHR_SERIAL.debug("device[{} -> {}]", prev, device);
 			}
 			else
 			if ( key.equals(INetPrefKeys.SERIAL_BAUD_RATE) ) {
 				final int prev = INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE;
 				final int baud = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR_SERIAL.debug("baud[{} -> {}]", prev, baud);
+				PLogger.SET_PANTHR_SERIAL.debug("baud[{} -> {}]", prev, baud);
 			}
 			else
 			if ( key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER) ) {
 				final int prev = INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER;
 				final int slot = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR_SERIAL.debug("slot[{} -> {}]", prev, slot);
+				PLogger.SET_PANTHR_SERIAL.debug("slot[{} -> {}]", prev, slot);
 			}
 			else
 			if ( key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP) ) {
 				final int prev = INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP;
 				final int count = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR_SERIAL.debug("slot$[{} -> {}]", prev, count);
+				PLogger.SET_PANTHR_SERIAL.debug("slot$[{} -> {}]", prev, count);
 			}
 			else
 			if ( key.equals(INetPrefKeys.SERIAL_SLOT_DURATION) ) {
 				final int prev = INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION;
 				final int duration = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR_SERIAL.debug("slot@[{} -> {}]", prev, duration);
+				PLogger.SET_PANTHR_SERIAL.debug("slot@[{} -> {}]", prev, duration);
 			}
 			else
 			if ( key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION) ) {
 				final int prev = INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION;
 				final int xmit = parent.updatePref(key, prev);
-				PLogger.IPC_PANTHR_SERIAL.debug("slots%[{} -> {}]", prev, xmit);
+				PLogger.SET_PANTHR_SERIAL.debug("slots%[{} -> {}]", prev, xmit);
 			}
 			else
 			if ( key.equals(Keys.UserKeys.UNIT) ) {
@@ -1048,7 +1048,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					final String prev = (parent.operatorId == null) 
 					       ? INetPrefKeys.DEFAULT_CORE_OPERATOR_ID : parent.operatorId;
 					final String id = parent.operatorId = prefs.getString(key, prev);
-					PLogger.IPC_LOCAL.debug("operator[{} -> {}]", prev, id);
+					PLogger.SET_PANTHR.debug("operator[{} -> {}]", prev, id);
 					
 					parent.refresh();
 					parent.auth(); 
@@ -1058,7 +1058,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 					final String prev = (parent.operatorKey == null) 
 					      ? INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY : parent.operatorKey;
 					final String pass = parent.operatorKey = prefs.getString(key, prev);
-					PLogger.IPC_LOCAL.debug("pass[{} -> {}]", prev, pass);
+					PLogger.SET_PANTHR.debug("pass[{} -> {}]", prev, pass);
 					
 					parent.auth();
 				}

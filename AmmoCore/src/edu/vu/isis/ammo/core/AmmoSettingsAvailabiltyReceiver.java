@@ -16,7 +16,7 @@ public class AmmoSettingsAvailabiltyReceiver extends SettingsAvailableReceiver {
 	
 	@Override
 	protected void onSettingsAvailable(Context context) {
-		PLogger.IPC_PANTHR.debug("panthr settings available");
+		PLogger.SET_PANTHR.debug("panthr settings available");
         final ComponentName targetService = new ComponentName(context, AmmoService.class);
 		
 		final Intent service = new Intent()
@@ -28,7 +28,7 @@ public class AmmoSettingsAvailabiltyReceiver extends SettingsAvailableReceiver {
 
 	@Override
 	protected void onSettingsUnavailable(Context context) {
-		PLogger.IPC_PANTHR.debug("panthr settings *not* available");
+		PLogger.SET_PANTHR.debug("panthr settings *not* available");
 		final ComponentName targetService = new ComponentName(context, AmmoService.class);
 			
 		final Intent service = new Intent()
