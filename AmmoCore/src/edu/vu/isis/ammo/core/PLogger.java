@@ -48,9 +48,9 @@ public interface PLogger {
 	public static final Logger QUEUE_CHANNEL_SERIAL_EXIT = LoggerFactory.getLogger( "queue.channel.serial.out" );
 
 	// omma network channel
-	public static final Logger NET_GW_CONN = LoggerFactory.getLogger( "net.gw.conn" );
-	public static final Logger NET_GW_SEND = LoggerFactory.getLogger( "net.gw.send" );
-	public static final Logger NET_GW_RECV = LoggerFactory.getLogger( "net.gw.recv" );
+	public static final Logger COMM_GW_CONN = LoggerFactory.getLogger( "comm.gw.conn" );
+	public static final Logger COMM_GW_SEND = LoggerFactory.getLogger( "comm.gw.send" );
+	public static final Logger COMM_GW_RECV = LoggerFactory.getLogger( "comm.gw.recv" );
 
 	// settings
 

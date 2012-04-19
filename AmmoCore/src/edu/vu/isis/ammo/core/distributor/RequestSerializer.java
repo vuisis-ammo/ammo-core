@@ -433,7 +433,7 @@ public class RequestSerializer {
 				}
 				// we only process one
 			} finally {
-				if (tupleCursor == null) tupleCursor.close();
+				if (tupleCursor != null) tupleCursor.close();
 			}
 			tuple.flip();
 			final byte[] tupleBytes = new byte[tuple.limit()];

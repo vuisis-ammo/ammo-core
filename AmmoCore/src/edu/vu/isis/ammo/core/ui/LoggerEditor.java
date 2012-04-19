@@ -33,6 +33,7 @@ public class LoggerEditor extends ListActivity {
 	private TextView selectionText;
 	private Spinner levelSpinner;
 	private ArrayList<Logger> loggerList;
+	@SuppressWarnings("unused")
 	private HashSet<Logger> editedLoggers;
 	private View lastSelected;
 //	private String[] levelOptions;

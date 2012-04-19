@@ -27,9 +27,7 @@ public class Serial extends Channel
 {
 	public static String KEY = "SerialUiChannel";
 
-    // We might want to provide an accessor for this at some point.
-    public static SerialChannel mChannel;
-
+    final public SerialChannel mChannel;
 
 	public static Serial getInstance( Context context, SerialChannel channel )
     {

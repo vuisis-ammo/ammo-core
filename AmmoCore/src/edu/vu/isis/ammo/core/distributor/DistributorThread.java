@@ -51,6 +51,7 @@ import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Via;
 import edu.vu.isis.ammo.api.type.SerialMoment;
+import edu.vu.isis.ammo.api.type.Topic;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
@@ -79,6 +80,7 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.RetrievalField;
 import edu.vu.isis.ammo.core.store.Tables;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
+import edu.vu.isis.ammo.util.FullTopic;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -806,7 +808,7 @@ public class DistributorThread extends Thread {
 			if (mw.hasSubscribeMessage()) {
 				final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
 
-				final FullTopic fulltopic = new FullTopic(sm.getMimeType());
+				final FullTopic fulltopic = FullTopic.fromType(sm.getMimeType());
 				final AmmoRequest.Builder ab = AmmoRequest.newBuilder(this.context)
 						.topic(fulltopic.topic)
 						.subtopic(fulltopic.subtopic);
@@ -1162,20 +1164,20 @@ public class DistributorThread extends Thread {
 	 */
 	private DistributorState dispatchPostalRequest(
 			final AmmoService that,
-			final PostalWorker postal, 
+			final PostalWorker worker, 
 			final DistributorState dispersal, 
 			final RequestSerializer serializer, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
 		logger.trace("::dispatchPostalRequest");
-		final String provider = postal.provider.toString();
-		final String msgType = postal.topic;
+		final String provider = worker.provider.toString();
+		final String msgType = worker.getType();
 
 		final Long now = System.currentTimeMillis();
 		logger.debug("Building MessageWrapper @ time {}", now);
 
 		serializer.setAction(new RequestSerializer.OnReady() {
-			private final PostalWorker postal_ = postal;
+			private final PostalWorker postal_ = worker;
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
 
@@ -1313,6 +1315,8 @@ public class DistributorThread extends Thread {
 			final UUID uuid = UUID.randomUUID();
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
+			final String subtopic = (ar.subtopic == null) ? Topic.DEFAULT : ar.subtopic.asString();
+			
 			final String select = ar.select.toString();
 			final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
@@ -1347,7 +1351,7 @@ public class DistributorThread extends Thread {
 				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
 
 				final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
-						uuid, topic, select, limit, dispersal, 
+						uuid, topic, subtopic, select, limit, dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
 					final long id_ = id;
@@ -1399,6 +1403,7 @@ public class DistributorThread extends Thread {
 				// serialize it, then pass it off to the NPS.
 				final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
 				final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
+				final String subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
 				final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 				final DistributorState dispersal = policy.makeRouteMap();
 				Cursor channelCursor = null;
@@ -1433,7 +1438,7 @@ public class DistributorThread extends Thread {
 						final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
 
 						final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
-								uuid, topic, selection, limit, dispersal, 
+								uuid, topic, subtopic, selection, limit, dispersal, 
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							final String auid_ = auid;
@@ -1474,10 +1479,12 @@ public class DistributorThread extends Thread {
 	 */
 
 	private DistributorState dispatchRetrievalRequest(final AmmoService that, 
-			final UUID retrievalId, final String topic, 
+			final UUID retrievalId, 
+			final String topic, final String subtopic,
 			final String selection, final Integer limit, final DistributorState dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
+		final FullTopic fulltopic = FullTopic.fromTopic(topic, subtopic);
 		logger.trace("dispatch request RETRIEVAL {}", topic);
 
 		/** Message Building */
@@ -1487,7 +1494,7 @@ public class DistributorThread extends Thread {
 		final AmmoMessages.PullRequest.Builder retrieveReq = AmmoMessages.PullRequest
 				.newBuilder()
 				.setRequestUid(retrievalId.toString())
-				.setMimeType(topic);
+				.setMimeType(fulltopic.aggregate);
 
 		if (selection != null)
 			retrieveReq.setQuery(selection);
@@ -1538,7 +1545,7 @@ public class DistributorThread extends Thread {
 
 		// find the provider to use
 		final String uuid = resp.getRequestUid();
-		final FullTopic fulltopic = new FullTopic(resp.getMimeType());
+		final FullTopic fulltopic = FullTopic.fromType(resp.getMimeType());
 
 		Cursor cursor = null;
 		try {
@@ -1749,14 +1756,13 @@ public class DistributorThread extends Thread {
 			final String selection, final DistributorState dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
-		final FullTopic fulltopic = new FullTopic(topic, subtopic);
-
+		final FullTopic fulltopic = FullTopic.fromTopic(topic, subtopic);
 		logger.trace("::dispatchInterestRequest {}", fulltopic);
 
 		/** Message Building */
 
 		final AmmoMessages.SubscribeMessage.Builder interestReq = AmmoMessages.SubscribeMessage.newBuilder();
-		interestReq.setMimeType(fulltopic.mime);
+		interestReq.setMimeType(fulltopic.aggregate);
 
 		if (interestReq != null)
 			interestReq.setQuery(selection);
@@ -1836,15 +1842,15 @@ public class DistributorThread extends Thread {
 			data = resp.getData();	
 			encode = "TERSE";
 		}
-		final FullTopic fulltopic = new FullTopic(mime);
-		logger.trace("receive response INTEREST : {}", fulltopic );
+		final FullTopic fulltopic = FullTopic.fromType(mime);
+		logger.trace("receive response INTEREST : [{}]->[{}]", fulltopic );
 
 		Cursor cursor = null;
 		try {
 			cursor = this.store.queryInterestByKey(
 					new String[] { RequestField.PROVIDER.n() }, fulltopic.topic, fulltopic.subtopic, null);
 			if (cursor.getCount() < 1) {
-				logger.error("received a message for which there is no subscription {}", fulltopic);
+				logger.error("received a message for which there is no interest {}", fulltopic);
 				cursor.close();
 				return false;
 			}
@@ -1875,58 +1881,4 @@ public class DistributorThread extends Thread {
 		this.store.purgeInterest();
 	}
 
-	// =============== UTILITY METHODS ======================== //
-
-	/**
-	 * Assist in combining the topic object.
-	 * This should probably be moved to 
-	 * AmmoLib/edu/vu/isis/ammo/core/api/type/Topic.java but
-	 * it can stay here for now.
-	 *
-	 */
-	private static final String TOPIC_JOIN_CHAR = "+";
-	private static final String TOPIC_SPLIT_PATTERN = "\\+";
-
-	public class FullTopic {
-		final public String topic;
-		final public String subtopic;
-		final public String mime;
-
-		public FullTopic(final String mime) {
-			this.mime = mime;
-
-			final String[] list = mime.split(TOPIC_SPLIT_PATTERN, 2);
-
-			if (list.length < 1) {
-				this.topic = "";
-				this.subtopic = "";
-				return;
-			}
-
-			this.topic = list[0];
-			if (list.length < 2) {
-				this.subtopic = "";
-				return;
-			} 
-
-			this.subtopic = list[1];
-		}
-
-		public FullTopic(final String topic, final String subtopic) {
-			this.topic = topic;
-			this.subtopic = subtopic;
-
-			final StringBuilder sb = new StringBuilder().append(topic);
-			if (subtopic != null && subtopic.length() > 0) {
-				sb.append(TOPIC_JOIN_CHAR).append(subtopic);
-			}
-			this.mime = sb.toString();
-		}
-
-		@Override
-		public String toString() {
-			return this.mime;
-		}
-
-	}
 }

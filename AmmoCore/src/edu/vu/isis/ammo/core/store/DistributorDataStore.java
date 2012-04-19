@@ -48,6 +48,7 @@ import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorState;
+import edu.vu.isis.ammo.util.FullTopic;
 
 /**
  * The Distributor Store Object is managed by the distributor thread.
@@ -1090,6 +1091,10 @@ public class DistributorDataStore {
 				logger.error("delete postal {} {}", whereClause, whereArgs);
 			}
 			return 0;
+		}
+
+		public String getType() {
+			return FullTopic.fromTopic(topic, subtopic).aggregate;
 		}
 	}
 
