@@ -65,7 +65,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("class.DistributorDataStore");
-	public static final int VERSION = 29;
+	public static final int VERSION = 30;
 
 	public static final String NAME = 
 			"distributor.db";   // to create .../databases/distributor.db
@@ -559,8 +559,6 @@ public class DistributorDataStore {
 
 	public enum RequestField implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		FK("request", "INTEGER"), // Foreign key
 
 		UUID("uuid", "TEXT"),
 		// This is a unique identifier for the request
@@ -1771,18 +1769,6 @@ public class DistributorDataStore {
 		public static final String[] COLUMNS = Initializer.getColumns();
 		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
 
-		public static final String PARENT_KEY_REF = new StringBuilder()
-		.append(" FOREIGN KEY(").append(DisposalField.REQUEST.n()).append(")")
-		.append(" REFERENCES ").append(Tables.REQUEST.n)
-		.append("(").append(RequestField._ID.n()).append(")")
-		.append(" ON DELETE CASCADE ")
-		.append(",")
-		.append(" FOREIGN KEY(").append(DisposalField.CHANNEL.n()).append(")")
-		.append(" REFERENCES ").append(Tables.CHANNEL.n)
-		.append("(").append(ChannelField.NAME.n()).append(")")
-		.append(" ON UPDATE CASCADE ")
-		.append(" ON DELETE CASCADE ")
-		.toString();
 
 		public class Initializer {
 			private static String[] getColumns() {
@@ -1800,6 +1786,21 @@ public class DistributorDataStore {
 				return projection;
 			}
 		};
+	}
+	
+	public static String DISPOSAL_PARENT_KEY_REF(Tables request) {
+		return new StringBuilder()
+	.append(" FOREIGN KEY(").append(DisposalField.REQUEST.n()).append(")")
+	.append(" REFERENCES ").append(request.n)
+	.append("(").append(RequestField._ID.n()).append(")")
+	.append(" ON DELETE CASCADE ")
+	.append(",")
+	.append(" FOREIGN KEY(").append(DisposalField.CHANNEL.n()).append(")")
+	.append(" REFERENCES ").append(Tables.CHANNEL.n)
+	.append("(").append(ChannelField.NAME.n()).append(")")
+	.append(" ON UPDATE CASCADE ")
+	.append(" ON DELETE CASCADE ")
+	.toString();
 	}
 
 
@@ -2534,7 +2535,7 @@ public class DistributorDataStore {
 				final Tables table = Tables.CHANNEL;
 
 				final StringBuilder createSql = new StringBuilder()
-				.append("CREATE TABLE ")
+				.append(" CREATE TABLE ")
 				.append(table.q())
 				.append(" ( ").append(ddl(ChannelField.values())).append(')')
 				.append(';');
@@ -2561,12 +2562,14 @@ public class DistributorDataStore {
 
 				final StringBuilder createRequestSql = 
 						new StringBuilder()
-				.append("CREATE TABLE ")
+				.append(" CREATE TABLE ")
 				.append(request.q())
 				.append(" ( ")
 				.append(ddl(RequestField.values())).append(',')
-				.append(ddl(fields)).append(')')
+				.append(ddl(fields))
+				.append(')')
 				.append(';');
+				
 				sqlCreateRef = createRequestSql.toString();
 				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
 				db.execSQL(sqlCreateRef);
@@ -2574,7 +2577,9 @@ public class DistributorDataStore {
 				final StringBuilder createDisposalSql = new StringBuilder()
 				.append(" CREATE TABLE ")
 				.append(disposal.q())
-				.append(" ( ").append(ddl(DisposalField.values())).append(')')
+				.append(" ( ").append(ddl(DisposalField.values()))
+				.append(DISPOSAL_PARENT_KEY_REF(request))
+				.append(')')
 				.append(';');
 
 				sqlCreateRef = createDisposalSql.toString();
@@ -2619,7 +2624,9 @@ public class DistributorDataStore {
 				final StringBuilder createDisposalSql = new StringBuilder()
 				.append(" CREATE TABLE ")
 				.append(disposal.q())
-				.append(" ( ").append(ddl(DisposalField.values())).append(')')
+				.append(" ( ").append(ddl(DisposalField.values()))
+				.append(DISPOSAL_PARENT_KEY_REF(request))
+				.append(')')
 				.append(';');
 
 				sqlCreateRef = createDisposalSql.toString();
@@ -2663,7 +2670,9 @@ public class DistributorDataStore {
 				final StringBuilder createDisposalSql = new StringBuilder()
 				.append(" CREATE TABLE ")
 				.append(disposal.q())
-				.append(" ( ").append(ddl(DisposalField.values())).append(')')
+				.append(" ( ").append(ddl(DisposalField.values()))
+				.append(DISPOSAL_PARENT_KEY_REF(request))
+				.append(')')
 				.append(';');
 
 				sqlCreateRef = createDisposalSql.toString();
@@ -2703,7 +2712,10 @@ public class DistributorDataStore {
 		 */
 		@Override
 		public void onOpen (SQLiteDatabase db) {
-			// Examine or otherwise prepare the database
+			 if (!db.isReadOnly()) {
+			        // Enable foreign key constraints
+			        db.execSQL("PRAGMA foreign_keys=ON;");
+			    }
 		}
 
 		@Override

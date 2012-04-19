@@ -16,10 +16,10 @@ public class FullTopic {
 	final public String subtopic;
 	final public String aggregate;
 
-	public FullTopic(final String mime) {
-		this.aggregate = mime;
+	public FullTopic(final String aggregate) {
+		this.aggregate = aggregate;
 
-		final String[] list = mime.split(TOPIC_SPLIT_PATTERN, 2);
+		final String[] list = aggregate.split(TOPIC_SPLIT_PATTERN, 2);
 
 		if (list.length < 1) {
 			this.topic = "";
