@@ -1685,8 +1685,8 @@ public class DistributorThread extends Thread {
 				PLogger.STORE_INTEREST_DQL.trace("interest cursor: {}", worker);
 
 				final String selection = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));		
-				logger.trace(MARK_INTEREST, "process row INTEREST {} {} {}", 
-						new Object[] { worker.id, worker.topic, selection });
+				logger.trace(MARK_INTEREST, "process row INTEREST: id=[{}] topic=[{}:{}] select=[{}]", 
+						new Object[] { worker.id, worker.topic, worker.subtopic, selection });
 
 				final DistributorPolicy.Topic policy = that.policy().matchInterest(worker.topic);
 				final DistributorState dispersal = policy.makeRouteMap();

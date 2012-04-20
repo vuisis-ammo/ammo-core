@@ -177,7 +177,7 @@ public class RequestPopupWindow extends PopupWindow {
 		// final Uri disposalUri = ContentUris.withAppendedId(channelUri, id);
 
 		final Cursor channelCursor = activity.managedQuery(channelUri, null, 
-				CHANNEL_SELECTION, new String[]{ String.valueOf(table.o), String.valueOf(id) }, 
+				CHANNEL_SELECTION, new String[]{ String.valueOf(id) }, 
 				null);
 
 		final ListView list = ((ListView)this.getContentView().findViewById(R.id.dist_channel_content));
@@ -187,8 +187,6 @@ public class RequestPopupWindow extends PopupWindow {
 
 	}
 	static final private String CHANNEL_SELECTION = new StringBuilder()
-	.append(DisposalField.TYPE.q(null)).append("=?")
-	.append(" AND ")
 	.append(DisposalField.REQUEST.q(null)).append("=?")
 	.toString();
 
