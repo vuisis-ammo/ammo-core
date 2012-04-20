@@ -1192,7 +1192,7 @@ public class DistributorDataStore {
 	public synchronized int deletePostalGarbage() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = this.db.delete(Tables.POSTAL.n, 
+			final int expireCount = db.delete(Tables.POSTAL.n, 
 					REQUEST_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
 			logger.trace("Postal garbage count: [{}]", expireCount);
 			return expireCount;
