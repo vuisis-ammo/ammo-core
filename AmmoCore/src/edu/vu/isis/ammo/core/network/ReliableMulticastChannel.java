@@ -758,6 +758,7 @@ public class ReliableMulticastChannel extends NetChannel
             	parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
             	
             	//parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT, Boolean.TRUE ); // deprecated
+        		parent.mJGroupChannel.connect( "AmmoGroup" );
             }
             catch ( Exception e )
             {
@@ -798,11 +799,12 @@ public class ReliableMulticastChannel extends NetChannel
 
         	parent.mJGroupChannel.setReceiver( parent.mReceiver );
         	//parent.mJGroupChannel.addChannelListener( this ); // don't do this yet
-        	try {
+        	
+/*        	try {
         		parent.mJGroupChannel.connect( "AmmoGroup" );
         	} catch ( Exception ex ) {
         		// FIXME: shouldn't happen, but figure out how to clean up and return false.
-        	}
+        	}*/
 
         	// Should this be moved to before the construction of the Sender and Receiver?
             // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
