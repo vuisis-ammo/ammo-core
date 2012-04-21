@@ -2047,9 +2047,12 @@ public class DistributorDataStore {
 					final int updateCount = this.db.update(this.disposal.n, cv, 
 							DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel } );
 					if (updateCount < 1) {
-						PLogger.STORE_DISPOSAL_DML.debug("inserting into=[{}] : cv=[{}]", 
-								this.disposal, cv);
-						return this.db.insert(this.disposal.n, DisposalField._ID.n(), cv);
+						final long row = this.db.insert(this.disposal.n, DisposalField._ID.n(), cv);
+						PLogger.STORE_DISPOSAL_DML.debug("inserting row=[{}] into=[{}] : cv=[{}]", 
+								new Object[]{ row, this.disposal, cv} );
+						return row;
+					} else if (updateCount > 1) {
+						logger.error("duplicate [{}] count=[{}]", this.disposal, updateCount);
 					}
 
 					// some rows were updated we wish to return the key of the updated row
@@ -2058,11 +2061,12 @@ public class DistributorDataStore {
 							null, null, null);
 
 					cursor.moveToFirst();
-					final long key = cursor.getInt(0); // we only asked for one column so it better be it.
+					final long row = cursor.getInt(0); // we only asked for one column so it better be it.
 					cursor.close();
-					PLogger.STORE_DISPOSAL_DML.debug("updated into=[{}] : cv=[{}]", 
-								this.disposal, cv);
-					return key;
+					
+					PLogger.STORE_DISPOSAL_DML.debug("updated row=[{}] into=[{}] : cv=[{}]", 
+								new Object[]{ row, this.disposal, cv} );
+					return row;
 
 				} catch (SQLiteConstraintException ex) {
 					logger.error("upsert error: {}: {}", 
