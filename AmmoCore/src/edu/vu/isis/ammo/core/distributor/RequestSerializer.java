@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -478,6 +479,53 @@ public class RequestSerializer {
 		}
 	}
 
+	public static byte[] serializeFromContentValues(ContentValues cv, final DistributorPolicy.Encoding encoding) {
+	    
+		logger.trace("serializing using content values and encoding {}", encoding);
+		switch (encoding.getType()) {
+		case JSON: 
+		{
+		    return encodeAsJson (cv);
+		}
+
+		case TERSE: 
+		{
+		    // Need to be implemented ...
+		}
+		// TODO custom still needs a lot of work
+		// It will presume the presence of a SyncAdaptor for the content provider.
+		case CUSTOM:
+		default:
+		{
+		}
+		}
+		return null;
+	}
+	
+	private static byte[] encodeAsJson (ContentValues cv) {
+	    // encoding in json for now ...
+	    Set<java.util.Map.Entry<String, Object>> data = cv.valueSet();
+	    Iterator<java.util.Map.Entry<String, Object>> iter = data.iterator();       
+	    final JSONObject json = new JSONObject();
+
+	    while (iter.hasNext())
+	    {
+	        Map.Entry<String, Object> entry = 
+	                (Map.Entry<String, Object>)iter.next();         
+	        try {
+	            if (entry.getValue() instanceof String)
+	                json.put(entry.getKey(), cv.getAsString(entry.getKey()));
+	            else if (entry.getValue() instanceof Integer)
+	                json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
+	        } catch (JSONException e) {
+	            // TODO Auto-generated catch block
+	            e.printStackTrace();
+	            return null;
+	        }
+	    }
+
+	    return json.toString().getBytes();
+	}
 	/**
 	 * @see serializeFromProvider with which this method is symmetric.
 	 */

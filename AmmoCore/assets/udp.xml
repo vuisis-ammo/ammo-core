@@ -58,7 +58,7 @@
 <!--
     <BARRIER />
 -->
-    <FD_ALL interval="10000" timeout="30000"/>
+    <FD_ALL interval="30000" timeout="120000"/>
 <!--
     <VERIFY_SUSPECT timeout="5000"  />
 -->

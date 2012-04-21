@@ -946,29 +946,38 @@ public class DistributorThread extends Thread {
 
 				@Override
 				public byte[] run(Encoding encode) {
-					if (serializer_.payload != null && 
-							serializer_.payload.hasContent()) {
-						return serializer_.payload.asBytes();
-					} 
-					try {
+					if (serializer_.payload.hasContent()) {
+					    final byte[] result = 
+					            RequestSerializer.serializeFromContentValues(
+		                                serializer_.payload.getCV(),
+		                                encode);
+
+                        if (result == null) {
+                            logger.error("Null result from serialize content value, encoding into {}", encode);
+                        }
+                        return result;
+						//return serializer_.payload.asBytes();
+					} else {
+						try {
 						final byte[] result = 
 								RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
 										serializer_.provider.asUri(), encode);
 
-						if (result == null) {
-							logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
-						}
-						return result;
-					} catch (IOException e1) {
-						logger.error("invalid row for serialization {}", e1.getLocalizedMessage());
-						return null;
-					} catch (TupleNotFoundException e) {
-						logger.error("tuple not found when processing postal table");
+							if (result == null) {
+								logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
+							}
+							return result;
+						} catch (IOException e1) {
+							logger.error("invalid row for serialization {}", e1.getLocalizedMessage());
+							return null;
+						} catch (TupleNotFoundException e) {
+							logger.error("tuple not found when processing postal table");
 						postal_.delete(e.missingTupleUri.getPath());
-						return null;
-					} catch (NonConformingAmmoContentProvider e) {
-						e.printStackTrace();
-						return null;
+							return null;
+						} catch (NonConformingAmmoContentProvider e) {
+							e.printStackTrace();
+							return null;
+						}
 					}
 				}
 			});
