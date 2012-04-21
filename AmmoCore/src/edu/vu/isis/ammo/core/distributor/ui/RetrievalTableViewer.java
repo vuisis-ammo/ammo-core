@@ -23,7 +23,7 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 	private TextView tvLabel;
 	
 	public RetrievalTableViewer() {
-		super(Tables.RETRIEVAL);
+		super(Tables.RETRIEVAL, Tables.RETRIEVAL_DISPOSAL);
 	}
 	
 	@Override 

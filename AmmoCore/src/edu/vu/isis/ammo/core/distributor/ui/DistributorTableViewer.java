@@ -131,10 +131,13 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	// List Management
 	// ===========================================================
-	private final Tables table;
-	public DistributorTableViewer(Tables table) {
+	private final Tables requestTable;
+	private final Tables disposalTable;
+	
+	public DistributorTableViewer(Tables request, Tables disposal) {
 		super();
-		this.table = table;
+		this.requestTable = request;
+		this.disposalTable = disposal;
 	}
 	
 	@Override
@@ -149,7 +152,7 @@ implements IAmmoActivitySetup
 		
 	    pw = new RequestPopupWindow(this, inflater, 
 	    		popoverWidth, popoverHeight, position, 
-	    		this.adapter.getCursor(), this.table);
+	    		this.adapter.getCursor(), this.requestTable, this.disposalTable);
 	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
 	}

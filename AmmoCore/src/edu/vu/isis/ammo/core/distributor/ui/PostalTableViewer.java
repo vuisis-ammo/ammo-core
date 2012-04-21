@@ -23,7 +23,7 @@ public class PostalTableViewer extends DistributorTableViewer {
 	private TextView tvLabel;
 	
 	public PostalTableViewer() {
-		super(Tables.POSTAL);
+		super(Tables.POSTAL, Tables.POSTAL_DISPOSAL);
 	}
 	
 	@Override 

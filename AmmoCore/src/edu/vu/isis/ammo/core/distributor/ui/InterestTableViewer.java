@@ -23,7 +23,7 @@ public class InterestTableViewer extends DistributorTableViewer {
 	private TextView tvLabel;
 	
 	public InterestTableViewer() {
-		super(Tables.INTEREST);
+		super(Tables.INTEREST, Tables.INTEREST_DISPOSAL);
 	}
 	
 	@Override 

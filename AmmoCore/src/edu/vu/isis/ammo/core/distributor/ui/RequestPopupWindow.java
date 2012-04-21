@@ -72,17 +72,17 @@ public class RequestPopupWindow extends PopupWindow {
 		postalMap.put(RequestField.DISPOSITION.n(), new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
 	}
 
-	private final static HashMap<String, FieldProperty> subscribeMap;
+	private final static HashMap<String, FieldProperty> interestMap;
 	static {
-		subscribeMap = new HashMap<String, FieldProperty>();
-		subscribeMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
-		subscribeMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
-		subscribeMap.put(InterestField.FILTER.n(), new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
-		subscribeMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
-		subscribeMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
-		subscribeMap.put(RequestField.PRIORITY.n(), new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
-		subscribeMap.put(RequestField.EXPIRATION.n(), new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
-		subscribeMap.put(RequestField.DISPOSITION.n(), new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
+		interestMap = new HashMap<String, FieldProperty>();
+		interestMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
+		interestMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
+		interestMap.put(InterestField.FILTER.n(), new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
+		interestMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
+		interestMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
+		interestMap.put(RequestField.PRIORITY.n(), new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
+		interestMap.put(RequestField.EXPIRATION.n(), new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
+		interestMap.put(RequestField.DISPOSITION.n(), new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
 	}
 
 	private final static HashMap<String, FieldProperty> retrievalMap;
@@ -109,7 +109,7 @@ public class RequestPopupWindow extends PopupWindow {
 	}
 
 	public RequestPopupWindow(final Activity activity, final LayoutInflater inflater, final int popupWidth, final int popupHeight, int position, 
-			final Cursor requestCursor, Tables table)
+			final Cursor requestCursor, Tables requestTable, Tables disposalTable)
 	{
 		super(inflater.inflate(R.layout.dist_table_item_detail_view, null, false),popupWidth,popupHeight,true);
 		requestCursor.moveToFirst();
@@ -117,18 +117,18 @@ public class RequestPopupWindow extends PopupWindow {
 		logger.trace("popup window {}", Arrays.asList(requestCursor.getColumnNames()) );
 
 		final Map<String, FieldProperty> fieldMap;
-		switch (table) {
+		switch (requestTable) {
 		case POSTAL: 
 			fieldMap = postalMap; 
 			break;
 		case INTEREST: 
-			fieldMap = subscribeMap; 
+			fieldMap = interestMap; 
 			break;
 		case RETRIEVAL: 
 			fieldMap = retrievalMap; 
 			break;
 		default: 
-			logger.error("invalid table {}", table);
+			logger.error("invalid table {}", requestTable);
 			return;
 		}
 		for(final String colName : requestCursor.getColumnNames() ) {
@@ -172,7 +172,7 @@ public class RequestPopupWindow extends PopupWindow {
 			row.setVisibility(View.VISIBLE);
 		}
 		// Now handle the channel disposition
-		final Uri channelUri = DistributorSchema.CONTENT_URI.get(Tables.CHANNEL.n);
+		final Uri channelUri = DistributorSchema.CONTENT_URI.get(disposalTable.n);
 		final int id = requestCursor.getInt(requestCursor.getColumnIndex(BaseColumns._ID));
 		// final Uri disposalUri = ContentUris.withAppendedId(channelUri, id);
 
