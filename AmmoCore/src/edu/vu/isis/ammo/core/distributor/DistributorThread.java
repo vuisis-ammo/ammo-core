@@ -430,7 +430,7 @@ public class DistributorThread extends Thread {
 		}
 
 		final Notice.Item note = ack.notice.atSend;
-		
+
 		if (note.via.isActive()) {
 
 			final Uri.Builder uriBuilder = new Uri.Builder()
@@ -447,10 +447,10 @@ public class DistributorThread extends Thread {
 			.putExtra(EXTRA_CHANNEL, ack.channel.toString())
 			.putExtra(EXTRA_STATUS, ack.status.toString());
 
-			
+
 			final int aggregate = note.via.v;
 			PLogger.API_INTENT.debug("gen intent: [{}]", note.via);
-			
+
 			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
 				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 				context.startActivity(noticed); 
@@ -946,38 +946,45 @@ public class DistributorThread extends Thread {
 
 				@Override
 				public byte[] run(Encoding encode) {
-					if (serializer_.payload.hasContent()) {
-					    final byte[] result = 
-					            RequestSerializer.serializeFromContentValues(
-		                                serializer_.payload.getCV(),
-		                                encode);
+					if (serializer_.payload != null) {
+						switch (serializer_.payload.whatContent()) {
+						case NONE: break;
 
-                        if (result == null) {
-                            logger.error("Null result from serialize content value, encoding into {}", encode);
-                        }
-                        return result;
-						//return serializer_.payload.asBytes();
-					} else {
-						try {
+						case CV:
+							final byte[] result = 
+							RequestSerializer.serializeFromContentValues(
+									serializer_.payload.getCV(),
+									encode);
+
+							if (result == null) {
+								logger.error("Null result from serialize content value, encoding into {}", encode);
+							}
+							return result;
+							
+						case BYTE:
+						case STR:
+							return serializer_.payload.asBytes();
+						}
+					} 
+					try {
 						final byte[] result = 
 								RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
 										serializer_.provider.asUri(), encode);
 
-							if (result == null) {
-								logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
-							}
-							return result;
-						} catch (IOException e1) {
-							logger.error("invalid row for serialization {}", e1.getLocalizedMessage());
-							return null;
-						} catch (TupleNotFoundException e) {
-							logger.error("tuple not found when processing postal table");
-						postal_.delete(e.missingTupleUri.getPath());
-							return null;
-						} catch (NonConformingAmmoContentProvider e) {
-							e.printStackTrace();
-							return null;
+						if (result == null) {
+							logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
 						}
+						return result;
+					} catch (IOException e1) {
+						logger.error("invalid row for serialization {}", e1.getLocalizedMessage());
+						return null;
+					} catch (TupleNotFoundException e) {
+						logger.error("tuple not found when processing postal table");
+						postal_.delete(e.missingTupleUri.getPath());
+						return null;
+					} catch (NonConformingAmmoContentProvider e) {
+						e.printStackTrace();
+						return null;
 					}
 				}
 			});
@@ -1282,7 +1289,7 @@ public class DistributorThread extends Thread {
 
 			final int aggregate = note.via.v;	
 			PLogger.API_INTENT.debug("gen intent: [{}]", note);
-			
+
 			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
 				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 				context.startActivity(noticed); 
@@ -1325,7 +1332,7 @@ public class DistributorThread extends Thread {
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final String subtopic = (ar.subtopic == null) ? Topic.DEFAULT : ar.subtopic.asString();
-			
+
 			final String select = ar.select.toString();
 			final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
