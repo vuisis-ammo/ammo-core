@@ -67,11 +67,15 @@ public class InterestTableViewAdapter extends DistributorTableViewAdapter
 			tv.setText(timed);
 		}
 
-		// set the mime-type / topic
+		// set the topic
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_topic);
-			tv.setText(cursor.getString(cursor.getColumnIndex(RequestField.TOPIC.n())));
+			final String topic = cursor.getString(cursor.getColumnIndex(RequestField.TOPIC.n()));
+			final String subtopic = cursor.getString(cursor.getColumnIndex(RequestField.SUBTOPIC.n()));
+		
+			tv.setText(DistributorTableViewAdapter.buildTopic(topic, subtopic));
 		}
+		
 		// set the provider
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.distributor_table_view_item_provider);

@@ -331,7 +331,7 @@ public class DistributorThread extends Thread {
 
 	public class ChannelAck {
 		public final Tables type;
-		public final long id;
+		public final long request;
 
 		public final String topic;
 		public final String subtopic;
@@ -341,13 +341,13 @@ public class DistributorThread extends Thread {
 		public final String channel;
 		public final DisposalState status;
 
-		public ChannelAck(Tables type, long id, 
+		public ChannelAck(Tables type, long request, 
 				String topic, String subtopic, 
 				String auid, Notice notice,
 				String channel, DisposalState status) 
 		{
 			this.type = type;
-			this.id = id;
+			this.request = request;
 
 			this.topic = topic;
 			this.subtopic = topic;
@@ -367,7 +367,7 @@ public class DistributorThread extends Thread {
 		public String toString() {
 			return new StringBuilder()
 			.append(" type=[").append(type).append(']')
-			.append(" id=[").append(id).append(']')
+			.append(" request=[").append(request).append(']')
 			.append(" topic=[").append(topic).append(':').append(subtopic).append(']')
 			.append(" aid=[").append(auid).append(']')
 			.append(" channel=[").append(channel).append(']')
@@ -408,29 +408,36 @@ public class DistributorThread extends Thread {
 
 	/**
 	 * Once the channel is done with a request it generates a ChannelAck object.
+	 * The corresponding disposal is updated with the 
+	 * status of the channel's effort.
+	 * If requested an intent is generated to notify others.
 	 * 
+	 * @param context 
 	 * @param ack
 	 */
 	private void doChannelAck(final Context context, final ChannelAck ack) {
 		logger.trace("channel ACK {}", ack);
-		final long numUpdated;
+		final long disposalKey;
 		switch (ack.type) {
 		case POSTAL:
-			numUpdated = this.store.updatePostalByKey(ack.id, ack.channel, ack.status);
+			disposalKey = this.store.updatePostalByKey(ack.request, ack.channel, ack.status);
+			logger.debug("update postal disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		case RETRIEVAL:
-			numUpdated = this.store.updateRetrievalByKey(ack.id, ack.channel, ack.status);
+			disposalKey = this.store.updateRetrievalByKey(ack.request, ack.channel, ack.status);
+			logger.debug("update retrieval disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		case INTEREST:
-			numUpdated = this.store.updateInterestByKey(ack.id, ack.channel, ack.status);
+			disposalKey = this.store.updateInterestByKey(ack.request, ack.channel, ack.status);
+			logger.debug("update interest disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		default:
+			disposalKey = -1;
 			logger.warn("invalid ack type {}", ack);
 			return;
 		}
 
 		final Notice.Item note = ack.notice.atSend;
-
 		if (note.via.isActive()) {
 
 			final Uri.Builder uriBuilder = new Uri.Builder()
@@ -449,7 +456,8 @@ public class DistributorThread extends Thread {
 
 
 			final int aggregate = note.via.v;
-			PLogger.API_INTENT.debug("gen intent: [{}]", note.via);
+			PLogger.API_INTENT.debug("gen notice: via=[{}] intent=[{}]", 
+					note.via, noticed);
 
 			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
 				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -466,7 +474,6 @@ public class DistributorThread extends Thread {
 			}
 		}
 
-		logger.debug("count {}: intent {}", numUpdated, ack);
 	}
 
 	private void announceChannelActive(final Context context, final String name) {
@@ -583,22 +590,19 @@ public class DistributorThread extends Thread {
 						this.doChannelChange(ammoService);
 					}
 
-					if (!this.channelAck.isEmpty()) {
-						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
+					if (!this.channelAck.isEmpty()) {						
 						try {
 							final ChannelAck ack = this.channelAck.take();
-							PLogger.QUEUE_ACK_EXIT.trace("ack: {}", ack);
+							PLogger.QUEUE_ACK_EXIT.trace("take remaining=[{}] ack=[{}]", this.channelAck.size(), ack);
 							this.doChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
 							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
 					}
 					if (!this.responseQueue.isEmpty()) {
-						logger.trace("processing response, remaining {}", this.responseQueue.size());
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
-							PLogger.QUEUE_RESP_EXIT.trace("taking response: {}", agm);
-							logger.trace("processing response, remaining {}", this.responseQueue.size());
+							PLogger.QUEUE_RESP_EXIT.trace("take remaining=[{}] ack=[{}]", this.responseQueue.size(), agm);
 							this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
 							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
@@ -608,9 +612,7 @@ public class DistributorThread extends Thread {
 					if (!this.requestQueue.isEmpty()) {
 						try {					
 							final AmmoRequest ar = this.requestQueue.take();
-							PLogger.QUEUE_REQ_EXIT.trace("taking request: {}", ar);
-							logger.info("processing request uuid {}, remaining {}", 
-									ar.uuid, this.requestQueue.size());
+							PLogger.QUEUE_REQ_EXIT.trace("take remaining=[{}] ack=[{}]", this.requestQueue.size(), ar);
 							this.doRequest(ammoService, ar);
 						} catch (ClassCastException ex) {
 							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
@@ -892,24 +894,24 @@ public class DistributorThread extends Thread {
 
 		// Dispatch the message.
 		try {
-			final PostalWorker postal = that.store().getPostalWorker(ar, that);
-			logger.trace("process request topic {}, uuid {}", postal.topic, postal.uuid);
+			final PostalWorker worker = that.store().getPostalWorker(ar, that);
+			logger.trace("process request topic {}, uuid {}", worker.topic, worker.uuid);
 
-			final DistributorState dispersal = postal.policy.makeRouteMap();
+			final DistributorState dispersal = worker.policy.makeRouteMap();
 
 			final byte[] payload;			
-			switch (postal.serialMoment.type()) {
+			switch (worker.serialMoment.type()) {
 			case APRIORI:
-				if (postal.payload == null) {
+				if (worker.payload == null) {
 					logger.error("apriori serialization requires payload");
 					payload = new byte[0];
 				} else {
-					payload = postal.payload.asBytes();
+					payload = worker.payload.asBytes();
 				}
 				break;
 			case EAGER:				
 				try {
-					final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
+					final RequestSerializer serializer = RequestSerializer.newInstance(worker.provider, worker.payload);
 					payload = RequestSerializer.serializeFromProvider(that.getContentResolver(), 
 							serializer.provider.asUri(), Encoding.getDefault());
 
@@ -918,7 +920,7 @@ public class DistributorThread extends Thread {
 					return;
 				} catch (TupleNotFoundException e) {
 					logger.error("tuple not found when processing postal table");
-					postal.delete(e.missingTupleUri.getPath());
+					worker.delete(e.missingTupleUri.getPath());
 					return;
 				} catch (NonConformingAmmoContentProvider e) {
 					e.printStackTrace();
@@ -931,18 +933,18 @@ public class DistributorThread extends Thread {
 			}
 
 			if (!that.isConnected()) {
-				long key = postal.upsert(DisposalTotalState.DISTRIBUTE, payload);
+				long key = worker.upsert(DisposalTotalState.DISTRIBUTE, payload);
 
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
 
-			final RequestSerializer serializer = RequestSerializer.newInstance(postal.provider, postal.payload);
+			final RequestSerializer serializer = RequestSerializer.newInstance(worker.provider, worker.payload);
 			serializer.setSerializer(new RequestSerializer.OnSerialize() {
 
 				final RequestSerializer serializer_ = serializer;
 				final AmmoService that_ = that;
-				final PostalWorker postal_ = postal;
+				final PostalWorker postal_ = worker;
 
 				@Override
 				public byte[] run(Encoding encode) {
@@ -992,15 +994,15 @@ public class DistributorThread extends Thread {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				final long id = postal.upsert(DisposalTotalState.DISTRIBUTE, payload);
+				final long id = worker.upsert(DisposalTotalState.DISTRIBUTE, payload);
 				final INetworkService.OnSendMessageHandler msgHandler = 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
 					final long id_ = id;
-					final String topic_ = postal.topic;
-					final String subtopic_ = postal.subtopic;
-					final String auid_ = postal.auid;
-					final Notice notice_ = postal.notice;
+					final String topic_ = worker.topic;
+					final String subtopic_ = worker.subtopic;
+					final String auid_ = worker.auid;
+					final Notice notice_ = worker.notice;
 
 					@Override
 					public boolean ack(String channel, DisposalState status) {
@@ -1010,7 +1012,7 @@ public class DistributorThread extends Thread {
 					}
 				};
 				final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
-						postal, dispersal, serializer, 
+						worker, dispersal, serializer, 
 						msgHandler);
 
 				this.store.updatePostalByKey(id, null, dispatchResult);
@@ -1284,7 +1286,7 @@ public class DistributorThread extends Thread {
 			.putExtra(EXTRA_TOPIC, worker.topic.toString())
 			.putExtra(EXTRA_SUBTOPIC, worker.topic.toString())
 			.putExtra(EXTRA_UID, worker.auid.toString())
-			.putExtra(EXTRA_STATUS, worker.status.toString())
+			.putExtra(EXTRA_STATUS, worker.dispersal.toString())
 			.putExtra(EXTRA_DEVICE, pushResp.getAcknowledgingDevice().toString());
 
 			final int aggregate = note.via.v;	
@@ -1336,7 +1338,7 @@ public class DistributorThread extends Thread {
 			final String select = ar.select.toString();
 			final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
-
+			
 			final ContentValues values = new ContentValues();
 			values.put(RequestField.UUID.cv(), uuid.toString());
 			values.put(RequestField.AUID.cv(), auid);
@@ -1355,7 +1357,7 @@ public class DistributorThread extends Thread {
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
 				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-				this.store.upsertRetrieval(values, dispersal);
+// FIXME				this.store.upsertRetrieval(values, dispersal);
 				logger.debug("no network connection");
 				return;
 			}
@@ -1364,8 +1366,8 @@ public class DistributorThread extends Thread {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
-
+// FIXME				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
+                final long id = 1;
 				final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
 						uuid, topic, subtopic, select, limit, dispersal, 
 						new INetworkService.OnSendMessageHandler() {
@@ -1613,50 +1615,28 @@ public class DistributorThread extends Thread {
 
 		// Dispatch the message.
 		try {
-			final InterestWorker worker = this.store().getInterestWorker(ar);
+			final InterestWorker worker = this.store().getInterestWorker(ar, this.ammoService);
 			PLogger.STORE_INTEREST_DQL.trace("do interest request: {}", worker);
 
-			final UUID uuid = UUID.randomUUID();
-			final String auid = ar.uid;
-			final String topic = ar.topic.asString();
-			final String subtopic = ar.subtopic.asString();
-			final DistributorPolicy.Topic policy = that.policy().matchInterest(topic);
-
-			final ContentValues values = new ContentValues();
-			values.put(RequestField.UUID.cv(), uuid.toString());
-			values.put(RequestField.AUID.cv(), auid);
-			values.put(RequestField.TOPIC.cv(), topic);
-			values.put(RequestField.SUBTOPIC.cv(), subtopic);
-
-			values.put(RequestField.PROVIDER.cv(), ar.provider.cv());
-			values.put(RequestField.EXPIRATION.cv(), ar.expire.cv());
-			values.put(RequestField.PRIORITY.cv(), policy.routing.priority);
-			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
-
-			values.put(InterestField.FILTER.cv(), ar.select.toString());
-
-			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
-				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-				long key = this.store.upsertInterest(values, dispersal);
+				long key = worker.upsert(DisposalTotalState.NEW);
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
 
-			values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuingupsertInterest
 			synchronized (this.store) {
-				final long id = this.store.upsertInterest(values, dispersal);
+				final long id = worker.upsert(DisposalTotalState.DISTRIBUTE);
 
 				final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
-						topic, subtopic, ar.select.toString(), dispersal, 
+						worker.topic, worker.subtopic, ar.select.cv(), worker.dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
 					final long id_ = id;
-					final String auid_ = auid;
-					final String topic_ = topic;
-					final String subtopic_ = subtopic;
+					final String auid_ = worker.auid;
+					final String topic_ = worker.topic;
+					final String subtopic_ = worker.subtopic;
 					final Notice notice_ = null;
 
 					@Override
@@ -1697,28 +1677,8 @@ public class DistributorThread extends Thread {
 
 			for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 
-				final InterestWorker worker = this.store().getInterestWorker(pending);
+				final InterestWorker worker = this.store().getInterestWorker(pending, this.ammoService);
 				PLogger.STORE_INTEREST_DQL.trace("interest cursor: {}", worker);
-
-				final String selection = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));		
-				logger.trace(MARK_INTEREST, "process row INTEREST: id=[{}] topic=[{}:{}] select=[{}]", 
-						new Object[] { worker.id, worker.topic, worker.subtopic, selection });
-
-				final DistributorPolicy.Topic policy = that.policy().matchInterest(worker.topic);
-				final DistributorState dispersal = policy.makeRouteMap();
-
-				Cursor channelCursor = null;
-				try { 
-					channelCursor = this.store.getInterestDisposalWorker().queryByParent(worker.id);
-
-					for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
-						final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
-						final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
-						dispersal.put(channel, DisposalState.getInstanceById(channelState));
-					}
-				} finally {
-					if (channelCursor != null) channelCursor.close();
-				}
 
 				try {
 					if (!that.isConnected()) {
@@ -1733,7 +1693,7 @@ public class DistributorThread extends Thread {
 						long numUpdated = this.store.updateInterestByKey(worker.id, values, null);
 
 						final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
-								worker.topic, worker.subtopic, selection, dispersal, 
+								worker.topic, worker.subtopic, worker.selection.cv(), worker.dispersal, 
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							final int id_ = worker.id;

@@ -65,6 +65,17 @@
 		            android:padding="3dip" />
 		    </TableRow>
 		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="subtopic"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_subtopic"
+		            android:hint="*"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
 		     <TableRow android:visibility="visible">
 		        <TextView
 		            android:text="provider"

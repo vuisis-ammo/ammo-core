@@ -64,6 +64,7 @@ public class RequestPopupWindow extends PopupWindow {
 		postalMap = new HashMap<String, FieldProperty>();
 		postalMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
 		postalMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
+		postalMap.put(RequestField.SUBTOPIC.n(), new FieldProperty(R.id.dist_detail_subtopic, FieldType.TEXT));
 		postalMap.put(PostalField.PAYLOAD.n(), new FieldProperty(R.id.dist_detail_payload, FieldType.TEXT));
 		postalMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
 		postalMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
@@ -77,6 +78,7 @@ public class RequestPopupWindow extends PopupWindow {
 		interestMap = new HashMap<String, FieldProperty>();
 		interestMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
 		interestMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
+		interestMap.put(RequestField.SUBTOPIC.n(), new FieldProperty(R.id.dist_detail_subtopic, FieldType.TEXT));
 		interestMap.put(InterestField.FILTER.n(), new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
 		interestMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
 		interestMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
@@ -90,6 +92,7 @@ public class RequestPopupWindow extends PopupWindow {
 		retrievalMap = new HashMap<String, FieldProperty>();
 		retrievalMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
 		retrievalMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
+		retrievalMap.put(RequestField.SUBTOPIC.n(), new FieldProperty(R.id.dist_detail_subtopic, FieldType.TEXT));
 		retrievalMap.put(RetrievalField.PROJECTION.n(), new FieldProperty(R.id.dist_detail_projection, FieldType.TEXT));
 		retrievalMap.put(RetrievalField.SELECTION.n(), new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
 		retrievalMap.put(RetrievalField.ARGS.n(), new FieldProperty(R.id.dist_detail_select_args, FieldType.TEXT));

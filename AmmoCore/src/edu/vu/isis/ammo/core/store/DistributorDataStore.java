@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.CursorIndexOutOfBoundsException;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteConstraintException;
 import android.database.sqlite.SQLiteDatabase;
@@ -38,6 +39,7 @@ import android.provider.BaseColumns;
 import android.text.TextUtils;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
+import edu.vu.isis.ammo.api.type.Selection;
 import edu.vu.isis.ammo.api.type.SerialMoment;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Threshold;
@@ -66,7 +68,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("class.store");
-	public static final int VERSION = 33;
+	public static final int VERSION = 35;
 
 	public static final String NAME = 
 			"distributor.db";   // to create .../databases/distributor.db
@@ -342,7 +344,7 @@ public class DistributorDataStore {
 			}
 			return 0;
 		}
-		
+
 		public int delete() {
 			final String whereClause = new StringBuilder()
 			.append(RequestField.TOPIC.q(null)).append("=?")
@@ -547,8 +549,7 @@ public class DistributorDataStore {
 			values.put(RequestField.PROVIDER.n(),"unknown");
 		}
 		if (!values.containsKey(RequestField.DISPOSITION.n())) {
-			values.put(RequestField.DISPOSITION.n(),
-					DisposalState.PENDING.o);
+			values.put(RequestField.DISPOSITION.n(), DisposalState.PENDING.o);
 		}
 
 		if (!values.containsKey(RequestField.PRIORITY.n())) {
@@ -679,102 +680,46 @@ public class DistributorDataStore {
 
 
 	public RequestWorker getPostalRequestWorker() {
-		return new RequestWorker(db, Tables.POSTAL);
-	}
-
-	public RequestWorker getRetrievalRequestWorker() {
-		return new RequestWorker(db, Tables.RETRIEVAL);
+		return new RequestWorker(this.db, Tables.POSTAL, Tables.POSTAL_DISPOSAL);
 	}
 
 	public RequestWorker getInterestRequestWorker() {
-		return new RequestWorker(db, Tables.INTEREST);
+		return new RequestWorker(this.db, Tables.INTEREST, Tables.INTEREST_DISPOSAL);
 	}
 
+	public RequestWorker getRetrievalRequestWorker() {
+		return new RequestWorker(this.db, Tables.RETRIEVAL, Tables.RETRIEVAL_DISPOSAL);
+	}
 	/** 
 	 * Store access class
 	 */
 	public class RequestWorker {
 
-		private final SQLiteDatabase db;
-		private final Tables table;
+		protected final SQLiteDatabase db;
+		protected final Tables request;
+		protected final Tables disposal;
 
-		private RequestWorker(final SQLiteDatabase db, final Tables table) {
+		private RequestWorker(final SQLiteDatabase db, Tables request, Tables disposal) {
 			this.db = db;
-			this.table = table;
+			this.request = request;
+			this.disposal = disposal;
 		}
-
-		private DisposalWorker getDispose() {
-			switch(this.table){
-			case POSTAL: return DistributorDataStore.this.getPostalDisposalWorker();
-			case RETRIEVAL: return DistributorDataStore.this.getRetrievalDisposalWorker();
-			case INTEREST: return DistributorDataStore.this.getInterestDisposalWorker();
-			}
-			return null;
-		}
-
-		/**
-		 * @param cv
-		 * @param status
-		 * @param viewName
-		 * @param table
-		 * @return
-		 */
-		public long upsert(ContentValues cv, DistributorState status) {
-			synchronized (DistributorDataStore.this) {
-				Cursor cursor  = null;
-				try {
-					final String uuid = cv.getAsString(RequestField.UUID.cv());
-					final String topic = cv.getAsString(RequestField.TOPIC.cv());
-					final String subtopic = cv.getAsString(RequestField.SUBTOPIC.cv());
-					final String provider = cv.getAsString(RequestField.PROVIDER.cv());
-
-					final long rowid;
-					final String whereClause;
-					final String[] whereArgs;
-					if (uuid != null) {
-						whereClause = REQUEST_UPDATE_CLAUSE_KEY;
-						whereArgs = new String[]{ uuid };
-					} else {
-						whereClause = REQUEST_UPDATE_CLAUSE;
-						whereArgs = new String[]{ topic, subtopic, provider };
-					}
-					cursor = this.db.query(this.table.n, 
-							new String[] {RequestField._ID.q(null)}, 
-							whereClause, whereArgs, null, null, null);
-					if (cursor.getCount() > 0) {
-						rowid = cursor.getLong(cursor.getColumnIndex(RequestField._ID.q(null)));
-						final String[] rowid_arg = new String[]{ Long.toString(rowid) };
-						this.db.update(table.n, cv, ROWID_CLAUSE, rowid_arg );
-						cursor.close();
-					} else {
-						rowid = this.db.insert(this.table.n, RequestField.CREATED.n(), cv);
-					}
-					this.getDispose().upsertByRequest(rowid, status);
-					return rowid;
-				} catch (IllegalArgumentException ex) {
-					logger.error("upsert {} {}", cv, status);
-				} finally {
-					if (cursor != null) cursor.close();
-				}
-				return -1;
-			}
-		}
-
 
 		/**
 		 * Update
 		 */
-		/** an object represented in the database.
-		 * Any reasonable update will need to know how to select an existing object.
+		/** 
+		 * 
 		 */
-		private long updateById(long requestId, ContentValues cv, DistributorState state) {
+		protected long updateById(long requestId, ContentValues cv, DistributorState state) {
 			synchronized (DistributorDataStore.this) {
 				if (state == null && cv == null) return -1;
 
 				if (cv == null) cv = new ContentValues();
 
 				if (state != null) {
-					this.getDispose().upsertByRequest(requestId, state);
+					final DisposalWorker disposal = new DisposalWorker(this.db, this.request, this.disposal);
+					disposal.upsertByRequest(requestId, state);
 					cv.put(RequestField.DISPOSITION.n(), state.aggregate().cv());
 				}	
 				try {
@@ -783,7 +728,7 @@ public class DistributorDataStore {
 					.toString();
 
 					final String[] whereArgs = new String[]{ String.valueOf(requestId) };
-					return this.db.update(this.table.n, cv, whereClause, whereArgs); 
+					return this.db.update(this.request.n, cv, whereClause, whereArgs); 
 
 				} catch (IllegalArgumentException ex) {
 					logger.error("updateRequestById {} {}", requestId, cv);
@@ -879,7 +824,7 @@ public class DistributorDataStore {
 	.append(" AND ")
 	.append(RequestField.SUBTOPIC.q(null)).append("=?")
 	.toString();
-	
+
 
 	private static final String REQUEST_EXPIRATION_CONDITION = new StringBuilder()
 	.append(RequestField.EXPIRATION.q(null))
@@ -940,7 +885,7 @@ public class DistributorDataStore {
 		QUANTIFIER("quantifier", "INTEGER"),
 		// Indicates the expected distribution quantity
 		// See the Quantifier api/type for details
-		
+
 		DATA("data", "TEXT"),
 		// If null then the data file corresponding to the
 		// column name and record id should be used. 
@@ -1007,7 +952,9 @@ public class DistributorDataStore {
 	/** 
 	 * Postal store access class
 	 */
-	public class PostalWorker {
+	public class PostalWorker extends RequestWorker{
+		public final int id;
+
 		public final UUID uuid;
 		public final String auid;
 		public final String topic;	
@@ -1020,10 +967,13 @@ public class DistributorDataStore {
 		public final Notice notice;
 
 		public DisposalTotalState totalState = null;
-		public DistributorState status = null;
+		public DistributorState dispersal = null;
 		public Payload payload = null;
 
 		private PostalWorker(final AmmoRequest ar, final AmmoService svc) {
+			super(DistributorDataStore.this.db, Tables.POSTAL, Tables.POSTAL_DISPOSAL);
+
+			this.id = -1;
 			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
 			this.auid = ar.uid;
 			this.topic = ar.topic.asString();
@@ -1033,14 +983,18 @@ public class DistributorDataStore {
 			this.serialMoment = ar.moment;
 			this.notice = ar.notice;
 
-			this.priority = policy.routing.priority+ar.priority;
+			this.priority = PriorityType.aggregatePriority(policy.routing.priority, ar.priority);
 			this.expire = ar.expire;
 
-			this.status = policy.makeRouteMap();
+			this.dispersal = policy.makeRouteMap();
 			this.totalState = DisposalTotalState.NEW;
 		}
 
 		private PostalWorker(final Cursor pending, final AmmoService svc) {
+			super(DistributorDataStore.this.db, Tables.POSTAL, Tables.POSTAL_DISPOSAL);
+
+			this.id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
+
 			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
 			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
@@ -1060,48 +1014,107 @@ public class DistributorDataStore {
 			this.notice.setItem(Threshold.RECEIVED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_RECEIPT.n())));
 			this.notice.setItem(Threshold.GATE_IN, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_IN.n())));
 			this.notice.setItem(Threshold.GATE_OUT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_OUT.n())));
+
+			this.dispersal = this.policy.makeRouteMap();
+			Cursor channelCursor = null;
+			try { 
+				channelCursor = getPostalDisposalWorker().queryByParent(this.id);
+
+				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
+					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
+					this.dispersal.put(channel, DisposalState.getInstanceById(channelState));
+				}
+			} finally {
+				if (channelCursor != null) channelCursor.close();
+			}
 		}
 
+		/**
+		 * The upsert behavior is conditioned based on several factors.
+		 * Generally postal requests are keyed by either their: 
+		 * - topic/subtopic and provider, or
+		 * - topic/subtopic payload
+		 * 
+		 * If a previous uuid is seen what does that mean?
+		 * 
+		 * @param totalState
+		 * @param payload
+		 * @return
+		 */
 		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
 			synchronized(DistributorDataStore.this) {	
-				final ContentValues rqstValues = new ContentValues();
-				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
-				rqstValues.put(RequestField.AUID.cv(), this.auid);
-				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
-				rqstValues.put(RequestField.SUBTOPIC.cv(), this.subtopic);
-				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
+				// build key
+				if (uuid == null) {
+					logger.error("postal requests must have a uuid: [{}]", this);
+					return -1;
+				}
+				final String topic = this.topic;
+				final String subtopic = (this.subtopic == null) ? "" : this.subtopic;
+				final String provider = this.provider.cv();
 
-				rqstValues.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
-				rqstValues.put(RequestField.PRIORITY.cv(), this.policy.routing.priority+this.priority);
-				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
+				final ContentValues cv = new ContentValues();
+				cv.put(RequestField.UUID.cv(), this.uuid.toString());
+				cv.put(RequestField.AUID.cv(), this.auid);
+				cv.put(RequestField.TOPIC.cv(), this.topic);
+				cv.put(RequestField.SUBTOPIC.cv(), this.subtopic);
+				cv.put(RequestField.PROVIDER.cv(), this.provider.cv());
 
-				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
-				rqstValues.put(RequestField.DISPOSITION.cv(), totalState.cv());
-				if (payload != null) rqstValues.put(PostalField.PAYLOAD.cv(), payload);
+				cv.put(RequestField.SERIAL_MOMENT.cv(), this.serialMoment.cv());
+				cv.put(RequestField.PRIORITY.cv(), this.priority);
+				cv.put(RequestField.EXPIRATION.cv(), this.expire.cv());
 
-				rqstValues.put(PostalField.NOTICE_SENT.cv(), this.notice.atSend.via.v);	
-				rqstValues.put(PostalField.NOTICE_DELIVERY.cv(), this.notice.atDelivery.via.v);	
-				rqstValues.put(PostalField.NOTICE_RECEIPT.cv(), this.notice.atReceipt.via.v);	
-				rqstValues.put(PostalField.NOTICE_GATE_IN.cv(), this.notice.atGateIn.via.v);	
-				rqstValues.put(PostalField.NOTICE_GATE_OUT.cv(), this.notice.atGateOut.via.v);	
+				cv.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
+				cv.put(RequestField.DISPOSITION.cv(), totalState.cv());
+				if (payload != null) cv.put(PostalField.PAYLOAD.cv(), payload);
+
+				cv.put(PostalField.NOTICE_SENT.cv(), this.notice.atSend.via.v);	
+				cv.put(PostalField.NOTICE_DELIVERY.cv(), this.notice.atDelivery.via.v);	
+				cv.put(PostalField.NOTICE_RECEIPT.cv(), this.notice.atReceipt.via.v);	
+				cv.put(PostalField.NOTICE_GATE_IN.cv(), this.notice.atGateIn.via.v);	
+				cv.put(PostalField.NOTICE_GATE_OUT.cv(), this.notice.atGateOut.via.v);	
 
 				// values.put(PostalTableSchema.UNIT.cv(), 50);
 				PLogger.STORE_POSTAL_DML.trace("upsert postal: {} @ {}",
-						totalState, rqstValues);
-				final RequestWorker requestor = DistributorDataStore.this.getPostalRequestWorker();
-				return requestor.upsert(rqstValues, status);
+						totalState, cv);
+
+				Cursor cursor  = null;
+				try {
+					final long rowid;
+					final String whereClause = POSTAL_UPDATE_CK_CLAUSE;
+					final String[] whereArgs = new String[]{ topic, subtopic, provider };
+
+					cursor = this.db.query(Tables.POSTAL.n, 
+							new String[] {RequestField._ID.n()}, 
+							whereClause, whereArgs, null, null, null);
+
+					if (cursor.moveToFirst()) {
+						rowid = cursor.getLong(cursor.getColumnIndex(RequestField._ID.n()));
+						final String[] rowid_arg = new String[]{ Long.toString(rowid) };
+						this.db.update(this.request.n, cv, ROWID_CLAUSE, rowid_arg );
+						cursor.close();
+						PLogger.STORE_POSTAL_DML.trace("updated row=[{}] : args=[{}] clause=[{}]",
+								new Object[]{rowid, whereArgs, whereClause});
+					} else {
+						rowid = this.db.insert(this.request.n, RequestField.CREATED.n(), cv);
+						PLogger.STORE_POSTAL_DML.trace("inserted row=[{}] : values=[{}]",
+								rowid, cv);
+					}
+
+					final DisposalWorker dworker = new DisposalWorker(this.db, this.request, this.disposal);
+					dworker.upsertByRequest(rowid, dispersal);
+					return rowid;
+				} catch (IllegalArgumentException ex) {
+					logger.error("upsert {} {}", cv, dispersal);
+				} finally {
+					if (cursor != null) cursor.close();
+				}
+				return -1;
 			}
 		}
 
 		public int delete(String providerId) {
-			final String whereClause = new StringBuilder()	
-			.append(RequestField.TOPIC.q(null)).append("=?")
-			.append(" AND ")
-			.append(RequestField.SUBTOPIC.q(null)).append("=?")		
-			.append(" AND ")
-			.append(RequestField.PROVIDER.q(null)).append("=?")
-			.toString();
-
+			final String whereClause = POSTAL_UPDATE_CK_CLAUSE;
 			final String[] whereArgs = new String[] {this.topic, this.subtopic, providerId};
 
 			try {
@@ -1120,6 +1133,18 @@ public class DistributorDataStore {
 		}
 	}
 
+	static final private String POSTAL_UPDATE_UUID_CLAUSE = new StringBuilder()
+	.append(RequestField.UUID.q(null)).append("=?").toString();
+
+	static final private String POSTAL_UPDATE_CK_CLAUSE = new StringBuilder()
+	.append(RequestField.TOPIC.q(null)).append("=?")
+	.append(" AND ")
+	.append(RequestField.SUBTOPIC.q(null)).append("=?")		
+	.append(" AND ")
+	.append(RequestField.PROVIDER.q(null)).append("=?")
+	.toString();
+
+
 	/**
 	 * Query
 	 */
@@ -1136,6 +1161,7 @@ public class DistributorDataStore {
 			String[] whereArgs, String sortOrder) {
 		return queryRequest(Tables.POSTAL.n, projection, whereClause, whereArgs, sortOrder);
 	}
+
 
 	public synchronized Cursor queryPostalReady() {
 		this.openRead();
@@ -1159,10 +1185,12 @@ public class DistributorDataStore {
 	 * @param state
 	 * @return
 	 */
+
 	public synchronized long updatePostalByKey(long requestId, ContentValues cv, DistributorState state) {
 		final RequestWorker requestor = this.getPostalRequestWorker();
 		return requestor.updateById(requestId, cv, state);
 	}
+
 	public synchronized long updatePostalByKey(long requestId, String channel, final DisposalState state) {
 		final DisposalWorker worker = this.getPostalDisposalWorker();
 		return worker.upsertByRequest(requestId, channel, state);
@@ -1322,16 +1350,22 @@ public class DistributorDataStore {
 		};
 	};
 
-
+	/*
 	public RetrievalWorker getRetrievalWorker() {
 		return new RetrievalWorker();
 	}
+	 */
 	/** 
 	 * Store access class
 	 */
-	public class RetrievalWorker {
+	public class RetrievalWorker extends RequestWorker {
 
-		private RetrievalWorker() {
+		private RetrievalWorker(AmmoRequest ar, AmmoService svc) {
+			super(DistributorDataStore.this.db, Tables.RETRIEVAL, Tables.RETRIEVAL_DISPOSAL);
+		}
+
+		private RetrievalWorker(Cursor pending, AmmoService svc) {
+			super(DistributorDataStore.this.db, Tables.RETRIEVAL, Tables.RETRIEVAL_DISPOSAL);
 		}
 
 		/**
@@ -1390,20 +1424,16 @@ public class DistributorDataStore {
 	 * @param status
 	 * @return
 	 */
-	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
-		PLogger.STORE_RETRIEVE_DML.trace("upsert retrieval: {} @ {}",
-				cv, status);
-		final RequestWorker requestor = this.getRetrievalRequestWorker();
-		return requestor.upsert(cv, status);
-	}
 
 	/**
 	 * Update
 	 */
+
 	public synchronized long updateRetrievalByKey(long requestId, ContentValues cv, final DistributorState state) {
 		final RequestWorker requestor = this.getRetrievalRequestWorker();
 		return requestor.updateById(requestId, cv, state);
 	}
+
 	public synchronized long updateRetrievalByKey(long requestId, String channel, final DisposalState state) {
 		final DisposalWorker worker = this.getRetrievalDisposalWorker();
 		return worker.upsertByRequest(requestId, channel, state);
@@ -1438,7 +1468,7 @@ public class DistributorDataStore {
 
 		return 0;
 	}
-	
+
 	private static final long RETRIEVAL_DELAY_OFFSET = 8 * 60 * 60; // 8 hrs in seconds
 
 	/**
@@ -1532,16 +1562,16 @@ public class DistributorDataStore {
 		};
 	}
 
-	public InterestWorker getInterestWorker(final Cursor pending) {
-		return new InterestWorker(pending);
+	public InterestWorker getInterestWorker(final Cursor pending, AmmoService svc) {
+		return new InterestWorker(pending, svc);
 	}
-	public InterestWorker getInterestWorker(final AmmoRequest request) {
-		return new InterestWorker(request);
+	public InterestWorker getInterestWorker(final AmmoRequest request, AmmoService svc) {
+		return new InterestWorker(request, svc);
 	}
 	/** 
 	 * Store access class
 	 */
-	public class InterestWorker {
+	public class InterestWorker extends RequestWorker {
 
 		final public int id;
 		final public String topic;
@@ -1549,24 +1579,75 @@ public class DistributorDataStore {
 		final public String auid;
 		final public UUID uuid;
 
-		private InterestWorker(final Cursor pending) {
+		public final Provider provider;
+		public final DistributorPolicy.Topic policy;
+		public final int priority;
+		public final TimeTrigger expire;
+		public final Selection selection;
 
-			// For each item in the cursor, ask the content provider to
-			// serialize it, then pass it off to the NPS.
-			this.id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
-			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
-			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
-			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.cv())));
-			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.cv()));
-	}
+		public DisposalTotalState totalState = null;
+		public DistributorState dispersal = null;
 
-		private InterestWorker(final AmmoRequest request) {
+		private InterestWorker(final AmmoRequest ar, AmmoService svc) {
+			super(DistributorDataStore.this.db, Tables.INTEREST, Tables.INTEREST_DISPOSAL);
+
 			this.id = -1;
 			this.uuid = UUID.randomUUID();
-			this.auid = request.uid;
-			this.topic = request.topic.asString();
-			this.subtopic = (request.subtopic == null) ? Topic.DEFAULT : request.subtopic.asString();
+			this.auid = ar.uid;
+			this.topic = ar.topic.asString();
+			this.subtopic = (ar.subtopic == null) ? Topic.DEFAULT : ar.subtopic.asString();
+			this.provider = ar.provider;
+			this.policy = svc.policy().matchInterest(topic);
+
+			this.priority = PriorityType.aggregatePriority(policy.routing.priority, ar.priority);
+			this.expire = ar.expire;
+			this.selection = ar.select;
+
+			this.dispersal = policy.makeRouteMap();
+			this.totalState = DisposalTotalState.NEW;
 		}
+
+		private InterestWorker(final Cursor pending, AmmoService svc) {
+			super(DistributorDataStore.this.db, Tables.INTEREST, Tables.INTEREST_DISPOSAL);
+
+			this.id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
+			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
+			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
+			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
+			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
+			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
+			this.policy = (svc == null) ? null : svc.policy().matchInterest(topic);
+
+			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
+			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
+			this.expire = new TimeTrigger(expireEnc);
+
+			String select = "";
+			try {
+				select = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));	
+			} catch (Exception ex) {
+				logger.warn("no selection");
+			} finally {
+				this.selection = new Selection(select);
+			}
+			logger.trace("process row INTEREST: id=[{}] topic=[{}:{}] select=[{}]", 
+					new Object[] { this.id, this.topic, this.subtopic, this.selection });
+
+			this.dispersal = this.policy.makeRouteMap();
+			Cursor channelCursor = null;
+			try { 
+				channelCursor = getInterestDisposalWorker().queryByParent(this.id);
+
+				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
+					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
+					this.dispersal.put(channel, DisposalState.getInstanceById(channelState));
+				}
+			} finally {
+				if (channelCursor != null) channelCursor.close();
+			}
+		}
+
 
 		@Override
 		public String toString() {
@@ -1581,20 +1662,92 @@ public class DistributorDataStore {
 			if (this.selection != null && this.selection.length() > 0) {
 				sb.append("\n\t").append("filter=[").append(this.selection).append(']');
 			}
-			*/
+			 */
 			return sb.toString();
 		}
-		/**
-		 *
-		 */
-		public void upsert() {
-			final DistributorDataStore parent = DistributorDataStore.this;
 
-			synchronized(parent) {	
+		public long upsert(final DisposalTotalState totalState) {
+			synchronized(DistributorDataStore.this) {	
+				// build key
+				if (uuid == null) {
+					logger.error("interest requests must have a uuid: [{}]", this);
+					return -1;
+				}
+				final String topic = this.topic;
+				final String subtopic = this.subtopic;
+				final String provider = this.provider.cv();
 
+				final ContentValues cv = new ContentValues();
+				cv.put(RequestField.UUID.cv(), this.uuid.toString());
+				cv.put(RequestField.AUID.cv(), this.auid);
+				cv.put(RequestField.TOPIC.cv(), this.topic);
+				cv.put(RequestField.SUBTOPIC.cv(), this.subtopic);
+				cv.put(RequestField.PROVIDER.cv(), this.provider.cv());
+
+				cv.put(RequestField.PRIORITY.cv(), this.priority);
+				cv.put(RequestField.EXPIRATION.cv(), this.expire.cv());
+
+				cv.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
+				cv.put(RequestField.DISPOSITION.cv(), totalState.cv());
+
+				// values.put(PostalTableSchema.UNIT.cv(), 50);
+				PLogger.STORE_INTEREST_DML.trace("upsert interest: {} @ {}",
+						totalState, cv);
+
+				Cursor cursor  = null;
+				try {
+					final long rowid;
+					final String whereClause = INTEREST_UPDATE_CLAUSE_KEY;
+					final String[] whereArgs = new String[]{ topic, subtopic, provider };
+
+					cursor = this.db.query(this.request.n, 
+							new String[] {RequestField._ID.n()}, 
+							whereClause, whereArgs, null, null, null);
+
+					if (cursor.moveToFirst()) {
+						long id = -1;
+						try {
+							id = cursor.getLong(cursor.getColumnIndex(RequestField._ID.n()));
+							final String[] rowid_arg = new String[]{ Long.toString(id) };
+							this.db.update(this.request.n, cv, ROWID_CLAUSE, rowid_arg );
+							cursor.close();
+						} catch (CursorIndexOutOfBoundsException ex) {
+							logger.error("upsert failed {} {}", 
+									id,
+									cursor.getColumnIndex(RequestField._ID.n()));
+						} finally {
+							rowid = id;
+						}
+						PLogger.STORE_INTEREST_DML.trace("updated row=[{}] : args=[{}] clause=[{}]",
+								new Object[]{id, whereArgs, whereClause});
+					} else {
+						rowid = this.db.insert(this.request.n, RequestField.CREATED.n(), cv);
+						PLogger.STORE_INTEREST_DML.trace("inserted row=[{}] : values=[{}]",
+								rowid, cv);
+					}
+
+					final DisposalWorker dworker = new DisposalWorker(this.db, this.request, this.disposal);
+					dworker.upsertByRequest(rowid, this.dispersal);
+					return rowid;
+				} catch (IllegalArgumentException ex) {
+					logger.error("upsert {} {}", cv, this.dispersal);
+				} finally {
+					if (cursor != null) cursor.close();
+				}
+				return -1;
 			}
 		}
 	}
+
+	static final private String INTEREST_UPDATE_CLAUSE_KEY = new StringBuilder()
+	.append(RequestField.TOPIC.q(null)).append("=?")
+	.append(" AND ")
+	.append(RequestField.SUBTOPIC.q(null)).append("=?")
+	.append(" AND ")
+	.append(RequestField.PROVIDER.q(null)).append("=?")
+	.toString();
+
+
 
 	/**
 	 * Query
@@ -1626,21 +1779,25 @@ public class DistributorDataStore {
 	/**
 	 * Upsert
 	 */
+	/*
 	public synchronized long upsertInterest(ContentValues cv, DistributorState status) {
 		PLogger.STORE_INTEREST_DML.trace("upsert interest: {} @ {}",
 				cv, status);
 		final RequestWorker requestor = this.getInterestRequestWorker();
 		return requestor.upsert(cv, status);
 	}
+	 */
 
 
 	/**
 	 * Update
 	 */
+
 	public synchronized long updateInterestByKey(long requestId, ContentValues cv, final DistributorState state) {
 		final RequestWorker requestor = this.getInterestRequestWorker();
 		return requestor.updateById(requestId, cv, state);
 	}
+
 	public synchronized long updateInterestByKey(long requestId, String channel, final DisposalState state) {
 		final DisposalWorker worker = this.getInterestDisposalWorker();
 		return worker.upsertByRequest(requestId, channel, state);
@@ -1765,20 +1922,20 @@ public class DistributorDataStore {
 			}
 		};
 	}
-	
+
 	public static String DISPOSAL_FOREIGN_KEY(Tables request) {
 		return new StringBuilder()
-	.append(" FOREIGN KEY(").append(DisposalField.REQUEST.n()).append(")")
-	.append(" REFERENCES ").append(request.n)
-	.append("(").append(RequestField._ID.n()).append(")")
-	.append(" ON DELETE CASCADE ")
-	.append(",")
-	.append(" FOREIGN KEY(").append(DisposalField.CHANNEL.n()).append(")")
-	.append(" REFERENCES ").append(Tables.CHANNEL.n)
-	.append("(").append(ChannelField.NAME.n()).append(")")
-	.append(" ON UPDATE CASCADE ")
-	.append(" ON DELETE CASCADE ")
-	.toString();
+		.append(" FOREIGN KEY(").append(DisposalField.REQUEST.n()).append(")")
+		.append(" REFERENCES ").append(request.n)
+		.append("(").append(RequestField._ID.n()).append(")")
+		.append(" ON DELETE CASCADE ")
+		.append(",")
+		.append(" FOREIGN KEY(").append(DisposalField.CHANNEL.n()).append(")")
+		.append(" REFERENCES ").append(Tables.CHANNEL.n)
+		.append("(").append(ChannelField.NAME.n()).append(")")
+		.append(" ON UPDATE CASCADE ")
+		.append(" ON DELETE CASCADE ")
+		.toString();
 	}
 
 
@@ -1854,6 +2011,7 @@ public class DistributorDataStore {
 		 * Upsert
 		 */
 		private long[] upsertByRequest(final long requestId, final DistributorState status) {
+			logger.trace("upsert into=[{}] : id=[{}] status=[{}]", new Object[]{ this.disposal, requestId, status});
 			synchronized(DistributorDataStore.this) {	
 				try {
 					final long[] idArray = new long[status.size()];
@@ -1881,20 +2039,24 @@ public class DistributorDataStore {
 					final String requestIdStr = String.valueOf(requestId);
 					final int updateCount = this.db.update(this.disposal.n, cv, 
 							DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel } );
-					if (updateCount > 0) {
-						cursor = this.db.query(this.disposal.n, new String[]{DisposalField._ID.n()}, 
-								DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel },
-								null, null, null);
-						final int rowCount = cursor.getCount();
-						if (rowCount > 1) {
-							logger.error("you have a duplicates {} {}", rowCount, cv);
-						}
-						cursor.moveToFirst();
-						final long key = cursor.getInt(0); // we only asked for one column so it better be it.
-						cursor.close();
-						return key;
+					if (updateCount < 1) {
+						PLogger.STORE_DISPOSAL_DML.debug("inserting into=[{}] : cv=[{}]", 
+								this.disposal, cv);
+						return this.db.insert(this.disposal.n, DisposalField._ID.n(), cv);
 					}
-					return this.db.insert(this.disposal.n, DisposalField._ID.n(), cv);
+
+					// some rows were updated we wish to return the key of the updated row
+					cursor = this.db.query(this.disposal.n, new String[]{DisposalField._ID.n()}, 
+							DISPOSAL_UPDATE_CLAUSE, new String[]{requestIdStr, channel },
+							null, null, null);
+
+					cursor.moveToFirst();
+					final long key = cursor.getInt(0); // we only asked for one column so it better be it.
+					cursor.close();
+					PLogger.STORE_DISPOSAL_DML.debug("updated into=[{}] : cv=[{}]", 
+								this.disposal, cv);
+					return key;
+
 				} catch (SQLiteConstraintException ex) {
 					logger.error("upsert error: {}: {}", 
 							ex.getLocalizedMessage(), cv);
@@ -1908,6 +2070,7 @@ public class DistributorDataStore {
 
 		}
 	}
+
 
 	public DisposalWorker getPostalDisposalWorker() {
 		return new DisposalWorker(this.db, Tables.POSTAL, Tables.POSTAL_DISPOSAL);
@@ -2126,17 +2289,6 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-
-	static final private String REQUEST_UPDATE_CLAUSE = new StringBuilder()
-	.append(RequestField.TOPIC.q(null)).append("=?")
-	.append(" AND ")
-	.append(RequestField.SUBTOPIC.q(null)).append("=?")
-	.append(" AND ")
-	.append(RequestField.PROVIDER.q(null)).append("=?")
-	.toString();
-
-	static final private String REQUEST_UPDATE_CLAUSE_KEY = new StringBuilder()
-	.append(RequestField.UUID.q(null)).append("=?").toString();
 
 	static final private String ROWID_CLAUSE = "_rowid_=?";
 
@@ -2543,7 +2695,7 @@ public class DistributorDataStore {
 				.append(ddl(fields))
 				.append(')')
 				.append(';');
-				
+
 				sqlCreateRef = createRequestSql.toString();
 				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
 				db.execSQL(sqlCreateRef);
@@ -2686,10 +2838,10 @@ public class DistributorDataStore {
 		 */
 		@Override
 		public void onOpen (SQLiteDatabase db) {
-			 if (!db.isReadOnly()) {
-			        // Enable foreign key constraints
-			        db.execSQL("PRAGMA foreign_keys=ON;");
-			    }
+			if (!db.isReadOnly()) {
+				// Enable foreign key constraints
+				db.execSQL("PRAGMA foreign_keys=ON;");
+			}
 		}
 
 		@Override
@@ -3035,6 +3187,20 @@ public class DistributorDataStore {
 			}
 			return null;
 		}
+		
+
+		/**
+		 * FIXME
+		 * How to combine the policy and application priority?
+		 * 
+		 * @param policyPriority
+		 * @param applPriority
+		 * @return
+		 */
+		static public int aggregatePriority(int policyPriority, int applPriority) {
+			return policyPriority; //  + applPriority;
+		}
+		
 		public CharSequence toString(int priorityId) {
 			final StringBuilder sb = new StringBuilder().append(this.o);
 			if (priorityId > this.o) {

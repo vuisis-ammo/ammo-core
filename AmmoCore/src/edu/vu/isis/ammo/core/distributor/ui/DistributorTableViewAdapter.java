@@ -51,8 +51,32 @@ public abstract class DistributorTableViewAdapter extends ResourceCursorAdapter 
 
 	public DistributorTableViewAdapter(Context context, int layout, Cursor cursor) {
 		super(context, layout, cursor);
-
 		this.expiration = Calendar.getInstance();
 	}
+	
 
+	/**
+	 * Contatenate the topic and subtopic in a reasonable way.
+	 * This could also be done with the FullTopic class.
+	 * 
+	 * @param topic
+	 * @param subtopic
+	 * @return
+	 */
+	static public String buildTopic(String topic, String subtopic) {
+		final boolean hasTopic = (topic != null && topic.length() > 0);
+		final boolean hasSubtopic = (subtopic != null && subtopic.length() > 0);
+		
+		final StringBuilder sb = new StringBuilder();
+		if (hasTopic) {
+			if (hasSubtopic) 
+				return sb.append(topic).append('+').append(subtopic).toString();
+			return topic;
+		}
+		if (hasSubtopic) 
+			return sb.append('+').append(subtopic).toString();
+		return "<no topic specified>";
+	}
+
+	
 }

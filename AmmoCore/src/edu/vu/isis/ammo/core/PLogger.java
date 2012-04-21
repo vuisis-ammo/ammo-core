@@ -71,6 +71,7 @@ public interface PLogger {
 	public static final Logger STORE_CHANNEL_DML = LoggerFactory.getLogger( "store.channel.dml" );
 	public static final Logger STORE_CAPABILITY_DML = LoggerFactory.getLogger( "store.capability.dml" );
 	public static final Logger STORE_PRESENCE_DML = LoggerFactory.getLogger( "store.presence.dml" );
+	public static final Logger STORE_DISPOSAL_DML = LoggerFactory.getLogger( "store.disposal.dml" );
 
 	public static final Logger STORE_POSTAL_DQL = LoggerFactory.getLogger( "store.postal.dql" );
 	public static final Logger STORE_INTEREST_DQL = LoggerFactory.getLogger( "store.interest.dql" );
@@ -78,6 +79,7 @@ public interface PLogger {
 	public static final Logger STORE_CHANNEL_DQL = LoggerFactory.getLogger( "store.channel.dql" );
 	public static final Logger STORE_CAPABILITY_DQL = LoggerFactory.getLogger( "store.capability.dql" );
 	public static final Logger STORE_PRESENCE_DQL = LoggerFactory.getLogger( "store.presence.dql" );
+	public static final Logger STORE_DISPOSAL_DQL = LoggerFactory.getLogger( "store.disposal.dql" );
 
 	// omma intents
 	public static final Logger API_INTENT = LoggerFactory.getLogger( "api.intent" );

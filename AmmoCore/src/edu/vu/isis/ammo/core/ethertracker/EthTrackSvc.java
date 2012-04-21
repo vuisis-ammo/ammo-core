@@ -162,7 +162,7 @@ public class EthTrackSvc extends ServiceEx {
 
     /**
      * Writes a flag to the system preferences based on status of interface.
-     * @param status - Status message relating to interface. Either "Up" or "Down"
+     * @param dispersal - Status message relating to interface. Either "Up" or "Down"
      */
     public void updateSharedPreferencesForInterfaceStatus(String msg) {
         boolean status = (msg.equals("Up")) ? true : false;
