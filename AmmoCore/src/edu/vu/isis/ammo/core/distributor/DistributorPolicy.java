@@ -269,8 +269,8 @@ public class DistributorPolicy implements ContentHandler {
 			return sb.toString();
 		}
 
-		public DistributorState makeRouteMap() {
-			final DistributorState state = this.routing.makeMap();
+		public Dispersal makeRouteMap() {
+			final Dispersal state = this.routing.makeMap();
 			return state.setType(this.type);
 		}
 		
@@ -293,8 +293,8 @@ public class DistributorPolicy implements ContentHandler {
 			this.priority = priority;
 			this.clauses = new ArrayList<Clause>();
 		}
-		public DistributorState makeMap() {
-			final DistributorState map = DistributorState.newInstance(this);
+		public Dispersal makeMap() {
+			final Dispersal map = Dispersal.newInstance(this);
 			for (Clause clause : this.clauses) {
 				for (Literal literal : clause.literals) {
 					map.put(literal.term, DisposalState.PENDING);

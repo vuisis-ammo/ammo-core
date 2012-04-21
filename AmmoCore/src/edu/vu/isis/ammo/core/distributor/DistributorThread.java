@@ -50,6 +50,7 @@ import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Via;
+import edu.vu.isis.ammo.api.type.Selection;
 import edu.vu.isis.ammo.api.type.SerialMoment;
 import edu.vu.isis.ammo.api.type.Topic;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
@@ -72,7 +73,6 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.ChannelState;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.InterestField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.InterestWorker;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalWorker;
@@ -421,15 +421,15 @@ public class DistributorThread extends Thread {
 		switch (ack.type) {
 		case POSTAL:
 			disposalKey = this.store.updatePostalByKey(ack.request, ack.channel, ack.status);
-			logger.debug("update postal disposal=[{}]: ack=[{}]", disposalKey, ack);
+			PLogger.STORE_POSTAL_DQL.debug("update postal disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		case RETRIEVAL:
 			disposalKey = this.store.updateRetrievalByKey(ack.request, ack.channel, ack.status);
-			logger.debug("update retrieval disposal=[{}]: ack=[{}]", disposalKey, ack);
+			PLogger.STORE_RETRIEVE_DQL.debug("update retrieval disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		case INTEREST:
 			disposalKey = this.store.updateInterestByKey(ack.request, ack.channel, ack.status);
-			logger.debug("update interest disposal=[{}]: ack=[{}]", disposalKey, ack);
+			PLogger.STORE_INTEREST_DQL.debug("update interest disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		default:
 			disposalKey = -1;
@@ -439,7 +439,7 @@ public class DistributorThread extends Thread {
 
 		final Notice.Item note = ack.notice.atSend;
 		if (note.via.isActive()) {
-
+			
 			final Uri.Builder uriBuilder = new Uri.Builder()
 			.scheme("ammo")
 			.authority(ack.topic)
@@ -897,7 +897,7 @@ public class DistributorThread extends Thread {
 			final PostalWorker worker = that.store().getPostalWorker(ar, that);
 			logger.trace("process request topic {}, uuid {}", worker.topic, worker.uuid);
 
-			final DistributorState dispersal = worker.policy.makeRouteMap();
+			final Dispersal dispersal = worker.policy.makeRouteMap();
 
 			final byte[] payload;			
 			switch (worker.serialMoment.type()) {
@@ -1011,7 +1011,7 @@ public class DistributorThread extends Thread {
 						return parent.announceChannelAck(ack);
 					}
 				};
-				final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
+				final Dispersal dispatchResult = this.dispatchPostalRequest(that, 
 						worker, dispersal, serializer, 
 						msgHandler);
 
@@ -1106,7 +1106,7 @@ public class DistributorThread extends Thread {
 				}
 
 				final DistributorPolicy.Topic policy = that.policy().matchPostal(postal.topic);
-				final DistributorState dispersal = policy.makeRouteMap();	
+				final Dispersal dispersal = policy.makeRouteMap();	
 				Cursor channelCursor = null;
 				try {
 					channelCursor = this.store.getPostalDisposalWorker().queryByParent(id);
@@ -1152,7 +1152,7 @@ public class DistributorThread extends Thread {
 							}
 						};
 
-						final DistributorState dispatchResult = this.dispatchPostalRequest(
+						final Dispersal dispatchResult = this.dispatchPostalRequest(
 								that, postal, dispersal, serializer, msgHandler);
 
 						this.store.updatePostalByKey(id, null, dispatchResult);
@@ -1180,10 +1180,10 @@ public class DistributorThread extends Thread {
 	 * @param handler
 	 * @return
 	 */
-	private DistributorState dispatchPostalRequest(
+	private Dispersal dispatchPostalRequest(
 			final AmmoService that,
 			final PostalWorker worker, 
-			final DistributorState dispersal, 
+			final Dispersal dispersal, 
 			final RequestSerializer serializer, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
@@ -1354,7 +1354,7 @@ public class DistributorThread extends Thread {
 			values.put(RequestField.PRIORITY.cv(), ar.priority);
 			values.put(RequestField.CREATED.cv(), System.currentTimeMillis());
 
-			final DistributorState dispersal = policy.makeRouteMap();
+			final Dispersal dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
 				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 // FIXME				this.store.upsertRetrieval(values, dispersal);
@@ -1368,7 +1368,7 @@ public class DistributorThread extends Thread {
 			synchronized (this.store) {
 // FIXME				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
                 final long id = 1;
-				final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
+				final Dispersal dispatchResult = this.dispatchRetrievalRequest(that, 
 						uuid, topic, subtopic, select, limit, dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
@@ -1423,7 +1423,7 @@ public class DistributorThread extends Thread {
 				final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
 				final String subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
 				final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
-				final DistributorState dispersal = policy.makeRouteMap();
+				final Dispersal dispersal = policy.makeRouteMap();
 				Cursor channelCursor = null;
 				try {
 					channelCursor = this.store.getRetrievalDisposalWorker().queryByParent(id);
@@ -1455,7 +1455,7 @@ public class DistributorThread extends Thread {
 						@SuppressWarnings("unused")
 						final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
 
-						final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
+						final Dispersal dispatchResult = this.dispatchRetrievalRequest(that, 
 								uuid, topic, subtopic, selection, limit, dispersal, 
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
@@ -1496,10 +1496,10 @@ public class DistributorThread extends Thread {
 	 * @return
 	 */
 
-	private DistributorState dispatchRetrievalRequest(final AmmoService that, 
+	private Dispersal dispatchRetrievalRequest(final AmmoService that, 
 			final UUID retrievalId, 
 			final String topic, final String subtopic,
-			final String selection, final Integer limit, final DistributorState dispersal, 
+			final String selection, final Integer limit, final Dispersal dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
 		final FullTopic fulltopic = FullTopic.fromTopic(topic, subtopic);
@@ -1629,8 +1629,8 @@ public class DistributorThread extends Thread {
 			synchronized (this.store) {
 				final long id = worker.upsert(DisposalTotalState.DISTRIBUTE);
 
-				final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
-						worker.topic, worker.subtopic, ar.select.cv(), worker.dispersal, 
+				final Dispersal dispatchResult = this.dispatchInterestRequest(that, 
+						worker.topic, worker.subtopic, worker.select, worker.dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
 					final long id_ = id;
@@ -1692,8 +1692,8 @@ public class DistributorThread extends Thread {
 						@SuppressWarnings("unused")
 						long numUpdated = this.store.updateInterestByKey(worker.id, values, null);
 
-						final DistributorState dispatchResult = this.dispatchInterestRequest(that, 
-								worker.topic, worker.subtopic, worker.selection.cv(), worker.dispersal, 
+						final Dispersal dispatchResult = this.dispatchInterestRequest(that, 
+								worker.topic, worker.subtopic, worker.select, worker.dispersal, 
 								new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							final int id_ = worker.id;
@@ -1727,9 +1727,9 @@ public class DistributorThread extends Thread {
 	/**
 	 * Deliver the subscription request to the network service for processing.
 	 */
-	private DistributorState dispatchInterestRequest(final AmmoService that, 
+	private Dispersal dispatchInterestRequest(final AmmoService that, 
 			final String topic, final String subtopic, 
-			final String selection, final DistributorState dispersal, 
+			final Selection selection, final Dispersal dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
 		final FullTopic fulltopic = FullTopic.fromTopic(topic, subtopic);
@@ -1740,8 +1740,8 @@ public class DistributorThread extends Thread {
 		final AmmoMessages.SubscribeMessage.Builder interestReq = AmmoMessages.SubscribeMessage.newBuilder();
 		interestReq.setMimeType(fulltopic.aggregate);
 
-		if (interestReq != null)
-			interestReq.setQuery(selection);
+		if (selection != null)
+			interestReq.setQuery(selection.cv());
 
 		final RequestSerializer serializer = RequestSerializer.newInstance();
 		serializer.setAction(new RequestSerializer.OnReady() {
@@ -1819,7 +1819,7 @@ public class DistributorThread extends Thread {
 			encode = "TERSE";
 		}
 		final FullTopic fulltopic = FullTopic.fromType(mime);
-		logger.trace("receive response INTEREST : [{}]->[{}]", fulltopic );
+		logger.trace("receive response INTEREST : [{}]", fulltopic );
 
 		Cursor cursor = null;
 		try {

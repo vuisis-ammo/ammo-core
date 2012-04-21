@@ -33,28 +33,28 @@ import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
  * satisfied the total is true, otherwise it is false.
  *
  */
-public class DistributorState {
-	private static final Logger logger = LoggerFactory.getLogger("dist.state");
+public class Dispersal {
+	private static final Logger logger = LoggerFactory.getLogger("class.dispersal");
 
 	private final Map<String, DisposalState> stateMap;
 	private boolean total;
 	public final Routing policy;
 
-	private DistributorState(Routing policy) {
+	private Dispersal(Routing policy) {
 		this.stateMap = new HashMap<String, DisposalState>();
 		this.total = false;
 		this.policy = policy;
 	}
 
-	static public DistributorState newInstance(Routing routing) {
-		return new DistributorState(routing);
+	static public Dispersal newInstance(Routing routing) {
+		return new Dispersal(routing);
 	}
 
 	public boolean total() {
 		return this.total;
 	}
 
-	public DistributorState total(boolean state) {
+	public Dispersal total(boolean state) {
 		this.total = state;
 		return this;
 	}
@@ -80,7 +80,7 @@ public class DistributorState {
 		return stateMap.size();
 	}
 
-	public DistributorState and(boolean clause) {
+	public Dispersal and(boolean clause) {
 		this.total &= clause;
 		return this;
 	}
@@ -88,11 +88,16 @@ public class DistributorState {
 	@Override
 	public String toString() {
 		final StringBuilder sb = new StringBuilder()
-		        .append("type: ").append(this.type).append(" ")
-				.append("status:");
+		        .append("type=[").append(this.type).append("] ");
+		sb.append("status=[");
 		for( final Map.Entry<String,DisposalState> entry : this.stateMap.entrySet()) {
-			sb.append('\n').append(entry.getKey()).append(" : ").append(entry.getValue());
+			sb.append(" [")
+			.append(entry.getKey())
+			.append(" : ")
+			.append(entry.getValue())
+			.append("]");
 		}
+		sb.append("] ");
 		return sb.toString();
 	}
 
@@ -112,7 +117,7 @@ public class DistributorState {
 	 * 
 	 * @see scripts/tests/distribution_policy.xml for an example.
 	 */
-	public DistributorState multiplexRequest(AmmoService that, RequestSerializer serializer) {
+	public Dispersal multiplexRequest(AmmoService that, RequestSerializer serializer) {
 		logger.trace("::multiplex request");
 
 		if (this.policy == null) {
@@ -207,7 +212,7 @@ public class DistributorState {
 	}
 
 	private String type;
-	public DistributorState setType(String type) {
+	public Dispersal setType(String type) {
 		this.type = type;
 		return this;
 	}

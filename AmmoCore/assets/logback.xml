@@ -28,7 +28,10 @@
   </logger>
   
   <logger name="api.request" level="WARN" />
+  
+  <logger name="api.intent" level="TRACE" />
   <logger name="api.parcel" level="TRACE" />
+  
   <logger name="class.store" level="TRACE" />
   <logger name="class.dist" level="TRACE" />
   

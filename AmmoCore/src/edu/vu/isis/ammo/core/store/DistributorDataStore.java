@@ -39,18 +39,18 @@ import android.provider.BaseColumns;
 import android.text.TextUtils;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
-import edu.vu.isis.ammo.api.type.Selection;
-import edu.vu.isis.ammo.api.type.SerialMoment;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Threshold;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.api.type.Selection;
+import edu.vu.isis.ammo.api.type.SerialMoment;
 import edu.vu.isis.ammo.api.type.TimeTrigger;
 import edu.vu.isis.ammo.api.type.Topic;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.Dispersal;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
-import edu.vu.isis.ammo.core.distributor.DistributorState;
 import edu.vu.isis.ammo.util.FullTopic;
 
 /**
@@ -711,7 +711,7 @@ public class DistributorDataStore {
 		/** 
 		 * 
 		 */
-		protected long updateById(long requestId, ContentValues cv, DistributorState state) {
+		protected long updateById(long requestId, ContentValues cv, Dispersal state) {
 			synchronized (DistributorDataStore.this) {
 				if (state == null && cv == null) return -1;
 
@@ -967,7 +967,7 @@ public class DistributorDataStore {
 		public final Notice notice;
 
 		public DisposalTotalState totalState = null;
-		public DistributorState dispersal = null;
+		public Dispersal dispersal = null;
 		public Payload payload = null;
 
 		private PostalWorker(final AmmoRequest ar, final AmmoService svc) {
@@ -1028,6 +1028,8 @@ public class DistributorDataStore {
 			} finally {
 				if (channelCursor != null) channelCursor.close();
 			}
+			logger.trace("process postal row: id=[{}] topic=[{}:{}] dispersal=[{}]", 
+					new Object[] { this.id, this.topic, this.subtopic, this.dispersal });
 		}
 
 		/**
@@ -1186,7 +1188,7 @@ public class DistributorDataStore {
 	 * @return
 	 */
 
-	public synchronized long updatePostalByKey(long requestId, ContentValues cv, DistributorState state) {
+	public synchronized long updatePostalByKey(long requestId, ContentValues cv, Dispersal state) {
 		final RequestWorker requestor = this.getPostalRequestWorker();
 		return requestor.updateById(requestId, cv, state);
 	}
@@ -1429,7 +1431,7 @@ public class DistributorDataStore {
 	 * Update
 	 */
 
-	public synchronized long updateRetrievalByKey(long requestId, ContentValues cv, final DistributorState state) {
+	public synchronized long updateRetrievalByKey(long requestId, ContentValues cv, final Dispersal state) {
 		final RequestWorker requestor = this.getRetrievalRequestWorker();
 		return requestor.updateById(requestId, cv, state);
 	}
@@ -1583,10 +1585,10 @@ public class DistributorDataStore {
 		public final DistributorPolicy.Topic policy;
 		public final int priority;
 		public final TimeTrigger expire;
-		public final Selection selection;
+		public final Selection select;
 
 		public DisposalTotalState totalState = null;
-		public DistributorState dispersal = null;
+		public Dispersal dispersal = null;
 
 		private InterestWorker(final AmmoRequest ar, AmmoService svc) {
 			super(DistributorDataStore.this.db, Tables.INTEREST, Tables.INTEREST_DISPOSAL);
@@ -1601,7 +1603,7 @@ public class DistributorDataStore {
 
 			this.priority = PriorityType.aggregatePriority(policy.routing.priority, ar.priority);
 			this.expire = ar.expire;
-			this.selection = ar.select;
+			this.select = ar.select;
 
 			this.dispersal = policy.makeRouteMap();
 			this.totalState = DisposalTotalState.NEW;
@@ -1628,11 +1630,9 @@ public class DistributorDataStore {
 			} catch (Exception ex) {
 				logger.warn("no selection");
 			} finally {
-				this.selection = new Selection(select);
+				this.select = new Selection(select);
 			}
-			logger.trace("process row INTEREST: id=[{}] topic=[{}:{}] select=[{}]", 
-					new Object[] { this.id, this.topic, this.subtopic, this.selection });
-
+			
 			this.dispersal = this.policy.makeRouteMap();
 			Cursor channelCursor = null;
 			try { 
@@ -1646,6 +1646,9 @@ public class DistributorDataStore {
 			} finally {
 				if (channelCursor != null) channelCursor.close();
 			}
+			logger.trace("process interest row: id=[{}] topic=[{}:{}] select=[{}] dispersal=[{}]", 
+					new Object[] { this.id, this.topic, this.subtopic, this.select, this.dispersal});
+
 		}
 
 
@@ -1689,6 +1692,10 @@ public class DistributorDataStore {
 
 				cv.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
 				cv.put(RequestField.DISPOSITION.cv(), totalState.cv());
+				
+				if (this.select != null) {
+					cv.put(InterestField.FILTER.cv(), this.select.cv());
+				}
 
 				// values.put(PostalTableSchema.UNIT.cv(), 50);
 				PLogger.STORE_INTEREST_DML.trace("upsert interest: {} @ {}",
@@ -1793,7 +1800,7 @@ public class DistributorDataStore {
 	 * Update
 	 */
 
-	public synchronized long updateInterestByKey(long requestId, ContentValues cv, final DistributorState state) {
+	public synchronized long updateInterestByKey(long requestId, ContentValues cv, final Dispersal state) {
 		final RequestWorker requestor = this.getInterestRequestWorker();
 		return requestor.updateById(requestId, cv, state);
 	}
@@ -2010,7 +2017,7 @@ public class DistributorDataStore {
 		/**
 		 * Upsert
 		 */
-		private long[] upsertByRequest(final long requestId, final DistributorState status) {
+		private long[] upsertByRequest(final long requestId, final Dispersal status) {
 			logger.trace("upsert into=[{}] : id=[{}] status=[{}]", new Object[]{ this.disposal, requestId, status});
 			synchronized(DistributorDataStore.this) {	
 				try {
