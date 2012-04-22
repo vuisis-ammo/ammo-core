@@ -822,7 +822,7 @@ public class DistributorThread extends Thread {
 					deviceId = sm.getOriginDevice();
 					final CapabilityWorker worker = 
 							this.store.getCapabilityWorker(ab.base(), this.ammoService);
-					worker.upsert(deviceId);
+					worker.upsert();
 				} else {
 					deviceId = null;
 				}

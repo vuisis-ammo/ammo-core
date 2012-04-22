@@ -68,7 +68,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("class.store");
-	public static final int VERSION = 35;
+	public static final int VERSION = 39;
 
 	public static final String NAME = 
 			"distributor.db";   // to create .../databases/distributor.db
@@ -198,18 +198,41 @@ public class DistributorDataStore {
 	 *
 	 */
 	public enum CapabilityField  implements TableField {
+		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
+		
+		ORIGIN("origin","TEXT"),
+		// The device identifier, this must be present
+		// required
+		
+		TOPIC("topic", "TEXT"),
+		// This along with the cost is used to decide how to deliver the specific object.
 
-		FILTER("filter", "TEXT"),
-		// The rows/tuples wanted.
+		SUBTOPIC("subtopic", "TEXT"),
+		// This is used in conjunction with topic. 
+		// It can be used to identify a recipient, a group, a target, etc.
+
+		OPERATOR("operator", "TEXT"),
+		// The name of the operator using the channel
+		// optional
+		
+		EXPIRATION("expiration", "INTEGER"),
+		// Time-stamp at which point the request 
+		// becomes stale and can be discarded.
 
 		FIRST("first", "INTEGER"),
 		// When the operator first used this channel
+		// The first field indicates the first time the peer was observed.
 
 		LATEST("latest", "INTEGER"),
 		// When the operator was last seen "speaking" on the channel
+		// The latest field indicates the last time the peer was observed.
 
-		ORIGIN("origin", "TEXT");
-		// where did the request originate, device id
+		COUNT("count", "INTEGER"),
+		// How many times the peer has been seen since FIRST
+		// Each time LATEST is changed this COUNT should be incremented
+
+		FILTER("filter", "TEXT");
+		// The rows/tuples wanted.
 
 
 		// TODO : what about message rates?
@@ -275,17 +298,16 @@ public class DistributorDataStore {
 	 * Capability store access class
 	 */
 	public class CapabilityWorker {
-		public final UUID uuid;
-		public final String auid;
+		public final String device;
 		public final String topic;	
 		public final String subtopic;
 		public final TimeTrigger expire;
 
-		public Payload payload = null;
+		final private DistributorDataStore parent = DistributorDataStore.this;
+		final private SQLiteDatabase db = this.parent.db;
 
 		private CapabilityWorker(final AmmoRequest ar, final AmmoService svc) {
-			this.uuid = UUID.fromString(ar.uuid); 
-			this.auid = ar.uid;
+			this.device = svc.getDeviceId();
 			this.topic = ar.topic.asString();
 			this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
 
@@ -293,38 +315,65 @@ public class DistributorDataStore {
 		}
 
 		private CapabilityWorker(final Cursor pending, final AmmoService svc) {
-			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
-			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
-			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
-			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
-			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
+			this.device = pending.getString(pending.getColumnIndex(CapabilityField.ORIGIN.n()));
+			this.topic = pending.getString(pending.getColumnIndex(CapabilityField.TOPIC.n()));
+			this.subtopic = pending.getString(pending.getColumnIndex(CapabilityField.SUBTOPIC.n()));
 
-			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
+			final long expireEnc = pending.getLong(pending.getColumnIndex(CapabilityField.EXPIRATION.n()));
 			this.expire = new TimeTrigger(expireEnc);
 		}
 
-		public long upsert(final String device) {
-			PLogger.STORE_CAPABILITY_DML.trace("upsert capability: {} @ {}",
-					device, this);
-			synchronized(DistributorDataStore.this) {	
-				final ContentValues rqstValues = new ContentValues();
-				rqstValues.put(RequestField.UUID.cv(), this.uuid.toString());
-				rqstValues.put(RequestField.AUID.cv(), this.auid);
-				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
-				rqstValues.put(RequestField.SUBTOPIC.cv(), this.subtopic);
-				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
+		/**
+		 * returns the number of rows affected.
+		 * 
+		 * @param deviceId
+		 * @return
+		 */
+		public long upsert() {
+			PLogger.STORE_CAPABILITY_DML.trace("upsert capability: device=[{}] @ {}",
+					this.device, this);
+			synchronized(this.parent) {	
+				final ContentValues cv = new ContentValues();
+				final Long now = Long.valueOf(System.currentTimeMillis());
+				
+				cv.put(CapabilityField.LATEST.cv(), now);
 
-				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());
+				final String whereClause = CAPABILITY_KEY_CLAUSE;
+				final String[] whereArgs = new String[]{ this.device, this.topic, this.subtopic };
 
-				rqstValues.put(CapabilityField.ORIGIN.cv(), device);
+				this.db.beginTransaction();
+				try {
+					int updated = this.db.update(Tables.CAPABILITY.n, cv, whereClause, whereArgs);
+					if (updated > 0) {
+						PLogger.STORE_CAPABILITY_DML.debug("updated cnt=[{}] cv=[{}]", 
+								updated, cv);
+						this.db.setTransactionSuccessful();
+						return updated;
+					} 
+					cv.put(CapabilityField.ORIGIN.cv(), this.device);
+					cv.put(CapabilityField.TOPIC.cv(), this.topic);
+					cv.put(CapabilityField.SUBTOPIC.cv(), this.subtopic);
+					
+					cv.put(CapabilityField.FIRST.cv(), now);
 
+					long row = this.db.insert(Tables.CAPABILITY.n, PresenceField._ID.n(), cv);
+					PLogger.STORE_CAPABILITY_DML.debug("inserted row=[{}] cv=[{}]", 
+							row, cv);
+
+					this.db.setTransactionSuccessful();
+					return 1;
+				} catch (IllegalArgumentException ex) {
+					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
+				} finally {
+					this.db.endTransaction();
+				}
 				return -1;
 			}
 		}
 
 		public int delete(String tupleId) {
 			final String whereClause = new StringBuilder()
-			.append(RequestField._ID.q(null)).append("=?")
+			.append(CapabilityField._ID.q(null)).append("=?")
 			.toString();
 
 			final String[] whereArgs = new String[] {tupleId};
@@ -341,14 +390,12 @@ public class DistributorDataStore {
 			return 0;
 		}
 
+		/**
+		 * @return
+		 */
 		public int delete() {
-			final String whereClause = new StringBuilder()
-			.append(RequestField.TOPIC.q(null)).append("=?")
-			.append(" AND ")
-			.append(RequestField.SUBTOPIC.q(null)).append("=?")
-			.toString();
-
-			final String[] whereArgs = new String[] {this.topic, this.subtopic};
+			final String whereClause = CAPABILITY_KEY_CLAUSE;
+			final String[] whereArgs = new String[] {this.device, this.topic, this.subtopic};
 
 			try {
 				final SQLiteDatabase db = DistributorDataStore.this.helper.getWritableDatabase();
@@ -363,6 +410,16 @@ public class DistributorDataStore {
 		}
 	}
 
+	private static final String CAPABILITY_KEY_CLAUSE = new StringBuilder()
+	.append(CapabilityField.ORIGIN.q(null)).append("=?")
+	.append(" AND ")
+	.append(CapabilityField.TOPIC.q(null)).append("=?")
+	.append(" AND ")
+	.append(CapabilityField.SUBTOPIC.q(null)).append("=?")
+	.toString();
+
+
+
 
 	/**
 	 * The presence table is for holding information about visible peers.
@@ -372,13 +429,17 @@ public class DistributorDataStore {
 	public enum PresenceField implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
-		DEVICE("device","TEXT"),
-		// The device identifier, this must be present
+		ORIGIN("origin","TEXT"),
+		// The device identifier detected
 		// required
 
 		OPERATOR("operator", "TEXT"),
 		// The name of the operator using the channel
 		// optional
+		
+		EXPIRATION("expiration", "INTEGER"),
+		// Time-stamp at which point the presence 
+		// becomes stale and can be discarded.
 
 		FIRST("first", "INTEGER"),
 		// When the operator first used this channel
@@ -465,10 +526,13 @@ public class DistributorDataStore {
 		public final String deviceId;
 		// public final String operator;
 
+		final DistributorDataStore parent = DistributorDataStore.this;
+		final SQLiteDatabase db = parent.db;
+
 		private PresenceWorker(final String deviceId) {
 			this.deviceId = deviceId;
 		}
-		
+
 		@Override
 		public String toString() {
 			return new StringBuilder()
@@ -482,8 +546,6 @@ public class DistributorDataStore {
 		 * @param deviceId - String - the device id whose presence information to update
 		 */
 		public void upsert() {
-			final DistributorDataStore parent = DistributorDataStore.this;
-			
 			PLogger.STORE_PRESENCE_DML.trace("upsert presence: {}", this);
 			synchronized(parent) {	
 				if (this.deviceId == null || this.deviceId.length() == 0) {
@@ -491,31 +553,37 @@ public class DistributorDataStore {
 					return;
 				}
 				logger.trace("Updating device presence for device: {}", this.deviceId);
-				Cursor cursor = null;
+
+				final String whereClause = PRESENCE_KEY_CLAUSE;
+				final String[] whereArgs = new String[]{ deviceId };
+
+				final Long now = Long.valueOf(System.currentTimeMillis());
+
+				final ContentValues cv = new ContentValues();
+				cv.put(CapabilityField.LATEST.cv(), now);
+
+				this.db.beginTransaction();
 				try {
-					final SQLiteDatabase db = parent.helper.getWritableDatabase();
-					final String whereClause = PRESENCE_KEY_QUERY;
-					final String[] whereArgs = new String[]{ deviceId };
-					db.beginTransaction();
-					cursor = db.query(Tables.PRESENCE.n, null, 
-							whereClause, whereArgs, null, null, null);
+					int updated = this.db.update(Tables.PRESENCE.n, cv, whereClause, whereArgs);
+					if (updated > 0) {
+						PLogger.STORE_PRESENCE_DML.debug("updated cnt=[{}] cv=[{}]", 
+								updated, cv);
+						this.db.setTransactionSuccessful();
+						return;
+					} 
 
-					final ContentValues values = new ContentValues();
-					values.put(PresenceField.DEVICE.n(), deviceId);
-					// values needs some more content
+					cv.put(CapabilityField.ORIGIN.cv(), deviceId);
+					cv.put(CapabilityField.FIRST.cv(), now);
 
-					if (cursor.getCount() < 1) {
-						db.insert(Tables.PRESENCE.n, PresenceField._ID.n(), values);
-					} else {
-						// values needs some more content
-						db.update(Tables.PRESENCE.n, values, whereClause, whereArgs);
-					}
-					cursor.close();
-					db.endTransaction();
+					long row = this.db.insert(Tables.PRESENCE.n, PresenceField._ID.n(), cv);
+					PLogger.STORE_PRESENCE_DML.debug("inserted row=[{}] cv=[{}]", 
+							row, cv);
+					this.db.setTransactionSuccessful();
+
 				} catch (IllegalArgumentException ex) {
 					logger.error("updateDevicePresence problem");
 				} finally {
-					if (cursor != null) cursor.close();
+					this.db.endTransaction();
 				}
 				return;
 			}
@@ -523,8 +591,8 @@ public class DistributorDataStore {
 
 	}
 
-	private static final String PRESENCE_KEY_QUERY = new StringBuilder()
-	.append(PresenceField.DEVICE.q(null)).append("=?").toString();
+	private static final String PRESENCE_KEY_CLAUSE = new StringBuilder()
+	.append(PresenceField.ORIGIN.q(null)).append("=?").toString();
 
 
 
@@ -597,21 +665,12 @@ public class DistributorDataStore {
 		MODIFIED("modified", "INTEGER"),
 		// When the request was last modified
 
-		COUNT("count", "INTEGER"),
-		// How many times the tuple has been modified since CREATED.
-		// Each time MODIFIED is changed this COUNT should be incremented.
-
 		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
 		SUBTOPIC("subtopic", "TEXT"),
 		// This is used in conjunction with topic. 
 		// It can be used to identify a recipient, a group, a target, etc.
-
-		PRESENCE("presence", "INTEGER"),
-		// The rowid for the originator of this request
-		// 0 is reserved for the local operator
-		// <0 (-1) : indicates that the operator is unknown.
 
 		AUID("auid", "TEXT"),
 		// (optional) The appplication specific unique identifier
@@ -714,15 +773,13 @@ public class DistributorDataStore {
 		/**
 		 * Update
 		 */
-		/** 
-		 * 
-		 */
 		protected long updateById(long requestId, ContentValues cv, Dispersal state) {
 			synchronized (DistributorDataStore.this) {
 				if (state == null && cv == null) return -1;
 
 				if (cv == null) cv = new ContentValues();
 
+				this.db.beginTransaction();
 				if (state != null) {
 					final DisposalWorker disposal = new DisposalWorker(this.db, this.request, this.disposal);
 					disposal.upsertByRequest(requestId, state);
@@ -734,17 +791,23 @@ public class DistributorDataStore {
 					.toString();
 
 					final String[] whereArgs = new String[]{ String.valueOf(requestId) };
-					return this.db.update(this.request.n, cv, whereClause, whereArgs); 
+
+					long count = this.db.update(this.request.n, cv, whereClause, whereArgs);
+					this.db.setTransactionSuccessful();
+					return count;
 
 				} catch (IllegalArgumentException ex) {
 					logger.error("updateRequestById {} {}", requestId, cv);
+				} finally {
+					this.db.endTransaction();
 				}
+
 				return 0;
 			}
 		}
 
 	}
-	
+
 	@SuppressWarnings("unused")
 	static final private String REQUEST_UUID_CLAUSE = new StringBuilder()
 	.append(RequestField.UUID.q(null)).append("=?").toString();
@@ -870,7 +933,7 @@ public class DistributorDataStore {
 		Cursor cursor = null;
 		try {
 			cursor = queryRequest(Tables.POSTAL.q(), null, 
-					SELECT_POSTAL_BY_KEY, new String[]{ uid }, null);
+					POSTAL_KEY_CLAUSE, new String[]{ uid }, null);
 			final PostalWorker worker = getPostalWorker(cursor, null);
 			cursor.close();
 			return worker;
@@ -879,7 +942,7 @@ public class DistributorDataStore {
 		}		
 	}
 
-	private static String SELECT_POSTAL_BY_KEY = new StringBuilder()
+	private static String POSTAL_KEY_CLAUSE = new StringBuilder()
 	.append(RequestField.UUID.cv()).append("=?").toString();
 
 
@@ -1007,7 +1070,6 @@ public class DistributorDataStore {
 			this.id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
 
 			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
-			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
 			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
@@ -1018,7 +1080,9 @@ public class DistributorDataStore {
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
 			this.expire = new TimeTrigger(expireEnc);
-
+			
+			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
+			
 			this.notice = Notice.newInstance(); 
 			this.notice.setItem(Threshold.SENT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_SENT.n())));
 			this.notice.setItem(Threshold.DELIVERED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DELIVERY.n())));
@@ -1062,6 +1126,7 @@ public class DistributorDataStore {
 					logger.error("postal requests must have a uuid: [{}]", this);
 					return -1;
 				}
+
 				final String topic = this.topic;
 				final String subtopic = (this.subtopic == null) ? "" : this.subtopic;
 				final String provider = this.provider.cv();
@@ -1079,6 +1144,7 @@ public class DistributorDataStore {
 
 				cv.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
 				cv.put(RequestField.DISPOSITION.cv(), totalState.cv());
+				
 				if (payload != null) cv.put(PostalField.PAYLOAD.cv(), payload);
 
 				cv.put(PostalField.NOTICE_SENT.cv(), this.notice.atSend.via.v);	
@@ -1091,6 +1157,7 @@ public class DistributorDataStore {
 				PLogger.STORE_POSTAL_DML.trace("upsert postal: {} @ {}",
 						totalState, cv);
 
+				this.db.beginTransaction();
 				Cursor cursor  = null;
 				try {
 					final long rowid;
@@ -1116,11 +1183,14 @@ public class DistributorDataStore {
 
 					final DisposalWorker dworker = new DisposalWorker(this.db, this.request, this.disposal);
 					dworker.upsertByRequest(rowid, dispersal);
+					this.db.setTransactionSuccessful();
+
 					return rowid;
 				} catch (IllegalArgumentException ex) {
 					logger.error("upsert {} {}", cv, dispersal);
 				} finally {
 					if (cursor != null) cursor.close();
+					this.db.endTransaction();
 				}
 				return -1;
 			}
@@ -1640,7 +1710,7 @@ public class DistributorDataStore {
 			} finally {
 				this.select = new Selection(select);
 			}
-			
+
 			this.dispersal = this.policy.makeRouteMap();
 			Cursor channelCursor = null;
 			try { 
@@ -1700,7 +1770,7 @@ public class DistributorDataStore {
 
 				cv.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
 				cv.put(RequestField.DISPOSITION.cv(), totalState.cv());
-				
+
 				if (this.select != null) {
 					cv.put(InterestField.FILTER.cv(), this.select.cv());
 				}
@@ -1709,6 +1779,7 @@ public class DistributorDataStore {
 				PLogger.STORE_INTEREST_DML.trace("upsert interest: {} @ {}",
 						totalState, cv);
 
+				this.db.beginTransaction();
 				Cursor cursor  = null;
 				try {
 					final long rowid;
@@ -1743,11 +1814,14 @@ public class DistributorDataStore {
 
 					final DisposalWorker dworker = new DisposalWorker(this.db, this.request, this.disposal);
 					dworker.upsertByRequest(rowid, this.dispersal);
+					this.db.setTransactionSuccessful();
+
 					return rowid;
 				} catch (IllegalArgumentException ex) {
 					logger.error("upsert {} {}", cv, this.dispersal);
 				} finally {
 					if (cursor != null) cursor.close();
+					this.db.endTransaction();
 				}
 				return -1;
 			}
@@ -2046,6 +2120,7 @@ public class DistributorDataStore {
 			synchronized(DistributorDataStore.this) {	
 				Cursor cursor = null;
 				final ContentValues cv = new ContentValues();
+				db.beginTransaction();
 				try {					
 					cv.put(DisposalField.REQUEST.cv(), requestId);
 					cv.put(DisposalField.CHANNEL.cv(), channel);
@@ -2058,6 +2133,7 @@ public class DistributorDataStore {
 						final long row = this.db.insert(this.disposal.n, DisposalField._ID.n(), cv);
 						PLogger.STORE_DISPOSAL_DML.debug("inserting row=[{}] into=[{}] : cv=[{}]", 
 								new Object[]{ row, this.disposal, cv} );
+						this.db.setTransactionSuccessful();
 						return row;
 					} else if (updateCount > 1) {
 						logger.error("duplicate [{}] count=[{}]", this.disposal, updateCount);
@@ -2071,9 +2147,10 @@ public class DistributorDataStore {
 					cursor.moveToFirst();
 					final long row = cursor.getInt(0); // we only asked for one column so it better be it.
 					cursor.close();
-					
+
 					PLogger.STORE_DISPOSAL_DML.debug("updated row=[{}] into=[{}] : cv=[{}]", 
-								new Object[]{ row, this.disposal, cv} );
+							new Object[]{ row, this.disposal, cv} );
+					this.db.setTransactionSuccessful();
 					return row;
 
 				} catch (SQLiteConstraintException ex) {
@@ -2083,6 +2160,7 @@ public class DistributorDataStore {
 					logger.error("upsert disposal {} {} {}", new Object[]{requestId, channel, status});
 				} finally {
 					if (cursor != null) cursor.close();
+					this.db.endTransaction();
 				}
 				return 0;
 			}
@@ -2622,224 +2700,227 @@ public class DistributorDataStore {
 			logger.trace("bootstrapping database");
 			PLogger.STORE_DDL.debug("creating data store {}", db.getPath());
 
-			// db.beginTransaction();
-			String sqlCreateRef = null; 
-			// so you have a forensic subjects when you try/catch
-
-			/**
-			 *  ===== CHANNEL
-			 */
+			db.beginTransaction();
 			try {
-				final Tables table = Tables.CHANNEL;
+				String sqlCreateRef = null; 
+				// so you have a forensic subjects when you try/catch
 
-				final StringBuilder createSql = new StringBuilder()
-				.append(" CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(ddl(ChannelField.values())).append(')')
-				.append(';');
+				/**
+				 *  ===== CHANNEL
+				 */
+				try {
+					final Tables table = Tables.CHANNEL;
 
-				sqlCreateRef = createSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
+					final StringBuilder createSql = new StringBuilder()
+					.append(" CREATE TABLE ")
+					.append(table.q())
+					.append(" ( ").append(ddl(ChannelField.values())).append(')')
+					.append(';');
 
-			} catch (SQLException ex) {
-				logger.error("create CHANNEL {} {}",
-						sqlCreateRef, ex.getLocalizedMessage());
-				return;
+					sqlCreateRef = createSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+				} catch (SQLException ex) {
+					logger.error("create CHANNEL {} {}",
+							sqlCreateRef, ex.getLocalizedMessage());
+					return;
+				}
+
+
+				/**
+				 *  ===== PRESENCE
+				 */
+				try {
+					final Tables table = Tables.PRESENCE;
+
+					final StringBuilder createSql = new StringBuilder()
+					.append(" CREATE TABLE ")
+					.append(table.q())
+					.append(" ( ").append(ddl(PresenceField.values())).append(')')
+					.append(';');
+
+					sqlCreateRef = createSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+				} catch (SQLException ex) {
+					logger.error("failed create PRESENCE {} {}",
+							sqlCreateRef.toString(),
+							ex.getLocalizedMessage());
+					return;
+				}
+
+				/**
+				 *  ===== CAPABILITY
+				 */
+				try {	
+					final Tables table = Tables.CAPABILITY;
+
+					final StringBuilder createSql = new StringBuilder()
+					.append(" CREATE TABLE ")
+					.append(table.q())
+					.append(" ( ")
+					.append(ddl(CapabilityField.values())).append(')')
+					.append(';');
+
+					sqlCreateRef = createSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+				} catch (SQLException ex) {
+					logger.error("failed create CAPABILITY {} {}",
+							sqlCreateRef, ex.getLocalizedMessage());
+					return;
+				}
+
+
+				/**
+				 *  ===== POSTAL
+				 */
+				try {	
+					final Tables request = Tables.POSTAL;
+					final Tables disposal = Tables.POSTAL_DISPOSAL;
+					final TableField[] fields = PostalField.values();
+
+					final StringBuilder createRequestSql = 
+							new StringBuilder()
+					.append(" CREATE TABLE ")
+					.append(request.q())
+					.append(" ( ")
+					.append(ddl(RequestField.values())).append(',')
+					.append(ddl(fields))
+					.append(')')
+					.append(';');
+
+					sqlCreateRef = createRequestSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+					final StringBuilder createDisposalSql = new StringBuilder()
+					.append(" CREATE TABLE ")
+					.append(disposal.q())
+					.append(" ( ").append(ddl(DisposalField.values())).append(',')
+					.append(DISPOSAL_FOREIGN_KEY(request))
+					.append(')')
+					.append(';');
+
+					sqlCreateRef = createDisposalSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+					db.execSQL(new StringBuilder()
+					.append("CREATE UNIQUE INDEX ") 
+					.append(disposal.qIndex())
+					.append(" ON ").append(disposal.q())
+					.append(" ( ").append(DisposalField.REQUEST.q(null))
+					.append(" , ").append(DisposalField.CHANNEL.q(null))
+					.append(" ) ")
+					.toString() );
+
+				} catch (SQLException ex) {
+					logger.error("create REQUEST {} {}",
+							sqlCreateRef, ex.getLocalizedMessage());
+					return;
+				}
+
+				/**
+				 *  ===== RETRIEVAL
+				 */
+				try {	
+					final Tables request = Tables.RETRIEVAL;
+					final Tables disposal = Tables.RETRIEVAL_DISPOSAL;
+					final TableField[] fields = RetrievalField.values();
+
+					final StringBuilder createRequestSql = 
+							new StringBuilder()
+					.append("CREATE TABLE ")
+					.append(request.q())
+					.append(" ( ")
+					.append(ddl(RequestField.values())).append(',')
+					.append(ddl(fields)).append(')')
+					.append(';');
+					sqlCreateRef = createRequestSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+					final StringBuilder createDisposalSql = new StringBuilder()
+					.append(" CREATE TABLE ")
+					.append(disposal.q())
+					.append(" ( ").append(ddl(DisposalField.values())).append(',')
+					.append(DISPOSAL_FOREIGN_KEY(request))
+					.append(')')
+					.append(';');
+
+					sqlCreateRef = createDisposalSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+					db.execSQL(new StringBuilder()
+					.append("CREATE UNIQUE INDEX ") 
+					.append(disposal.qIndex())
+					.append(" ON ").append(disposal.q())
+					.append(" ( ").append(DisposalField.REQUEST.q(null))
+					.append(" , ").append(DisposalField.CHANNEL.q(null))
+					.append(" ) ")
+					.toString() );
+
+				} catch (SQLException ex) {
+					logger.error("create REQUEST {} {}",
+							sqlCreateRef, ex.getLocalizedMessage());
+					return;
+				}
+				/**
+				 *  ===== INTEREST
+				 */
+				try {	
+					final Tables request = Tables.INTEREST;
+					final Tables disposal = Tables.INTEREST_DISPOSAL;
+					final TableField[] fields = InterestField.values();
+
+					final StringBuilder createRequestSql = 
+							new StringBuilder()
+					.append("CREATE TABLE ")
+					.append(request.q())
+					.append(" ( ")
+					.append(ddl(RequestField.values())).append(',')
+					.append(ddl(fields)).append(')')
+					.append(';');
+					sqlCreateRef = createRequestSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+					final StringBuilder createDisposalSql = new StringBuilder()
+					.append(" CREATE TABLE ")
+					.append(disposal.q())
+					.append(" ( ").append(ddl(DisposalField.values())).append(',')
+					.append(DISPOSAL_FOREIGN_KEY(request))
+					.append(')')
+					.append(';');
+
+					sqlCreateRef = createDisposalSql.toString();
+					PLogger.STORE_DDL.trace("{}", sqlCreateRef);
+					db.execSQL(sqlCreateRef);
+
+					db.execSQL(new StringBuilder()
+					.append("CREATE UNIQUE INDEX ") 
+					.append(disposal.qIndex())
+					.append(" ON ").append(disposal.q())
+					.append(" ( ").append(DisposalField.REQUEST.q(null))
+					.append(" , ").append(DisposalField.CHANNEL.q(null))
+					.append(" ) ")
+					.toString() );
+
+				} catch (SQLException ex) {
+					logger.error("create REQUEST {} {}",
+							sqlCreateRef, ex.getLocalizedMessage());
+					return;
+				}
+				db.setTransactionSuccessful();
+
+			} finally {
+				db.endTransaction();
 			}
-
-
-			/**
-			 *  ===== PRESENCE
-			 */
-			try {
-				final Tables table = Tables.PRESENCE;
-
-				final StringBuilder createSql = new StringBuilder()
-				.append(" CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ").append(ddl(PresenceField.values())).append(')')
-				.append(';');
-
-				sqlCreateRef = createSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
-
-			} catch (SQLException ex) {
-				logger.error("failed create PRESENCE {} {}",
-						sqlCreateRef.toString(),
-						ex.getLocalizedMessage());
-				return;
-			}
-
-			/**
-			 *  ===== CAPABILITY
-			 */
-			try {	
-				final Tables table = Tables.CAPABILITY;
-
-				final StringBuilder createSql = new StringBuilder()
-				.append(" CREATE TABLE ")
-				.append(table.q())
-				.append(" ( ")
-				.append(ddl(RequestField.values())).append(',')
-				.append(ddl(CapabilityField.values())).append(')')
-				.append(';');
-
-				sqlCreateRef = createSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
-
-			} catch (SQLException ex) {
-				logger.error("failed create CAPABILITY {} {}",
-						sqlCreateRef, ex.getLocalizedMessage());
-				return;
-			}
-
-
-			/**
-			 *  ===== POSTAL
-			 */
-			try {	
-				final Tables request = Tables.POSTAL;
-				final Tables disposal = Tables.POSTAL_DISPOSAL;
-				final TableField[] fields = PostalField.values();
-
-				final StringBuilder createRequestSql = 
-						new StringBuilder()
-				.append(" CREATE TABLE ")
-				.append(request.q())
-				.append(" ( ")
-				.append(ddl(RequestField.values())).append(',')
-				.append(ddl(fields))
-				.append(')')
-				.append(';');
-
-				sqlCreateRef = createRequestSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
-
-				final StringBuilder createDisposalSql = new StringBuilder()
-				.append(" CREATE TABLE ")
-				.append(disposal.q())
-				.append(" ( ").append(ddl(DisposalField.values())).append(',')
-				.append(DISPOSAL_FOREIGN_KEY(request))
-				.append(')')
-				.append(';');
-
-				sqlCreateRef = createDisposalSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
-
-				db.execSQL(new StringBuilder()
-				.append("CREATE UNIQUE INDEX ") 
-				.append(disposal.qIndex())
-				.append(" ON ").append(disposal.q())
-				.append(" ( ").append(DisposalField.REQUEST.q(null))
-				.append(" , ").append(DisposalField.CHANNEL.q(null))
-				.append(" ) ")
-				.toString() );
-
-			} catch (SQLException ex) {
-				logger.error("create REQUEST {} {}",
-						sqlCreateRef, ex.getLocalizedMessage());
-				return;
-			}
-
-			/**
-			 *  ===== RETRIEVAL
-			 */
-			try {	
-				final Tables request = Tables.RETRIEVAL;
-				final Tables disposal = Tables.RETRIEVAL_DISPOSAL;
-				final TableField[] fields = RetrievalField.values();
-
-				final StringBuilder createRequestSql = 
-						new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(request.q())
-				.append(" ( ")
-				.append(ddl(RequestField.values())).append(',')
-				.append(ddl(fields)).append(')')
-				.append(';');
-				sqlCreateRef = createRequestSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
-
-				final StringBuilder createDisposalSql = new StringBuilder()
-				.append(" CREATE TABLE ")
-				.append(disposal.q())
-				.append(" ( ").append(ddl(DisposalField.values())).append(',')
-				.append(DISPOSAL_FOREIGN_KEY(request))
-				.append(')')
-				.append(';');
-
-				sqlCreateRef = createDisposalSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
-
-				db.execSQL(new StringBuilder()
-				.append("CREATE UNIQUE INDEX ") 
-				.append(disposal.qIndex())
-				.append(" ON ").append(disposal.q())
-				.append(" ( ").append(DisposalField.REQUEST.q(null))
-				.append(" , ").append(DisposalField.CHANNEL.q(null))
-				.append(" ) ")
-				.toString() );
-
-			} catch (SQLException ex) {
-				logger.error("create REQUEST {} {}",
-						sqlCreateRef, ex.getLocalizedMessage());
-				return;
-			}
-			/**
-			 *  ===== INTEREST
-			 */
-			try {	
-				final Tables request = Tables.INTEREST;
-				final Tables disposal = Tables.INTEREST_DISPOSAL;
-				final TableField[] fields = InterestField.values();
-
-				final StringBuilder createRequestSql = 
-						new StringBuilder()
-				.append("CREATE TABLE ")
-				.append(request.q())
-				.append(" ( ")
-				.append(ddl(RequestField.values())).append(',')
-				.append(ddl(fields)).append(')')
-				.append(';');
-				sqlCreateRef = createRequestSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
-
-				final StringBuilder createDisposalSql = new StringBuilder()
-				.append(" CREATE TABLE ")
-				.append(disposal.q())
-				.append(" ( ").append(ddl(DisposalField.values())).append(',')
-				.append(DISPOSAL_FOREIGN_KEY(request))
-				.append(')')
-				.append(';');
-
-				sqlCreateRef = createDisposalSql.toString();
-				PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-				db.execSQL(sqlCreateRef);
-
-				db.execSQL(new StringBuilder()
-				.append("CREATE UNIQUE INDEX ") 
-				.append(disposal.qIndex())
-				.append(" ON ").append(disposal.q())
-				.append(" ( ").append(DisposalField.REQUEST.q(null))
-				.append(" , ").append(DisposalField.CHANNEL.q(null))
-				.append(" ) ")
-				.toString() );
-
-			} catch (SQLException ex) {
-				logger.error("create REQUEST {} {}",
-						sqlCreateRef, ex.getLocalizedMessage());
-				return;
-			}
-
-			// db.endTransaction();
 			PLogger.STORE_DDL.trace("database definition complete");
 		}
 
@@ -2903,19 +2984,24 @@ public class DistributorDataStore {
 		 */
 		public synchronized void dropAll(SQLiteDatabase db) {
 			PLogger.STORE_DDL.trace("dropping all tables");
+			db.beginTransaction();
+			try {
+				for (Tables table : Tables.values()) {
+					try {
+						db.execSQL( new StringBuilder()
+						.append("DROP TABLE ")
+						.append(table.q())
+						.append(";")
+						.toString() );
 
-			for (Tables table : Tables.values()) {
-				try {
-					db.execSQL( new StringBuilder()
-					.append("DROP TABLE ")
-					.append(table.q())
-					.append(";")
-					.toString() );
-
-				} catch (SQLiteException ex) {
-					logger.warn("defective table {} being dropped {}", 
-							table, ex.getLocalizedMessage());
+					} catch (SQLiteException ex) {
+						logger.warn("defective table {} being dropped {}", 
+								table, ex.getLocalizedMessage());
+					}
 				}
+				db.setTransactionSuccessful();
+			} finally {
+				db.endTransaction();
 			}
 		}
 
@@ -3206,7 +3292,7 @@ public class DistributorDataStore {
 			}
 			return null;
 		}
-		
+
 
 		/**
 		 * FIXME
@@ -3219,7 +3305,7 @@ public class DistributorDataStore {
 		static public int aggregatePriority(int policyPriority, int applPriority) {
 			return policyPriority; //  + applPriority;
 		}
-		
+
 		public CharSequence toString(int priorityId) {
 			final StringBuilder sb = new StringBuilder().append(this.o);
 			if (priorityId > this.o) {
