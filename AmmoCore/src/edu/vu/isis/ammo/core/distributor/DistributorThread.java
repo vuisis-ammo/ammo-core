@@ -439,7 +439,7 @@ public class DistributorThread extends Thread {
 
 		final Notice.Item note = ack.notice.atSend;
 		if (note.via.isActive()) {
-			
+
 			final Uri.Builder uriBuilder = new Uri.Builder()
 			.scheme("ammo")
 			.authority(ack.topic)
@@ -586,8 +586,9 @@ public class DistributorThread extends Thread {
 				}
 				while (this.isReady()) {
 					if (this.channelDelta.getAndSet(false)) {
-						logger.trace("channel change");
+						logger.trace("do channel change");
 						this.doChannelChange(ammoService);
+						logger.trace("did channel change");
 					}
 
 					if (!this.channelAck.isEmpty()) {						
@@ -595,6 +596,7 @@ public class DistributorThread extends Thread {
 							final ChannelAck ack = this.channelAck.take();
 							PLogger.QUEUE_ACK_EXIT.trace("take remaining=[{}] ack=[{}]", this.channelAck.size(), ack);
 							this.doChannelAck(this.context, ack);
+							logger.trace("did ack=[{}]", ack);
 						} catch (ClassCastException ex) {
 							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -604,6 +606,7 @@ public class DistributorThread extends Thread {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
 							PLogger.QUEUE_RESP_EXIT.trace("take remaining=[{}] ack=[{}]", this.responseQueue.size(), agm);
 							this.doResponse(ammoService, agm);
+							logger.trace("did response=[{}]", agm);
 						} catch (ClassCastException ex) {
 							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -614,12 +617,13 @@ public class DistributorThread extends Thread {
 							final AmmoRequest ar = this.requestQueue.take();
 							PLogger.QUEUE_REQ_EXIT.trace("take remaining=[{}] ack=[{}]", this.requestQueue.size(), ar);
 							this.doRequest(ammoService, ar);
+							logger.trace("did request=[{}]", ar);
 						} catch (ClassCastException ex) {
 							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
 					}
 				}
-				logger.trace("work processed");
+				
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
@@ -737,8 +741,7 @@ public class DistributorThread extends Thread {
 	private boolean doResponse(final Context context, 
 			final AmmoGatewayMessage agm) 
 	{
-
-		logger.trace("process response");
+		logger.trace("do response=[{}]", agm);
 
 		if ( !agm.hasValidChecksum() ) {
 			// If this message came from the serial channel, let it know that
@@ -837,9 +840,13 @@ public class DistributorThread extends Thread {
 			logger.error("unexpected reply type. {}", mw.getType());
 			deviceId = null;
 		}
-		ammoService.store()
-		.getPresenceWorker(deviceId)
-		.upsert();
+		if (deviceId == null) {
+			logger.trace("[{}] did not carry a device", mw.getType());
+		} else {
+			ammoService.store()
+			.getPresenceWorker(deviceId)
+			.upsert();
+		}
 		return true;
 	}
 
@@ -962,7 +969,7 @@ public class DistributorThread extends Thread {
 								logger.error("Null result from serialize content value, encoding into {}", encode);
 							}
 							return result;
-							
+
 						case BYTE:
 						case STR:
 							return serializer_.payload.asBytes();
@@ -1338,7 +1345,7 @@ public class DistributorThread extends Thread {
 			final String select = ar.select.toString();
 			final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
-			
+
 			final ContentValues values = new ContentValues();
 			values.put(RequestField.UUID.cv(), uuid.toString());
 			values.put(RequestField.AUID.cv(), auid);
@@ -1357,7 +1364,7 @@ public class DistributorThread extends Thread {
 			final Dispersal dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
 				values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-// FIXME				this.store.upsertRetrieval(values, dispersal);
+				// FIXME				this.store.upsertRetrieval(values, dispersal);
 				logger.debug("no network connection");
 				return;
 			}
@@ -1366,8 +1373,8 @@ public class DistributorThread extends Thread {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-// FIXME				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
-                final long id = 1;
+				// FIXME				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
+				final long id = 1;
 				final Dispersal dispatchResult = this.dispatchRetrievalRequest(that, 
 						uuid, topic, subtopic, select, limit, dispersal, 
 						new INetworkService.OnSendMessageHandler() {

@@ -857,7 +857,8 @@ public class ReliableMulticastChannel extends NetChannel
             }
             catch ( Exception e )
             {
-                logger.error( "Caught Exception" );
+                logger.error( "during disconnect msg=[{}] trace=[{}]", 
+                        e.getLocalizedMessage(), e.getStackTrace() );
                 // Do this here, too, since if we exited early because
                 // of an exception, we want to make sure that we're in
                 // an unauthorized state.

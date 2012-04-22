@@ -467,9 +467,17 @@ public class DistributorDataStore {
 	 */
 	public class PresenceWorker {
 		public final String deviceId;
+		// public final String operator;
 
 		private PresenceWorker(final String deviceId) {
 			this.deviceId = deviceId;
+		}
+		
+		@Override
+		public String toString() {
+			return new StringBuilder()
+			.append(" device=[").append(deviceId).append(']')
+			.toString();
 		}
 
 		/**
@@ -479,9 +487,11 @@ public class DistributorDataStore {
 		 */
 		public void upsert() {
 			final DistributorDataStore parent = DistributorDataStore.this;
+			
 			PLogger.STORE_PRESENCE_DML.trace("upsert presence: {}", this);
 			synchronized(parent) {	
 				if (this.deviceId == null || this.deviceId.length() == 0) {
+					logger.warn("no device to record");
 					return;
 				}
 				logger.trace("Updating device presence for device: {}", this.deviceId);
