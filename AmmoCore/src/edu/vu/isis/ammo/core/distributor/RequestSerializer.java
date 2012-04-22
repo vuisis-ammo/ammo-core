@@ -498,7 +498,7 @@ public class RequestSerializer {
 				}
 				cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
 				cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
-				tupleUri = resolver.insert(provider, cv);
+				tupleUri = resolver.insert(provider, cv); // TBD SKN --- THIS IS A  SYNCHRONOUS IPC? we will block here for a while ...
 				if (tupleUri == null) {
 					logger.warn("could not insert {} into {}", cv, provider);
 					return null;
