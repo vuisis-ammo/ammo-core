@@ -748,6 +748,11 @@ public class DistributorDataStore {
 		}
 
 	}
+	
+	@SuppressWarnings("unused")
+	static final private String REQUEST_UUID_CLAUSE = new StringBuilder()
+	.append(RequestField.UUID.q(null)).append("=?").toString();
+
 
 	private static String RequestStatusQuery(Tables request, Tables disposal) {
 		return new StringBuilder()
@@ -1144,9 +1149,6 @@ public class DistributorDataStore {
 			return FullTopic.fromTopic(topic, subtopic).aggregate;
 		}
 	}
-
-	static final private String POSTAL_UPDATE_UUID_CLAUSE = new StringBuilder()
-	.append(RequestField.UUID.q(null)).append("=?").toString();
 
 	static final private String POSTAL_UPDATE_CK_CLAUSE = new StringBuilder()
 	.append(RequestField.TOPIC.q(null)).append("=?")

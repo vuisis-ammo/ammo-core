@@ -103,7 +103,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 	/**
 	 * This is used by PriorityBlockingQueue() to prioritize it contents.
      * when no specialized comparator is provided.
-     * Specialized comparitors such as PriorityOrder should be preferred.
+     * Specialized comparators such as PriorityOrder should be preferred.
      *
 	 * @return
 	 * a negative integer if this instance is less than another;

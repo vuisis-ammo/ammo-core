@@ -623,7 +623,7 @@ public class DistributorThread extends Thread {
 						}
 					}
 				}
-				
+
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
@@ -1213,12 +1213,6 @@ public class DistributorThread extends Thread {
 
 				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 
-				final Notice notice = postal_.notice;
-				final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
-						.setDeviceDelivered(notice.atDelivery.via.isActive())
-						.setAndroidPluginReceived(notice.atGateIn.via.isActive())
-						.setPluginDelivered(notice.atGateOut.via.isActive());
-
 				if (encode.getType() == Encoding.Type.TERSE)  {
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
 
@@ -1235,6 +1229,12 @@ public class DistributorThread extends Thread {
 					mw.setTerseMessage(postReq);
 				} 
 				else {
+					final Notice notice = postal_.notice;
+					final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
+							.setDeviceDelivered(notice.atDelivery.via.isActive())
+							.setAndroidPluginReceived(notice.atGateIn.via.isActive())
+							.setPluginDelivered(notice.atGateOut.via.isActive());
+
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
 
 					final AmmoMessages.DataMessage.Builder postReq = AmmoMessages.DataMessage
@@ -1244,6 +1244,9 @@ public class DistributorThread extends Thread {
 							.setEncoding(encode.getType().name())
 							.setData(ByteString.copyFrom(serialized))
 							.setThresholds(noticeBuilder);
+					if (notice.isRemoteActive()) {
+						postReq.setOriginDevice(ammoService.getDeviceId());
+					}
 
 					mw.setDataMessage(postReq);
 				} 
@@ -1744,8 +1747,9 @@ public class DistributorThread extends Thread {
 
 		/** Message Building */
 
-		final AmmoMessages.SubscribeMessage.Builder interestReq = AmmoMessages.SubscribeMessage.newBuilder();
-		interestReq.setMimeType(fulltopic.aggregate);
+		final AmmoMessages.SubscribeMessage.Builder interestReq = AmmoMessages.SubscribeMessage.newBuilder()
+				.setMimeType(fulltopic.aggregate)
+				.setOriginDevice(ammoService.getDeviceId());
 
 		if (selection != null)
 			interestReq.setQuery(selection.cv());
