@@ -279,7 +279,6 @@ public class DistributorDataStore {
 		public final String auid;
 		public final String topic;	
 		public final String subtopic;
-		public final Provider provider;
 		public final TimeTrigger expire;
 
 		public Payload payload = null;
@@ -289,13 +288,11 @@ public class DistributorDataStore {
 			this.auid = ar.uid;
 			this.topic = ar.topic.asString();
 			this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
-			this.provider = ar.provider;
 
 			this.expire = ar.expire;
 		}
 
 		private CapabilityWorker(final Cursor pending, final AmmoService svc) {
-			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
 			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 			this.topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.n()));
 			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
@@ -315,7 +312,6 @@ public class DistributorDataStore {
 				rqstValues.put(RequestField.AUID.cv(), this.auid);
 				rqstValues.put(RequestField.TOPIC.cv(), this.topic);
 				rqstValues.put(RequestField.SUBTOPIC.cv(), this.subtopic);
-				rqstValues.put(RequestField.PROVIDER.cv(), this.provider.cv());
 				rqstValues.put(RequestField.EXPIRATION.cv(), this.expire.cv());
 
 				rqstValues.put(RequestField.CREATED.cv(), System.currentTimeMillis());
