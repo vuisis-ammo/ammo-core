@@ -436,7 +436,6 @@ public class DistributorThread extends Thread {
 			logger.warn("invalid ack type {}", ack);
 			return;
 		}
-
 		final Notice.Item note = ack.notice.atSend;
 		if (note.via.isActive()) {
 
@@ -473,7 +472,6 @@ public class DistributorThread extends Thread {
 				context.startService(noticed); 
 			}
 		}
-
 	}
 
 	private void announceChannelActive(final Context context, final String name) {
@@ -1224,6 +1222,7 @@ public class DistributorThread extends Thread {
 					final AmmoMessages.TerseMessage.Builder postReq = AmmoMessages.TerseMessage
 							.newBuilder()
 							.setMimeType(mimeId)
+					                .setUserId(ammoService.getOperatorId())
 							.setData(ByteString.copyFrom(serialized));
 
 					mw.setTerseMessage(postReq);
