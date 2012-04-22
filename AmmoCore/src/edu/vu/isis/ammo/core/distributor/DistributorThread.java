@@ -420,7 +420,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		      .putExtra(EXTRA_STATUS, ack.status.toString());
 		      
 		context.sendBroadcast(notice);
-		context.startService(notice);
+		context.startService(notice); // TBD SKN - WHY DO WE DO THIS???
 	
 		logger.debug("count {}: intent {}", numUpdated, ack);
 	}
@@ -1066,6 +1066,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 					final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
 							.newBuilder()
 							.setMimeType(mimeId)
+					                .setUserId(ammoService.getOperatorId())
 							.setData(ByteString.copyFrom(serialized));
 						mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
 						mw.setTerseMessage(pushReq);
