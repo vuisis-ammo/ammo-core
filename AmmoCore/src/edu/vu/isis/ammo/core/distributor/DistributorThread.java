@@ -839,7 +839,16 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 				@Override
 				public byte[] run(Encoding encode) {
 					if (serializer_.payload.hasContent()) {
-						return serializer_.payload.asBytes();
+					    final byte[] result = 
+					            RequestSerializer.serializeFromContentValues(
+		                                serializer_.payload.getCV(),
+		                                encode);
+
+                        if (result == null) {
+                            logger.error("Null result from serialize content value, encoding into {}", encode);
+                        }
+                        return result;
+						//return serializer_.payload.asBytes();
 					} else {
 						try {
 							final byte[] result = RequestSerializer.serializeFromProvider(that_.getContentResolver(), serializer_.provider.asUri(), encode);

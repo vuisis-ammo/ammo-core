@@ -107,6 +107,7 @@ public class SerialChannel extends NetChannel
         mEnabled = false;
 
         stop();
+        setState( SERIAL_DISABLED );
     }
 
 
