@@ -1814,7 +1814,9 @@ public class DistributorThread extends Thread {
 						.setStatus(PushStatus.UNKNOWN);
 
 				mwb.setPushAcknowledgement(pushAck);
-				// TODO place in the appropriate channel's queue
+				
+				PLogger.COMM_ACK.debug("sending ack: uid=[{}] origin=[{}] reflect=[{}]", 
+						new Object[]{pushAck.getUid(), pushAck.getDestinationDevice(), pushAck.getAcknowledgingDevice()});
 				final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder()
 						.payload(mwb.build().toByteArray());
 

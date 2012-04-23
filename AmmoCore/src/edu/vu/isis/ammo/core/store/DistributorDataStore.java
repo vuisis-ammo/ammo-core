@@ -1055,7 +1055,7 @@ public class DistributorDataStore {
 			this.provider = ar.provider;
 			this.policy = svc.policy().matchPostal(topic);
 			this.serialMoment = ar.moment;
-			this.notice = ar.notice;
+			this.notice = (ar.notice == null) ? Notice.newInstance() : ar.notice;
 
 			this.priority = PriorityType.aggregatePriority(policy.routing.priority, ar.priority);
 			this.expire = ar.expire;

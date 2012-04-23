@@ -51,6 +51,9 @@ public interface PLogger {
 	public static final Logger COMM_GW_CONN = LoggerFactory.getLogger( "comm.gw.conn" );
 	public static final Logger COMM_GW_SEND = LoggerFactory.getLogger( "comm.gw.send" );
 	public static final Logger COMM_GW_RECV = LoggerFactory.getLogger( "comm.gw.recv" );
+	
+	// acknowledgment processing
+	public static final Logger COMM_ACK = LoggerFactory.getLogger( "comm.ack" );
 
 	// settings
 

@@ -301,6 +301,13 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 			this.checksum = 0;
 			this.handler = null;
 		}
+		
+		@Override
+		public String toString() {
+			return new StringBuilder()
+			.append(this.channel)
+			.toString();
+		}
 	}
 
 	private AmmoGatewayMessage(Builder builder, byte[] payload) {
