@@ -44,6 +44,7 @@ import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
@@ -250,10 +251,12 @@ public class RequestSerializer {
 				}
 				if (blobCursor == null) return tuple;
 				if (! blobCursor.moveToFirst()) {
+					PLogger.API_STORE_RECV.debug("serialized tuple=[{}]", tuple);
 					return tuple;
 				}
 				final int blobCount = blobCursor.getColumnCount();
 				if (blobCount < 1)  {
+					PLogger.API_STORE_RECV.debug("serialized tuple=[{}]", tuple);
 					return tuple;
 				}
 
@@ -315,6 +318,8 @@ public class RequestSerializer {
 			}
 			final byte[] finalTuple = bigTuple.toByteArray();
 			bigTuple.close();
+			PLogger.API_STORE_RECV.debug("serialized big tuple=[{}] size=[{}]", 
+					tuple, finalTuple.length);
 			return finalTuple;
 		}
 
@@ -439,6 +444,7 @@ public class RequestSerializer {
 			tuple.flip();
 			final byte[] tupleBytes = new byte[tuple.limit()];
 			tuple.get(tupleBytes);
+			PLogger.API_STORE_RECV.debug("terse tuple=[{}]", tuple);
 			return tupleBytes;
 		}
 		// TODO custom still needs a lot of work
@@ -469,7 +475,7 @@ public class RequestSerializer {
 				tupleCursor.moveToFirst();
 
 				final String tupleString = tupleCursor.getString(0);
-
+				PLogger.API_STORE_RECV.debug("custom tuple=[{}]", tupleString);
 				return tupleString.getBytes();
 
 			} finally {
@@ -480,17 +486,17 @@ public class RequestSerializer {
 	}
 
 	public static byte[] serializeFromContentValues(ContentValues cv, final DistributorPolicy.Encoding encoding) {
-	    
+
 		logger.trace("serializing using content values and encoding {}", encoding);
 		switch (encoding.getType()) {
 		case JSON: 
 		{
-		    return encodeAsJson (cv);
+			return encodeAsJson (cv);
 		}
 
 		case TERSE: 
 		{
-		    // Need to be implemented ...
+			// Need to be implemented ...
 		}
 		// TODO custom still needs a lot of work
 		// It will presume the presence of a SyncAdaptor for the content provider.
@@ -501,30 +507,30 @@ public class RequestSerializer {
 		}
 		return null;
 	}
-	
+
 	private static byte[] encodeAsJson (ContentValues cv) {
-	    // encoding in json for now ...
-	    Set<java.util.Map.Entry<String, Object>> data = cv.valueSet();
-	    Iterator<java.util.Map.Entry<String, Object>> iter = data.iterator();       
-	    final JSONObject json = new JSONObject();
+		// encoding in json for now ...
+		Set<java.util.Map.Entry<String, Object>> data = cv.valueSet();
+		Iterator<java.util.Map.Entry<String, Object>> iter = data.iterator();       
+		final JSONObject json = new JSONObject();
 
-	    while (iter.hasNext())
-	    {
-	        Map.Entry<String, Object> entry = 
-	                (Map.Entry<String, Object>)iter.next();         
-	        try {
-	            if (entry.getValue() instanceof String)
-	                json.put(entry.getKey(), cv.getAsString(entry.getKey()));
-	            else if (entry.getValue() instanceof Integer)
-	                json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
-	        } catch (JSONException e) {
-	            // TODO Auto-generated catch block
-	            e.printStackTrace();
-	            return null;
-	        }
-	    }
+		while (iter.hasNext())
+		{
+			Map.Entry<String, Object> entry = 
+					(Map.Entry<String, Object>)iter.next();         
+			try {
+				if (entry.getValue() instanceof String)
+					json.put(entry.getKey(), cv.getAsString(entry.getKey()));
+				else if (entry.getValue() instanceof Integer)
+					json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return null;
+			}
+		}
 
-	    return json.toString().getBytes();
+		return json.toString().getBytes();
 	}
 	/**
 	 * @see serializeFromProvider with which this method is symmetric.
@@ -549,14 +555,17 @@ public class RequestSerializer {
 			final Uri tupleUri;
 			try {
 				final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
+				
 				final ContentValues cv = new ContentValues();
+				cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+				cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
+				PLogger.API_STORE_SEND.debug("json tuple=[{}] cv=[{}]", input, cv);
+				
 				for (@SuppressWarnings("unchecked")
 				final Iterator<String> iter = input.keys(); iter.hasNext();) {
 					final String key = iter.next();
 					cv.put(key, input.getString(key));
 				}
-				cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
-				cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
 				tupleUri = resolver.insert(provider, cv); // TBD SKN --- THIS IS A  SYNCHRONOUS IPC? we will block here for a while ...
 				if (tupleUri == null) {
 					logger.warn("could not insert {} into {}", cv, provider);
@@ -631,6 +640,7 @@ public class RequestSerializer {
 		}
 		case TERSE: 
 		{
+			PLogger.API_STORE_SEND.debug("terse tuple=[{}]", data);
 			/**
 			 * 1) perform a query to get the field: names, types.
 			 * 2) parse the incoming data using the order of the names
@@ -710,6 +720,7 @@ public class RequestSerializer {
 		// TODO as with the serializer the CUSTOM section will presume for the
 		// content provider the existence of a SyncAdaptor
 		case CUSTOM:
+			PLogger.API_STORE_SEND.debug("custom tuple=[{}]", data);
 		default:
 		{
 			// get a service connection using ServiceConnection, then 

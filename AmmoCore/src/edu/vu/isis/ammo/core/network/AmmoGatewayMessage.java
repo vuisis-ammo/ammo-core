@@ -242,7 +242,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 				      .append(val.length)
 				      .toString();
 				logger.error(msg);
-				// throw new IllegalArgumentException(msg);
+				throw new IllegalArgumentException(msg);
 			}
 			
 			this.payload_serialized = val;
@@ -345,18 +345,15 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 		CRC32 crc32 = new CRC32();
 		crc32.update(payload);
 
-		return AmmoGatewayMessage.newBuilder()
-				.payload(payload)
+		return new AmmoGatewayMessage.Builder()
 				.size(payload.length)
+				.payload(payload)
 				.checksum(crc32.getValue())
 				.priority(PriorityLevel.NORMAL.v)
 				.version(VERSION_1_FULL)
 				.handler(handler);
 	}
 
-	public static AmmoGatewayMessage.Builder newBuilder() {
-		return new AmmoGatewayMessage.Builder();
-	}
 	public static AmmoGatewayMessage.Builder newBuilder(int size, long checksum, byte priority,
 			byte version, INetworkService.OnSendMessageHandler handler) {
 		return new AmmoGatewayMessage.Builder()
@@ -519,7 +516,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 					if (header_checksum != crc32.getValue())
 						continue;
 
-					return AmmoGatewayMessage.newBuilder()
+					return new AmmoGatewayMessage.Builder()
 							.size(size)
 							.checksum(payload_checksum)
 							.priority(priority)
@@ -558,7 +555,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 						return null;
 					}
 
-					return AmmoGatewayMessage.newBuilder()
+					return new AmmoGatewayMessage.Builder()
 							.size(size)
 							.version(version)
 							.checksum(payload_checksum);

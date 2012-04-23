@@ -100,8 +100,12 @@ public class DistributorThread extends Thread {
 	private static final Marker MARK_INTEREST = MarkerFactory.getMarker("interest");
 
 	private static final String ACTION_BASE = "edu.vu.isis.ammo.";
+
 	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
-	public static final String ACTION_MSG_RCVD = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
+	public static final String ACTION_MSG_RECEIPT = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
+	public static final String ACTION_MSG_DELIVERED = ACTION_BASE+"ACTION_MESSAGE_DELIVERED";
+
+
 	public static final String EXTRA_TOPIC = "topic";
 	public static final String EXTRA_SUBTOPIC = "subtopic";
 	public static final String EXTRA_UID = "uid";
@@ -1222,7 +1226,7 @@ public class DistributorThread extends Thread {
 					final AmmoMessages.TerseMessage.Builder postReq = AmmoMessages.TerseMessage
 							.newBuilder()
 							.setMimeType(mimeId)
-					                .setUserId(ammoService.getOperatorId())
+							.setUserId(ammoService.getOperatorId())
 							.setData(ByteString.copyFrom(serialized));
 
 					mw.setTerseMessage(postReq);
@@ -1270,7 +1274,8 @@ public class DistributorThread extends Thread {
 
 		if (mw == null)
 			return false;
-		if (!mw.hasPushAcknowledgement())
+
+		if (! mw.hasPushAcknowledgement()) 
 			return false;
 
 		final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
@@ -1281,16 +1286,14 @@ public class DistributorThread extends Thread {
 		if (worker.notice.atDelivery.via.hasHeartbeat()) {
 			// TODO update CAPABILITY or RECIPIENT table
 		}
-		final Notice.Item note = worker.notice.atDelivery;
-		if (note.via.isActive()) {
 
+		if (worker.notice.isRemoteActive()) {
 			final Uri.Builder uriBuilder = new Uri.Builder()
 			.scheme("ammo")
 			.authority(worker.topic)
 			.path(worker.subtopic);
 
 			final Intent noticed = new Intent()
-			.setAction(ACTION_MSG_SENT)
 			.setData(uriBuilder.build())
 			.putExtra(EXTRA_TOPIC, worker.topic.toString())
 			.putExtra(EXTRA_SUBTOPIC, worker.topic.toString())
@@ -1298,25 +1301,36 @@ public class DistributorThread extends Thread {
 			.putExtra(EXTRA_STATUS, worker.dispersal.toString())
 			.putExtra(EXTRA_DEVICE, pushResp.getAcknowledgingDevice().toString());
 
-			final int aggregate = note.via.v;	
-			PLogger.API_INTENT.debug("gen intent: [{}]", note);
-
-			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
-				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-				context.startActivity(noticed); 
+			if (worker.notice.atDelivery.via.isActive()) {
+				final Notice.Item note = worker.notice.atDelivery;
+				noticed.setAction(ACTION_MSG_DELIVERED);
+				DistributorThread.sendIntent(note.via.v, noticed, context);
+				PLogger.API_INTENT.debug("ack intent: [{}]", note);
 			}
-			if (0 < (aggregate & Via.Type.BROADCAST.v)) { 
-				context.sendBroadcast(noticed); 
-			}
-			if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) { 
-				context.sendStickyBroadcast(noticed); 
-			}
-			if (0 < (aggregate & Via.Type.SERVICE.v)) { 
-				context.startService(noticed); 
+			if (worker.notice.atReceipt.via.isActive()) {
+				final Notice.Item note = worker.notice.atReceipt;
+				noticed.setAction(ACTION_MSG_RECEIPT);
+				DistributorThread.sendIntent(note.via.v, noticed, context);
+				PLogger.API_INTENT.debug("ack intent: [{}]", note);
 			}
 		}
-
 		return true;
+	}
+
+	static private void sendIntent(int aggregate, Intent noticed, Context context) {
+		if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
+			noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			context.startActivity(noticed); 
+		}
+		if (0 < (aggregate & Via.Type.BROADCAST.v)) { 
+			context.sendBroadcast(noticed); 
+		}
+		if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) { 
+			context.sendStickyBroadcast(noticed); 
+		}
+		if (0 < (aggregate & Via.Type.SERVICE.v)) { 
+			context.startService(noticed); 
+		}
 	}
 
 	// =========== RETRIEVAL ====================
@@ -1800,26 +1814,36 @@ public class DistributorThread extends Thread {
 
 			// Send acknowledgment, if requested by sender
 			final AmmoMessages.AcknowledgementThresholds at = resp.getThresholds();
+			logger.debug("data message notice=[{}]", at);
 			if (at.getDeviceDelivered()) {
-				final AmmoMessages.MessageWrapper.Builder mwb = 
-						AmmoMessages.MessageWrapper.newBuilder();
-				mwb.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT);
+
+				final AcknowledgementThresholds bt = AcknowledgementThresholds.newBuilder()
+						.setDeviceDelivered(true)
+						.build();
 
 				final AmmoMessages.PushAcknowledgement.Builder pushAck = 
 						AmmoMessages.PushAcknowledgement
 						.newBuilder()
 						.setUid(resp.getUid())
+						.setThreshold(bt)
 						.setDestinationDevice(resp.getOriginDevice())
 						.setAcknowledgingDevice(ammoService.getDeviceId())
 						.setStatus(PushStatus.UNKNOWN);
 
-				mwb.setPushAcknowledgement(pushAck);
-				
-				PLogger.COMM_ACK.debug("sending ack: uid=[{}] origin=[{}] reflect=[{}]", 
-						new Object[]{pushAck.getUid(), pushAck.getDestinationDevice(), pushAck.getAcknowledgingDevice()});
-				final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder()
-						.payload(mwb.build().toByteArray());
+				final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper.newBuilder()
+						.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
+						.setPushAcknowledgement(pushAck);
 
+				final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb, 
+						new INetworkService.OnSendMessageHandler() {
+							@Override
+							public boolean ack(String channel, DisposalState status) {
+								logger.debug("delivered ack: uid=[{}] origin=[{}] reflect=[{}]", 
+										new Object[]{pushAck.getUid(), pushAck.getDestinationDevice(), pushAck.getAcknowledgingDevice()});
+								return true;
+							}
+				});
+						
 				if (channel != null) {
 					channel.sendRequest(oagmb.build());
 				}
@@ -1851,8 +1875,8 @@ public class DistributorThread extends Thread {
 			final Encoding encoding = Encoding.getInstanceByName( encode );
 			final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
 
-			logger.info("Ammo received message on topic: {} for provider: {}, inserted in {}", 
-					new Object[]{mime, uriString, tuple} );
+			logger.info("received message: topic=[{}] provider=[{}] tuple=[{}] data=[{}]", 
+					new Object[]{mime, uriString, tuple, data} );
 
 		} finally {
 			if (cursor != null) cursor.close();

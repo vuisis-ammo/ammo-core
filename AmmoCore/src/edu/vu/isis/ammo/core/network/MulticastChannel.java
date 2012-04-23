@@ -1155,6 +1155,7 @@ public class MulticastChannel extends NetChannel
                     buf.get( payload, 0, buf.remaining() );
 
                     final AmmoGatewayMessage agm = agmb
+                    		.size(payload.length)
                     		.payload( payload )
                     		.channel(this.mDestination)
                     		.build();

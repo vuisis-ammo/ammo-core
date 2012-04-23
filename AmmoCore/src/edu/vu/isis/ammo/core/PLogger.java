@@ -22,10 +22,27 @@ public interface PLogger {
 	public static final Logger POLICY = LoggerFactory.getLogger( "proc.policy" );
 	public static final Logger CHANNEL = LoggerFactory.getLogger( "proc.serve.channel" );
 
-	// omma queues
+	// api external communications
+	/**
+	 * Incoming requests via the api from applications.
+	 * - request - gross messages
+	 * - parcel - detailed content of request
+	 */
 	public static final Logger API_REQ_RECV = LoggerFactory.getLogger( "api.request.recv" );
 	public static final Logger API_PARCEL_RECV = LoggerFactory.getLogger( "api.parcel.recv" );
+	
+	/**
+	 * Serialization from application content providers 
+	 */
+	public static final Logger API_STORE_SEND = LoggerFactory.getLogger( "api.store.send" );
+	public static final Logger API_STORE_RECV = LoggerFactory.getLogger( "api.store.recv" );
 
+	/**
+	 * Notify external applications.
+	 */
+	public static final Logger API_INTENT = LoggerFactory.getLogger( "api.intent" );
+
+	// omma queues
 	public static final Logger QUEUE_REQ_ENTER = LoggerFactory.getLogger( "queue.request.in" );
 	public static final Logger QUEUE_REQ_EXIT = LoggerFactory.getLogger( "queue.request.out" );
 
@@ -52,9 +69,6 @@ public interface PLogger {
 	public static final Logger COMM_GW_SEND = LoggerFactory.getLogger( "comm.gw.send" );
 	public static final Logger COMM_GW_RECV = LoggerFactory.getLogger( "comm.gw.recv" );
 	
-	// acknowledgment processing
-	public static final Logger COMM_ACK = LoggerFactory.getLogger( "comm.ack" );
-
 	// settings
 
 	public static final Logger SET_PANTHR = LoggerFactory.getLogger( "pref.panthr" );
@@ -84,6 +98,4 @@ public interface PLogger {
 	public static final Logger STORE_PRESENCE_DQL = LoggerFactory.getLogger( "store.presence.dql" );
 	public static final Logger STORE_DISPOSAL_DQL = LoggerFactory.getLogger( "store.disposal.dql" );
 
-	// omma intents
-	public static final Logger API_INTENT = LoggerFactory.getLogger( "api.intent" );
 }

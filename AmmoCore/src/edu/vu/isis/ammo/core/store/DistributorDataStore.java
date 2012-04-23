@@ -934,6 +934,10 @@ public class DistributorDataStore {
 		try {
 			cursor = queryRequest(Tables.POSTAL.q(), null, 
 					POSTAL_KEY_CLAUSE, new String[]{ uid }, null);
+			if (! cursor.moveToFirst()) {
+				logger.warn("not found postal=[{}]", uid);
+				return null;
+			}
 			final PostalWorker worker = getPostalWorker(cursor, null);
 			cursor.close();
 			return worker;

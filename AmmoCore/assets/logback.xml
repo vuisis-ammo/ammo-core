@@ -31,6 +31,9 @@
   
   <logger name="api.intent" level="TRACE" />
   <logger name="api.parcel" level="TRACE" />
+  <logger name="api.store" level="TRACE" />
+  
+  <logger name="comm" level="TRACE" />
   
   <logger name="class.store" level="TRACE" />
   <logger name="class.dist" level="TRACE" />

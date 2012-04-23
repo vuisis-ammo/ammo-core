@@ -1241,6 +1241,7 @@ public class SerialChannel extends NetChannel
 
                             agmb.isSerialChannel( true );
                             AmmoGatewayMessage agm = agmb
+                            		.size(buf_payload.length)
                             		.payload( buf_payload )
                             		.channel( SerialChannel.this )
                             		.build();

@@ -1163,6 +1163,7 @@ public class TcpChannel extends NetChannel {
 
 
                             final AmmoGatewayMessage agm = agmb
+                            		.size(payload.length)
                             		.payload(payload)
                             		.channel( this.mDestination )
                             		.build();
