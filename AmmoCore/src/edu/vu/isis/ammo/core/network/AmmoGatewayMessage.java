@@ -319,7 +319,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 			      .append(payload.length)
 			      .toString();
 			logger.error(msg);
-			// throw new IllegalArgumentException(msg);
+			throw new IllegalArgumentException(msg);
 		}
 		this.priority = builder.priority;
 		this.version = builder.version;
