@@ -291,14 +291,16 @@ public class DistributorDataStore {
 	 * @param deviceId
 	 * @return
 	 */
-	public CapabilityWorker getCapabilityWorker(final IAmmoRequest ar, final AmmoService svc) {
-		return new CapabilityWorker((AmmoRequest) ar, svc);
+	public CapabilityWorker getCapabilityWorker(final IAmmoRequest ar, final AmmoService svc,
+			String device, String operator) {
+		return new CapabilityWorker((AmmoRequest) ar, svc, device, operator);
 	}
 	/** 
 	 * Capability store access class
 	 */
 	public class CapabilityWorker {
 		public final String device;
+		public final String operator;
 		public final String topic;	
 		public final String subtopic;
 		public final TimeTrigger expire;
@@ -306,8 +308,11 @@ public class DistributorDataStore {
 		final private DistributorDataStore parent = DistributorDataStore.this;
 		final private SQLiteDatabase db = this.parent.db;
 
-		private CapabilityWorker(final AmmoRequest ar, final AmmoService svc) {
-			this.device = svc.getDeviceId();
+		private CapabilityWorker(final AmmoRequest ar, final AmmoService svc, 
+				final String device, final String operator) {
+			
+			this.device = device;
+			this.operator = operator;
 			this.topic = ar.topic.asString();
 			this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
 
@@ -316,6 +321,7 @@ public class DistributorDataStore {
 
 		private CapabilityWorker(final Cursor pending, final AmmoService svc) {
 			this.device = pending.getString(pending.getColumnIndex(CapabilityField.ORIGIN.n()));
+			this.operator = pending.getString(pending.getColumnIndex(CapabilityField.OPERATOR.n()));
 			this.topic = pending.getString(pending.getColumnIndex(CapabilityField.TOPIC.n()));
 			this.subtopic = pending.getString(pending.getColumnIndex(CapabilityField.SUBTOPIC.n()));
 
@@ -337,6 +343,7 @@ public class DistributorDataStore {
 				final Long now = Long.valueOf(System.currentTimeMillis());
 				
 				cv.put(CapabilityField.LATEST.cv(), now);
+				if (this.operator != null) cv.put(CapabilityField.OPERATOR.cv(), this.operator);
 
 				final String whereClause = CAPABILITY_KEY_CLAUSE;
 				final String[] whereArgs = new String[]{ this.device, this.topic, this.subtopic };
@@ -516,27 +523,29 @@ public class DistributorDataStore {
 	 * @param deviceId
 	 * @return
 	 */
-	public PresenceWorker getPresenceWorker(final String deviceId) {
-		return new PresenceWorker(deviceId);
+	public PresenceWorker getPresenceWorker(final String deviceId, final String operator) {
+		return new PresenceWorker(deviceId, operator);
 	}
 	/** 
 	 * Postal store access class
 	 */
 	public class PresenceWorker {
 		public final String deviceId;
-		// public final String operator;
+		public final String operator;
 
 		final DistributorDataStore parent = DistributorDataStore.this;
 		final SQLiteDatabase db = parent.db;
 
-		private PresenceWorker(final String deviceId) {
+		private PresenceWorker(final String deviceId, final String operator) {
 			this.deviceId = deviceId;
+			this.operator = operator;
 		}
 
 		@Override
 		public String toString() {
 			return new StringBuilder()
 			.append(" device=[").append(deviceId).append(']')
+			.append(" operator=[").append(operator).append(']')
 			.toString();
 		}
 
@@ -561,6 +570,7 @@ public class DistributorDataStore {
 
 				final ContentValues cv = new ContentValues();
 				cv.put(CapabilityField.LATEST.cv(), now);
+				if (this.operator != null) cv.put(CapabilityField.OPERATOR.cv(), this.operator);
 
 				this.db.beginTransaction();
 				try {
@@ -572,7 +582,7 @@ public class DistributorDataStore {
 						return;
 					} 
 
-					cv.put(CapabilityField.ORIGIN.cv(), deviceId);
+					cv.put(CapabilityField.ORIGIN.cv(), this.deviceId);
 					cv.put(CapabilityField.FIRST.cv(), now);
 
 					long row = this.db.insert(Tables.PRESENCE.n, PresenceField._ID.n(), cv);
@@ -1039,6 +1049,7 @@ public class DistributorDataStore {
 		public final String subtopic;
 		public final Provider provider;
 		public final DistributorPolicy.Topic policy;
+		
 		public final SerialMoment serialMoment; 
 		public final int priority;
 		public final TimeTrigger expire;
@@ -1058,6 +1069,7 @@ public class DistributorDataStore {
 			this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
 			this.provider = ar.provider;
 			this.policy = svc.policy().matchPostal(topic);
+			
 			this.serialMoment = ar.moment;
 			this.notice = (ar.notice == null) ? Notice.newInstance() : ar.notice;
 

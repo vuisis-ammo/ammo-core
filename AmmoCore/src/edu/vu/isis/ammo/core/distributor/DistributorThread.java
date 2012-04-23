@@ -776,6 +776,8 @@ public class DistributorThread extends Thread {
 		}
 
 		final String deviceId;
+		final String operator;
+		
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 		case TERSE_MESSAGE:
@@ -785,11 +787,14 @@ public class DistributorThread extends Thread {
 				AmmoMessages.DataMessage dm = mw.getDataMessage();
 				if (dm.hasOriginDevice()) { 
 					deviceId = dm.getOriginDevice(); 
+					operator = dm.getUserId();
 				} else {
 					deviceId = null;
+					operator = null;
 				}
 			} else {
 				deviceId = null;
+				operator = null;
 			}
 			break;
 
@@ -797,18 +802,21 @@ public class DistributorThread extends Thread {
 			final boolean result = receiveAuthenticateResponse(context, mw);
 			logger.debug("authentication result={}", result);
 			deviceId = null;
+			operator = null;
 			break;
 
 		case PUSH_ACKNOWLEDGEMENT:
 			final boolean postalResult = receivePostalResponse(context, mw);
 			logger.debug("post acknowledgement {}", postalResult);
 			deviceId = null;
+			operator = null;
 			break;
 
 		case PULL_RESPONSE:
 			final boolean retrieveResult = receiveRetrievalResponse(context, mw);
 			logger.debug("retrieve response {}", retrieveResult);
 			deviceId = null;
+			operator = null;
 			break;
 
 		case SUBSCRIBE_MESSAGE:
@@ -822,14 +830,17 @@ public class DistributorThread extends Thread {
 
 				if (sm.hasOriginDevice()) { 
 					deviceId = sm.getOriginDevice();
+					operator = sm.getOriginUser();
 					final CapabilityWorker worker = 
-							this.store.getCapabilityWorker(ab.base(), this.ammoService);
+							this.store.getCapabilityWorker(ab.base(), this.ammoService, deviceId, operator);
 					worker.upsert();
 				} else {
 					deviceId = null;
+					operator = null;
 				}
 			} else {
 				deviceId = null;
+				operator = null;
 			}
 			break;
 		case AUTHENTICATION_MESSAGE:
@@ -837,16 +848,19 @@ public class DistributorThread extends Thread {
 		case UNSUBSCRIBE_MESSAGE:
 			logger.debug("{} message, no processing", mw.getType());
 			deviceId = null;
+			operator = null;
 			break;
 		default:
 			logger.error("unexpected reply type. {}", mw.getType());
 			deviceId = null;
+			operator = null;
 		}
+		
 		if (deviceId == null) {
 			logger.trace("[{}] did not carry a device", mw.getType());
 		} else {
 			ammoService.store()
-			.getPresenceWorker(deviceId)
+			.getPresenceWorker(deviceId, operator)
 			.upsert();
 		}
 		return true;
@@ -1005,6 +1019,7 @@ public class DistributorThread extends Thread {
 			// queuing
 			synchronized (this.store) {
 				final long id = worker.upsert(DisposalTotalState.DISTRIBUTE, payload);
+				
 				final INetworkService.OnSendMessageHandler msgHandler = 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
@@ -1198,7 +1213,7 @@ public class DistributorThread extends Thread {
 			final INetworkService.OnSendMessageHandler handler) 
 	{
 		logger.trace("::dispatchPostalRequest");
-		final String provider = worker.provider.toString();
+		final UUID uuid = worker.uuid;
 		final String msgType = worker.getType();
 
 		final Long now = System.currentTimeMillis();
@@ -1243,8 +1258,10 @@ public class DistributorThread extends Thread {
 
 					final AmmoMessages.DataMessage.Builder postReq = AmmoMessages.DataMessage
 							.newBuilder()
-							.setUid(provider)  // TODO FPE should this be uuid?
+							.setUid(uuid.toString())
 							.setMimeType(msgType)
+							.setUserId(ammoService.getOperatorId())
+							.setOriginDevice(ammoService.getDeviceId())
 							.setEncoding(encode.getType().name())
 							.setData(ByteString.copyFrom(serialized))
 							.setThresholds(noticeBuilder);
@@ -1316,7 +1333,6 @@ public class DistributorThread extends Thread {
 			}
 			// TODO FPE do for plugin, what fields for intent?
 			// what status such as: user-off-line
-			// change UNKNOWN to something more concrete
 		}
 		return true;
 	}
@@ -1766,7 +1782,8 @@ public class DistributorThread extends Thread {
 
 		final AmmoMessages.SubscribeMessage.Builder interestReq = AmmoMessages.SubscribeMessage.newBuilder()
 				.setMimeType(fulltopic.aggregate)
-				.setOriginDevice(ammoService.getDeviceId());
+				.setOriginDevice(ammoService.getDeviceId())
+				.setOriginDevice(ammoService.getOperatorId());
 
 		if (selection != null)
 			interestReq.setQuery(selection.cv());
@@ -1778,10 +1795,10 @@ public class DistributorThread extends Thread {
 
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
-				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-				mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
+				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder()
+				  .setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE)
 				// mw.setSessionUuid(sessionId);
-				mw.setSubscribeMessage(interestReq_);
+				  .setSubscribeMessage(interestReq_);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
 				return agmb.build();
 			}
@@ -1818,7 +1835,6 @@ public class DistributorThread extends Thread {
 
 			// Send acknowledgment, if requested by sender
 			final AmmoMessages.AcknowledgementThresholds at = resp.getThresholds();
-			// TODO FPE does this return a null or a "good" default?
 			
 			logger.debug("data message notice=[{}]", at);
 			if (at.getDeviceDelivered()) {
@@ -1828,13 +1844,14 @@ public class DistributorThread extends Thread {
 						.build();
 
 				final AmmoMessages.PushAcknowledgement.Builder pushAck = 
-						AmmoMessages.PushAcknowledgement
-						.newBuilder()
+						AmmoMessages.PushAcknowledgement.newBuilder()
 						.setUid(resp.getUid())
 						.setThreshold(bt)
 						.setDestinationDevice(resp.getOriginDevice())
+						.setDestinationUser(resp.getUserId())
 						.setAcknowledgingDevice(ammoService.getDeviceId())
-						.setStatus(PushStatus.UNKNOWN);
+						.setAcknowledgingUser(ammoService.getOperatorId())
+						.setStatus(PushStatus.RECEIVED);
 
 				final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper.newBuilder()
 						.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)

@@ -79,7 +79,8 @@
 
     <property name="proto.dir" value="../../Gateway/common/protocol"/>
 
-    <target name="protobuf">
+    <target name="protobuf"
+        description="build protobufs java source">
         <echo>Generating protocol buffers</echo>
         <mkdir dir="gen"/>
         <exec executable="protoc" taskname="pb">
