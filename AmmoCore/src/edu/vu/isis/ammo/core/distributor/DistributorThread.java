@@ -102,9 +102,9 @@ public class DistributorThread extends Thread {
 	private static final String ACTION_BASE = "edu.vu.isis.ammo.";
 
 	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
-	public static final String ACTION_MSG_RECEIPT = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
-	public static final String ACTION_MSG_DELIVERED = ACTION_BASE+"ACTION_MESSAGE_DELIVERED";
-
+	public static final String ACTION_MSG_RECEIPT = ACTION_BASE+"ACTION_MESSAGE_GATEWAY_DELIVERED";
+	public static final String ACTION_MSG_DELIVERED = ACTION_BASE+"ACTION_MESSAGE_DEVICE_DELIVERED";
+	public static final String ACTION_MSG_PLUGIN_DELIVERED = ACTION_BASE+"ACTION_MESSAGE_PLUGIN_DELIVERED";
 
 	public static final String EXTRA_TOPIC = "topic";
 	public static final String EXTRA_SUBTOPIC = "subtopic";
@@ -908,6 +908,7 @@ public class DistributorThread extends Thread {
 
 			final Dispersal dispersal = worker.policy.makeRouteMap();
 
+			// TODO FPE suppress apriori and EAGER logic
 			final byte[] payload;			
 			switch (worker.serialMoment.type()) {
 			case APRIORI:
@@ -1242,7 +1243,7 @@ public class DistributorThread extends Thread {
 
 					final AmmoMessages.DataMessage.Builder postReq = AmmoMessages.DataMessage
 							.newBuilder()
-							.setUid(provider)
+							.setUid(provider)  // TODO FPE should this be uuid?
 							.setMimeType(msgType)
 							.setEncoding(encode.getType().name())
 							.setData(ByteString.copyFrom(serialized))
@@ -1313,6 +1314,9 @@ public class DistributorThread extends Thread {
 				DistributorThread.sendIntent(note.via.v, noticed, context);
 				PLogger.API_INTENT.debug("ack intent: [{}]", note);
 			}
+			// TODO FPE do for plugin, what fields for intent?
+			// what status such as: user-off-line
+			// change UNKNOWN to something more concrete
 		}
 		return true;
 	}
@@ -1814,6 +1818,8 @@ public class DistributorThread extends Thread {
 
 			// Send acknowledgment, if requested by sender
 			final AmmoMessages.AcknowledgementThresholds at = resp.getThresholds();
+			// TODO FPE does this return a null or a "good" default?
+			
 			logger.debug("data message notice=[{}]", at);
 			if (at.getDeviceDelivered()) {
 
