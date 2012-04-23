@@ -357,7 +357,16 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
             // payload
             buf.put( this.payload );
-            logger.debug( "   payload={}", this.payload );
+            if (logger.isDebugEnabled()) {
+                
+                if (payload.length > 450) {
+                    //ByteBuffer tmp = ByteBuffer.wrap(payload, 0, 450);
+                    logger.debug( "  payload length={} ", payload.length);                    
+                }
+                else
+                    logger.debug( "   payload={}", this.payload );
+            }
+
             buf.flip();
             return buf;
         } else if ( version == VERSION_1_TERSE ) {
