@@ -777,7 +777,7 @@ public class DistributorThread extends Thread {
 
 		final String deviceId;
 		final String operator;
-		
+
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 		case TERSE_MESSAGE:
@@ -855,7 +855,7 @@ public class DistributorThread extends Thread {
 			deviceId = null;
 			operator = null;
 		}
-		
+
 		if (deviceId == null) {
 			logger.trace("[{}] did not carry a device", mw.getType());
 		} else {
@@ -922,9 +922,13 @@ public class DistributorThread extends Thread {
 
 			final Dispersal dispersal = worker.policy.makeRouteMap();
 
+			final byte[] payload;	
+
 			// TODO FPE suppress apriori and EAGER logic
-			final byte[] payload;			
-			switch (worker.serialMoment.type()) {
+			// final SerialMoment.Type smType = worker.serialMoment.type();
+			final SerialMoment.Type smType = SerialMoment.Type.LAZY;
+
+			switch (smType) {
 			case APRIORI:
 				if (worker.payload == null) {
 					logger.error("apriori serialization requires payload");
@@ -957,90 +961,97 @@ public class DistributorThread extends Thread {
 			}
 
 			if (!that.isConnected()) {
-				long key = worker.upsert(DisposalTotalState.DISTRIBUTE, payload);
+				long key = worker.payload(payload)
+						.upsert(DisposalTotalState.DISTRIBUTE);
 
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
 
-			final RequestSerializer serializer = RequestSerializer.newInstance(worker.provider, worker.payload);
-			serializer.setSerializer(new RequestSerializer.OnSerialize() {
+			switch (smType) {
+			case LAZY:
+			default:
+				final RequestSerializer serializer = RequestSerializer.newInstance(worker.provider, worker.payload);
+				serializer.setSerializer(new RequestSerializer.OnSerialize() {
 
-				final RequestSerializer serializer_ = serializer;
-				final AmmoService that_ = that;
-				final PostalWorker postal_ = worker;
-
-				@Override
-				public byte[] run(Encoding encode) {
-					if (serializer_.payload != null) {
-						switch (serializer_.payload.whatContent()) {
-						case NONE: break;
-
-						case CV:
-							final byte[] result = 
-							RequestSerializer.serializeFromContentValues(
-									serializer_.payload.getCV(),
-									encode);
-
-							if (result == null) {
-								logger.error("Null result from serialize content value, encoding into {}", encode);
-							}
-							return result;
-
-						case BYTE:
-						case STR:
-							return serializer_.payload.asBytes();
-						}
-					} 
-					try {
-						final byte[] result = 
-								RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
-										serializer_.provider.asUri(), encode);
-
-						if (result == null) {
-							logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
-						}
-						return result;
-					} catch (IOException e1) {
-						logger.error("invalid row for serialization {}", e1.getLocalizedMessage());
-						return null;
-					} catch (TupleNotFoundException e) {
-						logger.error("tuple not found when processing postal table");
-						postal_.delete(e.missingTupleUri.getPath());
-						return null;
-					} catch (NonConformingAmmoContentProvider e) {
-						e.printStackTrace();
-						return null;
-					}
-				}
-			});
-
-			// We synchronize on the store to avoid a race between dispatch and
-			// queuing
-			synchronized (this.store) {
-				final long id = worker.upsert(DisposalTotalState.DISTRIBUTE, payload);
-				
-				final INetworkService.OnSendMessageHandler msgHandler = 
-						new INetworkService.OnSendMessageHandler() {
-					final DistributorThread parent = DistributorThread.this;
-					final long id_ = id;
-					final String topic_ = worker.topic;
-					final String subtopic_ = worker.subtopic;
-					final String auid_ = worker.auid;
-					final Notice notice_ = worker.notice;
+					final RequestSerializer serializer_ = serializer;
+					final AmmoService that_ = that;
+					final PostalWorker postal_ = worker;
 
 					@Override
-					public boolean ack(String channel, DisposalState status) {
-						final ChannelAck ack = new ChannelAck(
-								Tables.POSTAL, id_, topic_, subtopic_, auid_, notice_, channel, status);
-						return parent.announceChannelAck(ack);
-					}
-				};
-				final Dispersal dispatchResult = this.dispatchPostalRequest(that, 
-						worker, dispersal, serializer, 
-						msgHandler);
+					public byte[] run(Encoding encode) {
+						if (serializer_.payload != null) {
+							switch (serializer_.payload.whatContent()) {
+							case NONE: break;
 
-				this.store.updatePostalByKey(id, null, dispatchResult);
+							case CV:
+								final byte[] result = 
+								RequestSerializer.serializeFromContentValues(
+										serializer_.payload.getCV(),
+										encode);
+
+								if (result == null) {
+									logger.error("Null result from serialize content value, encoding into {}", encode);
+								}
+								return result;
+
+							case BYTE:
+							case STR:
+								return serializer_.payload.asBytes();
+							}
+						} 
+						try {
+							final byte[] result = 
+									RequestSerializer.serializeFromProvider(that_.getContentResolver(), 
+											serializer_.provider.asUri(), encode);
+
+							if (result == null) {
+								logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
+							}
+							return result;
+						} catch (IOException e1) {
+							logger.error("invalid row for serialization {}", e1.getLocalizedMessage());
+							return null;
+						} catch (TupleNotFoundException e) {
+							logger.error("tuple not found when processing postal table");
+							postal_.delete(e.missingTupleUri.getPath());
+							return null;
+						} catch (NonConformingAmmoContentProvider e) {
+							e.printStackTrace();
+							return null;
+						}
+					}
+				});
+				// We synchronize on the store to avoid a 
+				// race between dispatch and queuing
+				synchronized (this.store) {
+					final long id = worker
+							.payload(payload)
+							.upsert(DisposalTotalState.DISTRIBUTE);
+
+					final INetworkService.OnSendMessageHandler msgHandler = 
+							new INetworkService.OnSendMessageHandler() {
+						final DistributorThread parent = DistributorThread.this;
+						final long id_ = id;
+						final String topic_ = worker.topic;
+						final String subtopic_ = worker.subtopic;
+						final String auid_ = worker.auid;
+						final Notice notice_ = worker.notice;
+
+						@Override
+						public boolean ack(String channel, DisposalState status) {
+							final ChannelAck ack = new ChannelAck(
+									Tables.POSTAL, id_, topic_, subtopic_, auid_, notice_, channel, status);
+							return parent.announceChannelAck(ack);
+						}
+					};
+					final Dispersal dispatchResult = this.dispatchPostalRequest(that, 
+							worker, dispersal, serializer, 
+							msgHandler);
+
+					this.store.updatePostalByKey(id, null, dispatchResult);
+				}
+				break;
 			}
 
 		} catch (NullPointerException ex) {
@@ -1085,7 +1096,9 @@ public class DistributorThread extends Thread {
 					data = null;
 				}
 
-				switch (postal.serialMoment.type()) {
+				final SerialMoment.Type smType = SerialMoment.Type.LAZY; // postal.serialMoment.type();
+
+				switch (smType) {
 				case APRIORI:
 				case EAGER:
 					serializer.setSerializer( new RequestSerializer.OnSerialize() {
@@ -1132,59 +1145,68 @@ public class DistributorThread extends Thread {
 
 				final DistributorPolicy.Topic policy = that.policy().matchPostal(postal.topic);
 				final Dispersal dispersal = policy.makeRouteMap();	
-				Cursor channelCursor = null;
-				try {
-					channelCursor = this.store.getPostalDisposalWorker().queryByParent(id);
-					for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
-							moreChannels = channelCursor.moveToNext()) 
-					{
-						final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
-						final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
-						dispersal.put(channel, DisposalState.getInstanceById(channelState));
+				
+				switch (smType) {
+				case APRIORI:
+				case EAGER:
+					logger.error("serialization moment=[{}] not supported", smType);
+					break;
+				case LAZY:
+				default:
+					Cursor channelCursor = null;
+					try {
+						channelCursor = this.store.getPostalDisposalWorker().queryByParent(id);
+						for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
+								moreChannels = channelCursor.moveToNext()) 
+						{
+							final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+							final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
+							dispersal.put(channel, DisposalState.getInstanceById(channelState));
+						}
+						logger.trace("prior channel states {}", dispersal);
+					} finally {
+						if (channelCursor != null) channelCursor.close();
 					}
-					logger.trace("prior channel states {}", dispersal);
-				} finally {
-					if (channelCursor != null) channelCursor.close();
-				}
 
-				// Dispatch the request.
-				try {
-					if (!that.isConnected()) {
-						logger.debug("no network connection while processing table");
-						continue;
-					} 
-					synchronized (this.store) {
-						final ContentValues values = new ContentValues();
+					// Dispatch the request.
+					try {
+						if (!that.isConnected()) {
+							logger.debug("no network connection while processing table");
+							continue;
+						} 
+						synchronized (this.store) {
+							final ContentValues values = new ContentValues();
 
-						values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
-						long numUpdated = this.store.updatePostalByKey(id, values, null);
-						logger.debug("updated {} postal items", numUpdated);
+							values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
+							long numUpdated = this.store.updatePostalByKey(id, values, null);
+							logger.debug("updated {} postal items", numUpdated);
 
-						final INetworkService.OnSendMessageHandler msgHandler = null;
-						new INetworkService.OnSendMessageHandler() {
-							final DistributorThread parent = DistributorThread.this;
-							final int id_ = id;
-							final String auid_ = postal.auid;
-							final String topic_ = postal.topic;
-							final String subtopic_ = postal.subtopic;
-							final Notice notice_ = postal.notice;
+							final INetworkService.OnSendMessageHandler msgHandler = null;
+							new INetworkService.OnSendMessageHandler() {
+								final DistributorThread parent = DistributorThread.this;
+								final int id_ = id;
+								final String auid_ = postal.auid;
+								final String topic_ = postal.topic;
+								final String subtopic_ = postal.subtopic;
+								final Notice notice_ = postal.notice;
 
-							@Override
-							public boolean ack(String channel, DisposalState status) {
-								final ChannelAck ca = new ChannelAck(Tables.POSTAL, id_, 
-										topic_, subtopic_, auid_, notice_, channel, status);
-								return parent.announceChannelAck(ca);
-							}
-						};
+								@Override
+								public boolean ack(String channel, DisposalState status) {
+									final ChannelAck ca = new ChannelAck(Tables.POSTAL, id_, 
+											topic_, subtopic_, auid_, notice_, channel, status);
+									return parent.announceChannelAck(ca);
+								}
+							};
 
-						final Dispersal dispatchResult = this.dispatchPostalRequest(
-								that, postal, dispersal, serializer, msgHandler);
+							final Dispersal dispatchResult = this.dispatchPostalRequest(
+									that, postal, dispersal, serializer, msgHandler);
 
-						this.store.updatePostalByKey(id, null, dispatchResult);
+							this.store.updatePostalByKey(id, null, dispatchResult);
+						}
+					} catch (NullPointerException ex) {
+						logger.warn("processing postal request from cache failed {} {}", 
+								ex, ex.getStackTrace());
 					}
-				} catch (NullPointerException ex) {
-					logger.warn("processing postal request from cache failed {} {}", 
-							ex, ex.getStackTrace());
 				}
 			}
 			pending.close();
@@ -1301,8 +1323,11 @@ public class DistributorThread extends Thread {
 
 		final PostalWorker worker = this.store().getPostalWorkerByKey(pushResp.getUid());
 
-		if (worker.notice.atDelivery.via.hasHeartbeat()) {
-			// TODO update CAPABILITY or RECIPIENT table
+		if (worker == null) {
+			// TODO FPE this can happen if the postal for which the
+			// acknowledgment was received is no longer present.
+			logger.warn("postal request no longer present {}", pushResp.getUid());
+			return false;
 		}
 
 		if (worker.notice.isRemoteActive()) {
@@ -1796,9 +1821,9 @@ public class DistributorThread extends Thread {
 			@Override
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
 				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder()
-				  .setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE)
-				// mw.setSessionUuid(sessionId);
-				  .setSubscribeMessage(interestReq_);
+						.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE)
+						// mw.setSessionUuid(sessionId);
+						.setSubscribeMessage(interestReq_);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
 				return agmb.build();
 			}
@@ -1835,7 +1860,7 @@ public class DistributorThread extends Thread {
 
 			// Send acknowledgment, if requested by sender
 			final AmmoMessages.AcknowledgementThresholds at = resp.getThresholds();
-			
+
 			logger.debug("data message notice=[{}]", at);
 			if (at.getDeviceDelivered()) {
 
@@ -1859,14 +1884,14 @@ public class DistributorThread extends Thread {
 
 				final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb, 
 						new INetworkService.OnSendMessageHandler() {
-							@Override
-							public boolean ack(String channel, DisposalState status) {
-								logger.debug("delivered ack: uid=[{}] origin=[{}] reflect=[{}]", 
-										new Object[]{pushAck.getUid(), pushAck.getDestinationDevice(), pushAck.getAcknowledgingDevice()});
-								return true;
-							}
+					@Override
+					public boolean ack(String channel, DisposalState status) {
+						logger.debug("delivered ack: uid=[{}] origin=[{}] reflect=[{}]", 
+								new Object[]{pushAck.getUid(), pushAck.getDestinationDevice(), pushAck.getAcknowledgingDevice()});
+						return true;
+					}
 				});
-						
+
 				if (channel != null) {
 					channel.sendRequest(oagmb.build());
 				}

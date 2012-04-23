@@ -199,11 +199,11 @@ public class DistributorDataStore {
 	 */
 	public enum CapabilityField  implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-		
+
 		ORIGIN("origin","TEXT"),
 		// The device identifier, this must be present
 		// required
-		
+
 		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
 
@@ -214,7 +214,7 @@ public class DistributorDataStore {
 		OPERATOR("operator", "TEXT"),
 		// The name of the operator using the channel
 		// optional
-		
+
 		EXPIRATION("expiration", "INTEGER"),
 		// Time-stamp at which point the request 
 		// becomes stale and can be discarded.
@@ -310,7 +310,7 @@ public class DistributorDataStore {
 
 		private CapabilityWorker(final AmmoRequest ar, final AmmoService svc, 
 				final String device, final String operator) {
-			
+
 			this.device = device;
 			this.operator = operator;
 			this.topic = ar.topic.asString();
@@ -341,7 +341,7 @@ public class DistributorDataStore {
 			synchronized(this.parent) {	
 				final ContentValues cv = new ContentValues();
 				final Long now = Long.valueOf(System.currentTimeMillis());
-				
+
 				cv.put(CapabilityField.LATEST.cv(), now);
 				if (this.operator != null) cv.put(CapabilityField.OPERATOR.cv(), this.operator);
 
@@ -360,7 +360,7 @@ public class DistributorDataStore {
 					cv.put(CapabilityField.ORIGIN.cv(), this.device);
 					cv.put(CapabilityField.TOPIC.cv(), this.topic);
 					cv.put(CapabilityField.SUBTOPIC.cv(), this.subtopic);
-					
+
 					cv.put(CapabilityField.FIRST.cv(), now);
 
 					long row = this.db.insert(Tables.CAPABILITY.n, PresenceField._ID.n(), cv);
@@ -443,7 +443,7 @@ public class DistributorDataStore {
 		OPERATOR("operator", "TEXT"),
 		// The name of the operator using the channel
 		// optional
-		
+
 		EXPIRATION("expiration", "INTEGER"),
 		// Time-stamp at which point the presence 
 		// becomes stale and can be discarded.
@@ -939,13 +939,13 @@ public class DistributorDataStore {
 	public PostalWorker getPostalWorker(final Cursor pending, final AmmoService svc) {
 		return new PostalWorker(pending, svc);
 	}
-	public PostalWorker getPostalWorkerByKey(String uid) {
+	public PostalWorker getPostalWorkerByKey(String uuid) {
 		Cursor cursor = null;
 		try {
 			cursor = queryRequest(Tables.POSTAL.q(), null, 
-					POSTAL_KEY_CLAUSE, new String[]{ uid }, null);
+					POSTAL_KEY_CLAUSE, new String[]{ uuid }, null);
 			if (! cursor.moveToFirst()) {
-				logger.warn("not found postal=[{}]", uid);
+				logger.warn("not found postal=[{}]", uuid);
 				return null;
 			}
 			final PostalWorker worker = getPostalWorker(cursor, null);
@@ -1048,8 +1048,8 @@ public class DistributorDataStore {
 		public final String topic;	
 		public final String subtopic;
 		public final Provider provider;
-		public final DistributorPolicy.Topic policy;
-		
+		public DistributorPolicy.Topic policy;
+
 		public final SerialMoment serialMoment; 
 		public final int priority;
 		public final TimeTrigger expire;
@@ -1063,13 +1063,13 @@ public class DistributorDataStore {
 			super(DistributorDataStore.this.db, Tables.POSTAL, Tables.POSTAL_DISPOSAL);
 
 			this.id = -1;
-			this.uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			this.uuid = UUID.fromString(ar.uuid);
 			this.auid = ar.uid;
 			this.topic = ar.topic.asString();
 			this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
 			this.provider = ar.provider;
 			this.policy = svc.policy().matchPostal(topic);
-			
+
 			this.serialMoment = ar.moment;
 			this.notice = (ar.notice == null) ? Notice.newInstance() : ar.notice;
 
@@ -1091,36 +1091,55 @@ public class DistributorDataStore {
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
 			this.serialMoment = new SerialMoment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
-			this.policy = (svc == null) ? null : svc.policy().matchPostal(topic);
+			
 
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
 			this.expire = new TimeTrigger(expireEnc);
-			
-			this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
-			
-			this.notice = Notice.newInstance(); 
-			this.notice.setItem(Threshold.SENT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_SENT.n())));
-			this.notice.setItem(Threshold.DELIVERED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DELIVERY.n())));
-			this.notice.setItem(Threshold.RECEIVED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_RECEIPT.n())));
-			this.notice.setItem(Threshold.GATE_IN, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_IN.n())));
-			this.notice.setItem(Threshold.GATE_OUT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_OUT.n())));
 
-			this.dispersal = this.policy.makeRouteMap();
-			Cursor channelCursor = null;
-			try { 
-				channelCursor = getPostalDisposalWorker().queryByParent(this.id);
+			this.notice = Notice.newInstance();
+			try {
+				if (svc != null) {
+					this.policy = svc.policy().matchPostal(topic);
+					
+					this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 
-				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
-					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
-					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
-					this.dispersal.put(channel, DisposalState.getInstanceById(channelState));
+					this.notice.setItem(Threshold.SENT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_SENT.n())));
+					this.notice.setItem(Threshold.DELIVERED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DELIVERY.n())));
+					this.notice.setItem(Threshold.RECEIVED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_RECEIPT.n())));
+					this.notice.setItem(Threshold.GATE_IN, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_IN.n())));
+					this.notice.setItem(Threshold.GATE_OUT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_OUT.n())));
+
+					this.dispersal = this.policy.makeRouteMap();
+					Cursor channelCursor = null;
+					try { 
+						channelCursor = getPostalDisposalWorker().queryByParent(this.id);
+
+						for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
+							final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
+							final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
+							this.dispersal.put(channel, DisposalState.getInstanceById(channelState));
+						}
+					} finally {
+						if (channelCursor != null) channelCursor.close();
+					}
+					logger.trace("process postal row: uid=[{}:{}] topic=[{}:{}] dispersal=[{}]", 
+							new Object[] { this.id, this.uuid, this.topic, this.subtopic, this.dispersal });
 				}
-			} finally {
-				if (channelCursor != null) channelCursor.close();
-			}
-			logger.trace("process postal row: id=[{}] topic=[{}:{}] dispersal=[{}]", 
-					new Object[] { this.id, this.topic, this.subtopic, this.dispersal });
+			} catch (IllegalStateException ex) {
+				if (logger.isWarnEnabled()) {
+					final StringBuilder sb = new StringBuilder().append(':');
+					for (String name : pending.getColumnNames()) {
+						sb.append(name).append('=').append(pending.getColumnIndex(name)).append(" ");
+					}
+					logger.warn("broken columns=[{}]", sb.toString());
+				}
+			} 
+		}
+
+		public PostalWorker payload(byte[] payload) {
+			this.payload = new Payload(payload);
+			return this;
 		}
 
 		/**
@@ -1135,7 +1154,7 @@ public class DistributorDataStore {
 		 * @param payload
 		 * @return
 		 */
-		public long upsert(final DisposalTotalState totalState, final byte[] payload) {
+		public long upsert(final DisposalTotalState totalState) {
 			synchronized(DistributorDataStore.this) {	
 				// build key
 				if (uuid == null) {
@@ -1160,8 +1179,12 @@ public class DistributorDataStore {
 
 				cv.put(RequestField.CREATED.cv(), System.currentTimeMillis());				
 				cv.put(RequestField.DISPOSITION.cv(), totalState.cv());
-				
-				if (payload != null) cv.put(PostalField.PAYLOAD.cv(), payload);
+
+				if (payload == null) {
+					cv.put(PostalField.PAYLOAD.cv(), "");
+				} else {
+					cv.put(PostalField.PAYLOAD.cv(), payload.toString());
+				}
 
 				cv.put(PostalField.NOTICE_SENT.cv(), this.notice.atSend.via.v);	
 				cv.put(PostalField.NOTICE_DELIVERY.cv(), this.notice.atDelivery.via.v);	
