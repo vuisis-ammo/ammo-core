@@ -818,6 +818,16 @@ public class DistributorDataStore {
 	.append(RequestField.UUID.q(null)).append("=?").toString();
 
 
+	/**
+	 * This builds a query which returns rows 
+	 * for which work could still be performed.
+	 * This is the case if *any* of the channels is
+	 * still marked as pending.
+	 * 
+	 * @param request
+	 * @param disposal
+	 * @return
+	 */
 	private static String RequestStatusQuery(Tables request, Tables disposal) {
 		return new StringBuilder()
 		.append(" SELECT ").append(" * ")
@@ -858,27 +868,6 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-
-	private synchronized Cursor queryRequestByUuid(String[] projection, String uuid, String sortOrder) {
-		try {
-			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
-
-			qb.setTables(Tables.REQUEST.n);
-			//qb.setProjectionMap(projection);
-
-			// Get the database and run the query.
-			final SQLiteDatabase db = this.helper.getReadableDatabase();
-			return qb.query(db, projection, REQUEST_UUID_QUERY, new String[]{ uuid }, null, null,
-					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: RetrievalConstants.DEFAULT_SORT_ORDER);
-		} catch (IllegalArgumentException ex) {
-			logger.error("query retrieval by key {} {} {}", new Object[]{ projection, uuid });
-		}
-		return null;
-	}
-	static private final String REQUEST_UUID_QUERY = new StringBuilder()
-	.append(RequestField.UUID.q(null)).append("=?")
-	.toString();
 
 	private synchronized Cursor queryRequestByTopic(String rel, String[] projection,
 			final String topic, final String subtopic, String sortOrder) {
@@ -1085,7 +1074,7 @@ public class DistributorDataStore {
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
 			this.serialMoment = new SerialMoment(pending.getInt(pending.getColumnIndex(RequestField.SERIAL_MOMENT.n())));
-			
+
 
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
@@ -1101,7 +1090,7 @@ public class DistributorDataStore {
 
 				if (svc != null) {
 					this.policy = svc.policy().matchPostal(topic);
-					
+
 					this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 
 					this.dispersal = this.policy.makeRouteMap();
@@ -1524,8 +1513,25 @@ public class DistributorDataStore {
 
 	public synchronized Cursor queryRetrievalByKey(String[] projection, 
 			final String uuid, final String sortOrder) {
-		return queryRequestByUuid(projection, uuid, sortOrder);
+
+		try {
+			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+
+			qb.setTables(Tables.RETRIEVAL.n);
+
+			// Get the database and run the query.
+			final SQLiteDatabase db = this.helper.getReadableDatabase();
+			return qb.query(db, projection, RETRIEVAL_UUID_QUERY, new String[]{ uuid }, null, null,
+					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
+							: RetrievalConstants.DEFAULT_SORT_ORDER);
+		} catch (IllegalArgumentException ex) {
+			logger.error("query retrieval by key {} {} {}", new Object[]{ projection, uuid });
+		}
+		return null;
 	}
+	static private final String RETRIEVAL_UUID_QUERY = new StringBuilder()
+	.append(RequestField.UUID.q(null)).append("=?")
+	.toString();
 
 	/**
 	 * Upsert
@@ -2470,26 +2476,55 @@ public class DistributorDataStore {
 	 * When a channel is deactivated all of its subscriptions  
 	 * will need to be re-done on re-connect.
 	 * Retrievals and postals won't have this problem,
-	 * TODO unless they are queued.
+	 * 
+	 * TODO
+	 * Discussion:
+	 * What do we want to do with queued requests?
+	 * Should they be reset to pending or left queued?
+	 * This depends on what a channel does when it disconnects.
+	 * Does it clear its queue indiscriminately?  I probably should.
+	 * In that case this method should set queued items back to pending.
+	 * 
 	 * @param channel
 	 * @return
 	 */
 	public synchronized int deactivateDisposalStateByChannel(String channel) {
 		try {
 			this.db.update(Tables.POSTAL_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
-					DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
+					DISPOSAL_DEACTIVATE_POSTAL_CLAUSE, new String[]{ channel } );
 
 			this.db.update(Tables.RETRIEVAL_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
-					DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
-
+					DISPOSAL_DEACTIVATE_RETRIEVAL_CLAUSE, new String[]{ channel } );
+			
 			this.db.update(Tables.INTEREST_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
-					DISPOSAL_DEACTIVATE_CLAUSE, new String[]{ channel } );
+					DISPOSAL_DEACTIVATE_INTEREST_CLAUSE, new String[]{ channel } );
+			
 		} catch (IllegalArgumentException ex) {
 			logger.error("deactivateDisposalStateByChannel {} ", channel);
 		}
 		return 0;
 	}	
-	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
+	static final private String DISPOSAL_DEACTIVATE_POSTAL_CLAUSE = new StringBuilder()
+	.append(DisposalField.CHANNEL.q(null)).append("=?")
+	.append(" AND ")
+	.append(DisposalField.STATE.q(null))
+	.append(" NOT IN ( ")
+	.append(DisposalState.BAD.q()).append(',')
+	.append(DisposalState.QUEUED.q()).append(',')
+	.append(DisposalState.SENT.q()).append(')')
+	.toString();
+	
+	static final private String DISPOSAL_DEACTIVATE_RETRIEVAL_CLAUSE = new StringBuilder()
+	.append(DisposalField.CHANNEL.q(null)).append("=?")
+	.append(" AND ")
+	.append(DisposalField.STATE.q(null))
+	.append(" NOT IN ( ")
+	.append(DisposalState.BAD.q()).append(',')
+	.append(DisposalState.QUEUED.q()).append(',')
+	.append(DisposalState.SENT.q()).append(')')
+	.toString();
+	
+	static final private String DISPOSAL_DEACTIVATE_INTEREST_CLAUSE = new StringBuilder()
 	.append(DisposalField.CHANNEL.q(null)).append("=?")
 	.append(" AND ")
 	.append(DisposalField.STATE.q(null))
