@@ -1244,7 +1244,7 @@ public class TcpChannel extends NetChannel {
 
 	@Override
 	public void toLog(String context) {
-		PLogger.ipc_panthr_gw_log.debug(" {}:{} timeout={} sec", 
+		PLogger.SET_PANTHR_GW.debug(" {}:{} timeout={} sec", 
 				new Object[]{ gatewayHost, gatewayPort, flatLineTime});
 	}
 }
