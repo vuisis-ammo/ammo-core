@@ -68,7 +68,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("class.store");
-	public static final int VERSION = 39;
+	public static final int VERSION = 40;
 
 	public static final String NAME = 
 			"distributor.db";   // to create .../databases/distributor.db
@@ -655,9 +655,6 @@ public class DistributorDataStore {
 			values.put(RequestField.MODIFIED.n(), now);
 		}
 
-		if (!values.containsKey(RequestField.NOTICE.n())) {
-			values.put(RequestField.NOTICE.n(), 0);
-		}
 		return values;
 	}
 
@@ -699,14 +696,9 @@ public class DistributorDataStore {
 		SERIAL_MOMENT("serial_event", "INTEGER"),
 		// When the serialization happens. {APRIORI, EAGER, LAZY}
 
-		EXPIRATION("expiration", "INTEGER"),
+		EXPIRATION("expiration", "INTEGER");
 		// Time-stamp at which point the request 
 		// becomes stale and can be discarded.
-
-		NOTICE("notice", "INTEGER");
-		// indicates which thresholds are to be noticed
-		// see Notice.java for detail
-
 
 		final public TableFieldState impl;
 
@@ -852,7 +844,6 @@ public class DistributorDataStore {
 			final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
 			qb.setTables(rel);
-			qb.setProjectionMap(RequestConstants.PROJECTION_MAP);
 
 			// Get the database and run the query.
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
@@ -1098,16 +1089,17 @@ public class DistributorDataStore {
 			this.expire = new TimeTrigger(expireEnc);
 
 			this.notice = Notice.newInstance();
+
 			try {
+				this.notice.setItem(Threshold.SENT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_SENT.n())));
+				this.notice.setItem(Threshold.DEVICE_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DEVICE_DELIVERED.n())));
+				this.notice.setItem(Threshold.GATE_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATEWAY_DELIVERED.n())));
+				this.notice.setItem(Threshold.PLUGIN_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_PLUGIN_DELIVERED.n())));
+
 				if (svc != null) {
 					this.policy = svc.policy().matchPostal(topic);
 					
 					this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
-
-					this.notice.setItem(Threshold.SENT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_SENT.n())));
-					this.notice.setItem(Threshold.DEVICE_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DEVICE_DELIVERED.n())));
-					this.notice.setItem(Threshold.GATE_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATEWAY_DELIVERED.n())));
-					this.notice.setItem(Threshold.PLUGIN_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_PLUGIN_DELIVERED.n())));
 
 					this.dispersal = this.policy.makeRouteMap();
 					Cursor channelCursor = null;

@@ -30,11 +30,12 @@
      <appender-ref ref="LOGCAT" />
      <appender-ref ref="FILE" />
   </logger>
-  
+  <!-- 
   <logger name="api.request" level="WARN" />
   <logger name="api.intent" level="WARN" />
   <logger name="api.parcel" level="WARN" />
   <logger name="api.store" level="WARN" />
+   -->
   
   <logger name="comm" level="WARN" />
   

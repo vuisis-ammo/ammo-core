@@ -797,7 +797,7 @@ public class DistributorThread extends Thread {
 		case PUSH_ACKNOWLEDGEMENT:
 			final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
 			logger.debug("post acknowledgement {}", postalResult);
-			deviceId = null;
+			deviceId = null; // the response actually does carry a device and operator
 			operator = null;
 			break;
 
@@ -907,7 +907,7 @@ public class DistributorThread extends Thread {
 		// Dispatch the message.
 		try {
 			final PostalWorker worker = that.store().getPostalWorker(ar, that);
-			logger.trace("process request topic {}, uuid {}", worker.topic, worker.uuid);
+			logger.trace("process request topic=[{}] uuid=[{}]", worker.topic, worker.uuid);
 
 			final Dispersal dispersal = worker.policy.makeRouteMap();
 
@@ -1223,7 +1223,7 @@ public class DistributorThread extends Thread {
 			final RequestSerializer serializer, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
-		logger.trace("::dispatchPostalRequest");
+		logger.trace("::dispatchPostalRequest uuid=[{}]", worker.uuid);
 		final UUID uuid = worker.uuid;
 		final String msgType = worker.getType();
 
@@ -1299,8 +1299,6 @@ public class DistributorThread extends Thread {
 	 * @return
 	 */
 	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
-		logger.trace("receive response POSTAL");
-
 		if (mw == null)
 			return false;
 
@@ -1309,17 +1307,19 @@ public class DistributorThread extends Thread {
 
 		final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
 		// generate an intent if it was requested
-
-		final PostalWorker worker = this.store().getPostalWorkerByKey(pushResp.getUid());
-
+		final String uuid = pushResp.getUid();
+		final PostalWorker worker = this.store().getPostalWorkerByKey(uuid);
 		if (worker == null) {
 			// TODO FPE this can happen if the postal for which the
 			// acknowledgment was received is no longer present.
-			logger.warn("postal request no longer present {}", pushResp.getUid());
+			logger.warn("postal request no longer present {}", uuid);
 			return false;
 		}
+		logger.trace("receive response POSTAL uuid=[{}] worker=[{}]", 
+				uuid, worker.notice);	
 
-		if (worker.notice.isRemoteActive()) {
+		if (pushResp.hasThreshold()) {
+			final AcknowledgementThresholds thresholds = pushResp.getThreshold();
 
 			final IntentBuilder noteBuilder = Notice.getIntentBuilder(worker.notice)
 					.topic(worker.topic)
@@ -1329,31 +1329,34 @@ public class DistributorThread extends Thread {
 					.device(pushResp.getAcknowledgingDevice())
 					.operator(pushResp.getAcknowledgingUser());
 
-			if (worker.dispersal != null) 
+			if (worker.dispersal != null) {
 				noteBuilder.status(worker.dispersal.toString());
-
-			//.channel(worker.channel)
-
-			if (worker.notice.atDeviceDelivered.via.isActive()) {
-				final Notice.Item note = worker.notice.atDeviceDelivered;
-				final Intent noticed = noteBuilder.buildDeviceDelivered(context);
-				DistributorThread.sendIntent(note.via.v, noticed, context);
-				PLogger.API_INTENT.debug("ack intent: [{}]", note);
 			}
-			if (worker.notice.atGatewayDelivered.via.isActive()) {
-				final Notice.Item note = worker.notice.atGatewayDelivered;
-				final Intent noticed = noteBuilder.buildGatewayDelivered(context);
+			final Notice.Item note;
+			final Intent noticed;
+			if (thresholds.getDeviceDelivered()) {
+				note = worker.notice.atDeviceDelivered;
+				noticed = noteBuilder.buildDeviceDelivered(context);
 				DistributorThread.sendIntent(note.via.v, noticed, context);
-				PLogger.API_INTENT.debug("ack intent: [{}]", note);
-			}
-			if (worker.notice.atPluginDelivered.via.isActive()) {
-				final Notice.Item note = worker.notice.atPluginDelivered;
-				final Intent noticed = noteBuilder.buildPluginDelivered(context);
+			} else 
+			if (thresholds.getAndroidPluginReceived()) {
+				note = worker.notice.atGatewayDelivered;
+				noticed = noteBuilder.buildGatewayDelivered(context);
+				DistributorThread.sendIntent(note.via.v, noticed, context);			
+			} else 
+			if (thresholds.getPluginDelivered()) {
+				// TODO FPE do for plugin, what fields for intent?
+				// what status such as: user-off-line
+				note = worker.notice.atPluginDelivered;
+				noticed = noteBuilder.buildPluginDelivered(context);
 				DistributorThread.sendIntent(note.via.v, noticed, context);
-				PLogger.API_INTENT.debug("ack intent: [{}]", note);
+			} else {
+				note = null;
+				noticed = null;
 			}
-			// TODO FPE do for plugin, what fields for intent?
-			// what status such as: user-off-line
+			PLogger.API_INTENT.debug("ack note=[{}] intent=[{}]", 
+					note, noticed);
+			
 		}
 		return true;
 	}
@@ -1880,10 +1883,11 @@ public class DistributorThread extends Thread {
 
 				final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb, 
 						new INetworkService.OnSendMessageHandler() {
+					final AmmoMessages.PushAcknowledgement.Builder ack_ = pushAck;
 					@Override
 					public boolean ack(String channel, DisposalState status) {
 						logger.debug("delivered ack: uid=[{}] origin=[{}] reflect=[{}]", 
-								new Object[]{pushAck.getUid(), pushAck.getDestinationDevice(), pushAck.getAcknowledgingDevice()});
+								new Object[]{ack_.getUid(), ack_.getDestinationDevice(), ack_.getAcknowledgingDevice()});
 						return true;
 					}
 				});
