@@ -70,10 +70,13 @@ public class DistributorDataStore {
 	private final static Logger logger = LoggerFactory.getLogger("class.store");
 	public static final int VERSION = 40;
 
-	public static final String NAME = 
-			"distributor.db";   // to create .../databases/distributor.db
-	// null;            // to create in memory database
-
+	/**
+	 * To create a file backed data store set the name to...
+	 * distributor.db
+	 * to create in memory backed store set the name to...
+	 * null
+	 */
+	public static final String NAME = /* "distributor.db"; */  null;      
 
 
 	// ===========================================================
