@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 
 import android.app.ListActivity;
+import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,6 +22,7 @@ import ch.qos.logback.classic.LoggerContext;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.util.Tree;
 
 /**
  * This class provides a user interface to edit the Level of all Logger objects
@@ -34,10 +36,13 @@ public class LoggerEditor extends ListActivity {
 	private Logger selectedLogger;
 	private TextView selectionText;
 	private Spinner levelSpinner;
+	private ListView listView;
 	private ArrayList<Logger> loggerList;
+	private Tree<Logger> loggerTree;
 	private HashSet<Logger> editedLoggers;
 	private View lastSelected;
-//	private String[] levelOptions;
+	private int lastSelectedPosition;
+	private boolean falseCallback;
 	
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -47,16 +52,16 @@ public class LoggerEditor extends ListActivity {
 		setContentView(R.layout.logger_editor);
 		
 		// LoggerContext provides access to a List of all active loggers
-		LoggerContext lc = (LoggerContext)LoggerFactory.getILoggerFactory();
-		loggerList = (ArrayList<Logger>)lc.getLoggerList();
-		setupList(loggerList);
+		LoggerContext lc = (LoggerContext) LoggerFactory.getILoggerFactory();
+		loggerList = (ArrayList<Logger>) lc.getLoggerList();
+		loggerTree = makeTree(loggerList);
+		this.setListAdapter(new LoggerAdapter(loggerTree, this,
+				R.layout.logger_row, R.id.logger_text));
 		
 		editedLoggers = new HashSet<Logger>();
 		
 		selectionText = (TextView) findViewById(R.id.selection_text);
 		levelSpinner = (Spinner) findViewById(R.id.level_spinner);
-//		levelOptions = (String[]) getResources()
-//				.getStringArray(edu.vu.isis.ammo.core.R.array.level_options);
 		
 		ArrayAdapter<CharSequence> spinAdapter = ArrayAdapter.createFromResource(
 	            this, R.array.level_options, 
@@ -65,33 +70,88 @@ public class LoggerEditor extends ListActivity {
 	    levelSpinner.setAdapter(spinAdapter);
 	    levelSpinner.setOnItemSelectedListener(new MyOnItemSelectedListener());
 
+	    listView = super.getListView();
+	    
 		// Set the selection text to indicate nothing is selected
 		updateSelText(null);
 		
 	}
 		
 	
-	// Sets up the adapter for the Loggers in the ListView
-	private void setupList(ArrayList<Logger> loggerList) {
-		LoggerAdapter adapter = new LoggerAdapter();
-		setListAdapter(adapter);
+	private Tree<Logger> makeTree(ArrayList<Logger> list) {
+		
+		Logger rootLogger = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+		Tree<Logger> mTree = new Tree<Logger>(rootLogger);
+		
+		for(int i=0; i<list.size(); i++) {
+			
+			Logger aLogger = list.get(i);
+			
+			if(aLogger.equals(rootLogger)) {
+				continue;
+			} else {
+				String loggerName = aLogger.getName();
+				safelyAddLeaf(mTree, rootLogger, aLogger, loggerName);
+			}
+		}
+		
+		return mTree;
+		
 	}
 	
 	
+	
+	private void safelyAddLeaf(Tree<Logger> mTree, Logger rootLogger,
+			Logger aLogger, String loggerName) {
+		
+		if(mTree.contains((Logger)aLogger)) return;
+		
+		int lastDotIndex = loggerName.lastIndexOf('.');
+		
+		if(lastDotIndex == -1) {
+			mTree.addLeaf(rootLogger, aLogger);
+			return;
+		} else {
+			String parentLoggerName = loggerName.substring(0, lastDotIndex);
+			//String childLoggerName = loggerName.substring(lastDotIndex+1);
+			Logger parentLogger = (Logger) LoggerFactory.getLogger(parentLoggerName);
+			Logger childLogger = (Logger) LoggerFactory.getLogger(loggerName);
+			
+			safelyAddLeaf(mTree, rootLogger, parentLogger, parentLoggerName);
+			mTree.addLeaf(parentLogger, childLogger);
+			return;
+		}
+		
+	}
+
+
 	@Override
 	public void onListItemClick(ListView parent, View v, int position, long id) {
 		
-		selectedLogger = (Logger)parent.getItemAtPosition(position);
-		Level lvl = selectedLogger.getEffectiveLevel();
-		updateSelText(selectedLogger.getName());
-		updateSpinner(lvl);
+		Logger nextSelectedLogger = (Logger)parent.getItemAtPosition(position);
+		Level lvl = nextSelectedLogger.getEffectiveLevel();
+		updateSelText(nextSelectedLogger.getName());
+		if (selectedLogger == null
+				|| !nextSelectedLogger.getEffectiveLevel().equals(
+						selectedLogger.getEffectiveLevel())) {
+			updateSpinner(lvl);
+		}
+		selectedLogger = nextSelectedLogger;
 		lastSelected = v;
+		lastSelectedPosition = listView.getFirstVisiblePosition();
 		
 	}
 
 	
-	private void updateIcon(Level lvl, View v) {
+	private void updateIcon(Level lvl, View v, int pos) {
 		
+		setIcon(lvl, v);
+		super.onContentChanged();
+		listView.setSelection(pos);
+		
+	}
+	
+	private void setIcon(Level lvl, View v) {
 		ImageView iv =(ImageView)(v.findViewById(R.id.logger_icon));
 		
 		if(lvl.equals(Level.TRACE)) {
@@ -107,7 +167,6 @@ public class LoggerEditor extends ListActivity {
 		} else {
 			iv.setImageResource(R.drawable.off_level_icon);
 		}
-		
 	}
 	
 	
@@ -119,6 +178,8 @@ public class LoggerEditor extends ListActivity {
 	
 	// Sets the current text on the Spinner to match the given Level
 	private void updateSpinner(Level l) {
+		
+		falseCallback = true;
 		
 		if(l.equals(Level.TRACE)) {
 			levelSpinner.setSelection(0);
@@ -137,21 +198,24 @@ public class LoggerEditor extends ListActivity {
 	}
 	
 	
-	public class LoggerAdapter extends ArrayAdapter<Logger> {
+	public class LoggerAdapter extends TreeAdapter<Logger> {
 		
-		LoggerAdapter() {
-			super(LoggerEditor.this, R.layout.logger_row,
-					R.id.logger_text, loggerList);
-		}
+		private int tvId;
+    	
+    	public LoggerAdapter(Tree<Logger> objects, Context context, int resource,
+    			int textViewResourceId) {
+    		super(objects, context, resource, textViewResourceId);
+    		tvId = textViewResourceId;
+    	}
 		
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
 			
 			View row = super.getView(position, convertView, parent);
 			
-			TextView tv = (TextView)row.findViewById(R.id.logger_text);
+			TextView tv = (TextView)row.findViewById(tvId);
 			
-			Logger aLogger = loggerList.get(position);
+			Logger aLogger = super.getItem(position);
 			tv.setText(aLogger.getName());
 			
 //			if(editedLoggers.contains(aLogger)) {
@@ -162,7 +226,7 @@ public class LoggerEditor extends ListActivity {
 			
 			Level lvl = aLogger.getEffectiveLevel();
 			
-			updateIcon(lvl, row);
+			setIcon(lvl, row);
 			
 			return row;
 		}
@@ -175,33 +239,35 @@ public class LoggerEditor extends ListActivity {
 		public void onItemSelected(AdapterView<?> parent, View view, int pos,
 				long id) {
 
-			if (selectedLogger != null && lastSelected != null) {
+			if (selectedLogger != null && lastSelected != null && !falseCallback) {
 
 				String nextLevel = parent.getItemAtPosition(pos).toString();
 
 				if (nextLevel.equals("Trace")) {
 					selectedLogger.setLevel(Level.TRACE);
-					updateIcon(Level.TRACE, lastSelected);
+					updateIcon(Level.TRACE, lastSelected, lastSelectedPosition);
 				} else if (nextLevel.equals("Debug")) {
 					selectedLogger.setLevel(Level.DEBUG);
-					updateIcon(Level.DEBUG, lastSelected);
+					updateIcon(Level.DEBUG, lastSelected, lastSelectedPosition);
 				} else if (nextLevel.equals("Info")) {
 					selectedLogger.setLevel(Level.INFO);
-					updateIcon(Level.INFO, lastSelected);
+					updateIcon(Level.INFO, lastSelected, lastSelectedPosition);
 				} else if (nextLevel.equals("Warn")) {
 					selectedLogger.setLevel(Level.WARN);
-					updateIcon(Level.WARN, lastSelected);
+					updateIcon(Level.WARN, lastSelected, lastSelectedPosition);
 				} else if (nextLevel.equals("Error")) {
 					selectedLogger.setLevel(Level.ERROR);
-					updateIcon(Level.ERROR, lastSelected);
+					updateIcon(Level.ERROR, lastSelected, lastSelectedPosition);
 				} else if (nextLevel.equals("Off")) {
 					selectedLogger.setLevel(Level.OFF);
-					updateIcon(Level.OFF, lastSelected);
+					updateIcon(Level.OFF, lastSelected, lastSelectedPosition);
 				}
 				
 				//editedLoggers.add(selectedLogger);
 
 			}
+			
+			falseCallback = false;
 
 		}
 
