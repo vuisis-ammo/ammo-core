@@ -981,10 +981,10 @@ public class DistributorDataStore {
 		// size is larger than that allowed for a field contents.
 
 		NOTICE_SENT("notice_sent", "INTEGER"),
-		NOTICE_DELIVERY("notice_delivery", "INTEGER"),
+		NOTICE_DEVICE_DELIVERED("notice_delivery", "INTEGER"),
 		NOTICE_RECEIPT("notice_receipt", "INTEGER"),
-		NOTICE_GATE_IN("notice_gate_in", "INTEGER"),
-		NOTICE_GATE_OUT("notice_gate_out", "INTEGER");
+		NOTICE_GATEWAY_DELIVERED("notice_gate_in", "INTEGER"),
+		NOTICE_PLUGIN_DELIVERED("notice_gate_out", "INTEGER");
 		/**
 		 * These notices represent the action to be taken 
 		 * as the message crosses the threshold specified.
@@ -1105,10 +1105,9 @@ public class DistributorDataStore {
 					this.payload = new Payload(pending.getString(pending.getColumnIndex(PostalField.PAYLOAD.n())));
 
 					this.notice.setItem(Threshold.SENT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_SENT.n())));
-					this.notice.setItem(Threshold.DELIVERED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DELIVERY.n())));
-					this.notice.setItem(Threshold.RECEIVED, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_RECEIPT.n())));
-					this.notice.setItem(Threshold.GATE_IN, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_IN.n())));
-					this.notice.setItem(Threshold.GATE_OUT, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATE_OUT.n())));
+					this.notice.setItem(Threshold.DEVICE_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_DEVICE_DELIVERED.n())));
+					this.notice.setItem(Threshold.GATE_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_GATEWAY_DELIVERED.n())));
+					this.notice.setItem(Threshold.PLUGIN_DELIVERY, pending.getInt(pending.getColumnIndex(PostalField.NOTICE_PLUGIN_DELIVERED.n())));
 
 					this.dispersal = this.policy.makeRouteMap();
 					Cursor channelCursor = null;
@@ -1187,10 +1186,9 @@ public class DistributorDataStore {
 				}
 
 				cv.put(PostalField.NOTICE_SENT.cv(), this.notice.atSend.via.v);	
-				cv.put(PostalField.NOTICE_DELIVERY.cv(), this.notice.atDelivery.via.v);	
-				cv.put(PostalField.NOTICE_RECEIPT.cv(), this.notice.atReceipt.via.v);	
-				cv.put(PostalField.NOTICE_GATE_IN.cv(), this.notice.atGateIn.via.v);	
-				cv.put(PostalField.NOTICE_GATE_OUT.cv(), this.notice.atGateOut.via.v);	
+				cv.put(PostalField.NOTICE_DEVICE_DELIVERED.cv(), this.notice.atDeviceDelivered.via.v);	
+				cv.put(PostalField.NOTICE_GATEWAY_DELIVERED.cv(), this.notice.atGatewayDelivered.via.v);	
+				cv.put(PostalField.NOTICE_PLUGIN_DELIVERED.cv(), this.notice.atPluginDelivered.via.v);	
 
 				// values.put(PostalTableSchema.UNIT.cv(), 50);
 				PLogger.STORE_POSTAL_DML.trace("upsert postal: {} @ {}",

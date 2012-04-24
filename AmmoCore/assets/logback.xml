@@ -26,7 +26,7 @@
     </encoder>
   </appender>
   
-  <logger name="api" level="WARN"  additivity="false">
+  <logger name="api" level="TRACE"  additivity="false">
      <appender-ref ref="LOGCAT" />
      <appender-ref ref="FILE" />
   </logger>
@@ -42,6 +42,7 @@
   <logger name="class.dist" level="WARN" />
   
   <logger name="queue" level="WARN" />
+  <logger name="store" level="TRACE" />
 
  <logger name="net.message" level="WARN" />
 

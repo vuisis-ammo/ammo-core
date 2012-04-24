@@ -49,6 +49,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
+import edu.vu.isis.ammo.api.type.Notice.IntentBuilder;
 import edu.vu.isis.ammo.api.type.Notice.Via;
 import edu.vu.isis.ammo.api.type.Selection;
 import edu.vu.isis.ammo.api.type.SerialMoment;
@@ -99,19 +100,6 @@ public class DistributorThread extends Thread {
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
 	private static final Marker MARK_INTEREST = MarkerFactory.getMarker("interest");
 
-	private static final String ACTION_BASE = "edu.vu.isis.ammo.";
-
-	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
-	public static final String ACTION_MSG_RECEIPT = ACTION_BASE+"ACTION_MESSAGE_GATEWAY_DELIVERED";
-	public static final String ACTION_MSG_DELIVERED = ACTION_BASE+"ACTION_MESSAGE_DEVICE_DELIVERED";
-	public static final String ACTION_MSG_PLUGIN_DELIVERED = ACTION_BASE+"ACTION_MESSAGE_PLUGIN_DELIVERED";
-
-	public static final String EXTRA_TOPIC = "topic";
-	public static final String EXTRA_SUBTOPIC = "subtopic";
-	public static final String EXTRA_UID = "uid";
-	public static final String EXTRA_CHANNEL = "channel";
-	public static final String EXTRA_STATUS = "status";
-	public static final String EXTRA_DEVICE = "device";
 
 	// 20 seconds expressed in milliseconds
 	private static final int BURP_TIME = 20 * 1000;
@@ -443,20 +431,16 @@ public class DistributorThread extends Thread {
 		final Notice.Item note = ack.notice.atSend;
 		if (note.via.isActive()) {
 
-			final Uri.Builder uriBuilder = new Uri.Builder()
-			.scheme("ammo")
-			.authority(ack.topic)
-			.path(ack.subtopic);
+			final IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
+			 .topic(ack.topic)
+			 .subtopic(ack.subtopic)
+			 .auid(ack.auid)
+			 .channel(ack.channel);
 
-			final Intent noticed = new Intent()
-			.setAction(ACTION_MSG_SENT)
-			.setData(uriBuilder.build())
-			.putExtra(EXTRA_TOPIC, ack.topic.toString())
-			.putExtra(EXTRA_SUBTOPIC, ack.subtopic.toString())
-			.putExtra(EXTRA_UID, ack.auid.toString())
-			.putExtra(EXTRA_CHANNEL, ack.channel.toString())
-			.putExtra(EXTRA_STATUS, ack.status.toString());
-
+			if (ack.status != null) 
+				noteBuilder.status(ack.status.toString());
+			
+			final Intent noticed = noteBuilder.buildSent(context);
 
 			final int aggregate = note.via.v;
 			PLogger.API_INTENT.debug("gen notice: via=[{}] intent=[{}]", 
@@ -799,21 +783,21 @@ public class DistributorThread extends Thread {
 			break;
 
 		case AUTHENTICATION_RESULT:
-			final boolean result = receiveAuthenticateResponse(context, mw);
+			final boolean result = receiveAuthenticateResponse(context, mw, agm.channel);
 			logger.debug("authentication result={}", result);
 			deviceId = null;
 			operator = null;
 			break;
 
 		case PUSH_ACKNOWLEDGEMENT:
-			final boolean postalResult = receivePostalResponse(context, mw);
+			final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
 			logger.debug("post acknowledgement {}", postalResult);
 			deviceId = null;
 			operator = null;
 			break;
 
 		case PULL_RESPONSE:
-			final boolean retrieveResult = receiveRetrievalResponse(context, mw);
+			final boolean retrieveResult = receiveRetrievalResponse(context, mw, agm.channel);
 			logger.debug("retrieve response {}", retrieveResult);
 			deviceId = null;
 			operator = null;
@@ -874,7 +858,7 @@ public class DistributorThread extends Thread {
 	 * @param mw
 	 * @return
 	 */
-	private boolean receiveAuthenticateResponse(Context context, AmmoMessages.MessageWrapper mw) {
+	private boolean receiveAuthenticateResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
 		logger.trace("::receiveAuthenticateResponse");
 
 		if (mw == null)
@@ -1272,9 +1256,9 @@ public class DistributorThread extends Thread {
 				else {
 					final Notice notice = postal_.notice;
 					final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
-							.setDeviceDelivered(notice.atDelivery.via.isActive())
-							.setAndroidPluginReceived(notice.atGateIn.via.isActive())
-							.setPluginDelivered(notice.atGateOut.via.isActive());
+							.setDeviceDelivered(notice.atDeviceDelivered.via.isActive())
+							.setAndroidPluginReceived(notice.atGatewayDelivered.via.isActive())
+							.setPluginDelivered(notice.atPluginDelivered.via.isActive());
 
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
 
@@ -1309,7 +1293,7 @@ public class DistributorThread extends Thread {
 	 * @param mw
 	 * @return
 	 */
-	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw) {
+	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
 		logger.trace("receive response POSTAL");
 
 		if (mw == null)
@@ -1331,28 +1315,35 @@ public class DistributorThread extends Thread {
 		}
 
 		if (worker.notice.isRemoteActive()) {
-			final Uri.Builder uriBuilder = new Uri.Builder()
-			.scheme("ammo")
-			.authority(worker.topic)
-			.path(worker.subtopic);
+			
+			final IntentBuilder noteBuilder = Notice.getIntentBuilder(worker.notice)
+			 .topic(worker.topic)
+			 .subtopic(worker.subtopic)
+			 .auid(worker.auid)
+			 .channel(channel.name)
+			 .device(pushResp.getAcknowledgingDevice())
+			 .operator(pushResp.getAcknowledgingUser());
+			
+			if (worker.dispersal != null) 
+				noteBuilder.status(worker.dispersal.toString());
+			
+			 //.channel(worker.channel)
 
-			final Intent noticed = new Intent()
-			.setData(uriBuilder.build())
-			.putExtra(EXTRA_TOPIC, worker.topic.toString())
-			.putExtra(EXTRA_SUBTOPIC, worker.topic.toString())
-			.putExtra(EXTRA_UID, worker.auid.toString())
-			.putExtra(EXTRA_STATUS, worker.dispersal.toString())
-			.putExtra(EXTRA_DEVICE, pushResp.getAcknowledgingDevice().toString());
-
-			if (worker.notice.atDelivery.via.isActive()) {
-				final Notice.Item note = worker.notice.atDelivery;
-				noticed.setAction(ACTION_MSG_DELIVERED);
+			if (worker.notice.atDeviceDelivered.via.isActive()) {
+				final Notice.Item note = worker.notice.atDeviceDelivered;
+				final Intent noticed = noteBuilder.buildDeviceDelivered(context);
 				DistributorThread.sendIntent(note.via.v, noticed, context);
 				PLogger.API_INTENT.debug("ack intent: [{}]", note);
 			}
-			if (worker.notice.atReceipt.via.isActive()) {
-				final Notice.Item note = worker.notice.atReceipt;
-				noticed.setAction(ACTION_MSG_RECEIPT);
+			if (worker.notice.atGatewayDelivered.via.isActive()) {
+				final Notice.Item note = worker.notice.atGatewayDelivered;
+				final Intent noticed = noteBuilder.buildGatewayDelivered(context);
+				DistributorThread.sendIntent(note.via.v, noticed, context);
+				PLogger.API_INTENT.debug("ack intent: [{}]", note);
+			}
+			if (worker.notice.atPluginDelivered.via.isActive()) {
+				final Notice.Item note = worker.notice.atPluginDelivered;
+				final Intent noticed = noteBuilder.buildPluginDelivered(context);
 				DistributorThread.sendIntent(note.via.v, noticed, context);
 				PLogger.API_INTENT.debug("ack intent: [{}]", note);
 			}
@@ -1620,7 +1611,7 @@ public class DistributorThread extends Thread {
 	 * @param mw
 	 * @return
 	 */
-	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw) {
+	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
 		if (mw == null)
 			return false;
 		if (!mw.hasPullResponse())
