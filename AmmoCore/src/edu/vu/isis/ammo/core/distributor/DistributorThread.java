@@ -34,6 +34,7 @@ import org.slf4j.MarkerFactory;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -432,14 +433,14 @@ public class DistributorThread extends Thread {
 		if (note.via.isActive()) {
 
 			final IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
-			 .topic(ack.topic)
-			 .subtopic(ack.subtopic)
-			 .auid(ack.auid)
-			 .channel(ack.channel);
+					.topic(ack.topic)
+					.subtopic(ack.subtopic)
+					.auid(ack.auid)
+					.channel(ack.channel);
 
 			if (ack.status != null) 
 				noteBuilder.status(ack.status.toString());
-			
+
 			final Intent noticed = noteBuilder.buildSent(context);
 
 			final int aggregate = note.via.v;
@@ -447,8 +448,12 @@ public class DistributorThread extends Thread {
 					note.via, noticed);
 
 			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
-				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-				context.startActivity(noticed); 
+				try {
+					noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+					context.startActivity(noticed); 
+				} catch (ActivityNotFoundException ex) {
+					logger.warn("no activity for intent=[{}]", noticed);
+				}
 			}
 			if (0 < (aggregate & Via.Type.BROADCAST.v)) { 
 				context.sendBroadcast(noticed); 
@@ -1129,7 +1134,7 @@ public class DistributorThread extends Thread {
 
 				final DistributorPolicy.Topic policy = that.policy().matchPostal(postal.topic);
 				final Dispersal dispersal = policy.makeRouteMap();	
-				
+
 				switch (smType) {
 				case APRIORI:
 				case EAGER:
@@ -1315,19 +1320,19 @@ public class DistributorThread extends Thread {
 		}
 
 		if (worker.notice.isRemoteActive()) {
-			
+
 			final IntentBuilder noteBuilder = Notice.getIntentBuilder(worker.notice)
-			 .topic(worker.topic)
-			 .subtopic(worker.subtopic)
-			 .auid(worker.auid)
-			 .channel(channel.name)
-			 .device(pushResp.getAcknowledgingDevice())
-			 .operator(pushResp.getAcknowledgingUser());
-			
+					.topic(worker.topic)
+					.subtopic(worker.subtopic)
+					.auid(worker.auid)
+					.channel(channel.name)
+					.device(pushResp.getAcknowledgingDevice())
+					.operator(pushResp.getAcknowledgingUser());
+
 			if (worker.dispersal != null) 
 				noteBuilder.status(worker.dispersal.toString());
-			
-			 //.channel(worker.channel)
+
+			//.channel(worker.channel)
 
 			if (worker.notice.atDeviceDelivered.via.isActive()) {
 				final Notice.Item note = worker.notice.atDeviceDelivered;
