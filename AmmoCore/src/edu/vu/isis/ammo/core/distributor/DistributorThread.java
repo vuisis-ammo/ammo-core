@@ -53,6 +53,7 @@ import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
@@ -561,6 +562,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			try {
 			    final AmmoRequest agm = this.requestQueue.take();
 			    logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
+			    PLogger.QUEUE_REQ_EXIT.info("uuid=[{}] remainder=[{}]", agm.uuid, this.requestQueue.size());
 			    this.doRequest(ammoService, agm);
 			} catch (ClassCastException ex) {
 			    logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
