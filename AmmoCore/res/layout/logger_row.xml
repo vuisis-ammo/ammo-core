@@ -6,16 +6,15 @@
     
     <ImageView
         android:id="@+id/logger_icon"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="20"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         />
     
     <TextView
         android:id="@+id/logger_text"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="80"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:gravity="center_vertical"
         />
     
 

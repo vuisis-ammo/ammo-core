@@ -4,23 +4,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * These are the loggers for Threads/Processes/Queues/Intents
+ * These are the loggers for measuring performance.
+ * 
+ * In particular they look at Threads/Processes/Queues/Intents/API
  * 
  * The view for these loggers is that of functional decomposition.
- * These loggers should be named according to the pattern...
- * <component>.proc.<thread/process>.<class>.<property>
- * <component>.ipc.<queue/intent/shared-pref>.<class>.<property>
- * 
- * All of these loggers belong to the "omma" component.
+ * These loggers should be named according to the patterns indicated in-line.
  * These loggers are used for monitoring communication between components.
  * 
  */
 public interface PLogger {
-	// omma threads/processes
-	public static final Logger TOP = LoggerFactory.getLogger( "proc.top" );
-	public static final Logger DIST = LoggerFactory.getLogger( "proc.dist" );
-	public static final Logger POLICY = LoggerFactory.getLogger( "proc.policy" );
-	public static final Logger CHANNEL = LoggerFactory.getLogger( "proc.serve.channel" );
 
 	// api external communications
 	/**
@@ -32,17 +25,42 @@ public interface PLogger {
 	public static final Logger API_PARCEL_RECV = LoggerFactory.getLogger( "api.parcel.recv" );
 	
 	/**
-	 * Serialization from application content providers 
+	 * Serialization to/from application content providers 
 	 */
 	public static final Logger API_STORE_SEND = LoggerFactory.getLogger( "api.store.send" );
 	public static final Logger API_STORE_RECV = LoggerFactory.getLogger( "api.store.recv" );
 
 	/**
-	 * Notify external applications.
+	 * Notify external applications vi intents.
 	 */
 	public static final Logger API_INTENT = LoggerFactory.getLogger( "api.intent" );
+	public static final Logger API_INTENT_ACTIVITY = LoggerFactory.getLogger( "api.intent.activity" );
+	public static final Logger API_INTENT_BROAD = LoggerFactory.getLogger( "api.intent.broadcast" );
+	public static final Logger API_INTENT_SERVICE = LoggerFactory.getLogger( "api.intent.service" );
 
-	// omma queues
+	/**
+	 * Producer/consumer queues
+	 * For each queue there is a pair of in/out loggers.
+	 * 
+	 * <ul>
+	 * <li>request - the requests received from the application before processing.
+	 * <li>response - the responses received by a channel waiting to be used to update application's content providers
+	 * <li>ack - a channel reporting back to the distributor about it disposal of a request 
+	 * <li>channel - channels are consumers of requests for delivery these are their sources
+	 * </ul>
+	 * 
+	 * These messages for the queue loggers are of the form QUEUE_FORMAT
+	 *
+	 * <ul>
+	 * <li>remainder - the number of items remaining in the queue (before/after the item is added/taken)
+	 * <li>id - may be uuid, auid, etc. depending on the queue type
+	 * <li>size - how big is the item being added/taken to/from the queue
+	 * <li>msg - some representative part of the item being added/taken
+	 * </ul>
+	 * 
+	 */
+	public static final String QUEUE_FORMAT =  "remainder=[{}] id=[{}] size=[{}] item=[{}]";
+	
 	public static final Logger QUEUE_REQ_ENTER = LoggerFactory.getLogger( "queue.request.in" );
 	public static final Logger QUEUE_REQ_EXIT = LoggerFactory.getLogger( "queue.request.out" );
 
@@ -64,13 +82,17 @@ public interface PLogger {
 	public static final Logger QUEUE_CHANNEL_SERIAL_ENTER = LoggerFactory.getLogger( "queue.channel.serial.in" );
 	public static final Logger QUEUE_CHANNEL_SERIAL_EXIT = LoggerFactory.getLogger( "queue.channel.serial.out" );
 
-	// omma network channel
+	/**
+	 * Each channel has some communication media.
+	 * When the channel connects, sends or receives.
+	 */
 	public static final Logger COMM_GW_CONN = LoggerFactory.getLogger( "comm.gw.conn" );
 	public static final Logger COMM_GW_SEND = LoggerFactory.getLogger( "comm.gw.send" );
 	public static final Logger COMM_GW_RECV = LoggerFactory.getLogger( "comm.gw.recv" );
 	
-	// settings
-
+	/**
+	 * settings which change the ammo behavior
+	 */
 	public static final Logger SET_PANTHR = LoggerFactory.getLogger( "pref.panthr" );
 	public static final Logger SET_PANTHR_GW = LoggerFactory.getLogger( "pref.panthr.gateway" );
 	public static final Logger SET_PANTHR_MC = LoggerFactory.getLogger( "pref.panthr.multicast" );
@@ -78,7 +100,9 @@ public interface PLogger {
 	public static final Logger SET_PANTHR_SERIAL = LoggerFactory.getLogger( "pref.panthr.serial" );
 	public static final Logger SET_PANTHR_JOURNAL = LoggerFactory.getLogger( "pref.panthr.journal" );
 
-	// omma data store
+	/**
+	 *  omma data store
+	 */
 	public static final Logger STORE = LoggerFactory.getLogger( "store" );
 	public static final Logger STORE_DDL = LoggerFactory.getLogger( "store.ddl" );
 

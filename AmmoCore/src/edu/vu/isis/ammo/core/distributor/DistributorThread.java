@@ -585,7 +585,8 @@ public class DistributorThread extends Thread {
 					if (!this.channelAck.isEmpty()) {						
 						try {
 							final ChannelAck ack = this.channelAck.take();
-							PLogger.QUEUE_ACK_EXIT.trace("take remaining=[{}] ack=[{}]", this.channelAck.size(), ack);
+							PLogger.QUEUE_ACK_EXIT.trace(PLogger.QUEUE_FORMAT, 
+									new Object[]{this.channelAck.size(), ack.request, 0, ack});
 							this.doChannelAck(this.context, ack);
 							logger.trace("did ack=[{}]", ack);
 						} catch (ClassCastException ex) {
@@ -595,7 +596,8 @@ public class DistributorThread extends Thread {
 					if (!this.responseQueue.isEmpty()) {
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
-							PLogger.QUEUE_RESP_EXIT.trace("take remaining=[{}] ack=[{}]", this.responseQueue.size(), agm);
+							PLogger.QUEUE_RESP_EXIT.trace(PLogger.QUEUE_FORMAT, 
+									new Object[]{ this.responseQueue.size(), agm.payload_checksum, agm.size , agm});
 							this.doResponse(ammoService, agm);
 							logger.trace("did response=[{}]", agm);
 						} catch (ClassCastException ex) {
@@ -606,7 +608,8 @@ public class DistributorThread extends Thread {
 					if (!this.requestQueue.isEmpty()) {
 						try {					
 							final AmmoRequest ar = this.requestQueue.take();
-							PLogger.QUEUE_REQ_EXIT.trace("take remaining=[{}] ack=[{}]", this.requestQueue.size(), ar);
+							PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT, 
+									new Object[]{ this.requestQueue.size(), ar.uuid, "n/a", ar});
 							this.doRequest(ammoService, ar);
 							logger.trace("did request=[{}]", ar);
 						} catch (ClassCastException ex) {

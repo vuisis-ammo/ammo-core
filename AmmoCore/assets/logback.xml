@@ -3,6 +3,7 @@
  <!--
    By default encoders are assigned the type
      ch.qos.logback.classic.encoder.PatternLayoutEncoder
+   see http://logback.qos.ch/manual/layouts.html
  -->
 <configuration>
 
@@ -11,41 +12,27 @@
   <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
     <checkLoggable>false</checkLoggable>
     <tagEncoder>
-       <pattern>ammo.%logger{15}</pattern>
+       <pattern>ammo.%logger{22}</pattern>
     </tagEncoder>
     <encoder>
        <pattern>[%method] %msg%n</pattern>
     </encoder>
   </appender>
   
-  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>${LOG_DIR}/ammo.log</file>
+  <appender name="STATS" class="ch.qos.logback.core.FileAppender">
+    <file>${LOG_DIR}/ammo-perf.log</file>
     <append>true</append>
     <encoder>
-      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>
+      <!-- <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>   -->
+      <!--  output: elapsed time , logger name  and message -->
+      <pattern>%10relative %-20logger{35} - %msg%n</pattern>
     </encoder>
   </appender>
   
-  <logger name="api" level="TRACE"  additivity="false">
-     <appender-ref ref="LOGCAT" />
-     <appender-ref ref="FILE" />
+  <logger name="queue.request.out" level="TRACE">
+       <appender-ref ref="STATS" />
   </logger>
-  <!-- 
-  <logger name="api.request" level="WARN" />
-  <logger name="api.intent" level="WARN" />
-  <logger name="api.parcel" level="WARN" />
-  <logger name="api.store" level="WARN" />
-   -->
-  
-  <logger name="comm" level="WARN" />
-  
-  <logger name="class.store" level="WARN" />
-  <logger name="class.dist" level="WARN" />
-  
-  <logger name="queue" level="WARN" />
-  <logger name="store" level="TRACE" />
 
- <logger name="net.message" level="WARN" />
 
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
