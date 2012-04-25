@@ -53,7 +53,10 @@ public class RequestDeserializerThread extends Thread {
 			while (true) {
 				final Item item = this.queue.take();
 
-				RequestSerializer.deserializeToProvider(item.context, item.provider, item.encoding, item.data);
+				Uri tuple = RequestSerializer.deserializeToProvider(item.context, item.provider, item.encoding, item.data);
+
+				logger.info("Ammo inserted received message in remote content provider: {}, inserted in {}, remaining in insert queue {}", new Object[]{item.provider, tuple, queue.size()} );
+
 			}
 
 		} catch (Exception ex) {
