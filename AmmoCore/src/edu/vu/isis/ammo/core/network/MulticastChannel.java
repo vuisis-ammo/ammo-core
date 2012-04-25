@@ -1233,7 +1233,7 @@ public class MulticastChannel extends NetChannel
 
     @Override
 	public void toLog(String context) {
-    	PLogger.ipc_panthr_mc_log.debug("{} {}:{} ", 
+    	PLogger.SET_PANTHR_MC.debug("{} {}:{} ", 
 				new Object[]{context, mMulticastAddress, mMulticastPort});
 	}
 }

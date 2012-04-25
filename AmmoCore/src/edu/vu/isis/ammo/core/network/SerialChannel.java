@@ -374,7 +374,7 @@ public class SerialChannel extends NetChannel
     @Override
     public void toLog( String context )
     {
-        PLogger.ipc_panthr_mc_log.debug( "{} {} for {} msec",
+        PLogger.SET_PANTHR_MC.debug( "{} {} for {} msec",
                                          new Object[] { context,
                                                         mSlotNumber,
                                                         mSlotDuration } );

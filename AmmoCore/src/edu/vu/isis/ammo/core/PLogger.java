@@ -17,27 +17,84 @@ import org.slf4j.LoggerFactory;
  */
 public interface PLogger {
 	// omma threads/processes
-	public static final Logger top_log = LoggerFactory.getLogger( "proc.top" );
-	public static final Logger dist_log = LoggerFactory.getLogger( "proc.dist" );
-	public static final Logger policy_log = LoggerFactory.getLogger( "proc.policy" );
-	public static final Logger channel_log = LoggerFactory.getLogger( "proc.serve.channel" );
+	public static final Logger TOP = LoggerFactory.getLogger( "proc.top" );
+	public static final Logger DIST = LoggerFactory.getLogger( "proc.dist" );
+	public static final Logger POLICY = LoggerFactory.getLogger( "proc.policy" );
+	public static final Logger CHANNEL = LoggerFactory.getLogger( "proc.serve.channel" );
+
+	// api external communications
+	/**
+	 * Incoming requests via the api from applications.
+	 * - request - gross messages
+	 * - parcel - detailed content of request
+	 */
+	public static final Logger API_REQ_RECV = LoggerFactory.getLogger( "api.request.recv" );
+	public static final Logger API_PARCEL_RECV = LoggerFactory.getLogger( "api.parcel.recv" );
+	
+	/**
+	 * Serialization from application content providers 
+	 */
+	public static final Logger API_STORE_SEND = LoggerFactory.getLogger( "api.store.send" );
+	public static final Logger API_STORE_RECV = LoggerFactory.getLogger( "api.store.recv" );
+
+	/**
+	 * Notify external applications.
+	 */
+	public static final Logger API_INTENT = LoggerFactory.getLogger( "api.intent" );
 	
 	// omma queues
-	public static final Logger ipc_conn_log = LoggerFactory.getLogger( "ipc.channel.conn" );
-	public static final Logger ipc_send_log = LoggerFactory.getLogger( "ipc.channel.send" );
-	public static final Logger ipc_recv_log = LoggerFactory.getLogger( "ipc.channel.recv" );
+	public static final Logger QUEUE_REQ_ENTER = LoggerFactory.getLogger( "queue.request.in" );
+	public static final Logger QUEUE_REQ_EXIT = LoggerFactory.getLogger( "queue.request.out" );
 	
-	public static final Logger ipc_local_log = LoggerFactory.getLogger( "ipc.local" );
+	public static final Logger QUEUE_RESP_ENTER = LoggerFactory.getLogger( "queue.response.in" );
+	public static final Logger QUEUE_RESP_EXIT = LoggerFactory.getLogger( "queue.response.out" );
 	
-	public static final Logger ipc_panthr_log = LoggerFactory.getLogger( "ipc.panthr" );
-	public static final Logger ipc_panthr_gw_log = LoggerFactory.getLogger( "ipc.panthr.gateway" );
-	public static final Logger ipc_panthr_mc_log = LoggerFactory.getLogger( "ipc.panthr.multicast" );
-	public static final Logger ipc_panthr_rmc_log = LoggerFactory.getLogger( "ipc.panthr.reliable" );
-	public static final Logger ipc_panthr_serial_log = LoggerFactory.getLogger( "ipc.panthr.serial" );
-	public static final Logger ipc_panthr_journal_log = LoggerFactory.getLogger( "ipc.panthr.journal" );
+	public static final Logger QUEUE_ACK_ENTER = LoggerFactory.getLogger( "queue.ack.in" );
+	public static final Logger QUEUE_ACK_EXIT = LoggerFactory.getLogger( "queue.ack.out" );
 	
-	// omma intents
-	public static final Logger ipc_intent_log = LoggerFactory.getLogger( "ipc.intent.service" );
-	public static final Logger ipc_bst_log = LoggerFactory.getLogger( "ipc.broadcast" );
-	public static final Logger ipc_act_log = LoggerFactory.getLogger( "ipc.activity" );
+	public static final Logger QUEUE_CHANNEL_GW_ENTER = LoggerFactory.getLogger( "queue.channel.gw.in" );
+	public static final Logger QUEUE_CHANNEL_GW_EXIT = LoggerFactory.getLogger( "queue.channel.gw.out" );
+
+	public static final Logger QUEUE_CHANNEL_MC_ENTER = LoggerFactory.getLogger( "queue.channel.mc.in" );
+	public static final Logger QUEUE_CHANNEL_MC_EXIT = LoggerFactory.getLogger( "queue.channel.mc.out" );
+
+	public static final Logger QUEUE_CHANNEL_RMC_ENTER = LoggerFactory.getLogger( "queue.channel.rmc.in" );
+	public static final Logger QUEUE_CHANNEL_RMC_EXIT = LoggerFactory.getLogger( "queue.channel.rmc.out" );
+
+	public static final Logger QUEUE_CHANNEL_SERIAL_ENTER = LoggerFactory.getLogger( "queue.channel.serial.in" );
+	public static final Logger QUEUE_CHANNEL_SERIAL_EXIT = LoggerFactory.getLogger( "queue.channel.serial.out" );
+
+	// omma network channel
+	public static final Logger COMM_GW_CONN = LoggerFactory.getLogger( "comm.gw.conn" );
+	public static final Logger COMM_GW_SEND = LoggerFactory.getLogger( "comm.gw.send" );
+	public static final Logger COMM_GW_RECV = LoggerFactory.getLogger( "comm.gw.recv" );
+	
+	// settings
+
+	public static final Logger SET_PANTHR = LoggerFactory.getLogger( "pref.panthr" );
+	public static final Logger SET_PANTHR_GW = LoggerFactory.getLogger( "pref.panthr.gateway" );
+	public static final Logger SET_PANTHR_MC = LoggerFactory.getLogger( "pref.panthr.multicast" );
+	public static final Logger SET_PANTHR_RMC = LoggerFactory.getLogger( "pref.panthr.reliable" );
+	public static final Logger SET_PANTHR_SERIAL = LoggerFactory.getLogger( "pref.panthr.serial" );
+	public static final Logger SET_PANTHR_JOURNAL = LoggerFactory.getLogger( "pref.panthr.journal" );
+
+	// omma data store
+	public static final Logger STORE = LoggerFactory.getLogger( "store" );
+	public static final Logger STORE_DDL = LoggerFactory.getLogger( "store.ddl" );
+
+	public static final Logger STORE_POSTAL_DML = LoggerFactory.getLogger( "store.postal.dml" );
+	public static final Logger STORE_INTEREST_DML = LoggerFactory.getLogger( "store.interest.dml" );
+	public static final Logger STORE_RETRIEVE_DML = LoggerFactory.getLogger( "store.retrieve.dml" );
+	public static final Logger STORE_CHANNEL_DML = LoggerFactory.getLogger( "store.channel.dml" );
+	public static final Logger STORE_CAPABILITY_DML = LoggerFactory.getLogger( "store.capability.dml" );
+	public static final Logger STORE_PRESENCE_DML = LoggerFactory.getLogger( "store.presence.dml" );
+	public static final Logger STORE_DISPOSAL_DML = LoggerFactory.getLogger( "store.disposal.dml" );
+
+	public static final Logger STORE_POSTAL_DQL = LoggerFactory.getLogger( "store.postal.dql" );
+	public static final Logger STORE_INTEREST_DQL = LoggerFactory.getLogger( "store.interest.dql" );
+	public static final Logger STORE_RETRIEVE_DQL = LoggerFactory.getLogger( "store.retrieve.dql" );
+	public static final Logger STORE_CHANNEL_DQL = LoggerFactory.getLogger( "store.channel.dql" );
+	public static final Logger STORE_CAPABILITY_DQL = LoggerFactory.getLogger( "store.capability.dql" );
+	public static final Logger STORE_PRESENCE_DQL = LoggerFactory.getLogger( "store.presence.dql" );
+	public static final Logger STORE_DISPOSAL_DQL = LoggerFactory.getLogger( "store.disposal.dql" );
 }
