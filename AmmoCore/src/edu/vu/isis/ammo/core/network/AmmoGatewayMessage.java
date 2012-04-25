@@ -104,7 +104,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     /**
      * This is used by PriorityBlockingQueue() to prioritize it contents.
      * when no specialized comparator is provided.
-     * Specialized comparitors such as PriorityOrder should be preferred.
+     * Specialized comparators such as PriorityOrder should be preferred.
      *
      * @return
      * a negative integer if this instance is less than another;
@@ -165,8 +165,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 			logger.debug("compare msgs: priority [{}:{}] build time: [{}:{}]", 
 					new Object[]{o1.priority, o2.priority, 
 					             o1.buildTime, o2.buildTime} );
-             if (o1.priority > o2.priority) return 1;
-             if (o1.priority < o2.priority) return -1;
+             if (o1.priority > o2.priority) return -1;
+             if (o1.priority < o2.priority) return 1;
 	     // if priority is same then process in the time order of arrival
 	     if (o1.buildTime > o2.buildTime) return 1;
 	     if (o1.buildTime < o2.buildTime) return -1;
@@ -304,8 +304,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         crc32.update(payload);
 
         return AmmoGatewayMessage.newBuilder()
-            .payload(payload)
             .size(payload.length)
+            .payload(payload)        
             .checksum(crc32.getValue())
             .priority(PriorityLevel.NORMAL.v)
             .version(VERSION_1_FULL)

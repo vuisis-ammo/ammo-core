@@ -33,6 +33,7 @@ import org.slf4j.MarkerFactory;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -116,6 +117,7 @@ public class DistributorThread extends Thread {
 	private static final int IP_NOTIFY_ID = 2;
 
 	private int current_icon_id = 1;
+	private int current_icon = 0;
 
 	private AtomicInteger total_sent = new AtomicInteger (0);
 	private AtomicInteger total_recv = new AtomicInteger (0);
@@ -128,10 +130,8 @@ public class DistributorThread extends Thread {
 		this.ammoService = parent;
 		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
 		this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200, new AmmoGatewayMessage.PriorityOrder());
-
 		this.deserialThread = new RequestDeserializerThread();
 		this.deserialThread.start();
-
 		this.store = new DistributorDataStore(context);
 
 		this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
@@ -167,31 +167,31 @@ public class DistributorThread extends Thread {
 
 			//check for variable update ... 
 			int total_sent = parent.total_sent.get();
-					int total_recv = parent.total_recv.get();
+			int total_recv = parent.total_recv.get();
 
-					int sent = total_sent - last_sent_count;
-					int recv = total_recv - last_recv_count;
+			int sent = total_sent - last_sent_count;
+			int recv = total_recv - last_recv_count;
 
-					int icon = 0;
-					//figure out the icon ... 
-					if (sent == 0 && recv == 0)
-						icon = R.drawable.nodata;
-					else if (sent > 0 && recv ==0)
-						icon = R.drawable.up;
-					else if (sent == 0 && recv > 0)
-						icon = R.drawable.down;
-					else if (sent > 0 && recv > 0)
-						icon = R.drawable.alldata;
+			int icon = 0;
+			//figure out the icon ... 
+			if (sent == 0 && recv == 0)
+				icon = R.drawable.nodata;
+			else if (sent > 0 && recv ==0)
+				icon = R.drawable.up;
+			else if (sent == 0 && recv > 0)
+				icon = R.drawable.down;
+			else if (sent > 0 && recv > 0)
+				icon = R.drawable.alldata;
 
-					String contentText = "Sent " + total_sent + " Received " + total_recv;
+			String contentText = "Sent " + total_sent + " Received " + total_recv;
 
-					parent.notifyIcon("", "Data Channel", contentText, icon);
+			parent.notifyIcon("", "Data Channel", contentText, icon);
 
-					//save the last sent and recv ...
-					last_sent_count = total_sent;
-					last_recv_count = total_recv;
+			//save the last sent and recv ...
+			last_sent_count = total_sent;
+			last_recv_count = total_recv;
 
-					parent.ammoService.notifyMsg.postDelayed(this, 30000);
+			parent.ammoService.notifyMsg.postDelayed(this, 30000);
 		}        
 	}
 
@@ -429,8 +429,12 @@ public class DistributorThread extends Thread {
 			final int aggregate = note.via.v;
 
 			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
-				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-				context.startActivity(noticed); 
+				try {
+					noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+					context.startActivity(noticed); 
+				} catch (ActivityNotFoundException ex) {
+					logger.warn("no activity for intent=[{}]", noticed);
+				}
 			}
 			if (0 < (aggregate & Via.Type.BROADCAST.v)) { 
 				context.sendBroadcast(noticed); 
@@ -487,7 +491,6 @@ public class DistributorThread extends Thread {
 	private final PriorityBlockingQueue<AmmoGatewayMessage> responseQueue;
 
 	private RequestDeserializerThread deserialThread;
-
 	public boolean distributeResponse(AmmoGatewayMessage agm) {
 		if (! this.responseQueue.offer(agm, 1, TimeUnit.SECONDS)) {
 			logger.error("could not process response {}", agm);
@@ -603,9 +606,12 @@ public class DistributorThread extends Thread {
 	// ================= DRIVER METHODS ==================== //
 
 	/**
-	 * Processes and delivers messages received from the gateway. - Verify the
-	 * check sum for the payload is correct - Parse the payload into a message -
-	 * Receive the message
+	 * Processes and delivers messages received from the gateway. 
+	 * <ol>
+	 * <li>Verify the check sum for the payload is correct
+	 * <li>Parse the payload into a message
+	 * <li> Receive the message
+	 * </ol>
 	 * 
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
@@ -700,9 +706,12 @@ public class DistributorThread extends Thread {
 	}
 
 	/**
-	 * Processes and delivers messages received from the gateway. - Verify the
-	 * check sum for the payload is correct - Parse the payload into a message -
-	 * Receive the message
+	 * Processes and delivers messages received from a channel. 
+	 * <ol>
+	 * <li> Verify the check sum for the payload is correct 
+	 * <li> Parse the payload into a message 
+	 * <li> Receive the message
+	 * </ol>
 	 * 
 	 * @param instream
 	 * @return was the message clean (true) or garbled (false).
@@ -743,7 +752,7 @@ public class DistributorThread extends Thread {
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 		case TERSE_MESSAGE:
-			final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel);
+			final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel, agm.priority);
 			logger.debug("subscribe reply {}", subscribeResult);
 			break;
 
@@ -758,7 +767,7 @@ public class DistributorThread extends Thread {
 			break;
 
 		case PULL_RESPONSE:
-			final boolean retrieveResult = receiveRetrievalResponse(context, mw);
+			final boolean retrieveResult = receiveRetrievalResponse(context, mw, agm.priority);
 			logger.debug("retrieve response {}", retrieveResult);
 			break;
 
@@ -863,6 +872,7 @@ public class DistributorThread extends Thread {
 
 				@Override
 				public byte[] run(Encoding encode) {
+					// TODO FPE handle payload with data types
 					if (serializer_.payload.whatContent() != Payload.Type.NONE) {
 						final byte[] result = 
 								RequestSerializer.serializeFromContentValues(
@@ -1163,43 +1173,43 @@ public class DistributorThread extends Thread {
 			return false;
 		}
 
-		Parcel np = Parcel.obtain();
-		byte [] nb = postalReq.getBlob( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv() ) );
-		np.unmarshall( nb, 0, nb.length );
-		np.setDataPosition( 0 );
-		logger.debug("notice bytes {}", nb);
+		if (pushResp.hasThreshold()) {
+			final AcknowledgementThresholds thresholds = pushResp.getThreshold();
 
-		final Notice notice = Notice.CREATOR.createFromParcel(np);
-		final String topic = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv() ) );
-		final String auid = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv() ) );
+			Parcel np = Parcel.obtain();
+			byte [] nb = postalReq.getBlob( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv() ) );
+			np.unmarshall( nb, 0, nb.length );
+			np.setDataPosition( 0 );
+			logger.debug("notice bytes {}", nb);
 
-		postalReq.close();
+			final Notice notice = Notice.CREATOR.createFromParcel(np);
+			final String topic = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv() ) );
+			final String auid = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv() ) );
 
-		// check if it is for us , and how we should notify
-		final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(notice)
-				.topic(topic)
-				.auid(auid)
-				.channel(channel.name)
-				.device(pushResp.getAcknowledgingDevice())
-				.operator(pushResp.getAcknowledgingUser());
+			postalReq.close();
 
-		if (notice.atDeviceDelivered.via.isActive()) {
-			final Notice.Item note = notice.atDeviceDelivered;
-			final Intent noticed = noteBuilder.buildDeviceDelivered(context);
-			DistributorThread.sendIntent(note.via.v, noticed, context);
+			// check if it is for us , and how we should notify
+			final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(notice)
+					.topic(topic)
+					.auid(auid)
+					.channel(channel.name)
+					.device(pushResp.getAcknowledgingDevice())
+					.operator(pushResp.getAcknowledgingUser());
+
+			if (thresholds.getDeviceDelivered()) {
+				final Notice.Item note = notice.atDeviceDelivered;
+				final Intent noticed = noteBuilder.buildDeviceDelivered(context);
+				DistributorThread.sendIntent(note.via.v, noticed, context);
+			} else if (thresholds.getAndroidPluginReceived()) {
+				final Notice.Item note = notice.atGatewayDelivered;
+				final Intent noticed = noteBuilder.buildGatewayDelivered(context);
+				DistributorThread.sendIntent(note.via.v, noticed, context);
+			} else if (thresholds.getPluginDelivered()) {
+				final Notice.Item note = notice.atPluginDelivered;
+				final Intent noticed = noteBuilder.buildPluginDelivered(context);
+				DistributorThread.sendIntent(note.via.v, noticed, context);
+			} 
 		}
-		if (notice.atGatewayDelivered.via.isActive()) {
-			final Notice.Item note = notice.atGatewayDelivered;
-			final Intent noticed = noteBuilder.buildGatewayDelivered(context);
-			DistributorThread.sendIntent(note.via.v, noticed, context);
-		}
-		if (notice.atPluginDelivered.via.isActive()) {
-			final Notice.Item note = notice.atPluginDelivered;
-			final Intent noticed = noteBuilder.buildPluginDelivered(context);
-			DistributorThread.sendIntent(note.via.v, noticed, context);
-		}
-		// TODO FPE do for plugin, what fields for intent?
-		// what status such as: user-off-line
 		return true;
 	}
 
@@ -1442,7 +1452,7 @@ public class DistributorThread extends Thread {
 	 * @param mw
 	 * @return
 	 */
-	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw) {
+	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw, int priority) {
 		if (mw == null)
 			return false;
 		if (!mw.hasPullResponse())
@@ -1470,14 +1480,11 @@ public class DistributorThread extends Thread {
 		// update the actual provider
 
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-
-		final boolean queued = this.deserialThread.toProvider(context, provider, encoding, resp.getData().toByteArray());
+		final boolean queued = this.deserialThread.toProvider(priority, context, provider, encoding, resp.getData().toByteArray());
 		logger.debug("tuple upserted {}", queued);
 
 		return true;
 	}
-
-
 
 	// =========== SUBSCRIBE ====================
 
@@ -1671,7 +1678,7 @@ public class DistributorThread extends Thread {
 	 * The subscribing uri isn't sent with the subscription to the gateway
 	 * therefore it needs to be recovered from the subscription table.
 	 */
-	private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
+	private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel, int priority) {
 		if (mw == null) {
 			logger.warn("no message");
 			return false;
@@ -1743,7 +1750,6 @@ public class DistributorThread extends Thread {
 
 			final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb, 
 					new INetworkService.OnSendMessageHandler() {
-				@SuppressWarnings("unused")
 				final AmmoMessages.PushAcknowledgement.Builder ack_ = pushAck;
 				@Override
 				public boolean ack(String channel, DisposalState status) {
@@ -1758,7 +1764,7 @@ public class DistributorThread extends Thread {
 		}
 
 		final Encoding encoding = Encoding.getInstanceByName( encode );
-		this.deserialThread.toProvider(context, provider, encoding, data.toByteArray());
+		this.deserialThread.toProvider(priority, context, provider, encoding, data.toByteArray());
 
 		logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString );
 
