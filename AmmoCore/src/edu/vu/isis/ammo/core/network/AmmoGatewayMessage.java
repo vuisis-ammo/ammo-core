@@ -98,6 +98,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public final boolean isMulticast;
     public final boolean isSerialChannel;
     public final boolean isGateway;
+    public final NetChannel channel;
 
     public final long buildTime;
     /**
@@ -243,6 +244,20 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.payload = val;
             return this;
         }
+
+		/**
+		 * delivery channel
+		 */
+		private NetChannel channel;
+		public NetChannel channel() {
+			return this.channel;
+		}
+		public Builder channel(NetChannel val) {
+			this.channel = val;
+			return this;
+		}
+
+
         public AmmoGatewayMessage build() {
 			if (this.size != this.payload_serialized.length)
                 throw new IllegalArgumentException("payload size incorrect");
@@ -275,6 +290,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.isMulticast = builder.isMulticast;
         this.isSerialChannel = builder.isSerialChannel;
         this.isGateway = builder.isGateway;
+	this.channel = builder.channel;
 	// record the time when the message is built so we can sort it by time
 	// if the priority is same
 	this.buildTime = System.currentTimeMillis();

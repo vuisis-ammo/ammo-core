@@ -1234,7 +1234,7 @@ public class SerialChannel extends NetChannel
                             }
 
                             agmb.isSerialChannel( true );
-                            AmmoGatewayMessage agm = agmb.payload( buf_payload ).build();
+                            AmmoGatewayMessage agm = agmb.payload( buf_payload ).channel(SerialChannel.this).build();
 
                             long currentTime = System.currentTimeMillis();
                             int slotDuration = mSlotDuration.get();
