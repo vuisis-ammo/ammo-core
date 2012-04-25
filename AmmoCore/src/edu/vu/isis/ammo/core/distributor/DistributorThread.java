@@ -7,11 +7,8 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
 package edu.vu.isis.ammo.core.distributor;
-
-import android.os.Debug;
-import android.os.Parcel;
 
 import java.io.IOException;
 import java.util.Map;
@@ -41,6 +38,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Debug;
+import android.os.Parcel;
 import android.os.Process;
 import android.preference.PreferenceManager;
 
@@ -49,33 +48,31 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
-import edu.vu.isis.ammo.api.type.Payload;
-import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Via;
-import edu.vu.isis.ammo.api.type.Notice.Threshold;
+import edu.vu.isis.ammo.api.type.Payload;
+import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
@@ -86,7 +83,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
  * 
  */
 @ThreadSafe
-    public class DistributorThread extends Thread {
+public class DistributorThread extends Thread {
 	// ===========================================================
 	// Constants
 	// ===========================================================
@@ -96,7 +93,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
 	private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
-	
+
 	private static final String ACTION_BASE = "edu.vu.isis.ammo.";
 	public static final String ACTION_MSG_SENT = ACTION_BASE+"ACTION_MESSAGE_SENT";
 	public static final String ACTION_MSG_RCVD = ACTION_BASE+"ACTION_MESSAGE_RECEIVED";
@@ -109,91 +106,94 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	private static final int BURP_TIME = 20 * 1000;
 
 	private final Context context;
-    private final AmmoService ammoService;
+	private final AmmoService ammoService;
 	/**
 	 * The backing store for the distributor
 	 */
 	final private DistributorDataStore store;
-	
-	private static final int SERIAL_NOTIFY_ID = 1;
-    private static final int IP_NOTIFY_ID = 2;
-    
-    private int current_icon_id = 1;
-    private int current_icon = 0;
-    
-    private AtomicInteger total_sent = new AtomicInteger (0);
-    private AtomicInteger total_recv = new AtomicInteger (0);
-    
-    private NotifyMsgNumber notify = null;
 
-    public DistributorThread(final Context context, AmmoService parent) {
+	private static final int SERIAL_NOTIFY_ID = 1;
+	private static final int IP_NOTIFY_ID = 2;
+
+	private int current_icon_id = 1;
+
+	private AtomicInteger total_sent = new AtomicInteger (0);
+	private AtomicInteger total_recv = new AtomicInteger (0);
+
+	private NotifyMsgNumber notify = null;
+
+	public DistributorThread(final Context context, AmmoService parent) {
 		super();
 		this.context = context;
 		this.ammoService = parent;
 		this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
 		this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200, new AmmoGatewayMessage.PriorityOrder());
+
+		this.deserialThread = new RequestDeserializerThread();
+		this.deserialThread.start();
+
 		this.store = new DistributorDataStore(context);
-		
+
 		this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
 		this.channelDelta = new AtomicBoolean(true);
-		
+
 		this.channelAck = new LinkedBlockingQueue<ChannelAck>(200);
 		logger.debug("constructed");
 	}
-    
-    private class NotifyMsgNumber implements Runnable {
-        
-        private DistributorThread parent = null;
-        
-        private int last_sent_count = 0;
-        private int last_recv_count = 0;
-        
-        public NotifyMsgNumber (DistributorThread parent) {
-            this.parent = parent;
-        }
-        
-        private AtomicBoolean terminate = new AtomicBoolean (false);
-        
-        public void terminate () {
-            terminate.set(true);
-        }
-        
-        public void run () {
-            if (terminate.get() != true)
-                updateNotification ();
-        }
 
-        private void updateNotification () {
+	private class NotifyMsgNumber implements Runnable {
 
-            //check for variable update ... 
-            int total_sent = parent.total_sent.get();
-            int total_recv = parent.total_recv.get();
-            
-            int sent = total_sent - last_sent_count;
-            int recv = total_recv - last_recv_count;
-            
-            int icon = 0;
-            //figure out the icon ... 
-            if (sent == 0 && recv == 0)
-                icon = R.drawable.nodata;
-            else if (sent > 0 && recv ==0)
-                icon = R.drawable.up;
-            else if (sent == 0 && recv > 0)
-                icon = R.drawable.down;
-            else if (sent > 0 && recv > 0)
-                icon = R.drawable.alldata;
+		private DistributorThread parent = null;
 
-            String contentText = "Sent " + total_sent + " Received " + total_recv;
-            
-            parent.notifyIcon("", "Data Channel", contentText, icon);
-            
-            //save the last sent and recv ...
-            last_sent_count = total_sent;
-            last_recv_count = total_recv;
-            
-            parent.ammoService.notifyMsg.postDelayed(this, 30000);
-        }        
-    }
+		private int last_sent_count = 0;
+		private int last_recv_count = 0;
+
+		public NotifyMsgNumber (DistributorThread parent) {
+			this.parent = parent;
+		}
+
+		private AtomicBoolean terminate = new AtomicBoolean (false);
+
+		public void terminate () {
+			terminate.set(true);
+		}
+
+		public void run () {
+			if (terminate.get() != true)
+				updateNotification ();
+		}
+
+		private void updateNotification () {
+
+			//check for variable update ... 
+			int total_sent = parent.total_sent.get();
+					int total_recv = parent.total_recv.get();
+
+					int sent = total_sent - last_sent_count;
+					int recv = total_recv - last_recv_count;
+
+					int icon = 0;
+					//figure out the icon ... 
+					if (sent == 0 && recv == 0)
+						icon = R.drawable.nodata;
+					else if (sent > 0 && recv ==0)
+						icon = R.drawable.up;
+					else if (sent == 0 && recv > 0)
+						icon = R.drawable.down;
+					else if (sent > 0 && recv > 0)
+						icon = R.drawable.alldata;
+
+					String contentText = "Sent " + total_sent + " Received " + total_recv;
+
+					parent.notifyIcon("", "Data Channel", contentText, icon);
+
+					//save the last sent and recv ...
+					last_sent_count = total_sent;
+					last_recv_count = total_recv;
+
+					parent.ammoService.notifyMsg.postDelayed(this, 30000);
+		}        
+	}
 
 	public DistributorDataStore store() {
 		return this.store;
@@ -217,89 +217,89 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		}
 		logger.debug("On Channel Change: {} :: {}", channelName, change);
 		this.channelStatus.put(channelName, new ChannelStatus(change)); // change
-																		// channel
+		// channel
 		if (!channelDelta.compareAndSet(false, true))
 			return; // mark as needing processing
 		this.signal(); // signal to perform update
-		
+
 		setupNotificationIcon(channelName, change);
 	}
 
 	private void setupNotificationIcon(String channelName, ChannelChange change)
-    {
-        String ns = Context.NOTIFICATION_SERVICE;
-        NotificationManager mNotificationManager = 
-                (NotificationManager) context.getSystemService(ns);
+	{
+		String ns = Context.NOTIFICATION_SERVICE;
+		NotificationManager mNotificationManager = 
+				(NotificationManager) context.getSystemService(ns);
 
-        if (change == ChannelChange.DEACTIVATE)
-        {
-            for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
-                if (entry.getValue().change == ChannelChange.ACTIVATE) {
-                    return; // leave, since at least one channel is still active 
-                }
-            }
-            
-            // none of the channels are active ...
-            if (notify != null) {
-                this.ammoService.notifyMsg.removeCallbacks(notify);
-                notify.terminate ();
-                notify = null;                
-            }
-            mNotificationManager.cancel(current_icon_id);
-            return;
-        }
-        
-        int icon;
-        
-        if (channelName.equals("serial"))
-        {
-//            current_icon = R.drawable.notify_icon_152_small;
-            
-            // right now using the same icon ... once we get new icons, replace this .. 
-            icon = R.drawable.alldata;
-            current_icon_id = SERIAL_NOTIFY_ID;
-        }
-        else
-        {
-//            current_icon = R.drawable.notify_icon_wr_small;
-            icon = R.drawable.alldata;
-            current_icon_id = IP_NOTIFY_ID;
-        }
-        
-        notifyIcon(channelName + " Channel Up", "Data Channel", "Online", icon);
-       
-        
-        if (notify == null) {
-            notify = new NotifyMsgNumber (this);
-            this.ammoService.notifyMsg.postDelayed(notify, 15000);
-        }
-    }
+		if (change == ChannelChange.DEACTIVATE)
+		{
+			for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+				if (entry.getValue().change == ChannelChange.ACTIVATE) {
+					return; // leave, since at least one channel is still active 
+				}
+			}
 
-	
+			// none of the channels are active ...
+			if (notify != null) {
+				this.ammoService.notifyMsg.removeCallbacks(notify);
+				notify.terminate ();
+				notify = null;                
+			}
+			mNotificationManager.cancel(current_icon_id);
+			return;
+		}
+
+		int icon;
+
+		if (channelName.equals("serial"))
+		{
+			//            current_icon = R.drawable.notify_icon_152_small;
+
+			// right now using the same icon ... once we get new icons, replace this .. 
+			icon = R.drawable.alldata;
+			current_icon_id = SERIAL_NOTIFY_ID;
+		}
+		else
+		{
+			//            current_icon = R.drawable.notify_icon_wr_small;
+			icon = R.drawable.alldata;
+			current_icon_id = IP_NOTIFY_ID;
+		}
+
+		notifyIcon(channelName + " Channel Up", "Data Channel", "Online", icon);
+
+
+		if (notify == null) {
+			notify = new NotifyMsgNumber (this);
+			this.ammoService.notifyMsg.postDelayed(notify, 15000);
+		}
+	}
+
+
 	private void notifyIcon (String tickerTxt,
-	        String contentTitle, 
-	        String contentText,
-	        int icon) 
+			String contentTitle, 
+			String contentText,
+			int icon) 
 	{    
-        String ns = Context.NOTIFICATION_SERVICE;
-        NotificationManager mNotificationManager = 
-                (NotificationManager) context.getSystemService(ns);
-        
-        CharSequence tickerText = tickerTxt;
-        long when = System.currentTimeMillis();
-        
-        Notification notification = new Notification(icon, tickerText, when);
-        notification.flags |= Notification.FLAG_ONGOING_EVENT;
-        
-        Intent notificationIntent = new Intent(context, AmmoCore.class);
-        
-        PendingIntent contentIntent = PendingIntent
-            .getActivity(context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+		String ns = Context.NOTIFICATION_SERVICE;
+		NotificationManager mNotificationManager = 
+				(NotificationManager) context.getSystemService(ns);
 
-        notification.setLatestEventInfo(context, contentTitle, contentText,
-                contentIntent);
+		CharSequence tickerText = tickerTxt;
+		long when = System.currentTimeMillis();
 
-        mNotificationManager.notify(current_icon_id, notification);        	    
+		Notification notification = new Notification(icon, tickerText, when);
+		notification.flags |= Notification.FLAG_ONGOING_EVENT;
+
+		Intent notificationIntent = new Intent(context, AmmoCore.class);
+
+		PendingIntent contentIntent = PendingIntent
+				.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+		notification.setLatestEventInfo(context, contentTitle, contentText,
+				contentIntent);
+
+		mNotificationManager.notify(current_icon_id, notification);        	    
 	}
 	/**
 	 * When a channel comes on-line the disposition table should be checked to
@@ -327,25 +327,25 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	private class ChannelAck {
 		public final Tables type;
 		public final long id;
-		
+
 		public final String topic;
 		public final String auid;
 		public final Notice notice;
-		
+
 		public final String channel;
 		public final DisposalState status;
 
 		public ChannelAck(Tables type, long id, 
-				          String topic, String auid, Notice notice,
-				          String channel, DisposalState status) 
+				String topic, String auid, Notice notice,
+				String channel, DisposalState status) 
 		{
 			this.type = type;
 			this.id = id;
-			
+
 			this.topic = topic;
 			this.auid = auid;
 			this.notice = notice;
-			
+
 			this.channel = channel;
 			this.status = status;
 		}
@@ -353,13 +353,13 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		@Override
 		public String toString() {
 			return new StringBuilder()
-			                .append(" type ").append(type)
-                            .append(" id ").append(id)
-                            .append(" topic ").append(topic)
-                            .append(" aid ").append(auid)
-                            .append(" channel ").append(channel)
-                            .append(" status ").append(status)
-                            .toString();
+			.append(" type ").append(type)
+			.append(" id ").append(id)
+			.append(" topic ").append(topic)
+			.append(" aid ").append(auid)
+			.append(" channel ").append(channel)
+			.append(" status ").append(status)
+			.toString();
 		}
 	}
 
@@ -382,12 +382,12 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			return false;
 		}
 		this.signal();
-		
-        if (ack.status == DisposalState.SENT)//update recv count and send notify
-        {
-            total_sent.incrementAndGet();
-        }
-        
+
+		if (ack.status == DisposalState.SENT)//update recv count and send notify
+		{
+			total_sent.incrementAndGet();
+		}
+
 		return true;
 	}
 
@@ -418,13 +418,13 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		if (note.via.isActive()) {
 
 			final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
-			 .topic(ack.topic)
-			 .auid(ack.auid)
-			 .channel(ack.channel);
+					.topic(ack.topic)
+					.auid(ack.auid)
+					.channel(ack.channel);
 
 			if (ack.status != null) 
 				noteBuilder.status(ack.status.toString());
-			
+
 			final Intent noticed = noteBuilder.buildSent(context);
 			final int aggregate = note.via.v;
 
@@ -442,7 +442,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 				context.startService(noticed); 
 			}
 		}
-	
+
 		logger.debug("count {}: intent {}", numUpdated, ack);
 	}
 
@@ -465,7 +465,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 
 	public String distributeRequest(AmmoRequest request) {
 		try {
-		    logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
+			logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
 
 			if (! this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
 				logger.error("could not process request {}", request);
@@ -485,6 +485,8 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * Contains gateway responses
 	 */
 	private final PriorityBlockingQueue<AmmoGatewayMessage> responseQueue;
+
+	private RequestDeserializerThread deserialThread;
 
 	public boolean distributeResponse(AmmoGatewayMessage agm) {
 		if (! this.responseQueue.offer(agm, 1, TimeUnit.SECONDS)) {
@@ -507,7 +509,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * network connections then nothing can be distributed, so no work. Either
 	 * incoming requests, responses, or a channel has been activated.
 	 */
-    private boolean isReady() {
+	private boolean isReady() {
 		if (this.channelDelta.get())
 			return true;
 
@@ -527,75 +529,75 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * The method tries to be fair processing the requests in
 	 */
 	@Override
-	    public void run()
-    {
-	Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
-	logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
+	public void run()
+	{
+		Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
+		logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
 
-	if (ammoService.isConnected()) {
+		if (ammoService.isConnected()) {
 
-	    for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
-		final String name = entry.getKey();
-		this.store.deactivateDisposalStateByChannel(name);
-	    }
+			for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+				final String name = entry.getKey();
+				this.store.deactivateDisposalStateByChannel(name);
+			}
 
-	    this.doSubscribeCache(ammoService);
-	    this.doRetrievalCache(ammoService);
-	    this.doPostalCache(ammoService);
-	}
-
-
-	try {
-	    while (true) {
-		// condition wait, is there something to process?
-		synchronized (this) {
-		    while (!this.isReady())
-			this.wait(BURP_TIME);
+			this.doSubscribeCache(ammoService);
+			this.doRetrievalCache(ammoService);
+			this.doPostalCache(ammoService);
 		}
-		while (this.isReady()) {
-		    if (this.channelDelta.getAndSet(false)) {
-			logger.trace("channel change");
-			this.doChannelChange(ammoService);
-		    }
 
-		    if (!this.channelAck.isEmpty()) {
-			logger.trace("processing channel acks, remaining {}", this.channelAck.size());
-			try {
-			    final ChannelAck ack = this.channelAck.take();
-			    this.doChannelAck(this.context, ack);
-			} catch (ClassCastException ex) {
-			    logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
-			}
-		    }
 
-		    if (!this.responseQueue.isEmpty()) {
-			try {
-			    final AmmoGatewayMessage agm = this.responseQueue.take();
-			    logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
-			    this.doResponse(ammoService, agm);
-			} catch (ClassCastException ex) {
-			    logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
-			}
-		    }
+		try {
+			while (true) {
+				// condition wait, is there something to process?
+				synchronized (this) {
+					while (!this.isReady())
+						this.wait(BURP_TIME);
+				}
+				while (this.isReady()) {
+					if (this.channelDelta.getAndSet(false)) {
+						logger.trace("channel change");
+						this.doChannelChange(ammoService);
+					}
 
-		    if (!this.requestQueue.isEmpty()) {
-			try {
-			    final AmmoRequest agm = this.requestQueue.take();
-			    logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
-			    PLogger.QUEUE_REQ_EXIT.info("uuid=[{}] remainder=[{}]", agm.uuid, this.requestQueue.size());
-			    this.doRequest(ammoService, agm);
-			} catch (ClassCastException ex) {
-			    logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
+					if (!this.channelAck.isEmpty()) {
+						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
+						try {
+							final ChannelAck ack = this.channelAck.take();
+							this.doChannelAck(this.context, ack);
+						} catch (ClassCastException ex) {
+							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
+						}
+					}
+
+					if (!this.responseQueue.isEmpty()) {
+						try {
+							final AmmoGatewayMessage agm = this.responseQueue.take();
+							logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
+							this.doResponse(ammoService, agm);
+						} catch (ClassCastException ex) {
+							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
+						}
+					}
+
+					if (!this.requestQueue.isEmpty()) {
+						try {
+							final AmmoRequest agm = this.requestQueue.take();
+							logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
+							PLogger.QUEUE_REQ_EXIT.info("uuid=[{}] remainder=[{}]", agm.uuid, this.requestQueue.size());
+							this.doRequest(ammoService, agm);
+						} catch (ClassCastException ex) {
+							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
+						}
+					}
+				}
+				logger.trace("work processed");
 			}
-		    }
+		} catch (InterruptedException ex) {
+			logger.warn("task interrupted {}", ex.getStackTrace());
 		}
-		logger.trace("work processed");
-	    }
-	} catch (InterruptedException ex) {
-	    logger.warn("task interrupted {}", ex.getStackTrace());
+		return;
 	}
-	return;
-    }
 
 
 	// ================= DRIVER METHODS ==================== //
@@ -619,7 +621,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			} else {
 				doPostalRequest(that, agm);
 			}
-			
+
 			break;
 		case DIRECTED_POSTAL:
 			doPostalRequest(that, agm);
@@ -706,19 +708,19 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * @return was the message clean (true) or garbled (false).
 	 */
 	private boolean doResponse(Context context, AmmoGatewayMessage agm) {
-	    logger.trace("process response");
+		logger.trace("process response");
 
-        if ( !agm.hasValidChecksum() ) {
-            // If this message came from the serial channel, let it know that
-            // a corrupt message occured, so it can update its stats.
-            // Make this a more general mechanism later on.
-            if ( agm.isSerialChannel )
-                ammoService.receivedCorruptPacketOnSerialChannel();
+		if ( !agm.hasValidChecksum() ) {
+			// If this message came from the serial channel, let it know that
+			// a corrupt message occured, so it can update its stats.
+			// Make this a more general mechanism later on.
+			if ( agm.isSerialChannel )
+				ammoService.receivedCorruptPacketOnSerialChannel();
 
-            return false;
-        }
-        
-        total_recv.incrementAndGet();
+			return false;
+		}
+
+		total_recv.incrementAndGet();
 
 		final AmmoMessages.MessageWrapper mw;
 		try {
@@ -730,7 +732,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		if (mw == null) {
 			logger.error("mw was null!");
 			return false; // TBD SKN: this was true, why? if we can't parse it
-							// then its bad
+			// then its bad
 		}
 		final MessageType mtype = mw.getType();
 		if (mtype == MessageType.HEARTBEAT) {
@@ -741,7 +743,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 		case TERSE_MESSAGE:
-		    final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel);
+			final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel);
 			logger.debug("subscribe reply {}", subscribeResult);
 			break;
 
@@ -751,7 +753,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			break;
 
 		case PUSH_ACKNOWLEDGEMENT:
-		    final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
+			final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
 			logger.debug("post acknowledgement {}", postalResult);
 			break;
 
@@ -791,10 +793,10 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			return false;
 		}
 		PreferenceManager
-		    .getDefaultSharedPreferences(context)
-		    .edit()
-		    .putBoolean(INetDerivedKeys.NET_CONN_PREF_IS_ACTIVE, true)
-		    .commit();
+		.getDefaultSharedPreferences(context)
+		.edit()
+		.putBoolean(INetDerivedKeys.NET_CONN_PREF_IS_ACTIVE, true)
+		.commit();
 		// sessionId = mw.getSessionUuid();
 
 		// the distributor doesn't need to know about authentication results.
@@ -822,7 +824,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 
 		// Dispatch the message.
 		try {
-		    final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
@@ -834,11 +836,11 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			values.put(PostalTableSchema.AUID.cv(), auid);
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
-			
+
 			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
 			values.put(PostalTableSchema.EXPIRATION.cv(), ar.expire.cv());
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
-			
+
 			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
 			Parcel np = Parcel.obtain();
 			np.writeParcelable( ar.notice, 0 );
@@ -858,19 +860,19 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 				final RequestSerializer serializer_ = serializer;
 				final AmmoService that_ = that;
 				final DistributorThread parent = DistributorThread.this;
-				
+
 				@Override
 				public byte[] run(Encoding encode) {
 					if (serializer_.payload.whatContent() != Payload.Type.NONE) {
-					    final byte[] result = 
-					            RequestSerializer.serializeFromContentValues(
-		                                serializer_.payload.getCV(),
-		                                encode);
+						final byte[] result = 
+								RequestSerializer.serializeFromContentValues(
+										serializer_.payload.getCV(),
+										encode);
 
-                        if (result == null) {
-                            logger.error("Null result from serialize content value, encoding into {}", encode);
-                        }
-                        return result;
+						if (result == null) {
+							logger.error("Null result from serialize content value, encoding into {}", encode);
+						}
+						return result;
 						//return serializer_.payload.asBytes();
 					} else {
 						try {
@@ -900,26 +902,26 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-			    final long id = this.store.upsertPostal(values, policy.makeRouteMap());
+				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
 
-			    final DistributorState dispatchResult = this.dispatchPostalRequest(that, ar.notice,
+				final DistributorState dispatchResult = this.dispatchPostalRequest(that, ar.notice,
 						ar.uuid.toString(), topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
-							final DistributorThread parent = DistributorThread.this;
-							final long id_ = id;
-							final String topic_ = topic;
-							final String auid_ = ar.uid;
-						    final Notice notice_ = ar.notice;
-		
-							@Override
-							public boolean ack(String channel, DisposalState status) {
-								return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
-										topic_, auid_,  notice_,
-										                                        channel, status));
-							}
-						});
+					final DistributorThread parent = DistributorThread.this;
+					final long id_ = id;
+					final String topic_ = topic;
+					final String auid_ = ar.uid;
+					final Notice notice_ = ar.notice;
 
-			    this.store.updatePostalByKey(id, null, dispatchResult);
+					@Override
+					public boolean ack(String channel, DisposalState status) {
+						return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
+								topic_, auid_,  notice_,
+								channel, status));
+					}
+				});
+
+				this.store.updatePostalByKey(id, null, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
@@ -964,7 +966,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
 
 			final String data = (pending.isNull(dataColumnIndex)) ? null : pending.getString(dataColumnIndex);
-			
+
 			serializer.setSerializer( new RequestSerializer.OnSerialize() {
 				final DistributorThread parent = DistributorThread.this;
 				final RequestSerializer serializer_ = serializer;
@@ -976,7 +978,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 				public byte[] run(Encoding encode) {
 					switch (SerializeType.getInstance(serialType_)) {
 					case DIRECT:
-                        return (data_.length() > 0) ? data_.getBytes() : null;
+						return (data_.length() > 0) ? data_.getBytes() : null;
 
 					case INDIRECT:
 					case DEFERRED:
@@ -989,9 +991,9 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 						} catch (TupleNotFoundException ex) {
 							logger.error("tuple not found when processing postal table");
 							parent.store().deletePostal(new StringBuilder()
-							        .append(PostalTableSchema.PROVIDER.q()).append("=?").append(" AND ")
-									.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), 
-									new String[] {ex.missingTupleUri.getPath(), topic});
+							.append(PostalTableSchema.PROVIDER.q()).append("=?").append(" AND ")
+							.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), 
+							new String[] {ex.missingTupleUri.getPath(), topic});
 						} catch (NonConformingAmmoContentProvider ex) {
 							ex.printStackTrace();
 						}
@@ -1029,24 +1031,24 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 					logger.debug("updated {} postal items", numUpdated);
 
 					final DistributorState dispatchResult = 
-					    this.dispatchPostalRequest(that, notice,
+							this.dispatchPostalRequest(that, notice,
 									uuid.toString(), topic, 
 									dispersal, serializer,
 									new INetworkService.OnSendMessageHandler() {
-										final DistributorThread parent = DistributorThread.this;
-		                                final int id_ = id;
-		                                final String auid_ = auid;
-		                                final String topic_ = topic;
-									    final Notice notice_ = notice;
-									    
-		                                
-										@Override
-										public boolean ack(String channel, DisposalState status) {
-											return parent.announceChannelAck( new ChannelAck(Tables.POSTAL, id_, 
-													topic_, auid_, notice_, 
-													                                         channel, status) );
-										}
-									});
+								final DistributorThread parent = DistributorThread.this;
+								final int id_ = id;
+								final String auid_ = auid;
+								final String topic_ = topic;
+								final Notice notice_ = notice;
+
+
+								@Override
+								public boolean ack(String channel, DisposalState status) {
+									return parent.announceChannelAck( new ChannelAck(Tables.POSTAL, id_, 
+											topic_, auid_, notice_, 
+											channel, status) );
+								}
+							});
 					this.store.updatePostalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
@@ -1069,7 +1071,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * @return
 	 */
 	private DistributorState dispatchPostalRequest(final AmmoService that, 
-		final Notice notice, final String uuid, final String msgType, 
+			final Notice notice, final String uuid, final String msgType, 
 			final DistributorState dispersal, final RequestSerializer serializer, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
@@ -1086,23 +1088,23 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 					logger.error("No Payload");
 					return null;
 				}
-				
+
 				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 				if (encode.getType() != Encoding.Type.TERSE) {
 					final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
-						.newBuilder()
-						.setUri(uuid)
-						.setMimeType(msgType)
-						.setEncoding(encode.getType().name())
-					        .setUserId(ammoService.getOperatorId())
-					    .setOriginDevice(ammoService.getDeviceId())
-						.setData(ByteString.copyFrom(serialized));
+							.newBuilder()
+							.setUri(uuid)
+							.setMimeType(msgType)
+							.setEncoding(encode.getType().name())
+							.setUserId(ammoService.getOperatorId())
+							.setOriginDevice(ammoService.getDeviceId())
+							.setData(ByteString.copyFrom(serialized));
 					final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
 							.setDeviceDelivered(notice.atDeviceDelivered.via.isActive())
 							.setAndroidPluginReceived(notice.atGatewayDelivered.via.isActive())
 							.setPluginDelivered(notice.atPluginDelivered.via.isActive());
 					pushReq.setThresholds(noticeBuilder);
-					
+
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
 					mw.setDataMessage(pushReq);
 
@@ -1115,10 +1117,10 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 					final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
 							.newBuilder()
 							.setMimeType(mimeId)
-					                .setUserId(ammoService.getOperatorId())
+							.setUserId(ammoService.getOperatorId())
 							.setData(ByteString.copyFrom(serialized));
-						mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
-						mw.setTerseMessage(pushReq);
+					mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
+					mw.setTerseMessage(pushReq);
 				}
 
 				logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n", System.currentTimeMillis() - now, serialized.length);
@@ -1137,69 +1139,69 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * @param mw
 	 * @return
 	 */
-    private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
-	logger.trace("receive response POSTAL");
+	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
+		logger.trace("receive response POSTAL");
 
-	if (mw == null)
-	    return false;
-	if (!mw.hasPushAcknowledgement())
-	    return false;
-	final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-	// generate an intent if it was requested
+		if (mw == null)
+			return false;
+		if (!mw.hasPushAcknowledgement())
+			return false;
+		final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
+		// generate an intent if it was requested
 
-	final Cursor postalReq = this.store.queryPostal(null, new StringBuilder().
-		append(DistributorDataStore.PostalTableSchema.UUID.cv()).append("=?").toString(), new String[]{pushResp.getUri()}, null);
+		final Cursor postalReq = this.store.queryPostal(null, new StringBuilder().
+				append(DistributorDataStore.PostalTableSchema.UUID.cv()).append("=?").toString(), new String[]{pushResp.getUri()}, null);
 
-	if (postalReq == null) {
-	    logger.error("Got an ack for which not able to find the orignal request, dropping ack {}", pushResp.getUri() );
-	    return false;
+		if (postalReq == null) {
+			logger.error("Got an ack for which not able to find the orignal request, dropping ack {}", pushResp.getUri() );
+			return false;
+		}
+		boolean hasMore = postalReq.moveToFirst();
+		if (!hasMore) {
+			logger.error("Got an ack for which not able to find the orignal request, dropping ack {}", pushResp.getUri() );
+			postalReq.close();
+			return false;
+		}
+
+		Parcel np = Parcel.obtain();
+		byte [] nb = postalReq.getBlob( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv() ) );
+		np.unmarshall( nb, 0, nb.length );
+		np.setDataPosition( 0 );
+		logger.debug("notice bytes {}", nb);
+
+		final Notice notice = Notice.CREATOR.createFromParcel(np);
+		final String topic = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv() ) );
+		final String auid = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv() ) );
+
+		postalReq.close();
+
+		// check if it is for us , and how we should notify
+		final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(notice)
+				.topic(topic)
+				.auid(auid)
+				.channel(channel.name)
+				.device(pushResp.getAcknowledgingDevice())
+				.operator(pushResp.getAcknowledgingUser());
+
+		if (notice.atDeviceDelivered.via.isActive()) {
+			final Notice.Item note = notice.atDeviceDelivered;
+			final Intent noticed = noteBuilder.buildDeviceDelivered(context);
+			DistributorThread.sendIntent(note.via.v, noticed, context);
+		}
+		if (notice.atGatewayDelivered.via.isActive()) {
+			final Notice.Item note = notice.atGatewayDelivered;
+			final Intent noticed = noteBuilder.buildGatewayDelivered(context);
+			DistributorThread.sendIntent(note.via.v, noticed, context);
+		}
+		if (notice.atPluginDelivered.via.isActive()) {
+			final Notice.Item note = notice.atPluginDelivered;
+			final Intent noticed = noteBuilder.buildPluginDelivered(context);
+			DistributorThread.sendIntent(note.via.v, noticed, context);
+		}
+		// TODO FPE do for plugin, what fields for intent?
+		// what status such as: user-off-line
+		return true;
 	}
-	boolean hasMore = postalReq.moveToFirst();
-	if (!hasMore) {
-	    logger.error("Got an ack for which not able to find the orignal request, dropping ack {}", pushResp.getUri() );
-	    postalReq.close();
-	    return false;
-	}
-
-	Parcel np = Parcel.obtain();
-	byte [] nb = postalReq.getBlob( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv() ) );
-	np.unmarshall( nb, 0, nb.length );
-	np.setDataPosition( 0 );
-	logger.debug("notice bytes {}", nb);
-
-	final Notice notice = Notice.CREATOR.createFromParcel(np);
-	final String topic = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv() ) );
-	final String auid = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv() ) );
-
-	postalReq.close();
-	
-	// check if it is for us , and how we should notify
-	final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(notice)
-	    .topic(topic)
-	    .auid(auid)
-	    .channel(channel.name)
-	    .device(pushResp.getAcknowledgingDevice())
-	    .operator(pushResp.getAcknowledgingUser());
-			
-	if (notice.atDeviceDelivered.via.isActive()) {
-	    final Notice.Item note = notice.atDeviceDelivered;
-	    final Intent noticed = noteBuilder.buildDeviceDelivered(context);
-	    DistributorThread.sendIntent(note.via.v, noticed, context);
-	}
-	if (notice.atGatewayDelivered.via.isActive()) {
-	    final Notice.Item note = notice.atGatewayDelivered;
-	    final Intent noticed = noteBuilder.buildGatewayDelivered(context);
-	    DistributorThread.sendIntent(note.via.v, noticed, context);
-	}
-	if (notice.atPluginDelivered.via.isActive()) {
-	    final Notice.Item note = notice.atPluginDelivered;
-	    final Intent noticed = noteBuilder.buildPluginDelivered(context);
-	    DistributorThread.sendIntent(note.via.v, noticed, context);
-	}
-	// TODO FPE do for plugin, what fields for intent?
-	// what status such as: user-off-line
-	return true;
-    }
 
 	static private void sendIntent(int aggregate, Intent noticed, Context context) {
 		if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
@@ -1249,7 +1251,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
 			values.put(RetrievalTableSchema.AUID.cv(), auid);
 			values.put(RetrievalTableSchema.TOPIC.cv(), topic);
-			
+
 			values.put(RetrievalTableSchema.SELECTION.cv(), select);
 			if (limit != null)
 				values.put(RetrievalTableSchema.LIMIT.cv(), limit);
@@ -1278,19 +1280,19 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 				final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
 						uuid, topic, select, limit, dispersal, 
 						new INetworkService.OnSendMessageHandler() {
-							final DistributorThread parent = DistributorThread.this;
-							final long id_ = id;
-							final String auid_ = auid;
-							final String topic_ = topic;
-						    final Notice notice_ = new Notice();
-						    
-							@Override
-							public boolean ack(String channel, DisposalState status) {
-								return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
-										topic_, auid_,  notice_,
-										                                        channel, status));
-							}
-						});
+					final DistributorThread parent = DistributorThread.this;
+					final long id_ = id;
+					final String auid_ = auid;
+					final String topic_ = topic;
+					final Notice notice_ = new Notice();
+
+					@Override
+					public boolean ack(String channel, DisposalState status) {
+						return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
+								topic_, auid_,  notice_,
+								channel, status));
+					}
+				});
 				this.store.updateRetrievalByKey(id, null, dispatchResult);
 			}
 
@@ -1313,8 +1315,8 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
 		final Cursor pending = this.store.queryRetrievalReady();
-        if (pending == null) return;
-        
+		if (pending == null) return;
+
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
@@ -1354,18 +1356,18 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 					final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
 							uuid, topic, selection, limit, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
-								final DistributorThread parent = DistributorThread.this;
-								final String auid_ = auid;
-								final String topic_ = topic;
-							    final Notice notice_ = new Notice();
-		
-								@Override
-								public boolean ack(String channel, DisposalState status) {
-									return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
-											topic_, auid_, notice_,
-											                                        channel, status));
-								}
-							});
+						final DistributorThread parent = DistributorThread.this;
+						final String auid_ = auid;
+						final String topic_ = topic;
+						final Notice notice_ = new Notice();
+
+						@Override
+						public boolean ack(String channel, DisposalState status) {
+							return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
+									topic_, auid_, notice_,
+									channel, status));
+						}
+					});
 					this.store.updateRetrievalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
@@ -1461,18 +1463,21 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		}
 		cursor.moveToFirst();
 		final String uriString = cursor.getString(0); // only asked for one so
-														// it better be it.
+		// it better be it.
 		cursor.close();
 		final Uri provider = Uri.parse(uriString);
 
 		// update the actual provider
 
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, resp.getData().toByteArray());
-		logger.debug("tuple upserted {}", tuple);
+
+		final boolean queued = this.deserialThread.toProvider(context, provider, encoding, resp.getData().toByteArray());
+		logger.debug("tuple upserted {}", queued);
 
 		return true;
 	}
+
+
 
 	// =========== SUBSCRIBE ====================
 
@@ -1503,7 +1508,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
 			values.put(RetrievalTableSchema.AUID.cv(), auid);
 			values.put(SubscribeTableSchema.TOPIC.cv(), topic);
-			
+
 			values.put(SubscribeTableSchema.PROVIDER.cv(), ar.provider.cv());
 			values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), ar.expire.cv());
@@ -1526,18 +1531,18 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 				final DistributorState dispatchResult = this.dispatchSubscribeRequest(that, 
 						topic, ar.select.toString(), dispersal, 
 						new INetworkService.OnSendMessageHandler() {
-							final DistributorThread parent = DistributorThread.this;
-							final long id_ = id;
-							final String auid_ = auid;
-							final String topic_ = topic;
-						    final Notice notice_ = new Notice();
-							@Override
-							public boolean ack(String channel, DisposalState status) {
-								return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
-										topic_, auid_, notice_,
-										                                        channel, status));
-							}
-						});
+					final DistributorThread parent = DistributorThread.this;
+					final long id_ = id;
+					final String auid_ = auid;
+					final String topic_ = topic;
+					final Notice notice_ = new Notice();
+					@Override
+					public boolean ack(String channel, DisposalState status) {
+						return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
+								topic_, auid_, notice_,
+								channel, status));
+					}
+				});
 				this.store.updateSubscribeByKey(id, null, dispatchResult);
 			}
 
@@ -1601,19 +1606,19 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 					final DistributorState dispatchResult = this.dispatchSubscribeRequest(that, 
 							topic, selection, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
-								final DistributorThread parent = DistributorThread.this;
-								final int id_ = id;
-								final String auid_ = auid;
-								final String topic_ = topic;
-							    final Notice notice_ = new Notice();
-		
-								@Override
-								public boolean ack(String channel, DisposalState status) {
-									return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
-											topic_, auid_,  notice_, 
-											                                        channel, status));
-								}
-							});
+						final DistributorThread parent = DistributorThread.this;
+						final int id_ = id;
+						final String auid_ = auid;
+						final String topic_ = topic;
+						final Notice notice_ = new Notice();
+
+						@Override
+						public boolean ack(String channel, DisposalState status) {
+							return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
+									topic_, auid_,  notice_, 
+									channel, status));
+						}
+					});
 					this.store.updateSubscribeByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
@@ -1666,7 +1671,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * The subscribing uri isn't sent with the subscription to the gateway
 	 * therefore it needs to be recovered from the subscription table.
 	 */
-    private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
+	private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
 		if (mw == null) {
 			logger.warn("no message");
 			return false;
@@ -1675,7 +1680,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			logger.warn("no data in message");
 			return false;
 		}
-		
+
 		String mime = null;
 		String encode = null;
 		String originUser = null;
@@ -1699,7 +1704,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			originUser = resp.getUserId();
 			encode = "TERSE";
 		}
-		
+
 		// final ContentResolver resolver = context.getContentResolver();
 
 		final String topic = mime;
@@ -1711,50 +1716,51 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		}
 		cursor.moveToFirst();
 		final String uriString = cursor.getString(0); // only asked for one so
-														// it better be it.
+		// it better be it.
 		cursor.close();
 		final Uri provider = Uri.parse(uriString);
 
 		// we were subscribed to this - does the sender need an ack (let's be careful...), do this before deserializing
 		logger.debug("data message notice=[{}]", at);
 		if (at != null && at.getDeviceDelivered()) {
-		    final AcknowledgementThresholds bt = AcknowledgementThresholds.newBuilder()
-			.setDeviceDelivered(true)
-			.build();
+			final AcknowledgementThresholds bt = AcknowledgementThresholds.newBuilder()
+					.setDeviceDelivered(true)
+					.build();
 
-		    final AmmoMessages.PushAcknowledgement.Builder pushAck = 
-			AmmoMessages.PushAcknowledgement.newBuilder()
-			.setUri(originUid)
-			.setThreshold(bt)
-			.setDestinationDevice(originDevice)
-			.setDestinationUser(originUser)
-			.setAcknowledgingDevice(ammoService.getDeviceId())
-			.setAcknowledgingUser(ammoService.getOperatorId())
-			.setStatus(PushStatus.RECEIVED);
+			final AmmoMessages.PushAcknowledgement.Builder pushAck = 
+					AmmoMessages.PushAcknowledgement.newBuilder()
+					.setUri(originUid)
+					.setThreshold(bt)
+					.setDestinationDevice(originDevice)
+					.setDestinationUser(originUser)
+					.setAcknowledgingDevice(ammoService.getDeviceId())
+					.setAcknowledgingUser(ammoService.getOperatorId())
+					.setStatus(PushStatus.RECEIVED);
 
-		    final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper.newBuilder()
-			.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
-			.setPushAcknowledgement(pushAck);
+			final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper.newBuilder()
+					.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
+					.setPushAcknowledgement(pushAck);
 
-		    final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb, 
-			    new INetworkService.OnSendMessageHandler() {
-				    final AmmoMessages.PushAcknowledgement.Builder ack_ = pushAck;
+			final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb, 
+					new INetworkService.OnSendMessageHandler() {
+				@SuppressWarnings("unused")
+				final AmmoMessages.PushAcknowledgement.Builder ack_ = pushAck;
 				@Override
-				    public boolean ack(String channel, DisposalState status) {
-				    return true;
+				public boolean ack(String channel, DisposalState status) {
+					return true;
 				}
-			    });
+			});
 
-		    logger.debug("sending ack=[{}]", pushAck);
-		    if (channel != null) {
-			channel.sendRequest(oagmb.build());
-		    }
+			logger.debug("sending ack=[{}]", pushAck);
+			if (channel != null) {
+				channel.sendRequest(oagmb.build());
+			}
 		}
 
 		final Encoding encoding = Encoding.getInstanceByName( encode );
-		final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
+		this.deserialThread.toProvider(context, provider, encoding, data.toByteArray());
 
-		logger.info("Ammo received message on topic: {} for provider: {}, inserted in {}", new Object[]{mime, uriString, tuple} );
+		logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString );
 
 		return true;
 	}
