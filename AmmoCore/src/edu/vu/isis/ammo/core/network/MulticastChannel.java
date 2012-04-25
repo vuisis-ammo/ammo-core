@@ -713,9 +713,10 @@ public class MulticastChannel extends NetChannel
             }
             catch ( Exception e )
             {
-                logger.warn( "connection to {}:{} failed: {}", new Object[]{
+                logger.warn( "connection to {}:{} failed, cause: {} stack: {}", new Object[]{
                              parent.mMulticastGroup,
                              parent.mMulticastPort,
+			     e.getMessage(),
 			     e.getStackTrace() });
                 parent.mSocket = null;
                 return false;
@@ -1148,7 +1149,7 @@ public class MulticastChannel extends NetChannel
                     byte[] payload = new byte[agmb.size()];
                     buf.get( payload, 0, buf.remaining() );
 
-                    AmmoGatewayMessage agm = agmb.payload( payload ).build();
+                    AmmoGatewayMessage agm = agmb.payload( payload ).channel(this.mDestination).build();
                     setReceiverState( INetChannel.DELIVER );
                     mDestination.deliverMessage( agm );
                     logger.trace( "received a message {}", payload.length );

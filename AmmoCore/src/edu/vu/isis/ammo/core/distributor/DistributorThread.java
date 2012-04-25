@@ -11,6 +11,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.distributor;
 
 import android.os.Debug;
+import android.os.Parcel;
 
 import java.io.IOException;
 import java.util.Map;
@@ -50,6 +51,9 @@ import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.api.type.Notice;
+import edu.vu.isis.ammo.api.type.Notice.Via;
+import edu.vu.isis.ammo.api.type.Notice.Threshold;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
@@ -68,8 +72,12 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
 
 /**
@@ -322,12 +330,13 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		
 		public final String topic;
 		public final String auid;
+		public final Notice notice;
 		
 		public final String channel;
 		public final DisposalState status;
 
 		public ChannelAck(Tables type, long id, 
-				          String topic, String auid, 
+				          String topic, String auid, Notice notice,
 				          String channel, DisposalState status) 
 		{
 			this.type = type;
@@ -335,6 +344,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			
 			this.topic = topic;
 			this.auid = auid;
+			this.notice = notice;
 			
 			this.channel = channel;
 			this.status = status;
@@ -404,24 +414,34 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			return;
 		}
 		// generate broadcast intent for everyone who cares about this
-		final Intent notice = new Intent()
-		      .setAction(ACTION_MSG_SENT)
-		      /*
-		      .setType(ack.topic)
-		       ... or ...
-		      .setData(Uri.Builder()
-		    		  .scheme("ammo")
-		    		  .authority(ack.topic)
-		    		  //.path(ack.target)
-		    		  .build())
-		      */
-		      .putExtra(EXTRA_TOPIC, ack.topic.toString())
-		      .putExtra(EXTRA_UID, ack.auid.toString())
-		      .putExtra(EXTRA_CHANNEL, ack.channel.toString())
-		      .putExtra(EXTRA_STATUS, ack.status.toString());
-		      
-		context.sendBroadcast(notice);
-		context.startService(notice); // TBD SKN - WHY DO WE DO THIS???
+		final Notice.Item note = ack.notice.atSend;
+		if (note.via.isActive()) {
+
+			final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
+			 .topic(ack.topic)
+			 .auid(ack.auid)
+			 .channel(ack.channel);
+
+			if (ack.status != null) 
+				noteBuilder.status(ack.status.toString());
+			
+			final Intent noticed = noteBuilder.buildSent(context);
+			final int aggregate = note.via.v;
+
+			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
+				noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				context.startActivity(noticed); 
+			}
+			if (0 < (aggregate & Via.Type.BROADCAST.v)) { 
+				context.sendBroadcast(noticed); 
+			}
+			if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) { 
+				context.sendStickyBroadcast(noticed); 
+			}
+			if (0 < (aggregate & Via.Type.SERVICE.v)) { 
+				context.startService(noticed); 
+			}
+		}
 	
 		logger.debug("count {}: intent {}", numUpdated, ack);
 	}
@@ -721,7 +741,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		switch (mw.getType()) {
 		case DATA_MESSAGE:
 		case TERSE_MESSAGE:
-			final boolean subscribeResult = receiveSubscribeResponse(context, mw);
+		    final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel);
 			logger.debug("subscribe reply {}", subscribeResult);
 			break;
 
@@ -731,7 +751,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			break;
 
 		case PUSH_ACKNOWLEDGEMENT:
-			final boolean postalResult = receivePostalResponse(context, mw);
+		    final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
 			logger.debug("post acknowledgement {}", postalResult);
 			break;
 
@@ -820,8 +840,9 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
 			
 			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-
-			// values.put(PostalTableSchema.UNIT.cv(), 50);
+			Parcel np = Parcel.obtain();
+			np.writeParcelable( ar.notice, 0 );
+			values.put(PostalTableSchema.NOTICE.cv(), np.marshall() );
 
 			final DistributorState dispersal = policy.makeRouteMap();
 			if (!that.isConnected()) {
@@ -840,7 +861,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 				
 				@Override
 				public byte[] run(Encoding encode) {
-					if (serializer_.payload.hasContent()) {
+					if (serializer_.payload.whatContent() != Payload.Type.NONE) {
 					    final byte[] result = 
 					            RequestSerializer.serializeFromContentValues(
 		                                serializer_.payload.getCV(),
@@ -881,18 +902,19 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 			synchronized (this.store) {
 			    final long id = this.store.upsertPostal(values, policy.makeRouteMap());
 
-			    final DistributorState dispatchResult = this.dispatchPostalRequest(that, 
-						ar.provider.toString(), topic, dispersal, serializer, 
+			    final DistributorState dispatchResult = this.dispatchPostalRequest(that, ar.notice,
+						ar.uuid.toString(), topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
 							final DistributorThread parent = DistributorThread.this;
 							final long id_ = id;
 							final String topic_ = topic;
 							final String auid_ = ar.uid;
+						    final Notice notice_ = ar.notice;
 		
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
-										                                        topic_, auid_,  
+										topic_, auid_,  notice_,
 										                                        channel, status));
 							}
 						});
@@ -924,9 +946,16 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		{
 			final int id = pending.getInt(pending.getColumnIndex(PostalTableSchema._ID.n));
 			final String auid = pending.getString(pending.getColumnIndex(PostalTableSchema.AUID.n));
+			final String uuid = pending.getString(pending.getColumnIndex(PostalTableSchema.UUID.n));
 			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n)));
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
+			// read notice stuck in as a blob in the db
+			final byte[] nb = pending.getBlob(pending.getColumnIndex(PostalTableSchema.NOTICE.n));
+			Parcel np = Parcel.obtain();
+			np.unmarshall(nb, 0, nb.length);
+			np.setDataPosition(0);
+			final Notice notice = Notice.CREATOR.createFromParcel(np);
 
 			logger.debug("serializing: {} as {}", provider,topic);
 
@@ -1000,19 +1029,21 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 					logger.debug("updated {} postal items", numUpdated);
 
 					final DistributorState dispatchResult = 
-							this.dispatchPostalRequest(that,
-									provider.toString(), topic, 
+					    this.dispatchPostalRequest(that, notice,
+									uuid.toString(), topic, 
 									dispersal, serializer,
 									new INetworkService.OnSendMessageHandler() {
 										final DistributorThread parent = DistributorThread.this;
 		                                final int id_ = id;
 		                                final String auid_ = auid;
 		                                final String topic_ = topic;
+									    final Notice notice_ = notice;
+									    
 		                                
 										@Override
 										public boolean ack(String channel, DisposalState status) {
 											return parent.announceChannelAck( new ChannelAck(Tables.POSTAL, id_, 
-													                                         topic_, auid_, 
+													topic_, auid_, notice_, 
 													                                         channel, status) );
 										}
 									});
@@ -1038,7 +1069,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * @return
 	 */
 	private DistributorState dispatchPostalRequest(final AmmoService that, 
-			final String provider, final String msgType, 
+		final Notice notice, final String uuid, final String msgType, 
 			final DistributorState dispersal, final RequestSerializer serializer, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
@@ -1060,11 +1091,18 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 				if (encode.getType() != Encoding.Type.TERSE) {
 					final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
 						.newBuilder()
-						.setUri(provider)
+						.setUri(uuid)
 						.setMimeType(msgType)
 						.setEncoding(encode.getType().name())
 					        .setUserId(ammoService.getOperatorId())
+					    .setOriginDevice(ammoService.getDeviceId())
 						.setData(ByteString.copyFrom(serialized));
+					final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
+							.setDeviceDelivered(notice.atDeviceDelivered.via.isActive())
+							.setAndroidPluginReceived(notice.atGatewayDelivered.via.isActive())
+							.setPluginDelivered(notice.atPluginDelivered.via.isActive());
+					pushReq.setThresholds(noticeBuilder);
+					
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
 					mw.setDataMessage(pushReq);
 
@@ -1099,16 +1137,86 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * @param mw
 	 * @return
 	 */
-	private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw) {
-		logger.trace("receive response POSTAL");
+    private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
+	logger.trace("receive response POSTAL");
 
-		if (mw == null)
-			return false;
-		if (!mw.hasPushAcknowledgement())
-			return false;
-		// PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-		return true;
+	if (mw == null)
+	    return false;
+	if (!mw.hasPushAcknowledgement())
+	    return false;
+	final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
+	// generate an intent if it was requested
+
+	final Cursor postalReq = this.store.queryPostal(null, new StringBuilder().
+		append(DistributorDataStore.PostalTableSchema.UUID.cv()).append("=?").toString(), new String[]{pushResp.getUri()}, null);
+
+	if (postalReq == null) {
+	    logger.error("Got an ack for which not able to find the orignal request, dropping ack {}", pushResp.getUri() );
+	    return false;
 	}
+	boolean hasMore = postalReq.moveToFirst();
+	if (!hasMore) {
+	    logger.error("Got an ack for which not able to find the orignal request, dropping ack {}", pushResp.getUri() );
+	    postalReq.close();
+	    return false;
+	}
+
+	Parcel np = Parcel.obtain();
+	byte [] nb = postalReq.getBlob( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv() ) );
+	np.unmarshall( nb, 0, nb.length );
+	np.setDataPosition( 0 );
+	logger.debug("notice bytes {}", nb);
+
+	final Notice notice = Notice.CREATOR.createFromParcel(np);
+	final String topic = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv() ) );
+	final String auid = postalReq.getString( postalReq.getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv() ) );
+
+	postalReq.close();
+	
+	// check if it is for us , and how we should notify
+	final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(notice)
+	    .topic(topic)
+	    .auid(auid)
+	    .channel(channel.name)
+	    .device(pushResp.getAcknowledgingDevice())
+	    .operator(pushResp.getAcknowledgingUser());
+			
+	if (notice.atDeviceDelivered.via.isActive()) {
+	    final Notice.Item note = notice.atDeviceDelivered;
+	    final Intent noticed = noteBuilder.buildDeviceDelivered(context);
+	    DistributorThread.sendIntent(note.via.v, noticed, context);
+	}
+	if (notice.atGatewayDelivered.via.isActive()) {
+	    final Notice.Item note = notice.atGatewayDelivered;
+	    final Intent noticed = noteBuilder.buildGatewayDelivered(context);
+	    DistributorThread.sendIntent(note.via.v, noticed, context);
+	}
+	if (notice.atPluginDelivered.via.isActive()) {
+	    final Notice.Item note = notice.atPluginDelivered;
+	    final Intent noticed = noteBuilder.buildPluginDelivered(context);
+	    DistributorThread.sendIntent(note.via.v, noticed, context);
+	}
+	// TODO FPE do for plugin, what fields for intent?
+	// what status such as: user-off-line
+	return true;
+    }
+
+	static private void sendIntent(int aggregate, Intent noticed, Context context) {
+		if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
+			noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+			context.startActivity(noticed); 
+		}
+		if (0 < (aggregate & Via.Type.BROADCAST.v)) { 
+			context.sendBroadcast(noticed); 
+		}
+		if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) { 
+			context.sendStickyBroadcast(noticed); 
+		}
+		if (0 < (aggregate & Via.Type.SERVICE.v)) { 
+			context.startService(noticed); 
+		}
+	}
+
 
 	// =========== RETRIEVAL ====================
 
@@ -1174,11 +1282,12 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 							final long id_ = id;
 							final String auid_ = auid;
 							final String topic_ = topic;
-		
+						    final Notice notice_ = new Notice();
+						    
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
-										                                        topic_, auid_,  
+										topic_, auid_,  notice_,
 										                                        channel, status));
 							}
 						});
@@ -1248,11 +1357,12 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 								final DistributorThread parent = DistributorThread.this;
 								final String auid_ = auid;
 								final String topic_ = topic;
+							    final Notice notice_ = new Notice();
 		
 								@Override
 								public boolean ack(String channel, DisposalState status) {
 									return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
-											                                        topic_, auid_, 
+											topic_, auid_, notice_,
 											                                        channel, status));
 								}
 							});
@@ -1420,11 +1530,11 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 							final long id_ = id;
 							final String auid_ = auid;
 							final String topic_ = topic;
-		
+						    final Notice notice_ = new Notice();
 							@Override
 							public boolean ack(String channel, DisposalState status) {
 								return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
-										                                        topic_, auid_, 
+										topic_, auid_, notice_,
 										                                        channel, status));
 							}
 						});
@@ -1495,11 +1605,12 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 								final int id_ = id;
 								final String auid_ = auid;
 								final String topic_ = topic;
+							    final Notice notice_ = new Notice();
 		
 								@Override
 								public boolean ack(String channel, DisposalState status) {
 									return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
-											                                        topic_, auid_,  
+											topic_, auid_,  notice_, 
 											                                        channel, status));
 								}
 							});
@@ -1555,7 +1666,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 	 * The subscribing uri isn't sent with the subscription to the gateway
 	 * therefore it needs to be recovered from the subscription table.
 	 */
-	private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw) {
+    private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel) {
 		if (mw == null) {
 			logger.warn("no message");
 			return false;
@@ -1567,16 +1678,25 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		
 		String mime = null;
 		String encode = null;
+		String originUser = null;
+		String originDevice = null;
+		String originUid = null;
 		com.google.protobuf.ByteString data = null;
+		AmmoMessages.AcknowledgementThresholds at = null;
 		if ( mw.hasDataMessage()) {
 			final AmmoMessages.DataMessage resp = mw.getDataMessage();
 			mime = resp.getMimeType();
 			data = resp.getData();
 			encode = resp.getEncoding();
+			at = resp.getThresholds();
+			originUser = resp.getUserId();
+			originDevice = resp.getOriginDevice();
+			originUid = resp.getUri(); // SKN: URI is really UID
 		} else {
 			final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
 			mime = AmmoMimeTypes.mimeTypes.get( resp.getMimeType());
-			data = resp.getData();	
+			data = resp.getData();
+			originUser = resp.getUserId();
 			encode = "TERSE";
 		}
 		
@@ -1585,7 +1705,7 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 		final String topic = mime;
 		final Cursor cursor = this.store.querySubscribeByKey(new String[] { SubscribeTableSchema.PROVIDER.n }, topic, null);
 		if (cursor.getCount() < 1) {
-			logger.error("received a message for which there is no subscription {}", topic);
+			logger.warn("received a message for which there is no subscription {}", topic);
 			cursor.close();
 			return false;
 		}
@@ -1594,6 +1714,42 @@ import edu.vu.isis.ammo.core.ui.AmmoCore;
 														// it better be it.
 		cursor.close();
 		final Uri provider = Uri.parse(uriString);
+
+		// we were subscribed to this - does the sender need an ack (let's be careful...), do this before deserializing
+		logger.debug("data message notice=[{}]", at);
+		if (at != null && at.getDeviceDelivered()) {
+		    final AcknowledgementThresholds bt = AcknowledgementThresholds.newBuilder()
+			.setDeviceDelivered(true)
+			.build();
+
+		    final AmmoMessages.PushAcknowledgement.Builder pushAck = 
+			AmmoMessages.PushAcknowledgement.newBuilder()
+			.setUri(originUid)
+			.setThreshold(bt)
+			.setDestinationDevice(originDevice)
+			.setDestinationUser(originUser)
+			.setAcknowledgingDevice(ammoService.getDeviceId())
+			.setAcknowledgingUser(ammoService.getOperatorId())
+			.setStatus(PushStatus.RECEIVED);
+
+		    final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper.newBuilder()
+			.setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
+			.setPushAcknowledgement(pushAck);
+
+		    final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb, 
+			    new INetworkService.OnSendMessageHandler() {
+				    final AmmoMessages.PushAcknowledgement.Builder ack_ = pushAck;
+				@Override
+				    public boolean ack(String channel, DisposalState status) {
+				    return true;
+				}
+			    });
+
+		    logger.debug("sending ack=[{}]", pushAck);
+		    if (channel != null) {
+			channel.sendRequest(oagmb.build());
+		    }
+		}
 
 		final Encoding encoding = Encoding.getInstanceByName( encode );
 		final Uri tuple = RequestSerializer.deserializeToProvider(context, provider, encoding, data.toByteArray());
