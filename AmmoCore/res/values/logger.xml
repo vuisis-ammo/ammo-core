@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="level_prompt">Select a level</string>
+    <string-array name="level_options">
+        <item>Trace</item>
+        <item>Debug</item>
+        <item>Info</item>
+        <item>Warn</item>
+        <item>Error</item>
+        <item>Off</item>
+        <item>Clear</item>
+    </string-array>
+    
+    <color name="actual_level">#ff0012</color>
+    <color name="effective_level">#ffffff</color>
+    
+    <color name="selected_logger">#7f082c</color>
+    <color name="unselected_logger">#202020</color>
+    
+</resources>
