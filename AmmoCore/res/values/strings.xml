@@ -2,13 +2,4 @@
 <resources>
     <string name="serverlist">List of available servers</string>
     <string name="title_close">X</string>
-    <string name="level_prompt">Select a level</string>
-    <string-array name="level_options">
-        <item>Trace</item>
-        <item>Debug</item>
-        <item>Info</item>
-        <item>Warn</item>
-        <item>Error</item>
-        <item>Off</item>
-    </string-array>
 </resources>
