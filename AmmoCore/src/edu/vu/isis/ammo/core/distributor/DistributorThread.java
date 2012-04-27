@@ -13,8 +13,6 @@ package edu.vu.isis.ammo.core.distributor;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -120,7 +118,6 @@ public class DistributorThread extends Thread {
 	private static final int IP_NOTIFY_ID = 2;
 
 	private int current_icon_id = 1;
-	private int current_icon = 0;
 
 	private AtomicInteger total_sent = new AtomicInteger (0);
 	private AtomicInteger total_recv = new AtomicInteger (0);
@@ -540,11 +537,11 @@ public class DistributorThread extends Thread {
 		Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
 		logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
 
-	
+
 		final AtomicLong sanitationSchedule = new AtomicLong(System.currentTimeMillis() 
 				+ (1 * 60 * 60 * 1000)); 
 		// initial sanitation work happens after 1 hour (in milliseconds)
-		
+
 		if (ammoService.isConnected()) {
 
 			for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
@@ -566,7 +563,7 @@ public class DistributorThread extends Thread {
 						this.wait(BURP_TIME);
 				}
 				while (this.isReady()) {
-			
+
 					if (this.channelDelta.getAndSet(false)) {
 						logger.trace("channel change");
 						this.doChannelChange(ammoService);
@@ -604,7 +601,7 @@ public class DistributorThread extends Thread {
 					}
 				}
 				logger.trace("work processed");
-				
+
 				final long currentTime = System.currentTimeMillis();
 				if (sanitationSchedule.get() < currentTime) {
 					sanitationSchedule.getAndSet(currentTime 
@@ -717,12 +714,12 @@ public class DistributorThread extends Thread {
 		this.doRetrievalCache(that);
 		this.doSubscribeCache(that);
 	}
-	
-    private void takeOutGarbage() {
+
+	private void takeOutGarbage() {
 		this.store.deletePostalGarbage();
 		this.store.deleteRetrievalGarbage();
 		this.store.deleteSubscribeGarbage();
-    }
+	}
 
 
 	/**
@@ -867,7 +864,8 @@ public class DistributorThread extends Thread {
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
 
 			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
-			values.put(PostalTableSchema.EXPIRATION.cv(), ar.expire.cv());
+			values.put(PostalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
+			
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
 			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
@@ -1288,7 +1286,8 @@ public class DistributorThread extends Thread {
 
 			values.put(RetrievalTableSchema.PROVIDER.cv(), ar.provider.cv());
 			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
-			values.put(RetrievalTableSchema.EXPIRATION.cv(), ar.expire.cv());
+			values.put(RetrievalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
+			
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
 			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
@@ -1538,7 +1537,7 @@ public class DistributorThread extends Thread {
 
 			values.put(SubscribeTableSchema.PROVIDER.cv(), ar.provider.cv());
 			values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
-			values.put(SubscribeTableSchema.EXPIRATION.cv(), ar.expire.cv());
+			values.put(SubscribeTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
 			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
@@ -1770,7 +1769,7 @@ public class DistributorThread extends Thread {
 
 			final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb, 
 					new INetworkService.OnSendMessageHandler() {
-				final AmmoMessages.PushAcknowledgement.Builder ack_ = pushAck;
+				//final AmmoMessages.PushAcknowledgement.Builder ack_ = pushAck;
 				@Override
 				public boolean ack(String channel, DisposalState status) {
 					return true;
