@@ -17,6 +17,7 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
+
 import android.widget.Toast;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -64,45 +65,45 @@ public class LoggerEditor extends ListActivity {
 				this, R.array.level_options, 
 				android.R.layout.simple_spinner_item);
 		spinAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
 		this.levelSpinner.setAdapter(spinAdapter);
 		this.spinnerListener = new MyOnItemSelectedListener();
 		this.levelSpinner.setOnItemSelectedListener(this.spinnerListener);
 		this.listView = super.getListView();
-
 		// Set the selection text to indicate nothing is selected
 		this.updateSelText(null);
-
+		
 	}
-
-
+		
+	
 	private Tree<Logger> makeTree(List<Logger> list) {
-
+		
 		this.rootLogger = this.getLoggerByName(Logger.ROOT_LOGGER_NAME);
 		final Tree<Logger> mTree = new Tree<Logger>(rootLogger);
-
+		
 		for(final Logger logger : list) {			
 			if(logger.equals(this.rootLogger)) {
 				continue;
-			}			
+			}
 			final String loggerName = logger.getName();
 			safelyAddLeaf(mTree, logger, loggerName);
 		}
-
+		
 		return mTree;
-
+		
 	}
-
+	
 	private Logger getLoggerByName(final String name) {
 		return (Logger) LoggerFactory.getLogger(name);
 	}
-
+	
+	
 	private void safelyAddLeaf(Tree<Logger> mTree,
 			Logger aLogger, String loggerName) {
-
+		
 		if(mTree.contains(aLogger)) return;
-
+		
 		final int lastDotIndex = loggerName.lastIndexOf('.');
-
 		if(lastDotIndex == -1) {
 			mTree.addLeaf(this.rootLogger, aLogger);
 			return;

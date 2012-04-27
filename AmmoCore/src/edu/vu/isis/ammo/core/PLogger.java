@@ -60,6 +60,7 @@ public interface PLogger {
 	 * 
 	 */
 	public static final String QUEUE_FORMAT =  "remainder=[{}] id=[{}] size=[{}] item=[{}]";
+
 	
 	public static final Logger QUEUE_REQ_ENTER = LoggerFactory.getLogger( "queue.request.in" );
 	public static final Logger QUEUE_REQ_EXIT = LoggerFactory.getLogger( "queue.request.out" );

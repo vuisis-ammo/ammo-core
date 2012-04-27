@@ -1159,7 +1159,6 @@ public class MulticastChannel extends NetChannel
                     		.payload( payload )
                     		.channel(this.mDestination)
                     		.build();
-                    
                     setReceiverState( INetChannel.DELIVER );
                     mDestination.deliverMessage( agm );
                     logger.trace( "received a message {}", payload.length );

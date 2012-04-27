@@ -167,9 +167,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 			logger.debug("compare msgs: priority [{}:{}] build time: [{}:{}]", 
 					new Object[]{o1.priority, o2.priority, 
 					             o1.buildTime, o2.buildTime} );
-			
-			if (o1.priority > o2.priority) return 1;
-			if (o1.priority < o2.priority) return -1;
+             if (o1.priority > o2.priority) return -1;
+             if (o1.priority < o2.priority) return 1;
 			// if priority is same then process in the time order of arrival
 			
 			if (o1.buildTime > o2.buildTime) return 1;

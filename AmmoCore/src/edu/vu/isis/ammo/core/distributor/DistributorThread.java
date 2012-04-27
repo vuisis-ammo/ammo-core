@@ -60,6 +60,7 @@ import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.R;
+
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
@@ -100,7 +101,6 @@ public class DistributorThread extends Thread {
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
 	private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
 	private static final Marker MARK_INTEREST = MarkerFactory.getMarker("interest");
-
 
 	// 20 seconds expressed in milliseconds
 	private static final int BURP_TIME = 20 * 1000;
@@ -345,7 +345,6 @@ public class DistributorThread extends Thread {
 			this.topic = topic;
 			this.subtopic = topic;
 			this.auid = auid;
-
 			if (notice != null) { 
 				this.notice = notice;
 			} else {
@@ -617,7 +616,6 @@ public class DistributorThread extends Thread {
 						}
 					}
 				}
-
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
@@ -1259,6 +1257,7 @@ public class DistributorThread extends Thread {
 							.setUserId(ammoService.getOperatorId())
 							.setData(ByteString.copyFrom(serialized));
 
+
 					mw.setTerseMessage(postReq);
 				} 
 				else {
@@ -1307,7 +1306,6 @@ public class DistributorThread extends Thread {
 
 		if (! mw.hasPushAcknowledgement()) 
 			return false;
-
 		final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
 		// generate an intent if it was requested
 		final String uuid = pushResp.getUid();
@@ -1359,7 +1357,6 @@ public class DistributorThread extends Thread {
 			}
 			PLogger.API_INTENT.debug("ack note=[{}] intent=[{}]", 
 					note, noticed);
-			
 		}
 		return true;
 	}
@@ -1652,7 +1649,6 @@ public class DistributorThread extends Thread {
 			cursor.close();
 
 			final Uri provider = Uri.parse(uriString);
-
 			// update the actual provider
 
 			final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
@@ -1859,7 +1855,6 @@ public class DistributorThread extends Thread {
 			mime = resp.getMimeType();
 			data = resp.getData();
 			encode = resp.getEncoding();
-
 			// Send acknowledgment, if requested by sender
 			final AmmoMessages.AcknowledgementThresholds at = resp.getThresholds();
 
@@ -1902,7 +1897,7 @@ public class DistributorThread extends Thread {
 		} else {
 			final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
 			mime = AmmoMimeTypes.mimeTypes.get( resp.getMimeType());
-			data = resp.getData();	
+			data = resp.getData();
 			encode = "TERSE";
 		}
 		final FullTopic fulltopic = FullTopic.fromType(mime);

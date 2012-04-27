@@ -205,16 +205,17 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		return networkingSwitch = networkingSwitch ? false : true;
 	}
 
-	public String getDeviceId() { 
-		if (this.deviceId == null) {
-			this.deviceId = UniqueIdentifiers.device(this.getBaseContext());
-			this.updatePref(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
-			logger.warn("no device specified, generating: [{}]", this.deviceId);
-		}
-		return deviceId; 
-	}
     public String getOperatorId() { return operatorId; }
 	
+    public String getDeviceId() {
+	if (this.deviceId == null) {
+	    this.deviceId = UniqueIdentifiers.device(this.getBaseContext());
+	    this.updatePref(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
+	    logger.warn("no device specified, generating: [{}]", this.deviceId);
+	}
+	return deviceId; 
+    }
+
 	private NetworkBroadcastReceiver myNetworkReceiver = null;
 	
 	private DistributorThread distThread;

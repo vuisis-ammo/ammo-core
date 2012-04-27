@@ -29,10 +29,11 @@
     </encoder>
   </appender>
   
+  <!--
   <logger name="queue.request.out" level="TRACE">
        <appender-ref ref="STATS" />
   </logger>
-
+  -->
 
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
