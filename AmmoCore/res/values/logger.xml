@@ -2,6 +2,9 @@
 <resources>
 
     <string name="level_prompt">Select a level</string>
+    
+     <string name="logger_icon_desc">icon indicating the type of logger</string>
+    
     <string-array name="level_options">
         <item>Trace</item>
         <item>Debug</item>
@@ -16,6 +19,7 @@
     <color name="effective_level">#ffffff</color>
     
     <color name="selected_logger">#7f082c</color>
-    <color name="unselected_logger">#202020</color>
+    <color name="unselected_logger">#002020</color>
+    <color name="pressing_logger">#ffffff</color>
     
 </resources>
