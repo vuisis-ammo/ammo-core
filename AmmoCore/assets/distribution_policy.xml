@@ -5,6 +5,19 @@
    /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml 
 
    DATE: 2012-03-05
+   
+   Priority: BACKGROUND = -1000;
+             LOW = -10;
+             NORMAL = 0;
+             HIGH = 10;
+             URGENT = 1000;
+             
+   lifespan: is the time that a request will persist in minutes.
+   
+   These values for "priority" and "lifespan" are not 
+   inheritable and must be provided explicitly.
+   
+   On literals the "condition" must be "success" or "failure".
 
 -->
 <policy>
@@ -13,20 +26,20 @@
 			Generally requests should be sent over the gateway, unless it isn't
 			available then local multicast delivery should be used.
 		</description>
-		<routing priority="normal" category="postal">
+		<routing priority="normal" category="postal" lifespan="30">
 			<clause>
 				<literal term="gateway" condition="success" encoding="json" />
 				<literal term="reliablemulticast" condition="success" encoding="json" />
 				<literal term="multicast" condition="success" encoding="json" />
 			</clause>
 		</routing>
-		<routing priority="high" category="subscribe">
+		<routing priority="high" category="subscribe" lifespan="600">
 			<clause>
 				<literal term="gateway" condition="success" encoding="json"/>
 				<literal term="reliablemulticast" condition="success" encoding="json" />
 			</clause>
 		</routing>
-		<routing priority="normal" category="retrieval">
+		<routing priority="normal" category="retrieval" lifespan="10">
 			<clause>
 				<literal term="gateway" condition="success" encoding="json"/>
 				<literal term="reliablemulticast" condition="success" encoding="json" />

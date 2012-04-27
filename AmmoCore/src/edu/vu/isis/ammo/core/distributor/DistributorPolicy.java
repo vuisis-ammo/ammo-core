@@ -36,10 +36,10 @@ import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
 
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.content.res.Resources.NotFoundException;
 import android.net.Uri;
 import edu.vu.isis.ammo.api.IAmmoRequest;
-import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.util.PrefixList;
 
@@ -95,7 +95,10 @@ public class DistributorPolicy implements ContentHandler {
 		else {
 			logger.warn("no policy file {}, using and writing default", file);
 			try {
-				final InputStream copiable = context.getResources().openRawResource(R.raw.distribution_policy);				
+				final AssetManager am = context.getAssets();
+				final InputStream copiable = am.open(policy_file);
+				
+				// final InputStream copiable = context.getResources().openRawResource(R.raw.distribution_policy);				
 				final OutputStream out = new FileOutputStream(file);
 				final byte[] buf = new byte[1024];
 				int len;
@@ -104,8 +107,9 @@ public class DistributorPolicy implements ContentHandler {
 				}
 				copiable.close();
 				out.close();
-
-				inputStream = context.getResources().openRawResource(R.raw.distribution_policy);
+				
+				inputStream = am.open(policy_file);	
+				
 			} catch (NotFoundException ex) {
 				logger.error("asset not available {}", ex.getMessage());
 				return null;
@@ -137,7 +141,8 @@ public class DistributorPolicy implements ContentHandler {
 		this.subscribePolicy = new PrefixList<Topic>();
 		this.retrievalPolicy = new PrefixList<Topic>();
 
-		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
+		this.builder = new TopicBuilder(Category.POSTAL, 
+				IAmmoRequest.PRIORITY_NORMAL, DistributorDataStore.DEFAULT_POSTAL_LIFESPAN);
 
 		if (is == null) {
 			logger.debug("loading default rule");
@@ -202,7 +207,9 @@ public class DistributorPolicy implements ContentHandler {
 		this.subscribePolicy = new PrefixList<Topic>();
 		this.retrievalPolicy = new PrefixList<Topic>();
 
-		this.builder = new TopicBuilder(Category.POSTAL, IAmmoRequest.PRIORITY_NORMAL);
+		this.builder = new TopicBuilder(Category.POSTAL, 
+				IAmmoRequest.PRIORITY_NORMAL, 
+				DistributorDataStore.DEFAULT_POSTAL_LIFESPAN);
 
 		switch (testSetId) {
 		default:
@@ -285,14 +292,17 @@ public class DistributorPolicy implements ContentHandler {
 
 	public class Routing {
 		public final int priority;
+		public final long lifespan;
 		public final Category category;
 		public final List<Clause> clauses;
 
-		public Routing(Category category, int priority) {
+		public Routing(Category category, int priority, long lifespan) {
 			this.category = category;
 			this.priority = priority;
+			this.lifespan = lifespan;
 			this.clauses = new ArrayList<Clause>();
 		}
+		
 		public DistributorState makeMap() {
 			final DistributorState map = DistributorState.newInstance(this);
 			for (Clause clause : this.clauses) {
@@ -308,7 +318,9 @@ public class DistributorPolicy implements ContentHandler {
 			final String ind = DistributorPolicy.this.indent();
 
 			final StringBuffer sb = new StringBuffer();		
-			sb.append('\n').append(ind).append("priority: ").append(this.priority);
+			sb.append('\n').append(ind)
+			  .append(" priority: ").append(this.priority)
+			  .append(" lifespan: ").append(this.lifespan);
 
 			for (Clause clause : this.clauses) { 
 				sb.append(clause);
@@ -328,6 +340,19 @@ public class DistributorPolicy implements ContentHandler {
 		}
 		public void addLiteral(String term, Boolean condition, Encoding encoding) {
 			this.workingClause.addLiteral(new Literal(term, condition, encoding));
+		}
+
+		/**
+		 * return the expiration time.
+		 * The default was passed in.
+		 * The expiration is the current time plus the lifespan.
+		 * 
+		 * @param default
+		 * @return
+		 */
+		public long getExpiration(long def) {
+			if (this.lifespan < 0) return def;
+			return System.currentTimeMillis() + this.lifespan;
 		}
 	}
 
@@ -451,15 +476,15 @@ public class DistributorPolicy implements ContentHandler {
 
 	public class TopicBuilder {
 
-		public TopicBuilder(Category category, int priority) {
-			this.routing = new Routing(category, priority);
+		public TopicBuilder(Category category, int priority, long lifespan) {
+			this.routing = new Routing(category, priority, lifespan);
 		}
 		public Topic build() { return new Topic(this); }
 
 		private Routing routing;
 		public Routing routing() { return this.routing; }
-		public TopicBuilder newRouting(Category category, int priority) { 
-			this.routing = new Routing(category, priority);
+		public TopicBuilder newRouting(Category category, int priority, long lifespan) { 
+			this.routing = new Routing(category, priority, lifespan);
 			return this;
 		}
 
@@ -570,7 +595,8 @@ public class DistributorPolicy implements ContentHandler {
 				this.inRouting = true;
 				final Category category = extractCategory(uri,"category", Category.POSTAL, atts);
 				final int priority = extractPriority(uri,"priority", IAmmoRequest.PRIORITY_NORMAL, atts);
-				this.builder.newRouting(category, priority);
+				final long lifespan = extractLifespan(uri,"lifespan", -1, atts);
+				this.builder.newRouting(category, priority, lifespan);
 				return;
 			}
 			if (localName.equals("description")) {
@@ -784,6 +810,26 @@ public class DistributorPolicy implements ContentHandler {
 		if (value.equalsIgnoreCase("urgent")) return IAmmoRequest.PRIORITY_URGENT;
 		try {
 			return Integer.parseInt(value);
+		} catch (NumberFormatException ex) {
+			return def;
+		}
+	}
+	
+	/**
+	 * A negative lifespan indicates that the system defaults should be used.
+	 * 
+	 * @param uri
+	 * @param attrname
+	 * @param def
+	 * @param atts
+	 * @return
+	 */
+	private long extractLifespan(String uri, String attrname, int def, Attributes atts) {
+		final String value = atts.getValue(uri, attrname);
+		if (value == null) return def;
+		
+		try {
+			return DistributorDataStore.CONVERT_MINUTES_TO_MILLSEC * Integer.parseInt(value);
 		} catch (NumberFormatException ex) {
 			return def;
 		}
