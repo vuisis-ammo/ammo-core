@@ -96,13 +96,13 @@ public class TreeAdapter<T> extends BaseAdapter {
 	}
 	
 	@Override
-	public View getView(int position, View convertView, ViewGroup parent) {
+	public View getView(int position, View convertView, ViewGroup group) {
 		
 		View view;
 		TextView text;
 		
 		if (convertView == null) {
-            view = mInflater.inflate(mResource, parent, false);
+            view = mInflater.inflate(mResource, group, false);
         } else {
             view = convertView;
         }

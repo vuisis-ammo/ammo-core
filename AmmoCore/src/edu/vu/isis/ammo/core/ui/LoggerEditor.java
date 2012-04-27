@@ -43,7 +43,7 @@ public class LoggerEditor extends ListActivity {
 
 	private View lastSelectedView;
 	private int lastSelectedPosition;
-	
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 
@@ -70,17 +70,18 @@ public class LoggerEditor extends ListActivity {
 		this.spinnerListener = new MyOnItemSelectedListener();
 		this.levelSpinner.setOnItemSelectedListener(this.spinnerListener);
 		this.listView = super.getListView();
+
 		// Set the selection text to indicate nothing is selected
 		this.updateSelText(null);
-		
+
 	}
-		
-	
+
+
 	private Tree<Logger> makeTree(List<Logger> list) {
-		
+
 		this.rootLogger = this.getLoggerByName(Logger.ROOT_LOGGER_NAME);
 		final Tree<Logger> mTree = new Tree<Logger>(rootLogger);
-		
+
 		for(final Logger logger : list) {			
 			if(logger.equals(this.rootLogger)) {
 				continue;
@@ -88,22 +89,23 @@ public class LoggerEditor extends ListActivity {
 			final String loggerName = logger.getName();
 			safelyAddLeaf(mTree, logger, loggerName);
 		}
-		
+
 		return mTree;
-		
+
 	}
-	
+
 	private Logger getLoggerByName(final String name) {
 		return (Logger) LoggerFactory.getLogger(name);
 	}
-	
-	
+
+
 	private void safelyAddLeaf(Tree<Logger> mTree,
 			Logger aLogger, String loggerName) {
-		
+
 		if(mTree.contains(aLogger)) return;
-		
+
 		final int lastDotIndex = loggerName.lastIndexOf('.');
+
 		if(lastDotIndex == -1) {
 			mTree.addLeaf(this.rootLogger, aLogger);
 			return;
@@ -116,10 +118,8 @@ public class LoggerEditor extends ListActivity {
 		mTree.addLeaf(parentLogger, childLogger);
 		return;
 	}
-
-
 	@Override
-	public void onListItemClick(ListView parent, View v, int position, long id) {
+	public void onListItemClick(ListView parent, View row, int position, long id) {
 
 		final Logger nextSelectedLogger = (Logger)parent.getItemAtPosition(position);
 		final Level effective = nextSelectedLogger.getEffectiveLevel();
@@ -134,26 +134,22 @@ public class LoggerEditor extends ListActivity {
 			this.spinnerListener.updateSpinner(effective, this.levelSpinner);
 		} 
 		this.selectedLogger = nextSelectedLogger;
-		
-		if (this.lastSelectedView != null)
-			this.lastSelectedView.setBackgroundColor(getResources().getColor(R.color.unselected_logger));
-		this.lastSelectedView = v;
-		this.lastSelectedView.setBackgroundColor(getResources().getColor(R.color.selected_logger));
+		this.lastSelectedView = row;
 		this.lastSelectedPosition = listView.getFirstVisiblePosition();	
-	}
 
-
-	private void updateIcon(Level lvl, View v, int pos) {
-
-		setIcon(lvl, v);
 		super.onContentChanged();
-		listView.setSelection(pos);
-
 	}
 
-	private void setIcon(Level lvl, View v) {
-		final ImageView iv =(ImageView)(v.findViewById(R.id.logger_icon));
 
+	private void updateIcon(Level lvl, View row, int pos) {
+		final ImageView iv =(ImageView)(row.findViewById(R.id.logger_icon));
+		setIcon(lvl, iv);
+		listView.setSelection(pos);
+		
+		super.onContentChanged();
+	}
+
+	private void setIcon(Level lvl, ImageView iv) {
 		switch (lvl.levelInt) {
 		case Level.TRACE_INT:
 			iv.setImageResource(R.drawable.trace_level_icon);
@@ -192,21 +188,22 @@ public class LoggerEditor extends ListActivity {
 
 
 	public class LoggerAdapter extends TreeAdapter<Logger> {
+		final private LoggerEditor parent = LoggerEditor.this;
 
 		private int tvId;
 
 		public LoggerAdapter(Tree<Logger> objects, Context context, int resource,
 				int textViewResourceId) {
 			super(objects, context, resource, textViewResourceId);
-			tvId = textViewResourceId;
+			this.tvId = textViewResourceId;
 		}
 
 		@Override
-		public View getView(int position, View convertView, ViewGroup parent) {
-
-			final View row = super.getView(position, convertView, parent);
-			row.setBackgroundColor(getResources().getColor(R.color.unselected_logger));
-			final TextView tv = (TextView)row.findViewById(tvId);
+		public View getView(int position, View convertView, ViewGroup group) {
+			
+			final View row = super.getView(position, convertView, group);
+			
+			final TextView tv = (TextView)row.findViewById(this.tvId);
 
 			final Logger aLogger = super.getItem(position);
 			tv.setText(aLogger.getName());
@@ -216,19 +213,27 @@ public class LoggerEditor extends ListActivity {
 			} else {
 				tv.setTextColor(getResources().getColor(R.color.actual_level));
 			}
-			final Level lvl = aLogger.getEffectiveLevel();
-
-			setIcon(lvl, row);
-
+			final ImageView iv = (ImageView)(row.findViewById(R.id.logger_icon));
+			parent.setIcon(aLogger.getEffectiveLevel(), iv);
+			
+			final int viewColor = (aLogger.equals(parent.selectedLogger)) 
+					? parent.getResources().getColor(R.color.selected_logger)
+					: parent.getResources().getColor(R.color.unselected_logger);
+					
+			parent.setViewColor(row, viewColor);
+				
 			return row;
 		}
 
+	}
+	
+	private void setViewColor(View row, int color) {
+		row.setBackgroundColor(color);
 	}
 
 	/**
 	 * the spinner makes use of this listener.
 	 */
-	
 
 	public class MyOnItemSelectedListener implements OnItemSelectedListener {
 
@@ -276,7 +281,7 @@ public class LoggerEditor extends ListActivity {
 			if (! this.isUpdateAllowed.getAndSet(true)) {
 				return;
 			}
-			
+
 			if (parent.selectedLogger == null) return;
 			if (parent.lastSelectedView == null) return;
 
