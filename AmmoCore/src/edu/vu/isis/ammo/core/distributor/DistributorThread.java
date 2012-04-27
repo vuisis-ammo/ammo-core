@@ -13,6 +13,8 @@ package edu.vu.isis.ammo.core.distributor;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,6 +24,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import net.jcip.annotations.ThreadSafe;
 
@@ -537,6 +540,11 @@ public class DistributorThread extends Thread {
 		Process.setThreadPriority( -6 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
 		logger.info("distributor thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
 
+	
+		final AtomicLong sanitationSchedule = new AtomicLong(System.currentTimeMillis() 
+				+ (1 * 60 * 60 * 1000)); 
+		// initial sanitation work happens after 1 hour (in milliseconds)
+		
 		if (ammoService.isConnected()) {
 
 			for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
@@ -554,10 +562,11 @@ public class DistributorThread extends Thread {
 			while (true) {
 				// condition wait, is there something to process?
 				synchronized (this) {
-					while (!this.isReady())
+					while (!this.isReady()) 
 						this.wait(BURP_TIME);
 				}
 				while (this.isReady()) {
+			
 					if (this.channelDelta.getAndSet(false)) {
 						logger.trace("channel change");
 						this.doChannelChange(ammoService);
@@ -595,6 +604,14 @@ public class DistributorThread extends Thread {
 					}
 				}
 				logger.trace("work processed");
+				
+				final long currentTime = System.currentTimeMillis();
+				if (sanitationSchedule.get() < currentTime) {
+					sanitationSchedule.getAndSet(currentTime 
+							+ (10L * 60 * 1000)); 
+					// next alarm in 10 minutes, specified in milliseconds
+					this.takeOutGarbage();
+				}
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
@@ -696,14 +713,17 @@ public class DistributorThread extends Thread {
 
 		// we could do a priming query to determine if there are any candidates
 
-		this.store.deletePostalGarbage();
-		this.store.deleteRetrievalGarbage();
-		this.store.deleteSubscribeGarbage();
-
 		this.doPostalCache(that);
 		this.doRetrievalCache(that);
 		this.doSubscribeCache(that);
 	}
+	
+    private void takeOutGarbage() {
+		this.store.deletePostalGarbage();
+		this.store.deleteRetrievalGarbage();
+		this.store.deleteSubscribeGarbage();
+    }
+
 
 	/**
 	 * Processes and delivers messages received from a channel. 

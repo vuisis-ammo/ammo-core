@@ -1627,7 +1627,7 @@ public class DistributorDataStore {
 		}
 
 		if (!values.containsKey(PostalTableSchema.EXPIRATION.n)) {
-			values.put(PostalTableSchema.EXPIRATION.n, now);
+			values.put(PostalTableSchema.EXPIRATION.n, now + DEFAULT_POSTAL_EXPIRATION_DELAY);
 		}
 		if (!values.containsKey(PostalTableSchema.UNIT.n)) {
 			values.put(PostalTableSchema.UNIT.n, "unknown");
@@ -1691,7 +1691,7 @@ public class DistributorDataStore {
 			values.put(RetrievalTableSchema.CONTINUITY_VALUE.n, now);
 		}
 		if (!values.containsKey(RetrievalTableSchema.EXPIRATION.n)) {
-			values.put(RetrievalTableSchema.EXPIRATION.n, now);
+			values.put(RetrievalTableSchema.EXPIRATION.n, now + DEFAULT_RETRIEVAL_EXPIRATION_DELAY);
 		}
 		if (!values.containsKey(RetrievalTableSchema.CREATED.n)) {
 			values.put(RetrievalTableSchema.CREATED.n, now);
@@ -1722,7 +1722,7 @@ public class DistributorDataStore {
 			values.put(SubscribeTableSchema.SELECTION.n, "");
 		}
 		if (!values.containsKey(SubscribeTableSchema.EXPIRATION.n)) {
-			values.put(SubscribeTableSchema.EXPIRATION.n, now);
+			values.put(SubscribeTableSchema.EXPIRATION.n, now + DEFAULT_SUBSCRIBE_EXPIRATION_DELAY);
 		}
 		if (!values.containsKey(SubscribeTableSchema.NOTICE.n)) {
 			values.put(SubscribeTableSchema.NOTICE.n, "");
@@ -1775,7 +1775,7 @@ public class DistributorDataStore {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int expireCount = db.delete(Tables.POSTAL.n, 
-					POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(POSTAL_DELAY_OFFSET));
+					POSTAL_EXPIRATION_CONDITION, getRelativeExpirationTime(0));
 			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
 					DISPOSAL_POSTAL_ORPHAN_CONDITION, null);
 			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
@@ -1801,7 +1801,7 @@ public class DistributorDataStore {
 	.append('<').append('?')
 	.toString();
 
-	private static final long POSTAL_DELAY_OFFSET = 8 * 60 * 60; // 1 hr in seconds
+	private static final long DEFAULT_POSTAL_EXPIRATION_DELAY = 8 * 60 * 60 * 1000; // 1 hr in milliseconds
 	
 
 	// ========= RETRIEVAL : DELETE ================
@@ -1822,7 +1822,7 @@ public class DistributorDataStore {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int expireCount = db.delete(Tables.RETRIEVAL.n, 
-					RETRIEVAL_EXPIRATION_CONDITION, getRelativeExpirationTime(RETRIEVAL_DELAY_OFFSET));
+					RETRIEVAL_EXPIRATION_CONDITION, getRelativeExpirationTime(0));
 			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
 					DISPOSAL_RETRIEVAL_ORPHAN_CONDITION, null);
 			logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
@@ -1849,7 +1849,7 @@ public class DistributorDataStore {
 	.append('<').append('?')
 	.toString();
 
-	private static final long RETRIEVAL_DELAY_OFFSET = 8 * 60 * 60; // 8 hrs in seconds
+	private static final long DEFAULT_RETRIEVAL_EXPIRATION_DELAY = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 	/**
 	 * purge all records from the retrieval table and cascade to the disposal table.
@@ -1884,10 +1884,11 @@ public class DistributorDataStore {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
 			final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
-					SUBSCRIBE_EXPIRATION_CONDITION, getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
+					SUBSCRIBE_EXPIRATION_CONDITION, getRelativeExpirationTime(0));
 			final int disposalCount = db.delete(Tables.DISPOSAL.n, 
 					DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
-			logger.trace("Subscribe garbage {} {} {}", new Object[] {expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION} );
+			logger.trace("Subscribe garbage {} {} {}", 
+					new Object[] {expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION} );
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
 			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
@@ -1910,7 +1911,7 @@ public class DistributorDataStore {
 	.append('<').append('?')
 	.toString();
 
-	private static final long SUBSCRIBE_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
+	private static final long DEFAULT_SUBSCRIBE_EXPIRATION_DELAY = 7 * 24 * 60 * 60 * 1000; // 1 week in milliseconds
 
 	/**
 	 * purge all records from the subscribe table and cascade to the disposal table.
