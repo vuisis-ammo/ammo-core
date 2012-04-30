@@ -863,7 +863,7 @@ public class DistributorThread extends Thread {
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
 
-			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
+			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(PostalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
 			
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
@@ -1285,7 +1285,7 @@ public class DistributorThread extends Thread {
 				values.put(RetrievalTableSchema.LIMIT.cv(), limit);
 
 			values.put(RetrievalTableSchema.PROVIDER.cv(), ar.provider.cv());
-			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
+			values.put(RetrievalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(RetrievalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
 			
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
@@ -1537,8 +1537,9 @@ public class DistributorThread extends Thread {
 
 			values.put(SubscribeTableSchema.PROVIDER.cv(), ar.provider.cv());
 			values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
+
+			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
-			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
 			final DistributorState dispersal = policy.makeRouteMap();
@@ -1791,8 +1792,8 @@ public class DistributorThread extends Thread {
 	}
 
 	/**
-	 * Clear the contents of tables in preparation for reloading them. This is
-	 * predominantly *not* for postal which should persist.
+	 * Clear the contents of tables in preparation for reloading them. 
+	 * This is *not* for postal which should persist.
 	 */
 	public void clearTables() {
 		this.store.purgeRetrieval();
