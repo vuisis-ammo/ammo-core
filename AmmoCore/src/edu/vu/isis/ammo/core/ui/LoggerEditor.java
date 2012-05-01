@@ -42,7 +42,7 @@ public class LoggerEditor extends ListActivity {
 	private ListView listView;
 
 	private View lastSelectedView;
-	private int lastSelectedPosition;
+	private int lastVisiblePosition;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -69,14 +69,16 @@ public class LoggerEditor extends ListActivity {
 		this.levelSpinner.setAdapter(spinAdapter);
 		this.spinnerListener = new MyOnItemSelectedListener();
 		this.levelSpinner.setOnItemSelectedListener(this.spinnerListener);
+		this.levelSpinner.setSelection(CLEAR_IX);
+		
 		this.listView = super.getListView();
 
 		// Set the selection text to indicate nothing is selected
 		this.updateSelText(null);
 
 	}
-
-
+	
+	
 	private Tree<Logger> makeTree(List<Logger> list) {
 
 		this.rootLogger = this.getLoggerByName(Logger.ROOT_LOGGER_NAME);
@@ -118,6 +120,7 @@ public class LoggerEditor extends ListActivity {
 		mTree.addLeaf(parentLogger, childLogger);
 		return;
 	}
+	
 	@Override
 	public void onListItemClick(ListView parent, View row, int position, long id) {
 
@@ -130,23 +133,27 @@ public class LoggerEditor extends ListActivity {
 			this.spinnerListener.updateSpinner(effective, this.levelSpinner);
 		} else if (nextSelectedLogger.equals(this.selectedLogger)) {
 			return;
-		} else if (! effective.equals(selectedLogger.getEffectiveLevel())) {
+		} else if ((! effective.equals(selectedLogger.getEffectiveLevel())) || 
+				this.levelSpinner.getSelectedItemPosition() == CLEAR_IX) {
 			this.spinnerListener.updateSpinner(effective, this.levelSpinner);
-		} 
+		}
 		this.selectedLogger = nextSelectedLogger;
 		this.lastSelectedView = row;
-		this.lastSelectedPosition = listView.getFirstVisiblePosition();	
+		this.lastVisiblePosition = listView.getFirstVisiblePosition();	
 
-		super.onContentChanged();
+		refreshList();
 	}
 
+	private void refreshList() {
+		super.onContentChanged();
+		listView.setSelection(this.lastVisiblePosition);
+	}
+	
 
 	private void updateIcon(Level lvl, View row, int pos) {
 		final ImageView iv =(ImageView)(row.findViewById(R.id.logger_icon));
 		setIcon(lvl, iv);
-		listView.setSelection(pos);
-		
-		super.onContentChanged();
+		refreshList();
 	}
 
 	private void setIcon(Level lvl, ImageView iv) {
@@ -213,6 +220,7 @@ public class LoggerEditor extends ListActivity {
 			} else {
 				tv.setTextColor(getResources().getColor(R.color.actual_level));
 			}
+			
 			final ImageView iv = (ImageView)(row.findViewById(R.id.logger_icon));
 			parent.setIcon(aLogger.getEffectiveLevel(), iv);
 			
@@ -282,33 +290,38 @@ public class LoggerEditor extends ListActivity {
 				return;
 			}
 
-			if (parent.selectedLogger == null) return;
+			if (parent.selectedLogger == null) {
+				Toast.makeText(parent, "Please select a logger.", Toast.LENGTH_SHORT).show();
+				
+			}
+			
 			if (parent.lastSelectedView == null) return;
 
 			switch (pos) {
 			case TRACE_IX:
 				selectedLogger.setLevel(Level.TRACE);
-				updateIcon(Level.TRACE, lastSelectedView, lastSelectedPosition);
+				updateIcon(Level.TRACE, lastSelectedView, lastVisiblePosition);
 				break;
 			case DEBUG_IX:
 				selectedLogger.setLevel(Level.DEBUG);
-				updateIcon(Level.DEBUG, lastSelectedView, lastSelectedPosition);
+				updateIcon(Level.DEBUG, lastSelectedView, lastVisiblePosition);
 				break;
 			case INFO_IX:
 				selectedLogger.setLevel(Level.INFO);
-				updateIcon(Level.INFO, lastSelectedView, lastSelectedPosition);
+				updateIcon(Level.INFO, lastSelectedView, lastVisiblePosition);
 				break;
 			case WARN_IX:
 				selectedLogger.setLevel(Level.WARN);
-				updateIcon(Level.WARN, lastSelectedView, lastSelectedPosition);
+				updateIcon(Level.WARN, lastSelectedView, lastVisiblePosition);
 				break;
 			case ERROR_IX:
 				selectedLogger.setLevel(Level.ERROR);
-				updateIcon(Level.ERROR, lastSelectedView, lastSelectedPosition);
+				updateIcon(Level.ERROR, lastSelectedView, lastVisiblePosition);
 				break;
 			case OFF_IX:
 				selectedLogger.setLevel(Level.OFF);
-				updateIcon(Level.OFF, lastSelectedView, lastSelectedPosition);
+				updateIcon(Level.OFF, lastSelectedView, lastVisiblePosition);
+				break;
 			case CLEAR_IX:
 			default:
 				if (selectedLogger.equals(parent.rootLogger)) {
@@ -317,7 +330,7 @@ public class LoggerEditor extends ListActivity {
 				}
 				selectedLogger.setLevel(null);
 				final Level effective = selectedLogger.getEffectiveLevel();
-				updateIcon(effective, lastSelectedView, lastSelectedPosition);
+				updateIcon(effective, lastSelectedView, lastVisiblePosition);
 			}
 		}
 

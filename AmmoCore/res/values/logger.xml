@@ -18,8 +18,8 @@
     <color name="actual_level">#ff0012</color>
     <color name="effective_level">#ffffff</color>
     
-    <color name="selected_logger">#7f082c</color>
-    <color name="unselected_logger">#002020</color>
+    <color name="selected_logger">#3F4857</color>
+    <color name="unselected_logger">#000000</color>
     <color name="pressing_logger">#ffffff</color>
     
 </resources>
