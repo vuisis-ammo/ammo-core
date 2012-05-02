@@ -42,7 +42,6 @@ public class LoggerEditor extends ListActivity {
 	private ListView listView;
 
 	private View lastSelectedView;
-	private int lastVisiblePosition;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -58,6 +57,8 @@ public class LoggerEditor extends ListActivity {
 		this.setListAdapter(new LoggerAdapter(loggerTree, this,
 				R.layout.logger_row, R.id.logger_text));
 
+		this.listView = super.getListView();
+
 		this.selectionText = (TextView) findViewById(R.id.selection_text);
 		this.levelSpinner = (Spinner) findViewById(R.id.level_spinner);
 
@@ -70,13 +71,36 @@ public class LoggerEditor extends ListActivity {
 		this.spinnerListener = new MyOnItemSelectedListener();
 		this.levelSpinner.setOnItemSelectedListener(this.spinnerListener);
 		this.levelSpinner.setSelection(CLEAR_IX);
-		
-		this.listView = super.getListView();
 
 		// Set the selection text to indicate nothing is selected
 		this.updateSelText(null);
+		
+		if(savedInstanceState == null) return;
+		
+		// Get the saved logger
+		final String selectedLoggerName = (String) savedInstanceState.get("selectedLoggerName");
+		if(selectedLoggerName != null) {
+			this.selectedLogger = getLoggerByName(selectedLoggerName);
+			this.updateSelText(selectedLoggerName);
+		}
+		
+		// Set the list back to its previous position
+		final int savedVisiblePosition = savedInstanceState.getInt("savedVisiblePosition");
+		this.listView.setSelection(savedVisiblePosition);
 
 	}
+	
+	@Override
+	public void onSaveInstanceState(Bundle outState) {
+		
+		final String selectedLoggerName = this.selectedLogger.getName();
+		outState.putString("selectedLoggerName", selectedLoggerName);
+		
+		final int savedVisiblePosition = this.listView.getFirstVisiblePosition();
+		outState.putInt("savedVisiblePosition", savedVisiblePosition);
+		
+	}
+	
 	
 	
 	private Tree<Logger> makeTree(List<Logger> list) {
@@ -101,6 +125,18 @@ public class LoggerEditor extends ListActivity {
 	}
 
 
+	/**
+	 * Adds a leaf to the tree with only the assumption that the Root logger is
+	 * at the top of the tree.  The order in which leaves are added does not
+	 * matter because the algorithm always checks if the parent leaves
+	 * have been added to the tree before adding a child leaf.  For example, if
+	 * a Logger named "edu.foo.bar" were given, then we would first check if
+	 * "edu.foo" and "edu" had been added to the tree, and if not, we would 
+	 * add them before adding "edu.foo.bar"
+	 * @param mTree -- the Tree to which leaves are added
+	 * @param aLogger -- the Logger to be added to the Tree
+	 * @param loggerName -- the name of the Logger
+	 */
 	private void safelyAddLeaf(Tree<Logger> mTree,
 			Logger aLogger, String loggerName) {
 
@@ -139,18 +175,16 @@ public class LoggerEditor extends ListActivity {
 		}
 		this.selectedLogger = nextSelectedLogger;
 		this.lastSelectedView = row;
-		this.lastVisiblePosition = listView.getFirstVisiblePosition();	
 
 		refreshList();
 	}
 
 	private void refreshList() {
-		super.onContentChanged();
-		listView.setSelection(this.lastVisiblePosition);
+		this.listView.invalidateViews();
 	}
 	
 
-	private void updateIcon(Level lvl, View row, int pos) {
+	private void updateIcon(Level lvl, View row) {
 		final ImageView iv =(ImageView)(row.findViewById(R.id.logger_icon));
 		setIcon(lvl, iv);
 		refreshList();
@@ -300,27 +334,27 @@ public class LoggerEditor extends ListActivity {
 			switch (pos) {
 			case TRACE_IX:
 				selectedLogger.setLevel(Level.TRACE);
-				updateIcon(Level.TRACE, lastSelectedView, lastVisiblePosition);
+				updateIcon(Level.TRACE, lastSelectedView);
 				break;
 			case DEBUG_IX:
 				selectedLogger.setLevel(Level.DEBUG);
-				updateIcon(Level.DEBUG, lastSelectedView, lastVisiblePosition);
+				updateIcon(Level.DEBUG, lastSelectedView);
 				break;
 			case INFO_IX:
 				selectedLogger.setLevel(Level.INFO);
-				updateIcon(Level.INFO, lastSelectedView, lastVisiblePosition);
+				updateIcon(Level.INFO, lastSelectedView);
 				break;
 			case WARN_IX:
 				selectedLogger.setLevel(Level.WARN);
-				updateIcon(Level.WARN, lastSelectedView, lastVisiblePosition);
+				updateIcon(Level.WARN, lastSelectedView);
 				break;
 			case ERROR_IX:
 				selectedLogger.setLevel(Level.ERROR);
-				updateIcon(Level.ERROR, lastSelectedView, lastVisiblePosition);
+				updateIcon(Level.ERROR, lastSelectedView);
 				break;
 			case OFF_IX:
 				selectedLogger.setLevel(Level.OFF);
-				updateIcon(Level.OFF, lastSelectedView, lastVisiblePosition);
+				updateIcon(Level.OFF, lastSelectedView);
 				break;
 			case CLEAR_IX:
 			default:
@@ -330,7 +364,7 @@ public class LoggerEditor extends ListActivity {
 				}
 				selectedLogger.setLevel(null);
 				final Level effective = selectedLogger.getEffectiveLevel();
-				updateIcon(effective, lastSelectedView, lastVisiblePosition);
+				updateIcon(effective, lastSelectedView);
 			}
 		}
 
