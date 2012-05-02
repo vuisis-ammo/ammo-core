@@ -1050,6 +1050,7 @@ public class SerialChannel extends NetChannel
 
         private void sendMessage(AmmoGatewayMessage msg) throws IOException
         {
+            msg.gpsOffset = mDelta;
             ByteBuffer buf = msg.serialize( endian,
                                             AmmoGatewayMessage.VERSION_1_TERSE,
                                             (byte) mSlotNumber.get());
