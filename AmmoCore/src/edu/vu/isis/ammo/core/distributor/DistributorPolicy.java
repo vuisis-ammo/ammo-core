@@ -40,7 +40,7 @@ import android.content.res.AssetManager;
 import android.content.res.Resources.NotFoundException;
 import android.net.Uri;
 import edu.vu.isis.ammo.api.IAmmoRequest;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.util.PrefixList;
 
 /**
@@ -62,7 +62,13 @@ public class DistributorPolicy implements ContentHandler {
 	private static final Logger logger = LoggerFactory.getLogger("dist.policy");
 
 	public static final String DEFAULT = "_default_";
-
+	
+	public static final long CONVERT_MINUTES_TO_MILLISEC = 60L * 1000L;
+	public static final long DEFAULT_POSTAL_LIFESPAN = CONVERT_MINUTES_TO_MILLISEC * 8 * 60; // 8 hr 	
+	public static final long DEFAULT_RETRIEVAL_LIFESPAN = CONVERT_MINUTES_TO_MILLISEC * 30; // 30 minutes
+	public static final long DEFAULT_SUBSCRIBE_LIFESPAN = CONVERT_MINUTES_TO_MILLISEC * 7 * 24 * 60; // 7 days
+	
+	
 	public final PrefixList<Topic> publishPolicy;
 	public final PrefixList<Topic> postalPolicy;
 	public final PrefixList<Topic> subscribePolicy;
@@ -279,8 +285,8 @@ public class DistributorPolicy implements ContentHandler {
 			return sb.toString();
 		}
 
-		public DistributorState makeRouteMap() {
-			final DistributorState state = this.routing.makeMap();
+		public Dispersal makeRouteMap() {
+			final Dispersal state = this.routing.makeMap();
 			return state.setType(this.type);
 		}
 		
@@ -320,7 +326,7 @@ public class DistributorPolicy implements ContentHandler {
 	 * was successful over the specified channel term.
 	 * In other words, if the message was sent over a channel.
 	 * 
-	 * The makeMap method builds a disposal (DistributorState) object.
+	 * The makeMap method builds a disposal (Dispersal) object.
 	 */
 	public class Routing {
 		public final int priority;
@@ -334,8 +340,8 @@ public class DistributorPolicy implements ContentHandler {
 			this.lifespan = lifespan;
 			this.clauses = new ArrayList<Clause>();
 		}
-		public DistributorState makeMap() {
-			final DistributorState map = DistributorState.newInstance(this);
+		public Dispersal makeMap() {
+			final Dispersal map = Dispersal.newInstance(this);
 			for (Clause clause : this.clauses) {
 				for (Literal literal : clause.literals) {
 					map.put(literal.term, DisposalState.PENDING);
@@ -542,7 +548,7 @@ public class DistributorPolicy implements ContentHandler {
 		public TopicBuilder() {
 			this.routing = new Routing(Category.POSTAL, 
 			IAmmoRequest.PRIORITY_NORMAL, 
-			DistributorDataStore.DEFAULT_POSTAL_LIFESPAN);
+			DEFAULT_POSTAL_LIFESPAN);
 		}
 		public Topic build() { return new Topic(this); }
 
@@ -664,16 +670,16 @@ public class DistributorPolicy implements ContentHandler {
 				switch (category) {
 				case RETRIEVAL:
 					lifespan = extractLifespan(uri,"lifespan", 
-							DistributorDataStore.DEFAULT_RETRIEVAL_LIFESPAN, atts);
+							DEFAULT_RETRIEVAL_LIFESPAN, atts);
 					break;
 				case SUBSCRIBE:
 					lifespan = extractLifespan(uri,"lifespan", 
-							DistributorDataStore.DEFAULT_SUBSCRIBE_LIFESPAN, atts);
+							DEFAULT_SUBSCRIBE_LIFESPAN, atts);
 					break;
 				case POSTAL:
 				default:
 					lifespan = extractLifespan(uri,"lifespan", 
-							DistributorDataStore.DEFAULT_POSTAL_LIFESPAN, atts);
+							DEFAULT_POSTAL_LIFESPAN, atts);
 					break;
 				}
 				
@@ -913,7 +919,7 @@ public class DistributorPolicy implements ContentHandler {
 		if (value == null) return def;
 		
 		try {
-			return DistributorDataStore.CONVERT_MINUTES_TO_MILLISEC * Integer.parseInt(value);
+			return CONVERT_MINUTES_TO_MILLISEC * Integer.parseInt(value);
 		} catch (NumberFormatException ex) {
 			return def;
 		}

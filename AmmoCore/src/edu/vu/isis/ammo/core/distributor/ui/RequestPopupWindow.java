@@ -35,11 +35,11 @@ import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.InterestField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.PostalField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.PriorityType;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.store.DistributorDataStore.RetrievalField;
+import edu.vu.isis.ammo.core.store.DistributorDataStore.SubscribeField;
 import edu.vu.isis.ammo.core.store.Tables;
 
 public class RequestPopupWindow extends PopupWindow {
@@ -65,12 +65,13 @@ public class RequestPopupWindow extends PopupWindow {
 		postalMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
 		postalMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
 		postalMap.put(RequestField.SUBTOPIC.n(), new FieldProperty(R.id.dist_detail_subtopic, FieldType.TEXT));
-		postalMap.put(PostalField.PAYLOAD.n(), new FieldProperty(R.id.dist_detail_payload, FieldType.TEXT));
 		postalMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
 		postalMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
 		postalMap.put(RequestField.PRIORITY.n(), new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
 		postalMap.put(RequestField.EXPIRATION.n(), new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
 		postalMap.put(RequestField.DISPOSITION.n(), new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
+
+		postalMap.put(PostalField.PAYLOAD.n(), new FieldProperty(R.id.dist_detail_payload, FieldType.TEXT));
 	}
 
 	private final static HashMap<String, FieldProperty> interestMap;
@@ -79,12 +80,13 @@ public class RequestPopupWindow extends PopupWindow {
 		interestMap.put(RequestField.PROVIDER.n(), new FieldProperty(R.id.dist_detail_provider, FieldType.TEXT));
 		interestMap.put(RequestField.TOPIC.n(), new FieldProperty(R.id.dist_detail_topic, FieldType.TEXT));
 		interestMap.put(RequestField.SUBTOPIC.n(), new FieldProperty(R.id.dist_detail_subtopic, FieldType.TEXT));
-		interestMap.put(InterestField.FILTER.n(), new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
 		interestMap.put(RequestField.MODIFIED.n(), new FieldProperty(R.id.dist_detail_modified, FieldType.TIMESTAMP));
 		interestMap.put(RequestField.CREATED.n(), new FieldProperty(R.id.dist_detail_created, FieldType.TIMESTAMP));
 		interestMap.put(RequestField.PRIORITY.n(), new FieldProperty(R.id.dist_detail_priority, FieldType.PRIORITY));
 		interestMap.put(RequestField.EXPIRATION.n(), new FieldProperty(R.id.dist_detail_expiration, FieldType.TIMESTAMP));
 		interestMap.put(RequestField.DISPOSITION.n(), new FieldProperty(R.id.dist_detail_disposal, FieldType.DISPOSITION));
+		
+		interestMap.put(SubscribeField.FILTER.n(), new FieldProperty(R.id.dist_detail_selection, FieldType.TEXT));
 	}
 
 	private final static HashMap<String, FieldProperty> retrievalMap;
@@ -124,7 +126,7 @@ public class RequestPopupWindow extends PopupWindow {
 		case POSTAL: 
 			fieldMap = postalMap; 
 			break;
-		case INTEREST: 
+		case SUBSCRIBE: 
 			fieldMap = interestMap; 
 			break;
 		case RETRIEVAL: 

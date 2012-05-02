@@ -108,7 +108,7 @@ public interface PLogger {
 	public static final Logger STORE_DDL = LoggerFactory.getLogger( "store.ddl" );
 
 	public static final Logger STORE_POSTAL_DML = LoggerFactory.getLogger( "store.postal.dml" );
-	public static final Logger STORE_INTEREST_DML = LoggerFactory.getLogger( "store.interest.dml" );
+	public static final Logger STORE_SUBSCRIBE_DML = LoggerFactory.getLogger( "store.subscribe.dml" );
 	public static final Logger STORE_RETRIEVE_DML = LoggerFactory.getLogger( "store.retrieve.dml" );
 	public static final Logger STORE_CHANNEL_DML = LoggerFactory.getLogger( "store.channel.dml" );
 	public static final Logger STORE_CAPABILITY_DML = LoggerFactory.getLogger( "store.capability.dml" );
@@ -116,7 +116,7 @@ public interface PLogger {
 	public static final Logger STORE_DISPOSAL_DML = LoggerFactory.getLogger( "store.disposal.dml" );
 
 	public static final Logger STORE_POSTAL_DQL = LoggerFactory.getLogger( "store.postal.dql" );
-	public static final Logger STORE_INTEREST_DQL = LoggerFactory.getLogger( "store.interest.dql" );
+	public static final Logger STORE_SUBSCRIBE_DQL = LoggerFactory.getLogger( "store.subscribe.dql" );
 	public static final Logger STORE_RETRIEVE_DQL = LoggerFactory.getLogger( "store.retrieve.dql" );
 	public static final Logger STORE_CHANNEL_DQL = LoggerFactory.getLogger( "store.channel.dql" );
 	public static final Logger STORE_CAPABILITY_DQL = LoggerFactory.getLogger( "store.capability.dql" );

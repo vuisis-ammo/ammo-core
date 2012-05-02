@@ -617,7 +617,7 @@ public class DistributorDataStore {
 
 	/**
 	 * The Request table holds application requests.
-	 * These requests are to express interest in data of certain types 
+	 * These requests are to express subscribe in data of certain types 
 	 * or to announce the presence of information of a certain type.
 	 * The request can apply to the past or the future.
 	 *
@@ -753,8 +753,8 @@ public class DistributorDataStore {
 		return new RequestWorker(this.db, Tables.POSTAL, Tables.POSTAL_DISPOSAL);
 	}
 
-	public RequestWorker getInterestRequestWorker() {
-		return new RequestWorker(this.db, Tables.INTEREST, Tables.INTEREST_DISPOSAL);
+	public RequestWorker getSubscribeRequestWorker() {
+		return new RequestWorker(this.db, Tables.SUBSCRIBE, Tables.SUBSCRIBE_DISPOSAL);
 	}
 
 	public RequestWorker getRetrievalRequestWorker() {
@@ -880,9 +880,9 @@ public class DistributorDataStore {
 			final SQLiteDatabase db = this.helper.getReadableDatabase();
 			return qb.query(db, projection, REQUEST_TOPIC_QUERY, new String[]{topic, subtopic}, null, null,
 					(!TextUtils.isEmpty(sortOrder)) ? sortOrder
-							: InterestConstants.DEFAULT_SORT_ORDER);
+							: SubscribeConstants.DEFAULT_SORT_ORDER);
 		} catch (IllegalArgumentException ex) {
-			logger.error("query interest by key {} [{}:{}]", new Object[]{ projection, topic, subtopic });
+			logger.error("query subscribe by key {} [{}:{}]", new Object[]{ projection, topic, subtopic });
 		}
 		return null;
 	}
@@ -1606,24 +1606,24 @@ public class DistributorDataStore {
 
 	/**
 	 * ===================
-	 *  INTEREST
+	 *  SUBSCRIBE
 	 * ===================
 	 * 
-	 * The interest table is for holding local subscription requests.
+	 * The subscribe table is for holding local subscription requests.
 	 */
 
 	/** Insert method helper */
-	protected ContentValues initializeInterestDefaults(ContentValues values) {
+	protected ContentValues initializeSubscribeDefaults(ContentValues values) {
 
 		initializeRequestDefaults(values);
 
-		if (!values.containsKey(InterestField.FILTER.n())) {
-			values.put(InterestField.FILTER.n(), "");
+		if (!values.containsKey(SubscribeField.FILTER.n())) {
+			values.put(SubscribeField.FILTER.n(), "");
 		}
 		return values;
 	}
 
-	public enum InterestField  implements TableField {
+	public enum SubscribeField  implements TableField {
 
 		FILTER("filter", "TEXT");
 		// The rows/tuples wanted.
@@ -1632,7 +1632,7 @@ public class DistributorDataStore {
 
 		final public TableFieldState impl;
 
-		private InterestField(String name, String type) {
+		private SubscribeField(String name, String type) {
 			this.impl = new TableFieldState(name,type);
 		}
 
@@ -1646,7 +1646,7 @@ public class DistributorDataStore {
 		public String ddl() { return this.impl.ddl(); }
 	}
 
-	public static interface InterestConstants {
+	public static interface SubscribeConstants {
 
 		public static final String DEFAULT_SORT_ORDER = ""; 
 		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
@@ -1662,7 +1662,7 @@ public class DistributorDataStore {
 				for (RequestField field : RequestField.values()) {
 					columns.add(field.n());
 				}
-				for (InterestField field : InterestField.values()) {
+				for (SubscribeField field : SubscribeField.values()) {
 					columns.add(field.n());
 				}
 				return columns.toArray(new String[columns.size()]);
@@ -1672,7 +1672,7 @@ public class DistributorDataStore {
 				for (RequestField field : RequestField.values()) {
 					projection.put(field.n(), field.n());
 				}
-				for (InterestField field : InterestField.values()) {
+				for (SubscribeField field : SubscribeField.values()) {
 					projection.put(field.n(), field.n());
 				}
 				return projection;
@@ -1680,16 +1680,16 @@ public class DistributorDataStore {
 		};
 	}
 
-	public InterestWorker getInterestWorker(final Cursor pending, AmmoService svc) {
-		return new InterestWorker(pending, svc);
+	public SubscribeWorker getSubscribeWorker(final Cursor pending, AmmoService svc) {
+		return new SubscribeWorker(pending, svc);
 	}
-	public InterestWorker getInterestWorker(final AmmoRequest request, AmmoService svc) {
-		return new InterestWorker(request, svc);
+	public SubscribeWorker getSubscribeWorker(final AmmoRequest request, AmmoService svc) {
+		return new SubscribeWorker(request, svc);
 	}
 	/** 
 	 * Store access class
 	 */
-	public class InterestWorker extends RequestWorker {
+	public class SubscribeWorker extends RequestWorker {
 
 		final public int id;
 		final public String topic;
@@ -1706,8 +1706,8 @@ public class DistributorDataStore {
 		public DisposalTotalState totalState = null;
 		public Dispersal dispersal = null;
 
-		private InterestWorker(final AmmoRequest ar, AmmoService svc) {
-			super(DistributorDataStore.this.db, Tables.INTEREST, Tables.INTEREST_DISPOSAL);
+		private SubscribeWorker(final AmmoRequest ar, AmmoService svc) {
+			super(DistributorDataStore.this.db, Tables.SUBSCRIBE, Tables.SUBSCRIBE_DISPOSAL);
 
 			this.id = -1;
 			this.uuid = UUID.randomUUID();
@@ -1715,7 +1715,7 @@ public class DistributorDataStore {
 			this.topic = ar.topic.asString();
 			this.subtopic = (ar.subtopic == null) ? Topic.DEFAULT : ar.subtopic.asString();
 			this.provider = ar.provider;
-			this.policy = svc.policy().matchInterest(topic);
+			this.policy = svc.policy().matchSubscribe(topic);
 
 			this.priority = PriorityType.aggregatePriority(policy.routing.priority, ar.priority);
 			this.expire = ar.expire;
@@ -1725,8 +1725,8 @@ public class DistributorDataStore {
 			this.totalState = DisposalTotalState.NEW;
 		}
 
-		private InterestWorker(final Cursor pending, AmmoService svc) {
-			super(DistributorDataStore.this.db, Tables.INTEREST, Tables.INTEREST_DISPOSAL);
+		private SubscribeWorker(final Cursor pending, AmmoService svc) {
+			super(DistributorDataStore.this.db, Tables.SUBSCRIBE, Tables.SUBSCRIBE_DISPOSAL);
 
 			this.id = pending.getInt(pending.getColumnIndex(RequestField._ID.cv()));
 			this.provider = new Provider(pending.getString(pending.getColumnIndex(RequestField.PROVIDER.n())));
@@ -1734,7 +1734,7 @@ public class DistributorDataStore {
 			this.subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.n()));
 			this.uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.n())));
 			this.auid = pending.getString(pending.getColumnIndex(RequestField.AUID.n()));
-			this.policy = (svc == null) ? null : svc.policy().matchInterest(topic);
+			this.policy = (svc == null) ? null : svc.policy().matchSubscribe(topic);
 
 			this.priority = pending.getInt(pending.getColumnIndex(RequestField.PRIORITY.n()));
 			final long expireEnc = pending.getLong(pending.getColumnIndex(RequestField.EXPIRATION.n()));
@@ -1742,7 +1742,7 @@ public class DistributorDataStore {
 
 			String select = "";
 			try {
-				select = pending.getString(pending.getColumnIndex(InterestField.FILTER.n()));	
+				select = pending.getString(pending.getColumnIndex(SubscribeField.FILTER.n()));	
 			} catch (Exception ex) {
 				logger.warn("no selection");
 			} finally {
@@ -1752,7 +1752,7 @@ public class DistributorDataStore {
 			this.dispersal = this.policy.makeRouteMap();
 			Cursor channelCursor = null;
 			try { 
-				channelCursor = getInterestDisposalWorker().queryByParent(this.id);
+				channelCursor = getSubscribeDisposalWorker().queryByParent(this.id);
 
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
@@ -1762,7 +1762,7 @@ public class DistributorDataStore {
 			} finally {
 				if (channelCursor != null) channelCursor.close();
 			}
-			logger.trace("process interest row: id=[{}] topic=[{}:{}] select=[{}] dispersal=[{}]", 
+			logger.trace("process subscribe row: id=[{}] topic=[{}:{}] select=[{}] dispersal=[{}]", 
 					new Object[] { this.id, this.topic, this.subtopic, this.select, this.dispersal});
 
 		}
@@ -1789,7 +1789,7 @@ public class DistributorDataStore {
 			synchronized(DistributorDataStore.this) {	
 				// build key
 				if (uuid == null) {
-					logger.error("interest requests must have a uuid: [{}]", this);
+					logger.error("subscribe requests must have a uuid: [{}]", this);
 					return -1;
 				}
 				final String topic = this.topic;
@@ -1810,18 +1810,18 @@ public class DistributorDataStore {
 				cv.put(RequestField.DISPOSITION.cv(), totalState.cv());
 
 				if (this.select != null) {
-					cv.put(InterestField.FILTER.cv(), this.select.cv());
+					cv.put(SubscribeField.FILTER.cv(), this.select.cv());
 				}
 
 				// values.put(PostalTableSchema.UNIT.cv(), 50);
-				PLogger.STORE_INTEREST_DML.trace("upsert interest: {} @ {}",
+				PLogger.STORE_SUBSCRIBE_DML.trace("upsert subscribe: {} @ {}",
 						totalState, cv);
 
 				this.db.beginTransaction();
 				Cursor cursor  = null;
 				try {
 					final long rowid;
-					final String whereClause = INTEREST_UPDATE_CLAUSE_KEY;
+					final String whereClause = SUBSCRIBE_UPDATE_CLAUSE_KEY;
 					final String[] whereArgs = new String[]{ topic, subtopic, provider };
 
 					cursor = this.db.query(this.request.n, 
@@ -1842,11 +1842,11 @@ public class DistributorDataStore {
 						} finally {
 							rowid = id;
 						}
-						PLogger.STORE_INTEREST_DML.trace("updated row=[{}] : args=[{}] clause=[{}]",
+						PLogger.STORE_SUBSCRIBE_DML.trace("updated row=[{}] : args=[{}] clause=[{}]",
 								new Object[]{id, whereArgs, whereClause});
 					} else {
 						rowid = this.db.insert(this.request.n, RequestField.CREATED.n(), cv);
-						PLogger.STORE_INTEREST_DML.trace("inserted row=[{}] : values=[{}]",
+						PLogger.STORE_SUBSCRIBE_DML.trace("inserted row=[{}] : values=[{}]",
 								rowid, cv);
 					}
 
@@ -1866,7 +1866,7 @@ public class DistributorDataStore {
 		}
 	}
 
-	static final private String INTEREST_UPDATE_CLAUSE_KEY = new StringBuilder()
+	static final private String SUBSCRIBE_UPDATE_CLAUSE_KEY = new StringBuilder()
 	.append(RequestField.TOPIC.q(null)).append("=?")
 	.append(" AND ")
 	.append(RequestField.SUBTOPIC.q(null)).append("=?")
@@ -1879,38 +1879,38 @@ public class DistributorDataStore {
 	/**
 	 * Query
 	 */
-	public synchronized Cursor queryInterest(String[] projection, String whereClause,
+	public synchronized Cursor querySubscribe(String[] projection, String whereClause,
 			String[] whereArgs, String sortOrder) {
-		return queryRequest(INTEREST_VIEW_NAME, projection, whereClause, whereArgs, sortOrder);
+		return queryRequest(SUBSCRIBE_VIEW_NAME, projection, whereClause, whereArgs, sortOrder);
 	}
 
-	public synchronized Cursor queryInterestReady() {
+	public synchronized Cursor querySubscribeReady() {
 		this.openRead();
 		try {
-			return db.rawQuery(INTEREST_STATUS_QUERY, null);
+			return db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
 			logger.error("sql error {}", ex.getLocalizedMessage());
 		}
 		return null;
 	}
-	public synchronized Cursor queryInterestByKey(String[] projection,
+	public synchronized Cursor querySubscribeByKey(String[] projection,
 			final String topic, final String subtopic, String sortOrder) {
-		return queryRequestByTopic(INTEREST_VIEW_NAME, projection, topic, subtopic, sortOrder);
+		return queryRequestByTopic(SUBSCRIBE_VIEW_NAME, projection, topic, subtopic, sortOrder);
 	}
 
-	private static final String INTEREST_STATUS_QUERY = 
-			RequestStatusQuery(Tables.INTEREST, Tables.INTEREST_DISPOSAL);
+	private static final String SUBSCRIBE_STATUS_QUERY = 
+			RequestStatusQuery(Tables.SUBSCRIBE, Tables.SUBSCRIBE_DISPOSAL);
 
-	private static final String INTEREST_VIEW_NAME = Tables.INTEREST.n;
+	private static final String SUBSCRIBE_VIEW_NAME = Tables.SUBSCRIBE.n;
 
 	/**
 	 * Upsert
 	 */
 	/*
-	public synchronized long upsertInterest(ContentValues cv, DistributorState status) {
-		PLogger.STORE_INTEREST_DML.trace("upsert interest: {} @ {}",
+	public synchronized long upsertSubscribe(ContentValues cv, DistributorState status) {
+		PLogger.STORE_SUBSCRIBE_DML.trace("upsert subscribe: {} @ {}",
 				cv, status);
-		final RequestWorker requestor = this.getInterestRequestWorker();
+		final RequestWorker requestor = this.getSubscribeRequestWorker();
 		return requestor.upsert(cv, status);
 	}
 	 */
@@ -1920,57 +1920,57 @@ public class DistributorDataStore {
 	 * Update
 	 */
 
-	public synchronized long updateInterestByKey(long requestId, ContentValues cv, final Dispersal state) {
-		final RequestWorker requestor = this.getInterestRequestWorker();
+	public synchronized long updateSubscribeByKey(long requestId, ContentValues cv, final Dispersal state) {
+		final RequestWorker requestor = this.getSubscribeRequestWorker();
 		return requestor.updateById(requestId, cv, state);
 	}
 
-	public synchronized long updateInterestByKey(long requestId, String channel, final DisposalState state) {
-		final DisposalWorker worker = this.getInterestDisposalWorker();
+	public synchronized long updateSubscribeByKey(long requestId, String channel, final DisposalState state) {
+		final DisposalWorker worker = this.getSubscribeDisposalWorker();
 		return worker.upsertByRequest(requestId, channel, state);
 	}
 
 	/**
 	 * Delete
 	 */
-	public synchronized int deleteInterest(String whereClause, String[] whereArgs) {
+	public synchronized int deleteSubscribe(String whereClause, String[] whereArgs) {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int count = db.delete(Tables.INTEREST.n, whereClause, whereArgs);
-			logger.trace("Interest delete count: [{}]", count);
+			final int count = db.delete(Tables.SUBSCRIBE.n, whereClause, whereArgs);
+			logger.trace("Subscribe delete count: [{}]", count);
 			return count;
 		} catch (IllegalArgumentException ex) {
-			logger.error("delete interest {} {}", whereClause, whereArgs);
+			logger.error("delete subscribe {} {}", whereClause, whereArgs);
 		}
 		return 0;
 	}
-	public synchronized int deleteInterestGarbage() {
+	public synchronized int deleteSubscribeGarbage() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			final int expireCount = db.delete(Tables.INTEREST.n, 
-					REQUEST_EXPIRATION_CONDITION, getRelativeExpirationTime(INTEREST_DELAY_OFFSET));
-			logger.trace("Interest garbage count: [{}]", expireCount);
+			final int expireCount = db.delete(Tables.SUBSCRIBE.n, 
+					REQUEST_EXPIRATION_CONDITION, getRelativeExpirationTime(SUBSCRIBE_DELAY_OFFSET));
+			logger.trace("Subscribe garbage count: [{}]", expireCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteInterestGarbage {}", ex.getLocalizedMessage());
+			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
 		} catch (SQLiteException ex) {
-			logger.error("deleteInterestGarbage {}", ex.getLocalizedMessage());
+			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
 		}
 		return 0;
 	}
 
-	private static final long INTEREST_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
+	private static final long SUBSCRIBE_DELAY_OFFSET = 365 * 24 * 60 * 60; // 1 yr in seconds
 
 	/**
-	 * purge all records from the interest table and cascade to the disposal table.
+	 * purge all records from the subscribe table and cascade to the disposal table.
 	 * @return
 	 */
-	public synchronized int purgeInterest() {
+	public synchronized int purgeSubscribe() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			return db.delete(Tables.INTEREST.n, null, null);
+			return db.delete(Tables.SUBSCRIBE.n, null, null);
 		} catch (IllegalArgumentException ex) {
-			logger.error("purgeInterest");
+			logger.error("purgeSubscribe");
 		}
 		return 0;
 	}
@@ -2215,8 +2215,8 @@ public class DistributorDataStore {
 		return new DisposalWorker(this.db, Tables.RETRIEVAL, Tables.RETRIEVAL_DISPOSAL);
 	}
 
-	public DisposalWorker getInterestDisposalWorker() {
-		return new DisposalWorker(this.db, Tables.INTEREST, Tables.INTEREST_DISPOSAL);
+	public DisposalWorker getSubscribeDisposalWorker() {
+		return new DisposalWorker(this.db, Tables.SUBSCRIBE, Tables.SUBSCRIBE_DISPOSAL);
 	}
 
 
@@ -2237,7 +2237,7 @@ public class DistributorDataStore {
 		// The _ID of the parent Request
 
 		DISPOSAL("type", "INTEGER"),
-		// Meaning the parent type: interest, retrieval, postal, publish
+		// Meaning the parent type: subscribe, retrieval, postal, publish
 
 		STATE("state", "INTEGER");
 		// State of the request on the channel
@@ -2496,8 +2496,8 @@ public class DistributorDataStore {
 			this.db.update(Tables.RETRIEVAL_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
 					DISPOSAL_DEACTIVATE_RETRIEVAL_CLAUSE, new String[]{ channel } );
 			
-			this.db.update(Tables.INTEREST_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
-					DISPOSAL_DEACTIVATE_INTEREST_CLAUSE, new String[]{ channel } );
+			this.db.update(Tables.SUBSCRIBE_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
+					DISPOSAL_DEACTIVATE_SUBSCRIBE_CLAUSE, new String[]{ channel } );
 			
 		} catch (IllegalArgumentException ex) {
 			logger.error("deactivateDisposalStateByChannel {} ", channel);
@@ -2524,7 +2524,7 @@ public class DistributorDataStore {
 	.append(DisposalState.SENT.q()).append(')')
 	.toString();
 	
-	static final private String DISPOSAL_DEACTIVATE_INTEREST_CLAUSE = new StringBuilder()
+	static final private String DISPOSAL_DEACTIVATE_SUBSCRIBE_CLAUSE = new StringBuilder()
 	.append(DisposalField.CHANNEL.q(null)).append("=?")
 	.append(" AND ")
 	.append(DisposalField.STATE.q(null))
@@ -2555,7 +2555,7 @@ public class DistributorDataStore {
 			this.db.update(Tables.RETRIEVAL_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
 					DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
 
-			this.db.update(Tables.INTEREST_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
+			this.db.update(Tables.SUBSCRIBE_DISPOSAL.n, DISPOSAL_PENDING_VALUES, 
 					DISPOSAL_REPAIR_CLAUSE, new String[]{ channel } );
 		} catch (IllegalArgumentException ex) {
 			logger.error("repairDisposalStateByChannel {}", channel);
@@ -2599,8 +2599,8 @@ public class DistributorDataStore {
 		this.applCacheRetrievalDir = new File(this.applCacheDir, "retrieval");
 		this.applCacheRetrievalDir.mkdir();
 
-		this.applCacheInterestDir = new File(this.applCacheDir, "interest");
-		this.applCacheInterestDir.mkdir();
+		this.applCacheSubscribeDir = new File(this.applCacheDir, "subscribe");
+		this.applCacheSubscribeDir.mkdir();
 
 		this.applTempDir = new File(this.applDir, "tmp");
 		this.applTempDir.mkdir();
@@ -2655,13 +2655,13 @@ public class DistributorDataStore {
 	}
 
 
-	// ========= INTEREST : DELETE ================
+	// ========= SUBSCRIBE : DELETE ================
 
 	public final File applDir;
 	public final File applCacheDir;
 	public final File applCachePostalDir;
 	public final File applCacheRetrievalDir;
-	public final File applCacheInterestDir;
+	public final File applCacheSubscribeDir;
 	public final File applTempDir;
 
 
@@ -2938,12 +2938,12 @@ public class DistributorDataStore {
 					return;
 				}
 				/**
-				 *  ===== INTEREST
+				 *  ===== SUBSCRIBE
 				 */
 				try {	
-					final Tables request = Tables.INTEREST;
-					final Tables disposal = Tables.INTEREST_DISPOSAL;
-					final TableField[] fields = InterestField.values();
+					final Tables request = Tables.SUBSCRIBE;
+					final Tables disposal = Tables.SUBSCRIBE_DISPOSAL;
+					final TableField[] fields = SubscribeField.values();
 
 					final StringBuilder createRequestSql = 
 							new StringBuilder()

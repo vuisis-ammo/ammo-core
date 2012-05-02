@@ -32,8 +32,8 @@ public enum Tables {
 	POSTAL_DISPOSAL(211, "postal_disposal"),
 	RETRIEVAL(220, "retrieval"),
 	RETRIEVAL_DISPOSAL(221, "retrieval_disposal"),
-	INTEREST(230, "interest"),
-	INTEREST_DISPOSAL(231, "interest_disposal"),
+	SUBSCRIBE(230, "subscribe"),
+	SUBSCRIBE_DISPOSAL(231, "subscribe_disposal"),
 	RECIPIENT(300, "recipient");
 
 	final public int o;
