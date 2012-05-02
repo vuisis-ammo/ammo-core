@@ -559,8 +559,17 @@ public class DistributorThread extends Thread {
 			while (true) {
 				// condition wait, is there something to process?
 				synchronized (this) {
-					while (!this.isReady()) 
+					while (!this.isReady()) {
 						this.wait(BURP_TIME);
+
+						final long currentTime = System.currentTimeMillis();
+						if (sanitationSchedule.get() > currentTime){
+							continue;
+						}
+						sanitationSchedule.getAndSet(currentTime + (10L * 60 * 1000)); 
+						// next alarm in 10 minutes, specified in milliseconds
+						this.takeOutGarbage();
+					}
 				}
 				while (this.isReady()) {
 
@@ -602,13 +611,6 @@ public class DistributorThread extends Thread {
 				}
 				logger.trace("work processed");
 
-				final long currentTime = System.currentTimeMillis();
-				if (sanitationSchedule.get() < currentTime) {
-					sanitationSchedule.getAndSet(currentTime 
-							+ (10L * 60 * 1000)); 
-					// next alarm in 10 minutes, specified in milliseconds
-					this.takeOutGarbage();
-				}
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
