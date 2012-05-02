@@ -32,8 +32,8 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.TimeInterval;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.RequestField;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**
@@ -42,7 +42,7 @@ import edu.vu.isis.ammo.core.ui.util.ActivityEx;
  * 
  * This is to be used primarily for testing (move to AmmoCoreTestDummy?)
  */
-public class Interest extends ActivityEx implements OnClickListener {
+public class Subscribe extends ActivityEx implements OnClickListener {
 	private static final Logger logger = LoggerFactory.getLogger("ammo.class.Interest");
 	
 	// ===========================================================
@@ -98,7 +98,7 @@ public class Interest extends ActivityEx implements OnClickListener {
 			Uri selectedUri = selectionListener.getLastSelectedUri();
 			String selectedMime = selectionListener.getMime();
         	if (selectedUri == null) {
-        		Toast.makeText(Interest.this, "No content selected", Toast.LENGTH_SHORT).show();
+        		Toast.makeText(Subscribe.this, "No content selected", Toast.LENGTH_SHORT).show();
         		return;
         	}
         	
@@ -111,7 +111,7 @@ public class Interest extends ActivityEx implements OnClickListener {
             	values.put(RequestField.DISPOSITION.cv(), DisposalState.PENDING.cv());
             	// cr.insert(RequestField.CONTENT_URI, values);
             	
-            	Toast.makeText(Interest.this, 
+            	Toast.makeText(Subscribe.this, 
             			       "Subscribed to content " + selectedUri.toString(), 
             			       Toast.LENGTH_SHORT)
             	     .show();
@@ -127,7 +127,7 @@ public class Interest extends ActivityEx implements OnClickListener {
 							ex.getLocalizedMessage());
 				}	
         	} else {
-        		Toast.makeText(Interest.this, "Already subscribed to this content", Toast.LENGTH_SHORT).show();
+        		Toast.makeText(Subscribe.this, "Already subscribed to this content", Toast.LENGTH_SHORT).show();
         	}
 		}
 	}

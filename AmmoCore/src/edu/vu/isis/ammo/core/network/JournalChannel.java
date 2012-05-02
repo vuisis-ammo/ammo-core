@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
 
 import android.content.Context;
 import android.os.AsyncTask;

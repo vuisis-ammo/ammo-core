@@ -43,7 +43,7 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
 
 
 /**

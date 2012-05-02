@@ -8,7 +8,7 @@ perform, display, or disclose computer software or computer software
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
  */
-package edu.vu.isis.ammo.core.store;
+package edu.vu.isis.ammo.core.distributor.store;
 
 import java.io.File;
 import java.io.IOException;

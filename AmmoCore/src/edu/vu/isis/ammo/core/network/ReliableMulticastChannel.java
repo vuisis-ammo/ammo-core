@@ -49,8 +49,8 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 
 public class ReliableMulticastChannel extends NetChannel

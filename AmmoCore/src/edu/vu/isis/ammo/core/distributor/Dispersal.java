@@ -21,9 +21,9 @@ import org.slf4j.LoggerFactory;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.ChannelStatus;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalTotalState;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.ChannelStatus;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalTotalState;
 
 /**
  * The dispersal vector is related to the distribution policy

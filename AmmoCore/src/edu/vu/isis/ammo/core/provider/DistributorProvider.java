@@ -24,8 +24,8 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.store.DistributorDataStore;
-import edu.vu.isis.ammo.core.store.Tables;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore;
+import edu.vu.isis.ammo.core.distributor.store.Tables;
 
 
 public class DistributorProvider extends ContentProvider {

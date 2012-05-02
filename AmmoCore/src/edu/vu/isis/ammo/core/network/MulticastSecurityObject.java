@@ -15,8 +15,8 @@ package edu.vu.isis.ammo.core.network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 
 

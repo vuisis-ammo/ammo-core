@@ -17,7 +17,7 @@ import java.util.Map;
 import android.content.ContentResolver;
 import android.net.Uri;
 import android.provider.BaseColumns;
-import edu.vu.isis.ammo.core.store.Tables;
+import edu.vu.isis.ammo.core.distributor.store.Tables;
 
 public class DistributorSchema implements BaseColumns {
 	

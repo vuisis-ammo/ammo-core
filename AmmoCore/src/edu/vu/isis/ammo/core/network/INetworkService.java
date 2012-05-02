@@ -12,9 +12,9 @@ package edu.vu.isis.ammo.core.network;
 
 import java.util.List;
 
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Netlink;
-import edu.vu.isis.ammo.core.store.DistributorDataStore.DisposalState;
 
 
 /**

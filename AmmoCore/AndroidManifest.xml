@@ -50,7 +50,7 @@
 		<activity android:name=".ui.CorePreferenceActivity" />
 		<activity android:name=".ui.DeliveryStatus" />
 		<activity android:name=".ui.SubscriptionStatus" />
-		<activity android:name=".ui.Interest" />
+		<activity android:name=".ui.Subscribe" />
 		<activity android:name=".ui.GeneralPreferences" />
 		<activity android:name=".ui.AboutActivity" />
 		<activity android:name=".ui.LoggerEditor" />

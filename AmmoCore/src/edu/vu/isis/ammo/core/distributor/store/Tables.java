@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.store;
+package edu.vu.isis.ammo.core.distributor.store;
 
 
 /**
