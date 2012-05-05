@@ -7,7 +7,7 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
- */
+*/
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.BufferedInputStream;
@@ -124,34 +124,34 @@ public class RequestSerializer {
 	}
 
 	public DisposalState act(final AmmoService that, final Encoding encode, final String channel) {
-		final RequestSerializer parent = RequestSerializer.this;
-		final Encoding local_encode = encode;
-		final String local_channel = channel;
-		if (parent.agm == null) {
-			final byte[] agmBytes = parent.serializeActor.run(local_encode);
-			parent.agm = parent.readyActor.run(local_encode, agmBytes);
-		}
-		if (parent.agm == null)
-			return null;
-		that.sendRequest(parent.agm, local_channel);
+	    final RequestSerializer parent = RequestSerializer.this;
+	    final Encoding local_encode = encode;
+	    final String local_channel = channel;
+	    if (parent.agm == null) {
+		final byte[] agmBytes = parent.serializeActor.run(local_encode);
+		parent.agm = parent.readyActor.run(local_encode, agmBytes);
+	    }
+	    if (parent.agm == null)
+		return null;
+	    that.sendRequest(parent.agm, local_channel);
 
-		// final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
-		// 	@Override
-		// 	protected Void doInBackground(Void...none) {
-		// 	    return null;
-		// 	}
+	    // final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
+	    // 	@Override
+	    // 	protected Void doInBackground(Void...none) {
+	    // 	    return null;
+	    // 	}
 
-		// 	@Override
-		// 	protected void onProgressUpdate(Void... none) {
-		// 	}
+	    // 	@Override
+	    // 	protected void onProgressUpdate(Void... none) {
+	    // 	}
 
-		// 	@Override
-		// 	protected void onPostExecute(Void result) {
-		// 	}
-		// };
-		// action.execute();
+	    // 	@Override
+	    // 	protected void onPostExecute(Void result) {
+	    // 	}
+	    // };
+	    // action.execute();
 
-		return DisposalState.QUEUED;
+	    return DisposalState.QUEUED;
 	}
 
 	public void setAction(OnReady action) {
@@ -195,47 +195,47 @@ public class RequestSerializer {
 			final JSONObject json;
 			final byte[] tuple;
 			try {
-				try {
-					tupleCursor = resolver.query(serialUri, null, null, null, null);
-				} catch(IllegalArgumentException ex) {
-					logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-					return null;
-				}
-				if (tupleCursor == null) {
-					throw new TupleNotFoundException("while serializing from provider", tupleUri);
-				}
-				if ( tupleCursor.getCount() < 1) {
-					logger.warn("tuple no longe present {}", tupleUri);
-					return null;
-				}
-				if (! tupleCursor.moveToFirst()) {
-					return null;
-				}
-				if (tupleCursor.getColumnCount() < 1) {
-					return null;
-				}
+			try {
+				tupleCursor = resolver.query(serialUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+				return null;
+			}
+			if (tupleCursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
+            if ( tupleCursor.getCount() < 1) {
+            	logger.warn("tuple no longe present {}", tupleUri);
+            	return null;
+            }
+			if (! tupleCursor.moveToFirst()) {
+				return null;
+			}
+			if (tupleCursor.getColumnCount() < 1) {
+				return null;
+			}
 
 				json = new JSONObject();
-				tupleCursor.moveToFirst();
+			tupleCursor.moveToFirst();
 
-				for (final String name : tupleCursor.getColumnNames()) {
-					if (name.startsWith("_")) continue; // don't send the local fields
+			for (final String name : tupleCursor.getColumnNames()) {
+				if (name.startsWith("_")) continue; // don't send the local fields
 
-					final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
-					if (value == null || value.length() < 1) continue;
-					try {
-						json.put(name, value);
-					} catch (JSONException ex) {
-						logger.warn("invalid content provider {}", ex.getStackTrace());
-					}
+				final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
+				if (value == null || value.length() < 1) continue;
+				try {
+					json.put(name, value);
+				} catch (JSONException ex) {
+					logger.warn("invalid content provider {}", ex.getStackTrace());
 				}
-				tuple = json.toString().getBytes();
+			}
+			tuple = json.toString().getBytes();
 			} finally {
 				if (tupleCursor != null) tupleCursor.close(); 
 			}
 
-
 			logger.info("Serialized message, content {}", json.toString() );
+ 
 			logger.trace("Serialize the blob data (if any)");
 
 			logger.trace("getting the names of the blob fields");
@@ -243,76 +243,76 @@ public class RequestSerializer {
 			Cursor blobCursor = null;
 			final ByteArrayOutputStream bigTuple;
 			try {
+			try {
+				blobCursor = resolver.query(blobUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+				return null;
+			}
+			if (blobCursor == null) return tuple;
+			if (! blobCursor.moveToFirst()) {
+					PLogger.API_STORE_RECV.debug("serialized tuple=[{}]", tuple);
+				return tuple;
+			}
+			final int blobCount = blobCursor.getColumnCount();
+			if (blobCount < 1)  {
+					PLogger.API_STORE_RECV.debug("serialized tuple=[{}]", tuple);
+				return tuple;
+			}
+
+			logger.trace("getting the blob fields");	
+			final List<String> blobFieldNameList = new ArrayList<String>(blobCount);
+			final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
+			final byte[] buffer = new byte[1024]; 
+			for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
+				final String fieldName = blobCursor.getColumnName(ix);
+				logger.trace("processing blob {}", fieldName);
+				blobFieldNameList.add(fieldName);
+
+				final Uri fieldUri = Uri.withAppendedPath(tupleUri, blobCursor.getString(ix));
 				try {
-					blobCursor = resolver.query(blobUri, null, null, null, null);
-				} catch(IllegalArgumentException ex) {
-					logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-					return null;
-				}
-				if (blobCursor == null) return tuple;
-				if (! blobCursor.moveToFirst()) {
-					PLogger.API_STORE_RECV.debug("serialized tuple=[{}]", tuple);
-					return tuple;
-				}
-				final int blobCount = blobCursor.getColumnCount();
-				if (blobCount < 1)  {
-					PLogger.API_STORE_RECV.debug("serialized tuple=[{}]", tuple);
-					return tuple;
-				}
-
-				logger.trace("getting the blob fields");	
-				final List<String> blobFieldNameList = new ArrayList<String>(blobCount);
-				final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
-				final byte[] buffer = new byte[1024]; 
-				for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
-					final String fieldName = blobCursor.getColumnName(ix);
-					logger.trace("processing blob {}", fieldName);
-					blobFieldNameList.add(fieldName);
-
-					final Uri fieldUri = Uri.withAppendedPath(tupleUri, blobCursor.getString(ix));
-					try {
-						final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
-						if (afd == null) {
-							logger.warn("could not acquire file descriptor {}", serialUri);
-							throw new IOException("could not acquire file descriptor "+fieldUri);
-						}
-						final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-						final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-						final BufferedInputStream bis = new BufferedInputStream(instream);
-						final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
-						for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-							fieldBlob.write(buffer, 0, bytesRead);
-						}
-						bis.close();
-						fieldBlobList.add(fieldBlob);
-
-					} catch (IOException ex) {
-						logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
-						throw new FileNotFoundException("Unable to create stream");
+					final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
+					if (afd == null) {
+						logger.warn("could not acquire file descriptor {}", serialUri);
+						throw new IOException("could not acquire file descriptor "+fieldUri);
 					}
+					final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+
+					final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+					final BufferedInputStream bis = new BufferedInputStream(instream);
+					final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
+					for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+						fieldBlob.write(buffer, 0, bytesRead);
+					}
+					bis.close();
+					fieldBlobList.add(fieldBlob);
+
+				} catch (IOException ex) {
+					logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
+					throw new FileNotFoundException("Unable to create stream");
 				}
+			}
 
-				logger.trace("loading larger tuple buffer");
-				bigTuple = new ByteArrayOutputStream();
+			logger.trace("loading larger tuple buffer");
+			bigTuple = new ByteArrayOutputStream();
 
-				bigTuple.write(tuple); 
+			bigTuple.write(tuple); 
+			bigTuple.write(0x0);
+
+			for (int ix=0; ix < blobCount; ix++) {
+				final String fieldName = blobFieldNameList.get(ix);
+				bigTuple.write(fieldName.getBytes());
 				bigTuple.write(0x0);
 
-				for (int ix=0; ix < blobCount; ix++) {
-					final String fieldName = blobFieldNameList.get(ix);
-					bigTuple.write(fieldName.getBytes());
-					bigTuple.write(0x0);
-
-					final ByteArrayOutputStream fieldBlob = fieldBlobList.get(ix);
-					final ByteBuffer bb = ByteBuffer.allocate(4);
-					bb.order(ByteOrder.BIG_ENDIAN); 
-					final int size = fieldBlob.size();
-					bb.putInt(size);
-					bigTuple.write(bb.array());
-					bigTuple.write(fieldBlob.toByteArray());
-					bigTuple.write(bb.array());
-				}
+				final ByteArrayOutputStream fieldBlob = fieldBlobList.get(ix);
+				final ByteBuffer bb = ByteBuffer.allocate(4);
+				bb.order(ByteOrder.BIG_ENDIAN); 
+				final int size = fieldBlob.size();
+				bb.putInt(size);
+				bigTuple.write(bb.array());
+				bigTuple.write(fieldBlob.toByteArray());
+				bigTuple.write(bb.array());
+			}
 			} finally {
 				if (blobCursor != null) blobCursor.close();
 			}
@@ -335,34 +335,34 @@ public class RequestSerializer {
 			final Map<String,Integer> serialMap;
 			final String[] serialOrder;
 			try {
-				try {
-					final Uri dUri = Uri.withAppendedPath(tupleUri, "_data_type");
-					serialMetaCursor = resolver.query(dUri, null, null, null, null);
-				} catch(IllegalArgumentException ex) {
-					logger.warn("unknown content provider ", ex);
-					return null;
-				}
-				if (serialMetaCursor == null) {
-					throw new NonConformingAmmoContentProvider("while getting metadata from provider", tupleUri);
-				}
+			try {
+				final Uri dUri = Uri.withAppendedPath(tupleUri, "_data_type");
+				serialMetaCursor = resolver.query(dUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider ", ex);
+				return null;
+			}
+			if (serialMetaCursor == null) {
+				throw new NonConformingAmmoContentProvider("while getting metadata from provider", tupleUri);
+			}
 
-				if (! serialMetaCursor.moveToFirst()) {
-					return null;
-				}
-				final int columnCount = serialMetaCursor.getColumnCount();
-				if (columnCount < 1) {
-					return null;
-				}
+			if (! serialMetaCursor.moveToFirst()) {
+				return null;
+			}
+			final int columnCount = serialMetaCursor.getColumnCount();
+			if (columnCount < 1) {
+				return null;
+			}
 
-				serialMap = new HashMap<String,Integer>(columnCount);
-				serialOrder = new String[columnCount];
-				int ix = 0;
-				for (final String key : serialMetaCursor.getColumnNames()) {
-					final int value = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
-					serialMap.put(key, value);
-					serialOrder[ix] = key;
-					ix++;
-				}
+			serialMap = new HashMap<String,Integer>(columnCount);
+			serialOrder = new String[columnCount];
+            int ix = 0;
+			for (final String key : serialMetaCursor.getColumnNames()) {
+				final int value = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
+				serialMap.put(key, value);
+				serialOrder[ix] = key;
+				ix++;
+			}
 			} finally {
 				if (serialMetaCursor != null) serialMetaCursor.close(); 
 			}
@@ -370,74 +370,74 @@ public class RequestSerializer {
 			Cursor tupleCursor = null;
 			final ByteBuffer tuple;
 			try {
-				try {
-					tupleCursor = resolver.query(tupleUri, null, null, null, null);
-				} catch(IllegalArgumentException ex) {
-					logger.warn("unknown content provider ", ex);
-					return null;
-				}
-				if (tupleCursor == null) {
-					throw new TupleNotFoundException("while serializing from provider", tupleUri);
-				}
+			try {
+				tupleCursor = resolver.query(tupleUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider ", ex);
+				return null;
+			}
+			if (tupleCursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
 
-				if (! tupleCursor.moveToFirst()) {
-					return null;
-				}
-				if (tupleCursor.getColumnCount() < 1) {
-					return null;
-				}
+			if (! tupleCursor.moveToFirst()) {
+				return null;
+			}
+			if (tupleCursor.getColumnCount() < 1) {
+				return null;
+			}
 
-				tuple = ByteBuffer.allocate(2048);
+			tuple = ByteBuffer.allocate(2048);
 
-				// For the new serialization for the 152s, write the data we want to tuple.
-				for (final String key : serialOrder) {
-					if (! serialMap.containsKey(key)) continue;
-
-					final int type = serialMap.get(key);
-					final int columnIndex = tupleCursor.getColumnIndex(key);
-					switch (type) {
-					case FIELD_TYPE_NULL:
-						break;
-					case FIELD_TYPE_LONG:
-					case FIELD_TYPE_FK:
-					case FIELD_TYPE_TIMESTAMP:
-						final long longValue = tupleCursor.getLong( columnIndex );
-						tuple.putLong(longValue);
-						break;
-					case FIELD_TYPE_TEXT:
-					case FIELD_TYPE_GUID:
-						// The database will return null if the string is empty,
-						// so detect that and write a zero length if it happens.
-						// Don't modify this code without testing on the serial
-						// channel using radios.
-						String svalue = tupleCursor.getString( columnIndex );
-						int length = (svalue == null) ? 0 : svalue.length();
-						tuple.putInt( length );
-						for ( int i = 0; i < length; i++ ) {
-							char c = svalue.charAt(i);
-							tuple.putChar( c );
-						}
-						break;
-					case FIELD_TYPE_BOOL:
-					case FIELD_TYPE_INTEGER:
-					case FIELD_TYPE_EXCLUSIVE:
-					case FIELD_TYPE_INCLUSIVE:
-						final int intValue = tupleCursor.getInt(columnIndex);
-						tuple.putInt(intValue);
-						break;
-					case FIELD_TYPE_REAL:
-					case FIELD_TYPE_FLOAT:
-						final double doubleValue = tupleCursor.getDouble( columnIndex );
-						tuple.putDouble(doubleValue);
-						break;
-					case FIELD_TYPE_BLOB:
-						logger.warn("blobs not supported for terse encoding");
-						break;
-					default:
-						logger.warn("unhandled data type {}", type);
+			// For the new serialization for the 152s, write the data we want to tuple.
+			for (final String key : serialOrder) {
+				if (! serialMap.containsKey(key)) continue;
+				
+				final int type = serialMap.get(key);
+				final int columnIndex = tupleCursor.getColumnIndex(key);
+				switch (type) {
+				case FIELD_TYPE_NULL:
+					break;
+				case FIELD_TYPE_LONG:
+				case FIELD_TYPE_FK:
+				case FIELD_TYPE_TIMESTAMP:
+					final long longValue = tupleCursor.getLong( columnIndex );
+					tuple.putLong(longValue);
+					break;
+				case FIELD_TYPE_TEXT:
+				case FIELD_TYPE_GUID:
+					// The database will return null if the string is empty,
+					// so detect that and write a zero length if it happens.
+					// Don't modify this code without testing on the serial
+					// channel using radios.
+					String svalue = tupleCursor.getString( columnIndex );
+					int length = (svalue == null) ? 0 : svalue.length();
+					tuple.putInt( length );
+					for ( int i = 0; i < length; i++ ) {
+					    char c = svalue.charAt(i);
+						tuple.putChar( c );
 					}
+ 					break;
+ 				case FIELD_TYPE_BOOL:
+				case FIELD_TYPE_INTEGER:
+				case FIELD_TYPE_EXCLUSIVE:
+				case FIELD_TYPE_INCLUSIVE:
+					final int intValue = tupleCursor.getInt(columnIndex);
+					tuple.putInt(intValue);
+					break;
+				case FIELD_TYPE_REAL:
+				case FIELD_TYPE_FLOAT:
+					final double doubleValue = tupleCursor.getDouble( columnIndex );
+					tuple.putDouble(doubleValue);
+					break;
+				case FIELD_TYPE_BLOB:
+					logger.warn("blobs not supported for terse encoding");
+					break;
+				default:
+					logger.warn("unhandled data type {}", type);
 				}
-				// we only process one
+			}
+			// we only process one
 			} finally {
 				if (tupleCursor != null) tupleCursor.close();
 			}
@@ -456,28 +456,27 @@ public class RequestSerializer {
 			Cursor tupleCursor = null;
 			try {
 				try {
-					tupleCursor = resolver.query(serialUri, null, null, null, null);
-				} catch(IllegalArgumentException ex) {
-					logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-					return null;
-				}
-				if (tupleCursor == null) {
-					throw new TupleNotFoundException("while serializing from provider", tupleUri);
-				}
+				tupleCursor = resolver.query(serialUri, null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+				return null;
+			}
+			if (tupleCursor == null) {
+				throw new TupleNotFoundException("while serializing from provider", tupleUri);
+			}
 
-				if (! tupleCursor.moveToFirst()) {
-					return null;
-				}
-				int columnCount = tupleCursor.getColumnCount();
-				if (columnCount < 1) {
-					return null;
-				}
-				tupleCursor.moveToFirst();
+			if (! tupleCursor.moveToFirst()) {
+				return null;
+			}
+			int columnCount = tupleCursor.getColumnCount();
+			if (columnCount < 1) {
+				return null;
+			}
+			tupleCursor.moveToFirst();
 
-				final String tupleString = tupleCursor.getString(0);
+			final String tupleString = tupleCursor.getString(0);
 				PLogger.API_STORE_RECV.debug("custom tuple=[{}]", tupleString);
-				return tupleString.getBytes();
-
+			return tupleString.getBytes();
 			} finally {
 				if (tupleCursor != null) tupleCursor.close();
 			}
@@ -486,17 +485,17 @@ public class RequestSerializer {
 	}
 
 	public static byte[] serializeFromContentValues(ContentValues cv, final DistributorPolicy.Encoding encoding) {
-
+	    
 		logger.trace("serializing using content values and encoding {}", encoding);
 		switch (encoding.getType()) {
 		case JSON: 
 		{
-			return encodeAsJson (cv);
+		    return encodeAsJson (cv);
 		}
 
 		case TERSE: 
 		{
-			// Need to be implemented ...
+		    // Need to be implemented ...
 		}
 		// TODO custom still needs a lot of work
 		// It will presume the presence of a SyncAdaptor for the content provider.
@@ -507,30 +506,30 @@ public class RequestSerializer {
 		}
 		return null;
 	}
-
+	
 	private static byte[] encodeAsJson (ContentValues cv) {
-		// encoding in json for now ...
-		Set<java.util.Map.Entry<String, Object>> data = cv.valueSet();
-		Iterator<java.util.Map.Entry<String, Object>> iter = data.iterator();       
-		final JSONObject json = new JSONObject();
+	    // encoding in json for now ...
+	    Set<java.util.Map.Entry<String, Object>> data = cv.valueSet();
+	    Iterator<java.util.Map.Entry<String, Object>> iter = data.iterator();       
+	    final JSONObject json = new JSONObject();
 
-		while (iter.hasNext())
-		{
-			Map.Entry<String, Object> entry = 
-					(Map.Entry<String, Object>)iter.next();         
-			try {
-				if (entry.getValue() instanceof String)
-					json.put(entry.getKey(), cv.getAsString(entry.getKey()));
-				else if (entry.getValue() instanceof Integer)
-					json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
-			} catch (JSONException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				return null;
-			}
-		}
+	    while (iter.hasNext())
+	    {
+	        Map.Entry<String, Object> entry = 
+	                (Map.Entry<String, Object>)iter.next();         
+	        try {
+	            if (entry.getValue() instanceof String)
+	                json.put(entry.getKey(), cv.getAsString(entry.getKey()));
+	            else if (entry.getValue() instanceof Integer)
+	                json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
+	        } catch (JSONException e) {
+	            // TODO Auto-generated catch block
+	            e.printStackTrace();
+	            return null;
+	        }
+	    }
 
-		return json.toString().getBytes();
+	    return json.toString().getBytes();
 	}
 	/**
 	 * @see serializeFromProvider with which this method is symmetric.
@@ -555,12 +554,10 @@ public class RequestSerializer {
 			final Uri tupleUri;
 			try {
 				final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
-				
 				final ContentValues cv = new ContentValues();
 				cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
 				cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
 				PLogger.API_STORE_SEND.debug("json tuple=[{}] cv=[{}]", input, cv);
-				
 				for (@SuppressWarnings("unchecked")
 				final Iterator<String> iter = input.keys(); iter.hasNext();) {
 					final String key = iter.next();
@@ -651,66 +648,66 @@ public class RequestSerializer {
 			Cursor serialMetaCursor = null;
 			final ContentValues wrap;
 			try {
-				try {
-					serialMetaCursor = resolver.query(Uri.withAppendedPath(provider, "_data_type"), 
-							null, null, null, null);
-				} catch(IllegalArgumentException ex) {
-					logger.warn("unknown content provider ", ex);
-					return null;
-				}
-				if (serialMetaCursor == null) return null;
+			try {
+				serialMetaCursor = resolver.query(Uri.withAppendedPath(provider, "_data_type"), 
+						null, null, null, null);
+			} catch(IllegalArgumentException ex) {
+				logger.warn("unknown content provider ", ex);
+				return null;
+			}
+			if (serialMetaCursor == null) return null;
 
-				if (! serialMetaCursor.moveToFirst()) {
-					return null;
-				}
-				int columnCount = serialMetaCursor.getColumnCount();
-				if (columnCount < 1) {
-					return null;
-				}
+			if (! serialMetaCursor.moveToFirst()) {
+				return null;
+			}
+			int columnCount = serialMetaCursor.getColumnCount();
+			if (columnCount < 1) {
+				return null;
+			}
 
-				final ByteBuffer tuple = ByteBuffer.wrap(data);
+			final ByteBuffer tuple = ByteBuffer.wrap(data);
 				wrap = new ContentValues();
 
-				for (final String key : serialMetaCursor.getColumnNames()) {
-					final int type = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
-					switch (type) {
-					case FIELD_TYPE_NULL:
-						//wrap.put(key, null);
-						break;
-					case FIELD_TYPE_LONG:
-					case FIELD_TYPE_FK:
-					case FIELD_TYPE_TIMESTAMP:
-						final long longValue = tuple.getLong();
-						wrap.put(key, longValue);
-						break;
-					case FIELD_TYPE_TEXT:
-					case FIELD_TYPE_GUID:
-						final int textLength = tuple.getInt();
-						final char[] textValue = new char[textLength];
-						for (int ix=0; ix < textLength; ++ix) {
-							textValue[ix] = tuple.getChar();
-						}
-						wrap.put(key, new String(textValue));
-						break;
-					case FIELD_TYPE_BOOL:
-					case FIELD_TYPE_INTEGER:
-					case FIELD_TYPE_EXCLUSIVE:
-					case FIELD_TYPE_INCLUSIVE:
-						final int intValue = tuple.getInt();
-						wrap.put(key, intValue);
-						break;
-					case FIELD_TYPE_REAL:
-					case FIELD_TYPE_FLOAT:
-						final double doubleValue = tuple.getDouble();
-						wrap.put(key, doubleValue);
-						break;
-					case FIELD_TYPE_BLOB:
-						logger.warn("blobs not supported for terse encoding");
-						break;
-					default:
-						logger.warn("unhandled data type {}", type);
+			for (final String key : serialMetaCursor.getColumnNames()) {
+				final int type = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
+				switch (type) {
+				case FIELD_TYPE_NULL:
+					//wrap.put(key, null);
+					break;
+				case FIELD_TYPE_LONG:
+				case FIELD_TYPE_FK:
+				case FIELD_TYPE_TIMESTAMP:
+					final long longValue = tuple.getLong();
+					wrap.put(key, longValue);
+					break;
+				case FIELD_TYPE_TEXT:
+				case FIELD_TYPE_GUID:
+					final int textLength = tuple.getInt();
+					final char[] textValue = new char[textLength];
+					for (int ix=0; ix < textLength; ++ix) {
+						textValue[ix] = tuple.getChar();
 					}
+					wrap.put(key, new String(textValue));
+					break;
+				case FIELD_TYPE_BOOL:
+				case FIELD_TYPE_INTEGER:
+				case FIELD_TYPE_EXCLUSIVE:
+				case FIELD_TYPE_INCLUSIVE:
+					final int intValue = tuple.getInt();
+					wrap.put(key, intValue);
+					break;
+				case FIELD_TYPE_REAL:
+				case FIELD_TYPE_FLOAT:
+					final double doubleValue = tuple.getDouble();
+					wrap.put(key, doubleValue);
+					break;
+				case FIELD_TYPE_BLOB:
+					logger.warn("blobs not supported for terse encoding");
+					break;
+				default:
+					logger.warn("unhandled data type {}", type);
 				}
+			}
 			} finally {
 				if (serialMetaCursor != null) serialMetaCursor.close();
 			}
