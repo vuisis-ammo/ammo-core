@@ -11,14 +11,17 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -229,6 +232,7 @@ public class RequestSerializer {
 					logger.warn("invalid content provider {}", ex.getStackTrace());
 				}
 			}
+			// FIXME FPE final Writer can we be more efficient? not copy bytes so often?
 			tuple = json.toString().getBytes();
 			tupleCursor.close(); 
 
@@ -529,15 +533,22 @@ public class RequestSerializer {
 		switch (encoding.getType()) {
 		case JSON: 
 		{
+			// find the end of the json portion of the data
 			int position = 0;
 			for (; position < data.length && data[position] != (byte)0x0; position++) {}
 
 			final int length = position;
-			final byte[] payload = new byte[length];
-			System.arraycopy(data, 0, payload, 0, length);
+			// FIXME FPE can we not copy bytes?
+			
+			// final InputStream jsonWrapper = new ByteArrayInputStream(data, 0, length);
+			// final InputStreamReader jsonReader = new InputStreamReader(jsonWrapper);
+			// final String jsonPayload = jsonReader.get
+			// final String jsonPayload = Arrays.toString(data);
+			final byte[] jsonPayload = new byte[length];
+			System.arraycopy(data, 0, jsonPayload, 0, length);
 			final Uri tupleUri;
 			try {
-				final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
+				final JSONObject input = (JSONObject) new JSONTokener(new String(jsonPayload)).nextValue();
 				final ContentValues cv = new ContentValues();
 				for (@SuppressWarnings("unchecked")
 				final Iterator<String> iter = input.keys(); iter.hasNext();) {
