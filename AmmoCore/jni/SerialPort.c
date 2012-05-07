@@ -285,3 +285,37 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_close( JNIEnv *env,
 	LOGD("close(fd = %d)", descriptor);
 	close(descriptor);
 }
+
+
+/*
+ *
+ */
+JNIEXPORT jint JNICALL
+Java_edu_vu_isis_ammo_core_network_SerialPort_write( JNIEnv *env,
+                                                     jobject thiz,
+                                                     jbyteArray data )
+{
+    struct timeval tv;
+
+	jclass SerialPortClass = (*env)->GetObjectClass(env, thiz);
+	jclass FileDescriptorClass = (*env)->FindClass(env, "java/io/FileDescriptor");
+
+	jfieldID mFdID = (*env)->GetFieldID(env, SerialPortClass, "mFd", "Ljava/io/FileDescriptor;");
+	jfieldID descriptorID = (*env)->GetFieldID(env, FileDescriptorClass, "descriptor", "I");
+
+	jobject mFd = (*env)->GetObjectField(env, thiz, mFdID);
+	jint descriptor = (*env)->GetIntField(env, mFd, descriptorID);
+
+    jbyte *elems = (*env)->GetByteArrayElements( env, data, NULL );
+    jint length = (*env)->GetArrayLength( env, data );
+
+	LOGD( "ByteArray in JNI write(): length=%d", length );
+
+    gettimeofday( &tv, NULL );
+
+    ssize_t num_written = write( descriptor, elems, length );
+	LOGD( "JNI: wrote bytes = %d, at time=%lu", num_written, tv.tv_sec * 1000 + tv.tv_usec / 1000 );
+
+    (*env)->ReleaseByteArrayElements( env, data, elems, 0 );
+    return 0;
+}
