@@ -413,8 +413,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             //buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
             long nowInMillis = System.currentTimeMillis() - gpsOffset;
-            //int nowInMillisInt = (int) (nowInMillis & 0x7fffffff);
-            int nowInMillisInt =  (0xbade0000 | ((short)nowInMillis & 0xffff)) & 0xffffffff;
+            int nowInMillisInt =  (int)(nowInMillis % 1000000000);
 
             //buf.putLong( nowInMillis );
             //buf.putInt( 0 );  // time will go here.

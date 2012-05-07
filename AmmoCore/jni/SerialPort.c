@@ -85,14 +85,15 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 	int fd;
 	speed_t speed;
 	jobject mFileDescriptor;
+	int customBaud = 0;
 
 	/* Check arguments */
 	{
 		speed = getBaudrate(baudrate);
 		if (speed == -1) {
-			/* TODO: throw an exception */
-			LOGE("Invalid baudrate");
-			return NULL;
+		  LOGE("Setting up non-standard baud rate %d", baudrate);
+		  speed = B38400;
+		  customBaud = 1; /* we handle setting custom baud rate later */
 		}
 	}
 
@@ -250,6 +251,60 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 			/* TODO: throw an exception */
 			return NULL;
 		}
+
+		// for custom baud rate
+		if (customBaud) 
+		{
+		  struct serial_struct {
+		    int	type;
+		    int	line;
+		    unsigned int	port;
+		    int	irq;
+		    int	flags;
+		    int	xmit_fifo_size;
+		    int	custom_divisor;
+		    int	baud_base;
+		    unsigned short	close_delay;
+		    char	io_type;
+		    char	reserved_char[1];
+		    int	hub6;
+		    unsigned short	closing_wait; /* time to wait before closing */
+		    unsigned short	closing_wait2; /* no longer used... */
+		    unsigned char	*iomem_base;
+		    unsigned short	iomem_reg_shift;
+		    unsigned int	port_high;
+		    unsigned long	iomap_base;	/* cookie passed into ioremap */
+		  } sstruct;
+
+#define TIOCGSERIAL	0x541E
+#define TIOCSSERIAL	0x541F
+
+
+		  if(ioctl(fd, TIOCGSERIAL, &sstruct) < 0){
+		    LOGE("Error: could not get comm ioctl\n"); 
+		    return NULL;
+		  }
+		  sstruct.custom_divisor = sstruct.baud_base / baudrate;
+		  //sstruct.flags &= 0xffff ^ ASYNC_SPD_MASK; NO! makes read fail.
+
+#define ASYNCB_SPD_HI		 4 /* Use 56000 instead of 38400 bps */
+#define ASYNCB_SPD_VHI		 5 /* Use 115200 instead of 38400 bps */
+#define ASYNCB_SPD_SHI		12 /* Use 230400 instead of 38400 bps */
+
+#define ASYNC_SPD_HI		(1U << ASYNCB_SPD_HI)
+#define ASYNC_SPD_VHI		(1U << ASYNCB_SPD_VHI)
+#define ASYNC_SPD_SHI		(1U << ASYNCB_SPD_SHI)
+
+#define ASYNC_SPD_CUST		(ASYNC_SPD_HI|ASYNC_SPD_VHI)
+#define ASYNC_SPD_MASK		(ASYNC_SPD_HI|ASYNC_SPD_VHI|ASYNC_SPD_SHI)
+		  
+		  sstruct.flags &= ~ASYNC_SPD_MASK;
+		  sstruct.flags |= ASYNC_SPD_CUST; 
+		  if(ioctl(fd, TIOCSSERIAL, &sstruct) < 0){
+		    LOGE("Error: could not set custom comm baud divisor\n"); 
+		    return NULL;
+		  }
+		}	
 	}
 
 	/* Create a corresponding file descriptor */
