@@ -141,8 +141,7 @@ public class DistributorPolicy implements ContentHandler {
 		this.subscribePolicy = new PrefixList<Topic>();
 		this.retrievalPolicy = new PrefixList<Topic>();
 
-		this.builder = new TopicBuilder(Category.POSTAL, 
-				IAmmoRequest.PRIORITY_NORMAL, DistributorDataStore.DEFAULT_POSTAL_LIFESPAN);
+		this.builder = new TopicBuilder();
 
 		if (is == null) {
 			logger.debug("loading default rule");
@@ -207,9 +206,7 @@ public class DistributorPolicy implements ContentHandler {
 		this.subscribePolicy = new PrefixList<Topic>();
 		this.retrievalPolicy = new PrefixList<Topic>();
 
-		this.builder = new TopicBuilder(Category.POSTAL, 
-				IAmmoRequest.PRIORITY_NORMAL, 
-				DistributorDataStore.DEFAULT_POSTAL_LIFESPAN);
+		this.builder = new TopicBuilder();
 
 		switch (testSetId) {
 		default:
@@ -258,6 +255,13 @@ public class DistributorPolicy implements ContentHandler {
 		return sb.toString();
 	}
 
+	/**
+	 * The topic (and topic builder) is primarily concerned
+	 * with fusing messages which belong to that topic.
+	 * Membership in the topic is by the topic type.
+	 * The topic is selected by a best prefix match on the type.
+	 * Each topic has a routing object.
+	 */
 	public class Topic {
 		public final Routing routing;
 
@@ -290,6 +294,35 @@ public class DistributorPolicy implements ContentHandler {
 		}
 	}
 
+	/**
+	 * The routing is a rule for disposing of requests 
+	 * which belong to the topic.
+	 * 
+	 * The routing expresses the properties which are 
+	 * used to route messages which belong to a topic set.
+	 * The route further divides messages by exact category.
+	 * 
+	 * The route has quality of service attributes:
+	 * <ul>
+	 * <li> priority : larger priority a better
+	 * <li> lifespan : the maximum amount of time the request should be allowed to live (in milliseconds)
+	 * </ul>
+	 * 
+	 * It is possible for the application to ask for a reduced lifespan.
+	 * If the application asks for a longer lifespan it is quietly rejected.
+	 * 
+	 * The routing also consists of a set of (at least one) clauses, 
+	 * each clause containing a set of (at least one) literal.
+	 * In order for the routing/rule to evaluate to true all
+	 * of the clauses must be individually true (conjunction).
+	 * In order for a clause to be true at least one of its 
+	 * literals must evaluate to true (disjunction).
+	 * A literal is true if, at some time, the message condition
+	 * was successful over the specified channel term.
+	 * In other words, if the message was sent over a channel.
+	 * 
+	 * The makeMap method builds a disposal (DistributorState) object.
+	 */
 	public class Routing {
 		public final int priority;
 		public final long lifespan;
@@ -343,19 +376,45 @@ public class DistributorPolicy implements ContentHandler {
 		}
 
 		/**
-		 * return the expiration time.
-		 * The default was passed in.
-		 * The expiration is the current time plus the lifespan.
+		 * Select the earlier of the two expirations.
 		 * 
-		 * @param default
+		 * return the expiration time in milliseconds.
+		 * The default was passed in.
+		 * The maximum allowed expiration is the current time plus the maximum lifespan.
+		 * 
+		 * @param appLifespanSeconds
 		 * @return
 		 */
-		public long getExpiration(long def) {
-			if (this.lifespan < 0) return def;
-			return System.currentTimeMillis() + this.lifespan;
+		public long getExpiration(long appLifespanSeconds) {
+			if (this.lifespan < 0) return appLifespanSeconds;
+			final long maxExpiration = System.currentTimeMillis() + this.lifespan;
+			
+			if (maxExpiration < appLifespanSeconds) {
+				return maxExpiration;
+			} else {
+				return appLifespanSeconds;
+			}
+		}
+
+		/**
+		 * Select whichever priority is lesser.
+		 * 
+		 * @param priority
+		 * @return
+		 */
+		public Integer getPriority(Integer appPriority) {
+			if (this.priority < 0) return appPriority;
+			if (this.priority < appPriority) {
+				return this.priority;
+			} else {
+				return appPriority;
+			}
 		}
 	}
 
+	/**
+	 * see Routing
+	 */
 	public class Clause {
 		public final List<Literal> literals;
 		public Clause() {
@@ -474,15 +533,24 @@ public class DistributorPolicy implements ContentHandler {
 		}
 	}
 
+	/**
+	 * A builder for topics.
+	 * The meta-data for a topic is a routing object.
+	 * The routing object defaults to postal values.
+	 *
+	 */
 	public class TopicBuilder {
 
-		public TopicBuilder(Category category, int priority, long lifespan) {
-			this.routing = new Routing(category, priority, lifespan);
+		public TopicBuilder() {
+			this.routing = new Routing(Category.POSTAL, 
+			IAmmoRequest.PRIORITY_NORMAL, 
+			DistributorDataStore.DEFAULT_POSTAL_LIFESPAN);
 		}
 		public Topic build() { return new Topic(this); }
 
 		private Routing routing;
 		public Routing routing() { return this.routing; }
+		
 		public TopicBuilder newRouting(Category category, int priority, long lifespan) { 
 			this.routing = new Routing(category, priority, lifespan);
 			return this;
@@ -595,7 +663,23 @@ public class DistributorPolicy implements ContentHandler {
 				this.inRouting = true;
 				final Category category = extractCategory(uri,"category", Category.POSTAL, atts);
 				final int priority = extractPriority(uri,"priority", IAmmoRequest.PRIORITY_NORMAL, atts);
-				final long lifespan = extractLifespan(uri,"lifespan", -1, atts);
+				final long lifespan;
+				switch (category) {
+				case RETRIEVAL:
+					lifespan = extractLifespan(uri,"lifespan", 
+							DistributorDataStore.DEFAULT_RETRIEVAL_LIFESPAN, atts);
+					break;
+				case SUBSCRIBE:
+					lifespan = extractLifespan(uri,"lifespan", 
+							DistributorDataStore.DEFAULT_SUBSCRIBE_LIFESPAN, atts);
+					break;
+				case POSTAL:
+				default:
+					lifespan = extractLifespan(uri,"lifespan", 
+							DistributorDataStore.DEFAULT_POSTAL_LIFESPAN, atts);
+					break;
+				}
+				
 				this.builder.newRouting(category, priority, lifespan);
 				return;
 			}
@@ -816,7 +900,10 @@ public class DistributorPolicy implements ContentHandler {
 	}
 	
 	/**
-	 * A negative lifespan indicates that the system defaults should be used.
+	 * The lifespan specified in the policy is in minutes.
+	 * Internally all times are in milliseconds. (conversion necessary)
+	 * This is a maximum allowed lifespan, the application may
+	 * set an expiration sooner.
 	 * 
 	 * @param uri
 	 * @param attrname
@@ -824,12 +911,12 @@ public class DistributorPolicy implements ContentHandler {
 	 * @param atts
 	 * @return
 	 */
-	private long extractLifespan(String uri, String attrname, int def, Attributes atts) {
+	private long extractLifespan(String uri, String attrname, long def, Attributes atts) {
 		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
 		
 		try {
-			return DistributorDataStore.CONVERT_MINUTES_TO_MILLSEC * Integer.parseInt(value);
+			return DistributorDataStore.CONVERT_MINUTES_TO_MILLISEC * Integer.parseInt(value);
 		} catch (NumberFormatException ex) {
 			return def;
 		}

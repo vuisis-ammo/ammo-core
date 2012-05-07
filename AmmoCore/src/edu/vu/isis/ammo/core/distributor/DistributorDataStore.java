@@ -49,7 +49,7 @@ public class DistributorDataStore {
 	private final static Logger logger = LoggerFactory.getLogger("dist.store");
 	public static final int VERSION = 39;
 	
-	public static final long CONVERT_MINUTES_TO_MILLSEC = 60L * 1000L;
+	public static final long CONVERT_MINUTES_TO_MILLISEC = 60L * 1000L;
 
 	// ===========================================================
 	// Fields
@@ -1630,7 +1630,7 @@ public class DistributorDataStore {
 
 		if (!values.containsKey(PostalTableSchema.EXPIRATION.n)) {
 			values.put(PostalTableSchema.EXPIRATION.n, 
-					now + CONVERT_MINUTES_TO_MILLSEC * DEFAULT_POSTAL_LIFESPAN );
+					now + DEFAULT_POSTAL_LIFESPAN );
 		}
 		if (!values.containsKey(PostalTableSchema.UNIT.n)) {
 			values.put(PostalTableSchema.UNIT.n, "unknown");
@@ -1695,7 +1695,7 @@ public class DistributorDataStore {
 		}
 		if (!values.containsKey(RetrievalTableSchema.EXPIRATION.n)) {
 			values.put(RetrievalTableSchema.EXPIRATION.n, 
-					now + CONVERT_MINUTES_TO_MILLSEC * DEFAULT_RETRIEVAL_LIFESPAN);
+					now + DEFAULT_RETRIEVAL_LIFESPAN);
 		}
 		if (!values.containsKey(RetrievalTableSchema.CREATED.n)) {
 			values.put(RetrievalTableSchema.CREATED.n, now);
@@ -1727,7 +1727,7 @@ public class DistributorDataStore {
 		}
 		if (!values.containsKey(SubscribeTableSchema.EXPIRATION.n)) {
 			values.put(SubscribeTableSchema.EXPIRATION.n, 
-					now + CONVERT_MINUTES_TO_MILLSEC * DEFAULT_SUBSCRIBE_LIFESPAN);
+					now + DEFAULT_SUBSCRIBE_LIFESPAN);
 		}
 		if (!values.containsKey(SubscribeTableSchema.NOTICE.n)) {
 			values.put(SubscribeTableSchema.NOTICE.n, "");
@@ -1752,8 +1752,16 @@ public class DistributorDataStore {
 	 */
 
 	// ======== HELPER ============
+	/**
+	 * Compute the expiration time which is the 
+	 * current time plus some lifespan.
+	 * Return the result as an array of strings.
+	 * 
+	 * @param lifespan
+	 * @return
+	 */
 	static private String[] deriveExpirationTime(long lifespan) {
-		final long absTime = System.currentTimeMillis() - (lifespan * 1000);
+		final long absTime = System.currentTimeMillis() + lifespan;
 		return new String[]{String.valueOf(absTime)}; 
 	}
 
@@ -1806,7 +1814,7 @@ public class DistributorDataStore {
 	.append('<').append('?')
 	.toString();
 
-	public static final int DEFAULT_POSTAL_LIFESPAN = 8 * 60; // 8 hr in minutes
+	public static final long DEFAULT_POSTAL_LIFESPAN = CONVERT_MINUTES_TO_MILLISEC * 8 * 60; // 8 hr 
 	
 
 	// ========= RETRIEVAL : DELETE ================
@@ -1854,7 +1862,7 @@ public class DistributorDataStore {
 	.append('<').append('?')
 	.toString();
 
-	public static final int DEFAULT_RETRIEVAL_LIFESPAN = 30; // 30 minutes
+	public static final long DEFAULT_RETRIEVAL_LIFESPAN = CONVERT_MINUTES_TO_MILLISEC * 30; // 30 minutes
 
 	/**
 	 * purge all records from the retrieval table and cascade to the disposal table.
@@ -1916,7 +1924,7 @@ public class DistributorDataStore {
 	.append('<').append('?')
 	.toString();
 
-	public static final int DEFAULT_SUBSCRIBE_LIFESPAN = 7 * 24 * 60; // 1 week in minutes
+	public static final long DEFAULT_SUBSCRIBE_LIFESPAN = CONVERT_MINUTES_TO_MILLISEC * 7 * 24 * 60; // 7 days
 
 	/**
 	 * purge all records from the subscribe table and cascade to the disposal table.

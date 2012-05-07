@@ -559,8 +559,17 @@ public class DistributorThread extends Thread {
 			while (true) {
 				// condition wait, is there something to process?
 				synchronized (this) {
-					while (!this.isReady()) 
+					while (!this.isReady()) {
 						this.wait(BURP_TIME);
+
+						final long currentTime = System.currentTimeMillis();
+						if (sanitationSchedule.get() > currentTime){
+							continue;
+						}
+						sanitationSchedule.getAndSet(currentTime + (10L * 60 * 1000)); 
+						// next alarm in 10 minutes, specified in milliseconds
+						this.takeOutGarbage();
+					}
 				}
 				while (this.isReady()) {
 
@@ -602,13 +611,6 @@ public class DistributorThread extends Thread {
 				}
 				logger.trace("work processed");
 
-				final long currentTime = System.currentTimeMillis();
-				if (sanitationSchedule.get() < currentTime) {
-					sanitationSchedule.getAndSet(currentTime 
-							+ (10L * 60 * 1000)); 
-					// next alarm in 10 minutes, specified in milliseconds
-					this.takeOutGarbage();
-				}
 			}
 		} catch (InterruptedException ex) {
 			logger.warn("task interrupted {}", ex.getStackTrace());
@@ -863,7 +865,7 @@ public class DistributorThread extends Thread {
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
 
-			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.priority+ar.priority);
+			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(PostalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
 			
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
@@ -1285,7 +1287,7 @@ public class DistributorThread extends Thread {
 				values.put(RetrievalTableSchema.LIMIT.cv(), limit);
 
 			values.put(RetrievalTableSchema.PROVIDER.cv(), ar.provider.cv());
-			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
+			values.put(RetrievalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(RetrievalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
 			
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
@@ -1537,8 +1539,9 @@ public class DistributorThread extends Thread {
 
 			values.put(SubscribeTableSchema.PROVIDER.cv(), ar.provider.cv());
 			values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
+
+			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
-			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.priority);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
 			final DistributorState dispersal = policy.makeRouteMap();
@@ -1791,8 +1794,8 @@ public class DistributorThread extends Thread {
 	}
 
 	/**
-	 * Clear the contents of tables in preparation for reloading them. This is
-	 * predominantly *not* for postal which should persist.
+	 * Clear the contents of tables in preparation for reloading them. 
+	 * This is *not* for postal which should persist.
 	 */
 	public void clearTables() {
 		this.store.purgeRetrieval();

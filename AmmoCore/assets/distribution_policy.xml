@@ -55,7 +55,7 @@ Dash to:
 -  Gateway channel last
 Such that if the prior channel succeeds the next channel is not attempted.
 		</description>
-		<routing priority="normal">
+		<routing priority="normal" category="postal" lifespan="30">
 			<clause>
 				<literal term="serial" condition="success" encoding="terse" />
 				<literal term="reliablemulticast" condition="success" encoding="json" />
