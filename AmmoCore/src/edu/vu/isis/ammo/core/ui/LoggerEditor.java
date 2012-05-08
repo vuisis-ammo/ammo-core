@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,18 +29,25 @@ import edu.vu.isis.ammo.util.Tree;
 /**
  * This class provides a user interface to edit the Level of all Logger objects
  * active in the application.
- * @author nick
+ * @author Nick King
  *
  */
 
 public class LoggerEditor extends ListActivity {
 
+	public static final String DUMMY_LOGGER_NAME = "dummyref";
+	
 	private Logger rootLogger;
 	private Logger selectedLogger;
+	
+	@SuppressWarnings("unused")
+	private Logger personalLogger;
+	
 	private TextView selectionText;
 	private Spinner levelSpinner;
 	private MyOnItemSelectedListener spinnerListener = new MyOnItemSelectedListener();
-	private ListView listView;
+	private ListView mListView;
+	private LoggerIconAdapter mAdapter;
 
 	private View lastSelectedView;
 
@@ -48,16 +56,18 @@ public class LoggerEditor extends ListActivity {
 
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.logger_editor);
+		this.personalLogger = getLoggerByName("ui.logger.editor");
 
 		// LoggerContext provides access to a List of all active loggers
 		final LoggerContext lc = (LoggerContext)LoggerFactory.getILoggerFactory();
 		final List<Logger> loggerList = lc.getLoggerList();
 		final Tree<Logger> loggerTree = makeTree(loggerList);
 
-		this.setListAdapter(new LoggerAdapter(loggerTree, this,
-				R.layout.logger_row, R.id.logger_text));
-
-		this.listView = super.getListView();
+		this.mListView = super.getListView();
+	
+		this.mAdapter = new LoggerIconAdapter(loggerTree, this,
+				R.layout.logger_row, R.id.logger_text);
+		this.setListAdapter(mAdapter);
 
 		this.selectionText = (TextView) findViewById(R.id.selection_text);
 		this.levelSpinner = (Spinner) findViewById(R.id.level_spinner);
@@ -77,27 +87,33 @@ public class LoggerEditor extends ListActivity {
 		
 		if(savedInstanceState == null) return;
 		
-		// Get the saved logger
-		final String selectedLoggerName = (String) savedInstanceState.get("selectedLoggerName");
-		if(selectedLoggerName != null) {
-			this.selectedLogger = getLoggerByName(selectedLoggerName);
-			this.updateSelText(selectedLoggerName);
-		}
-		
 		// Set the list back to its previous position
 		final int savedVisiblePosition = savedInstanceState.getInt("savedVisiblePosition");
-		this.listView.setSelection(savedVisiblePosition);
+		this.mListView.setSelection(savedVisiblePosition);
+		
+		this.lastSelectedView = null;
+		this.selectedLogger = null;
+		
+		final boolean wasLoggerSelected = savedInstanceState
+				.getBoolean("wasLoggerSelected");
+		if (wasLoggerSelected) {
+			Toast.makeText(this, "Please reselect logger.", Toast.LENGTH_LONG)
+					.show();
+		}
+		
 
 	}
 	
+	
 	@Override
 	public void onSaveInstanceState(Bundle outState) {
-		
-		final String selectedLoggerName = this.selectedLogger.getName();
-		outState.putString("selectedLoggerName", selectedLoggerName);
-		
-		final int savedVisiblePosition = this.listView.getFirstVisiblePosition();
+
+		final int savedVisiblePosition = this.mListView
+				.getFirstVisiblePosition();
 		outState.putInt("savedVisiblePosition", savedVisiblePosition);
+		
+		final boolean wasLoggerSelected = (selectedLogger != null);
+		outState.putBoolean("wasLoggerSelected", wasLoggerSelected);
 		
 	}
 	
@@ -106,10 +122,12 @@ public class LoggerEditor extends ListActivity {
 	private Tree<Logger> makeTree(List<Logger> list) {
 
 		this.rootLogger = this.getLoggerByName(Logger.ROOT_LOGGER_NAME);
+		final Logger dummyLogger = getLoggerByName(DUMMY_LOGGER_NAME);
 		final Tree<Logger> mTree = new Tree<Logger>(rootLogger);
 
 		for(final Logger logger : list) {			
-			if(logger.equals(this.rootLogger)) {
+			if (logger.equals(this.rootLogger)
+					|| logger.equals(dummyLogger)) {
 				continue;
 			}
 			final String loggerName = logger.getName();
@@ -180,36 +198,65 @@ public class LoggerEditor extends ListActivity {
 	}
 
 	private void refreshList() {
-		this.listView.invalidateViews();
+		this.mListView.invalidateViews();
 	}
 	
 
 	private void updateIcon(Level lvl, View row) {
-		final ImageView iv =(ImageView)(row.findViewById(R.id.logger_icon));
-		setIcon(lvl, iv);
+		final ImageView iv = (ImageView) (row.findViewById(R.id.logger_icon));
+		final String loggerName = (String) ((TextView) row
+				.findViewById(R.id.logger_text)).getText();
+		if(isInheritingLevel(getLoggerByName(loggerName))) {
+			setEffectiveIcon(lvl, iv);
+		} else {
+			setActualIcon(lvl, iv);
+		}
 		refreshList();
 	}
 
-	private void setIcon(Level lvl, ImageView iv) {
+	private void setEffectiveIcon(Level lvl, ImageView iv) {
 		switch (lvl.levelInt) {
 		case Level.TRACE_INT:
-			iv.setImageResource(R.drawable.trace_level_icon);
+			iv.setImageResource(R.drawable.effective_trace_level_icon);
 			break;
 		case Level.DEBUG_INT:
-			iv.setImageResource(R.drawable.debug_level_icon);
+			iv.setImageResource(R.drawable.effective_debug_level_icon);
 			break;
 		case Level.INFO_INT:
-			iv.setImageResource(R.drawable.info_level_icon);
+			iv.setImageResource(R.drawable.effective_info_level_icon);
 			break;
 		case Level.WARN_INT:
-			iv.setImageResource(R.drawable.warn_level_icon);
+			iv.setImageResource(R.drawable.effective_warn_level_icon);
 			break;
 		case Level.ERROR_INT:
-			iv.setImageResource(R.drawable.error_level_icon);
+			iv.setImageResource(R.drawable.effective_error_level_icon);
 			break;
 		case Level.OFF_INT:
 		default:
-			iv.setImageResource(R.drawable.off_level_icon);
+			iv.setImageResource(R.drawable.effective_off_level_icon);
+		}
+	}
+	
+	private void setActualIcon(Level lvl, ImageView iv) {
+		switch (lvl.levelInt) {
+		case Level.TRACE_INT:
+			iv.setImageResource(R.drawable.actual_trace_level_icon);
+			break;
+		case Level.DEBUG_INT:
+			iv.setImageResource(R.drawable.actual_debug_level_icon);
+			break;
+		case Level.INFO_INT:
+			iv.setImageResource(R.drawable.actual_info_level_icon);
+			break;
+		case Level.WARN_INT:
+			iv.setImageResource(R.drawable.actual_warn_level_icon);
+			break;
+		case Level.ERROR_INT:
+			iv.setImageResource(R.drawable.actual_error_level_icon);
+			break;
+		case Level.OFF_INT:
+		default:
+			iv.setImageResource(R.drawable.actual_off_level_icon);
 		}
 	}
 
@@ -228,12 +275,12 @@ public class LoggerEditor extends ListActivity {
 	static final int CLEAR_IX = 6;
 
 
-	public class LoggerAdapter extends TreeAdapter<Logger> {
+	public class LoggerIconAdapter extends TreeAdapter<Logger> {
 		final private LoggerEditor parent = LoggerEditor.this;
 
 		private int tvId;
 
-		public LoggerAdapter(Tree<Logger> objects, Context context, int resource,
+		public LoggerIconAdapter(Tree<Logger> objects, Context context, int resource,
 				int textViewResourceId) {
 			super(objects, context, resource, textViewResourceId);
 			this.tvId = textViewResourceId;
@@ -245,22 +292,31 @@ public class LoggerEditor extends ListActivity {
 			final View row = super.getView(position, convertView, group);
 			
 			final TextView tv = (TextView)row.findViewById(this.tvId);
+			final ImageView levelIV = (ImageView)(row.findViewById(R.id.logger_icon));
+			final ImageView appenderIV = (ImageView)(row.findViewById(R.id.appender_icon));
 
 			final Logger aLogger = super.getItem(position);
 			tv.setText(aLogger.getName());
 
-			if (aLogger.getLevel() == null) {
-				tv.setTextColor(getResources().getColor(R.color.effective_level));
+			if (isInheritingLevel(aLogger)) {
+				//tv.setTextColor(getResources().getColor(R.color.effective_level));
+				tv.setTextAppearance(parent, R.style.unselected_logger_font);
+				parent.setEffectiveIcon(aLogger.getEffectiveLevel(), levelIV);
 			} else {
-				tv.setTextColor(getResources().getColor(R.color.actual_level));
+				//tv.setTextColor(getResources().getColor(R.color.actual_level));
+				tv.setTextAppearance(parent, R.style.selected_logger_font);
+				parent.setActualIcon(aLogger.getEffectiveLevel(), levelIV);
 			}
 			
-			final ImageView iv = (ImageView)(row.findViewById(R.id.logger_icon));
-			parent.setIcon(aLogger.getEffectiveLevel(), iv);
+			if(hasAttachedAppender(aLogger)) {
+				appenderIV.setImageResource(R.drawable.appender_attached_icon);
+			} else {
+				appenderIV.setImageBitmap(null);
+			}
 			
 			final int viewColor = (aLogger.equals(parent.selectedLogger)) 
-					? parent.getResources().getColor(R.color.selected_logger)
-					: parent.getResources().getColor(R.color.unselected_logger);
+					? parent.getResources().getColor(R.color.selected_logger_bg)
+					: parent.getResources().getColor(R.color.unselected_logger_bg);
 					
 			parent.setViewColor(row, viewColor);
 				
@@ -271,6 +327,30 @@ public class LoggerEditor extends ListActivity {
 	
 	private void setViewColor(View row, int color) {
 		row.setBackgroundColor(color);
+	}
+	
+	private boolean isInheritingLevel(Logger lgr) {
+		return lgr.getLevel() == null;
+	}
+	
+	private boolean hasAttachedAppender(Logger logger) {
+		return logger.iteratorForAppenders().hasNext();
+	}
+	
+	public void configureAppenders(View v) {
+
+		final Intent intent = new Intent().putExtra(
+				"edu.vu.isis.ammo.core.ui.LoggerEditor.selectedLogger",
+				selectedLogger).setClass(this, AppenderSelector.class);
+		startActivityForResult(intent, 0);
+		
+	}
+	
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent outputIntent) {
+		if(requestCode == 0) {
+			refreshList();
+		}
 	}
 
 	/**

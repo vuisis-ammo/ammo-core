@@ -18,8 +18,18 @@
     <color name="actual_level">#ff0012</color>
     <color name="effective_level">#ffffff</color>
     
-    <color name="selected_logger">#3F4857</color>
-    <color name="unselected_logger">#000000</color>
+    <color name="selected_logger_bg">#3F4857</color>
+    <color name="unselected_logger_bg">#000000</color>
     <color name="pressing_logger">#ffffff</color>
+    
+    <style name="selected_logger_font">
+        <item name="android:textStyle">bold|italic</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+    
+    <style name="unselected_logger_font">
+        <item name="android:textStyle">normal</item>
+        <item name="android:textColor">#C0C0C0</item>
+    </style>
     
 </resources>
