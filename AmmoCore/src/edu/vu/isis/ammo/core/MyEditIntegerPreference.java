@@ -263,7 +263,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
     // It would be good to make sure that slot number < radios in group - 1.
 	private boolean validateSlotNumber(String uncheckedText) {
         try {
-            return Integer.parseInt(uncheckedText) > 0;
+            return Integer.parseInt(uncheckedText) >= 0;
         } catch ( NumberFormatException e ) {
             return false;
         }
