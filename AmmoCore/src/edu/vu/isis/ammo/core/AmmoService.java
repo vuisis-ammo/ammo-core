@@ -244,9 +244,15 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			logger.trace("make request {}", request.action.toString());
 			return AmmoService.this.distThread.distributeRequest(request);
 		}
+		
+		/**
+		 * Get information about a past request.
+		 * The version indicates the parceling code to be used.
+		 */
 		@Override
-		public AmmoRequest recoverRequest(String uuid) throws RemoteException {
+		public AmmoRequest recoverRequest(String uuid, int version) throws RemoteException {
 			logger.trace("recover data request {}", uuid);
+			
 			return null;
 		}
 		
