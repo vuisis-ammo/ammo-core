@@ -418,9 +418,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             //buf.putLong( nowInMillis );
             //buf.putInt( 0 );  // time will go here.
             buf.putInt( nowInMillisInt );
-            buf.put( (byte) 0 );
-            buf.put( (byte) 0 );
-
+	    buf.putShort( (short)(gpsOffset) );
             // Put two-byte header checksum here.  The checksum covers the
             // magic sequence and everything up to and including the six
             // zero bytes just written.
