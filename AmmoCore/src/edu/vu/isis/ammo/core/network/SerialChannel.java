@@ -14,7 +14,6 @@ package edu.vu.isis.ammo.core.network;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -43,7 +42,7 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
 
 
 /**
@@ -472,7 +471,8 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public void terminate()
+        @SuppressWarnings("unused")
+		public void terminate()
         {
             logger.trace( "SerialChannel.Connector::terminate()" );
             this.interrupt();
