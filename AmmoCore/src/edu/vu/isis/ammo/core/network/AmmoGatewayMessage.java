@@ -102,6 +102,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
     public final long buildTime;
     public long gpsOffset;
+
     /**
      * This is used by PriorityBlockingQueue() to prioritize it contents.
      * when no specialized comparator is provided.
@@ -446,11 +447,13 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             buf.put( payloadCheckSum[1] );
             //buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
-            //long nowInMillis = System.currentTimeMillis();
+            long nowInMillis = System.currentTimeMillis() - gpsOffset;
+            int nowInMillisInt =  (int)(nowInMillis % 1000000000);
+
             //buf.putLong( nowInMillis );
-            buf.putInt( 0 );  // time will go here.
-            buf.put( (byte) 0 );
-            buf.put( (byte) 0 );
+            //buf.putInt( 0 );  // time will go here.
+            buf.putInt( nowInMillisInt );
+	   		buf.putShort( (short)(gpsOffset) );
 
             // Put two-byte header checksum here.  The checksum covers the
             // magic sequence and everything up to and including the six

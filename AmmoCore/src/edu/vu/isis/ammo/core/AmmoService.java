@@ -479,6 +479,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		networkFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
 		networkFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
 		networkFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+		networkFilter.addAction(Intent.ACTION_TIME_CHANGED); // sync service changes cpu time - need to handle in serial channel
 
 		this.mReceiverRegistrar.registerReceiver(this.myNetworkReceiver, networkFilter);
 
@@ -1618,6 +1619,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				logger.trace("3G state changed");
 				mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
 				netlinkStatusChanged();
+			} else if (Intent.ACTION_TIME_CHANGED.equals(action)) {
+			    serialChannel.systemTimeChange();
 			}
 
 			// if (INetworkService.ACTION_RECONNECT.equals(action)) {

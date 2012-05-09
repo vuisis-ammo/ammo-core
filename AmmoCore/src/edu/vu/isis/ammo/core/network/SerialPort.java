@@ -30,8 +30,8 @@ public class SerialPort {
     private FileInputStream mFileInputStream;
     private FileOutputStream mFileOutputStream;
 
-    public SerialPort(File device, int baudrate) throws SecurityException, IOException {
-
+    public SerialPort(File device, int baudrate) throws SecurityException, IOException
+    {
         /* Check access permission */
         // if (!device.canRead() || !device.canWrite()) {
         //     try {
@@ -61,18 +61,20 @@ public class SerialPort {
         mFileOutputStream = new FileOutputStream(mFd);
     }
 
-    // Getters and setters
-    public FileInputStream getInputStream() {
-        return mFileInputStream;
-    }
 
-    public FileOutputStream getOutputStream() {
-        return mFileOutputStream;
-    }
+    // Getters and setters
+    public FileInputStream getInputStream() { return mFileInputStream; }
+
+    public FileOutputStream getOutputStream() { return mFileOutputStream; }
+
 
     // JNI
     private native static FileDescriptor open(String path, int baudrate);
     public native void close();
+
+    public native int write( byte[] bytestosend );
+
+
     //static {
     //  System.loadLibrary("serial_port");
     //}

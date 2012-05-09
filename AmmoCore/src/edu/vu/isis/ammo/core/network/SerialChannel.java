@@ -43,7 +43,7 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 
 /**
@@ -142,6 +142,13 @@ public class SerialChannel extends NetChannel
         }
     }
 
+    public void systemTimeChange( )
+    {
+        // System Time Change
+        logger.debug("Handling Time Change caused by Sync svc, by resetting delta...");
+        mCount = 0;
+        for(int i=0; i<numSamples; i++) mDeltaSamples[i] = 0;
+    }
 
     /**
      *
@@ -465,8 +472,7 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        @SuppressWarnings("unused")
-		public void terminate()
+        public void terminate()
         {
             logger.trace( "SerialChannel.Connector::terminate()" );
             this.interrupt();
@@ -664,6 +670,7 @@ public class SerialChannel extends NetChannel
                 }
             } );
 
+        for(int i=0; i<numSamples; i++) mDeltaSamples[i] = 0;
         mLocationManager.addNmeaListener( mNmeaListener = new NmeaListener() {
                 @Override
                 public void onNmeaReceived(long timestamp, String nmea) {
@@ -689,23 +696,21 @@ public class SerialChannel extends NetChannel
 
                             long delta = ((dHr*60 + dMm)*60 + dSs)*1000 + dMs;
 
-                            // average delta
-                            mDelta = (mCount > 0) ? (mCount*mDelta + delta)/(mCount+1)
-                                : delta;
+                            // IIR Filter
+                            // mDelta = (mCount*mDelta + delta)/(mCount+1);
+
+                            // FIR Filter
+                            mDelta = 0;
+                            for (long d : mDeltaSamples) mDelta += d;
+                            mDelta = mDelta/numSamples;
+
+                            // Store samples
+                            mDeltaSamples[ mCount % numSamples ] = delta;
                             mCount++;
 
                             logger.debug( String.valueOf(mDelta) + ",TS,"
                                           + String.valueOf(timestamp) + "," + nmea );
                         }
-                    }
-
-                    // every 10 minutes - set time
-                    long now = System.currentTimeMillis();
-                    if ( (now - mLast) > 600000 ) {
-                        // stuff removed
-                        mLast = now;
-                        mCount = 0;
-                        // mDelta = 0;
                     }
                 }
             });
@@ -905,92 +910,60 @@ public class SerialChannel extends NetChannel
         @Override
         public void run()
         {
-	    Process.setThreadPriority( -7 ); // this is a jitter sensitive thread, it should run on real-time-priority
+            Process.setThreadPriority( -8 ); // this is a jitter sensitive thread, it should run on real-time-priority
             logger.trace( "SenderThread <{}>::run() @prio: {}", Thread.currentThread().getId(), Process.getThreadPriority( Process.myTid() ) );
 
             // Sleep until our slot in the round.  If, upon waking, we find that
             // we are in the right slot, check to see if a packet is available
             // to be sent and, if so, send it. Upon getting a serial port error,
             // notify our parent and go into an error state.
+            // CONSTANTS
+            final int slotDuration = mSlotDuration.get();
+            final int offset = mSlotNumber.get() * slotDuration;
+            final int cycleDuration = slotDuration * mRadiosInGroup.get();
+            final double bytesPerMs = mBaudRate / (10*1000.0); // baudrate == symbols/sec, 1 byte == 10 symbols, 1 sec = 1000msec
+            final long MAX_SEND_PAYLOAD_SIZE = (long) (mTransmitDuration.get() * bytesPerMs);
+
+            long currentGpsTime = System.currentTimeMillis() - mDelta;
+            long goalTakeTime = currentGpsTime; // initialize to now, will get recomputed
 
             while ( mSenderState.get() != INetChannel.INTERRUPTED ) {
                 AmmoGatewayMessage msg = null;
                 try {
-                    setSenderState( INetChannel.TAKING );
+                    waitSlot: {
+                        currentGpsTime = System.currentTimeMillis() - mDelta;
+                        final long thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration; // which cycle are we in
+                        final long thisSlotBegin = thisCycleStartTime + offset; // for this cycle when does our slot begin
+                        final long thisSlotEnd = thisSlotBegin + mTransmitDuration.get(); // for this cycle when does our slot end (begin + xmit-window)
+                        long thisSlotConsumed = 0; // how much data (in time units) have we sent so far in this slot
 
-                    // Try to sleep until our next take time.
-                    long currentTime = System.currentTimeMillis();
-                    long currentGpsTime = currentTime - mDelta;
-
-                    int slotDuration = mSlotDuration.get();
-                    int offset = mSlotNumber.get() * slotDuration;
-                    int cycleDuration = slotDuration * mRadiosInGroup.get();
-
-                    long thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration;
-                    long thisCycleTakeTime = thisCycleStartTime + offset;
-
-                    long goalTakeTime;
-                    if ( thisCycleTakeTime > currentGpsTime ) {
-                        // We haven't yet reached our take time for this cycle,
-                        // so that's our goal.
-                        goalTakeTime = thisCycleTakeTime;
-                    } else {
-                        // We've already missed our turn this cycle, so add
-                        // cycleDuration and wait until the next round.
-                        goalTakeTime = thisCycleTakeTime + cycleDuration;
+                        if ( currentGpsTime < thisSlotBegin ) {
+                            // too early - goto sleep till current slot begins
+                            goalTakeTime = thisSlotBegin;
+                            break waitSlot;
+                        } else if ( currentGpsTime > thisSlotEnd ) {
+                            // too late - goto sleep till next slot begin
+                            goalTakeTime = thisSlotBegin + cycleDuration;
+                            break waitSlot;
                     }
-                    Thread.sleep( goalTakeTime - currentGpsTime );
+                   
+                        // else we are in slot, and should send
+                        setSenderState( INetChannel.TAKING );
 
-                    currentTime = System.currentTimeMillis();
-                    currentGpsTime = currentTime - mDelta;
-
-                    // Calculate things here that will remain valid for the
-                    // rest of the slot.
-
-                    // slotDuration, offset, and cycleDuration may have changed
-                    // while sleeping, but they are not something that will
-                    // usually change in the field, and even if they change,
-                    // the will pick up the new value the next time through.
-
-                    thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration;
-                    thisCycleTakeTime = thisCycleStartTime + offset;
-
-
-                    long endOfTransmitWindow = thisCycleTakeTime + mTransmitDuration.get();
-                    logger.debug( "Woke up: slotNumber={}, (time, mu-s)={}, jitter={}",
+                        logger.debug( "In Slot: slotNumber={}, (time, ms)={}, jitter={}",
                                  new Object[] {
                                       mSlotNumber.get(),
                                       currentGpsTime,
-                                      currentGpsTime - goalTakeTime } );
+                                          currentGpsTime - thisSlotBegin } );
 
                     while (true) {
-                        // Send all available packets until we run out of time
-                        // in our slot.
-                        currentTime = System.currentTimeMillis();
-                        currentGpsTime = currentTime - mDelta;
-
-
-                        if ( endOfTransmitWindow < currentGpsTime ) {
-                            logger.debug( "currentGpsTime={}, endOfTransmitWindow={}", currentGpsTime, endOfTransmitWindow);
-                            logger.debug( "Out of time in slot: time remaining={}",
-                                          endOfTransmitWindow - currentGpsTime );
-                            break;
-                        }
-
-                        long timeLeftToTransmit = endOfTransmitWindow - currentGpsTime; // in ms
-
-                        // baudrate == symbols/sec, 1 byte == 10 symbols, 1 sec = 1000msec
-                        double bytesPerMs = mBaudRate / (10*1000.0);
-                        long bytesThatWillFit = (long) (timeLeftToTransmit * bytesPerMs);
-
-                        long MAX_SEND_PAYLOAD_SIZE = (long) (mTransmitDuration.get() * bytesPerMs);
-
                         // At this point, we've woken up near the start of our
                         // window and should send a message if one is available.
                         if (!mSenderQueue.messageIsAvailable()) {
                             logger.debug( "Time remaining in slot={}, but no messages in queue",
-                                          endOfTransmitWindow - currentGpsTime );
-                            break;
+                                              thisSlotEnd - currentGpsTime  );
+                                goalTakeTime = thisSlotBegin + cycleDuration; // nothing in queue, wait till next slot
+                                break waitSlot;
                         }
                         AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
                         int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
@@ -1004,23 +977,33 @@ public class SerialChannel extends NetChannel
                             msg = mSenderQueue.take(); // Will not block
                             if ( msg.handler != null )
                                 ackToHandler( msg.handler, DisposalState.BAD );
-                            break;
+                                continue; // examine the next item in queue
                         }
+                            // update our time (could potentially change from last read because of context switch etc..)
+                            currentGpsTime = System.currentTimeMillis() - mDelta;
+                            final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
+                            final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
 
                         if ( peekedMsgLength > bytesThatWillFit ) {
                             logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
                                           peekedMsgLength,
                                           bytesThatWillFit );
-                            // Leave the message in the queue and try to send it next time.
-                            break;
+                                // since we process queue in order and next message is bigger than our available time
+                                // goto sleep till next slot
+                                goalTakeTime = thisSlotBegin + cycleDuration;
+                                break waitSlot;
                         }
 
+                            // now take and send assuming that our time has not diverged significantly from the last time we measured
                         msg = mSenderQueue.take(); // Will not block
 
                         logger.debug("Took a message from the send queue");
                         try {
                             sendMessage(msg);
                             mMessagesSent.getAndIncrement();
+                                // we keep track of how much time we consumed in data transmit,
+                                // since the send call is not true synchronous
+                                thisSlotConsumed += (peekedMsgLength / bytesPerMs);
                         } catch ( IOException e ) {
                             logger.warn("sender threw exception {}", e.getStackTrace() );
                             if ( msg.handler != null )
@@ -1036,6 +1019,9 @@ public class SerialChannel extends NetChannel
                             break;
                         }
                     }
+                    }
+                    currentGpsTime = System.currentTimeMillis() - mDelta;
+                    Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
                     logger.debug( "interrupted taking messages from send queue: {}",
                                   ex.getLocalizedMessage() );
@@ -1058,9 +1044,11 @@ public class SerialChannel extends NetChannel
             setSenderState(INetChannel.SENDING);
 
             if ( mSenderEnabled.get() ) {
-                FileOutputStream outputStream = mPort.getOutputStream();
-                outputStream.write( buf.array() );
-                outputStream.flush();
+                //FileOutputStream outputStream = mPort.getOutputStream();
+                //outputStream.write( buf.array() );
+                //outputStream.flush();
+
+                mPort.write( buf.array() );
 
                 logger.trace(
                         "sent message size={}, checksum={}, data:{}",
@@ -1241,11 +1229,7 @@ public class SerialChannel extends NetChannel
                             }
 
                             agmb.isSerialChannel( true );
-                            AmmoGatewayMessage agm = agmb
-                            		.size(buf_payload.length)
-                            		.payload( buf_payload )
-                            		.channel( SerialChannel.this )
-                            		.build();
+                            AmmoGatewayMessage agm = agmb.payload( buf_payload ).channel(SerialChannel.this).build();
 
                             long currentTime = System.currentTimeMillis();
                             int slotDuration = mSlotDuration.get();
@@ -1501,9 +1485,10 @@ public class SerialChannel extends NetChannel
 
     private SenderQueue mSenderQueue = new SenderQueue();
 
+    private int mCount = 0;
+    private final int numSamples = 20;
     private long mDelta = 0;
-    private long mCount = 0;
-    private long mLast = 0;
+    private long mDeltaSamples[] = new long[numSamples];
 
     private final AtomicInteger mReceiverSubstate = new AtomicInteger( 0 );
 
