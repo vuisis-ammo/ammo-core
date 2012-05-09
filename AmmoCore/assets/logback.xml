@@ -35,6 +35,16 @@
   </logger>
   -->
 
+  <!-- Add all configured appenders to the dummyref logger
+  so that the configured appenders may be accessed at runtime
+  (Used in the logger editor user interface)
+   -->
+  <logger name="dummyref" level="OFF">
+    <appender-ref ref="LOGCAT"/>
+    <appender-ref ref="STATS"/>
+  </logger>
+	
+
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
   </root>
