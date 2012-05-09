@@ -1,7 +1,6 @@
 package edu.vu.isis.ammo.core.ui;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +50,7 @@ public class LoggerEditor extends ListActivity {
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
-
+		
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.logger_editor);
 		this.personalLogger = getLoggerByName("ui.logger.editor");
@@ -388,10 +387,8 @@ public class LoggerEditor extends ListActivity {
 		}
 
 		/**
-		 * When a log level is selected from the level list this method
-		 * is not allowed to actually change the logger's state.
-		 * When selected via the spinner the update is allowed.
-		 * The logger is updated as is the icon based on the level.
+		 * Updates the logger and the icon in its row based on the selected
+		 * level.
 		 */
 		public void onSpinnerDialogClick(int which) {
 			
