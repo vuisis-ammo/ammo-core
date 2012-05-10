@@ -15,6 +15,7 @@ package edu.vu.isis.ammo.core.network;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.Math;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Calendar;
@@ -702,7 +703,7 @@ public class SerialChannel extends NetChannel
                             // FIR Filter
                             mDelta = 0;
                             for (long d : mDeltaSamples) mDelta += d;
-                            mDelta = mDelta/numSamples;
+                            mDelta = mDelta / Math.min( mCount + 1, numSamples );
 
                             // Store samples
                             mDeltaSamples[ mCount % numSamples ] = delta;
@@ -1021,7 +1022,8 @@ public class SerialChannel extends NetChannel
                     }
                     }
                     currentGpsTime = System.currentTimeMillis() - mDelta;
-                    Thread.sleep( goalTakeTime - currentGpsTime );
+                    if ( goalTakeTime > currentGpsTime )
+                        Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
                     logger.debug( "interrupted taking messages from send queue: {}",
                                   ex.getLocalizedMessage() );
