@@ -1077,8 +1077,8 @@ public class DistributorThread extends Thread {
 					moreItems = pending.moveToNext()) 
 			{
 				final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
-				PLogger.STORE_POSTAL_DQL.trace("postal cursor: row=[{}]", id);
 				final PostalWorker postal = Postal.getWorker(this.store(), pending, that);
+				PLogger.STORE_POSTAL_DQL.trace("postal cursor: row=[{}] postal=[{}]", id, postal);
 
 				logger.debug("serializing: {} as {}", postal.provider, postal.topic);
 
@@ -1486,10 +1486,10 @@ public class DistributorThread extends Thread {
 			if (pending == null) return;
 
 			for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
-				PLogger.STORE_RETRIEVE_DQL.trace("retrieval cursor: {}", pending);
 				// For each item in the cursor, ask the content provider to
 				// serialize it, then pass it off to the NPS.
 				final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
+				PLogger.STORE_RETRIEVE_DQL.trace("retrieval cursor: row=[{}]", id);
 				final String topic = pending.getString(pending.getColumnIndex(RequestField.TOPIC.cv()));
 				final String subtopic = pending.getString(pending.getColumnIndex(RequestField.SUBTOPIC.cv()));
 				final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
@@ -1503,7 +1503,7 @@ public class DistributorThread extends Thread {
 						dispersal.put(channel, DisposalState.getInstanceById(channelState));
 					}
 				} finally {
-					channelCursor.close();
+					if (channelCursor != null) channelCursor.close();
 				}
 
 				final UUID uuid = UUID.fromString(pending.getString(pending.getColumnIndex(RequestField.UUID.cv())));
