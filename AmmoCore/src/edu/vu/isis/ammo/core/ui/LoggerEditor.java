@@ -1,7 +1,6 @@
 package edu.vu.isis.ammo.core.ui;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.LoggerFactory;
 
@@ -11,8 +10,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
@@ -44,16 +41,16 @@ public class LoggerEditor extends ListActivity {
 	private Logger personalLogger;
 	
 	private TextView selectionText;
-	private Spinner levelSpinner;
-	private MyOnItemSelectedListener spinnerListener = new MyOnItemSelectedListener();
+	private WellBehavedSpinner levelSpinner;
+	private MyOnSpinnerDialogClickListener spinnerListener;
 	private ListView mListView;
 	private LoggerIconAdapter mAdapter;
 
-	private View lastSelectedView;
+	private View selectedView;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
-
+		
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.logger_editor);
 		this.personalLogger = getLoggerByName("ui.logger.editor");
@@ -70,7 +67,7 @@ public class LoggerEditor extends ListActivity {
 		this.setListAdapter(mAdapter);
 
 		this.selectionText = (TextView) findViewById(R.id.selection_text);
-		this.levelSpinner = (Spinner) findViewById(R.id.level_spinner);
+		this.levelSpinner = (WellBehavedSpinner) findViewById(R.id.level_spinner);
 
 		final ArrayAdapter<CharSequence> spinAdapter = ArrayAdapter.createFromResource(
 				this, R.array.level_options, 
@@ -78,8 +75,8 @@ public class LoggerEditor extends ListActivity {
 		spinAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
 		this.levelSpinner.setAdapter(spinAdapter);
-		this.spinnerListener = new MyOnItemSelectedListener();
-		this.levelSpinner.setOnItemSelectedListener(this.spinnerListener);
+		this.spinnerListener = new MyOnSpinnerDialogClickListener();
+		this.levelSpinner.setOnSpinnerDialogClickListener(this.spinnerListener);
 		this.levelSpinner.setSelection(CLEAR_IX);
 
 		// Set the selection text to indicate nothing is selected
@@ -91,7 +88,7 @@ public class LoggerEditor extends ListActivity {
 		final int savedVisiblePosition = savedInstanceState.getInt("savedVisiblePosition");
 		this.mListView.setSelection(savedVisiblePosition);
 		
-		this.lastSelectedView = null;
+		this.selectedView = null;
 		this.selectedLogger = null;
 		
 		final boolean wasLoggerSelected = savedInstanceState
@@ -192,7 +189,7 @@ public class LoggerEditor extends ListActivity {
 			this.spinnerListener.updateSpinner(effective, this.levelSpinner);
 		}
 		this.selectedLogger = nextSelectedLogger;
-		this.lastSelectedView = row;
+		this.selectedView = row;
 
 		refreshList();
 	}
@@ -357,18 +354,15 @@ public class LoggerEditor extends ListActivity {
 	 * the spinner makes use of this listener.
 	 */
 
-	public class MyOnItemSelectedListener implements OnItemSelectedListener {
+	public class MyOnSpinnerDialogClickListener implements OnSpinnerDialogClickListener {
 
 		final LoggerEditor parent = LoggerEditor.this;
-
-		final public AtomicBoolean isUpdateAllowed = new AtomicBoolean(false);
 		
 		/**
 		 * Sets the current text on the Spinner to match the given Level
 		 * @param lvl
 		 */
 		public void updateSpinner(final Level lvl, final Spinner spinner) {
-			this.isUpdateAllowed.set(false);
 			
 			switch (lvl.levelInt) {
 			case Level.TRACE_INT:
@@ -393,48 +387,41 @@ public class LoggerEditor extends ListActivity {
 		}
 
 		/**
-		 * When a log level is selected from the level list this method
-		 * is not allowed to actually change the logger's state.
-		 * When selected via the spinner the update is allowed.
-		 * The logger is updated as is the icon based on the level.
+		 * Updates the logger and the icon in its row based on the selected
+		 * level.
 		 */
-		public void onItemSelected(AdapterView<?> adapter, View view, int pos, long id) {
-
-			if (! this.isUpdateAllowed.getAndSet(true)) {
-				return;
-			}
-
+		public void onSpinnerDialogClick(int which) {
+			
 			if (parent.selectedLogger == null) {
 				Toast.makeText(parent, "Please select a logger.", Toast.LENGTH_SHORT).show();
-				
 			}
 			
-			if (parent.lastSelectedView == null) return;
+			if (parent.selectedView == null) return;
 
-			switch (pos) {
+			switch (which) {
 			case TRACE_IX:
 				selectedLogger.setLevel(Level.TRACE);
-				updateIcon(Level.TRACE, lastSelectedView);
+				updateIcon(Level.TRACE, selectedView);
 				break;
 			case DEBUG_IX:
 				selectedLogger.setLevel(Level.DEBUG);
-				updateIcon(Level.DEBUG, lastSelectedView);
+				updateIcon(Level.DEBUG, selectedView);
 				break;
 			case INFO_IX:
 				selectedLogger.setLevel(Level.INFO);
-				updateIcon(Level.INFO, lastSelectedView);
+				updateIcon(Level.INFO, selectedView);
 				break;
 			case WARN_IX:
 				selectedLogger.setLevel(Level.WARN);
-				updateIcon(Level.WARN, lastSelectedView);
+				updateIcon(Level.WARN, selectedView);
 				break;
 			case ERROR_IX:
 				selectedLogger.setLevel(Level.ERROR);
-				updateIcon(Level.ERROR, lastSelectedView);
+				updateIcon(Level.ERROR, selectedView);
 				break;
 			case OFF_IX:
 				selectedLogger.setLevel(Level.OFF);
-				updateIcon(Level.OFF, lastSelectedView);
+				updateIcon(Level.OFF, selectedView);
 				break;
 			case CLEAR_IX:
 			default:
@@ -444,13 +431,11 @@ public class LoggerEditor extends ListActivity {
 				}
 				selectedLogger.setLevel(null);
 				final Level effective = selectedLogger.getEffectiveLevel();
-				updateIcon(effective, lastSelectedView);
+				updateIcon(effective, selectedView);
 			}
+			
 		}
-
-		public void onNothingSelected(AdapterView<?> parent) {
-			// Do nothing.
-		}
+		
 	}
 
 }

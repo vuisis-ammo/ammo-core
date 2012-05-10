@@ -42,6 +42,7 @@ public class AppenderSelector extends Activity {
 		
 		myOnCheckedChangeListener = new OnCheckedChangeListener() {
 
+			@SuppressWarnings("unchecked")
 			@Override
 			public void onCheckedChanged(CompoundButton buttonView,
 					boolean isChecked) {
