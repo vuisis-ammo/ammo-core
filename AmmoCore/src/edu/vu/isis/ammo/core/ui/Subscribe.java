@@ -32,8 +32,8 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.TimeInterval;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.RequestField;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.Request.RequestField;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
 /**

@@ -11,7 +11,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.network;
 
 import android.content.Context;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalState;
 
 /**
  * The NetChannel is some mechanism for establishing a network connection

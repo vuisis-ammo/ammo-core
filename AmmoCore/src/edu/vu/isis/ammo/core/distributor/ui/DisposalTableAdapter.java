@@ -22,8 +22,8 @@ import android.view.View;
 import android.widget.ResourceCursorAdapter;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalField;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalState;
 
 public class DisposalTableAdapter extends ResourceCursorAdapter {
 	private static final Logger logger = LoggerFactory.getLogger("ui.dist.disposal");

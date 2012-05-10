@@ -32,14 +32,14 @@ import android.widget.PopupWindow;
 import android.widget.TableRow;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalField;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalTotalState;
+import edu.vu.isis.ammo.core.distributor.store.Postal.PostalField;
+import edu.vu.isis.ammo.core.distributor.store.Request.PriorityType;
+import edu.vu.isis.ammo.core.distributor.store.Request.RequestField;
+import edu.vu.isis.ammo.core.distributor.store.Retrieval.RetrievalField;
+import edu.vu.isis.ammo.core.distributor.store.Subscribe.SubscribeField;
 import edu.vu.isis.ammo.core.distributor.store.Tables;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalTotalState;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.PostalField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.PriorityType;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.RequestField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.RetrievalField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.SubscribeField;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class RequestPopupWindow extends PopupWindow {

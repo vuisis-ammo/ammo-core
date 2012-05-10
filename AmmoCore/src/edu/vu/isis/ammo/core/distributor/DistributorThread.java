@@ -60,18 +60,24 @@ import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore;
+import edu.vu.isis.ammo.core.distributor.store.Capability;
+import edu.vu.isis.ammo.core.distributor.store.Capability.CapabilityWorker;
+import edu.vu.isis.ammo.core.distributor.store.Channel;
+import edu.vu.isis.ammo.core.distributor.store.Channel.ChannelState;
+import edu.vu.isis.ammo.core.distributor.store.Disposal;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalField;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalTotalState;
+import edu.vu.isis.ammo.core.distributor.store.Postal;
+import edu.vu.isis.ammo.core.distributor.store.Postal.PostalField;
+import edu.vu.isis.ammo.core.distributor.store.Postal.PostalWorker;
+import edu.vu.isis.ammo.core.distributor.store.Presence;
+import edu.vu.isis.ammo.core.distributor.store.Request.RequestField;
+import edu.vu.isis.ammo.core.distributor.store.Retrieval;
+import edu.vu.isis.ammo.core.distributor.store.Retrieval.RetrievalField;
+import edu.vu.isis.ammo.core.distributor.store.Subscribe;
+import edu.vu.isis.ammo.core.distributor.store.Subscribe.SubscribeWorker;
 import edu.vu.isis.ammo.core.distributor.store.Tables;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.CapabilityWorker;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.ChannelState;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalTotalState;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.PostalField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.PostalWorker;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.RequestField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.RetrievalField;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.SubscribeWorker;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetChannel;
@@ -410,15 +416,15 @@ public class DistributorThread extends Thread {
 		final long disposalKey;
 		switch (ack.type) {
 		case POSTAL:
-			disposalKey = this.store.updatePostalByKey(ack.request, ack.channel, ack.status);
+			disposalKey = Postal.updateByKey(this.store, ack.request, ack.channel, ack.status);
 			PLogger.STORE_POSTAL_DQL.debug("update postal disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		case RETRIEVAL:
-			disposalKey = this.store.updateRetrievalByKey(ack.request, ack.channel, ack.status);
+			disposalKey = Retrieval.updateByKey(this.store, ack.request, ack.channel, ack.status);
 			PLogger.STORE_RETRIEVE_DQL.debug("update retrieval disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		case SUBSCRIBE:
-			disposalKey = this.store.updateSubscribeByKey(ack.request, ack.channel, ack.status);
+			disposalKey = Subscribe.updateByKey(this.store, ack.request, ack.channel, ack.status);
 			PLogger.STORE_SUBSCRIBE_DQL.debug("update interest disposal=[{}]: ack=[{}]", disposalKey, ack);
 			break;
 		default:
@@ -559,7 +565,7 @@ public class DistributorThread extends Thread {
 
 			for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
 				final String name = entry.getKey();
-				this.store.deactivateDisposalStateByChannel(name);
+				Disposal.deactivateDisposalStateByChannel(this.store, name);
 			}
 
 			this.doSubscribeCache(ammoService);
@@ -682,26 +688,26 @@ public class DistributorThread extends Thread {
 			final ChannelChange change = status.change;
 			switch (change) {
 			case DEACTIVATE:
-				this.store.upsertChannelByName(name, ChannelState.INACTIVE);
-				this.store.deactivateDisposalStateByChannel(name);
+				Channel.upsertChannelByName(this.store, name, ChannelState.INACTIVE);
+				Disposal.deactivateDisposalStateByChannel(this.store, name);
 
 				logger.trace("::channel deactivated");
 				break;
 
 			case ACTIVATE:
-				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-				this.store.deactivateDisposalStateByChannel(name);
+				Channel.upsertChannelByName(this.store, name, ChannelState.ACTIVE);
+				Disposal.deactivateDisposalStateByChannel(this.store, name);
 
-				this.store.activateDisposalStateByChannel(name);
+				Disposal.activateDisposalStateByChannel(this.store, name);
 				this.announceChannelActive(that.getBaseContext(), name);
 				logger.trace("::channel activated");
 				break;
 
 			case REPAIR:
-				this.store.upsertChannelByName(name, ChannelState.ACTIVE);
-				this.store.activateDisposalStateByChannel(name);
+				Channel.upsertChannelByName(this.store, name, ChannelState.ACTIVE);
+				Disposal.activateDisposalStateByChannel(this.store, name);
 
-				this.store.repairDisposalStateByChannel(name);
+				Disposal.repairDisposalStateByChannel(this.store, name);
 				this.announceChannelActive(that.getBaseContext(), name);
 				logger.trace("::channel repaired");
 				break;
@@ -713,9 +719,9 @@ public class DistributorThread extends Thread {
 
 		// we could do a priming query to determine if there are any candidates
 
-		this.store.deletePostalGarbage();
-		this.store.deleteRetrievalGarbage();
-		this.store.deleteSubscribeGarbage();
+		Postal.deleteGarbage(this.store);
+		Retrieval.deleteGarbage(this.store);
+		Subscribe.deleteGarbage(this.store);
 
 		this.doPostalCache(that);
 		this.doRetrievalCache(that);
@@ -824,7 +830,7 @@ public class DistributorThread extends Thread {
 					deviceId = sm.getOriginDevice();
 					operator = sm.getOriginUser();
 					final CapabilityWorker worker = 
-							this.store.getCapabilityWorker(ab.base(), this.ammoService, deviceId, operator);
+							Capability.getWorker(this.store, ab.base(), this.ammoService, deviceId, operator);
 					worker.upsert();
 				} else {
 					deviceId = null;
@@ -851,8 +857,8 @@ public class DistributorThread extends Thread {
 		if (deviceId == null) {
 			logger.trace("[{}] did not carry a device", mw.getType());
 		} else {
-			ammoService.store()
-			.getPresenceWorker(deviceId, operator)
+			Presence
+			.getWorker(ammoService.store(), deviceId, operator)
 			.upsert();
 		}
 		return true;
@@ -909,7 +915,7 @@ public class DistributorThread extends Thread {
 
 		// Dispatch the message.
 		try {
-			final PostalWorker worker = that.store().getPostalWorker(ar, that);
+			final PostalWorker worker = Postal.getWorker(that.store(), ar, that);
 			logger.trace("process request topic=[{}] uuid=[{}]", worker.topic, worker.uuid);
 
 			final Dispersal dispersal = worker.policy.makeRouteMap();
@@ -1040,7 +1046,7 @@ public class DistributorThread extends Thread {
 							worker, dispersal, serializer, 
 							msgHandler);
 
-				this.store.updatePostalByKey(id, null, dispatchResult);
+				Postal.updateByKey(this.store, id, null, dispatchResult);
 				}
 				break;
 			}
@@ -1063,7 +1069,7 @@ public class DistributorThread extends Thread {
 
 		Cursor pending = null;
 		try {
-			pending = this.store.queryPostalReady();
+			pending = Postal.queryReady(this.store);
 		if (pending == null) return;
 
 		// Iterate over each row serializing its data and sending it.
@@ -1072,7 +1078,7 @@ public class DistributorThread extends Thread {
 		{
 				PLogger.STORE_POSTAL_DQL.trace("postal cursor: {}", pending);
 				final int id = pending.getInt(pending.getColumnIndex(RequestField._ID.n()));
-				final PostalWorker postal = this.store().getPostalWorker(pending, that);
+				final PostalWorker postal = Postal.getWorker(this.store(), pending, that);
 
 				logger.debug("serializing: {} as {}", postal.provider, postal.topic);
 
@@ -1146,7 +1152,7 @@ public class DistributorThread extends Thread {
 				default:
 					Cursor channelCursor = null;
 					try {
-						channelCursor = this.store.getPostalDisposalWorker().queryByParent(id);
+						channelCursor = Disposal.getPostalWorker(this.store).queryByParent(id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -1168,7 +1174,7 @@ public class DistributorThread extends Thread {
 					final ContentValues values = new ContentValues();
 
 							values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
-					long numUpdated = this.store.updatePostalByKey(id, values, null);
+					long numUpdated = Postal.updateByKey(this.store(), id, values, null);
 					logger.debug("updated {} postal items", numUpdated);
 
 							final INetworkService.OnSendMessageHandler msgHandler = null;
@@ -1191,7 +1197,7 @@ public class DistributorThread extends Thread {
 
 							final Dispersal dispatchResult = this.dispatchPostalRequest(
 									that, postal, dispersal, serializer, msgHandler);
-					this.store.updatePostalByKey(id, null, dispatchResult);
+					Postal.updateByKey(this.store(), id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
 						logger.warn("processing postal request from cache failed {} {}", 
@@ -1309,7 +1315,7 @@ public class DistributorThread extends Thread {
 		// generate an intent if it was requested
 
 		final String uuid = pushResp.getUid();
-		final PostalWorker worker = this.store().getPostalWorkerByKey(uuid);
+		final PostalWorker worker = Postal.getWorkerByKey(this.store(), uuid);
 		if (worker == null) {
 			// TODO FPE this can happen if the postal for which the
 			// acknowledgment was received is no longer present.
@@ -1452,7 +1458,7 @@ public class DistributorThread extends Thread {
 								channel, status));
 					}
 				});
-				this.store.updateRetrievalByKey(id, null, dispatchResult);
+				Retrieval.updateByKey(this.store, id, null, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
@@ -1476,7 +1482,7 @@ public class DistributorThread extends Thread {
 
 		Cursor pending = null;
 		try {
-			pending = this.store.queryRetrievalReady();
+			pending = Retrieval.queryReady(this.store);
 		if (pending == null) return;
 
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
@@ -1490,7 +1496,7 @@ public class DistributorThread extends Thread {
 				final Dispersal dispersal = policy.makeRouteMap();
 				Cursor channelCursor = null;
 				try {
-					channelCursor = this.store.getRetrievalDisposalWorker().queryByParent(id);
+					channelCursor = Disposal.getRetrievalWorker(this.store).queryByParent(id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 						final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalField.CHANNEL.n()));
 						final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalField.STATE.n()));
@@ -1517,7 +1523,7 @@ public class DistributorThread extends Thread {
 
 						values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					@SuppressWarnings("unused")
-					final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
+					final long numUpdated = Retrieval.updateByKey(this.store, id, values, null);
 
 						final Dispersal dispatchResult = this.dispatchRetrievalRequest(that, 
 								uuid, topic, subtopic, selection, limit, dispersal, 
@@ -1535,7 +1541,7 @@ public class DistributorThread extends Thread {
 									channel, status));
 						}
 					});
-					this.store.updateRetrievalByKey(id, null, dispatchResult);
+					Retrieval.updateByKey(this.store, id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
 					logger.warn("processing retrieval request from cache failed {} {}", 
@@ -1630,8 +1636,9 @@ public class DistributorThread extends Thread {
 
 		Cursor cursor = null;
 		try {
-			cursor = this.store
-					.queryRetrievalByKey(
+			cursor = Retrieval
+					.queryByKey(
+							this.store,
 							new String[] { RequestField.PROVIDER.n() }, 
 							uuid, null);
 		if (cursor.getCount() < 1) {
@@ -1677,7 +1684,7 @@ public class DistributorThread extends Thread {
 
 		// Dispatch the message.
 		try {
-			final SubscribeWorker worker = this.store().getSubscribeWorker(ar, this.ammoService);
+			final SubscribeWorker worker = Subscribe.getWorker(this.store(), ar, this.ammoService);
 			PLogger.STORE_SUBSCRIBE_DQL.trace("do interest request: {}", worker);
 
 	
@@ -1708,7 +1715,7 @@ public class DistributorThread extends Thread {
 								channel, status));
 					}
 				});
-				this.store.updateSubscribeByKey(id, null, dispatchResult);
+				Subscribe.updateByKey(this.store, id, null, dispatchResult);
 			}
 
 		} catch (NullPointerException ex) {
@@ -1733,12 +1740,12 @@ public class DistributorThread extends Thread {
 
 		Cursor pending = null;
 		try {
-			pending = this.store.querySubscribeReady();
+			pending = Subscribe.queryReady(this.store);
 		if (pending == null) return;
 
 		for (boolean areMoreItems = pending.moveToFirst(); areMoreItems; areMoreItems = pending.moveToNext()) {
 
-				final SubscribeWorker worker = this.store().getSubscribeWorker(pending, this.ammoService);
+				final SubscribeWorker worker = Subscribe.getWorker(this.store, pending, this.ammoService);
 				PLogger.STORE_SUBSCRIBE_DQL.trace("interest cursor: {}", worker);
 
 			try {
@@ -1751,7 +1758,7 @@ public class DistributorThread extends Thread {
 
 						values.put(RequestField.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
 					@SuppressWarnings("unused")
-						long numUpdated = this.store.updateSubscribeByKey(worker.id, values, null);
+						long numUpdated = Subscribe.updateByKey(this.store, worker.id, values, null);
 
 						final Dispersal dispatchResult = this.dispatchSubscribeRequest(that, 
 								worker.topic, worker.subtopic, worker.select, worker.dispersal, 
@@ -1771,7 +1778,7 @@ public class DistributorThread extends Thread {
 									channel, status));
 						}
 					});
-						this.store.updateSubscribeByKey(worker.id, null, dispatchResult);
+						Subscribe.updateByKey(this.store, worker.id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
 					logger.warn("processing interest request from cache failed {} {}", 
@@ -1899,7 +1906,7 @@ public class DistributorThread extends Thread {
 
 		Cursor cursor = null;
 		try {
-			cursor = this.store.querySubscribeByKey(
+			cursor = Subscribe.queryByKey(this.store, 
 					new String[] { RequestField.PROVIDER.n() }, fulltopic.topic, fulltopic.subtopic, null);
 			if (cursor.getCount() < 1) {
 				logger.error("received a message for which there is no interest {}", fulltopic);
@@ -1929,8 +1936,8 @@ public class DistributorThread extends Thread {
 	 * predominantly *not* for postal which should persist.
 	 */
 	public void clearTables() {
-		this.store.purgeRetrieval();
-		this.store.purgeSubscribe();
+		Retrieval.purge(this.store);
+		Subscribe.purge(this.store);
 	}
 
 }

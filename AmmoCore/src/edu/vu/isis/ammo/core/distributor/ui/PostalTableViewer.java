@@ -14,8 +14,8 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.distributor.store.Request.RequestField;
 import edu.vu.isis.ammo.core.distributor.store.Tables;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.RequestField;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
 public class PostalTableViewer extends DistributorTableViewer {

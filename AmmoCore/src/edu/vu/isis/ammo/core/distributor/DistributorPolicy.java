@@ -40,7 +40,7 @@ import android.content.res.AssetManager;
 import android.content.res.Resources.NotFoundException;
 import android.net.Uri;
 import edu.vu.isis.ammo.api.IAmmoRequest;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalState;
 import edu.vu.isis.ammo.util.PrefixList;
 
 /**
