@@ -7,27 +7,25 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -126,34 +124,34 @@ public class RequestSerializer {
 	}
 
 	public DisposalState act(final AmmoService that, final Encoding encode, final String channel) {
-	    final RequestSerializer parent = RequestSerializer.this;
-	    final Encoding local_encode = encode;
-	    final String local_channel = channel;
-	    if (parent.agm == null) {
-		final byte[] agmBytes = parent.serializeActor.run(local_encode);
-		parent.agm = parent.readyActor.run(local_encode, agmBytes);
-	    }
-	    if (parent.agm == null)
-		return null;
-	    that.sendRequest(parent.agm, local_channel);
+		final RequestSerializer parent = RequestSerializer.this;
+		final Encoding local_encode = encode;
+		final String local_channel = channel;
+		if (parent.agm == null) {
+			final byte[] agmBytes = parent.serializeActor.run(local_encode);
+			parent.agm = parent.readyActor.run(local_encode, agmBytes);
+		}
+		if (parent.agm == null)
+			return null;
+		that.sendRequest(parent.agm, local_channel);
 
-	    // final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
-	    // 	@Override
-	    // 	protected Void doInBackground(Void...none) {
-	    // 	    return null;
-	    // 	}
+		// final AsyncTask<Void, Void, Void> action = new AsyncTask<Void, Void, Void> (){
+		// 	@Override
+		// 	protected Void doInBackground(Void...none) {
+		// 	    return null;
+		// 	}
 
-	    // 	@Override
-	    // 	protected void onProgressUpdate(Void... none) {
-	    // 	}
+		// 	@Override
+		// 	protected void onProgressUpdate(Void... none) {
+		// 	}
 
-	    // 	@Override
-	    // 	protected void onPostExecute(Void result) {
-	    // 	}
-	    // };
-	    // action.execute();
+		// 	@Override
+		// 	protected void onPostExecute(Void result) {
+		// 	}
+		// };
+		// action.execute();
 
-	    return DisposalState.QUEUED;
+		return DisposalState.QUEUED;
 	}
 
 	public void setAction(OnReady action) {
@@ -203,11 +201,11 @@ public class RequestSerializer {
 			if (tupleCursor == null) {
 				throw new TupleNotFoundException("while serializing from provider", tupleUri);
 			}
-            if ( tupleCursor.getCount() < 1) {
-            	tupleCursor.close();
-            	logger.warn("tuple no longe present {}", tupleUri);
-            	return null;
-            }
+			if ( tupleCursor.getCount() < 1) {
+				tupleCursor.close();
+				logger.warn("tuple no longe present {}", tupleUri);
+				return null;
+			}
 			if (! tupleCursor.moveToFirst()) {
 				tupleCursor.close();
 				return null;
@@ -237,7 +235,7 @@ public class RequestSerializer {
 			tupleCursor.close(); 
 
 			logger.info("Serialized message, content {}", json.toString() );
- 
+
 			logger.trace("Serialize the blob data (if any)");
 
 			logger.trace("getting the names of the blob fields");
@@ -350,8 +348,8 @@ public class RequestSerializer {
 			}
 
 			final Map<String,Integer> serialMap = new HashMap<String,Integer>(columnCount);
-            final String[] serialOrder = new String[columnCount];
-            int ix = 0;
+			final String[] serialOrder = new String[columnCount];
+			int ix = 0;
 			for (final String key : serialMetaCursor.getColumnNames()) {
 				final int value = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
 				serialMap.put(key, value);
@@ -385,7 +383,7 @@ public class RequestSerializer {
 			// For the new serialization for the 152s, write the data we want to tuple.
 			for (final String key : serialOrder) {
 				if (! serialMap.containsKey(key)) continue;
-				
+
 				final int type = serialMap.get(key);
 				final int columnIndex = tupleCursor.getColumnIndex(key);
 				switch (type) {
@@ -407,11 +405,11 @@ public class RequestSerializer {
 					int length = (svalue == null) ? 0 : svalue.length();
 					tuple.putInt( length );
 					for ( int i = 0; i < length; i++ ) {
-					    char c = svalue.charAt(i);
+						char c = svalue.charAt(i);
 						tuple.putChar( c );
 					}
- 					break;
- 				case FIELD_TYPE_BOOL:
+					break;
+				case FIELD_TYPE_BOOL:
 				case FIELD_TYPE_INTEGER:
 				case FIELD_TYPE_EXCLUSIVE:
 				case FIELD_TYPE_INCLUSIVE:
@@ -473,17 +471,17 @@ public class RequestSerializer {
 	}
 
 	public static byte[] serializeFromContentValues(ContentValues cv, final DistributorPolicy.Encoding encoding) {
-	    
+
 		logger.trace("serializing using content values and encoding {}", encoding);
 		switch (encoding.getType()) {
 		case JSON: 
 		{
-		    return encodeAsJson (cv);
+			return encodeAsJson (cv);
 		}
 
 		case TERSE: 
 		{
-		    // Need to be implemented ...
+			// Need to be implemented ...
 		}
 		// TODO custom still needs a lot of work
 		// It will presume the presence of a SyncAdaptor for the content provider.
@@ -494,30 +492,30 @@ public class RequestSerializer {
 		}
 		return null;
 	}
-	
+
 	private static byte[] encodeAsJson (ContentValues cv) {
-	    // encoding in json for now ...
-	    Set<java.util.Map.Entry<String, Object>> data = cv.valueSet();
-	    Iterator<java.util.Map.Entry<String, Object>> iter = data.iterator();       
-	    final JSONObject json = new JSONObject();
+		// encoding in json for now ...
+		Set<java.util.Map.Entry<String, Object>> data = cv.valueSet();
+		Iterator<java.util.Map.Entry<String, Object>> iter = data.iterator();       
+		final JSONObject json = new JSONObject();
 
-	    while (iter.hasNext())
-	    {
-	        Map.Entry<String, Object> entry = 
-	                (Map.Entry<String, Object>)iter.next();         
-	        try {
-	            if (entry.getValue() instanceof String)
-	                json.put(entry.getKey(), cv.getAsString(entry.getKey()));
-	            else if (entry.getValue() instanceof Integer)
-	                json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
-	        } catch (JSONException e) {
-	            // TODO Auto-generated catch block
-	            e.printStackTrace();
-	            return null;
-	        }
-	    }
+		while (iter.hasNext())
+		{
+			Map.Entry<String, Object> entry = 
+					(Map.Entry<String, Object>)iter.next();         
+			try {
+				if (entry.getValue() instanceof String)
+					json.put(entry.getKey(), cv.getAsString(entry.getKey()));
+				else if (entry.getValue() instanceof Integer)
+					json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return null;
+			}
+		}
 
-	    return json.toString().getBytes();
+		return json.toString().getBytes();
 	}
 	/**
 	 * @see serializeFromProvider with which this method is symmetric.
@@ -538,34 +536,65 @@ public class RequestSerializer {
 			for (; position < data.length && data[position] != (byte)0x0; position++) {}
 
 			final int length = position;
-			// FIXME FPE can we not copy bytes?
-			
-			// final InputStream jsonWrapper = new ByteArrayInputStream(data, 0, length);
-			// final InputStreamReader jsonReader = new InputStreamReader(jsonWrapper);
-			// final String jsonPayload = jsonReader.get
-			// final String jsonPayload = Arrays.toString(data);
-			final byte[] jsonPayload = new byte[length];
-			System.arraycopy(data, 0, jsonPayload, 0, length);
+			final byte[] payload = new byte[length];
+			System.arraycopy(data, 0, payload, 0, length);
+			final JSONObject input;
+			try {
+				final String parsePayload = new String(payload);
+				final Object value = new JSONTokener(parsePayload).nextValue();
+				if (value instanceof JSONObject) {
+					input = (JSONObject) value;
+				} else if (value instanceof JSONArray) {
+					logger.warn("invalid JSON payload=[{}]", parsePayload);
+					return null;
+				} else if (value == JSONObject.NULL) {
+					logger.warn("null JSON payload=[{}]", parsePayload);
+					return null;
+				} else {
+					logger.warn("{} JSON payload=[{}]", value.getClass().getName(), parsePayload);
+					return null;
+				}
+			} catch (ClassCastException ex) {
+				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+				return null;
+			} catch (JSONException ex) {
+				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+				return null;
+			}
+			final ContentValues cv = new ContentValues();
+			cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+			cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
+			for (final Iterator<?> iter = input.keys(); iter.hasNext();) {
+				final Object keyObj = iter.next();
+				if (keyObj instanceof String) {
+					final String key = (String) keyObj;
+					final Object value;
+					try {
+						value = input.get(key);
+					} catch (JSONException ex) {
+						logger.error("invalid JSON key=[{}] ex=[{}]", key, ex);
+						continue;
+					}
+					if (value instanceof String) {
+						cv.put(key, (String) value);
+					} else {
+						logger.error("value has unexpected typ JSON key=[{}] value=[{}]", key, value);
+						continue;
+					}
+				} else {
+					logger.error("invalid JSON key=[{}]", keyObj);
+				}
+			}
+
 			final Uri tupleUri;
 			try {
-				final JSONObject input = (JSONObject) new JSONTokener(new String(jsonPayload)).nextValue();
-				final ContentValues cv = new ContentValues();
-				for (@SuppressWarnings("unchecked")
-				final Iterator<String> iter = input.keys(); iter.hasNext();) {
-					final String key = iter.next();
-					cv.put(key, input.getString(key));
-				}
-				cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
-				cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
 				tupleUri = resolver.insert(provider, cv); // TBD SKN --- THIS IS A  SYNCHRONOUS IPC? we will block here for a while ...
 				if (tupleUri == null) {
 					logger.warn("could not insert {} into {}", cv, provider);
 					return null;
 				}
 				logger.info("Deserialized Received message, content {}", cv);
-			} catch (JSONException ex) {
-				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
-				return null;
+
 			} catch (SQLiteException ex) {
 				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
 				return null;
@@ -745,6 +774,6 @@ public class RequestSerializer {
 		return null;
 
 	}
-	
+
 }
 
