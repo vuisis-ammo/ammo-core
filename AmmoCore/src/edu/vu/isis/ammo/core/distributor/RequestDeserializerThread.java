@@ -30,7 +30,7 @@ public class RequestDeserializerThread extends Thread {
 		public Item(final int priority, final Context context, final Uri provider, final Encoding encoding, final byte[] data) {
 			this.priority = priority;
 			this.sequence = masterSequence.getAndIncrement();
-			
+
 			this.context = context;
 			this.provider = provider;
 			this.encoding = encoding;
@@ -60,7 +60,7 @@ public class RequestDeserializerThread extends Thread {
 					o1.sequence, o2.sequence} );
 			if (o1.priority > o2.priority) return -1;
 			if (o1.priority < o2.priority) return 1;
-			
+
 			// if priority is same then process in the insertion order
 			if (o1.sequence > o2.sequence) return 1;
 			if (o1.sequence < o2.sequence) return -1;
@@ -90,12 +90,18 @@ public class RequestDeserializerThread extends Thread {
 
 		try {
 			while (true) {
-				
+
 				final Item item = this.queue.take();
 
-				Uri tuple = RequestSerializer.deserializeToProvider(item.context, item.provider, item.encoding, item.data);
+				try {
+					final Uri tuple = RequestSerializer.deserializeToProvider(item.context, item.provider, item.encoding, item.data);
+					logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
+							new Object[]{item.provider, tuple, queue.size()} );
 
-				logger.info("Ammo inserted received message in remote content provider: {}, inserted in {}, remaining in insert queue {}", new Object[]{item.provider, tuple, queue.size()} );
+				} catch (Exception ex) {
+					logger.error("insert failed provider: [{}], remaining in insert queue [{}] : ex=[{}]", 
+							new Object[]{item.provider, queue.size()}, ex);
+				}
 
 			}
 

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -215,7 +216,7 @@ public class RequestSerializer {
 				return null;
 			}
 
-				json = new JSONObject();
+			json = new JSONObject();
 			tupleCursor.moveToFirst();
 
 			for (final String name : tupleCursor.getColumnNames()) {
@@ -455,7 +456,7 @@ public class RequestSerializer {
 			final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
 			Cursor tupleCursor = null;
 			try {
-				try {
+			try {
 				tupleCursor = resolver.query(serialUri, null, null, null, null);
 			} catch(IllegalArgumentException ex) {
 				logger.warn("unknown content provider {}", ex.getLocalizedMessage());
@@ -545,33 +546,70 @@ public class RequestSerializer {
 		switch (encoding.getType()) {
 		case JSON: 
 		{
+			// find the end of the json portion of the data
 			int position = 0;
 			for (; position < data.length && data[position] != (byte)0x0; position++) {}
 
 			final int length = position;
 			final byte[] payload = new byte[length];
 			System.arraycopy(data, 0, payload, 0, length);
+			final JSONObject input;
+			try {
+				final String parsePayload = new String(payload);
+				final Object value = new JSONTokener(parsePayload).nextValue();
+				if (value instanceof JSONObject) {
+					input = (JSONObject) value;
+				} else if (value instanceof JSONArray) {
+					logger.warn("invalid JSON payload=[{}]", parsePayload);
+					return null;
+				} else if (value == JSONObject.NULL) {
+					logger.warn("null JSON payload=[{}]", parsePayload);
+					return null;
+				} else {
+					logger.warn("{} JSON payload=[{}]", value.getClass().getName(), parsePayload);
+					return null;
+				}
+			} catch (ClassCastException ex) {
+				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+				return null;
+			} catch (JSONException ex) {
+				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+				return null;
+			}
+			final ContentValues cv = new ContentValues();
+			cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+			cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
+			for (final Iterator<?> iter = input.keys(); iter.hasNext();) {
+				final Object keyObj = iter.next();
+				if (keyObj instanceof String) {
+					final String key = (String) keyObj;
+					final Object value;
+					try {
+						value = input.get(key);
+					} catch (JSONException ex) {
+						logger.error("invalid JSON key=[{}] ex=[{}]", key, ex);
+						continue;
+					}
+					if (value instanceof String) {
+						cv.put(key, (String) value);
+					} else {
+						logger.error("value has unexpected typ JSON key=[{}] value=[{}]", key, value);
+						continue;
+					}
+				} else {
+					logger.error("invalid JSON key=[{}]", keyObj);
+				}
+			}
+
 			final Uri tupleUri;
 			try {
-				final JSONObject input = (JSONObject) new JSONTokener(new String(payload)).nextValue();
-				final ContentValues cv = new ContentValues();
-				cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
-				cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
-				PLogger.API_STORE_SEND.debug("json tuple=[{}] cv=[{}]", input, cv);
-				for (@SuppressWarnings("unchecked")
-				final Iterator<String> iter = input.keys(); iter.hasNext();) {
-					final String key = iter.next();
-					cv.put(key, input.getString(key));
-				}
 				tupleUri = resolver.insert(provider, cv); // TBD SKN --- THIS IS A  SYNCHRONOUS IPC? we will block here for a while ...
 				if (tupleUri == null) {
 					logger.warn("could not insert {} into {}", cv, provider);
 					return null;
 				}
 				logger.info("Deserialized Received message, content {}", cv);
-			} catch (JSONException ex) {
-				logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
-				return null;
+
 			} catch (SQLiteException ex) {
 				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
 				return null;

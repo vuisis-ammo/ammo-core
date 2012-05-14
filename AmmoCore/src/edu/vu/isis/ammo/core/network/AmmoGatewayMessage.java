@@ -179,11 +179,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("[addr=").append(this.hashCode()).append(" ");
-        sb.append("size=").append(this.size).append(" ");
-        sb.append("priority=").append(this.priority).append(" ");
-		sb.append("received=").append(this.buildTime).append(" ");
-		sb.append("checksum=").append(Long.toHexString(this.payload_checksum)).append(" ]");
+        sb.append("hash:").append(this.hashCode()).append(" ");
+        sb.append("size:").append(this.size).append(" ");
+        sb.append("priority:").append(this.priority).append(" ");
+		sb.append("received:").append(this.buildTime).append(" ");
+		sb.append("checksum:").append(Long.toHexString(this.payload_checksum));
         return sb.toString();
     }
 
