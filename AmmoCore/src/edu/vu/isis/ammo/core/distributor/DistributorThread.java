@@ -1275,7 +1275,7 @@ public class DistributorThread extends Thread {
 
 					final AmmoMessages.DataMessage.Builder postReq = AmmoMessages.DataMessage
 							.newBuilder()
-							.setUid(uuid.toString())
+							.setUri(uuid.toString())
 							.setMimeType(msgType)
 							.setUserId(ammoService.getOperatorId())
 							.setOriginDevice(ammoService.getDeviceId())
@@ -1314,7 +1314,7 @@ public class DistributorThread extends Thread {
 		final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
 		// generate an intent if it was requested
 
-		final String uuid = pushResp.getUid();
+		final String uuid = pushResp.getUri();
 		final PostalWorker worker = Postal.getWorkerByKey(this.store(), uuid);
 		if (worker == null) {
 			// TODO FPE this can happen if the postal for which the
@@ -1868,7 +1868,7 @@ public class DistributorThread extends Thread {
 
 				final AmmoMessages.PushAcknowledgement.Builder pushAck = 
 						AmmoMessages.PushAcknowledgement.newBuilder()
-						.setUid(resp.getUid())
+						.setUri(resp.getUri())
 						.setThreshold(bt)
 						.setDestinationDevice(resp.getOriginDevice())
 						.setDestinationUser(resp.getUserId())
@@ -1886,7 +1886,7 @@ public class DistributorThread extends Thread {
 					@Override
 					public boolean ack(String channel, DisposalState status) {
 						logger.debug("delivered ack: uid=[{}] origin=[{}] reflect=[{}]", 
-								new Object[]{ack_.getUid(), ack_.getDestinationDevice(), ack_.getAcknowledgingDevice()});
+								new Object[]{ack_.getUri(), ack_.getDestinationDevice(), ack_.getAcknowledgingDevice()});
 						return true;
 					}
 				});
