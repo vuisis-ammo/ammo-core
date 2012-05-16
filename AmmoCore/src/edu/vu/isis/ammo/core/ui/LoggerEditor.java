@@ -1,13 +1,21 @@
 package edu.vu.isis.ammo.core.ui;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.slf4j.LoggerFactory;
 
+import android.app.AlertDialog;
+import android.app.AlertDialog.Builder;
 import android.app.ListActivity;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -20,6 +28,10 @@ import android.widget.Toast;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.android.LogcatAppender;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.Appender;
+import ch.qos.logback.core.FileAppender;
 import edu.vu.isis.ammo.R;
 import edu.vu.isis.ammo.util.Tree;
 
@@ -32,7 +44,9 @@ import edu.vu.isis.ammo.util.Tree;
 
 public class LoggerEditor extends ListActivity {
 
-	public static final String DUMMY_LOGGER_NAME = "dummyref";
+	public static final Logger DUMMY_LOGGER = getLoggerByName("dummyref");
+
+	private static final int READ_MENU = Menu.NONE + 0;
 	
 	private Logger rootLogger;
 	private Logger selectedLogger;
@@ -118,13 +132,12 @@ public class LoggerEditor extends ListActivity {
 	
 	private Tree<Logger> makeTree(List<Logger> list) {
 
-		this.rootLogger = this.getLoggerByName(Logger.ROOT_LOGGER_NAME);
-		final Logger dummyLogger = getLoggerByName(DUMMY_LOGGER_NAME);
+		this.rootLogger = getLoggerByName(Logger.ROOT_LOGGER_NAME);
 		final Tree<Logger> mTree = new Tree<Logger>(rootLogger);
 
 		for(final Logger logger : list) {			
 			if (logger.equals(this.rootLogger)
-					|| logger.equals(dummyLogger)) {
+					|| logger.equals(DUMMY_LOGGER)) {
 				continue;
 			}
 			final String loggerName = logger.getName();
@@ -135,7 +148,7 @@ public class LoggerEditor extends ListActivity {
 
 	}
 
-	private Logger getLoggerByName(final String name) {
+	private static Logger getLoggerByName(final String name) {
 		return (Logger) LoggerFactory.getLogger(name);
 	}
 
@@ -164,8 +177,8 @@ public class LoggerEditor extends ListActivity {
 			return;
 		} 
 		final String parentLoggerName = loggerName.substring(0, lastDotIndex);
-		final Logger parentLogger = this.getLoggerByName(parentLoggerName);
-		final Logger childLogger = this.getLoggerByName(loggerName);
+		final Logger parentLogger = getLoggerByName(parentLoggerName);
+		final Logger childLogger = getLoggerByName(loggerName);
 
 		safelyAddLeaf(mTree, parentLogger, parentLoggerName);
 		mTree.addLeaf(parentLogger, childLogger);
@@ -194,10 +207,99 @@ public class LoggerEditor extends ListActivity {
 		refreshList();
 	}
 
+	
+	
 	private void refreshList() {
 		this.mListView.invalidateViews();
 	}
 	
+	
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		
+        super.onCreateOptionsMenu(menu);
+        menu.add(Menu.NONE, READ_MENU, Menu.NONE, "Read logs");
+        
+        return true;
+        
+    }
+	
+	
+	@Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        
+        boolean returnValue = true;
+        switch (item.getItemId()) {
+        case READ_MENU:
+        	createReaderSelectorDialog();
+        	break;
+        default:
+        	returnValue = false;
+        }
+        
+        return returnValue;
+    }
+	
+
+	private void createReaderSelectorDialog() {
+
+		final AlertDialog.Builder bldr = new AlertDialog.Builder(this);
+
+		final List<String> availableAppenderNames = new ArrayList<String>();
+		final Iterator<Appender<ILoggingEvent>> it = DUMMY_LOGGER
+				.iteratorForAppenders();
+
+		while (it.hasNext()) {
+			availableAppenderNames.add(it.next().getName());
+		}
+
+		final OnClickListener dlgListener = new OnClickListener() {
+			
+			LoggerEditor parent = LoggerEditor.this;
+			
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+				
+				final String whichAppender = availableAppenderNames.get(which);
+				final Appender<ILoggingEvent> appenderToRead = LoggerEditor.DUMMY_LOGGER
+						.getAppender(whichAppender);
+				
+				if(appenderToRead == null) {
+					parent.personalLogger.error("Could not find Appender: {}", whichAppender);
+					Toast.makeText(parent, "Could not find Appender.", Toast.LENGTH_LONG).show();
+					return;
+				}
+				
+				String cmd = new String();
+				
+				if (appenderToRead instanceof LogcatAppender) {
+					cmd = "logcat";
+				} else if (appenderToRead instanceof FileAppender) {
+					final FileAppender<ILoggingEvent> fileAppender = (FileAppender<ILoggingEvent>) appenderToRead;
+					final String filename = fileAppender.getFile();
+					cmd = "file " + filename;
+				} else {
+					Toast.makeText(parent, "No reader is available for that Appender",
+							Toast.LENGTH_LONG).show();
+					return;
+				}
+				
+				final Intent intent = parent.getIntent();
+				parent.personalLogger.debug("Putting extra in Intent for LogViewer: {}", cmd);
+				intent.putExtra(LogViewer.EXTRA_NAME, cmd);
+				intent.setClass(parent, LogViewer.class);
+				parent.startActivity(intent);
+				
+			}
+
+		};
+
+		bldr.setItems(availableAppenderNames.toArray(new String[0]),
+				dlgListener).setTitle("Select an Appender to view its logs:")
+				.show();
+
+	}
+
 
 	private void updateIcon(Level lvl, View row) {
 		final ImageView iv = (ImageView) (row.findViewById(R.id.logger_icon));
@@ -336,10 +438,17 @@ public class LoggerEditor extends ListActivity {
 	
 	public void configureAppenders(View v) {
 
-		final Intent intent = new Intent().putExtra(
-				"edu.vu.isis.ammo.core.ui.LoggerEditor.selectedLogger",
-				selectedLogger).setClass(this, AppenderSelector.class);
-		startActivityForResult(intent, 0);
+		if (selectedLogger != null) {
+			final Intent intent = new Intent().putExtra(
+					"edu.vu.isis.ammo.core.ui.LoggerEditor.selectedLogger",
+					selectedLogger).setClass(this, AppenderSelector.class);
+
+			startActivityForResult(intent, 0);
+		} else {
+			Toast.makeText(this,
+					"Pick a logger before trying to configure its appenders.",
+					0).show();
+		}
 		
 	}
 	
@@ -394,34 +503,31 @@ public class LoggerEditor extends ListActivity {
 			
 			if (parent.selectedLogger == null) {
 				Toast.makeText(parent, "Please select a logger.", Toast.LENGTH_SHORT).show();
+				return;
 			}
 			
 			if (parent.selectedView == null) return;
 
+			Level nextLevel = null;
+			
 			switch (which) {
 			case TRACE_IX:
-				selectedLogger.setLevel(Level.TRACE);
-				updateIcon(Level.TRACE, selectedView);
+				nextLevel = Level.TRACE;
 				break;
 			case DEBUG_IX:
-				selectedLogger.setLevel(Level.DEBUG);
-				updateIcon(Level.DEBUG, selectedView);
+				nextLevel = Level.DEBUG;
 				break;
 			case INFO_IX:
-				selectedLogger.setLevel(Level.INFO);
-				updateIcon(Level.INFO, selectedView);
+				nextLevel = Level.INFO;
 				break;
 			case WARN_IX:
-				selectedLogger.setLevel(Level.WARN);
-				updateIcon(Level.WARN, selectedView);
+				nextLevel = Level.WARN;
 				break;
 			case ERROR_IX:
-				selectedLogger.setLevel(Level.ERROR);
-				updateIcon(Level.ERROR, selectedView);
+				nextLevel = Level.ERROR;
 				break;
 			case OFF_IX:
-				selectedLogger.setLevel(Level.OFF);
-				updateIcon(Level.OFF, selectedView);
+				nextLevel = Level.OFF;
 				break;
 			case CLEAR_IX:
 			default:
@@ -429,9 +535,15 @@ public class LoggerEditor extends ListActivity {
 					Toast.makeText(parent, "Clearing the root logger is not allowed", Toast.LENGTH_LONG).show();
 					return;
 				}
-				selectedLogger.setLevel(null);
-				final Level effective = selectedLogger.getEffectiveLevel();
-				updateIcon(effective, selectedView);
+				nextLevel = null;
+			}
+			
+			selectedLogger.setLevel(nextLevel);
+			
+			if(nextLevel == null) {
+				updateIcon(selectedLogger.getEffectiveLevel(), selectedView);
+			} else {
+				updateIcon(nextLevel, selectedView);
 			}
 			
 		}

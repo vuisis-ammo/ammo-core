@@ -11,6 +11,7 @@
 
 	<uses-sdk android:minSdkVersion="8" />
 
+	<uses-permission android:name="android.permission.READ_LOGS" />
 	<uses-permission android:name="android.permission.RAISED_THREAD_PRIORITY"/>
 	<uses-permission android:name="edu.vu.isis.ammo.permission.MAKE_REQUEST" />
 	<uses-permission android:name="android.permission.INTERNET" />
@@ -55,6 +56,7 @@
 		<activity android:name=".ui.AboutActivity" />
 		<activity android:name=".ui.LoggerEditor" />
 		<activity android:name=".ui.AppenderSelector" />
+		<activity android:name=".ui.LogViewer" />
 
 		<activity android:name=".distributor.ui.DistributorTableViewer" />
 		<activity android:name=".distributor.ui.RetrievalTableViewer" />

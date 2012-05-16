@@ -2,8 +2,6 @@ package edu.vu.isis.ammo.core.ui;
 
 import java.util.Iterator;
 
-import org.slf4j.LoggerFactory;
-
 import android.app.Activity;
 import android.os.Bundle;
 import android.widget.CheckBox;
@@ -36,8 +34,6 @@ public class AppenderSelector extends Activity {
 
 		selectedLogger = (Logger) getIntent().getSerializableExtra(
 				"edu.vu.isis.ammo.core.ui.LoggerEditor.selectedLogger");
-		final Logger dummyLogger = (Logger) LoggerFactory
-				.getLogger(LoggerEditor.DUMMY_LOGGER_NAME);
 		final LinearLayout ll = (LinearLayout) findViewById(R.id.appender_layout);
 		
 		myOnCheckedChangeListener = new OnCheckedChangeListener() {
@@ -62,7 +58,7 @@ public class AppenderSelector extends Activity {
 		};
 
 		// Loop over the active appenders and create check boxes for them
-		final Iterator<Appender<ILoggingEvent>> it = dummyLogger
+		final Iterator<Appender<ILoggingEvent>> it = LoggerEditor.DUMMY_LOGGER
 				.iteratorForAppenders();
 
 		while (it.hasNext()) {
