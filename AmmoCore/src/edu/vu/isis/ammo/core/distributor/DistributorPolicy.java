@@ -7,7 +7,7 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.File;
@@ -97,7 +97,7 @@ public class DistributorPolicy implements ContentHandler {
 			try {
 				final AssetManager am = context.getAssets();
 				final InputStream copiable = am.open(policy_file);
-				
+
 				// final InputStream copiable = context.getResources().openRawResource(R.raw.distribution_policy);				
 				final OutputStream out = new FileOutputStream(file);
 				final byte[] buf = new byte[1024];
@@ -107,9 +107,9 @@ public class DistributorPolicy implements ContentHandler {
 				}
 				copiable.close();
 				out.close();
-				
+
 				inputStream = am.open(policy_file);	
-				
+
 			} catch (NotFoundException ex) {
 				logger.error("asset not available {}", ex.getMessage());
 				return null;
@@ -177,20 +177,20 @@ public class DistributorPolicy implements ContentHandler {
 	public String toString() {
 		final StringBuffer sb = new StringBuffer();
 		if (this.postalPolicy != null)
-		for (final Topic entry : this.postalPolicy.values()) {
-			sb.append('\n').append("POSTAL: \n")
-			.append(entry);
-		}
+			for (final Topic entry : this.postalPolicy.values()) {
+				sb.append('\n').append("POSTAL: \n")
+				.append(entry);
+			}
 		if (this.subscribePolicy != null)
-		for (final Topic entry : this.subscribePolicy.values()) {
-			sb.append('\n').append("SUBSCRIBE: \n")
-			.append(entry);
-		}
+			for (final Topic entry : this.subscribePolicy.values()) {
+				sb.append('\n').append("SUBSCRIBE: \n")
+				.append(entry);
+			}
 		if (this.retrievalPolicy != null)
-		for (final Topic entry : this.retrievalPolicy.values()) {
-			sb.append('\n').append("RETRIEVAL: \n")
-			.append(entry);
-		}
+			for (final Topic entry : this.retrievalPolicy.values()) {
+				sb.append('\n').append("RETRIEVAL: \n")
+				.append(entry);
+			}
 		return sb.toString();
 	}
 
@@ -275,7 +275,7 @@ public class DistributorPolicy implements ContentHandler {
 
 			final StringBuffer sb = new StringBuffer();
 			sb.append('\n').append(ind).append("routing: \"").append(this.type).append("\"")
-			  .append(this.routing);
+			.append(this.routing);
 			DistributorPolicy.this.indent--;
 			return sb.toString();
 		}
@@ -284,7 +284,7 @@ public class DistributorPolicy implements ContentHandler {
 			final DistributorState state = this.routing.makeMap();
 			return state.setType(this.type);
 		}
-		
+
 		private String type;
 		public void setType(String type) {
 			this.type = type;
@@ -335,7 +335,7 @@ public class DistributorPolicy implements ContentHandler {
 			this.lifespan = lifespan;
 			this.clauses = new ArrayList<Clause>();
 		}
-		
+
 		public DistributorState makeMap() {
 			final DistributorState map = DistributorState.newInstance(this);
 			for (Clause clause : this.clauses) {
@@ -352,8 +352,8 @@ public class DistributorPolicy implements ContentHandler {
 
 			final StringBuffer sb = new StringBuffer();		
 			sb.append('\n').append(ind)
-			  .append(" priority: ").append(this.priority)
-			  .append(" lifespan: ").append(this.lifespan);
+			.append(" priority: ").append(this.priority)
+			.append(" lifespan: ").append(this.lifespan);
 
 			for (Clause clause : this.clauses) { 
 				sb.append(clause);
@@ -388,7 +388,7 @@ public class DistributorPolicy implements ContentHandler {
 		public long getExpiration(long appLifespanSeconds) {
 			if (this.lifespan < 0) return appLifespanSeconds;
 			final long maxExpiration = System.currentTimeMillis() + this.lifespan;
-			
+
 			if (maxExpiration < appLifespanSeconds) {
 				return maxExpiration;
 			} else {
@@ -446,19 +446,20 @@ public class DistributorPolicy implements ContentHandler {
 	/**
 	 * Encoding is an indicator to the distributor as to how to encode/decode requests.
 	 * It is a wrapper around the encoding type.
-	 * 
+	 * The custom encoding is passed to the application specific coder.
+	 * The name is primarily for the application specific coder.
 	 */
 	public static class Encoding {
 		public enum Type {
 			TERSE, JSON, CUSTOM;
 		}
 		final private Type type;
-		
+
 		final private String name;
 		public String name() {
 			return this.name;
 		}
-		
+
 		private Encoding(String name, Type type) {
 			this.type = type;
 			this.name = name;
@@ -473,11 +474,22 @@ public class DistributorPolicy implements ContentHandler {
 		public static Encoding newInstance(Type type) {
 			return new Encoding(type);
 		}
-		
+
+		public static Encoding newInstance(String typeName) {
+
+			if (typeName.equalsIgnoreCase("json")) {
+				return new Encoding(typeName, Encoding.Type.JSON );
+			}
+			if (typeName.equalsIgnoreCase("terse")) {
+				return new Encoding(typeName, Encoding.Type.JSON );
+			}
+			return new Encoding(typeName, Encoding.Type.CUSTOM);
+		}
+
 		public Type getType() {
 			return this.type;
 		}
-		
+
 		public String getPayloadSuffix() {
 			switch (this.type) {
 			case JSON: return "";
@@ -497,7 +509,7 @@ public class DistributorPolicy implements ContentHandler {
 		@Override
 		public String toString() {
 			return new StringBuilder().append('[')
-			.append(type.name()).append(']').toString();
+					.append(type.name()).append(']').toString();
 		}
 		public static Encoding getInstanceByName(String encoding) {
 			for (final Type type : Encoding.Type.values()) {
@@ -543,14 +555,14 @@ public class DistributorPolicy implements ContentHandler {
 
 		public TopicBuilder() {
 			this.routing = new Routing(Category.POSTAL, 
-			IAmmoRequest.PRIORITY_NORMAL, 
-			DistributorDataStore.DEFAULT_POSTAL_LIFESPAN);
+					IAmmoRequest.PRIORITY_NORMAL, 
+					DistributorDataStore.DEFAULT_POSTAL_LIFESPAN);
 		}
 		public Topic build() { return new Topic(this); }
 
 		private Routing routing;
 		public Routing routing() { return this.routing; }
-		
+
 		public TopicBuilder newRouting(Category category, int priority, long lifespan) { 
 			this.routing = new Routing(category, priority, lifespan);
 			return this;
@@ -589,7 +601,7 @@ public class DistributorPolicy implements ContentHandler {
 	private boolean inRouting = false;
 	private boolean inClause = false;
 	private boolean inLiteral = false;
-	
+
 	private boolean inTest = false;
 
 	private boolean inDescription = false;
@@ -623,7 +635,7 @@ public class DistributorPolicy implements ContentHandler {
 				if (type == null) return;
 				final String title = (null == atts.getValue(uri, "name"))
 						? type : atts.getValue(uri, "name");
-				
+
 				final String postalMatch = atts.getValue(uri, "postal");
 				if (postalMatch != null) {
 					final Topic topic = this.matchPostal(type);
@@ -632,7 +644,7 @@ public class DistributorPolicy implements ContentHandler {
 								new String[]{ title, topic.type, postalMatch });
 					}
 				}
-				
+
 				final String subscribeMatch = atts.getValue(uri, "subscribe");
 				if (subscribeMatch != null) {
 					final Topic topic = this.matchSubscribe(type);
@@ -641,7 +653,7 @@ public class DistributorPolicy implements ContentHandler {
 								new String[]{ title, topic.type, subscribeMatch });
 					}
 				}
-				
+
 				final String retrievalMatch = atts.getValue(uri, "retrieval");
 				if (retrievalMatch != null) {
 					final Topic topic = this.matchRetrieval(type);
@@ -650,7 +662,7 @@ public class DistributorPolicy implements ContentHandler {
 								new String[]{ title, topic.type, retrievalMatch });
 					}
 				}
-				
+
 				return;
 			}
 			logger.warn("expecting begin 'topic' or 'test': got {}", localName);
@@ -679,7 +691,7 @@ public class DistributorPolicy implements ContentHandler {
 							DistributorDataStore.DEFAULT_POSTAL_LIFESPAN, atts);
 					break;
 				}
-				
+
 				this.builder.newRouting(category, priority, lifespan);
 				return;
 			}
@@ -732,7 +744,7 @@ public class DistributorPolicy implements ContentHandler {
 			return;
 		} 
 		// in policy
-		
+
 		if (this.inTest) {
 			if (localName.equals("test")) {
 				logger.debug("end 'test'");
@@ -742,7 +754,7 @@ public class DistributorPolicy implements ContentHandler {
 			logger.error("processing test and found {}", localName);
 			return;
 		}
-		
+
 		if (! this.inTopic) { 
 			if (localName.equals("policy")) {
 				logger.debug("end 'policy'");
@@ -752,7 +764,7 @@ public class DistributorPolicy implements ContentHandler {
 			logger.error("topic ended prematurely expecting policy got {}", localName);
 			return;
 		} 
-		
+
 		// in policy/topic
 		if (! this.inRouting) { 
 			if (localName.equals("topic")) {
@@ -848,13 +860,7 @@ public class DistributorPolicy implements ContentHandler {
 	private Encoding extractEncoding(String uri, String attrname, Encoding def, Attributes atts) {
 		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
-		if (value.equalsIgnoreCase("verbose")) 
-			return Encoding.newInstance( Encoding.Type.JSON);
-		if (value.equalsIgnoreCase("json")) 
-			return Encoding.newInstance( Encoding.Type.JSON);
-		if (value.equalsIgnoreCase("terse")) 
-			return  Encoding.newInstance( Encoding.Type.TERSE );
-		return def;
+		return Encoding.newInstance(value);
 	}
 
 	/**
@@ -898,7 +904,7 @@ public class DistributorPolicy implements ContentHandler {
 			return def;
 		}
 	}
-	
+
 	/**
 	 * The lifespan specified in the policy is in minutes.
 	 * Internally all times are in milliseconds. (conversion necessary)
@@ -914,7 +920,7 @@ public class DistributorPolicy implements ContentHandler {
 	private long extractLifespan(String uri, String attrname, long def, Attributes atts) {
 		final String value = atts.getValue(uri, attrname);
 		if (value == null) return def;
-		
+
 		try {
 			return DistributorDataStore.CONVERT_MINUTES_TO_MILLISEC * Integer.parseInt(value);
 		} catch (NumberFormatException ex) {

@@ -15,12 +15,11 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.INetPrefKeys;
-
 import android.content.Context;
 import android.preference.EditTextPreference;
 import android.util.AttributeSet;
 import android.widget.Toast;
+import edu.vu.isis.ammo.INetPrefKeys;
 
 /**
  * EditText widget used in preferences and holds number values. 
