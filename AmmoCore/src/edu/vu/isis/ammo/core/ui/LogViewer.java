@@ -230,6 +230,7 @@ public class LogViewer extends ListActivity {
 	private void play() {
 		this.isPaused.set(false);
 		this.mLogReader.resumeUpdating();
+		this.mLogReader.forceUpdate();
 	}
 
 	private void pause() {

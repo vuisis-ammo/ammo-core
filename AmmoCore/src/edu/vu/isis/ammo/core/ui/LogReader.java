@@ -113,6 +113,14 @@ public abstract class LogReader {
 	
 	
 	/**
+	 * Forces this LogReader to send its cache regardless of its state
+	 */
+	public synchronized void forceUpdate() {
+		sendCacheAndClear();
+	}
+	
+	
+	/**
 	 * Sends the current log cache and clears it if sending has not been
 	 * paused and the log cache is not empty
 	 */
