@@ -10,13 +10,13 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.model;
 
-import edu.vu.isis.ammo.core.OnNameChangeListener;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
+import edu.vu.isis.ammo.core.OnNameChangeListener;
 
 public abstract class Channel implements OnSharedPreferenceChangeListener{
 

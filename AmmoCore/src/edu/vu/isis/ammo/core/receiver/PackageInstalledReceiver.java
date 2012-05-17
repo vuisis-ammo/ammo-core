@@ -13,11 +13,10 @@ package edu.vu.isis.ammo.core.receiver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.IntentNames;
-
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import edu.vu.isis.ammo.IntentNames;
 
 public class PackageInstalledReceiver extends BroadcastReceiver {
 
