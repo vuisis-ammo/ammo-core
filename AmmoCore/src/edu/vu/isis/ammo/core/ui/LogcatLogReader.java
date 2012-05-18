@@ -3,6 +3,9 @@ package edu.vu.isis.ammo.core.ui;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import android.content.Context;
@@ -11,16 +14,17 @@ import android.os.Handler;
 public class LogcatLogReader extends LogReader {
 
 	private static final int BUFFER_SIZE = 1024;
+	private static final long SEND_DELAY = 10;
 	
-	private Process mLogcatProcess;
+	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 	
 	public LogcatLogReader(Context context, Handler handler) throws IOException {
 
 		this.mContext = context;
 		this.mHandler = handler;
-		this.mLogcatProcess = Runtime.getRuntime().exec("logcat");
+		final Process logcatProcess = Runtime.getRuntime().exec("logcat");
 		this.mReader = new BufferedReader(new InputStreamReader(
-				this.mLogcatProcess.getInputStream()), BUFFER_SIZE);
+				logcatProcess.getInputStream()), BUFFER_SIZE);
 		
 	}
 	
@@ -28,8 +32,18 @@ public class LogcatLogReader extends LogReader {
 	@Override
 	public void start() {
 		resumeReading();
-		this.readThread.start();
-		this.updateThread.start();
+		resumeUpdating();
+		this.myReadThread = new ReadThread();
+		this.myReadThread.start();
+		this.scheduler.scheduleWithFixedDelay(this.updateRunnable, SEND_DELAY, SEND_DELAY, TimeUnit.MILLISECONDS);
+	}
+	
+	
+	@Override
+	public void terminate() {
+		this.myReadThread.cancel();
+		this.myReadThread = null;
+		this.scheduler.shutdown();
 	}
 	
 	/**
@@ -58,58 +72,52 @@ public class LogcatLogReader extends LogReader {
 		this.isUpdating.set(false);
 	}
 	
-	private AtomicBoolean isReading = new AtomicBoolean(false);
-	private AtomicBoolean isUpdating = new AtomicBoolean(false);
+	private final AtomicBoolean isReading = new AtomicBoolean(false);
+	private final AtomicBoolean isUpdating = new AtomicBoolean(false);
+    private ReadThread myReadThread;
 	
-	private Thread readThread = new Thread() {
-		
+	private class ReadThread extends Thread {
+
 		private LogcatLogReader parent = LogcatLogReader.this;
-		
+
 		@Override
 		public void run() {
-			
-			try {
-				
-				String nextLine = parent.mReader.readLine();
-				
-					while (nextLine != null) {
-						
+
+			while (!Thread.currentThread().isInterrupted()) {
+				if (parent.isReading.get()) {
+					try {
+
+						String nextLine = parent.mReader.readLine();
 						final LogLevel level = getCorrespondingLevel(nextLine);
-						
-						synchronized(parent.mLogCache) {
-							parent.mLogCache.add(new LogElement(level, nextLine));
+						synchronized (parent.mLogCache) {
+							parent.mLogCache
+									.add(new LogElement(level, nextLine));
 						}
-						
-						nextLine = parent.mReader.readLine();
-						
+
+					} catch (IOException e) {
+						e.printStackTrace();
 					}
-					
-			} catch (IOException e) {
-				e.printStackTrace();
+				}
 			}
-			
+
 		}
 		
+		public void cancel() {
+			Thread.currentThread().interrupt();
+		}
+
 	};
 	
-	private Thread updateThread = new Thread() {
+	private Runnable updateRunnable = new Runnable() {
 
-		private static final long SLEEP_MS = 10;
 		private LogcatLogReader parent = LogcatLogReader.this;
 		
 		@Override
 		public void run() {
 			
-			while(true) {
 				if(parent.isUpdating.get()) {
 					parent.sendCacheAndClear();
 				}
-				try {
-					sleep(SLEEP_MS);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
 			
 		}
 		

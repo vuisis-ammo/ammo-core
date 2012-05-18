@@ -5,9 +5,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import android.content.Context;
 import android.os.Handler;
 import android.os.Message;
@@ -78,9 +75,15 @@ public abstract class LogReader {
 	
 	
 	/**
-	 * Tells this LogReader to start its initial read.
+	 * Tells this LogReader to start its initial reading threads.
 	 */
 	public abstract void start();
+	
+	
+	/**
+	 * Tells this LogReader to halt all reading terminate its threads.
+	 */
+	public abstract void terminate();
 	
 	
 	/**

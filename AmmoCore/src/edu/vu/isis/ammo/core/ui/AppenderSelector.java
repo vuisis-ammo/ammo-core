@@ -1,7 +1,5 @@
 package edu.vu.isis.ammo.core.ui;
 
-import java.util.Iterator;
-
 import android.app.Activity;
 import android.os.Bundle;
 import android.widget.CheckBox;
@@ -43,29 +41,23 @@ public class AppenderSelector extends Activity {
 			public void onCheckedChanged(CompoundButton buttonView,
 					boolean isChecked) {
 
+				final Appender<ILoggingEvent> checkApp = (Appender<ILoggingEvent>) buttonView
+						.getTag();
+
 				if (isChecked) {
-					selectedLogger
-							.addAppender((Appender<ILoggingEvent>) buttonView
-									.getTag());
+					selectedLogger.addAppender(checkApp);
 				} else {
-					selectedLogger
-							.detachAppender(((Appender<ILoggingEvent>) buttonView
-									.getTag()));
+					selectedLogger.detachAppender(checkApp);
 				}
 
 			}
 
 		};
 
-		// Loop over the active appenders and create check boxes for them
-		final Iterator<Appender<ILoggingEvent>> it = LoggerEditor.DUMMY_LOGGER
-				.iteratorForAppenders();
-
-		while (it.hasNext()) {
-
-			final Appender<ILoggingEvent> nextApp = it.next();
-			addCheckBoxToLayout(ll, nextApp.getName(), nextApp);
-
+		
+		for (Appender<ILoggingEvent> app : Loggers
+				.getAttachedAppenders(Loggers.DUMMY_LOGGER)) {
+			addCheckBoxToLayout(ll, app.getName(), app);
 		}
 
 	}
@@ -78,7 +70,7 @@ public class AppenderSelector extends Activity {
 		ckBox.setHeight(LinearLayout.LayoutParams.WRAP_CONTENT);
 		ckBox.setText(text);
 		ckBox.setTag(app);
-		ckBox.setChecked(selectedLogger.isAttached(app));
+		ckBox.setChecked(Loggers.isAttachedEffective(selectedLogger, app));
 
 		ckBox.setOnCheckedChangeListener(myOnCheckedChangeListener);
 

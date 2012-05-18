@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
 
 import android.content.Context;
+import android.os.AsyncTask;
 import android.os.FileObserver;
 import android.os.Handler;
 
@@ -30,30 +31,38 @@ public class FileLogReader extends LogReader {
 
 	@Override
 	public void start() {
-		initThread.run();
+		new ReadFileTask().execute();
+	}
+	
+	@Override
+	public void terminate() {
+		// AsyncTask handles this for us
 	}
 
-	private Thread initThread = new Thread() {
-		
+	class ReadFileTask extends AsyncTask<Void, Void, Void> {
+
 		private FileLogReader parent = FileLogReader.this;
 		
 		@Override
-		public void run() {
-			parent.sendStartProgressDlgMsg();
+		protected Void doInBackground(Void... unused) {
+			
 			parent.bufferNewData();
-			parent.sendDismissProgressDlgMsg();
 			parent.sendCacheAndClear();
 			parent.observer.startWatching();
+			
+			return null;
 		}
 		
-	};
+	}
 	
 	
 	/**
 	 * Private inner class to notify us of file events
 	 */
 	private class MyFileObserver extends FileObserver {
-
+		
+		private FileLogReader parent = FileLogReader.this;
+		
 		public MyFileObserver(String path) {
 			super(path);
 		}
@@ -64,8 +73,8 @@ public class FileLogReader extends LogReader {
 
 		@Override
 		public void onEvent(int event, String path) {
-			bufferNewData();
-			sendCacheAndClear();
+			parent.bufferNewData();
+			parent.sendCacheAndClear();
 		}
 
 	}
