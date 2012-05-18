@@ -1,12 +1,12 @@
 /*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
-This software was developed by the Institute for Software Integrated
-Systems (ISIS) at Vanderbilt University, Tennessee, USA for the
-Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
-The United States Government has unlimited rights to this software.
-The US government has the right to use, modify, reproduce, release,
-perform, display, or disclose computer software or computer software
-documentation in whole or in part, in any manner and for any
-purpose whatsoever, and to have or authorize others to do so.
+  This software was developed by the Institute for Software Integrated
+  Systems (ISIS) at Vanderbilt University, Tennessee, USA for the
+  Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
+  The United States Government has unlimited rights to this software.
+  The US government has the right to use, modify, reproduce, release,
+  perform, display, or disclose computer software or computer software
+  documentation in whole or in part, in any manner and for any
+  purpose whatsoever, and to have or authorize others to do so.
 */
 
 package edu.vu.isis.ammo.core.network;
@@ -14,8 +14,8 @@ package edu.vu.isis.ammo.core.network;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.Math;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Calendar;
@@ -43,7 +43,7 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
 
 
 /**
@@ -90,9 +90,9 @@ public class SerialChannel extends NetChannel
 
         mEnabled = true;
 
-		// For now, start without worrying about a link up, till we
-		// have a reliable way of knowing that link is up when AMMO
-		// starts or restarts.
+        // For now, start without worrying about a link up, till we
+        // have a reliable way of knowing that link is up when AMMO
+        // starts or restarts.
         start();
     }
 
@@ -150,6 +150,7 @@ public class SerialChannel extends NetChannel
         for(int i=0; i<numSamples; i++) mDeltaSamples[i] = 0;
     }
 
+
     /**
      *
      */
@@ -159,10 +160,10 @@ public class SerialChannel extends NetChannel
 
         if ( mIsConnected.compareAndSet( true, false )) {
             logger.error( "I/O operation failed.  Resetting channel." );
-	    stop();		// this was wrapped in synchronized, took that out to prevent deadlock
-	    if ( mEnabled ) {
-		start();
-	    }
+            stop();     // this was wrapped in synchronized, took that out to prevent deadlock
+            if ( mEnabled ) {
+                start();
+            }
         }
     }
 
@@ -382,9 +383,9 @@ public class SerialChannel extends NetChannel
     public void toLog( String context )
     {
         PLogger.SET_PANTHR_MC.debug( "{} {} for {} msec",
-                                         new Object[] { context,
-                                                        mSlotNumber,
-                                                        mSlotDuration } );
+                                     new Object[] { context,
+                                                    mSlotNumber,
+                                                    mSlotDuration } );
     }
 
 
@@ -419,13 +420,13 @@ public class SerialChannel extends NetChannel
         public void run()
         {
             logger.trace( "SerialChannel.Connector::run()",
-                         Thread.currentThread().getId() );
+                          Thread.currentThread().getId() );
 
             // We might have been disabled before the thread even gets
             // a chance to run, so check that before doing anything.
             if ( isInterrupted() ) {
                 logger.trace( "SenderThread <{}>::run() was interrupted before run().",
-                        Thread.currentThread().getId() );
+                              Thread.currentThread().getId() );
                 return;
             }
 
@@ -649,27 +650,27 @@ public class SerialChannel extends NetChannel
                                                  60000,
                                                  0,
                                                  mLocationListener = new LocationListener() {
-                @Override
-                public void onLocationChanged(Location location) {}
+                                                         @Override
+                                                         public void onLocationChanged(Location location) {}
 
-                @Override
-                public void onProviderDisabled(String provider) {}
+                                                         @Override
+                                                         public void onProviderDisabled(String provider) {}
 
-                @Override
-                public void onProviderEnabled(String provider) {}
+                                                         @Override
+                                                         public void onProviderEnabled(String provider) {}
 
-                @Override
-                public void onStatusChanged(String provider, int status, Bundle extras) {
-                    switch (status) {
-                        // We only care if the location provider goes out of service
-                    case LocationProvider.OUT_OF_SERVICE:
-                        //mSensorCallback.onSensorUpdate(SensorCallback.GPS, getUnknownLocation());
-                        break;
-                    default:
-                        // Otherwise, ignore the situation
-                    }
-                }
-            } );
+                                                         @Override
+                                                         public void onStatusChanged(String provider, int status, Bundle extras) {
+                                                             switch (status) {
+                                                                 // We only care if the location provider goes out of service
+                                                             case LocationProvider.OUT_OF_SERVICE:
+                                                                 //mSensorCallback.onSensorUpdate(SensorCallback.GPS, getUnknownLocation());
+                                                                 break;
+                                                             default:
+                                                                 // Otherwise, ignore the situation
+                                                             }
+                                                         }
+                                                     } );
 
         for(int i=0; i<numSamples; i++) mDeltaSamples[i] = 0;
         mLocationManager.addNmeaListener( mNmeaListener = new NmeaListener() {
@@ -703,7 +704,7 @@ public class SerialChannel extends NetChannel
                             // FIR Filter
                             mDelta = 0;
                             for (long d : mDeltaSamples) mDelta += d;
-                            mDelta = mDelta / Math.min( mCount + 1, numSamples );
+                            mDelta = mDelta/numSamples;
 
                             // Store samples
                             mDeltaSamples[ mCount % numSamples ] = delta;
@@ -725,10 +726,10 @@ public class SerialChannel extends NetChannel
      */
     private void disableNmeaMessages()
     {
-    if (mLocationManager != null) {
-        mLocationManager.removeNmeaListener(mNmeaListener);
-        mLocationManager.removeUpdates(mLocationListener);
-    }
+        if (mLocationManager != null) {
+            mLocationManager.removeNmeaListener(mNmeaListener);
+            mLocationManager.removeUpdates(mLocationListener);
+        }
     }
 
 
@@ -763,10 +764,10 @@ public class SerialChannel extends NetChannel
                 if ( !mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
                     logger.warn( "serial channel not taking messages {}",
                                  DisposalState.BUSY );
-					return DisposalState.BUSY;
+                    return DisposalState.BUSY;
                 }
-			} catch ( InterruptedException e ) {
-				return DisposalState.BAD;
+            } catch ( InterruptedException e ) {
+                return DisposalState.BAD;
             }
             return DisposalState.QUEUED;
         }
@@ -816,16 +817,16 @@ public class SerialChannel extends NetChannel
 
 
         /**
-        *
-        */
-       public synchronized AmmoGatewayMessage peek()
-       {
-           if ( getIsAuthorized() ) {
-               return mDistQueue.peek();
-           } else {
-               return mAuthQueue.peek();
-           }
-       }
+         *
+         */
+        public synchronized AmmoGatewayMessage peek()
+        {
+            if ( getIsAuthorized() ) {
+                return mDistQueue.peek();
+            } else {
+                return mAuthQueue.peek();
+            }
+        }
 
 
         /**
@@ -918,6 +919,7 @@ public class SerialChannel extends NetChannel
             // we are in the right slot, check to see if a packet is available
             // to be sent and, if so, send it. Upon getting a serial port error,
             // notify our parent and go into an error state.
+
             // CONSTANTS
             final int slotDuration = mSlotDuration.get();
             final int offset = mSlotNumber.get() * slotDuration;
@@ -946,84 +948,86 @@ public class SerialChannel extends NetChannel
                             // too late - goto sleep till next slot begin
                             goalTakeTime = thisSlotBegin + cycleDuration;
                             break waitSlot;
-                    }
-                   
+                        }
+
                         // else we are in slot, and should send
                         setSenderState( INetChannel.TAKING );
 
                         logger.debug( "In Slot: slotNumber={}, (time, ms)={}, jitter={}",
-                                 new Object[] {
-                                      mSlotNumber.get(),
-                                      currentGpsTime,
+                                      new Object[] {
+                                          mSlotNumber.get(),
+                                          currentGpsTime,
                                           currentGpsTime - thisSlotBegin } );
 
-                    while (true) {
-                        // At this point, we've woken up near the start of our
-                        // window and should send a message if one is available.
-                        if (!mSenderQueue.messageIsAvailable()) {
-                            logger.debug( "Time remaining in slot={}, but no messages in queue",
+
+                        while (true) {
+                            // At this point, we've woken up near the start of our
+                            // window and should send a message if one is available.
+                            if (!mSenderQueue.messageIsAvailable()) {
+                                logger.debug( "Time remaining in slot={}, but no messages in queue",
                                               thisSlotEnd - currentGpsTime  );
                                 goalTakeTime = thisSlotBegin + cycleDuration; // nothing in queue, wait till next slot
                                 break waitSlot;
-                        }
-                        AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
-                        int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
+                            }
 
-                        if ( peekedMsgLength > MAX_SEND_PAYLOAD_SIZE ) {
-                            logger.warn( "Rejecting: messageLength={}, maxSize={}",
-                                         peekedMsgLength,
-                                         MAX_SEND_PAYLOAD_SIZE );
-                            // Take the message out of the queue and discard it,
-                            // since it's too big to ever send.
-                            msg = mSenderQueue.take(); // Will not block
-                            if ( msg.handler != null )
-                                ackToHandler( msg.handler, DisposalState.BAD );
+                            AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
+                            int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
+
+                            if ( peekedMsgLength > MAX_SEND_PAYLOAD_SIZE ) {
+                                logger.warn( "Rejecting: messageLength={}, maxSize={}",
+                                             peekedMsgLength,
+                                             MAX_SEND_PAYLOAD_SIZE );
+                                // Take the message out of the queue and discard it,
+                                // since it's too big to ever send.
+                                msg = mSenderQueue.take(); // Will not block
+                                if ( msg.handler != null )
+                                    ackToHandler( msg.handler, DisposalState.BAD );
                                 continue; // examine the next item in queue
-                        }
+                            }
+
                             // update our time (could potentially change from last read because of context switch etc..)
                             currentGpsTime = System.currentTimeMillis() - mDelta;
                             final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
                             final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
 
-                        if ( peekedMsgLength > bytesThatWillFit ) {
-                            logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
-                                          peekedMsgLength,
-                                          bytesThatWillFit );
+                            if ( peekedMsgLength > bytesThatWillFit ) {
+                                logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
+                                              peekedMsgLength,
+                                              bytesThatWillFit );
                                 // since we process queue in order and next message is bigger than our available time
                                 // goto sleep till next slot
                                 goalTakeTime = thisSlotBegin + cycleDuration;
                                 break waitSlot;
-                        }
+                            }
 
                             // now take and send assuming that our time has not diverged significantly from the last time we measured
-                        msg = mSenderQueue.take(); // Will not block
+                            msg = mSenderQueue.take(); // Will not block
 
-                        logger.debug("Took a message from the send queue");
-                        try {
-                            sendMessage(msg);
-                            mMessagesSent.getAndIncrement();
+                            logger.debug("Took a message from the send queue");
+                            try {
+                                sendMessage(msg);
+                                mMessagesSent.getAndIncrement();
                                 // we keep track of how much time we consumed in data transmit,
                                 // since the send call is not true synchronous
                                 thisSlotConsumed += (peekedMsgLength / bytesPerMs);
-                        } catch ( IOException e ) {
-                            logger.warn("sender threw exception {}", e.getStackTrace() );
-                            if ( msg.handler != null )
-                                ackToHandler( msg.handler, DisposalState.REJECTED );
-                            setSenderState( INetChannel.INTERRUPTED );
-                            ioOperationFailed();
-                        } catch ( Exception e ) {
-                            logger.warn("sender threw exception {}", e.getStackTrace() );
-                            if ( msg.handler != null )
-                                ackToHandler( msg.handler, DisposalState.BAD );
-                            setSenderState( INetChannel.INTERRUPTED );
-                            ioOperationFailed();
-                            break;
+                            } catch ( IOException e ) {
+                                logger.warn("sender threw exception {}", e.getStackTrace() );
+                                if ( msg.handler != null )
+                                    ackToHandler( msg.handler, DisposalState.REJECTED );
+                                setSenderState( INetChannel.INTERRUPTED );
+                                ioOperationFailed();
+                            } catch ( Exception e ) {
+                                logger.warn("sender threw exception {}", e.getStackTrace() );
+                                if ( msg.handler != null )
+                                    ackToHandler( msg.handler, DisposalState.BAD );
+                                setSenderState( INetChannel.INTERRUPTED );
+                                ioOperationFailed();
+                                break;
+                            }
                         }
                     }
-                    }
                     currentGpsTime = System.currentTimeMillis() - mDelta;
-                    if ( goalTakeTime > currentGpsTime )
-                        Thread.sleep( goalTakeTime - currentGpsTime );
+                    Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
                     logger.debug( "interrupted taking messages from send queue: {}",
                                   ex.getLocalizedMessage() );
@@ -1053,10 +1057,10 @@ public class SerialChannel extends NetChannel
                 mPort.write( buf.array() );
 
                 logger.trace(
-                        "sent message size={}, checksum={}, data:{}",
-                        new Object[] { msg.size,
-                                Long.toHexString(msg.payload_checksum),
-                                msg.payload });
+                             "sent message size={}, checksum={}, data:{}",
+                             new Object[] { msg.size,
+                                            Long.toHexString(msg.payload_checksum),
+                                            msg.payload });
             }
 
             // legitimately sent to gateway.
@@ -1172,47 +1176,36 @@ public class SerialChannel extends NetChannel
                         break;
 
                     case 1:
-                        {
-                            long currentTime = System.currentTimeMillis();
-                            int slotDuration = mSlotDuration.get();
-                            int cycleDuration = slotDuration * mRadiosInGroup.get();
-                            long thisCycleStartTime = (long) (currentTime / cycleDuration) * cycleDuration;
+                    {
+                        long currentTime = System.currentTimeMillis();
+                        int slotDuration = mSlotDuration.get();
+                        int cycleDuration = slotDuration * mRadiosInGroup.get();
+                        long thisCycleStartTime = (long) (currentTime / cycleDuration) * cycleDuration;
 
-                            long currentSlot = (currentTime - thisCycleStartTime) / slotDuration;
-                            logger.debug( "Read magic sequence in slot {} at {}",
-                                          currentSlot,
-                                          currentTime );
+                        long currentSlot = (currentTime - thisCycleStartTime) / slotDuration;
+                        logger.debug( "Read magic sequence in slot {} at {}",
+                                      currentSlot,
+                                      currentTime );
 
-                            mBytesSinceMagic.set( 0 );
+                        mBytesSinceMagic.set( 0 );
 
-                            header.clear();
+                        header.clear();
 
-                            // Set these in buf_header, since extractHeader() expects them.
-                            buf_header[0] = first;
-                            buf_header[1] = second;
-                            buf_header[2] = third;
+                        // Set these in buf_header, since extractHeader() expects them.
+                        buf_header[0] = first;
+                        buf_header[1] = second;
+                        buf_header[2] = third;
 
-                            // For some unknown reason, this was writing past the end of the
-                            // array when length=16. It may have been ant not recompiling things
-                            // properly.  Look into it when I have time.
-                            for ( int i = 0; i < 13; ++i ) {
-                                c = readAByte();
-                                buf_header[i+3] = c;
-                            }
-                            logger.debug( " Received terse header, reading payload " );
-
-                            agmb = AmmoGatewayMessage.extractHeader( header );
-                            if ( agmb == null ) {
-                                logger.error( "Deserialization failure." );
-                                mCorruptMessages.getAndIncrement();
-                                state = 0;
-                            } else {
-                                state = 2;
-                            }
-                            mReceiverSubstate.set( state );
+                        // For some unknown reason, this was writing past the end of the
+                        // array when length=16. It may have been ant not recompiling things
+                        // properly.  Look into it when I have time.
+                        for ( int i = 0; i < 13; ++i ) {
+                            c = readAByte();
+                            buf_header[i+3] = c;
                         }
-                        break;
+                        logger.debug( " Received terse header, reading payload " );
 
+<<<<<<< HEAD
                     case 2:
                         {
                             int payload_size = agmb.size();
@@ -1231,7 +1224,11 @@ public class SerialChannel extends NetChannel
                             }
 
                             agmb.isSerialChannel( true );
-                            AmmoGatewayMessage agm = agmb.payload( buf_payload ).channel(SerialChannel.this).build();
+                            AmmoGatewayMessage agm = agmb
+                            		.size(buf_payload.length)
+                            		.payload( buf_payload )
+                            		.channel( SerialChannel.this )
+                            		.build();
 
                             long currentTime = System.currentTimeMillis();
                             int slotDuration = mSlotDuration.get();
@@ -1256,13 +1253,70 @@ public class SerialChannel extends NetChannel
                             } else {
                                 logger.trace( "Receiving disabled, discarding message." );
                             }
+=======
+                        agmb = AmmoGatewayMessage.extractHeader( header );
+                        if ( agmb == null ) {
+                            logger.error( "Deserialization failure." );
+                            mCorruptMessages.getAndIncrement();
+                            state = 0;
+                        } else {
+                            state = 2;
+                        }
+                        mReceiverSubstate.set( state );
+                    }
+                    break;
+>>>>>>> master
 
-                            header.clear();
-                            setReceiverState( INetChannel.START );
+                    case 2:
+                    {
+                        int payload_size = agmb.size();
+                        if ( payload_size > MAX_RECEIVE_PAYLOAD_SIZE ) {
+                            logger.warn( "Discarding packet of size {}. Maximum payload size exceeded.",
+                                         payload_size );
                             state = 0;
                             mReceiverSubstate.set( state );
+                            break;
                         }
-                        break;
+                        byte[] buf_payload = new byte[ payload_size ];
+
+                        for ( int i = 0; i < payload_size; ++i ) {
+                            c = readAByte();
+                            buf_payload[i] = c;
+                        }
+
+                        agmb.isSerialChannel( true );
+                        AmmoGatewayMessage agm = agmb.payload( buf_payload ).channel(SerialChannel.this).build();
+
+                        long currentTime = System.currentTimeMillis();
+                        int slotDuration = mSlotDuration.get();
+                        int cycleDuration = slotDuration * mRadiosInGroup.get();
+
+                        long thisCycleStartTime = (long) (currentTime / cycleDuration) * cycleDuration;
+                        long currentSlot = (currentTime - thisCycleStartTime) / slotDuration;
+
+                        logger.debug( "Finished reading payload in slot {} at {}",
+                                      currentSlot,
+                                      currentTime );
+                        mMessagesReceived.getAndIncrement();
+                        logger.trace( "received message size={}, checksum={}, data:{}",
+                                      new Object[] {
+                                          agm.size,
+                                          Long.toHexString(agm.payload_checksum),
+                                          agm.payload } );
+
+                        if ( mReceiverEnabled.get() ) {
+                            setReceiverState( INetChannel.DELIVER );
+                            deliverMessage( agm );
+                        } else {
+                            logger.trace( "Receiving disabled, discarding message." );
+                        }
+
+                        header.clear();
+                        setReceiverState( INetChannel.START );
+                        state = 0;
+                        mReceiverSubstate.set( state );
+                    }
+                    break;
 
                     default:
                         logger.debug( "Unknown value for state variable" );
@@ -1320,7 +1374,7 @@ public class SerialChannel extends NetChannel
         private AtomicInteger mReceiverState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
         private FileInputStream mInputStream;
         private final Logger logger
-            = LoggerFactory.getLogger( "net.serial.receiver" );
+        = LoggerFactory.getLogger( "net.serial.receiver" );
     }
 
 
@@ -1469,8 +1523,8 @@ public class SerialChannel extends NetChannel
     {
         // Create a method is NetChannel to convert the numbers to strings.
         logger.trace( "changing state from {} to {}",
-                     mState,
-                     state );
+                      mState,
+                      state );
         mState.set( state );
         statusChange();
     }

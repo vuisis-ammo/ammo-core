@@ -102,7 +102,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
     public final long buildTime;
     public long gpsOffset;
-
     /**
      * This is used by PriorityBlockingQueue() to prioritize it contents.
      * when no specialized comparator is provided.
@@ -179,11 +178,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("hash:").append(this.hashCode()).append(" ");
-        sb.append("size:").append(this.size).append(" ");
-        sb.append("priority:").append(this.priority).append(" ");
-		sb.append("received:").append(this.buildTime).append(" ");
-		sb.append("checksum:").append(Long.toHexString(this.payload_checksum));
+        sb.append("[addr=").append(this.hashCode()).append(" ");
+        sb.append("size=").append(this.size).append(" ");
+        sb.append("priority=").append(this.priority).append(" ");
+		sb.append("received=").append(this.buildTime).append(" ");
+		sb.append("checksum=").append(Long.toHexString(this.payload_checksum)).append(" ]");
         return sb.toString();
     }
 
@@ -447,14 +446,22 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             buf.put( payloadCheckSum[1] );
             //buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
+<<<<<<< HEAD
+            //long nowInMillis = System.currentTimeMillis();
+            //buf.putLong( nowInMillis );
+            buf.putInt( 0 );  // time will go here.
+            buf.put( (byte) 0 );
+            buf.put( (byte) 0 );
+
+=======
             long nowInMillis = System.currentTimeMillis() - gpsOffset;
             int nowInMillisInt =  (int)(nowInMillis % 1000000000);
 
             //buf.putLong( nowInMillis );
             //buf.putInt( 0 );  // time will go here.
             buf.putInt( nowInMillisInt );
-	   		buf.putShort( (short)(gpsOffset) );
-
+	    buf.putShort( (short)(gpsOffset) );
+>>>>>>> master
             // Put two-byte header checksum here.  The checksum covers the
             // magic sequence and everything up to and including the six
             // zero bytes just written.

@@ -24,7 +24,12 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
+import edu.vu.isis.ammo.core.distributor.store.Channel;
+import edu.vu.isis.ammo.core.distributor.store.Disposal;
+import edu.vu.isis.ammo.core.distributor.store.Postal;
+import edu.vu.isis.ammo.core.distributor.store.Retrieval;
+import edu.vu.isis.ammo.core.distributor.store.Subscribe;
 import edu.vu.isis.ammo.core.distributor.store.Tables;
 
 
@@ -105,11 +110,11 @@ public class DistributorProvider extends ContentProvider {
 		
 		switch(Tables.values()[uriMatcher.match(uri)]) {
 		case POSTAL:
-			return dds.deletePostal(selection, selectionArgs);
+			return Postal.delete(dds, selection, selectionArgs);
 		case RETRIEVAL:
-			return dds.deleteRetrieval(selection, selectionArgs);
+			return Retrieval.delete(dds, selection, selectionArgs);
 		case SUBSCRIBE:
-			return dds.deleteSubscribe(selection, selectionArgs);
+			return Subscribe.delete(dds, selection, selectionArgs);
 		case POSTAL_DISPOSAL:
 		case RETRIEVAL_DISPOSAL:
 		case SUBSCRIBE_DISPOSAL:
@@ -119,11 +124,11 @@ public class DistributorProvider extends ContentProvider {
 		
 		switch(Tables.values()[garbageMatcher.match(uri)]) {
 		case POSTAL:
-			return dds.deletePostalGarbage();
+			return Postal.deleteGarbage(dds);
 		case RETRIEVAL:
-			return dds.deleteRetrievalGarbage();
+			return Retrieval.deleteGarbage(dds);
 		case SUBSCRIBE:
-			return dds.deleteSubscribeGarbage();
+			return Subscribe.deleteGarbage(dds);
 		case POSTAL_DISPOSAL:
 		case RETRIEVAL_DISPOSAL:
 		case SUBSCRIBE_DISPOSAL:
@@ -153,25 +158,25 @@ public class DistributorProvider extends ContentProvider {
 		final Cursor cursor;
 		switch(Tables.values()[uriMatch]) {
 		case POSTAL:
-			cursor = dds.queryPostal(projection, selection, selectionArgs, sortOrder);
+			cursor = Postal.query(dds, projection, selection, selectionArgs, sortOrder);
 			break;
 		case POSTAL_DISPOSAL:
-			cursor = dds.getPostalDisposalWorker().query(projection, selection, selectionArgs, sortOrder);
+			cursor = Disposal.getPostalWorker(dds).query(projection, selection, selectionArgs, sortOrder);
 			break;
 		case RETRIEVAL:
-			cursor = dds.queryRetrieval(projection, selection, selectionArgs, sortOrder);
+			cursor = Retrieval.query(dds, projection, selection, selectionArgs, sortOrder);
 			break;
 		case RETRIEVAL_DISPOSAL:
-			cursor = dds.getRetrievalDisposalWorker().query(projection, selection, selectionArgs, sortOrder);
+			cursor = Disposal.getRetrievalWorker(dds).query(projection, selection, selectionArgs, sortOrder);
 			break;
 		case SUBSCRIBE:
-			cursor = dds.querySubscribe(projection, selection, selectionArgs, sortOrder);
+			cursor = Subscribe.query(dds, projection, selection, selectionArgs, sortOrder);
 			break;
 		case SUBSCRIBE_DISPOSAL:
-			cursor = dds.getSubscribeDisposalWorker().query(projection, selection, selectionArgs, sortOrder);
+			cursor = Disposal.getSubscribeWorker(dds).query(projection, selection, selectionArgs, sortOrder);
 			break;
 		case CHANNEL:
-			cursor = dds.queryChannel(projection, selection, selectionArgs, sortOrder);
+			cursor = Channel.queryChannel(dds, projection, selection, selectionArgs, sortOrder);
 			break;
 		default:
 			// If we get here, it's a special uri and should be matched differently.

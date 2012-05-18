@@ -47,11 +47,11 @@ import edu.vu.isis.ammo.IntentNames;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.ChannelStatus;
-import edu.vu.isis.ammo.core.distributor.store.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.Channel.ChannelStatus;
+import edu.vu.isis.ammo.core.distributor.store.Disposal.DisposalState;
 import edu.vu.isis.ammo.core.model.Channel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
@@ -244,9 +244,15 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 			logger.trace("make request {}", request.action.toString());
 			return AmmoService.this.distThread.distributeRequest(request);
 		}
+		
+		/**
+		 * Get information about a past request.
+		 * The version indicates the parceling code to be used.
+		 */
 		@Override
-		public AmmoRequest recoverRequest(String uuid) throws RemoteException {
+		public AmmoRequest recoverRequest(String uuid, int version) throws RemoteException {
 			logger.trace("recover data request {}", uuid);
+			
 			return null;
 		}
 		
@@ -473,6 +479,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		networkFilter.addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION);
 		networkFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
 		networkFilter.addAction(TelephonyManager.ACTION_PHONE_STATE_CHANGED);
+		networkFilter.addAction(Intent.ACTION_TIME_CHANGED); // sync service changes cpu time - need to handle in serial channel
 
 		this.mReceiverRegistrar.registerReceiver(this.myNetworkReceiver, networkFilter);
 
@@ -1612,6 +1619,8 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 				logger.trace("3G state changed");
 				mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
 				netlinkStatusChanged();
+			} else if (Intent.ACTION_TIME_CHANGED.equals(action)) {
+			    serialChannel.systemTimeChange();
 			}
 
 			// if (INetworkService.ACTION_RECONNECT.equals(action)) {
