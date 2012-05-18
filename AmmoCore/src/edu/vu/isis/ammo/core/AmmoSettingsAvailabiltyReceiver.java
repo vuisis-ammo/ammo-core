@@ -1,9 +1,9 @@
 package edu.vu.isis.ammo.core;
 
+import transapps.settings.SettingsAvailableReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import transapps.settings.SettingsAvailableReceiver;
 
 /**
  * Rethrow the broadcast intent so the the AmmoService can see it.

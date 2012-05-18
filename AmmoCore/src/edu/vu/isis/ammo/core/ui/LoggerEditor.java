@@ -17,7 +17,6 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
-
 import android.widget.Toast;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;

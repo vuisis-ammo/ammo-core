@@ -10,8 +10,6 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.network;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -23,8 +21,10 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +37,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
-
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;

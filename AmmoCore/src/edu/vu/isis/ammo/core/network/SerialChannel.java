@@ -14,9 +14,7 @@ package edu.vu.isis.ammo.core.network;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.Math;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Calendar;
@@ -526,6 +524,11 @@ public class SerialChannel extends NetChannel
                 logger.error( "Tried to create SecurityObject when we already had one." );
             setSecurityObject( new SerialSecurityObject( SerialChannel.this ));
 
+            // Create the retransmitter.
+            if ( getRetransmitter() != null )
+                logger.error( "Tried to create SerialRetransmitter when we already had one." );
+            setRetransmitter( new SerialRetransmitter( SerialChannel.this, mChannelManager ));
+
             // Create the sending thread.
             if ( mSender != null )
                 logger.error( "Tried to create Sender when we already had one." );
@@ -591,6 +594,7 @@ public class SerialChannel extends NetChannel
             setIsAuthorized( false );
 
             setSecurityObject( null );
+            setRetransmitter( null );
 
             // Need to do a join here
             try {
@@ -956,50 +960,54 @@ public class SerialChannel extends NetChannel
 
 
                         while (true) {
-                            // At this point, we've woken up near the start of our
-                            // window and should send a message if one is available.
-                            if (!mSenderQueue.messageIsAvailable()) {
-                                logger.debug( "Time remaining in slot={}, but no messages in queue",
-                                              thisSlotEnd - currentGpsTime  );
-                                goalTakeTime = thisSlotBegin + cycleDuration; // nothing in queue, wait till next slot
-                                break waitSlot;
-                            }
-
-                            AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
-                            int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
-
-                            if ( peekedMsgLength > MAX_SEND_PAYLOAD_SIZE ) {
-                                logger.warn( "Rejecting: messageLength={}, maxSize={}",
-                                             peekedMsgLength,
-                                             MAX_SEND_PAYLOAD_SIZE );
-                                // Take the message out of the queue and discard it,
-                                // since it's too big to ever send.
-                                msg = mSenderQueue.take(); // Will not block
-                                if ( msg.handler != null )
-                                    ackToHandler( msg.handler, DisposalState.BAD );
-                                continue; // examine the next item in queue
-                            }
-
-                            // update our time (could potentially change from last read because of context switch etc..)
-                            currentGpsTime = System.currentTimeMillis() - mDelta;
-                            final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
-                            final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
-
-                            if ( peekedMsgLength > bytesThatWillFit ) {
-                                logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
-                                              peekedMsgLength,
-                                              bytesThatWillFit );
-                                // since we process queue in order and next message is bigger than our available time
-                                // goto sleep till next slot
-                                goalTakeTime = thisSlotBegin + cycleDuration;
-                                break waitSlot;
-                            }
-
-                            // now take and send assuming that our time has not diverged significantly from the last time we measured
-                            msg = mSenderQueue.take(); // Will not block
-
-                            logger.debug("Took a message from the send queue");
                             try {
+                                // At this point, we've woken up near the start of our
+                                // window and should send a message if one is available.
+                                if (!mSenderQueue.messageIsAvailable()) {
+                                    logger.debug( "Time remaining in slot={}, but no messages in queue",
+                                                  thisSlotEnd - currentGpsTime  );
+                                    if ( getRetransmitter() != null )
+                                        sendRetransmitIfPossible( thisSlotEnd, thisSlotConsumed, bytesPerMs );
+                                    goalTakeTime = thisSlotBegin + cycleDuration; // nothing in queue, wait till next slot
+                                    break waitSlot;
+                                }
+
+                                AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
+                                int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
+
+                                if ( peekedMsgLength > MAX_SEND_PAYLOAD_SIZE ) {
+                                    logger.warn( "Rejecting: messageLength={}, maxSize={}",
+                                                 peekedMsgLength,
+                                                 MAX_SEND_PAYLOAD_SIZE );
+                                    // Take the message out of the queue and discard it,
+                                    // since it's too big to ever send.
+                                    msg = mSenderQueue.take(); // Will not block
+                                    if ( msg.handler != null )
+                                        ackToHandler( msg.handler, DisposalState.BAD );
+                                    continue; // examine the next item in queue
+                                }
+
+                                // update our time (could potentially change from last read because of context switch etc..)
+                                currentGpsTime = System.currentTimeMillis() - mDelta;
+                                final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
+                                final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
+
+                                if ( peekedMsgLength > bytesThatWillFit ) {
+                                    logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
+                                                  peekedMsgLength,
+                                                  bytesThatWillFit );
+                                    // since we process queue in order and next message is bigger than our available time
+                                    // goto sleep till next slot
+                                    if ( getRetransmitter() != null )
+                                        sendRetransmitIfPossible( thisSlotEnd, thisSlotConsumed, bytesPerMs );
+                                    goalTakeTime = thisSlotBegin + cycleDuration;
+                                    break waitSlot;
+                                }
+
+                                // now take and send assuming that our time has not diverged significantly from the last time we measured
+                                msg = mSenderQueue.take(); // Will not block
+
+                                logger.debug("Took a message from the send queue");
                                 sendMessage(msg);
                                 mMessagesSent.getAndIncrement();
                                 // we keep track of how much time we consumed in data transmit,
@@ -1036,7 +1044,10 @@ public class SerialChannel extends NetChannel
         }
 
 
-        private void sendMessage(AmmoGatewayMessage msg) throws IOException
+        /**
+         *
+         */
+        private void sendMessage( AmmoGatewayMessage msg ) throws IOException
         {
             msg.gpsOffset = mDelta;
             ByteBuffer buf = msg.serialize( endian,
@@ -1062,6 +1073,25 @@ public class SerialChannel extends NetChannel
             // legitimately sent to gateway.
             if ( msg.handler != null )
                 ackToHandler(msg.handler, DisposalState.SENT);
+        }
+
+
+        /**
+         *
+         */
+        private void sendRetransmitIfPossible( long thisSlotEnd,
+                                               long thisSlotConsumed,
+                                               double bytesPerMs ) throws IOException
+        {
+            // update our time (could potentially change from last read because of context switch etc..)
+            final long currentGpsTime = System.currentTimeMillis() - mDelta;
+            final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
+            final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
+
+            AmmoGatewayMessage agm = getRetransmitter().createRetransmitPacket( bytesThatWillFit );
+            if ( agm != null ) {
+                sendMessage( agm );
+            }
         }
 
 
@@ -1250,11 +1280,16 @@ public class SerialChannel extends NetChannel
                                           Long.toHexString(agm.payload_checksum),
                                           agm.payload } );
 
-                        if ( mReceiverEnabled.get() ) {
+                        if ( getRetransmitter() != null ) {
                             setReceiverState( INetChannel.DELIVER );
-                            deliverMessage( agm );
+                            getRetransmitter().processReceivedMessage( agm, mReceiverEnabled.get() );
                         } else {
-                            logger.trace( "Receiving disabled, discarding message." );
+                            setReceiverState( INetChannel.DELIVER );
+                            if ( mReceiverEnabled.get() ) {
+                                deliverMessage( agm );
+                            } else {
+                                logger.trace( "Receiving disabled, discarding message." );
+                            }
                         }
 
                         header.clear();
@@ -1324,12 +1359,14 @@ public class SerialChannel extends NetChannel
     }
 
 
-    // Called by ReceiverThread to send an incoming message to the
-    // appropriate destination.
+    // Called by ReceiverThread to send an incoming message to the appropriate
+    // destination.  This method really should be private, but the
+    // SerialRetransmitter needs to use it.  Is there a better Java way to
+    // fix this?
     /**
      *
      */
-    private boolean deliverMessage( AmmoGatewayMessage agm )
+    public boolean deliverMessage( AmmoGatewayMessage agm )
     {
         logger.error( "In deliverMessage()" );
 
@@ -1342,6 +1379,24 @@ public class SerialChannel extends NetChannel
             result = getSecurityObject().deliverMessage( agm );
         }
         return result;
+    }
+
+
+    /**
+     *
+     */
+    private void setRetransmitter( SerialRetransmitter retransmitter )
+    {
+        mRetransmitter.set( retransmitter );
+    }
+
+
+    /**
+     *
+     */
+    private SerialRetransmitter getRetransmitter()
+    {
+        return mRetransmitter.get();
     }
 
 
@@ -1443,6 +1498,7 @@ public class SerialChannel extends NetChannel
     private Context mContext;
 
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
+    private final AtomicReference<SerialRetransmitter> mRetransmitter = new AtomicReference<SerialRetransmitter>();
 
     private static final int WAIT_TIME = 5 * 1000; // 5 s
     private static final int MAX_RECEIVE_PAYLOAD_SIZE = 2000; // Should this be set based on baud and slot duration?

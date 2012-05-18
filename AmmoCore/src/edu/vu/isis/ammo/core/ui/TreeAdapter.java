@@ -2,8 +2,6 @@ package edu.vu.isis.ammo.core.ui;
 
 import java.util.ArrayList;
 
-import edu.vu.isis.ammo.util.Tree;
-
 import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -11,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
+import edu.vu.isis.ammo.util.Tree;
 
 public class TreeAdapter<T> extends BaseAdapter {
 
