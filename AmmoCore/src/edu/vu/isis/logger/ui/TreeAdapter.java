@@ -1,8 +1,7 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.logger.ui;
 
 import java.util.ArrayList;
 
-import edu.vu.isis.ammo.util.Tree;
 
 import android.content.Context;
 import android.util.Log;

@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.logger.ui;
 
 import java.io.BufferedReader;
 import java.io.IOException;

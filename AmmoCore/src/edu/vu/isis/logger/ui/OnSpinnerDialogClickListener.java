@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.logger.ui;
 
 public interface OnSpinnerDialogClickListener {
 

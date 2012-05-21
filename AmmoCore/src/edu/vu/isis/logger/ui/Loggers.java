@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.logger.ui;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
-import edu.vu.isis.ammo.util.Tree;
 
 /**
  * This class contains a collection of static convenience methods to use for

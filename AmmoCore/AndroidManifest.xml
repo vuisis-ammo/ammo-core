@@ -54,10 +54,10 @@
 		<activity android:name=".ui.Subscribe" />
 		<activity android:name=".ui.GeneralPreferences" />
 		<activity android:name=".ui.AboutActivity" />
-		<activity android:name=".ui.LoggerEditor" />
-		<activity android:name=".ui.AppenderSelector" />
-		<activity android:name=".ui.LogViewer" />
-		<activity android:name=".ui.LogViewerPreferences" />
+		<activity android:name="edu.vu.isis.logger.ui.LoggerEditor" />
+		<activity android:name="edu.vu.isis.logger.ui.AppenderSelector" />
+		<activity android:name="edu.vu.isis.logger.ui.LogViewer" />
+		<activity android:name="edu.vu.isis.logger.ui.LogViewerPreferences" />
 
 		<activity android:name=".distributor.ui.DistributorTableViewer" />
 		<activity android:name=".distributor.ui.RetrievalTableViewer" />

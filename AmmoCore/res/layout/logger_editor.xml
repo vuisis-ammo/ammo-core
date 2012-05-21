@@ -22,7 +22,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 	    <view
-	        class="edu.vu.isis.ammo.core.ui.WellBehavedSpinner"
+	        class="edu.vu.isis.logger.ui.WellBehavedSpinner"
 	        android:id="@+id/level_spinner"
 	        android:layout_width="0dp"
 	        android:layout_height="wrap_content"

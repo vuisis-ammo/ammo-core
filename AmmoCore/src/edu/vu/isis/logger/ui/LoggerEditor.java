@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.logger.ui;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -33,7 +33,6 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.FileAppender;
 import edu.vu.isis.ammo.R;
-import edu.vu.isis.ammo.util.Tree;
 
 /**
  * This class provides a user interface to edit the Level of all Logger objects

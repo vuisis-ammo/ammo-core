@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.logger.ui;
 
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
