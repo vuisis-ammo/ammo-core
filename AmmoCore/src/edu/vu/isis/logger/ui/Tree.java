@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.util;
+package edu.vu.isis.logger.ui;
 
 /*
  * Copyright 2007 Google Inc.

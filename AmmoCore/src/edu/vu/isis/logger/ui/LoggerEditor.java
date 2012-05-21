@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.logger.ui;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -22,7 +22,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import edu.vu.isis.ammo.R;
-import edu.vu.isis.ammo.util.Tree;
 
 /**
  * This class provides a user interface to edit the Level of all Logger objects
