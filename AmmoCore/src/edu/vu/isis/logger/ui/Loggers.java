@@ -157,7 +157,7 @@ public final class Loggers {
 	 * @param logger -- the Logger whose appenders to retrieve
 	 * @return -- all appenders associated with the logger
 	 */
-	public static List<Appender<ILoggingEvent>> getAllAppenders(final Logger logger) {
+	public static List<Appender<ILoggingEvent>> getEffectiveAppenders(final Logger logger) {
 
 		final List<Appender<ILoggingEvent>> appenderList = new ArrayList<Appender<ILoggingEvent>>();
 		appenderList.addAll(0,
@@ -204,20 +204,20 @@ public final class Loggers {
 	 * @return -- whether app is effectively attached to logger
 	 */
 	public static boolean isAttachedEffective(Logger logger, Appender<ILoggingEvent> app) {
-		return getAllAppenders(logger).contains(app);
+		return getEffectiveAppenders(logger).contains(app);
 	}
 	
 	
 	/**
 	 * Determines whether a Logger has the same appenders <i>explicitly</i>
-	 * attached to it as its parent.  This method does not account for
+	 * attached to it as its ancestors.  This method does not account for
 	 * additivity.
 	 * 
 	 * @param logger -- the child Logger to check
 	 * @return -- whether logger has the same attached appenders as its parent
 	 */
 	public static boolean hasSameAppendersAsParent(Logger logger) {
-		return getAttachedAppenders(logger).equals(getAttachedAppenders(getParentLogger(logger)));
+		return getAttachedAppenders(logger).equals(getEffectiveAppenders(getParentLogger(logger)));
 	}
 	
 	
@@ -227,11 +227,11 @@ public final class Loggers {
 	 * @param loggerTree -- the Tree containing the loggers
 	 * @param additive -- what to set the additivity flag to
 	 */
-	public static void setAditivityForAll(Tree<Logger> loggerTree, boolean additive) {
+	public static void setAdditivityForAll(Tree<Logger> loggerTree, boolean additive) {
 		final Logger headLogger = loggerTree.getHead();
 		headLogger.setAdditive(additive);
 		for(Logger subLogger : loggerTree.getSuccessors(headLogger)) {
-			setAditivityForAll(loggerTree.getTree(subLogger), additive);
+			setAdditivityForAll(loggerTree.getTree(subLogger), additive);
 		}
 	}
 	
@@ -318,6 +318,13 @@ public final class Loggers {
 		}
 		
 		return soFar;
+	}
+
+
+	public static void clearAppenders(Logger selectedLogger) {
+		for (Appender<ILoggingEvent> appender : getAttachedAppenders(selectedLogger)) {
+			selectedLogger.detachAppender(appender);
+		}
 	}
 	
 	

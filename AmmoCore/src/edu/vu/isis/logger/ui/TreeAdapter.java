@@ -2,6 +2,7 @@ package edu.vu.isis.logger.ui;
 
 import java.util.ArrayList;
 
+
 import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -28,7 +29,7 @@ public class TreeAdapter<T> extends BaseAdapter {
 	
 	public TreeAdapter(Tree<T> objects, Context context, int resource,
 			int textViewResourceId) {
-
+		
 		refill(objects);
 		
 		mContext = context;
@@ -47,8 +48,9 @@ public class TreeAdapter<T> extends BaseAdapter {
 		objList = new ArrayList<T>();
 		objList.add(objects.getHead());
 		objList = buildObjectList(objects, objects.getHead(), objList);
+		
 	}
-	
+
 	@Override
 	public int getCount() {
 		return objList.size();
