@@ -1,6 +1,7 @@
-package edu.vu.isis.ammo.core.ui;
+package edu.vu.isis.logger.ui;
 
 import java.util.ArrayList;
+
 
 import android.content.Context;
 import android.util.Log;
@@ -9,7 +10,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
-import edu.vu.isis.ammo.util.Tree;
 
 public class TreeAdapter<T> extends BaseAdapter {
 
@@ -29,11 +29,8 @@ public class TreeAdapter<T> extends BaseAdapter {
 	
 	public TreeAdapter(Tree<T> objects, Context context, int resource,
 			int textViewResourceId) {
-		mObjects = objects;
 		
-		objList = new ArrayList<T>();
-		objList.add(objects.getHead());
-		objList = buildObjectList(objects, objects.getHead(), objList);
+		refill(objects);
 		
 		mContext = context;
 		textViewId = textViewResourceId;
@@ -44,6 +41,16 @@ public class TreeAdapter<T> extends BaseAdapter {
 		topPadding = rightPadding = bottomPadding = 5;
 	}
 	
+	public void refill(Tree<T> objects) {
+		
+		mObjects = objects;
+		
+		objList = new ArrayList<T>();
+		objList.add(objects.getHead());
+		objList = buildObjectList(objects, objects.getHead(), objList);
+		
+	}
+
 	@Override
 	public int getCount() {
 		return objList.size();

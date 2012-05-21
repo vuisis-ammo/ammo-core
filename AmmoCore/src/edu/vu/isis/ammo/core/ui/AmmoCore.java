@@ -43,6 +43,7 @@ import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
+import edu.vu.isis.logger.ui.LoggerEditor;
 
 /**
  * The principle activity for ammo core.
