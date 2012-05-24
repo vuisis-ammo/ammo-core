@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +41,7 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.TTLUtil;
 
 
 public class MulticastChannel extends NetChannel
@@ -691,7 +693,7 @@ public class MulticastChannel extends NetChannel
         {
             logger.trace( "Thread <{}>ConnectorThread::connect",
                          Thread.currentThread().getId() );
-
+            
             try
             {
                 parent.mMulticastGroup = InetAddress.getByName( parent.mMulticastAddress );
@@ -1034,8 +1036,10 @@ public class MulticastChannel extends NetChannel
                     logger.debug( "...{}", mChannel.mMulticastPort );
 
                     mSocket.setTimeToLive( mChannel.mMulticastTTL.get() );
-                    mSocket.send( packet );
 
+    				TTLUtil.setTTLValue(mSocket, mChannel.mMulticastTTL.get());
+                    mSocket.send( packet );
+                    
                     logger.info( "Send packet to Network: size({})", packet.getLength() );
 
                     // legitimately sent to gateway.
