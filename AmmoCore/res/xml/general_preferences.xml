@@ -109,20 +109,19 @@
 			android:title="Disable"
 			android:defaultValue="false"/>
 
-
 			<edu.vu.isis.ammo.core.MyEditTextPreference
 			android:key="@string/network_rmc_host"
 			android:name="IP Address"
 			android:title="IP Address"
+			android:enabled="false"
 			android:defaultValue="228.8.8.8"/>
 
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="@string/network_rmc_port"
 			android:name="Port"
 			android:title="Port"
+			android:enabled="false"
 			android:defaultValue="45588"/>
-
-
 
 			<edu.vu.isis.ammo.core.MyEditIntegerPreference
 			android:key="@string/network_rmc_timeout_connect"
@@ -140,7 +139,8 @@
 			android:key="@string/network_rmc_ttl"
 			android:name="Time To Live (s)"
 			android:title="Time To Live (s)"
-			android:defaultValue= "1"/>
+			android:enabled="false"
+			android:defaultValue= "8"/>
 
 		</PreferenceScreen>
 
