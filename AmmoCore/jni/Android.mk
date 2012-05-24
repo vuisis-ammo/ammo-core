@@ -16,3 +16,11 @@ LOCAL_SRC_FILES := android_net_ethernet_svc.c
 LOCAL_LDLIBS := -L$(SYSROOT)/usr/lib -llog 
 
 include $(BUILD_SHARED_LIBRARY)
+
+include $(CLEAR_VARS)
+
+LOCAL_MODULE    := multicastTTL
+LOCAL_SRC_FILES := MulticastTTL.c
+LOCAL_LDLIBS := -L$(SYSROOT)/usr/lib -llog 
+
+include $(BUILD_SHARED_LIBRARY)
