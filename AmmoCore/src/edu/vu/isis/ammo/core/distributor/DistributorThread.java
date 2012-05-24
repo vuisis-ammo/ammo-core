@@ -329,19 +329,20 @@ public class DistributorThread extends Thread {
 		public final long id;
 
 		public final String topic;
+		public final UUID uuid;
 		public final String auid;
 		public final Notice notice;
 
 		public final String channel;
 		public final DisposalState status;
 
-		public ChannelAck(Tables type, long id, 
-				String topic, String auid, Notice notice,
+		public ChannelAck(Tables type, long id, UUID uuid,
+				String topic, String auid,  Notice notice,
 				String channel, DisposalState status) 
 		{
 			this.type = type;
 			this.id = id;
-
+			this.uuid = uuid;
 			this.topic = topic;
 			this.auid = auid;
 			this.notice = notice;
@@ -355,6 +356,7 @@ public class DistributorThread extends Thread {
 			return new StringBuilder()
 			.append(" type ").append(type)
 			.append(" id ").append(id)
+			.append(" uuid ").append(uuid)
 			.append(" topic ").append(topic)
 			.append(" aid ").append(auid)
 			.append(" channel ").append(channel)
@@ -364,7 +366,7 @@ public class DistributorThread extends Thread {
 	}
 
 	/**
-	 * Called by the channel acknowledgement once the channel has
+	 * Called by the channel acknowledgment once the channel has
 	 * attempted to send the message.
 	 * 
 	 * @param ack
@@ -383,7 +385,7 @@ public class DistributorThread extends Thread {
 		}
 		this.signal();
 
-		if (ack.status == DisposalState.SENT)//update recv count and send notify
+		if (ack.status == DisposalState.SENT) //update recv count and send notify
 		{
 			total_sent.incrementAndGet();
 		}
@@ -428,6 +430,10 @@ public class DistributorThread extends Thread {
 			final Intent noticed = noteBuilder.buildSent(context);
 			final int aggregate = note.via.v;
 
+			PLogger.API_INTENT.debug(
+					"gen notice: via=[{}] intent=[{}]",
+					note.via, noticed);
+
 			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
 				try {
 					noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -448,6 +454,7 @@ public class DistributorThread extends Thread {
 		}
 
 		logger.debug("count {}: intent {}", numUpdated, ack);
+
 	}
 
 	private void announceChannelActive(final Context context, final String name) {
@@ -727,7 +734,7 @@ public class DistributorThread extends Thread {
 	/**
 	 * Processes and delivers messages received from a channel. 
 	 * <ol>
-	 * <li> Verify the check sum for the payload is correct 
+	 * <li> Verify the check sum for the payload is correct String
 	 * <li> Parse the payload into a message 
 	 * <li> Receive the message
 	 * </ol>
@@ -867,7 +874,7 @@ public class DistributorThread extends Thread {
 
 			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(PostalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
-			
+
 			values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
 			values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
@@ -935,19 +942,22 @@ public class DistributorThread extends Thread {
 				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
 
 				final DistributorState dispatchResult = this.dispatchPostalRequest(that, ar.notice,
-						ar.uuid.toString(), topic, dispersal, serializer, 
+						uuid, topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
 					final long id_ = id;
+					final UUID uuid_ = uuid;
 					final String topic_ = topic;
 					final String auid_ = ar.uid;
 					final Notice notice_ = ar.notice;
 
 					@Override
 					public boolean ack(String channel, DisposalState status) {
-						return parent.announceChannelAck(new ChannelAck(Tables.POSTAL, id_, 
+						final ChannelAck chack = new ChannelAck(Tables.POSTAL, 
+								id_, uuid_,
 								topic_, auid_,  notice_,
-								channel, status));
+								channel, status);
+						return parent.announceChannelAck(chack);
 					}
 				});
 
@@ -978,7 +988,9 @@ public class DistributorThread extends Thread {
 		{
 			final int id = pending.getInt(pending.getColumnIndex(PostalTableSchema._ID.n));
 			final String auid = pending.getString(pending.getColumnIndex(PostalTableSchema.AUID.n));
-			final String uuid = pending.getString(pending.getColumnIndex(PostalTableSchema.UUID.n));
+			final String uuidString = pending.getString(pending.getColumnIndex(PostalTableSchema.UUID.n));
+			final UUID uuid = UUID.fromString(uuidString);
+
 			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n)));
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
@@ -1062,11 +1074,12 @@ public class DistributorThread extends Thread {
 
 					final DistributorState dispatchResult = 
 							this.dispatchPostalRequest(that, notice,
-									uuid.toString(), topic, 
+									uuid, topic, 
 									dispersal, serializer,
 									new INetworkService.OnSendMessageHandler() {
 								final DistributorThread parent = DistributorThread.this;
 								final int id_ = id;
+								final UUID uuid_ = uuid;
 								final String auid_ = auid;
 								final String topic_ = topic;
 								final Notice notice_ = notice;
@@ -1074,9 +1087,10 @@ public class DistributorThread extends Thread {
 
 								@Override
 								public boolean ack(String channel, DisposalState status) {
-									return parent.announceChannelAck( new ChannelAck(Tables.POSTAL, id_, 
+									final ChannelAck chack = new ChannelAck(Tables.POSTAL, id_, uuid_,
 											topic_, auid_, notice_, 
-											channel, status) );
+											channel, status);
+									return parent.announceChannelAck(chack);
 								}
 							});
 					this.store.updatePostalByKey(id, null, dispatchResult);
@@ -1101,7 +1115,7 @@ public class DistributorThread extends Thread {
 	 * @return
 	 */
 	private DistributorState dispatchPostalRequest(final AmmoService that, 
-			final Notice notice, final String uuid, final String msgType, 
+			final Notice notice, final UUID uuid, final String msgType, 
 			final DistributorState dispersal, final RequestSerializer serializer, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
@@ -1123,7 +1137,7 @@ public class DistributorThread extends Thread {
 				if (encode.getType() != Encoding.Type.TERSE) {
 					final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
 							.newBuilder()
-							.setUri(uuid)
+							.setUri(uuid.toString())
 							.setMimeType(msgType)
 							.setEncoding(encode.getType().name())
 							.setUserId(ammoService.getOperatorId())
@@ -1216,19 +1230,28 @@ public class DistributorThread extends Thread {
 					.device(pushResp.getAcknowledgingDevice())
 					.operator(pushResp.getAcknowledgingUser());
 
+			final Notice.Item note;
+			final Intent noticed;
+
 			if (thresholds.getDeviceDelivered()) {
-				final Notice.Item note = notice.atDeviceDelivered;
-				final Intent noticed = noteBuilder.buildDeviceDelivered(context);
+				note = notice.atDeviceDelivered;
+				noticed = noteBuilder.buildDeviceDelivered(context);
 				DistributorThread.sendIntent(note.via.v, noticed, context);
 			} else if (thresholds.getAndroidPluginReceived()) {
-				final Notice.Item note = notice.atGatewayDelivered;
-				final Intent noticed = noteBuilder.buildGatewayDelivered(context);
+				note = notice.atGatewayDelivered;
+				noticed = noteBuilder.buildGatewayDelivered(context);
 				DistributorThread.sendIntent(note.via.v, noticed, context);
 			} else if (thresholds.getPluginDelivered()) {
-				final Notice.Item note = notice.atPluginDelivered;
-				final Intent noticed = noteBuilder.buildPluginDelivered(context);
+				note = notice.atPluginDelivered;
+				noticed = noteBuilder.buildPluginDelivered(context);
 				DistributorThread.sendIntent(note.via.v, noticed, context);
-			} 
+			} else {
+				note = null;
+				noticed = null;
+			}
+			PLogger.API_INTENT.debug(
+					"ack note=[{}] intent=[{}]",
+					note, noticed);
 		}
 		return true;
 	}
@@ -1289,7 +1312,7 @@ public class DistributorThread extends Thread {
 			values.put(RetrievalTableSchema.PROVIDER.cv(), ar.provider.cv());
 			values.put(RetrievalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(RetrievalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
-			
+
 			values.put(RetrievalTableSchema.UNIT.cv(), 50);
 			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
@@ -1313,15 +1336,18 @@ public class DistributorThread extends Thread {
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
 					final long id_ = id;
+					final UUID uuid_ = uuid;
 					final String auid_ = auid;
 					final String topic_ = topic;
 					final Notice notice_ = new Notice();
 
 					@Override
 					public boolean ack(String channel, DisposalState status) {
-						return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id_, 
+						final ChannelAck chack = new ChannelAck(Tables.RETRIEVAL, 
+								id_, uuid_, 
 								topic_, auid_,  notice_,
-								channel, status));
+								channel, status);
+						return parent.announceChannelAck(chack);
 					}
 				});
 				this.store.updateRetrievalByKey(id, null, dispatchResult);
@@ -1389,14 +1415,17 @@ public class DistributorThread extends Thread {
 							new INetworkService.OnSendMessageHandler() {
 						final DistributorThread parent = DistributorThread.this;
 						final String auid_ = auid;
+						final UUID uuid_ = uuid;
 						final String topic_ = topic;
 						final Notice notice_ = new Notice();
 
 						@Override
 						public boolean ack(String channel, DisposalState status) {
-							return parent.announceChannelAck(new ChannelAck(Tables.RETRIEVAL, id, 
+							final ChannelAck chack = new ChannelAck(Tables.RETRIEVAL, 
+									id, uuid_, 
 									topic_, auid_, notice_,
-									channel, status));
+									channel, status);
+							return parent.announceChannelAck(chack);
 						}
 					});
 					this.store.updateRetrievalByKey(id, null, dispatchResult);
@@ -1483,12 +1512,12 @@ public class DistributorThread extends Thread {
 		final AmmoMessages.PullResponse resp = mw.getPullResponse();
 
 		// find the provider to use
-		final String uuid = resp.getRequestUid();
+		final String uuidString = resp.getRequestUid();
 		final String topic = resp.getMimeType();
 		final Cursor cursor = this.store
-				.queryRetrievalByKey(new String[] { RetrievalTableSchema.PROVIDER.n }, uuid, topic, null);
+				.queryRetrievalByKey(new String[] { RetrievalTableSchema.PROVIDER.n }, uuidString, topic, null);
 		if (cursor.getCount() < 1) {
-			logger.error("received a message for which there is no retrieval {} {}", topic, uuid);
+			logger.error("received a message for which there is no retrieval {} {}", topic, uuidString);
 			cursor.close();
 			return false;
 		}
@@ -1562,14 +1591,17 @@ public class DistributorThread extends Thread {
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
 					final long id_ = id;
+					final UUID uuid_ = uuid;
 					final String auid_ = auid;
 					final String topic_ = topic;
 					final Notice notice_ = new Notice();
 					@Override
 					public boolean ack(String channel, DisposalState status) {
-						return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
+						final ChannelAck chack = new ChannelAck(Tables.SUBSCRIBE, 
+								id_, uuid_,
 								topic_, auid_, notice_,
-								channel, status));
+								channel, status);
+						return parent.announceChannelAck(chack);
 					}
 				});
 				this.store.updateSubscribeByKey(id, null, dispatchResult);
@@ -1601,6 +1633,9 @@ public class DistributorThread extends Thread {
 			// For each item in the cursor, ask the content provider to
 			// serialize it, then pass it off to the NPS.
 			final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
+			final String uuidString = pending.getString(pending.getColumnIndex(PostalTableSchema.UUID.n));
+			final UUID uuid = UUID.fromString(uuidString);
+
 			final String topic = pending.getString(pending.getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
 			final String auid = pending.getString(pending.getColumnIndex(SubscribeTableSchema.AUID.cv()));
 
@@ -1637,15 +1672,18 @@ public class DistributorThread extends Thread {
 							new INetworkService.OnSendMessageHandler() {
 						final DistributorThread parent = DistributorThread.this;
 						final int id_ = id;
+						final UUID uuid_ = uuid;
 						final String auid_ = auid;
 						final String topic_ = topic;
 						final Notice notice_ = new Notice();
 
 						@Override
 						public boolean ack(String channel, DisposalState status) {
-							return parent.announceChannelAck(new ChannelAck(Tables.SUBSCRIBE, id_, 
+							final ChannelAck chack = new ChannelAck(Tables.SUBSCRIBE, 
+									id_, uuid_,
 									topic_, auid_,  notice_, 
-									channel, status));
+									channel, status);
+							return parent.announceChannelAck(chack);
 						}
 					});
 					this.store.updateSubscribeByKey(id, null, dispatchResult);

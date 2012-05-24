@@ -236,6 +236,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public class DistributorServiceAidl extends IDistributorService.Stub {
 		@Override
 		public String makeRequest(AmmoRequest request) throws RemoteException {
+			PLogger.API_REQ_RECV.trace("make request via bind {}", request);
 			if (request == null) {
 				logger.error("bad request");
 				return null;
@@ -245,6 +246,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		}
 		@Override
 		public AmmoRequest recoverRequest(String uuid) throws RemoteException {
+			PLogger.API_REQ_RECV.trace("recover request via bind {}", uuid);
 			logger.trace("recover data request {}", uuid);
 			return null;
 		}
