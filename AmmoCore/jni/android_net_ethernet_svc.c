@@ -389,7 +389,6 @@ error:
 	return (*env)->NewStringUTF(env, "Error");
 }
 
-
 /*
 
 	This function is not used now
