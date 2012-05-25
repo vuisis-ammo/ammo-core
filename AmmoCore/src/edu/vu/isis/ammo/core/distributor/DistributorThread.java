@@ -375,6 +375,7 @@ public class DistributorThread extends Thread {
 	private boolean announceChannelAck(ChannelAck ack) {
 		logger.trace("RECV ACK {}", ack);
 		try {
+			PLogger.QUEUE_ACK_ENTER.trace("offer ack: {}", ack);
 			if (!this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
 				logger.warn("announcing channel ack queue is full");
 				return false;
@@ -478,6 +479,7 @@ public class DistributorThread extends Thread {
 		try {
 			logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
 
+			PLogger.QUEUE_REQ_ENTER.trace("\"action\":\"offer\" \"request\":\"{}\"", request);
 			if (! this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
 				logger.error("could not process request {}", request);
 				this.signal();
@@ -499,6 +501,7 @@ public class DistributorThread extends Thread {
 
 	private RequestDeserializerThread deserialThread;
 	public boolean distributeResponse(AmmoGatewayMessage agm) {
+		 PLogger.QUEUE_RESP_ENTER.trace("\"action\":\"offer\" \"response\":\"{}\"", agm);
 		if (! this.responseQueue.offer(agm, 1, TimeUnit.SECONDS)) {
 			logger.error("could not process response {}", agm);
 			this.signal();
@@ -589,6 +592,9 @@ public class DistributorThread extends Thread {
 						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
 						try {
 							final ChannelAck ack = this.channelAck.take();
+							PLogger.QUEUE_ACK_EXIT.trace(PLogger.QUEUE_FORMAT,
+                                    new Object[]{this.channelAck.size(), ack.uuid, 0, ack});
+
 							this.doChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
 							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
@@ -598,6 +604,9 @@ public class DistributorThread extends Thread {
 					if (!this.responseQueue.isEmpty()) {
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
+							 PLogger.QUEUE_RESP_EXIT.trace(PLogger.QUEUE_FORMAT,
+                                     new Object[]{ this.responseQueue.size(), agm.payload_checksum, agm.size , agm});
+
 							logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
 							this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
@@ -607,10 +616,12 @@ public class DistributorThread extends Thread {
 
 					if (!this.requestQueue.isEmpty()) {
 						try {
-							final AmmoRequest agm = this.requestQueue.take();
-							logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
-							PLogger.QUEUE_REQ_EXIT.info("uuid=[{}] remainder=[{}]", agm.uuid, this.requestQueue.size());
-							this.doRequest(ammoService, agm);
+							final AmmoRequest ar = this.requestQueue.take();
+							logger.info("processing request uuid {}, remaining {}", ar.uuid, this.requestQueue.size());
+							 PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT,
+                                     new Object[]{ this.requestQueue.size(), ar.uuid, "n/a", ar});
+
+							this.doRequest(ammoService, ar);
 						} catch (ClassCastException ex) {
 							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -863,7 +874,7 @@ public class DistributorThread extends Thread {
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
-			final String channel = ar.channelFilter.cv();
+			final String channel = (ar.channelFilter == null) ? null : ar.channelFilter.cv();
 
 			logger.trace("process request topic {}, uuid {}", ar.topic, uuid);
 
@@ -996,7 +1007,7 @@ public class DistributorThread extends Thread {
 			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n)));
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
-			final String forceChannel = pending.getString(pending.getColumnIndex(PostalTableSchema.CHANNEL.n));
+			final String channelFilter = pending.getString(pending.getColumnIndex(PostalTableSchema.CHANNEL.n));
 			
 			// read notice stuck in as a blob in the db
 			final byte[] nb = pending.getBlob(pending.getColumnIndex(PostalTableSchema.NOTICE.n));
@@ -1050,7 +1061,7 @@ public class DistributorThread extends Thread {
 			});
 
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
-			final DistributorState dispersal = policy.makeRouteMap(forceChannel);
+			final DistributorState dispersal = policy.makeRouteMap(channelFilter);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.POSTAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 

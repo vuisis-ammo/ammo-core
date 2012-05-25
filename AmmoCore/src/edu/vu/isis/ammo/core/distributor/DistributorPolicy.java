@@ -280,8 +280,8 @@ public class DistributorPolicy implements ContentHandler {
 			return sb.toString();
 		}
 
-		public DistributorState makeRouteMap(final String channel) {
-			final DistributorState state = this.routing.makeMap(channel);
+		public DistributorState makeRouteMap(final String channelFilter) {
+			final DistributorState state = this.routing.makeMap(channelFilter);
 			return state.setType(this.type);
 		}
 
@@ -336,8 +336,8 @@ public class DistributorPolicy implements ContentHandler {
 			this.clauses = new ArrayList<Clause>();
 		}
 
-		public DistributorState makeMap(final String channel) {
-			final DistributorState map = DistributorState.newInstance(this, channel);
+		public DistributorState makeMap(final String channelFilter) {
+			final DistributorState map = DistributorState.newInstance(this, channelFilter);
 			for (Clause clause : this.clauses) {
 				for (Literal literal : clause.literals) {
 					map.put(literal.term, DisposalState.PENDING);
