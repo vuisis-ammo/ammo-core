@@ -863,6 +863,7 @@ public class DistributorThread extends Thread {
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
+			final String channel = ar.channelFilter.cv();
 
 			logger.trace("process request topic {}, uuid {}", ar.topic, uuid);
 
@@ -871,6 +872,7 @@ public class DistributorThread extends Thread {
 			values.put(PostalTableSchema.AUID.cv(), auid);
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+			values.put(PostalTableSchema.CHANNEL.cv(), channel);
 
 			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(PostalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
@@ -882,10 +884,10 @@ public class DistributorThread extends Thread {
 			np.writeParcelable( ar.notice, 0 );
 			values.put(PostalTableSchema.NOTICE.cv(), np.marshall() );
 
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(channel);
 			if (!that.isConnected()) {
 				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-				long key = this.store.upsertPostal(values, policy.makeRouteMap());
+				long key = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
@@ -939,7 +941,7 @@ public class DistributorThread extends Thread {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
+				final long id = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 
 				final DistributorState dispatchResult = this.dispatchPostalRequest(that, ar.notice,
 						uuid, topic, dispersal, serializer, 
@@ -994,6 +996,8 @@ public class DistributorThread extends Thread {
 			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n)));
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
+			final String forceChannel = pending.getString(pending.getColumnIndex(PostalTableSchema.CHANNEL.n));
+			
 			// read notice stuck in as a blob in the db
 			final byte[] nb = pending.getBlob(pending.getColumnIndex(PostalTableSchema.NOTICE.n));
 			Parcel np = Parcel.obtain();
@@ -1046,7 +1050,7 @@ public class DistributorThread extends Thread {
 			});
 
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(forceChannel);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.POSTAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -1317,7 +1321,7 @@ public class DistributorThread extends Thread {
 			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(null);
 			if (!that.isConnected()) {
 				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				this.store.upsertRetrieval(values, dispersal);
@@ -1329,7 +1333,7 @@ public class DistributorThread extends Thread {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
+				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap(null));
 
 				final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
 						uuid, topic, select, limit, dispersal, 
@@ -1380,7 +1384,7 @@ public class DistributorThread extends Thread {
 			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(null);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.RETRIEVAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
@@ -1573,7 +1577,7 @@ public class DistributorThread extends Thread {
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(null);
 			if (!that.isConnected()) {
 				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertSubscribe(values, dispersal);
@@ -1644,7 +1648,7 @@ public class DistributorThread extends Thread {
 			logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
 
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(null);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.SUBSCRIBE.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {

@@ -47,7 +47,7 @@ public class DistributorDataStore {
 	// Constants
 	// ===========================================================
 	private final static Logger logger = LoggerFactory.getLogger("dist.store");
-	public static final int VERSION = 39;
+	public static final int VERSION = 40;
 	
 	public static final long CONVERT_MINUTES_TO_MILLISEC = 60L * 1000L;
 
@@ -528,6 +528,10 @@ public class DistributorDataStore {
 
 		TOPIC("topic", "TEXT"),
 		// This along with the cost is used to decide how to deliver the specific object.
+
+		CHANNEL("channel", "TEXT"),
+		// This specifies a forced channel be used and no other.
+		// NULL indicates that the normal processing to select a channel be used.
 
     	AUID("auid", "TEXT"),
 		// (optional) The appplication specific unique identifier

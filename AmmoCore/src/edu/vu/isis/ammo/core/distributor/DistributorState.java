@@ -39,15 +39,17 @@ public class DistributorState {
 	private final Map<String, DisposalState> stateMap;
 	private boolean total;
 	public final Routing policy;
+	public final String forcedChannel;
 
-	private DistributorState(Routing policy) {
+	private DistributorState(Routing policy, final String forcedChannel) {
 		this.stateMap = new HashMap<String, DisposalState>();
 		this.total = false;
 		this.policy = policy;
+		this.forcedChannel = forcedChannel;
 	}
 
-	static public DistributorState newInstance(Routing routing) {
-		return new DistributorState(routing);
+	static public DistributorState newInstance(Routing routing, final String forcedChannel) {
+		return new DistributorState(routing, forcedChannel);
 	}
 
 	public boolean total() {
@@ -111,6 +113,10 @@ public class DistributorState {
 	 * 'condition' attribute for the term.   
 	 * 
 	 * @see scripts/tests/distribution_policy.xml for an example.
+	 * 
+	 * Given the presence of a forced channel...
+	 * - skip any attempt at delivery unless the forced channel matches the term
+	 * - mark the clause true if it doesn't contain the forced channel
 	 */
 	public DistributorState multiplexRequest(AmmoService that, RequestSerializer serializer) {
 		logger.trace("::multiplex request");
@@ -136,9 +142,13 @@ public class DistributorState {
 		for (final DistributorPolicy.Clause clause : this.policy.clauses) {
 			boolean clauseSuccess = false;
 
-			// evaluate clause
+			// evaluate clause status based on previous attempts
+			boolean hasForcedChannel = false;
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
+				if (this.forcedChannel != null && ! term.equals(this.forcedChannel)) {
+					hasForcedChannel = true;
+				}
 				final boolean goalCondition = literal.condition;
 				final DisposalState priorCondition = (this.containsKey(term)) ? this.get(term) : DisposalState.PENDING;
 				logger.debug("prior {} {} {}", new Object[]{term, priorCondition, goalCondition});
@@ -148,11 +158,18 @@ public class DistributorState {
 					break;
 				}
 			}
+			if (this.forcedChannel != null && ! hasForcedChannel) {
+				logger.info("clause is practically successful due to forced channel=[{}], clause type=[{}]",
+						this.forcedChannel, this.type);
+				continue; 
+			}
 			if (clauseSuccess) continue;
 
-			// evaluate clause
+			// evaluate clause based on 
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
+				if (this.forcedChannel != null && ! term.equals(this.forcedChannel)) continue;
+				
 				final boolean goalCondition = literal.condition;
 				final DisposalState priorCondition = (this.containsKey(term)) ? this.get(term) : DisposalState.PENDING;
 
@@ -207,6 +224,7 @@ public class DistributorState {
 	}
 
 	private String type;
+	
 	public DistributorState setType(String type) {
 		this.type = type;
 		return this;

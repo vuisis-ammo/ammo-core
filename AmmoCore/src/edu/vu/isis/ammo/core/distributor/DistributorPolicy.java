@@ -280,8 +280,8 @@ public class DistributorPolicy implements ContentHandler {
 			return sb.toString();
 		}
 
-		public DistributorState makeRouteMap() {
-			final DistributorState state = this.routing.makeMap();
+		public DistributorState makeRouteMap(final String channel) {
+			final DistributorState state = this.routing.makeMap(channel);
 			return state.setType(this.type);
 		}
 
@@ -336,8 +336,8 @@ public class DistributorPolicy implements ContentHandler {
 			this.clauses = new ArrayList<Clause>();
 		}
 
-		public DistributorState makeMap() {
-			final DistributorState map = DistributorState.newInstance(this);
+		public DistributorState makeMap(final String channel) {
+			final DistributorState map = DistributorState.newInstance(this, channel);
 			for (Clause clause : this.clauses) {
 				for (Literal literal : clause.literals) {
 					map.put(literal.term, DisposalState.PENDING);
@@ -520,6 +520,11 @@ public class DistributorPolicy implements ContentHandler {
 		}
 	}
 
+	/**
+	 * The term is the channel name
+	 * The condition is the delivery condition of the message over the named channel
+	 * The encoding is the payload encoding type to be sent over the named channel
+	 */
 	public class Literal {
 		public final String term;
 		public final boolean condition;
