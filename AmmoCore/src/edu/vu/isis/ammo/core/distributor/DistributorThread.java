@@ -375,6 +375,7 @@ public class DistributorThread extends Thread {
 	private boolean announceChannelAck(ChannelAck ack) {
 		logger.trace("RECV ACK {}", ack);
 		try {
+			PLogger.QUEUE_ACK_ENTER.trace("offer ack: {}", ack);
 			if (!this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
 				logger.warn("announcing channel ack queue is full");
 				return false;
@@ -478,6 +479,7 @@ public class DistributorThread extends Thread {
 		try {
 			logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
 
+			PLogger.QUEUE_REQ_ENTER.trace("\"action\":\"offer\" \"request\":\"{}\"", request);
 			if (! this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
 				logger.error("could not process request {}", request);
 				this.signal();
@@ -499,6 +501,7 @@ public class DistributorThread extends Thread {
 
 	private RequestDeserializerThread deserialThread;
 	public boolean distributeResponse(AmmoGatewayMessage agm) {
+		 PLogger.QUEUE_RESP_ENTER.trace("\"action\":\"offer\" \"response\":\"{}\"", agm);
 		if (! this.responseQueue.offer(agm, 1, TimeUnit.SECONDS)) {
 			logger.error("could not process response {}", agm);
 			this.signal();
@@ -589,6 +592,9 @@ public class DistributorThread extends Thread {
 						logger.trace("processing channel acks, remaining {}", this.channelAck.size());
 						try {
 							final ChannelAck ack = this.channelAck.take();
+							PLogger.QUEUE_ACK_EXIT.trace(PLogger.QUEUE_FORMAT,
+                                    new Object[]{this.channelAck.size(), ack.uuid, 0, ack});
+
 							this.doChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
 							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
@@ -598,6 +604,9 @@ public class DistributorThread extends Thread {
 					if (!this.responseQueue.isEmpty()) {
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
+							 PLogger.QUEUE_RESP_EXIT.trace(PLogger.QUEUE_FORMAT,
+                                     new Object[]{ this.responseQueue.size(), agm.payload_checksum, agm.size , agm});
+
 							logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
 							this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
@@ -607,10 +616,12 @@ public class DistributorThread extends Thread {
 
 					if (!this.requestQueue.isEmpty()) {
 						try {
-							final AmmoRequest agm = this.requestQueue.take();
-							logger.info("processing request uuid {}, remaining {}", agm.uuid, this.requestQueue.size());
-							PLogger.QUEUE_REQ_EXIT.info("uuid=[{}] remainder=[{}]", agm.uuid, this.requestQueue.size());
-							this.doRequest(ammoService, agm);
+							final AmmoRequest ar = this.requestQueue.take();
+							logger.info("processing request uuid {}, remaining {}", ar.uuid, this.requestQueue.size());
+							 PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT,
+                                     new Object[]{ this.requestQueue.size(), ar.uuid, "n/a", ar});
+
+							this.doRequest(ammoService, ar);
 						} catch (ClassCastException ex) {
 							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
 						}
@@ -863,6 +874,7 @@ public class DistributorThread extends Thread {
 			final String auid = ar.uid;
 			final String topic = ar.topic.asString();
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
+			final String channel = (ar.channelFilter == null) ? null : ar.channelFilter.cv();
 
 			logger.trace("process request topic {}, uuid {}", ar.topic, uuid);
 
@@ -871,6 +883,7 @@ public class DistributorThread extends Thread {
 			values.put(PostalTableSchema.AUID.cv(), auid);
 			values.put(PostalTableSchema.TOPIC.cv(), topic);
 			values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+			values.put(PostalTableSchema.CHANNEL.cv(), channel);
 
 			values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
 			values.put(PostalTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
@@ -882,10 +895,10 @@ public class DistributorThread extends Thread {
 			np.writeParcelable( ar.notice, 0 );
 			values.put(PostalTableSchema.NOTICE.cv(), np.marshall() );
 
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(channel);
 			if (!that.isConnected()) {
 				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-				long key = this.store.upsertPostal(values, policy.makeRouteMap());
+				long key = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 				logger.debug("no network connection, added {}", key);
 				return;
 			}
@@ -939,7 +952,7 @@ public class DistributorThread extends Thread {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				final long id = this.store.upsertPostal(values, policy.makeRouteMap());
+				final long id = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 
 				final DistributorState dispatchResult = this.dispatchPostalRequest(that, ar.notice,
 						uuid, topic, dispersal, serializer, 
@@ -994,6 +1007,8 @@ public class DistributorThread extends Thread {
 			final Provider provider = new Provider(pending.getString(pending.getColumnIndex(PostalTableSchema.PROVIDER.n)));
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
+			final String channelFilter = pending.getString(pending.getColumnIndex(PostalTableSchema.CHANNEL.n));
+			
 			// read notice stuck in as a blob in the db
 			final byte[] nb = pending.getBlob(pending.getColumnIndex(PostalTableSchema.NOTICE.n));
 			Parcel np = Parcel.obtain();
@@ -1046,7 +1061,7 @@ public class DistributorThread extends Thread {
 			});
 
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(channelFilter);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.POSTAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -1317,7 +1332,7 @@ public class DistributorThread extends Thread {
 			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(null);
 			if (!that.isConnected()) {
 				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				this.store.upsertRetrieval(values, dispersal);
@@ -1329,7 +1344,7 @@ public class DistributorThread extends Thread {
 			// We synchronize on the store to avoid a race between dispatch and
 			// queuing
 			synchronized (this.store) {
-				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap());
+				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap(null));
 
 				final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
 						uuid, topic, select, limit, dispersal, 
@@ -1380,7 +1395,7 @@ public class DistributorThread extends Thread {
 			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(null);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.RETRIEVAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
@@ -1573,7 +1588,7 @@ public class DistributorThread extends Thread {
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(null);
 			if (!that.isConnected()) {
 				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertSubscribe(values, dispersal);
@@ -1644,7 +1659,7 @@ public class DistributorThread extends Thread {
 			logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
 
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
-			final DistributorState dispersal = policy.makeRouteMap();
+			final DistributorState dispersal = policy.makeRouteMap(null);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.SUBSCRIBE.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {

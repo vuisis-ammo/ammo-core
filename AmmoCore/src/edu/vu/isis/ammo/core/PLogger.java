@@ -6,7 +6,7 @@ import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
 /**
- * These are the loggers for measuring performance.
+ * These are the loggers for measuring *PERFORMANCE*.
  * 
  * In particular they look at Threads/Processes/Queues/Intents/API
  * 
@@ -62,7 +62,7 @@ public interface PLogger {
 	 * </ul>
 	 * 
 	 */
-	public static final String QUEUE_FORMAT =  "remainder=[{}] id=[{}] size=[{}] item=[{}]";
+	public static final String QUEUE_FORMAT =  "\"remainder\":{} \"id\":\"{}\" \"size\":{} \"item\":[{}]";
 
 	
 	public static final Logger QUEUE_REQ_ENTER = LoggerFactory.getLogger( "queue.request.in" );
