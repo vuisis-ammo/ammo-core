@@ -44,6 +44,16 @@
             message="sdk.dir is missing. Make sure to generate local.properties using 'android update project'"
             unless="sdk.dir"
     />
+    
+    <condition property="protobuf-unix-source" value="/usr/share/java/protobuf-java.jar">
+      <available file="protobuf-java.jar" filepath="/usr/share/java/" />
+    </condition>
+    
+    <condition property="protobuf-unix-source" value="/usr/share/java/protobuf.jar">
+      <not>
+        <available file="protobuf-java.jar" filepath="/usr/share/java/" />
+      </not>
+    </condition>
 
 
 <!-- extension targets. Uncomment the ones where you want to do custom work
@@ -57,7 +67,7 @@
 
         <symlink taskname="add-protobuf-libs" action="single" overwrite="true" 
               link="${basedir}/libs/protobuf.jar" 
-              resource="/usr/share/java/protobuf.jar"/>
+              resource="${protobuf-unix-source}"/>
 <!--
         <symlink taskname="add-protobuf-lib" action="single" overwrite="true" 
               link="${basedir}/lib/protobuf.jar" 
