@@ -209,7 +209,7 @@ public abstract class LogReader {
 	 * @return the corresponding LogLevel
 	 */
 	public static LogLevel getCorrespondingLevel(String str) {
-		
+		if (str == null) return LogLevel.None;
 		if(str.length() == 0) return LogLevel.None;
 		
 		final char firstChar = str.charAt(0);

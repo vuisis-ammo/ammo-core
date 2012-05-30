@@ -7,6 +7,9 @@
  -->
 <configuration>
 
+  <newRule pattern="configuration/appender"
+	          actionClass="edu.vu.isis.logger.ui.AppenderStoreAction"/>
+
   <property name="LOG_DIR" value="/mnt/sdcard" />
 
   <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
@@ -39,10 +42,13 @@
   so that the configured appenders may be accessed at runtime
   (Used in the logger editor user interface)
    -->
+   
+   <!-- 
   <logger name="dummyref" level="OFF">
     <appender-ref ref="LOGCAT"/>
     <appender-ref ref="STATS"/>
   </logger>
+   -->
 	
 
   <root level="WARN">

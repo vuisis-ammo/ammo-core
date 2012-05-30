@@ -1,5 +1,7 @@
 package edu.vu.isis.logger.ui;
 
+import java.util.List;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.widget.CheckBox;
@@ -24,6 +26,15 @@ public class AppenderSelector extends Activity {
 	private Logger selectedLogger;
 	private OnCheckedChangeListener myOnCheckedChangeListener;
 
+	private final List<Appender<ILoggingEvent>> availableAppenders = AppenderStore
+			.getInstance().getAppenders();
+			
+//			Loggers
+//			.getConfiguredAppenders(Loggers.findLogbackConfigFile(this), null,
+//					(ch.qos.logback.core.Context) LoggerFactory
+//							.getILoggerFactory());
+
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 
@@ -33,7 +44,7 @@ public class AppenderSelector extends Activity {
 		selectedLogger = (Logger) getIntent().getSerializableExtra(
 				"edu.vu.isis.ammo.core.ui.LoggerEditor.selectedLogger");
 		final LinearLayout ll = (LinearLayout) findViewById(R.id.appender_layout);
-		
+
 		myOnCheckedChangeListener = new OnCheckedChangeListener() {
 
 			@SuppressWarnings("unchecked")
@@ -54,10 +65,12 @@ public class AppenderSelector extends Activity {
 
 		};
 
-		
-		for (Appender<ILoggingEvent> app : Loggers
-				.getAttachedAppenders(Loggers.DUMMY_LOGGER)) {
-			addCheckBoxToLayout(ll, app.getName(), app);
+
+		for (Appender<ILoggingEvent> appender : this.availableAppenders) {
+			addCheckBoxToLayout(ll, appender.getName(), appender);
+			if (Loggers.isAttachedEffective(selectedLogger, appender)) {
+				selectedLogger.addAppender(appender);
+			}
 		}
 
 	}
