@@ -102,6 +102,7 @@ public final class Loggers {
 		return parentLoggerName;
 	}
 
+	
 	/**
 	 * Determines whether a logger has an explicitly set level or if it is
 	 * inheriting its level from its parent logger(s).
@@ -113,7 +114,31 @@ public final class Loggers {
 	public static boolean isInheritingLevel(final Logger logger) {
 		return logger.getLevel() == null;
 	}
-
+	
+	
+	public static List<Logger> getChangedLoggers(final Tree<Logger> loggerTree) {
+		return findExplicitlySetLoggers(loggerTree, new ArrayList<Logger>());
+	}
+	
+	
+	private static List<Logger> findExplicitlySetLoggers(
+			final Tree<Logger> loggerTree, final List<Logger> loggerList) {
+		
+		final Logger logger = loggerTree.getHead();
+		if (!Loggers.isInheritingLevel(logger)
+				|| !logger.isAdditive()) {
+			loggerList.add(logger);
+		}
+		
+		for(Tree<Logger> subTree : loggerTree.getSubTrees()) {
+			Loggers.findExplicitlySetLoggers(subTree, loggerList);
+		}
+		
+		return loggerList;
+		
+	}
+	
+	
 	/**
 	 * Determines whether a logger has an attached Appender. Note that this
 	 * method only accounts for appenders explicitly attached to the logger;
