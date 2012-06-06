@@ -17,12 +17,16 @@ import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
+import edu.vu.isis.ammo.core.network.NetChannel;
 
 public abstract class Channel implements OnSharedPreferenceChangeListener{
 
 	protected Context context = null;
 	protected String name = "";
 	protected SharedPreferences prefs = null;
+	
+	protected NetChannel mNetChannel = null;
+	
 	protected Channel(Context context, String name)
 	{
 		this.context = context;
@@ -31,6 +35,7 @@ public abstract class Channel implements OnSharedPreferenceChangeListener{
 		this.prefs.registerOnSharedPreferenceChangeListener(this);
 	}
 	
+	public NetChannel getNetChannel () {return mNetChannel;}
 	
 	public void setName(String newName)
 	{

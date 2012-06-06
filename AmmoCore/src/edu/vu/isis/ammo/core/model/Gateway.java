@@ -23,6 +23,7 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.network.NetChannel;
 
 /**
  * The Ammo core is responsible for distributing
@@ -96,7 +97,7 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
     public synchronized int[] getStatus() { return mStatus; }
     public synchronized void setStatus( int[] status ) { mStatus = status; }
 
-    private Gateway(Context context, String name) {
+    private Gateway(Context context, String name, NetChannel channel) {
     	super(context, name);
     	
         this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST, INetPrefKeys.DEFAULT_GATEWAY_HOST);
@@ -104,12 +105,14 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
                 String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
         this.election = ! this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED, 
                                               INetPrefKeys.DEFAULT_GATEWAY_DISABLED );
+        
+        mNetChannel = channel;
     }
 
 
-    public static Gateway getInstance(Context context) {
+    public static Gateway getInstance(Context context, NetChannel channel) {
         // initialize the gateway from the shared preferences
-        return new Gateway(context, "Default Gateway");
+        return new Gateway(context, "Default Gateway", channel);
     }
 
     public String toString() {

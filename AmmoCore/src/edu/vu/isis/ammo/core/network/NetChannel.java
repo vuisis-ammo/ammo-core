@@ -14,7 +14,7 @@ public abstract class NetChannel implements INetChannel {
 	protected static final boolean HEARTBEAT_ENABLED = true;
 
 	protected static final int CONNECTION_RETRY_DELAY = 20 * 1000; // 20 seconds
-	 
+
 	// The values in the INetChannel that we are translating here could
     // probably be made into an enum and the translation to strings
     // would be handled for us.
@@ -62,4 +62,7 @@ public abstract class NetChannel implements INetChannel {
 
 	@Override
 	public boolean isAuthenticatingChannel() { return false; }
+	
+	@Override
+	public String getSendReceiveStats () { return ""; }
 }

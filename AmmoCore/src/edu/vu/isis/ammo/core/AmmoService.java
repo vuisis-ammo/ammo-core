@@ -419,9 +419,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		gChannelMap.put( journalChannel.name, journalChannel );
 		gChannelMap.put( serialChannel.name, serialChannel );
 
-		gChannels.put( gwChannel.name, Gateway.getInstance(getBaseContext()) );
-		gChannels.put( multicastChannel.name, Multicast.getInstance(getBaseContext()) );
-		gChannels.put( reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()) );
+		gChannels.put( gwChannel.name, Gateway.getInstance(getBaseContext(), gwChannel));
+		gChannels.put( multicastChannel.name, Multicast.getInstance(getBaseContext(), multicastChannel));
+		gChannels.put( reliableMulticastChannel.name, 
+		        ReliableMulticast.getInstance(getBaseContext(), reliableMulticastChannel) );
 		gChannels.put( serialChannel.name, Serial.getInstance( getBaseContext(), serialChannel ));
 
 		mNetlinks.add( WifiNetlink.getInstance(getBaseContext()) );

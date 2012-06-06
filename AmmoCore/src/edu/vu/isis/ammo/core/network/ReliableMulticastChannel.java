@@ -119,6 +119,9 @@ public class ReliableMulticastChannel extends NetChannel
     private SenderQueue mSenderQueue;
 
     private final AtomicBoolean mIsAuthorized;
+    
+    private final AtomicInteger mMessagesSent = new AtomicInteger();
+    private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
     // I made this public to support the hack to get authentication
     // working before Nilabja's code is ready.  Make it private again
@@ -176,6 +179,14 @@ public class ReliableMulticastChannel extends NetChannel
 				e.printStackTrace();
 			}
 		}
+	}
+	
+	@Override
+	public String getSendReceiveStats () {
+	    StringBuilder countsString = new StringBuilder();
+	    countsString.append( "S:" ).append( mMessagesSent.get() ).append( " " );
+	    countsString.append( "R:" ).append( mMessagesReceived.get() );
+	    return countsString.toString();
 	}
 
 
@@ -1086,6 +1097,8 @@ public class ReliableMulticastChannel extends NetChannel
 
                     mJChannel.send( null, buf.array() );
                     
+                    mMessagesSent.incrementAndGet();
+                    
                     logger.info( "Send packet to Network, size ({})", packet.getLength() );
 
                     // legitimately sent to gateway.
@@ -1204,6 +1217,8 @@ public class ReliableMulticastChannel extends NetChannel
                     setReceiverState( INetChannel.DELIVER );
                     mDestination.deliverMessage( agm );
                     logger.trace( "received a message, size ({})", payload.length );
+                    
+                    mMessagesReceived.incrementAndGet(); // got another msg
                 }
                 catch ( ClosedChannelException ex )
                 {

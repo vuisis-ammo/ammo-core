@@ -28,6 +28,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -98,6 +99,10 @@ public class TcpChannel extends NetChannel {
 	private final SenderQueue mSenderQueue;
 
 	private final AtomicBoolean mIsAuthorized;
+	
+	// status counts for gui
+	private final AtomicInteger mMessagesSent = new AtomicInteger();
+    private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
 	// I made this public to support the hack to get authentication
 	// working before Nilabja's code is ready.  Make it private again
@@ -126,6 +131,14 @@ public class TcpChannel extends NetChannel {
 		final TcpChannel instance = new TcpChannel(name, iChannelManager );
 		return instance;
 	}
+	
+	@Override
+    public String getSendReceiveStats () {
+        StringBuilder countsString = new StringBuilder();
+        countsString.append( "S:" ).append( mMessagesSent.get() ).append( " " );
+        countsString.append( "R:" ).append( mMessagesReceived.get() );
+        return countsString.toString();
+    }
 
 	public boolean isConnected() { 
 		return this.connectorThread.isConnected(); 
@@ -1036,7 +1049,10 @@ public class TcpChannel extends NetChannel {
                     int bytesWritten = mSocketChannel.write( buf );
 
                     logger.info( "Send packet to Network, size ({})", bytesWritten );
-
+                    
+                    //update status count 
+                    mMessagesSent.incrementAndGet();
+                    
                     // legitimately sent to gateway.
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, DisposalState.SENT );
@@ -1107,6 +1123,9 @@ public class TcpChannel extends NetChannel {
                     logger.debug( "SocketChannel getting header read bytes={}", bytesRead );
                     if (bytesRead == 0) continue;
 
+                    // update status count .... 
+                    mMessagesReceived.incrementAndGet();
+                    
                     setReceiverState( INetChannel.START );
 
                     // prepare to drain buffer

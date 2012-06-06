@@ -20,6 +20,7 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.network.NetChannel;
 
 public class ReliableMulticast extends Channel {
 
@@ -28,7 +29,7 @@ public class ReliableMulticast extends Channel {
 	int [] status = null;
 	String formalIP = "formal ip";
 	String port = "port";
-	protected ReliableMulticast(Context context, String name) {
+	protected ReliableMulticast(Context context, String name, NetChannel channel) {
 		super(context, name);
 		this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST, 
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
@@ -36,13 +37,15 @@ public class ReliableMulticast extends Channel {
 				String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
 		this.election = ! this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED);
+		
+		mNetChannel = channel;
 	}
 
 	private static ReliableMulticast instance = null;
-	public static ReliableMulticast getInstance(Context context)
+	public static ReliableMulticast getInstance(Context context, NetChannel channel)
 	{
 		if(instance == null)
-			instance = new ReliableMulticast(context, "ReliableMulticast Channel");
+			instance = new ReliableMulticast(context, "ReliableMulticast Channel", channel);
 		return instance;
 	}
 	

@@ -89,4 +89,9 @@ public interface INetChannel {
 	  * Cause object state to be written to the logger.
 	  */
 	 void toLog(String context);
+	 
+	 /**
+      * Returns channels send and receive status
+      */
+	 String getSendReceiveStats ();
 }
