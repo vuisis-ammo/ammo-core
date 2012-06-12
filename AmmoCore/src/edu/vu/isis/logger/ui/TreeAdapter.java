@@ -104,38 +104,43 @@ public class TreeAdapter<T> extends BaseAdapter {
 	@Override
 	public View getView(int position, View convertView, ViewGroup group) {
 		
-		View view;
-		TextView text;
+		final ViewHolder holder;
 		
 		if (convertView == null) {
-            view = mInflater.inflate(mResource, group, false);
-        } else {
-            view = convertView;
-        }
+            convertView = mInflater.inflate(mResource, group, false);
+            holder = new ViewHolder();
 
 		try {
-			text = (TextView) view.findViewById(textViewId);
+    			holder.tv = (TextView) convertView.findViewById(textViewId);
 		} catch (ClassCastException e) {
 			Log.e("TreeAdapter",
 					"You must supply a resource ID for a TextView");
 			throw new IllegalStateException(
 					"TreeAdapter requires the resource ID to be a TextView", e);
+    		}
+            convertView.setTag(holder);
+        } else {
+            holder = (ViewHolder) convertView.getTag();
 		}
 		
 		int nestLevel = getNestLevel(mObjects.getTree(objList.get(position)), 0);
 
 		T item = getItem(position);
         if (item instanceof CharSequence) {
-            text.setText((CharSequence)item);
+            holder.tv.setText((CharSequence)item);
         } else {
-            text.setText(item.toString());
+            holder.tv.setText(item.toString());
         }
 
-		view.setPadding(leftPadding * nestLevel, topPadding, rightPadding,
+		convertView.setPadding(leftPadding * nestLevel, topPadding, rightPadding,
 				bottomPadding);
 		
-        return view;
+        return convertView;
 		
+	}
+	
+	static class ViewHolder {
+		TextView tv;
 	}
 	
 	private int getNestLevel(Tree<T> tree, int nestLvl) {
