@@ -109,18 +109,19 @@ public class TreeAdapter<T> extends BaseAdapter {
 		if (convertView == null) {
             convertView = mInflater.inflate(mResource, group, false);
             holder = new ViewHolder();
-            try {
+
+		try {
     			holder.tv = (TextView) convertView.findViewById(textViewId);
-    		} catch (ClassCastException e) {
-    			Log.e("TreeAdapter",
-    					"You must supply a resource ID for a TextView");
-    			throw new IllegalStateException(
-    					"TreeAdapter requires the resource ID to be a TextView", e);
-    		}
+		} catch (ClassCastException e) {
+			Log.e("TreeAdapter",
+					"You must supply a resource ID for a TextView");
+			throw new IllegalStateException(
+					"TreeAdapter requires the resource ID to be a TextView", e);
+		}
             convertView.setTag(holder);
         } else {
             holder = (ViewHolder) convertView.getTag();
-        }
+		}
 		
 		int nestLevel = getNestLevel(mObjects.getTree(objList.get(position)), 0);
 

@@ -1,7 +1,6 @@
 package edu.vu.isis.logger.ui;
 
 import java.util.List;
-
 import android.app.Activity;
 import android.os.Bundle;
 import android.widget.CheckBox;
@@ -25,15 +24,8 @@ public class AppenderSelector extends Activity {
 
 	private Logger selectedLogger;
 	private OnCheckedChangeListener myOnCheckedChangeListener;
-
 	private final List<Appender<ILoggingEvent>> availableAppenders = AppenderStore
 			.getInstance().getAppenders();
-			
-//			Loggers
-//			.getConfiguredAppenders(Loggers.findLogbackConfigFile(this), null,
-//					(ch.qos.logback.core.Context) LoggerFactory
-//							.getILoggerFactory());
-
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
