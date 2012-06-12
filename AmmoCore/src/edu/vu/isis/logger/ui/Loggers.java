@@ -116,7 +116,7 @@ public final class Loggers {
 	private static List<Logger> findExplicitlySetLoggers(
 			final Tree<Logger> loggerTree, final List<Logger> loggerList) {
 		
-		final Logger logger = loggerTree.getHead();
+		final Logger logger = loggerTree.getPayload();
 		if (!Loggers.isInheritingLevel(logger)
 				|| !logger.isAdditive()) {
 			loggerList.add(logger);
@@ -163,8 +163,7 @@ public final class Loggers {
 	public static List<Appender<ILoggingEvent>> getAttachedAppenders(
 			final Logger logger) {
 		
-		final Iterator<Appender<ILoggingEvent>> it = logger
-				.iteratorForAppenders();
+		final Iterator<Appender<ILoggingEvent>> it = logger.iteratorForAppenders();
 		final List<Appender<ILoggingEvent>> appenderList = new ArrayList<Appender<ILoggingEvent>>();
 		
 		while(it.hasNext()) {
@@ -202,7 +201,7 @@ public final class Loggers {
 	}
 
 	
-	/*
+	/**
 	 * We recursively step up through the Logger family until we either reach
 	 * the ROOT Logger or reach the closest Logger with its additivity flag set
 	 * to false. Each time we step through the family we add the appenders
@@ -217,8 +216,7 @@ public final class Loggers {
 		if (!logger.isAdditive() || logger.getName() == Logger.ROOT_LOGGER_NAME) {
 			return soFar;
 		} else {
-			return getAppenderSet(getLoggerByName(getParentLoggerName(logger)),
-					soFar);
+			return getAppenderSet(getParentLogger(logger), soFar);
 		}
 
 	}
@@ -287,7 +285,7 @@ public final class Loggers {
 	 */
 	public static void setAdditivityForAll(Tree<Logger> loggerTree,
 			boolean additive) {
-		final Logger headLogger = loggerTree.getHead();
+		final Logger headLogger = loggerTree.getPayload();
 		headLogger.setAdditive(additive);
 		for(Logger subLogger : loggerTree.getSuccessors(headLogger)) {
 			setAdditivityForAll(loggerTree.getTree(subLogger), additive);
@@ -305,7 +303,7 @@ public final class Loggers {
 	 */
 	public static void addAppenderForAll(Tree<Logger> loggerTree,
 			Appender<ILoggingEvent> app) {
-		final Logger headLogger = loggerTree.getHead();
+		final Logger headLogger = loggerTree.getPayload();
 		headLogger.addAppender(app);
 		for(Logger subLogger : loggerTree.getSuccessors(headLogger)) {
 			addAppenderForAll(loggerTree.getTree(subLogger), app);
@@ -323,7 +321,7 @@ public final class Loggers {
 	 */
 	public static void detachAppenderForAll(Tree<Logger> loggerTree,
 			Appender<ILoggingEvent> app) {
-		final Logger headLogger = loggerTree.getHead();
+		final Logger headLogger = loggerTree.getPayload();
 		headLogger.detachAppender(app);
 		for(Logger subLogger : loggerTree.getSuccessors(headLogger)) {
 			detachAppenderForAll(loggerTree.getTree(subLogger), app);
@@ -340,7 +338,7 @@ public final class Loggers {
 	 */
 	public static void copyHeadAppenderSettings(Tree<Logger> loggerTree) {
 
-		final Logger headLogger = loggerTree.getHead();
+		final Logger headLogger = loggerTree.getPayload();
 		final Collection<Appender<ILoggingEvent>> appenders = getAppendersInLoggerTree(loggerTree);
 		
 		for(Appender<ILoggingEvent> app : appenders) {
@@ -373,7 +371,7 @@ public final class Loggers {
 			final Tree<Logger> loggerTree,
 			final HashSet<Appender<ILoggingEvent>> soFar) {
 
-		final Logger headLogger = loggerTree.getHead();
+		final Logger headLogger = loggerTree.getPayload();
 		
 		for (Appender<ILoggingEvent> app : getAttachedAppenders(headLogger)) {
 			soFar.add(app);

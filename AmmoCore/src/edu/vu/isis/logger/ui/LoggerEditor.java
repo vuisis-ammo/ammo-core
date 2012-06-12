@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.PrintStream;
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ListActivity;
-import android.app.AlertDialog.Builder;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -36,7 +34,6 @@ import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
-
 import android.widget.Toast;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -185,14 +182,13 @@ public class LoggerEditor extends ListActivity {
 
 	private Tree<Logger> makeTree(List<Logger> list) {
 
-		final Tree<Logger> mTree = new Tree<Logger>(Loggers.ROOT_LOGGER);
+		final Tree<Logger> mTree = Tree.newInstance(Loggers.ROOT_LOGGER);
 
 		for(final Logger logger : list) {			
 			if (logger.equals(Loggers.ROOT_LOGGER)) {
 				continue;
 			}
-			final String loggerName = logger.getName();
-			safelyAddLeaf(mTree, logger, loggerName);
+			safelyAddLeaf(mTree, logger);
 		}
 
 		return mTree;
@@ -215,27 +211,22 @@ public class LoggerEditor extends ListActivity {
 	 *            -- the Tree to which leaves are added
 	 * @param aLogger
 	 *            -- the Logger to be added to the Tree
-	 * @param loggerName
-	 *            -- the name of the Logger
 	 */
-	private void safelyAddLeaf(Tree<Logger> mTree, Logger aLogger,
-			String loggerName) {
+	private void safelyAddLeaf(Tree<Logger> mTree, Logger aLogger) {
 
 		if (mTree.contains(aLogger))
 			return;
-		final String parentLoggerName = Loggers.getParentLoggerName(aLogger);
+		final Logger parentLogger = Loggers.getParentLogger(aLogger);
 
 		// We can use == here because the getParentLoggerName method
 		// returns to us a static reference of this String object.
 		// We get a minor performance boost from this.
-		if (parentLoggerName == Logger.ROOT_LOGGER_NAME) {
-			mTree.addLeaf(Loggers.ROOT_LOGGER, aLogger);
+		if (parentLogger == Loggers.ROOT_LOGGER) {
+			mTree.addLeaf(aLogger);
 			return;
 		}
 
-		final Logger parentLogger = Loggers.getLoggerByName(parentLoggerName);
-
-		safelyAddLeaf(mTree, parentLogger, parentLoggerName);
+		safelyAddLeaf(mTree, parentLogger);
 		mTree.addLeaf(parentLogger, aLogger);
 		return;
 	}
@@ -520,11 +511,16 @@ public class LoggerEditor extends ListActivity {
 	}
 
 
+	/**
+	 * Update the icon for the logger view.
+	 * 
+	 * @param lvl
+	 * @param row
+	 */
 	private void updateIcon(Level lvl, View row) {
 		final ImageView iv = (ImageView) (row.findViewById(R.id.logger_icon));
-		final String loggerName = (String) ((TextView) row
-				.findViewById(R.id.logger_text)).getText();
-		if(Loggers.isInheritingLevel(Loggers.getLoggerByName(loggerName))) {
+		
+		if(Loggers.isInheritingLevel(this.selectedLogger)) {
 			setEffectiveIcon(lvl, iv);
 		} else {
 			setActualIcon(lvl, iv);
@@ -606,12 +602,9 @@ public class LoggerEditor extends ListActivity {
 	public class LoggerIconAdapter extends TreeAdapter<Logger> {
 		final private LoggerEditor parent = LoggerEditor.this;
 
-		private int tvId;
-
 		public LoggerIconAdapter(Tree<Logger> objects, Context context,
 				int resource, int textViewResourceId) {
 			super(objects, context, resource, textViewResourceId);
-			this.tvId = textViewResourceId;
 		}
 
 		@Override
@@ -698,7 +691,7 @@ public class LoggerEditor extends ListActivity {
 		/**
 		 * Makes a String indicating both the attached and inherited Appenders.
 		 */
-		private String getAllAppenderString(Logger aLogger) {
+		private String getAllAppenderString(final Logger aLogger) {
 			final StringBuilder nameBldr = new StringBuilder();
 			nameBldr.append(" [ ");
 			final List<Appender<ILoggingEvent>> effectiveList = Loggers

@@ -28,10 +28,6 @@ public class AppenderSelector extends Activity {
 	private final List<Appender<ILoggingEvent>> availableAppenders = AppenderStore
 			.getInstance().getAppenders();
 			
-//			Loggers
-//			.getConfiguredAppenders(Loggers.findLogbackConfigFile(this), null,
-//					(ch.qos.logback.core.Context) LoggerFactory
-//							.getILoggerFactory());
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 

@@ -46,8 +46,8 @@ public class TreeAdapter<T> extends BaseAdapter {
 		mObjects = objects;
 		
 		objList = new ArrayList<T>();
-		objList.add(objects.getHead());
-		objList = buildObjectList(objects, objects.getHead(), objList);
+		objList.add(objects.getPayload());
+		objList = buildObjectList(objects, objects.getPayload(), objList);
 		
 	}
 
