@@ -239,8 +239,8 @@ public class SerialChannel extends NetChannel
      */
     public void setDevice( String device )
     {
-        //logger.trace( "Device set to {}", device );
-        //mDevice = device;
+        logger.trace( "Device set to {}", device );
+        mDevice = device;
     }
 
 
