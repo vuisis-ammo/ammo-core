@@ -1779,6 +1779,8 @@ public class DistributorThread extends Thread {
 		String originUid = null;
 		com.google.protobuf.ByteString data = null;
 		AmmoMessages.AcknowledgementThresholds at = null;
+		
+		final String selfDevice = ammoService.getDeviceId();
 		if ( mw.hasDataMessage()) {
 			final AmmoMessages.DataMessage resp = mw.getDataMessage();
 			mime = resp.getMimeType();
@@ -1788,6 +1790,12 @@ public class DistributorThread extends Thread {
 			originUser = resp.getUserId();
 			originDevice = resp.getOriginDevice();
 			originUid = resp.getUri(); // SKN: URI is really UID
+			
+			if (originDevice.equals(selfDevice)) {
+				logger.error("recieved own message [{}:{}]",
+						originDevice, selfDevice);
+				return false;
+			}
 		} else {
 			final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
 			mime = AmmoMimeTypes.mimeTypes.get( resp.getMimeType());
@@ -1795,6 +1803,13 @@ public class DistributorThread extends Thread {
 			originUser = resp.getUserId();
 			encode = "TERSE";
 		}
+		
+		final String selfOperator = ammoService.getOperatorId();
+		if (originUser.equals(selfOperator)) {
+			logger.error("recieved own message [{}:{}]",
+					originUser, selfOperator);
+		}
+		
 
 		// final ContentResolver resolver = context.getContentResolver();
 

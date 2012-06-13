@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -675,7 +674,8 @@ public class MulticastChannel extends NetChannel
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
-                            logger.warn("sleep interrupted - intentional disable, exiting thread ...{}", ex.getStackTrace());
+                            logger.warn("sleep interrupted - intentional disable, exiting thread ...{}", 
+                            		ex.getStackTrace());
                             this.reset();
                             break MAINTAIN_CONNECTION;
                         }
@@ -1149,7 +1149,8 @@ public class MulticastChannel extends NetChannel
                     //update received count .... 
                     mMessagesReceived.incrementAndGet();
                     
-                    logger.info( "Received a packet from ({}) size({})", packet.getAddress(), packet.getLength()  );
+                    logger.info( "Received a packet from ({}) size({})", 
+                    		packet.getAddress(), packet.getLength()  );
 
                     ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
                                                       packet.getOffset(),
