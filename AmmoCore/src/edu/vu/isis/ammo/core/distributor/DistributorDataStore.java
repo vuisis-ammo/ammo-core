@@ -1292,7 +1292,7 @@ public class DistributorDataStore {
 	 * if a record with a matching key exists then update
 	 * otherwise insert.
 	 */
-	public synchronized long upsertPostal(ContentValues cv, DistributorState status) {
+	public synchronized long upsertPostal(ContentValues cv, Dispersal status) {
 		try {
 			final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
 			final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
@@ -1325,7 +1325,7 @@ public class DistributorDataStore {
 	.toString();
 
 
-	public synchronized long upsertRetrieval(ContentValues cv, DistributorState status) {
+	public synchronized long upsertRetrieval(ContentValues cv, Dispersal status) {
 		try {
 			final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
 			final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
@@ -1366,7 +1366,7 @@ public class DistributorDataStore {
 	/**
 	 *
 	 */
-	public synchronized long upsertSubscribe(ContentValues cv, DistributorState status) {
+	public synchronized long upsertSubscribe(ContentValues cv, Dispersal status) {
 		try {
 			final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
 			final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
@@ -1399,7 +1399,7 @@ public class DistributorDataStore {
 	.toString();
 
 
-	private synchronized long[] upsertDisposalByParent(Tables type, long id, DistributorState status) {
+	private synchronized long[] upsertDisposalByParent(Tables type, long id, Dispersal status) {
 		try {
 			final long[] idArray = new long[status.size()];
 			int ix = 0;
@@ -1546,7 +1546,7 @@ public class DistributorDataStore {
 	 * Update an object represented in the database.
 	 * Any reasonable update will need to know how to select an existing object.
 	 */
-	public synchronized long updatePostalByKey(long id, ContentValues cv, DistributorState state) {
+	public synchronized long updatePostalByKey(long id, ContentValues cv, Dispersal state) {
 		if (state == null && cv == null) return -1;
 		if (cv == null) cv = new ContentValues();
 		
@@ -1567,7 +1567,7 @@ public class DistributorDataStore {
 	}
 
 
-	public synchronized long updateRetrievalByKey(long id, ContentValues cv, final DistributorState state) {
+	public synchronized long updateRetrievalByKey(long id, ContentValues cv, final Dispersal state) {
 		if (state == null && cv == null) return -1;
 		if (cv == null) cv = new ContentValues();
 		
@@ -1587,7 +1587,7 @@ public class DistributorDataStore {
 		return this.upsertDisposalByParent(Tables.RETRIEVAL, id, channel, state);
 	}
 
-	public synchronized long updateSubscribeByKey(long id, ContentValues cv, final DistributorState state) {
+	public synchronized long updateSubscribeByKey(long id, ContentValues cv, final Dispersal state) {
 		if (state == null && cv == null) return -1;
 		if (cv == null) cv = new ContentValues();
 		

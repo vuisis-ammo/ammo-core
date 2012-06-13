@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
 
+import android.os.Bundle;
+
 /**
  * These are the loggers for measuring *PERFORMANCE*.
  * 
@@ -15,7 +17,7 @@ import org.slf4j.MarkerFactory;
  * These loggers are used for monitoring communication between components.
  * 
  */
-public interface PLogger {
+public abstract class PLogger {
 
 	/**
 	 * Incoming requests via the api from applications.
@@ -27,7 +29,7 @@ public interface PLogger {
 	 */
 	public static final Logger API_REQ = LoggerFactory.getLogger( "api.request" );
 	public static final Logger API_PARCEL = LoggerFactory.getLogger( "api.parcel" );
-	
+
 	/**
 	 * Serialization to/from application content providers 
 	 */
@@ -64,7 +66,7 @@ public interface PLogger {
 	 */
 	public static final String QUEUE_FORMAT =  "\"remainder\":{} \"id\":\"{}\" \"size\":{} \"item\":[{}]";
 
-	
+
 	public static final Logger QUEUE_REQ_ENTER = LoggerFactory.getLogger( "queue.request.in" );
 	public static final Logger QUEUE_REQ_EXIT = LoggerFactory.getLogger( "queue.request.out" );
 
@@ -93,7 +95,7 @@ public interface PLogger {
 	public static final Logger COMM_GW_CONN = LoggerFactory.getLogger( "comm.gw.conn" );
 	public static final Logger COMM_GW_SEND = LoggerFactory.getLogger( "comm.gw.send" );
 	public static final Logger COMM_GW_RECV = LoggerFactory.getLogger( "comm.gw.recv" );
-	
+
 	/**
 	 * settings which change the ammo behavior
 	 */
@@ -126,4 +128,23 @@ public interface PLogger {
 	public static final Logger STORE_PRESENCE_DQL = LoggerFactory.getLogger( "store.presence.dql" );
 	public static final Logger STORE_DISPOSAL_DQL = LoggerFactory.getLogger( "store.disposal.dql" );
 
+	/**
+	 * Typically the "toString()" method for intents doesn't print the extras.
+	 * This function can be used to print the extras.
+	 * 
+	 * @param bundle
+	 * @param separator
+	 * @return
+	 */
+	public static String expandBundle(final Bundle bundle, final char separator) {
+		final StringBuilder sb = new StringBuilder();
+		for (final String key : bundle.keySet()) {
+			sb.append(separator);
+			sb.append(key).append("=[");
+			final Object value = bundle.get(key);
+			sb.append(value);
+			sb.append("]");
+		}
+		return sb.toString();
+	}
 }

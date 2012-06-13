@@ -432,8 +432,8 @@ public class DistributorThread extends Thread {
 			final int aggregate = note.via.v;
 
 			PLogger.API_INTENT.debug(
-					"gen notice: via=[{}] intent=[{}]",
-					note.via, noticed);
+					"ack note=[{}] intent=[{}]",
+					note, noticed);
 
 			if (0 < (aggregate & Via.Type.ACTIVITY.v)) { 
 				try {
@@ -451,6 +451,11 @@ public class DistributorThread extends Thread {
 			}
 			if (0 < (aggregate & Via.Type.SERVICE.v)) { 
 				context.startService(noticed); 
+			}
+			
+			if (PLogger.API_INTENT.isTraceEnabled()) {
+				PLogger.API_INTENT.trace("extras=[{}]", 
+						PLogger.expandBundle(noticed.getExtras(),'\n'));
 			}
 		}
 
@@ -501,7 +506,7 @@ public class DistributorThread extends Thread {
 
 	private RequestDeserializerThread deserialThread;
 	public boolean distributeResponse(AmmoGatewayMessage agm) {
-		 PLogger.QUEUE_RESP_ENTER.trace("\"action\":\"offer\" \"response\":\"{}\"", agm);
+		PLogger.QUEUE_RESP_ENTER.trace("\"action\":\"offer\" \"response\":\"{}\"", agm);
 		if (! this.responseQueue.offer(agm, 1, TimeUnit.SECONDS)) {
 			logger.error("could not process response {}", agm);
 			this.signal();
@@ -593,7 +598,7 @@ public class DistributorThread extends Thread {
 						try {
 							final ChannelAck ack = this.channelAck.take();
 							PLogger.QUEUE_ACK_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                    new Object[]{this.channelAck.size(), ack.uuid, 0, ack});
+									new Object[]{this.channelAck.size(), ack.uuid, 0, ack});
 
 							this.doChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
@@ -604,8 +609,8 @@ public class DistributorThread extends Thread {
 					if (!this.responseQueue.isEmpty()) {
 						try {
 							final AmmoGatewayMessage agm = this.responseQueue.take();
-							 PLogger.QUEUE_RESP_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                     new Object[]{ this.responseQueue.size(), agm.payload_checksum, agm.size , agm});
+							PLogger.QUEUE_RESP_EXIT.trace(PLogger.QUEUE_FORMAT,
+									new Object[]{ this.responseQueue.size(), agm.payload_checksum, agm.size , agm});
 
 							logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
 							this.doResponse(ammoService, agm);
@@ -618,8 +623,8 @@ public class DistributorThread extends Thread {
 						try {
 							final AmmoRequest ar = this.requestQueue.take();
 							logger.info("processing request uuid {}, remaining {}", ar.uuid, this.requestQueue.size());
-							 PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                     new Object[]{ this.requestQueue.size(), ar.uuid, "n/a", ar});
+							PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT,
+									new Object[]{ this.requestQueue.size(), ar.uuid, "n/a", ar});
 
 							this.doRequest(ammoService, ar);
 						} catch (ClassCastException ex) {
@@ -895,7 +900,7 @@ public class DistributorThread extends Thread {
 			np.writeParcelable( ar.notice, 0 );
 			values.put(PostalTableSchema.NOTICE.cv(), np.marshall() );
 
-			final DistributorState dispersal = policy.makeRouteMap(channel);
+			final Dispersal dispersal = policy.makeRouteMap(channel);
 			if (!that.isConnected()) {
 				values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertPostal(values, policy.makeRouteMap(channel));
@@ -954,7 +959,7 @@ public class DistributorThread extends Thread {
 			synchronized (this.store) {
 				final long id = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 
-				final DistributorState dispatchResult = this.dispatchPostalRequest(that, ar.notice,
+				final Dispersal dispatchResult = this.dispatchPostalRequest(that, ar.notice,
 						uuid, topic, dispersal, serializer, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
@@ -1008,7 +1013,7 @@ public class DistributorThread extends Thread {
 			final Payload payload = new Payload(pending.getString(pending.getColumnIndex(PostalTableSchema.PAYLOAD.n)));
 			final String topic = pending.getString(pending.getColumnIndex(PostalTableSchema.TOPIC.n));
 			final String channelFilter = pending.getString(pending.getColumnIndex(PostalTableSchema.CHANNEL.n));
-			
+
 			// read notice stuck in as a blob in the db
 			final byte[] nb = pending.getBlob(pending.getColumnIndex(PostalTableSchema.NOTICE.n));
 			Parcel np = Parcel.obtain();
@@ -1061,7 +1066,7 @@ public class DistributorThread extends Thread {
 			});
 
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
-			final DistributorState dispersal = policy.makeRouteMap(channelFilter);
+			final Dispersal dispersal = policy.makeRouteMap(channelFilter);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.POSTAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
@@ -1087,7 +1092,7 @@ public class DistributorThread extends Thread {
 					long numUpdated = this.store.updatePostalByKey(id, values, null);
 					logger.debug("updated {} postal items", numUpdated);
 
-					final DistributorState dispatchResult = 
+					final Dispersal dispatchResult = 
 							this.dispatchPostalRequest(that, notice,
 									uuid, topic, 
 									dispersal, serializer,
@@ -1129,9 +1134,9 @@ public class DistributorThread extends Thread {
 	 * @param handler
 	 * @return
 	 */
-	private DistributorState dispatchPostalRequest(final AmmoService that, 
+	private Dispersal dispatchPostalRequest(final AmmoService that, 
 			final Notice notice, final UUID uuid, final String msgType, 
-			final DistributorState dispersal, final RequestSerializer serializer, 
+			final Dispersal dispersal, final RequestSerializer serializer, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
 		logger.trace("::dispatchPostalRequest");
@@ -1267,6 +1272,10 @@ public class DistributorThread extends Thread {
 			PLogger.API_INTENT.debug(
 					"ack note=[{}] intent=[{}]",
 					note, noticed);
+			if (PLogger.API_INTENT.isTraceEnabled()) {
+				PLogger.API_INTENT.trace("extras=[{}]", 
+						PLogger.expandBundle(noticed.getExtras(),'\n'));
+			}
 		}
 		return true;
 	}
@@ -1332,7 +1341,7 @@ public class DistributorThread extends Thread {
 			values.put(RetrievalTableSchema.PRIORITY.cv(), ar.priority);
 			values.put(RetrievalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			final DistributorState dispersal = policy.makeRouteMap(null);
+			final Dispersal dispersal = policy.makeRouteMap(null);
 			if (!that.isConnected()) {
 				values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				this.store.upsertRetrieval(values, dispersal);
@@ -1346,7 +1355,7 @@ public class DistributorThread extends Thread {
 			synchronized (this.store) {
 				final long id = this.store.upsertRetrieval(values, policy.makeRouteMap(null));
 
-				final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
+				final Dispersal dispatchResult = this.dispatchRetrievalRequest(that, 
 						uuid, topic, select, limit, dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
@@ -1395,7 +1404,7 @@ public class DistributorThread extends Thread {
 			final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
 			final String topic = pending.getString(pending.getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
-			final DistributorState dispersal = policy.makeRouteMap(null);
+			final Dispersal dispersal = policy.makeRouteMap(null);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.RETRIEVAL.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
@@ -1425,7 +1434,7 @@ public class DistributorThread extends Thread {
 					@SuppressWarnings("unused")
 					final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
 
-					final DistributorState dispatchResult = this.dispatchRetrievalRequest(that, 
+					final Dispersal dispatchResult = this.dispatchRetrievalRequest(that, 
 							uuid, topic, selection, limit, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
 						final DistributorThread parent = DistributorThread.this;
@@ -1463,9 +1472,9 @@ public class DistributorThread extends Thread {
 	 * @return
 	 */
 
-	private DistributorState dispatchRetrievalRequest(final AmmoService that, 
+	private Dispersal dispatchRetrievalRequest(final AmmoService that, 
 			final UUID retrievalId, final String topic, 
-			final String selection, final Integer limit, final DistributorState dispersal, 
+			final String selection, final Integer limit, final Dispersal dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
 		logger.trace("dispatch request RETRIEVAL {}", topic);
@@ -1588,7 +1597,7 @@ public class DistributorThread extends Thread {
 			values.put(SubscribeTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
-			final DistributorState dispersal = policy.makeRouteMap(null);
+			final Dispersal dispersal = policy.makeRouteMap(null);
 			if (!that.isConnected()) {
 				values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
 				long key = this.store.upsertSubscribe(values, dispersal);
@@ -1601,7 +1610,7 @@ public class DistributorThread extends Thread {
 			// queuing
 			synchronized (this.store) {
 				final long id = this.store.upsertSubscribe(values, dispersal);
-				final DistributorState dispatchResult = this.dispatchSubscribeRequest(that, 
+				final Dispersal dispatchResult = this.dispatchSubscribeRequest(that, 
 						topic, ar.select.toString(), dispersal, 
 						new INetworkService.OnSendMessageHandler() {
 					final DistributorThread parent = DistributorThread.this;
@@ -1659,7 +1668,7 @@ public class DistributorThread extends Thread {
 			logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] { id, topic, selection });
 
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
-			final DistributorState dispersal = policy.makeRouteMap(null);
+			final Dispersal dispersal = policy.makeRouteMap(null);
 			{
 				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.SUBSCRIBE.o, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
@@ -1682,7 +1691,7 @@ public class DistributorThread extends Thread {
 					@SuppressWarnings("unused")
 					long numUpdated = this.store.updateSubscribeByKey(id, values, null);
 
-					final DistributorState dispatchResult = this.dispatchSubscribeRequest(that, 
+					final Dispersal dispatchResult = this.dispatchSubscribeRequest(that, 
 							topic, selection, dispersal, 
 							new INetworkService.OnSendMessageHandler() {
 						final DistributorThread parent = DistributorThread.this;
@@ -1713,8 +1722,8 @@ public class DistributorThread extends Thread {
 	/**
 	 * Deliver the subscription request to the network service for processing.
 	 */
-	private DistributorState dispatchSubscribeRequest(final AmmoService that, 
-			final String topic, final String selection, final DistributorState dispersal, 
+	private Dispersal dispatchSubscribeRequest(final AmmoService that, 
+			final String topic, final String selection, final Dispersal dispersal, 
 			final INetworkService.OnSendMessageHandler handler) 
 	{
 		logger.trace("::dispatchSubscribeRequest {}", topic);

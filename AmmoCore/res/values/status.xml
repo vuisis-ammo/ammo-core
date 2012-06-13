@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- 
+  Common status values.
+  see
+  "netlink_status.xml"
+  "gateway_status.xml"
+  
+  -->
+    
+	<string name="status_disabled">Disabled</string>
+	<color name="status_disabled">#FFF2003C</color>
+	
+</resources>

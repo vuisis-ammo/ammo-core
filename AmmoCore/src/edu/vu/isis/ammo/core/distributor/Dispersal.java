@@ -33,7 +33,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
  * satisfied the total is true, otherwise it is false.
  *
  */
-public class DistributorState {
+public class Dispersal {
 	private static final Logger logger = LoggerFactory.getLogger("dist.state");
 
 	private final Map<String, DisposalState> stateMap;
@@ -41,22 +41,22 @@ public class DistributorState {
 	public final Routing policy;
 	public final String channelFilter;
 
-	private DistributorState(Routing policy, final String channelFilter) {
+	private Dispersal(Routing policy, final String channelFilter) {
 		this.stateMap = new HashMap<String, DisposalState>();
 		this.total = false;
 		this.policy = policy;
 		this.channelFilter = channelFilter;
 	}
 
-	static public DistributorState newInstance(Routing routing, final String channelFilter) {
-		return new DistributorState(routing, channelFilter);
+	static public Dispersal newInstance(Routing routing, final String channelFilter) {
+		return new Dispersal(routing, channelFilter);
 	}
 
 	public boolean total() {
 		return this.total;
 	}
 
-	public DistributorState total(boolean state) {
+	public Dispersal total(boolean state) {
 		this.total = state;
 		return this;
 	}
@@ -82,7 +82,7 @@ public class DistributorState {
 		return stateMap.size();
 	}
 
-	public DistributorState and(boolean clause) {
+	public Dispersal and(boolean clause) {
 		this.total &= clause;
 		return this;
 	}
@@ -118,7 +118,7 @@ public class DistributorState {
 	 * - skip any attempt at delivery unless the forced channel matches the term
 	 * - mark the clause true if it doesn't contain the forced channel
 	 */
-	public DistributorState multiplexRequest(AmmoService that, RequestSerializer serializer) {
+	public Dispersal multiplexRequest(AmmoService that, RequestSerializer serializer) {
 		logger.trace("::multiplex request");
 
 		if (this.policy == null) {
@@ -225,7 +225,7 @@ public class DistributorState {
 
 	private String type;
 	
-	public DistributorState setType(String type) {
+	public Dispersal setType(String type) {
 		this.type = type;
 		return this;
 	}
