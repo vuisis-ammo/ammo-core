@@ -1928,7 +1928,8 @@ public class DistributorDataStore {
 	.append('<').append('?')
 	.toString();
 
-	public static final long DEFAULT_SUBSCRIBE_LIFESPAN = CONVERT_MINUTES_TO_MILLISEC * 7 * 24 * 60; // 7 days
+	public static final long DEFAULT_SUBSCRIBE_LIFESPAN = Long.MAX_VALUE;  // never
+	// CONVERT_MINUTES_TO_MILLISEC * 365 * 24 * 60; // 1 year
 
 	/**
 	 * purge all records from the subscribe table and cascade to the disposal table.

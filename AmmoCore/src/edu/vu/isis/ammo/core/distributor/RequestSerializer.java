@@ -331,7 +331,7 @@ public class RequestSerializer {
 	/**
 	 * @see serializeFromProvider with which this method is symmetric.
 	 */
-	public static Uri deserializeToProvider(final Context context, 
+	public static Uri deserializeToProvider(final Context context, final String channelName,
 			final Uri provider, final Encoding encoding, final byte[] data) {
 
 		logger.debug("deserialize message");
@@ -339,16 +339,16 @@ public class RequestSerializer {
 		final UriFuture uri;
 		switch (encoding.getType()) {
 		case CUSTOM:
-			uri = RequestSerializer.deserializeCustomToProvider(context, provider, encoding, data);
+			uri = RequestSerializer.deserializeCustomToProvider(context, channelName, provider, encoding, data);
 			break;
 		case JSON: 
-			uri = RequestSerializer.deserializeJsonToProvider(context, provider, encoding, data);
+			uri = RequestSerializer.deserializeJsonToProvider(context, channelName, provider, encoding, data);
 			break;
 		case TERSE: 
-			uri = RequestSerializer.deserializeTerseToProvider(context, provider, encoding, data);
+			uri = RequestSerializer.deserializeTerseToProvider(context, channelName, provider, encoding, data);
 			break;
 		default:
-			uri = RequestSerializer.deserializeCustomToProvider(context, provider, encoding, data);	
+			uri = RequestSerializer.deserializeCustomToProvider(context, channelName, provider, encoding, data);	
 		}
 		try {
 			return uri.get();
@@ -399,7 +399,17 @@ public class RequestSerializer {
 		return ByteBufferFuture.wrap(tupleString.getBytes());
 	}
 
-	public static UriFuture deserializeCustomToProvider(final Context context, 
+	/**
+	 * Invoke the custom deserializer.
+	 * 
+	 * @param context
+	 * @param channelName
+	 * @param provider
+	 * @param encoding
+	 * @param data
+	 * @return
+	 */
+	public static UriFuture deserializeCustomToProvider(final Context context, final String channelName,
 			final Uri provider, final Encoding encoding, final byte[] data) {
 
 		final String key = provider.toString();
@@ -609,7 +619,7 @@ public class RequestSerializer {
 	 * @param data
 	 * @return
 	 */
-	public static UriFuture deserializeJsonToProvider(final Context context, 
+	public static UriFuture deserializeJsonToProvider(final Context context, final String channelName,
 			final Uri provider, final Encoding encoding, final byte[] data) {
 
 		final ContentResolver resolver = context.getContentResolver();
@@ -646,7 +656,8 @@ public class RequestSerializer {
 		}
 		final ContentValues cv = new ContentValues();
 		cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
-		cv.put(AmmoProviderSchema._DISPOSITION, AmmoProviderSchema.Disposition.REMOTE.name());
+		cv.put(AmmoProviderSchema._DISPOSITION, channelName);
+		
 		for (final Iterator<?> iter = input.keys(); iter.hasNext();) {
 			final Object keyObj = iter.next();
 			if (keyObj instanceof String) {
@@ -875,7 +886,7 @@ public class RequestSerializer {
 	 * @param data
 	 * @return
 	 */
-	private static UriFuture deserializeTerseToProvider(final Context context, 
+	private static UriFuture deserializeTerseToProvider(final Context context, final String channelName,
 			final Uri provider, final Encoding encoding, final byte[] data) {
 		{
 			final ContentResolver resolver = context.getContentResolver();
@@ -950,6 +961,10 @@ public class RequestSerializer {
 				}
 			}
 			serialMetaCursor.close();
+			
+			wrap.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+			wrap.put(AmmoProviderSchema._DISPOSITION, channelName);
+			
 			final Uri tupleUri = resolver.insert(provider, wrap);
 			return new UriFuture(tupleUri);
 		}

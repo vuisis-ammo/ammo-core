@@ -1,54 +1,17 @@
 package edu.vu.isis.ammo.core.distributor.store;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.ContentValues;
-import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.provider.BaseColumns;
-import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.store.Capability.CapabilityField;
-import edu.vu.isis.ammo.core.distributor.store.PersistenceHelper.TableField;
-import edu.vu.isis.ammo.core.distributor.store.PersistenceHelper.TableFieldState;
-
 public class Presence {
 	private final static Logger logger = LoggerFactory.getLogger("class.store.presence");
-
-	static public void onCreate(SQLiteDatabase db) {
-		String sqlCreateRef = null; 
-		try {
-			final Relations table = Relations.PRESENCE;
-
-			final StringBuilder createSql = new StringBuilder()
-			.append(" CREATE TABLE ")
-			.append(table.q())
-			.append(" ( ").append(PersistenceHelper.ddl(PresenceField.values())).append(')')
-			.append(';');
-
-			sqlCreateRef = createSql.toString();
-			PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-			db.execSQL(sqlCreateRef);
-
-		} catch (SQLException ex) {
-			logger.error("failed create PRESENCE {} {}",
-					sqlCreateRef.toString(),
-					ex.getLocalizedMessage());
-			return;
-		}
-	}
 
 	/**
 	 * The presence table is for holding information about visible peers.
 	 * A peer is a particular device over a specific channel.
 	 * 
 	 */
+	/*
 	public enum PresenceField implements TableField {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
 
@@ -93,10 +56,12 @@ public class Presence {
 		private PresenceField(String name, String type) {
 			this.impl = TableFieldState.getInstance(name,type);
 		}
+		*/
 
 		/**
 		 * required by TableField interface
 		 */
+	/*
 		public String q(String tableRef) { return this.impl.quoted(tableRef); }
 		public String cv() { return this.impl.cvQuoted(); }
 		public String n() { return this.impl.n; }
@@ -131,6 +96,7 @@ public class Presence {
 			}
 		};
 	};
+	*/
 
 	/**
 	 * PresenceWorker
@@ -139,13 +105,16 @@ public class Presence {
 	 * @param deviceId
 	 * @return
 	 */
+	/*
 	public static PresenceWorker getWorker(final DistributorDataStore parent, 
 			final String deviceId, final String operator) {
 		return new PresenceWorker(parent, deviceId, operator);
 	}
+	*/
 	/** 
 	 * Postal store access class
 	 */
+	/*
 	public static class PresenceWorker {
 		public final String deviceId;
 		public final String operator;
@@ -167,12 +136,14 @@ public class Presence {
 			.append(" operator=[").append(operator).append(']')
 			.toString();
 		}
+		*/
 
 		/**
 		 * Update device presence information for a specified device.
 		 *
 		 * @param deviceId - String - the device id whose presence information to update
 		 */
+	/*
 		public void upsert() {
 			PLogger.STORE_PRESENCE_DML.trace("upsert presence: {}", this);
 			synchronized(parent) {	
@@ -223,6 +194,6 @@ public class Presence {
 	@SuppressWarnings("unused")
 	private static final String PRESENCE_KEY_CLAUSE = new StringBuilder()
 	.append(PresenceField.ORIGIN.q(null)).append("=?").toString();
-
+*/
 
 }

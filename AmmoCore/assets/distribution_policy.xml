@@ -33,7 +33,7 @@
 				<literal term="multicast" condition="success" encoding="json" />
 			</clause>
 		</routing>
-		<routing priority="high" category="subscribe" lifespan="600">
+		<routing priority="high" category="subscribe" lifespan="500000"> <!-- about a year -->
 			<clause>
 				<literal term="gateway" condition="success" encoding="json"/>
 				<literal term="reliablemulticast" condition="success" encoding="json" />

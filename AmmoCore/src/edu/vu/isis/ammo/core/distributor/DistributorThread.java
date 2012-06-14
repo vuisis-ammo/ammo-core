@@ -763,7 +763,7 @@ public class DistributorThread extends Thread {
 
 		if ( !agm.hasValidChecksum() ) {
 			// If this message came from the serial channel, let it know that
-			// a corrupt message occured, so it can update its stats.
+			// a corrupt message occurred, so it can update its statistics.
 			// Make this a more general mechanism later on.
 			if ( agm.isSerialChannel )
 				ammoService.receivedCorruptPacketOnSerialChannel();
@@ -809,7 +809,7 @@ public class DistributorThread extends Thread {
 			break;
 
 		case PULL_RESPONSE:
-			final boolean retrieveResult = receiveRetrievalResponse(context, mw, agm.priority);
+			final boolean retrieveResult = receiveRetrievalResponse(context, mw, agm.channel, agm.priority);
 			logger.debug("retrieve response {}", retrieveResult);
 			break;
 
@@ -1526,7 +1526,7 @@ public class DistributorThread extends Thread {
 	 * @param mw
 	 * @return
 	 */
-	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw, int priority) {
+	private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw, NetChannel channel, int priority) {
 		if (mw == null)
 			return false;
 		if (!mw.hasPullResponse())
@@ -1554,7 +1554,8 @@ public class DistributorThread extends Thread {
 		// update the actual provider
 
 		final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-		final boolean queued = this.deserialThread.toProvider(priority, context, provider, encoding, resp.getData().toByteArray());
+		final boolean queued = this.deserialThread.toProvider(priority, context, channel.name, 
+				provider, encoding, resp.getData().toByteArray());
 		logger.debug("tuple upserted {}", queued);
 
 		return true;
@@ -1863,7 +1864,7 @@ public class DistributorThread extends Thread {
 		}
 
 		final Encoding encoding = Encoding.getInstanceByName( encode );
-		this.deserialThread.toProvider(priority, context, provider, encoding, data.toByteArray());
+		this.deserialThread.toProvider(priority, context, channel.name, provider, encoding, data.toByteArray());
 
 		logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString );
 
