@@ -143,7 +143,7 @@ public class RequestSerializer {
 		}
 		if (parent.agm == null)
 			return null;
-		
+
 		return that.sendRequest(parent.agm, local_channel);
 	}
 
@@ -274,7 +274,7 @@ public class RequestSerializer {
 		public ByteBufferFuture(ByteBuffer value) {
 			super(value);
 		}
-		
+
 		public static ByteBufferFuture wrap(byte[] value) {
 			return new ByteBufferFuture(ByteBuffer.wrap(value));
 		}
@@ -293,13 +293,13 @@ public class RequestSerializer {
 		switch (encodingType) {
 		case CUSTOM:
 			result = RequestSerializer.serializeCustomFromProvider(resolver, tupleUri, encoding);
-            break;
+			break;
 		case JSON: 
 			result = RequestSerializer.serializeJsonFromProvider(resolver, tupleUri, encoding);
-            break;
+			break;
 		case TERSE: 
 			result = RequestSerializer.serializeTerseFromProvider(resolver, tupleUri, encoding);
-            break;
+			break;
 		default:
 			result = RequestSerializer.serializeCustomFromProvider(resolver, tupleUri, encoding);
 		}
@@ -656,8 +656,12 @@ public class RequestSerializer {
 		}
 		final ContentValues cv = new ContentValues();
 		cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
-		cv.put(AmmoProviderSchema._DISPOSITION, channelName);
-		
+		final StringBuilder sb = new StringBuilder()
+		.append(AmmoProviderSchema.Disposition.REMOTE.name())
+		.append('.')
+		.append(channelName);
+		cv.put(AmmoProviderSchema._DISPOSITION, sb.toString());
+
 		for (final Iterator<?> iter = input.keys(); iter.hasNext();) {
 			final Object keyObj = iter.next();
 			if (keyObj instanceof String) {
@@ -961,10 +965,14 @@ public class RequestSerializer {
 				}
 			}
 			serialMetaCursor.close();
-			
+
 			wrap.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
-			wrap.put(AmmoProviderSchema._DISPOSITION, channelName);
-			
+			final StringBuilder sb = new StringBuilder()
+			.append(AmmoProviderSchema.Disposition.REMOTE.name())
+			.append('.')
+			.append(channelName);
+			wrap.put(AmmoProviderSchema._DISPOSITION, sb.toString());
+
 			final Uri tupleUri = resolver.insert(provider, wrap);
 			return new UriFuture(tupleUri);
 		}
