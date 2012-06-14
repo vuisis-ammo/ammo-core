@@ -23,15 +23,19 @@ public class RequestDeserializerThread extends Thread {
 		final public int sequence;
 
 		final public Context context;
+		final public String channelName;
 		final public Uri provider;
 		final public Encoding encoding;
 		final public byte[] data;
 
-		public Item(final int priority, final Context context, final Uri provider, final Encoding encoding, final byte[] data) {
+		public Item(final int priority, final Context context, final String channelName, 
+				final Uri provider, final Encoding encoding, final byte[] data) 
+		{
 			this.priority = priority;
 			this.sequence = masterSequence.getAndIncrement();
 
 			this.context = context;
+			this.channelName = channelName;
 			this.provider = provider;
 			this.encoding = encoding;
 			this.data = data;
@@ -77,8 +81,10 @@ public class RequestDeserializerThread extends Thread {
 	 * @param data
 	 * @return
 	 */
-	public boolean toProvider(int priority, Context context, Uri provider, Encoding encoding, byte[] data) {
-		this.queue.offer(new Item(priority, context, provider, encoding, data));
+	public boolean toProvider(int priority, Context context, final String channelName,
+			Uri provider, Encoding encoding, byte[] data) 
+	{
+		this.queue.offer(new Item(priority, context, channelName, provider, encoding, data));
 		return true;
 	}
 
@@ -94,7 +100,7 @@ public class RequestDeserializerThread extends Thread {
 				final Item item = this.queue.take();
 
 				try {
-					final Uri tuple = RequestSerializer.deserializeToProvider(item.context, item.provider, item.encoding, item.data);
+					final Uri tuple = RequestSerializer.deserializeToProvider(item.context, item.channelName, item.provider, item.encoding, item.data);
 					logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
 							new Object[]{item.provider, tuple, queue.size()} );
 

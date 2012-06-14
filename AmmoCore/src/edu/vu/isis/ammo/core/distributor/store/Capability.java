@@ -19,127 +19,76 @@ import edu.vu.isis.ammo.api.type.TimeTrigger;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.store.PersistenceHelper.TableField;
-import edu.vu.isis.ammo.core.distributor.store.PersistenceHelper.TableFieldState;
+import edu.vu.isis.ammo.core.distributor.store.RelationHelper.RelationField;
 
 public class Capability {
 	private final static Logger logger = LoggerFactory.getLogger("class.store.capability");
 
+	// The device identifier 
+	// (required)
+	private final long id;
 
-	static public void onCreate(SQLiteDatabase db) {
-		String sqlCreateRef = null; 
-		try {	
-			final Relations table = Relations.CAPABILITY;
+	// The device identifier 
+	// (required)
+	private final String origin;
 
-			final StringBuilder createSql = new StringBuilder()
-			.append(" CREATE TABLE ")
-			.append(table.q())
-			.append(" ( ")
-			.append(PersistenceHelper.ddl(CapabilityField.values())).append(')')
-			.append(';');
+	// This along with the cost is used to decide how to deliver the specific object.
+	// (required)
+	private final String topic;
+	// (optional)
+	private final String subtopic;
 
-			sqlCreateRef = createSql.toString();
-			PLogger.STORE_DDL.trace("{}", sqlCreateRef);
-			db.execSQL(sqlCreateRef);
+	// The name of the operator using the channel
+	private final String operator;
 
-		} catch (SQLException ex) {
-			logger.error("failed create CAPABILITY {} {}",
-					sqlCreateRef, ex.getLocalizedMessage());
-			return;
-		}
+	// Time-stamp at which point the request 
+	// becomes stale and can be discarded.
+	private final int expiration;
+
+	// When the operator first used this channel
+	// The first field indicates the first time the peer was observed.
+	private final long first;
+
+	// When the operator was last seen "speaking" on the channel
+	// The latest field indicates the last time the peer was observed.
+	private long latest;
+
+	// How many times the peer has been seen since FIRST
+	// Each time LATEST is changed this COUNT should be incremented
+	private int count;
+
+	// what about message rates?
+
+	private Capability() {
+		this.id = -1;
+		this.origin = null;
+		this.topic = null;
+		this.subtopic = null;
+		this.operator = null;
+		this.expiration = -1;
+		this.first = System.currentTimeMillis();
+		this.latest = this.first;
+		this.count = 1;
 	}
+	/*
+	private CapabilityWorker(final DistributorDataStore parent, 
+			final AmmoRequest ar, final AmmoService svc, 
+			final String device, final String operator) {
 
+		this.parent = parent;
+		this.db = null;
+		this.device = device;
+		this.operator = operator;
+		this.topic = ar.topic.asString();
+		this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
 
-	/**
-	 * The capability table is for holding information about current subscriptions.
-	 *
-	 */
-	public enum CapabilityField  implements TableField {
-		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-		ORIGIN("origin","TEXT"),
-		// The device identifier, this must be present
-		// required
-
-		TOPIC("topic", "TEXT"),
-		// This along with the cost is used to decide how to deliver the specific object.
-
-		SUBTOPIC("subtopic", "TEXT"),
-		// This is used in conjunction with topic. 
-		// It can be used to identify a recipient, a group, a target, etc.
-
-		OPERATOR("operator", "TEXT"),
-		// The name of the operator using the channel
-		// optional
-
-		EXPIRATION("expiration", "INTEGER"),
-		// Time-stamp at which point the request 
-		// becomes stale and can be discarded.
-
-		FIRST("first", "INTEGER"),
-		// When the operator first used this channel
-		// The first field indicates the first time the peer was observed.
-
-		LATEST("latest", "INTEGER"),
-		// When the operator was last seen "speaking" on the channel
-		// The latest field indicates the last time the peer was observed.
-
-		COUNT("count", "INTEGER"),
-		// How many times the peer has been seen since FIRST
-		// Each time LATEST is changed this COUNT should be incremented
-
-		FILTER("filter", "TEXT");
-		// The rows/tuples wanted.
-
-
-		// TODO : what about message rates?
-
-
-		final public TableFieldState impl;
-
-		private CapabilityField(String name, String type) {
-			this.impl = TableFieldState.getInstance(name,type);
-		}
-
-		/**
-		 * required by TableField interface
-		 */
-		public String q(String tableRef) { return this.impl.quoted(tableRef); }
-		public String cv() { return this.impl.cvQuoted(); }
-		public String n() { return this.impl.n; }
-		public String t() { return this.impl.t; }
-		public String ddl() { return this.impl.ddl(); }
+		this.expire = ar.expire;
 	}
-
-	public static interface CapabilityConstants extends BaseColumns {
-
-		public static final String DEFAULT_SORT_ORDER = ""; // "modified_date DESC";
-		public static final String PRIORITY_SORT_ORDER = BaseColumns._ID + " ASC";
-
-		public static final String[] COLUMNS = Initializer.getColumns();
-		public static final Map<String,String> PROJECTION_MAP = Initializer.getProjection();
-
-		public static final String FOREIGN_KEY = null;
-
-		public class Initializer {
-			private static String[] getColumns() {
-				final List<String> columns = new ArrayList<String>();
-				for (CapabilityField field : CapabilityField.values()) {
-					columns.add(field.n());
-				}
-				return columns.toArray(new String[columns.size()]);
-			}
-			private static Map<String,String> getProjection() {
-				final Map<String,String> projection = new HashMap<String,String>();
-
-				for (CapabilityField field : CapabilityField.values()) {
-					projection.put(field.n(), field.n());
-				}
-				return projection;
-			}
-		};
-	};
-
+	private Capability(String name, String type) {
+		this.id
+		this.impl = RelationFieldState.getInstance(name,type);
+	}
+*/
 
 	/**
 	 * CapabilityWorker
@@ -148,13 +97,16 @@ public class Capability {
 	 * @param deviceId
 	 * @return
 	 */
+	/*
 	public static CapabilityWorker getWorker(final DistributorDataStore parent, final IAmmoRequest ar, final AmmoService svc,
 			String device, String operator) {
 		return new CapabilityWorker(parent, (AmmoRequest) ar, svc, device, operator);
 	}
+	*/
 	/** 
 	 * Capability store access class
 	 */
+	/*
 	public static class CapabilityWorker {
 		public final String device;
 		public final String operator;
@@ -183,7 +135,7 @@ public class Capability {
 			this.parent = parent;
 			this.db = null;
 
-			this.device = pending.getString(pending.getColumnIndex(CapabilityField.ORIGIN.n()));
+			this.device = pending.getString(pending.getColumnIndex(Item.ORIGIN.n()));
 			this.operator = pending.getString(pending.getColumnIndex(CapabilityField.OPERATOR.n()));
 			this.topic = pending.getString(pending.getColumnIndex(CapabilityField.TOPIC.n()));
 			this.subtopic = pending.getString(pending.getColumnIndex(CapabilityField.SUBTOPIC.n()));
@@ -191,6 +143,7 @@ public class Capability {
 			final long expireEnc = pending.getLong(pending.getColumnIndex(CapabilityField.EXPIRATION.n()));
 			this.expire = null; // new TimeTrigger(expireEnc);
 		}
+		*/
 
 		/**
 		 * returns the number of rows affected.
@@ -198,6 +151,7 @@ public class Capability {
 		 * @param deviceId
 		 * @return
 		 */
+	/*
 		public long upsert() {
 			PLogger.STORE_CAPABILITY_DML.trace("upsert capability: device=[{}] @ {}",
 					this.device, this);
@@ -258,10 +212,12 @@ public class Capability {
 			}
 			return 0;
 		}
+		*/
 
 		/**
 		 * @return
 		 */
+	/*
 		public int delete() {
 			final String whereClause = CAPABILITY_KEY_CLAUSE;
 			final String[] whereArgs = new String[] {this.device, this.topic, this.subtopic};
@@ -285,6 +241,7 @@ public class Capability {
 	.append(" AND ")
 	.append(CapabilityField.SUBTOPIC.q(null)).append("=?")
 	.toString();
+	*/
 
 
 }
