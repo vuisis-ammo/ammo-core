@@ -1075,6 +1075,7 @@ public class DistributorDataStore {
 	.append("   AND d.").append(DisposalTableSchema.STATE.q())
 	.append(" IN (")
 	.append(DisposalState.REJECTED.q()).append(',')
+	.append(DisposalState.BUSY.q()).append(',')
 	.append(DisposalState.PENDING.q()).append(')')
 	.append(')') // close exists clause	
 	.append(" ORDER BY ")
