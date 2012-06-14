@@ -1793,7 +1793,7 @@ public class DistributorThread extends Thread {
 			originUid = resp.getUri(); // SKN: URI is really UID
 			
 			if (originDevice.equals(selfDevice)) {
-				logger.error("recieved own message [{}:{}]",
+				logger.error("received own device message [{}:{}]",
 						originDevice, selfDevice);
 				return false;
 			}
@@ -1807,7 +1807,7 @@ public class DistributorThread extends Thread {
 		
 		final String selfOperator = ammoService.getOperatorId();
 		if (originUser.equals(selfOperator)) {
-			logger.error("recieved own message [{}:{}]",
+			logger.error("received own user message [{}:{}]",
 					originUser, selfOperator);
 		}
 		

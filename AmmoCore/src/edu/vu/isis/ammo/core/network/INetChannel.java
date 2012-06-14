@@ -21,12 +21,13 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
  */
 
 public interface INetChannel {
-    int PENDING         =  0; // the run failed by some unhandled exception
+    int PENDING         =  0; // the work is pending
     int EXCEPTION       =  1; // the run failed by some unhandled exception
 
     int CONNECTING      = 20; // trying to connect
     int CONNECTED       = 21; // the socket is good an active
-
+    int BUSY            = 22; // the socket is busy and no new work should be queued
+    int READY           = 23; // the socket can now take additional requests
 
     int DISCONNECTED    = 30; // the socket is disconnected
     int STALE           = 31; // indicating there is a message

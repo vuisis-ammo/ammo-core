@@ -853,6 +853,9 @@ public class RequestSerializer {
 					char c = svalue.charAt(i);
 					tuple.putChar( c );
 				}
+				// FIXME use UTF8 not UTF16, this loop is not needed.
+				// the length should correspondingly be short not long
+				// do the deserialize as well
 				break;
 			case FIELD_TYPE_BOOL:
 			case FIELD_TYPE_INTEGER:
