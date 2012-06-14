@@ -21,39 +21,65 @@ import java.util.Collection;
 import java.util.HashMap;
 
 /**
- * @author ycoppel@google.com (Yohann Coppel)
+ * Objects of this class are tree nodes.
+ * A tree node contains a list of leaves which may be empty.
+ * A tree node has a payload, which is a reference to an object.
+ * All nodes in a tree share the same dictionary (locate).
+ * The parent of a tree node is the tree which contains this node
+ * as a leaf.
  * 
  * @param <T>
  *            Object's type in the tree.
  */
 public class Tree<T> {
 
-	private T head;
+	final private T payload;
+	final private ArrayList<Tree<T>> leafs;
+	final private Tree<T> parent;
+	final private HashMap<T, Tree<T>> locate;
 
-	private ArrayList<Tree<T>> leafs = new ArrayList<Tree<T>>();
-
-	private Tree<T> parent = null;
-
-	private HashMap<T, Tree<T>> locate = new HashMap<T, Tree<T>>();
-
-	public Tree(T head) {
-		this.head = head;
-		locate.put(head, this);
+	
+	private Tree(T payload, HashMap<T, Tree<T>> locate, Tree<T> parent) {
+		this.payload = payload;
+		this.locate = locate;
+		this.parent = parent;
+		this.leafs = new ArrayList<Tree<T>>();
+		locate.put(payload, this);
+	}
+	
+	/**
+	 * Construct the root tree node.
+	 * 
+	 * @param payload
+	 */
+	public static <T> Tree<T> newInstance(T payload) {
+		return new Tree<T>(payload, new HashMap<T, Tree<T>>(), null);
 	}
 
+	/**
+	 * Adds a leaf node for a particular payload to a 
+	 * node having the specified parent payload.
+	 * 
+	 * @param root
+	 * @param leaf
+	 */
 	public void addLeaf(T root, T leaf) {
 		if (locate.containsKey(root)) {
 			locate.get(root).addLeaf(leaf);
 		} else {
-			addLeaf(root).addLeaf(leaf);
+			throw new IllegalArgumentException("no parent with that name "+root.toString());
 		}
 	}
 
+	/**
+	 * Add a leaf node with the specified payload to the current node.
+	 * 
+	 * @param leaf
+	 * @return
+	 */
 	public Tree<T> addLeaf(T leaf) {
-		Tree<T> t = new Tree<T>(leaf);
+		Tree<T> t = new Tree<T>(leaf, this.locate, this);
 		leafs.add(t);
-		t.parent = this;
-		t.locate = this.locate;
 		locate.put(leaf, t);
 		return t;
 	}
@@ -62,18 +88,8 @@ public class Tree<T> {
 		return locate.containsKey(element);
 	}
 
-	public Tree<T> setAsParent(T parentRoot) {
-		Tree<T> t = new Tree<T>(parentRoot);
-		t.leafs.add(this);
-		this.parent = t;
-		t.locate = this.locate;
-		t.locate.put(head, this);
-		t.locate.put(parentRoot, t);
-		return t;
-	}
-
-	public T getHead() {
-		return head;
+	public T getPayload() {
+		return payload;
 	}
 
 	public Tree<T> getTree(T element) {
@@ -84,12 +100,18 @@ public class Tree<T> {
 		return parent;
 	}
 
+	/**
+	 * Gets all children of a particular tree node.
+	 * 
+	 * @param root
+	 * @return
+	 */
 	public Collection<T> getSuccessors(T root) {
-		Collection<T> successors = new ArrayList<T>();
+		final Collection<T> successors = new ArrayList<T>();
 		Tree<T> tree = getTree(root);
 		if (null != tree) {
 			for (Tree<T> leaf : tree.leafs) {
-				successors.add(leaf.head);
+				successors.add(leaf.payload);
 			}
 		}
 		return successors;
@@ -121,7 +143,7 @@ public class Tree<T> {
 		for (int i = 0; i < increment; ++i) {
 			inc = inc + " ";
 		}
-		s = inc + head;
+		s = inc + payload;
 		for (Tree<T> child : leafs) {
 			s += "\n" + child.printTree(increment + indent);
 		}

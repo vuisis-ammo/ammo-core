@@ -1,29 +1,39 @@
 package edu.vu.isis.logger.ui;
 
-import java.util.ArrayList;
-import java.util.Iterator;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.LoggerFactory;
 
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.ListActivity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
-
 import android.widget.Toast;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -32,11 +42,15 @@ import ch.qos.logback.classic.android.LogcatAppender;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import ch.qos.logback.core.FileAppender;
+import ch.qos.logback.core.joran.action.Action;
+import ch.qos.logback.core.joran.spi.JoranException;
+import ch.qos.logback.core.joran.spi.Pattern;
 import edu.vu.isis.ammo.R;
 
 /**
  * This class provides a user interface to edit the Level of all Logger objects
  * active in the application.
+ * 
  * @author Nick King
  *
  */
@@ -45,21 +59,33 @@ public class LoggerEditor extends ListActivity {
 
 
 	private static final int READ_MENU = Menu.NONE + 0;
-	private static final int TOGGLE_APPTXT_MENU = Menu.NONE + 1;
-	private static final int RESET_APP_MENU = Menu.NONE + 2;
+	private static final int TOGGLE_APPENDER_TEXT_MENU = Menu.NONE + 1;
+	private static final int RESET_APPENDERS_MENU = Menu.NONE + 2;
+	private static final int LOAD_CONFIGURATION_MENU = Menu.NONE + 3;
+	private static final int SAVE_CONFIGURATION_MENU = Menu.NONE + 4;
+
+	private static final int APPENDER_REQUEST_CODE = 0;
+	private static final int PICKFILE_REQUEST_CODE = 1;
+
+	private static final String DEFAULT_SAVE_DIRECTORY = "/logger/save";
 
 	private Logger selectedLogger;
 	private View selectedView;
 	private Tree<Logger> loggerTree;
 
 	// We use this logger to log for this Activity
-	private final Logger personalLogger = Loggers.getLoggerByName("ui.logger.editor");
+	private final Logger personalLogger = Loggers
+			.getLoggerByName("ui.logger.editor");
 
 	private TextView selectionText;
 	private WellBehavedSpinner levelSpinner;
 	private MyOnSpinnerDialogClickListener spinnerListener;
 	private ListView mListView;
 	private LoggerIconAdapter mAdapter;
+	private final List<Appender<ILoggingEvent>> availableAppenders = AppenderStore
+			.getInstance().getAppenders();
+
+	private final String[] appenderNames = new String[availableAppenders.size()];
 
 	private AtomicBoolean showAppenderText = new AtomicBoolean(true);
 
@@ -70,10 +96,12 @@ public class LoggerEditor extends ListActivity {
 		setContentView(R.layout.logger_editor);
 
 		// LoggerContext provides access to a List of all active loggers
-		final LoggerContext lc = (LoggerContext)LoggerFactory.getILoggerFactory();
+		final LoggerContext lc = (LoggerContext) LoggerFactory
+				.getILoggerFactory();
 		final List<Logger> loggerList = lc.getLoggerList();
 		this.loggerTree = makeTree(loggerList);
 
+		initAppenderNames();
 
 		this.mListView = super.getListView();
 
@@ -84,10 +112,11 @@ public class LoggerEditor extends ListActivity {
 		this.selectionText = (TextView) findViewById(R.id.selection_text);
 		this.levelSpinner = (WellBehavedSpinner) findViewById(R.id.level_spinner);
 
-		final ArrayAdapter<CharSequence> spinAdapter = ArrayAdapter.createFromResource(
-				this, R.array.level_options, 
+		final ArrayAdapter<CharSequence> spinAdapter = ArrayAdapter
+				.createFromResource(this, R.array.level_options,
 				android.R.layout.simple_spinner_item);
-		spinAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+		spinAdapter
+				.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
 		this.levelSpinner.setAdapter(spinAdapter);
 		this.spinnerListener = new MyOnSpinnerDialogClickListener();
@@ -97,10 +126,12 @@ public class LoggerEditor extends ListActivity {
 		// Set the selection text to indicate nothing is selected
 		this.updateSelText(null);
 
-		if(savedInstanceState == null) return;
+		if (savedInstanceState == null)
+			return;
 
 		// Set the list back to its previous position
-		final int savedVisiblePosition = savedInstanceState.getInt("savedVisiblePosition");
+		final int savedVisiblePosition = savedInstanceState
+				.getInt("savedVisiblePosition");
 		this.mListView.setSelection(savedVisiblePosition);
 
 		this.selectedView = null;
@@ -113,15 +144,27 @@ public class LoggerEditor extends ListActivity {
 			.show();
 		}
 
-		final boolean showAppText = savedInstanceState.getBoolean("showAppText");
+		final boolean showAppText = savedInstanceState
+				.getBoolean("showAppText");
 		this.showAppenderText.set(showAppText);
-
 
 	}
 
+	@Override
+	public void onStart() {
+		super.onStart();
+		startWatchingExternalStorage();
+	}
+
+	@Override
+	public void onStop() {
+		super.onStop();
+		stopWatchingExternalStorage();
+	}
 
 	@Override
 	public void onSaveInstanceState(Bundle outState) {
+		super.onSaveInstanceState(outState);
 
 		final int savedVisiblePosition = this.mListView
 				.getFirstVisiblePosition();
@@ -139,15 +182,13 @@ public class LoggerEditor extends ListActivity {
 
 	private Tree<Logger> makeTree(List<Logger> list) {
 
-		final Tree<Logger> mTree = new Tree<Logger>(Loggers.ROOT_LOGGER);
+		final Tree<Logger> mTree = Tree.newInstance(Loggers.ROOT_LOGGER);
 
 		for(final Logger logger : list) {			
-			if (logger.equals(Loggers.ROOT_LOGGER)
-					|| logger.equals(Loggers.DUMMY_LOGGER)) {
+			if (logger.equals(Loggers.ROOT_LOGGER)) {
 				continue;
 			}
-			final String loggerName = logger.getName();
-			safelyAddLeaf(mTree, logger, loggerName);
+			safelyAddLeaf(mTree, logger);
 		}
 
 		return mTree;
@@ -160,45 +201,48 @@ public class LoggerEditor extends ListActivity {
 	/**
 	 * Adds a leaf to the tree with only the assumption that the Root logger is
 	 * at the top of the tree.  The order in which leaves are added does not
-	 * matter because the algorithm always checks if the parent leaves
-	 * have been added to the tree before adding a child leaf.  For example, if
-	 * a Logger named "edu.foo.bar" were given, then we would first check if
-	 * "edu.foo" and "edu" had been added to the tree, and if not, we would 
-	 * add them before adding "edu.foo.bar"
-	 * @param mTree -- the Tree to which leaves are added
-	 * @param aLogger -- the Logger to be added to the Tree
-	 * @param loggerName -- the name of the Logger
+	 * matter because the algorithm always checks if the parent leaves have been
+	 * added to the tree before adding a child leaf. For example, if a Logger
+	 * named "edu.foo.bar" were given, then we would first check if "edu.foo"
+	 * and "edu" had been added to the tree, and if not, we would add them
+	 * before adding "edu.foo.bar"
+	 * 
+	 * @param mTree
+	 *            -- the Tree to which leaves are added
+	 * @param aLogger
+	 *            -- the Logger to be added to the Tree
 	 */
-	private void safelyAddLeaf(Tree<Logger> mTree, Logger aLogger,
-			String loggerName) {
+	private void safelyAddLeaf(Tree<Logger> mTree, Logger aLogger) {
 
 		if (mTree.contains(aLogger))
 			return;
-		final String parentLoggerName = Loggers
-				.getParentLoggerName(aLogger);
+		final Logger parentLogger = Loggers.getParentLogger(aLogger);
 
 		// We can use == here because the getParentLoggerName method
 		// returns to us a static reference of this String object.
 		// We get a minor performance boost from this.
-		if (parentLoggerName == Logger.ROOT_LOGGER_NAME) {
-			mTree.addLeaf(Loggers.ROOT_LOGGER, aLogger);
+		if (parentLogger == Loggers.ROOT_LOGGER) {
+			mTree.addLeaf(aLogger);
 			return;
 		}
 
-		final Logger parentLogger = Loggers
-				.getLoggerByName(parentLoggerName);
-
-		safelyAddLeaf(mTree, parentLogger, parentLoggerName);
+		safelyAddLeaf(mTree, parentLogger);
 		mTree.addLeaf(parentLogger, aLogger);
 		return;
 	}
 
 
+	private void initAppenderNames() {
+		for (int i = 0; i < this.availableAppenders.size(); i++) {
+			this.appenderNames[i] = this.availableAppenders.get(i).getName();
+		}
+	}
 
 	@Override
 	public void onListItemClick(ListView parent, View row, int position, long id) {
 
-		final Logger nextSelectedLogger = (Logger)parent.getItemAtPosition(position);
+		final Logger nextSelectedLogger = (Logger) parent
+				.getItemAtPosition(position);
 		final Level effective = nextSelectedLogger.getEffectiveLevel();
 
 		updateSelText(nextSelectedLogger.getName());
@@ -207,8 +251,8 @@ public class LoggerEditor extends ListActivity {
 			this.spinnerListener.updateSpinner(effective, this.levelSpinner);
 		} else if (nextSelectedLogger.equals(this.selectedLogger)) {
 			return;
-		} else if ((! effective.equals(selectedLogger.getEffectiveLevel())) || 
-				this.levelSpinner.getSelectedItemPosition() == CLEAR_IX) {
+		} else if ((!effective.equals(selectedLogger.getEffectiveLevel()))
+				|| this.levelSpinner.getSelectedItemPosition() == CLEAR_IX) {
 			this.spinnerListener.updateSpinner(effective, this.levelSpinner);
 		}
 		this.selectedLogger = nextSelectedLogger;
@@ -229,8 +273,14 @@ public class LoggerEditor extends ListActivity {
 
 		super.onCreateOptionsMenu(menu);
 		menu.add(Menu.NONE, READ_MENU, Menu.NONE, "Read logs");
-		menu.add(Menu.NONE, TOGGLE_APPTXT_MENU, Menu.NONE, "Toggle Appender text");
-		menu.add(Menu.NONE, RESET_APP_MENU, Menu.NONE, "Reset Appenders to ROOT configuration");
+		menu.add(Menu.NONE, TOGGLE_APPENDER_TEXT_MENU, Menu.NONE,
+				"Toggle Appender text");
+		menu.add(Menu.NONE, RESET_APPENDERS_MENU, Menu.NONE,
+				"Reset Appenders to ROOT configuration");
+		menu.add(Menu.NONE, SAVE_CONFIGURATION_MENU, Menu.NONE,
+				"Save current logger settings");
+		menu.add(Menu.NONE, LOAD_CONFIGURATION_MENU, Menu.NONE,
+				"Load logger settings");
 
 		return true;
 
@@ -245,13 +295,26 @@ public class LoggerEditor extends ListActivity {
 		case READ_MENU:
 			createReaderSelectorDialog();
 			break;
-		case TOGGLE_APPTXT_MENU:
+		case TOGGLE_APPENDER_TEXT_MENU:
 			this.showAppenderText.set(!this.showAppenderText.get());
 			refreshList();
 			break;
-		case RESET_APP_MENU:
+		case RESET_APPENDERS_MENU:
 			Loggers.copyHeadAppenderSettings(loggerTree);
 			refreshList();
+			break;
+		case SAVE_CONFIGURATION_MENU:
+			promptForSave();
+			break;
+		case LOAD_CONFIGURATION_MENU:
+			if (mExternalStorageAvailable) {
+				Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+				intent.setType("text/xml");
+				startActivityForResult(intent, PICKFILE_REQUEST_CODE);
+			} else {
+				Toast.makeText(this, "Cannot read from external storage",
+						Toast.LENGTH_LONG);
+			}
 			break;
 		default:
 			returnValue = false;
@@ -260,18 +323,144 @@ public class LoggerEditor extends ListActivity {
 		return returnValue;
 	}
 
+	private void promptForSave() {
+
+		final Dialog myDialog = new Dialog(this);
+
+		myDialog.setTitle("Save logger settings to file");
+		myDialog.setContentView(R.layout.logger_filesave_dialog);
+
+		final EditText filenameEdit = (EditText) myDialog
+				.findViewById(R.id.dialog_file_name_edit);
+		final EditText directoryEdit = (EditText) myDialog
+				.findViewById(R.id.dialog_directory_edit);
+		final Button saveButton = (Button) myDialog
+				.findViewById(R.id.dialog_file_save_button);
+		final Button cancelButton = (Button) myDialog
+				.findViewById(R.id.dialog_cancel_save_button);
+
+		directoryEdit.setText(Environment.getExternalStorageDirectory()
+				+ DEFAULT_SAVE_DIRECTORY);
+
+		cancelButton.setOnClickListener(new View.OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				myDialog.dismiss();
+		}
+		});
+
+		saveButton.setOnClickListener(new View.OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				if (mExternalStorageWriteable) {
+
+					final String filenameEditStr = filenameEdit.getText()
+							.toString();
+
+					if (filenameEditStr.equals("")) {
+						Toast.makeText(LoggerEditor.this,
+								"Enter a nonempty filename", Toast.LENGTH_LONG)
+								.show();
+						return;
+					}
+
+					final String filename = formatFilename(filenameEditStr);
+					final String directory = directoryEdit.getText().toString();
+					saveFile(filename, directory);
+				}
+				myDialog.dismiss();
+			}
+
+			private String formatFilename(String str) {
+				final String trimmed = str.trim();
+				if (!trimmed.endsWith(".xml")) {
+					return str += ".xml";
+				} else {
+					return trimmed;
+				}
+			}
+
+		});
+
+		myDialog.show();
+
+	}
+
+	private void saveFile(String filename, String directory) {
+		final File dirs = new File(directory);
+
+		if (dirs.mkdirs()) {
+			personalLogger.info("Directory {} was created for save",
+					dirs.getAbsolutePath());
+		} else {
+			personalLogger.info("Directory {} was not created for save",
+					dirs.getAbsolutePath());
+		}
+
+		final PrintStream outStream;
+		try {
+			outStream = new PrintStream(directory + "/" + filename);
+		} catch (FileNotFoundException e) {
+			personalLogger.error("FileNotFoundException! Unable to write file");
+			e.printStackTrace();
+			return;
+		}
+
+		List<Logger> loggerList = ((LoggerContext) LoggerFactory
+				.getILoggerFactory()).getLoggerList();
+
+		for (Logger logger : loggerList) {
+			writeXML(outStream, logger);
+		}
+
+	}
+
+	private void writeXML(PrintStream outStream, Logger logger) {
+
+		final String name = logger.getName();
+		final String levelStr = logger.getLevel() != null ? logger.getLevel()
+				.toString() : LoggerConfigureAction.NO_LEVEL_STR;
+		final String appenderStr = makeAppenderStr(Loggers
+				.getAttachedAppenders(logger));
+		final String additivityStr = Boolean.toString(logger.isAdditive());
+
+		final StringBuilder bldr = new StringBuilder();
+		final String openQuoteStr = "=\"";
+		final String closeQuoteStr = "\" ";
+		
+		bldr.append("<logger ").append(LoggerConfigureAction.NAME_ATR)
+				.append(openQuoteStr).append(name).append(closeQuoteStr)
+				.append(LoggerConfigureAction.LEVEL_ATR).append(openQuoteStr)
+				.append(levelStr).append(closeQuoteStr)
+				.append(LoggerConfigureAction.APPENDER_ATR)
+				.append(openQuoteStr).append(appenderStr).append(closeQuoteStr)
+				.append(LoggerConfigureAction.ADDITIVITY_ATR)
+				.append(openQuoteStr).append(additivityStr)
+				.append(closeQuoteStr).append("/>");
+		final String outputStr = bldr.toString();
+
+		personalLogger.trace("Writing line to file: {}", outputStr);
+		outStream.println(outputStr);
+
+	}
+
+	private String makeAppenderStr(List<Appender<ILoggingEvent>> appenders) {
+
+		if (appenders.isEmpty())
+			return LoggerConfigureAction.NO_APPENDER_STR;
+
+		StringBuilder bldr = new StringBuilder();
+		for (Appender<ILoggingEvent> a : appenders) {
+			bldr.append(a.getName()).append(" ");
+		}
+		return bldr.toString().trim();
+	}
 
 	private void createReaderSelectorDialog() {
 
 		final AlertDialog.Builder bldr = new AlertDialog.Builder(this);
-
-		final List<String> availableAppenderNames = new ArrayList<String>();
-		final Iterator<Appender<ILoggingEvent>> it = Loggers.DUMMY_LOGGER
-				.iteratorForAppenders();
-
-		while (it.hasNext()) {
-			availableAppenderNames.add(it.next().getName());
-		}
 
 		final OnClickListener dlgListener = new OnClickListener() {
 
@@ -280,22 +469,22 @@ public class LoggerEditor extends ListActivity {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
 
-				final String whichAppender = availableAppenderNames.get(which);
-				final Appender<ILoggingEvent> appenderToRead = Loggers.DUMMY_LOGGER
-						.getAppender(whichAppender);
+				final Appender<ILoggingEvent> whichAppender = availableAppenders
+						.get(which);
 
-				if(appenderToRead == null) {
-					parent.personalLogger.error("Could not find Appender: {}", whichAppender);
-					Toast.makeText(parent, "Could not find Appender.", Toast.LENGTH_LONG).show();
+				if (whichAppender == null) {
+					final String errMsg = "Could not find Appender";
+					parent.personalLogger.error(errMsg);
+					Toast.makeText(parent, errMsg, Toast.LENGTH_LONG).show();
 					return;
 				}
 
 				String cmd = new String();
 
-				if (appenderToRead instanceof LogcatAppender) {
+				if (whichAppender instanceof LogcatAppender) {
 					cmd = "logcat";
-				} else if (appenderToRead instanceof FileAppender) {
-					final FileAppender<ILoggingEvent> fileAppender = (FileAppender<ILoggingEvent>) appenderToRead;
+				} else if (whichAppender instanceof FileAppender) {
+					final FileAppender<ILoggingEvent> fileAppender = (FileAppender<ILoggingEvent>) whichAppender;
 					final String filename = fileAppender.getFile();
 					cmd = "file " + filename;
 				} else {
@@ -306,7 +495,8 @@ public class LoggerEditor extends ListActivity {
 				}
 
 				final Intent intent = parent.getIntent();
-				parent.personalLogger.debug("Putting extra in Intent for LogViewer: {}", cmd);
+				parent.personalLogger.debug(
+						"Putting extra in Intent for LogViewer: {}", cmd);
 				intent.putExtra(LogViewer.EXTRA_NAME, cmd);
 				intent.setClass(parent, LogViewer.class);
 				parent.startActivity(intent);
@@ -315,18 +505,22 @@ public class LoggerEditor extends ListActivity {
 
 		};
 
-		bldr.setItems(availableAppenderNames.toArray(new String[0]),
-				dlgListener).setTitle("Select an Appender to view its logs:")
-				.show();
-
+		bldr.setItems(appenderNames, dlgListener)
+				.setTitle("Select an Appender to view its logs:")
+                .show();
 	}
 
 
+	/**
+	 * Update the icon for the logger view.
+	 * 
+	 * @param lvl
+	 * @param row
+	 */
 	private void updateIcon(Level lvl, View row) {
 		final ImageView iv = (ImageView) (row.findViewById(R.id.logger_icon));
-		final String loggerName = (String) ((TextView) row
-				.findViewById(R.id.logger_text)).getText();
-		if(Loggers.isInheritingLevel(Loggers.getLoggerByName(loggerName))) {
+		
+		if(Loggers.isInheritingLevel(this.selectedLogger)) {
 			setEffectiveIcon(lvl, iv);
 		} else {
 			setActualIcon(lvl, iv);
@@ -382,7 +576,8 @@ public class LoggerEditor extends ListActivity {
 
 
 	private void updateSelText(String selection) {
-		selectionText.setText((selection == null) ? "None selected" : selection);
+		selectionText
+				.setText((selection == null) ? "None selected" : selection);
 	}
 
 
@@ -394,26 +589,41 @@ public class LoggerEditor extends ListActivity {
 	static final int OFF_IX = 5;
 	static final int CLEAR_IX = 6;
 
+	static class ViewHolder extends TreeAdapter.ViewHolder {
+		ImageView levelIV;
+		ImageView appenderIV;
+		
+		public ViewHolder(TreeAdapter.ViewHolder holder) {
+			this.tv = holder.tv;
+		}
+		
+	}
 
 	public class LoggerIconAdapter extends TreeAdapter<Logger> {
 		final private LoggerEditor parent = LoggerEditor.this;
 
-		private int tvId;
-
-		public LoggerIconAdapter(Tree<Logger> objects, Context context, int resource,
-				int textViewResourceId) {
+		public LoggerIconAdapter(Tree<Logger> objects, Context context,
+				int resource, int textViewResourceId) {
 			super(objects, context, resource, textViewResourceId);
-			this.tvId = textViewResourceId;
 		}
 
 		@Override
 		public View getView(int position, View convertView, ViewGroup group) {
 
 			final View row = super.getView(position, convertView, group);
+			final Object tag = row.getTag();
+			final LoggerEditor.ViewHolder holder;
 
-			final TextView tv = (TextView)row.findViewById(this.tvId);
-			final ImageView levelIV = (ImageView)(row.findViewById(R.id.logger_icon));
-			final ImageView appenderIV = (ImageView)(row.findViewById(R.id.appender_icon));
+			if(!(tag instanceof LoggerEditor.ViewHolder)) {
+				holder = new LoggerEditor.ViewHolder((TreeAdapter.ViewHolder) tag);
+				holder.levelIV = (ImageView) (row
+						.findViewById(R.id.logger_icon));
+				holder.appenderIV = (ImageView) (row
+						.findViewById(R.id.appender_icon));
+				row.setTag(holder);
+			} else {
+				holder = (LoggerEditor.ViewHolder) tag;
+			}
 
 			final Logger aLogger = super.getItem(position);
 
@@ -422,28 +632,27 @@ public class LoggerEditor extends ListActivity {
 				txtBldr.append("  ").append(getAllAppenderString(aLogger));
 			}
 
-			tv.setText(txtBldr.toString());
+			holder.tv.setText(txtBldr.toString());
 
 			if (Loggers.isInheritingLevel(aLogger)) {
-				tv.setTextAppearance(parent, R.style.unselected_logger_font);
-				parent.setEffectiveIcon(aLogger.getEffectiveLevel(), levelIV);
+				holder.tv.setTextAppearance(parent, R.style.unselected_logger_font);
+				parent.setEffectiveIcon(aLogger.getEffectiveLevel(), holder.levelIV);
 			} else {
-				tv.setTextAppearance(parent, R.style.selected_logger_font);
-				parent.setActualIcon(aLogger.getEffectiveLevel(), levelIV);
+				holder.tv.setTextAppearance(parent, R.style.selected_logger_font);
+				parent.setActualIcon(aLogger.getEffectiveLevel(), holder.levelIV);
 			}
 
-			// if(!(!(aLogger == Loggers.ROOT_LOGGER) && Loggers.hasSameAppendersAsParent(aLogger))) {
 			if(aLogger == Loggers.ROOT_LOGGER) {
-				appenderIV.setImageResource(R.drawable.appender_attached_icon);
+				holder.appenderIV.setImageResource(R.drawable.appender_attached_icon);
 			} else if(! aLogger.isAdditive()) {
-				appenderIV.setImageResource(R.drawable.appender_attached_icon);
+				holder.appenderIV.setImageResource(R.drawable.appender_attached_icon);
 			} else {
-				appenderIV.setImageBitmap(null);
+				holder.appenderIV.setImageBitmap(null);
 			}
 
 			final int viewColor = (aLogger.equals(parent.selectedLogger)) 
-					? parent.getResources().getColor(R.color.selected_logger_bg)
-							: parent.getResources().getColor(R.color.unselected_logger_bg);
+                    ? parent.getResources().getColor(R.color.selected_logger_bg)
+					: parent.getResources().getColor(R.color.unselected_logger_bg);
 
 					parent.setViewColor(row, viewColor);
 
@@ -454,14 +663,15 @@ public class LoggerEditor extends ListActivity {
 		/**
 		 * Returns a String assuming that all Loggers do not have additivity
 		 * enabled for Appenders.  This means that there are no longer two
-		 * different categories of Appenders (attached and effective), so
-		 * the String can express the Appenders affecting a Logger in a 
-		 * more terse way.
+		 * different categories of Appenders (attached and effective), so the
+		 * String can express the Appenders affecting a Logger in a more terse
+		 * way.
 		 */
 		@SuppressWarnings("unused")
 		private String getTerseAppenderString(Logger aLogger) {
 
-			final List<Appender<ILoggingEvent>> attachedList = Loggers.getAttachedAppenders(aLogger);
+			final List<Appender<ILoggingEvent>> attachedList = Loggers
+					.getAttachedAppenders(aLogger);
 			StringBuilder nameBldr = new StringBuilder("[ Appenders: ");
 
 			if(attachedList.isEmpty()) {
@@ -479,27 +689,13 @@ public class LoggerEditor extends ListActivity {
 
 
 		/**
-		 * Makes a String indicating both the attached and
-		 * inherited Appenders. 
+		 * Makes a String indicating both the attached and inherited Appenders.
 		 */
-		private String getAllAppenderString(Logger aLogger) {
-
-			StringBuilder nameBldr = new StringBuilder();
-			/*
-			final List<Appender<ILoggingEvent>> attachedList = Loggers.getAttachedAppenders(aLogger);
-			nameBldr.append("[ Attached Appenders: ");
-
-			if(attachedList.isEmpty()) {
-				nameBldr.append("none ");
-			} else {
-				for(Appender<ILoggingEvent> app : attachedList) {
-					nameBldr.append(app.getName()).append(" ");
-				}
-			}
-           	nameBldr.append(" |  Effective Appenders: ");
-			 */
+		private String getAllAppenderString(final Logger aLogger) {
+			final StringBuilder nameBldr = new StringBuilder();
 			nameBldr.append(" [ ");
-			final List<Appender<ILoggingEvent>> effectiveList = Loggers.getEffectiveAppenders(aLogger);
+			final List<Appender<ILoggingEvent>> effectiveList = Loggers
+					.getEffectiveAppenders(aLogger);
 
 			if(effectiveList.isEmpty()) {
 				nameBldr.append("none ");
@@ -543,19 +739,22 @@ public class LoggerEditor extends ListActivity {
 
 	}
 
-	/**
-	 * Determine if appenders match the parent.
-	 * Additivity is used as the "effective v. actual" indicator.
-	 * 
-	 */
 	@Override
-	public void onActivityResult(int requestCode, int resultCode, Intent outputIntent) {
-		if (this.selectedLogger == Loggers.ROOT_LOGGER) {
-			refreshList();
-			return;
-		}
+	public void onActivityResult(int requestCode, int resultCode,
+			Intent outputIntent) {
 
-		if(requestCode == 0) {
+		switch (requestCode) {
+
+		case APPENDER_REQUEST_CODE:
+			/*
+			 * Determine if appenders match the parent. Additivity is used as
+			 * the "effective v. actual" indicator.
+			 */
+			if (this.selectedLogger == Loggers.ROOT_LOGGER) {
+					refreshList();
+					return;
+				}
+
 			if (Loggers.hasSameAppendersAsParent(this.selectedLogger)) {
 				this.selectedLogger.setAdditive(true);
 				Loggers.clearAppenders(this.selectedLogger);
@@ -563,19 +762,68 @@ public class LoggerEditor extends ListActivity {
 				this.selectedLogger.setAdditive(false);
 			}
 			refreshList();
+			break;
+
+		case PICKFILE_REQUEST_CODE:
+			if (outputIntent == null || outputIntent.getData() == null)
+				return;
+			loadFile(outputIntent.getData());
+			break;
+		default:
+			break;
 		}
 	}
 
+	private void loadFile(Uri fileUri) {
+
+		final InputStream fileInputStream;
+
+		try {
+			fileInputStream = getContentResolver().openInputStream(fileUri);
+		} catch (FileNotFoundException e) {
+			Toast.makeText(this, "Could not find file: " + fileUri,
+					Toast.LENGTH_LONG);
+			e.printStackTrace();
+			return;
+		}
+
+		final Map<Pattern, Action> ruleMap = new HashMap<Pattern, Action>();
+		ruleMap.put(new Pattern("logger"), new LoggerConfigureAction());
+
+		final SimpleConfigurator simpleConfigurator = new SimpleConfigurator(
+				ruleMap);
+
+		// link the configurator with its context
+		// Note that logback has its own Context class, which conflicts
+		// with the Android Context, hence the ugly type cast
+		simpleConfigurator
+				.setContext((ch.qos.logback.core.Context) LoggerFactory
+						.getILoggerFactory());
+
+		try {
+			simpleConfigurator.doConfigure(fileInputStream);
+		} catch (JoranException e) {
+			final String errorMessage = "Error loading file: could not parse XML";
+			personalLogger.error(errorMessage);
+			Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
+			e.printStackTrace();
+		}
+		
+		refreshList();
+
+	}
 
 	/**
 	 * the spinner makes use of this listener.
 	 */
-	public class MyOnSpinnerDialogClickListener implements OnSpinnerDialogClickListener {
+	public class MyOnSpinnerDialogClickListener implements
+			OnSpinnerDialogClickListener {
 
 		final LoggerEditor parent = LoggerEditor.this;
 
 		/**
 		 * Sets the current text on the Spinner to match the given Level
+		 * 
 		 * @param lvl
 		 */
 		public void updateSpinner(final Level lvl, final Spinner spinner) {
@@ -609,11 +857,13 @@ public class LoggerEditor extends ListActivity {
 		public void onSpinnerDialogClick(int which) {
 
 			if (parent.selectedLogger == null) {
-				Toast.makeText(parent, "Please select a logger.", Toast.LENGTH_SHORT).show();
+				Toast.makeText(parent, "Please select a logger.", Toast.LENGTH_SHORT)
+                     .show();
 				return;
 			}
 
-			if (parent.selectedView == null) return;
+			if (parent.selectedView == null)
+				return;
 
 			final Level nextLevel;
 
@@ -639,7 +889,9 @@ public class LoggerEditor extends ListActivity {
 			case CLEAR_IX:
 			default:
 				if (selectedLogger.equals(Loggers.ROOT_LOGGER)) {
-					Toast.makeText(parent, "Clearing the root logger is not allowed", Toast.LENGTH_LONG).show();
+					Toast.makeText(parent,
+							"Clearing the root logger is not allowed",Toast.LENGTH_LONG)
+                          .show(); 
 					return;
 				}
 				nextLevel = null;
@@ -649,11 +901,62 @@ public class LoggerEditor extends ListActivity {
 
 			// We want to use the effective level for the icon if the
 			// Logger's level is null
-			updateIcon((nextLevel == null) ? parent.selectedLogger.getEffectiveLevel()
+			updateIcon(
+					(nextLevel == null) 
+                    ? parent.selectedLogger.getEffectiveLevel()
 					: nextLevel, parent.selectedView);
 
 		}
 
+	}
+
+	/*
+	 * The following code comes from
+	 * http://developer.android.com/reference/android
+	 * /os/Environment.html#getExternalStorageDirectory() It allows us to
+	 * monitor the state of the external storage so we know if we are allowed to
+	 * read or write
+	 */
+	private BroadcastReceiver mExternalStorageReceiver;
+	private boolean mExternalStorageAvailable = false;
+	private boolean mExternalStorageWriteable = false;
+
+	private void updateExternalStorageState() {
+		String state = Environment.getExternalStorageState();
+		if (Environment.MEDIA_MOUNTED.equals(state)) {
+			mExternalStorageAvailable = mExternalStorageWriteable = true;
+		} else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
+			mExternalStorageAvailable = true;
+			mExternalStorageWriteable = false;
+		} else {
+			mExternalStorageAvailable = mExternalStorageWriteable = false;
+		}
+		personalLogger.info("Read access: {}  Write access: {}",
+				mExternalStorageAvailable, mExternalStorageWriteable);
+		// handleExternalStorageState(mExternalStorageAvailable,
+		// mExternalStorageWriteable);
+	}
+
+	private void startWatchingExternalStorage() {
+		personalLogger.info("Starting to monitor storage state");
+		mExternalStorageReceiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				personalLogger.info("Storage state changed: {}",
+						intent.getData());
+				updateExternalStorageState();
+			}
+		};
+		IntentFilter filter = new IntentFilter();
+		filter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+		filter.addAction(Intent.ACTION_MEDIA_REMOVED);
+		registerReceiver(mExternalStorageReceiver, filter);
+		updateExternalStorageState();
+	}
+
+	private void stopWatchingExternalStorage() {
+		personalLogger.info("No longer monitoring storage state");
+		unregisterReceiver(mExternalStorageReceiver);
 	}
 
 }

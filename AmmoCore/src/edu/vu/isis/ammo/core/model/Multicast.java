@@ -20,6 +20,7 @@ import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.network.NetChannel;
 
 public class Multicast extends Channel {
 
@@ -28,7 +29,7 @@ public class Multicast extends Channel {
 	int [] status = null;
 	String formalIP = "formal ip";
 	String port = "port";
-	protected Multicast(Context context, String name) {
+	protected Multicast(Context context, String name, NetChannel channel) {
 		super(context, name);
 		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST, 
 		                                     INetPrefKeys.DEFAULT_MULTICAST_HOST);
@@ -36,13 +37,15 @@ public class Multicast extends Channel {
 				                         String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT));
 		this.election = ! this.prefs.getBoolean(INetPrefKeys.MULTICAST_DISABLED,
 		                                      INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
+		
+		mNetChannel = channel;
 	}
 
 	private static Multicast instance = null;
-	public static Multicast getInstance(Context context)
+	public static Multicast getInstance(Context context, NetChannel channel)
 	{
 		if(instance == null)
-			instance = new Multicast(context, "Multicast Channel");
+			instance = new Multicast(context, "Multicast Channel", channel);
 		return instance;
 	}
 	

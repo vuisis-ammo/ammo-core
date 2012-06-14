@@ -47,6 +47,7 @@ import edu.vu.isis.ammo.IntentNames;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
+import edu.vu.isis.ammo.api.type.ChannelFilter;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
@@ -236,6 +237,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 	public class DistributorServiceAidl extends IDistributorService.Stub {
 		@Override
 		public String makeRequest(AmmoRequest request) throws RemoteException {
+			PLogger.API_REQ.trace("make request via bind {}", request);
 			if (request == null) {
 				logger.error("bad request");
 				return null;
@@ -245,6 +247,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		}
 		@Override
 		public AmmoRequest recoverRequest(String uuid) throws RemoteException {
+			PLogger.API_REQ.trace("recover request via bind {}", uuid);
 			logger.trace("recover data request {}", uuid);
 			return null;
 		}
@@ -406,7 +409,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		this.localSettings = PreferenceManager.getDefaultSharedPreferences(this);
 		this.localSettings.registerOnSharedPreferenceChangeListener(this.ammoPreferenceChangeListener);
 
-		serialChannel = new SerialChannel( "serial",  this, getBaseContext() );
+		serialChannel = new SerialChannel( ChannelFilter.SERIAL,  this, getBaseContext() );
 		//this.serialChannel.init(context);
 
 		gChannelMap.put( "default", gwChannel );
@@ -416,9 +419,10 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		gChannelMap.put( journalChannel.name, journalChannel );
 		gChannelMap.put( serialChannel.name, serialChannel );
 
-		gChannels.put( gwChannel.name, Gateway.getInstance(getBaseContext()) );
-		gChannels.put( multicastChannel.name, Multicast.getInstance(getBaseContext()) );
-		gChannels.put( reliableMulticastChannel.name, ReliableMulticast.getInstance(getBaseContext()) );
+		gChannels.put( gwChannel.name, Gateway.getInstance(getBaseContext(), gwChannel));
+		gChannels.put( multicastChannel.name, Multicast.getInstance(getBaseContext(), multicastChannel));
+		gChannels.put( reliableMulticastChannel.name, 
+		        ReliableMulticast.getInstance(getBaseContext(), reliableMulticastChannel) );
 		gChannels.put( serialChannel.name, Serial.getInstance( getBaseContext(), serialChannel ));
 
 		mNetlinks.add( WifiNetlink.getInstance(getBaseContext()) );
@@ -1518,11 +1522,11 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 
 	static private final Map<String, Channel> gChannels;
 	// Network Channels
-	final private TcpChannel gwChannel = TcpChannel.getInstance("gateway", this);
-	final private MulticastChannel multicastChannel = MulticastChannel.getInstance("multicast", this);
+	final private TcpChannel gwChannel = TcpChannel.getInstance(ChannelFilter.GATEWAY, this);
+	final private MulticastChannel multicastChannel = MulticastChannel.getInstance(ChannelFilter.MULTICAST, this);
 	final private ReliableMulticastChannel reliableMulticastChannel 
-	    = ReliableMulticastChannel.getInstance("reliablemulticast", this, this);
-	final private JournalChannel journalChannel = JournalChannel.getInstance("journal", this);
+	    = ReliableMulticastChannel.getInstance(ChannelFilter.RELIABLE_MULTICAST, this, this);
+	final private JournalChannel journalChannel = JournalChannel.getInstance(ChannelFilter.JOURNAL, this);
 	private SerialChannel serialChannel;
 
 	static final private Map<String,NetChannel> gChannelMap;

@@ -55,6 +55,7 @@ import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -142,9 +143,8 @@ public class RequestSerializer {
 		}
 		if (parent.agm == null)
 			return null;
-		that.sendRequest(parent.agm, local_channel);
-
-		return DisposalState.QUEUED;
+		
+		return that.sendRequest(parent.agm, local_channel);
 	}
 
 	public void setAction(OnReady action) {
@@ -520,14 +520,19 @@ public class RequestSerializer {
 			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
 			return null;
 		}
-		if (blobCursor == null) return ByteBufferFuture.wrap(tuple);
+		if (blobCursor == null) {
+			PLogger.API_STORE.debug("json tuple=[{}]", tuple);
+			return ByteBufferFuture.wrap(tuple);
+		}
 		if (! blobCursor.moveToFirst()) {
 			blobCursor.close();
+			PLogger.API_STORE.debug("json tuple=[{}]", tuple);
 			return ByteBufferFuture.wrap(tuple);
 		}
 		final int blobCount = blobCursor.getColumnCount();
 		if (blobCount < 1)  {
 			blobCursor.close();
+			PLogger.API_STORE.debug("json tuple=[{}]", tuple);
 			return ByteBufferFuture.wrap(tuple);
 		}
 
@@ -587,6 +592,8 @@ public class RequestSerializer {
 		blobCursor.close();
 		final byte[] finalTuple = bigTuple.toByteArray();
 		bigTuple.close();
+		PLogger.API_STORE.debug("json tuple=[{}] size=[{}]", 
+				tuple, finalTuple.length);
 		return ByteBufferFuture.wrap(finalTuple);
 	}
 
@@ -856,6 +863,7 @@ public class RequestSerializer {
 		tuple.flip();
 		final byte[] tupleBytes = new byte[tuple.limit()];
 		tuple.get(tupleBytes);
+		PLogger.API_STORE.debug("terse tuple=[{}]", tuple);
 		return ByteBufferFuture.wrap(tupleBytes);
 
 	}

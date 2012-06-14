@@ -340,6 +340,8 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
                     // text.setText(R.string.status_unknown);
                     text.setText("unknown ["+status[0]+"]");
                 }
+                // Display the send/receive counts on line one.
+                text_one.setText( channel.getNetChannel().getSendReceiveStats());
             }
         }
 

@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -111,6 +110,9 @@ public class MulticastChannel extends NetChannel
     // once his stuff is in.
     public final IChannelManager mChannelManager;
 	private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
+	
+	private final AtomicInteger mMessagesSent = new AtomicInteger();
+    private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
 
     private MulticastChannel(String name, IChannelManager iChannelManager ) {
@@ -140,6 +142,14 @@ public class MulticastChannel extends NetChannel
                      Thread.currentThread().getId());
         MulticastChannel instance = new MulticastChannel(name, iChannelManager );
         return instance;
+    }
+    
+    @Override
+    public String getSendReceiveStats () {
+        StringBuilder countsString = new StringBuilder();
+        countsString.append( "S:" ).append( mMessagesSent.get() ).append( " " );
+        countsString.append( "R:" ).append( mMessagesReceived.get() );
+        return countsString.toString();
     }
  
     public boolean isConnected() { return this.connectorThread.isConnected(); }
@@ -664,7 +674,8 @@ public class MulticastChannel extends NetChannel
                             }
                             this.parent.statusChange();
                         } catch (InterruptedException ex) {
-                            logger.warn("sleep interrupted - intentional disable, exiting thread ...{}", ex.getStackTrace());
+                            logger.warn("sleep interrupted - intentional disable, exiting thread ...{}", 
+                            		ex.getStackTrace());
                             this.reset();
                             break MAINTAIN_CONNECTION;
                         }
@@ -1040,6 +1051,9 @@ public class MulticastChannel extends NetChannel
     				TTLUtil.setTTLValue(mSocket, mChannel.mMulticastTTL.get());
                     mSocket.send( packet );
                     
+                    //update send messages ...
+                    mMessagesSent.incrementAndGet();
+                    
                     logger.info( "Send packet to Network: size({})", packet.getLength() );
 
                     // legitimately sent to gateway.
@@ -1131,7 +1145,12 @@ public class MulticastChannel extends NetChannel
                         logger.debug( "Discarding packet from self." );
                         continue;
                     }
-                    logger.info( "Received a packet from ({}) size({})", packet.getAddress(), packet.getLength()  );
+                    
+                    //update received count .... 
+                    mMessagesReceived.incrementAndGet();
+                    
+                    logger.info( "Received a packet from ({}) size({})", 
+                    		packet.getAddress(), packet.getLength()  );
 
                     ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
                                                       packet.getOffset(),

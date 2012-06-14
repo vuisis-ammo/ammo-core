@@ -33,28 +33,30 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
  * satisfied the total is true, otherwise it is false.
  *
  */
-public class DistributorState {
+public class Dispersal {
 	private static final Logger logger = LoggerFactory.getLogger("dist.state");
 
 	private final Map<String, DisposalState> stateMap;
 	private boolean total;
 	public final Routing policy;
+	public final String channelFilter;
 
-	private DistributorState(Routing policy) {
+	private Dispersal(Routing policy, final String channelFilter) {
 		this.stateMap = new HashMap<String, DisposalState>();
 		this.total = false;
 		this.policy = policy;
+		this.channelFilter = channelFilter;
 	}
 
-	static public DistributorState newInstance(Routing routing) {
-		return new DistributorState(routing);
+	static public Dispersal newInstance(Routing routing, final String channelFilter) {
+		return new Dispersal(routing, channelFilter);
 	}
 
 	public boolean total() {
 		return this.total;
 	}
 
-	public DistributorState total(boolean state) {
+	public Dispersal total(boolean state) {
 		this.total = state;
 		return this;
 	}
@@ -80,7 +82,7 @@ public class DistributorState {
 		return stateMap.size();
 	}
 
-	public DistributorState and(boolean clause) {
+	public Dispersal and(boolean clause) {
 		this.total &= clause;
 		return this;
 	}
@@ -111,8 +113,12 @@ public class DistributorState {
 	 * 'condition' attribute for the term.   
 	 * 
 	 * @see scripts/tests/distribution_policy.xml for an example.
+	 * 
+	 * Given the presence of a channel filter...
+	 * - skip any attempt at delivery unless the forced channel matches the term
+	 * - mark the clause true if it doesn't contain the forced channel
 	 */
-	public DistributorState multiplexRequest(AmmoService that, RequestSerializer serializer) {
+	public Dispersal multiplexRequest(AmmoService that, RequestSerializer serializer) {
 		logger.trace("::multiplex request");
 
 		if (this.policy == null) {
@@ -136,9 +142,13 @@ public class DistributorState {
 		for (final DistributorPolicy.Clause clause : this.policy.clauses) {
 			boolean clauseSuccess = false;
 
-			// evaluate clause
+			// evaluate clause status based on previous attempts
+			boolean haschannelFilter = false;
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
+				if (this.channelFilter != null && ! term.equals(this.channelFilter)) {
+					haschannelFilter = true;
+				}
 				final boolean goalCondition = literal.condition;
 				final DisposalState priorCondition = (this.containsKey(term)) ? this.get(term) : DisposalState.PENDING;
 				logger.debug("prior {} {} {}", new Object[]{term, priorCondition, goalCondition});
@@ -148,11 +158,18 @@ public class DistributorState {
 					break;
 				}
 			}
+			if (this.channelFilter != null && ! haschannelFilter) {
+				logger.info("clause is practically successful due to forced channel=[{}], clause type=[{}]",
+						this.channelFilter, this.type);
+				continue; 
+			}
 			if (clauseSuccess) continue;
 
-			// evaluate clause
+			// evaluate clause based on 
 			for (DistributorPolicy.Literal literal : clause.literals) {
 				final String term = literal.term;
+				if (this.channelFilter != null && ! term.equals(this.channelFilter)) continue;
+				
 				final boolean goalCondition = literal.condition;
 				final DisposalState priorCondition = (this.containsKey(term)) ? this.get(term) : DisposalState.PENDING;
 
@@ -207,7 +224,8 @@ public class DistributorState {
 	}
 
 	private String type;
-	public DistributorState setType(String type) {
+	
+	public Dispersal setType(String type) {
 		this.type = type;
 		return this;
 	}

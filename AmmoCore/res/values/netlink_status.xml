@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <!-- 
+  Common status values are in "status.xml"
+  -->
   
     <string name="status_unknown">unknown</string>
     <color name="status_unknown">#F2003C</color>
@@ -9,9 +12,6 @@
     
     <string name="status_down">Down</string>
     <color name="status_down">#FFBF00</color>
-    
-    <string name="status_disabled">Disabled</string>
-    <color name="status_disabled">#F2003C</color>
     
     <string name="status_disconnected">Disconnected</string>
     <color name="status_disconnected">#F2003C</color>

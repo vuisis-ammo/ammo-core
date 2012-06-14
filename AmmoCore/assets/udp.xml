@@ -78,7 +78,7 @@
     <MFC max_credits="2M"
          min_threshold="0.4"/>
 -->
-    <FRAG2 frag_size="1400"  />
+    <FRAG2 frag_size="1300"  />
 <!--
     <pbcast.STATE_TRANSFER />
 -->

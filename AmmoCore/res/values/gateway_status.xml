@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+ <!-- 
+  Common status values are in "status.xml"
+  -->
   
     <string name="status_pending">Pending</string>
     <color name="status_pending">#FF008000</color>
@@ -67,7 +70,5 @@
 	<string name="status_checking">Checking Status</string>
 	<color name="status_checking">#FFCCCCCC</color>
 	
-	<string name="status_disabled">Disabled</string>
-	<color name="status_disabled">#FFF2003C</color>
   
 </resources>
