@@ -143,9 +143,8 @@ public class RequestSerializer {
 		}
 		if (parent.agm == null)
 			return null;
-		that.sendRequest(parent.agm, local_channel);
-
-		return DisposalState.QUEUED;
+		
+		return that.sendRequest(parent.agm, local_channel);
 	}
 
 	public void setAction(OnReady action) {
