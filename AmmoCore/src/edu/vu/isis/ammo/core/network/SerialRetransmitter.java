@@ -63,7 +63,7 @@ public class SerialRetransmitter
      */
     public AmmoGatewayMessage createRetransmitPacket( long bytesThatWillFit )
     {
-        logger.trace( "SerialRetransmitter::addMessage()" );
+        logger.trace( "SerialRetransmitter::createRetransmitPacket()" );
 
         AmmoGatewayMessage agm = null;
 
