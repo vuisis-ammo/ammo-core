@@ -313,7 +313,7 @@ public class TcpChannel extends NetChannel {
 	// appropriate destination.
 	private boolean deliverMessage( AmmoGatewayMessage agm )
 	{
-		logger.error( "In deliverMessage() {} ", agm );
+		logger.debug( "In deliverMessage() {} ", agm );
 
 		final boolean result;
 		if ( mIsAuthorized.get() )

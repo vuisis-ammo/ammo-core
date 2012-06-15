@@ -374,7 +374,7 @@ public class ReliableMulticastChannel extends NetChannel
     // appropriate destination.
     private boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.trace( "In deliverMessage() {} ", agm );
+        logger.debug( "In deliverMessage() {} ", agm );
 
         boolean result;
         if ( mIsAuthorized.get() )

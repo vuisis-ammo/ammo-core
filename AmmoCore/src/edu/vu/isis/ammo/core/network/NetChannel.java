@@ -26,6 +26,9 @@ public abstract class NetChannel implements INetChannel {
 
         case  CONNECTING     :     return "CONNECTING";
         case  CONNECTED      :     return "CONNECTED";
+        
+        case  BUSY           :     return "BUSY";
+        case  READY          :     return "READY";
 
         case  DISCONNECTED   :     return "DISCONNECTED";
         case  STALE          :     return "STALE";

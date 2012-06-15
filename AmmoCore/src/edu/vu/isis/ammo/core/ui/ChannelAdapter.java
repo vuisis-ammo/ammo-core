@@ -40,6 +40,10 @@ import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
 
 
+/**
+ * An adapter for the channels.
+ *
+ */
 public class ChannelAdapter extends ArrayAdapter<Channel>
     implements OnTouchListener, OnNameChangeListener
 {

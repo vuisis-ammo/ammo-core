@@ -1486,10 +1486,15 @@ INetworkService.OnSendMessageHandler, IChannelManager {
         switch (connStatus) {
         case NetChannel.CONNECTED:
         	if (channel.isAuthenticatingChannel()) break;
+        case NetChannel.READY:
         case NetChannel.SENDING:
         case NetChannel.TAKING:
         	this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.ACTIVATE);
         	break;
+        	
+        case NetChannel.BUSY:
+        case NetChannel.DISCONNECTED:
+        case NetChannel.DISABLED:
         default: 
         	this.distThread.onChannelChange(this.getBaseContext(), channel.name, ChannelChange.DEACTIVATE);
         }

@@ -1368,7 +1368,7 @@ public class SerialChannel extends NetChannel
      */
     public boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.error( "In deliverMessage()" );
+        logger.debug( "In deliverMessage()" );
 
         boolean result;
         if ( mIsAuthorized.get() ) {
