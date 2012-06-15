@@ -848,11 +848,13 @@ public class RequestSerializer {
 				// channel using radios.
 				String svalue = tupleCursor.getString( columnIndex );
 				int length = (svalue == null) ? 0 : svalue.length();
-				tuple.putInt( length );
-				for ( int i = 0; i < length; i++ ) {
-					char c = svalue.charAt(i);
-					tuple.putChar( c );
-				}
+				tuple.putShort( length );
+				if (length > 0)
+				    tuple.put( svalue.getBytes("UTF8") );
+				// for ( int i = 0; i < length; i++ ) {
+				// 	char c = svalue.charAt(i);
+				// 	tuple.putChar( c );
+				// }
 				// FIXME use UTF8 not UTF16, this loop is not needed.
 				// the length should correspondingly be short not long
 				// do the deserialize as well
@@ -941,12 +943,18 @@ public class RequestSerializer {
 					break;
 				case FIELD_TYPE_TEXT:
 				case FIELD_TYPE_GUID:
-					final int textLength = tuple.getInt();
-					final char[] textValue = new char[textLength];
-					for (int ix=0; ix < textLength; ++ix) {
-						textValue[ix] = tuple.getChar();
+					final short textLength = tuple.getShort();
+					if (textLength > 0) {
+					    byte [] textBytes = new byte[textLength];
+					    tuple.get(textBytes, 0, textLength);
+					    String textValue = new String(textBytes, "UTF8");
+					    wrap.put(key, textValue);
 					}
-					wrap.put(key, new String(textValue));
+					// final char[] textValue = new char[textLength];
+					// for (int ix=0; ix < textLength; ++ix) {
+					// 	textValue[ix] = tuple.getChar();
+					// }
+					
 					break;
 				case FIELD_TYPE_BOOL:
 				case FIELD_TYPE_INTEGER:
