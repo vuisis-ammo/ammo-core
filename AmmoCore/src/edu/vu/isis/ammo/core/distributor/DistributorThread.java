@@ -1541,7 +1541,9 @@ public class DistributorThread extends Thread {
 			values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
 
 			values.put(SubscribeTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
-			values.put(SubscribeTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
+			// HACK FPE values.put(SubscribeTableSchema.EXPIRATION.cv(), policy.routing.getExpiration(ar.expire.cv()));
+			// no expiration for subscriptions
+			values.put(SubscribeTableSchema.EXPIRATION.cv(), Long.MAX_VALUE);
 			values.put(SubscribeTableSchema.CREATED.cv(), System.currentTimeMillis());
 
 			final DistributorState dispersal = policy.makeRouteMap();
