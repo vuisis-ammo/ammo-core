@@ -452,7 +452,7 @@ public class DistributorThread extends Thread {
 			if (0 < (aggregate & Via.Type.SERVICE.v)) { 
 				context.startService(noticed); 
 			}
-			
+
 			if (PLogger.API_INTENT.isTraceEnabled()) {
 				PLogger.API_INTENT.trace("extras=[{}]", 
 						PLogger.expandBundle(noticed.getExtras(),'\n'));
@@ -671,14 +671,23 @@ public class DistributorThread extends Thread {
 		case DIRECTED_POSTAL:
 			doPostalRequest(that, agm);
 			break;
+		case UNPOSTAL:
+			cancelPostalRequest(that, agm);
+			break;
 		case RETRIEVAL:
 			doRetrievalRequest(that, agm);
+			break;
+		case UNRETRIEVAL:
+			cancelRetrievalRequest(that, agm);
 			break;
 		case SUBSCRIBE:
 			doSubscribeRequest(that, agm, 1);
 			break;
 		case DIRECTED_SUBSCRIBE:
 			doSubscribeRequest(that, agm, 2);
+			break;
+		case UNSUBSCRIBE:
+			cancelSubscribeRequest(that, agm);
 			break;
 		}
 		return true;
@@ -986,6 +995,27 @@ public class DistributorThread extends Thread {
 			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 		}
 	}
+
+	private void cancelPostalRequest(final AmmoService that, final AmmoRequest ar) {
+
+		// Dispatch the message.
+		try {
+			// final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			// final String auid = ar.uid;
+			final String topic = ar.topic.asString();
+			final String provider = ar.provider.cv();
+
+			this.store().deletePostal(new StringBuilder()
+			.append(PostalTableSchema.PROVIDER.q()).append("=?")
+			.append(" AND ")
+			.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), 
+			new String[] {provider, topic});
+		} finally {
+
+		}
+
+	}
+
 
 	/**
 	 * Check for requests whose delivery policy has not been fully satisfied and
@@ -1382,6 +1412,26 @@ public class DistributorThread extends Thread {
 		}
 	}
 
+	private void cancelRetrievalRequest(final AmmoService that, final AmmoRequest ar) {
+
+		// Dispatch the message.
+		try {
+			// final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			// final String auid = ar.uid;
+			final String topic = ar.topic.asString();
+			final String provider = ar.provider.cv();
+			final String selection = new StringBuilder()
+			.append(RetrievalTableSchema.PROVIDER.q()).append("=?")
+			.append(" AND ")
+			.append(RetrievalTableSchema.TOPIC.q()).append("=?")
+			.toString();
+
+			final String[]selectionArgs = new String[] {provider, topic};
+
+			this.store().deleteRetrieval(selection, selectionArgs);
+		} finally {		}						
+	}
+
 	/**
 	 * Each time the enrollment provider is modified, find out what the changes
 	 * were and if necessary, update the server.
@@ -1564,9 +1614,13 @@ public class DistributorThread extends Thread {
 	// =========== SUBSCRIBE ====================
 
 	/**
-	 * Process the subscription request. There are two parts: 1) checking to see
-	 * if the network service is accepting requests and sending the request if
+	 * Process the subscription request. There are two parts: 
+	 * <ul>
+	 * <li>checking to see
+	 * if the network service is accepting requests and 
+	 * <li>sending the request if
 	 * it is 2) placing the request in the table.
+	 * </ul>
 	 * 
 	 * The second step must be done first, so as to avoid a race to update the
 	 * status of the request. The handling of insert v. update is also handled
@@ -1635,6 +1689,28 @@ public class DistributorThread extends Thread {
 		} catch (NullPointerException ex) {
 			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
 		}
+	}
+
+	private void cancelSubscribeRequest(final AmmoService that, final AmmoRequest ar) {
+
+		// Dispatch the message.
+		try {
+			// final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+			// final String auid = ar.uid;
+			final String topic = ar.topic.asString();
+			final String provider = ar.provider.cv();
+			final String selection = new StringBuilder()
+			.append(SubscribeTableSchema.PROVIDER.q()).append("=?")
+			.append(" AND ")
+			.append(SubscribeTableSchema.TOPIC.q()).append("=?")
+			.toString();
+			final String[] selectionArgs = new String[] {provider, topic};
+			
+			this.store().deleteSubscribe(selection, selectionArgs);
+		} finally {
+
+		}
+
 	}
 
 	/**
@@ -1780,7 +1856,7 @@ public class DistributorThread extends Thread {
 		String originUid = null;
 		com.google.protobuf.ByteString data = null;
 		AmmoMessages.AcknowledgementThresholds at = null;
-		
+
 		final String selfDevice = ammoService.getDeviceId();
 		if ( mw.hasDataMessage()) {
 			final AmmoMessages.DataMessage resp = mw.getDataMessage();
@@ -1791,11 +1867,12 @@ public class DistributorThread extends Thread {
 			originUser = resp.getUserId();
 			originDevice = resp.getOriginDevice();
 			originUid = resp.getUri(); // SKN: URI is really UID
-			
+
 			if (originDevice.equals(selfDevice)) {
 				logger.error("received own device message [{}:{}]",
 						originDevice, selfDevice);
-				return false;
+				// FIXME return false;
+				// Apparently the unique device identifies are not unique.
 			}
 		} else {
 			final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
@@ -1804,13 +1881,13 @@ public class DistributorThread extends Thread {
 			originUser = resp.getUserId();
 			encode = "TERSE";
 		}
-		
+
 		final String selfOperator = ammoService.getOperatorId();
 		if (originUser.equals(selfOperator)) {
 			logger.error("received own user message [{}:{}]",
 					originUser, selfOperator);
 		}
-		
+
 
 		// final ContentResolver resolver = context.getContentResolver();
 

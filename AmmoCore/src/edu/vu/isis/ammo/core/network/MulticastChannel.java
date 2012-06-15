@@ -328,7 +328,7 @@ public class MulticastChannel extends NetChannel
     // appropriate destination.
     private boolean deliverMessage( AmmoGatewayMessage agm )
     {
-        logger.trace( "deliverMessage() {} ", agm );
+        logger.debug( "deliverMessage() {} ", agm );
 
         boolean result;
         if ( mIsAuthorized.get() )
