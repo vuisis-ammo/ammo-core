@@ -378,21 +378,31 @@ public class DistributorPolicy implements ContentHandler {
 		/**
 		 * Select the earlier of the two expirations.
 		 * 
-		 * return the expiration time in milliseconds.
-		 * The default was passed in.
 		 * The maximum allowed expiration is the current time plus the maximum lifespan.
 		 * 
-		 * @param appLifespanSeconds
-		 * @return
+		 * @param appLifespanSeconds the default application specified time in seconds.
+		 * @return expiration time in milliseconds
 		 */
-		public long getExpiration(long appLifespanSeconds) {
-			if (this.lifespan < 0) return appLifespanSeconds;
+		public long getExpiration(long appExpirationSeconds) {
+			final long workingExpiration = 
+					(appExpirationSeconds < Long.MAX_VALUE) ? appExpirationSeconds * 1000 :  Long.MAX_VALUE;
+			if (this.lifespan < 0) {
+				logger.debug("appl lifespan [{}] expiration [{}]", this.lifespan, workingExpiration);
+				return workingExpiration;
+			}
+			if (this.lifespan == Long.MAX_VALUE) {
+				logger.debug("appl lifespan [{}] expiration [{}]", this.lifespan, workingExpiration);
+				return workingExpiration;
+			}
+			
 			final long maxExpiration = System.currentTimeMillis() + this.lifespan;
 
-			if (maxExpiration < appLifespanSeconds) {
+			if (maxExpiration < workingExpiration) {
+				logger.debug("max expiration [{}]", maxExpiration);
 				return maxExpiration;
 			} else {
-				return appLifespanSeconds;
+				logger.debug("appl expiration [{}]", workingExpiration);
+				return workingExpiration;
 			}
 		}
 

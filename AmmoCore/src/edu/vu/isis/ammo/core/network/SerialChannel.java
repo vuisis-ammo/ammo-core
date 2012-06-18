@@ -472,7 +472,8 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public void terminate()
+        @SuppressWarnings("unused")
+		public void terminate()
         {
             logger.trace( "SerialChannel.Connector::terminate()" );
             this.interrupt();
@@ -1325,13 +1326,13 @@ public class SerialChannel extends NetChannel
             int val = -1;
             mSecondsSinceByteRead.set( 0 );
             while ( val == -1 &&  mReceiverState.get() != INetChannel.INTERRUPTED ) {
-                logger.debug( "SerialPort.read()" );
+                logger.trace( "SerialPort.read()" );
                 val = mInputStream.read();
                 if ( val == -1 )
                     mSecondsSinceByteRead.getAndIncrement();
             }
 
-            logger.warn( "val={}", (byte) val );
+            logger.debug( "val={}", (byte) val );
             mBytesSinceMagic.getAndIncrement();
 
             return (byte) val;
