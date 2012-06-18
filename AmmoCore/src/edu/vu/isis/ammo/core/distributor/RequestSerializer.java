@@ -68,20 +68,35 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 public class RequestSerializer {
 	private static final Logger logger = LoggerFactory.getLogger("dist.serializer");
 
-	public static final int FIELD_TYPE_NULL = 0;
-	public static final int FIELD_TYPE_BOOL = 1;
-	public static final int FIELD_TYPE_BLOB = 2;
-	public static final int FIELD_TYPE_FLOAT = 3;
-	public static final int FIELD_TYPE_INTEGER = 4;
-	public static final int FIELD_TYPE_LONG = 5;
-	public static final int FIELD_TYPE_TEXT = 6;
-	public static final int FIELD_TYPE_REAL = 7;
-	public static final int FIELD_TYPE_FK = 8;
-	public static final int FIELD_TYPE_GUID = 9;
-	public static final int FIELD_TYPE_EXCLUSIVE = 10;
-	public static final int FIELD_TYPE_INCLUSIVE = 11;
-	public static final int FIELD_TYPE_TIMESTAMP = 12;
+	public enum FieldType {
+		NULL(0), BOOL(1), BLOB(2), FLOAT(3),
+		INTEGER(4), LONG(5), TEXT(6), REAL(7),
+		FK(8), GUID(9), EXCLUSIVE(10), INCLUSIVE(11),
+		TIMESTAMP(12);
 
+		private final int code;
+
+		private FieldType(int code) {
+			this.code = code;
+		}
+
+		private static final Map<Integer,FieldType> codemap = 
+				new HashMap<Integer,FieldType>();
+		static {
+			for (FieldType t : FieldType.values()) {
+				FieldType.codemap.put(t.code, t);
+			}
+		}
+
+		public int toCode() {
+			return this.code;
+		}
+
+		public static FieldType fromCode(final int code) {
+			return FieldType.codemap.get(code);
+		}
+	}
+	
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
 	}
@@ -831,17 +846,17 @@ public class RequestSerializer {
 
 			final int type = serialMap.get(key);
 			final int columnIndex = tupleCursor.getColumnIndex(key);
-			switch (type) {
-			case FIELD_TYPE_NULL:
+			switch (FieldType.fromCode(type)) {
+			case NULL:
 				break;
-			case FIELD_TYPE_LONG:
-			case FIELD_TYPE_FK:
-			case FIELD_TYPE_TIMESTAMP:
+			case LONG:
+			case FK:
+			case TIMESTAMP:
 				final long longValue = tupleCursor.getLong( columnIndex );
 				tuple.putLong(longValue);
 				break;
-			case FIELD_TYPE_TEXT:
-			case FIELD_TYPE_GUID:
+			case TEXT:
+			case GUID:
 				// The database will return null if the string is empty,
 				// so detect that and write a zero length if it happens.
 				// Don't modify this code without testing on the serial
@@ -850,7 +865,7 @@ public class RequestSerializer {
 				int length = (svalue == null) ? 0 : svalue.length();
 				tuple.putShort( (short) length );
 				if (length > 0)
-				    tuple.put( svalue.getBytes("UTF8") );
+					tuple.put( svalue.getBytes("UTF8") );
 				// for ( int i = 0; i < length; i++ ) {
 				// 	char c = svalue.charAt(i);
 				// 	tuple.putChar( c );
@@ -859,19 +874,19 @@ public class RequestSerializer {
 				// the length should correspondingly be short not long
 				// do the deserialize as well
 				break;
-			case FIELD_TYPE_BOOL:
-			case FIELD_TYPE_INTEGER:
-			case FIELD_TYPE_EXCLUSIVE:
-			case FIELD_TYPE_INCLUSIVE:
+			case BOOL:
+			case INTEGER:
+			case EXCLUSIVE:
+			case INCLUSIVE:
 				final int intValue = tupleCursor.getInt(columnIndex);
 				tuple.putInt(intValue);
 				break;
-			case FIELD_TYPE_REAL:
-			case FIELD_TYPE_FLOAT:
+			case REAL:
+			case FLOAT:
 				final double doubleValue = tupleCursor.getDouble( columnIndex );
 				tuple.putDouble(doubleValue);
 				break;
-			case FIELD_TYPE_BLOB:
+			case BLOB:
 				logger.warn("blobs not supported for terse encoding");
 				break;
 			default:
@@ -931,29 +946,29 @@ public class RequestSerializer {
 
 			for (final String key : serialMetaCursor.getColumnNames()) {
 				final int type = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
-				switch (type) {
-				case FIELD_TYPE_NULL:
+				switch (FieldType.fromCode(type)) {
+				case NULL:
 					//wrap.put(key, null);
 					break;
-				case FIELD_TYPE_LONG:
-				case FIELD_TYPE_FK:
-				case FIELD_TYPE_TIMESTAMP:
+				case LONG:
+				case FK:
+				case TIMESTAMP:
 					final long longValue = tuple.getLong();
 					wrap.put(key, longValue);
 					break;
-				case FIELD_TYPE_TEXT:
-				case FIELD_TYPE_GUID:
+				case TEXT:
+				case GUID:
 					final short textLength = tuple.getShort();
 					if (textLength > 0) {
-                        try {
-                            byte [] textBytes = new byte[textLength];
-                            tuple.get(textBytes, 0, textLength);
-                            String textValue = new String(textBytes, "UTF8");
-                            wrap.put(key, textValue);
-                        } catch ( java.io.UnsupportedEncodingException ex ) {
-                            logger.error("Error in string encoding{}",
-                                         new Object[] { ex.getStackTrace() } );
-                        }
+						try {
+							byte [] textBytes = new byte[textLength];
+							tuple.get(textBytes, 0, textLength);
+							String textValue = new String(textBytes, "UTF8");
+							wrap.put(key, textValue);
+						} catch ( java.io.UnsupportedEncodingException ex ) {
+							logger.error("Error in string encoding{}",
+									new Object[] { ex.getStackTrace() } );
+						}
 					}
 					// final char[] textValue = new char[textLength];
 					// for (int ix=0; ix < textLength; ++ix) {
@@ -961,19 +976,19 @@ public class RequestSerializer {
 					// }
 
 					break;
-				case FIELD_TYPE_BOOL:
-				case FIELD_TYPE_INTEGER:
-				case FIELD_TYPE_EXCLUSIVE:
-				case FIELD_TYPE_INCLUSIVE:
+				case BOOL:
+				case INTEGER:
+				case EXCLUSIVE:
+				case INCLUSIVE:
 					final int intValue = tuple.getInt();
 					wrap.put(key, intValue);
 					break;
-				case FIELD_TYPE_REAL:
-				case FIELD_TYPE_FLOAT:
+				case REAL:
+				case FLOAT:
 					final double doubleValue = tuple.getDouble();
 					wrap.put(key, doubleValue);
 					break;
-				case FIELD_TYPE_BLOB:
+				case BLOB:
 					logger.warn("blobs not supported for terse encoding");
 					break;
 				default:

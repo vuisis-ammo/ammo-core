@@ -471,7 +471,8 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public void terminate()
+        @SuppressWarnings("unused")
+		public void terminate()
         {
             logger.debug( "SerialChannel.Connector::terminate()" );
             this.interrupt();

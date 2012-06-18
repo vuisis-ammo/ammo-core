@@ -7,8 +7,12 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
 package edu.vu.isis.ammo.core.distributor;
+
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * These fields are replicated in the generated code.
@@ -16,16 +20,49 @@ package edu.vu.isis.ammo.core.distributor;
  */
 public class AmmoProviderSchema {
 
-	   public static final String _DISPOSITION = "_disp"; 
-	   public static final String _RECEIVED_DATE = "_received_date";
-	   
-	   /**
-	    * REMOTE : the last update for this record is from
-	    *   a received message.
-	    * LOCAL  : the last update was produced locally 
-	    *   (probably the creation).
-	    */
-	   public enum Disposition {
-		   REMOTE, LOCAL;
-	   }
+	public static final String _DISPOSITION = "_disp"; 
+	public static final String _RECEIVED_DATE = "_received_date";
+
+	/**
+	 * REMOTE : the last update for this record is from
+	 *   a received message.
+	 * LOCAL  : the last update was produced locally 
+	 *   (probably the creation).
+	 */
+	public enum Disposition {
+		REMOTE(0), LOCAL(1);
+
+		private final int code;
+
+		private Disposition(int code) {
+			this.code = code;
+		}
+
+		public int toCode() {
+			return this.code;
+		}
+
+		public static Disposition fromCode(final int code) {
+			switch (code) {
+			case 0: return REMOTE;
+			case 1: return LOCAL;
+			}
+			return LOCAL;
+		}
+
+		@Override
+		public String toString() {
+			return this.name();
+		}
+		
+		public static Disposition fromString(final String value) {
+			try {
+				return (value == null) ? Disposition.LOCAL 
+						: (value.startsWith( "REMOTE" )) ? Disposition.REMOTE
+								: Disposition.LOCAL;
+			} catch (Exception ex) {
+				return Disposition.LOCAL;
+			}
+		}
+	}
 }
