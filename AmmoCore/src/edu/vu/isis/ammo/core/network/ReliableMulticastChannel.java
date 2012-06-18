@@ -1192,6 +1192,10 @@ public class ReliableMulticastChannel extends NetChannel
                     //}
                     logger.info( "Received a packet from ({}) size({})", msg.getSrc(), msg.getLength()  );
 
+                    if(msg.getSrc().toString().equals(mChannelManager.getOperatorId())) {
+                        logger.warn( "Got a Message looped back to me : Ignoring" );
+                        return;
+                    }
 
                     ByteBuffer buf = ByteBuffer.wrap( msg.getBuffer() );
                     //ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
