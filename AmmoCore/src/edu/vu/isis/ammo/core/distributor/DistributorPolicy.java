@@ -481,7 +481,7 @@ public class DistributorPolicy implements ContentHandler {
 				return new Encoding(typeName, Encoding.Type.JSON );
 			}
 			if (typeName.equalsIgnoreCase("terse")) {
-				return new Encoding(typeName, Encoding.Type.JSON );
+				return new Encoding(typeName, Encoding.Type.TERSE );
 			}
 			return new Encoding(typeName, Encoding.Type.CUSTOM);
 		}
