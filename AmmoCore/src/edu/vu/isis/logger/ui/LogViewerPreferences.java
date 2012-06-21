@@ -2,7 +2,7 @@ package edu.vu.isis.logger.ui;
 
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
-import edu.vu.isis.ammo.R;
+import edu.vu.isis.ammo.core.R;
 
 public class LogViewerPreferences extends PreferenceActivity {
 

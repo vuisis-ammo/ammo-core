@@ -24,7 +24,7 @@ import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
 import android.widget.ListView;
 import android.widget.Toast;
-import edu.vu.isis.ammo.R;
+import edu.vu.isis.ammo.core.R;
 
 public class LogViewer extends ListActivity {
 	

@@ -45,7 +45,7 @@ import ch.qos.logback.core.FileAppender;
 import ch.qos.logback.core.joran.action.Action;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.joran.spi.Pattern;
-import edu.vu.isis.ammo.R;
+import edu.vu.isis.ammo.core.R;
 
 /**
  * This class provides a user interface to edit the Level of all Logger objects
