@@ -81,6 +81,7 @@ public class RequestSerializer {
 	public static final int FIELD_TYPE_EXCLUSIVE = 10;
 	public static final int FIELD_TYPE_INCLUSIVE = 11;
 	public static final int FIELD_TYPE_TIMESTAMP = 12;
+	public static final int FIELD_TYPE_SHORT = 13;
 
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
@@ -835,13 +836,17 @@ public class RequestSerializer {
 			case FIELD_TYPE_NULL:
 				break;
 			case FIELD_TYPE_LONG:
-			case FIELD_TYPE_FK:
-			case FIELD_TYPE_TIMESTAMP:
+			case FIELD_TYPE_FK: {
 				final long longValue = tupleCursor.getLong( columnIndex );
 				tuple.putLong(longValue);
-				break;
+				break; }
+			case FIELD_TYPE_TIMESTAMP: {
+				final long longValue = tupleCursor.getLong( columnIndex );
+				final int intValue = (int)(longValue/1000); // SKN - we will send seconds only on serial
+				tuple.putInt(intValue);
+				break; }
 			case FIELD_TYPE_TEXT:
-			case FIELD_TYPE_GUID:
+			case FIELD_TYPE_GUID: {
 				// The database will return null if the string is empty,
 				// so detect that and write a zero length if it happens.
 				// Don't modify this code without testing on the serial
@@ -858,22 +863,29 @@ public class RequestSerializer {
 				// FIXME use UTF8 not UTF16, this loop is not needed.
 				// the length should correspondingly be short not long
 				// do the deserialize as well
-				break;
+				break; }
+			case FIELD_TYPE_SHORT: {
+				final short shortValue = tupleCursor.getShort(columnIndex);
+				tuple.putShort(shortValue);
+			        break; }
 			case FIELD_TYPE_BOOL:
 			case FIELD_TYPE_INTEGER:
 			case FIELD_TYPE_EXCLUSIVE:
-			case FIELD_TYPE_INCLUSIVE:
+			case FIELD_TYPE_INCLUSIVE: {
 				final int intValue = tupleCursor.getInt(columnIndex);
 				tuple.putInt(intValue);
-				break;
+				break; }
 			case FIELD_TYPE_REAL:
-			case FIELD_TYPE_FLOAT:
+			case FIELD_TYPE_FLOAT: {
 				final double doubleValue = tupleCursor.getDouble( columnIndex );
 				tuple.putDouble(doubleValue);
-				break;
-			case FIELD_TYPE_BLOB:
-				logger.warn("blobs not supported for terse encoding");
-				break;
+				break; }
+			case FIELD_TYPE_BLOB: {
+			        final byte[] bytesValue = tupleCursor.getBlob(columnIndex);
+				// check that bytes count does not exceed our buffer size
+				tuple.putShort((short)bytesValue.length);
+			        tuple.put(bytesValue);
+				break; }
 			default:
 				logger.warn("unhandled data type {}", type);
 			}
@@ -935,49 +947,62 @@ public class RequestSerializer {
 				case FIELD_TYPE_NULL:
 					//wrap.put(key, null);
 					break;
+				case FIELD_TYPE_SHORT:
+				        final short shortValue = tuple.getShort();
+				        wrap.put(key, shortValue);
+					break;
 				case FIELD_TYPE_LONG:
-				case FIELD_TYPE_FK:
-				case FIELD_TYPE_TIMESTAMP:
+				case FIELD_TYPE_FK: {
 					final long longValue = tuple.getLong();
 					wrap.put(key, longValue);
-					break;
+					break; }
+				case FIELD_TYPE_TIMESTAMP: {
+					final int intValue = tuple.getInt();
+					final long longValue = 1000l*(long)intValue; // seconds --> milliseconds
+					wrap.put(key, longValue);
+					break; }
 				case FIELD_TYPE_TEXT:
-				case FIELD_TYPE_GUID:
+				case FIELD_TYPE_GUID: {
 					final short textLength = tuple.getShort();
 					if (textLength > 0) {
-                        try {
-                            byte [] textBytes = new byte[textLength];
-                            tuple.get(textBytes, 0, textLength);
-                            String textValue = new String(textBytes, "UTF8");
-                            wrap.put(key, textValue);
-                        } catch ( java.io.UnsupportedEncodingException ex ) {
-                            logger.error("Error in string encoding{}",
-                                         new Object[] { ex.getStackTrace() } );
-                        }
+					    try {
+						byte [] textBytes = new byte[textLength];
+						tuple.get(textBytes, 0, textLength);
+						String textValue = new String(textBytes, "UTF8");
+						wrap.put(key, textValue);
+					    } catch ( java.io.UnsupportedEncodingException ex ) {
+						logger.error("Error in string encoding{}",
+							new Object[] { ex.getStackTrace() } );
+					    }
 					}
 					// final char[] textValue = new char[textLength];
 					// for (int ix=0; ix < textLength; ++ix) {
 					// 	textValue[ix] = tuple.getChar();
 					// }
 
-					break;
+					break; }
 				case FIELD_TYPE_BOOL:
 				case FIELD_TYPE_INTEGER:
 				case FIELD_TYPE_EXCLUSIVE:
-				case FIELD_TYPE_INCLUSIVE:
+				case FIELD_TYPE_INCLUSIVE: {
 					final int intValue = tuple.getInt();
 					wrap.put(key, intValue);
-					break;
+					break; }
 				case FIELD_TYPE_REAL:
-				case FIELD_TYPE_FLOAT:
+				case FIELD_TYPE_FLOAT: {
 					final double doubleValue = tuple.getDouble();
 					wrap.put(key, doubleValue);
-					break;
-				case FIELD_TYPE_BLOB:
-					logger.warn("blobs not supported for terse encoding");
-					break;
+					break; }
+				case FIELD_TYPE_BLOB: {
+				        final short bytesLength = tuple.getShort();
+					if (bytesLength > 0) {
+					    final byte[] bytesValue = new byte[bytesLength];
+					    tuple.get(bytesValue, 0, bytesLength);
+					    wrap.put(key, bytesValue);
+					}
+					break; }
 				default:
-					logger.warn("unhandled data type {}", type);
+				    logger.warn("unhandled data type {}", type);
 				}
 			}
 			serialMetaCursor.close();
