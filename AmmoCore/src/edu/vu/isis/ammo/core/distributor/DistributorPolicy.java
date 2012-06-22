@@ -492,9 +492,7 @@ public class DistributorPolicy implements ContentHandler {
 
 		public String getPayloadSuffix() {
 			switch (this.type) {
-			case JSON: return "";
 			case TERSE: return "";
-			case CUSTOM: return "_serial/";
 			default: return "_serial/";
 			}
 		}
