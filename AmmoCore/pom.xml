@@ -104,6 +104,20 @@
 							<goal>run</goal>
 						</goals>
                     </execution>
+                 <execution>
+                        <id>ndk_gen</id>
+                        <phase>validate</phase>
+                        <configuration>
+                           <tasks>
+                        <echo>Building ethertracker library</echo>
+                        <exec executable="ndk-build" dir="." 
+                             searchpath="true"/>
+                            </tasks>
+                        </configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+                    </execution>
 					<!--execution>
 						<phase>deploy</phase> <!-should only build javadoc when you need to deploy->
 						<configuration>
