@@ -513,7 +513,7 @@
 
 
   <profile>
-    <id>dev</id>
+    <id>jenkins</id>
     <build>
       <plugins>
         <plugin>
