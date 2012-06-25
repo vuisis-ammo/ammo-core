@@ -9,13 +9,14 @@
   <properties>
 <!-- TEMPLATE2:BEGIN
 -->
-     <repo.addr>vanderbilt-snapshot/</repo.addr> <!-- This field should read "Vanderbilt/" for releases --> 
+     <repo.addr>Vanderbilt/</repo.addr> <!-- This field should read "Vanderbilt/" for releases --> 
                                                  <!-- else it should read "vanderbilt-snapshot/" for snapshots-->
 <!-- TEMPLATE2:END -->
      <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
      <vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
      <vandylib.eucleo.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/eucleo/</vandylib.eucleo.url>
      <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+     <build>${basedir}/../../build</build>
   </properties>
 
   <groupId>edu.vu.isis</groupId>
@@ -117,6 +118,22 @@
 						<goals>
 							<goal>run</goal>
 						</goals>
+                    </execution>
+                    <execution>
+                        <id>make_tar</id>
+                        <phase>install</phase>
+                        <configuration>
+                            <tasks>
+                                <copy todir="${build}">
+                                    <fileset dir="${basedir}/target">
+                                        <include name="*-${project.version}.apk"/>
+                                    </fileset>
+                                </copy>
+                            </tasks>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
                     </execution>
 					<!--execution>
 						<phase>deploy</phase> <!-should only build javadoc when you need to deploy->
