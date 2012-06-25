@@ -551,8 +551,7 @@ public class RequestSerializer {
 
 		logger.trace("getting the blob fields");	
 		final List<String> blobFieldNameList = new ArrayList<String>(blobCount);
-		// final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
-		final byte[][] fieldBlobList = new byte[blobCursor.getColumnCount()][];
+		final List<ByteBuffer> fieldBlobList = new ArrayList<ByteBuffer>(blobCount);
 		final byte[] buffer = new byte[1024]; 
 		for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
 			final String fieldName = blobCursor.getColumnName(ix);
@@ -564,27 +563,26 @@ public class RequestSerializer {
 			 * The blob data type indicates the actual blob data
 			 * The string data type indicates a file containing the blob.
 			 */
-			FieldTypeEnum dataType; //  = blobCursor.getType(ix);
-			try {
-				blobCursor.getString(ix);
-				dataType = FieldTypeEnum.FIELD_TYPE_STRING;
-			} catch (Exception ex) {
-				dataType = FieldTypeEnum.FIELD_TYPE_BLOB;
-			}
+			 //  = blobCursor.getType(ix);
+			final String svalue = blobCursor.getString(ix);
+			final FieldTypeEnum dataType = (svalue.startsWith("[B@")) ? FieldTypeEnum.FIELD_TYPE_BLOB: FieldTypeEnum.FIELD_TYPE_STRING;
 
 			switch (dataType) {
 			case FIELD_TYPE_BLOB:
-				fieldBlobList[ix] = blobCursor.getBlob(ix);
+				final byte[] blob = blobCursor.getBlob(ix);
+				logger.trace("field name=[{}] blob=[{}]", fieldName, blob);
+				fieldBlobList.add(ByteBuffer.wrap(blob));
 				break;
 			case FIELD_TYPE_STRING:
-				final Uri fieldUri = Uri.withAppendedPath(tupleUri, blobCursor.getString(ix));
+				logger.trace("field name=[{}] string=[{}]", fieldName, svalue);
+				final Uri fieldUri = Uri.withAppendedPath(tupleUri, svalue);
 				try {
 					final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
 					if (afd == null) {
 						logger.warn("could not acquire file descriptor {}", fieldUri);
 						//			throw new IOException("could not acquire file descriptor "+fieldUri);
-						fieldBlobList[ix] = blobCursor.getBlob(ix);
-						logger.warn("Blob found {}", fieldBlobList[ix]);
+						fieldBlobList.add(ByteBuffer.wrap(blobCursor.getBlob(ix)));
+						logger.warn("Blob found {}", fieldBlobList.get(ix));
 						break;
 					}
 					final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
@@ -596,7 +594,7 @@ public class RequestSerializer {
 						fieldBlob.write(buffer, 0, bytesRead);
 					}
 					bis.close();
-					fieldBlobList[ix] = fieldBlob.toByteArray();
+					fieldBlobList.add(ByteBuffer.wrap(fieldBlob.toByteArray()));
 
 				} catch (IOException ex) {
 					logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
@@ -619,13 +617,13 @@ public class RequestSerializer {
 			bigTuple.write(fieldName.getBytes());
 			bigTuple.write(0x0);
 
-			final byte[] fieldBlob = fieldBlobList[ix];
+			final ByteBuffer fieldBlob = fieldBlobList.get(ix);
 			final ByteBuffer bb = ByteBuffer.allocate(4);
 			bb.order(ByteOrder.BIG_ENDIAN); 
-			final int size = fieldBlob.length;
+			final int size = fieldBlob.capacity();
 			bb.putInt(size);
 			bigTuple.write(bb.array());
-			bigTuple.write(fieldBlob);
+			bigTuple.write(fieldBlob.array());
 			bigTuple.write(bb.array());
 		}
 		blobCursor.close();
