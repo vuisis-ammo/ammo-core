@@ -7,8 +7,10 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
 package edu.vu.isis.ammo.core.provider;
+
+import java.io.FileNotFoundException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,31 +25,36 @@ import android.content.UriMatcher;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.distributor.store.Relations;
 
 
 public class DistributorProvider extends ContentProvider {
 	// =================================
 	// Constants
 	// =================================
-	
+
 	private static final UriMatcher uriMatcher;
 	private static final UriMatcher garbageMatcher;
-	   static {
-		   uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
-		   garbageMatcher = new UriMatcher(UriMatcher.NO_MATCH);
-		   for (final Tables table : Tables.values()) {
-			   uriMatcher.addURI(DistributorSchema.AUTHORITY, table.n, table.ordinal());
-			   garbageMatcher.addURI(DistributorSchema.AUTHORITY, table.n+"/garbage", table.ordinal());
-		   }
-	   }
-	
+	/**
+	 * ordinal values are returned by the uri which may
+	 * then be used to retrieve the relation enum. 
+	 */
+	static {
+		uriMatcher = new UriMatcher(UriMatcher.NO_MATCH);
+		garbageMatcher = new UriMatcher(UriMatcher.NO_MATCH);
+		for (final Relations table : Relations.values()) {
+			uriMatcher.addURI(DistributorSchema.AUTHORITY, table.n, table.ordinal());
+			garbageMatcher.addURI(DistributorSchema.AUTHORITY, table.n+"/garbage", table.ordinal());
+		}
+	}
+
 	// =================================
 	// Fields
 	// =================================
-	Logger logger = LoggerFactory.getLogger("provider.dist");
+	private static final Logger logger = LoggerFactory.getLogger("provider.dist");
 
 	// =================================
 	// setup
@@ -62,20 +69,20 @@ public class DistributorProvider extends ContentProvider {
 						AmmoService.class.getCanonicalName());
 		AMMO_SERVICE.setComponent(serviceComponent);
 	}
-	
+
 	@Override
 	public boolean onCreate() {
 		this.dds = null;
 		final ServiceConnection conn = new ServiceConnection() {
-            final DistributorProvider parent = DistributorProvider.this;
-            
+			final DistributorProvider parent = DistributorProvider.this;
+
 			@Override
 			public void onServiceConnected(ComponentName name, IBinder binder) {
-				
-				 final AmmoService.DistributorServiceAidl proxy = (AmmoService.DistributorServiceAidl) binder;
-		         final AmmoService service = proxy.getService();
 
-		         parent.dds = service.store();
+				final AmmoService.DistributorServiceAidl proxy = (AmmoService.DistributorServiceAidl) binder;
+				final AmmoService service = proxy.getService();
+
+				parent.dds = service.store();
 			}
 			@Override
 			public void onServiceDisconnected(ComponentName name) {
@@ -101,8 +108,8 @@ public class DistributorProvider extends ContentProvider {
 	public int delete(Uri uri, String selection, String[] selectionArgs) {
 		if (this.dds == null) return -1;
 		logger.trace("delete on distributor provider {} {}", uri, selection);
-		
-		switch(Tables.values()[uriMatcher.match(uri)]) {
+
+		switch(Relations.getValue(uriMatcher.match(uri))) {
 		case POSTAL:
 			return dds.deletePostal(selection, selectionArgs);
 		case RETRIEVAL:
@@ -112,9 +119,13 @@ public class DistributorProvider extends ContentProvider {
 		case DISPOSAL:
 		case CHANNEL:
 			return -1;
+		case PRESENCE:
+			return this.dds.deletePresence();
+		case CAPABILITY:
+			return this.dds.deleteCapability();
 		}
-		
-		switch(Tables.values()[garbageMatcher.match(uri)]) {
+
+		switch(Relations.getValue(garbageMatcher.match(uri))) {
 		case POSTAL:
 			return dds.deletePostalGarbage();
 		case RETRIEVAL:
@@ -137,16 +148,16 @@ public class DistributorProvider extends ContentProvider {
 	@Override
 	public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
 		if (this.dds == null) return null;
-		
+
 		final int uriMatch = uriMatcher.match(uri);
 		if (uriMatch < 0) {
 			logger.error("failed query on distributor provider {} {}", uri, selection);
 			return null;
 		}
 		logger.trace("query on distributor provider {} {}", uri, selection);
-		
+
 		final Cursor cursor;
-		switch(Tables.values()[uriMatch]) {
+		switch(Relations.values()[uriMatch]) {
 		case POSTAL:
 			cursor = dds.queryPostal(projection, selection, selectionArgs, sortOrder);
 			break;
@@ -162,6 +173,10 @@ public class DistributorProvider extends ContentProvider {
 		case CHANNEL:
 			cursor = dds.queryChannel(projection, selection, selectionArgs, sortOrder);
 			break;
+		case PRESENCE:
+			return this.dds.queryPresence();
+		case CAPABILITY:
+			return this.dds.queryCapability();
 		default:
 			// If we get here, it's a special uri and should be matched differently.
 			cursor = null;
@@ -175,4 +190,12 @@ public class DistributorProvider extends ContentProvider {
 		return 0;
 	}
 	
+	/**
+	 * this to handle requests to open a file blob.
+	 */
+	@Override
+	public ParcelFileDescriptor	 openFile(Uri uri, String mode) throws FileNotFoundException {
+			return super.openFile(uri, mode);
+	}
+
 }

@@ -2,4 +2,11 @@
 <resources>
     <string name="serverlist">List of available servers</string>
     <string name="title_close">X</string>
+    
+    <string name="retrieval_label">Retrieval</string>
+    <string name="subscribe_label">Subscribe</string>
+    <string name="postal_label">Postal</string>
+    <string name="capability_label">Capability</string>
+    <string name="presence_label">Presence</string>
+    
 </resources>

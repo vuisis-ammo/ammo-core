@@ -525,7 +525,7 @@ public class RequestSerializer {
 			try {
 				json.put(name, value);
 			} catch (JSONException ex) {
-				logger.warn("invalid content provider {}", ex.getStackTrace());
+				logger.warn("invalid content provider {}", ex);
 			}
 		}
 		// FIXME FPE final Writer can we be more efficient? not copy bytes so often?
@@ -966,8 +966,7 @@ public class RequestSerializer {
 							String textValue = new String(textBytes, "UTF8");
 							wrap.put(key, textValue);
 						} catch ( java.io.UnsupportedEncodingException ex ) {
-							logger.error("Error in string encoding{}",
-									new Object[] { ex.getStackTrace() } );
+							logger.error("Error in string encoding {}", ex);
 						}
 					}
 					// final char[] textValue = new char[textLength];

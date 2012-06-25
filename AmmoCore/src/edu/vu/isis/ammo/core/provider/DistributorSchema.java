@@ -18,15 +18,13 @@ import android.content.ContentResolver;
 import android.net.Uri;
 import android.provider.BaseColumns;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.distributor.store.Relations;
 import edu.vu.isis.ammo.util.BaseDateColumns;
 
 public class DistributorSchema implements BaseColumns, BaseDateColumns {
 	
 	public static final String AUTHORITY = "edu.vu.isis.ammo.core.provider.distributorprovider";
-	public static final String DATABASE_NAME = DistributorDataStore.Tables.NAME;
-
-	
+	public static final String DATABASE_NAME = DistributorDataStore.SQLITE_NAME;
 	
 	  /**
 	    * The content:// style URL for this table
@@ -39,7 +37,7 @@ public class DistributorSchema implements BaseColumns, BaseDateColumns {
 	     // Uri.parse("content://"+AUTHORITY+"/distributor");
 	   static {
 		  CONTENT_URI = new HashMap<String, Uri>();
-		  for (Tables table : Tables.values()) {
+		  for (Relations table : Relations.values()) {
 			   CONTENT_URI.put(table.n, Uri.parse("content://"+AUTHORITY+"/"+table.n));
 		   }
 	   }

@@ -35,6 +35,7 @@
       <!-- <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>   -->
       <!--  output: elapsed time , logger name  and message -->
       <pattern>%.-1level %10relative %-20logger{35} - %msg%n</pattern>
+      <outputPatternAsHeader>true</outputPatternAsHeader>
     </encoder>
   </appender>
   

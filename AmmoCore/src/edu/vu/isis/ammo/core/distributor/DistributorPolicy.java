@@ -88,7 +88,7 @@ public class DistributorPolicy implements ContentHandler {
 			try {
 				inputStream = new FileInputStream(file);
 			} catch (FileNotFoundException ex) {
-				logger.error("no policy file {} {}", file, ex.getStackTrace());
+				logger.error("no policy file {} {}", file, ex);
 				return null;
 			}
 		}
@@ -126,8 +126,7 @@ public class DistributorPolicy implements ContentHandler {
 		try {
 			inputStream.close();
 		} catch (IOException ex) {
-			logger.error("could not close distributor configuration file {}",
-					ex.getStackTrace());
+			logger.error("could not close distributor configuration file {}", ex);
 		}
 		return policy;
 	}
@@ -157,16 +156,16 @@ public class DistributorPolicy implements ContentHandler {
 			reader.parse(is);
 
 		} catch (MalformedURLException ex) {
-			logger.warn("malformed file name {}", ex.getStackTrace());
+			logger.warn("malformed file name {}", ex);
 			this.setDefaultRule();
 		} catch (ParserConfigurationException ex) {
-			logger.warn("parse error {}", ex.getStackTrace());
+			logger.warn("parse error {}", ex);
 			this.setDefaultRule();
 		} catch (SAXException ex) {
-			logger.warn("sax error {}", ex.getStackTrace());
+			logger.warn("sax error {}", ex);
 			this.setDefaultRule();
 		} catch (IOException ex) {
-			logger.warn("general io error {}", ex.getStackTrace());
+			logger.warn("general io error {}", ex);
 			this.setDefaultRule();
 		}
 
@@ -502,17 +501,17 @@ public class DistributorPolicy implements ContentHandler {
 
 		public String getPayloadSuffix() {
 			switch (this.type) {
-			case JSON: return "";
 			case TERSE: return "";
-			case CUSTOM: return "_serial/";
+			case JSON: 
+			case CUSTOM: 
 			default: return "_serial/";
 			}
 		}
 		public Uri extendProvider(Uri provider) {
 			switch (this.type) {
-			case JSON: return provider;
 			case TERSE: return provider;
-			case CUSTOM: return Uri.withAppendedPath(provider, "_serial/");
+			case JSON: 
+			case CUSTOM: 
 			default: return Uri.withAppendedPath(provider, "_serial/");
 			}
 		}

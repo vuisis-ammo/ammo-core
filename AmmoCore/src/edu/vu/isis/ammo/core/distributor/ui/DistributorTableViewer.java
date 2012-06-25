@@ -31,7 +31,7 @@ import android.widget.ListView;
 import android.widget.PopupWindow;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.distributor.store.Relations;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
@@ -131,8 +131,8 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	// List Management
 	// ===========================================================
-	private final Tables table;
-	public DistributorTableViewer(Tables table) {
+	private final Relations table;
+	public DistributorTableViewer(Relations table) {
 		super();
 		this.table = table;
 	}

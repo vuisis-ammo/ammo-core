@@ -1,191 +1,165 @@
 package edu.vu.isis.ammo.core.distributor.store;
 
-import java.util.ArrayList;
+import java.util.Collection;
+import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.ContentValues;
-import android.database.Cursor;
-import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.provider.BaseColumns;
-import edu.vu.isis.ammo.api.AmmoRequest;
-import edu.vu.isis.ammo.api.IAmmoRequest;
-import edu.vu.isis.ammo.api.type.TimeTrigger;
-import edu.vu.isis.ammo.core.AmmoService;
+import android.text.TextUtils;
+
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.store.RelationHelper.RelationField;
 
-public class Capability {
-	private final static Logger logger = LoggerFactory.getLogger("class.store.capability");
+/**
+ * The capability set, is the set of all capabilities known by the device.
+ * The capability may be indexed by 
+ *
+ */
 
-	// The device identifier 
-	// (required)
-	private final long id;
+public enum Capability {
+	INSTANCE;
 
-	// The device identifier 
-	// (required)
-	private final String origin;
+	private final static Logger logger = LoggerFactory.getLogger("class.store.capability.set");
 
-	// This along with the cost is used to decide how to deliver the specific object.
-	// (required)
-	private final String topic;
-	// (optional)
-	private final String subtopic;
-
-	// The name of the operator using the channel
-	private final String operator;
-
-	// Time-stamp at which point the request 
-	// becomes stale and can be discarded.
-	private final int expiration;
-
-	// When the operator first used this channel
-	// The first field indicates the first time the peer was observed.
-	private final long first;
-
-	// When the operator was last seen "speaking" on the channel
-	// The latest field indicates the last time the peer was observed.
-	private long latest;
-
-	// How many times the peer has been seen since FIRST
-	// Each time LATEST is changed this COUNT should be incremented
-	private int count;
-
-	// what about message rates?
+	/*
+	 * A map of keys to items.
+	 */
+	private final Map<Item.Key, Item> relMap;
+	public int size() { return this.relMap.size(); }
 
 	private Capability() {
-		this.id = -1;
-		this.origin = null;
-		this.topic = null;
-		this.subtopic = null;
-		this.operator = null;
-		this.expiration = -1;
-		this.first = System.currentTimeMillis();
-		this.latest = this.first;
-		this.count = 1;
+		this.relMap = new HashMap<Item.Key, Item>();
 	}
-	/*
-	private CapabilityWorker(final DistributorDataStore parent, 
-			final AmmoRequest ar, final AmmoService svc, 
-			final String device, final String operator) {
+	
+	/**
+	 * The builder is used to construct new capabilities and capability.Key.
+	 * 
+	 * @return new builder
+	 */
+	static public Builder newBuilder() {
+		return new Builder();
+	}
+	
+	private static volatile long _id_seq = Long.MIN_VALUE;
+	
+	public static final class Builder {
+		
+		private String origin;
+		private String operator;
+		
+		private String topic;
+		private String subtopic;
+		
+		private long lifespan;
 
-		this.parent = parent;
-		this.db = null;
-		this.device = device;
-		this.operator = operator;
-		this.topic = ar.topic.asString();
-		this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
+		private Builder() { }
 
-		this.expire = ar.expire;
+		public Builder origin(String value) {
+			this.origin = value;
+			return this;
+		}
+		public Builder operator(String value) {
+			this.operator = value;
+			return this;
+		}
+		public Builder topic(String value) {
+			this.topic = value;
+			return this;
+		}
+		public Builder subtopic(String value) {
+			this.subtopic = value;
+			return this;
+		}
+		public Builder lifespan(long value) {
+			this.lifespan = value;
+			return this;
+		}
+
+		public Item buildItem() {
+			final Item cap = new Item(this);
+			logger.debug("ctor [{}]", cap);
+			return cap;
+		}
+		public Item.Key buildKey() {
+			return new Item.Key(this);
+		}
+
+		@Override
+		public String toString() {
+			final Item.Key key = new Item.Key(this);
+			return new StringBuilder()
+			.append("key=[").append(key)
+			.toString();
+		}
 	}
-	private Capability(String name, String type) {
-		this.id
-		this.impl = RelationFieldState.getInstance(name,type);
-	}
-*/
 
 	/**
-	 * CapabilityWorker
-	 * An actor for updating the PRESENCE component of the store.
+	 * returns a worker object which modifies 
+	 * the object to which it is associated.
 	 * 
-	 * @param deviceId
 	 * @return
 	 */
-	/*
-	public static CapabilityWorker getWorker(final DistributorDataStore parent, final IAmmoRequest ar, final AmmoService svc,
-			String device, String operator) {
-		return new CapabilityWorker(parent, (AmmoRequest) ar, svc, device, operator);
+	public static Worker getWorker() {
+		return new Worker();
 	}
-	*/
-	/** 
-	 * Capability store access class
-	 */
-	/*
-	public static class CapabilityWorker {
-		public final String device;
-		public final String operator;
-		public final String topic;	
-		public final String subtopic;
-		public final TimeTrigger expire;
 
-		final private DistributorDataStore parent;
-		final private Object db;
+	public static class Worker {
 
-		private CapabilityWorker(final DistributorDataStore parent, 
-				final AmmoRequest ar, final AmmoService svc, 
-				final String device, final String operator) {
+		private String origin;
+		private String operator;
+		private String topic;
+		private String subtopic;
 
-			this.parent = parent;
-			this.db = null;
-			this.device = device;
-			this.operator = operator;
-			this.topic = ar.topic.asString();
-			this.subtopic = (ar.subtopic == null) ? "" : ar.subtopic.asString();
+		private Worker() {}
 
-			this.expire = ar.expire;
+		public Worker origin(String value) {
+			this.origin = value;
+			return this;
 		}
-
-		private CapabilityWorker(final DistributorDataStore parent, final Cursor pending, final AmmoService svc) {
-			this.parent = parent;
-			this.db = null;
-
-			this.device = pending.getString(pending.getColumnIndex(Item.ORIGIN.n()));
-			this.operator = pending.getString(pending.getColumnIndex(CapabilityField.OPERATOR.n()));
-			this.topic = pending.getString(pending.getColumnIndex(CapabilityField.TOPIC.n()));
-			this.subtopic = pending.getString(pending.getColumnIndex(CapabilityField.SUBTOPIC.n()));
-
-			final long expireEnc = pending.getLong(pending.getColumnIndex(CapabilityField.EXPIRATION.n()));
-			this.expire = null; // new TimeTrigger(expireEnc);
+		public Worker operator(String value) {
+			this.operator = value;
+			return this;
 		}
-		*/
+		public Worker topic(String value) {
+			this.origin = value;
+			return this;
+		}
+		public Worker subtopic(String value) {
+			this.operator = value;
+			return this;
+		}
 
 		/**
-		 * returns the number of rows affected.
+		 * upsert the tuple indicated
 		 * 
-		 * @param deviceId
+		 * use the key to determine if the item is already present
 		 * @return
 		 */
-	/*
 		public long upsert() {
 			PLogger.STORE_CAPABILITY_DML.trace("upsert capability: device=[{}] @ {}",
-					this.device, this);
-			synchronized(this.parent) {	
-				final ContentValues cv = new ContentValues();
+					this.origin, this);
+			final Capability relation = Capability.INSTANCE;
+			synchronized(relation) {
 				final Long now = Long.valueOf(System.currentTimeMillis());
 
-				cv.put(CapabilityField.LATEST.cv(), now);
-				if (this.operator != null) cv.put(CapabilityField.OPERATOR.cv(), this.operator);
-
-				final String whereClause = CAPABILITY_KEY_CLAUSE;
-				final String[] whereArgs = new String[]{ this.device, this.topic, this.subtopic };
-
-				// this.db.beginTransaction();
+				final Builder builder = newBuilder()
+						.operator(this.operator)
+						.origin(this.origin)
+						.topic(this.topic)
+						.subtopic(this.subtopic);
 				try {
-					int updated = 0; // this.db.update(Relations.CAPABILITY.n, cv, whereClause, whereArgs);
-					if (updated > 0) {
-						PLogger.STORE_CAPABILITY_DML.debug("updated cnt=[{}] cv=[{}]", 
-								updated, cv);
-						// this.db.setTransactionSuccessful();
-						return updated;
+					final Item.Key key = builder.buildKey();
+
+					final Item cap = relation.relMap.get(key);
+					if (cap == null) {
+						PLogger.STORE_CAPABILITY_DML.debug("updated cap=[{}]", 
+								this);
+						return -1;
 					} 
-					cv.put(CapabilityField.ORIGIN.cv(), this.device);
-					cv.put(CapabilityField.TOPIC.cv(), this.topic);
-					cv.put(CapabilityField.SUBTOPIC.cv(), this.subtopic);
-
-					cv.put(CapabilityField.FIRST.cv(), now);
-
-					long row = 1; // this.db.insert(Relations.CAPABILITY.n, CapabilityField._ID.n(), cv);
-					PLogger.STORE_CAPABILITY_DML.debug("inserted row=[{}] cv=[{}]", 
-							row, cv);
-
-					// this.db.setTransactionSuccessful();
-					return 1;
+					cap.latest = now;
+					cap.count++;
 				} catch (IllegalArgumentException ex) {
 					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
 				} finally {
@@ -195,53 +169,198 @@ public class Capability {
 			}
 		}
 
-		public int delete(String tupleId) {
-			final String whereClause = new StringBuilder()
-			.append(CapabilityField._ID.q(null)).append("=?")
-			.toString();
-
-			final String[] whereArgs = new String[] {tupleId};
-
-			try {
-				final int count = 0; // this.db.delete(Relations.CAPABILITY.n, whereClause, whereArgs);
-
-				logger.trace("Capability delete count: [{}]", count);
-				return count;
-			} catch (IllegalArgumentException ex) {
-				logger.error("delete capablity {} {}", whereClause, whereArgs);
-			}
-			return 0;
-		}
-		*/
-
 		/**
+		 * delete the tuple indicated
+		 * 
+		 * @param tupleId
 		 * @return
 		 */
-	/*
-		public int delete() {
-			final String whereClause = CAPABILITY_KEY_CLAUSE;
-			final String[] whereArgs = new String[] {this.device, this.topic, this.subtopic};
+		public int delete(String tupleId) {
+			PLogger.STORE_CAPABILITY_DML.trace("delete capability: device=[{}] @ {}",
+					this.origin, this);
+			final Capability relation = Capability.INSTANCE;
+			synchronized(relation) {
+				final Long now = Long.valueOf(System.currentTimeMillis());
 
-			try {
-				final int count = 0; // this.db.delete(Relations.CAPABILITY.n, whereClause, whereArgs);
+				final Builder builder = newBuilder()
+						.operator(this.operator)
+						.origin(this.origin)
+						.topic(this.topic)
+						.subtopic(this.subtopic);
+				try {
+					final Item.Key key = builder.buildKey();
 
-				logger.trace("Capability delete count: [{}]", count);
-				return count;
-			} catch (IllegalArgumentException ex) {
-				logger.error("delete capablity {} {}", whereClause, whereArgs);
+					final Item cap = relation.relMap.get(key);
+					if (cap == null) {
+						PLogger.STORE_CAPABILITY_DML.debug("updated cap=[{}]", 
+								this);
+						return -1;
+					} 
+					cap.latest = now;
+					cap.count++;
+				} catch (IllegalArgumentException ex) {
+					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
+				} finally {
+					// this.db.endTransaction();
+				}
+				return -1;
 			}
-			return 0;
 		}
 	}
 
-	private static final String CAPABILITY_KEY_CLAUSE = new StringBuilder()
-	.append(CapabilityField.ORIGIN.q(null)).append("=?")
-	.append(" AND ")
-	.append(CapabilityField.TOPIC.q(null)).append("=?")
-	.append(" AND ")
-	.append(CapabilityField.SUBTOPIC.q(null)).append("=?")
-	.toString();
-	*/
+	public static class Item {
+		/**
+		 *  The tuple identifier 
+		 *  (required)
+		 *  id 
+		 *  
+		 *  The device identifier
+		 *  (required)
+		 *  identifier
+		 *  
+		 *  This along with the cost is used to decide how to deliver the specific object.
+		 *  (required)
+		 *  topic
+		 *  (optional)
+		 *  subtopic
+		 *  
+		 * The name of the operator using the channel
+		 */
+		public static final class Key extends Object {
+			public final long id;
+			public final String origin;
+			public final String operator;
+			public final String topic;
+			public final String subtopic;
+			
+			final private int hashCode;
+			@Override
+		    public int hashCode() { return this.hashCode; }		
 
+			private Key(Builder that) {
+				Capability._id_seq++;
+				this.id = Capability._id_seq;
+				this.origin = that.origin;
+				this.operator = that.operator;
+				this.topic = that.topic;
+				this.subtopic = that.subtopic;
+				
+				int hc = 17;
+				hc *= 31;
+				hc += ((int) (this.id ^ (this.id >>> 32)));
+				hc *= 31;
+				hc += this.origin.hashCode();
+				hc *= 31;
+				hc += this.operator.hashCode();
+				hc *= 31;
+				hc += this.topic.hashCode();
+				hc *= 31;
+				hc += this.subtopic.hashCode();
+		        this.hashCode = hc;
+			}
+			
+			@Override
+			public boolean equals(Object o) {
+				if (!(o instanceof Key)) return false;
+				final Key that = (Key) o;
+				if (this.id != that.id) return false;
+				if (! TextUtils.equals(this.origin, that.origin)) return false;
+				if (! TextUtils.equals(this.operator, that.operator)) return false;
+				if (! TextUtils.equals(this.topic, that.topic)) return false;
+				if (! TextUtils.equals(this.subtopic, that.subtopic)) return false;
+				return true;
+			}
+			
+			@Override
+			public String toString() {
+				return new StringBuilder()
+				.append("origin=\"").append(this.origin).append("\" ")
+				.append("operator=\"").append(this.operator).append("\" ")
+				.append("topic=\"").append(this.topic).append("\" ")
+				.append("subtopic=\"").append(this.subtopic)
+				.toString();
+			}
+			
+		}
+		public final Key key;
+
+		public Item(Builder that) {
+			this.key = new Key(that);
+
+			this.first = System.currentTimeMillis();
+			this.expiration = that.lifespan;
+
+			this.latest = this.first;
+			this.count = 1;
+		}
+
+		public final long expiration;
+		public final long first;
+		public long latest;
+		public int count;
+
+
+		/**
+		 * Rather than using a big switch, this makes use of an EnumMap
+		 */
+		public Object[] getValues(final CapabilitySchema[] fields) {
+			final Object[] row = new Object[fields.length];
+			int ix = 0;
+			for (final CapabilitySchema field : fields) {
+				row[ix] = getters.get(field).getValue(this);
+			}
+			return row;
+		}
+		private interface Getter { public Object getValue(final Item item); }
+		final static private Map<CapabilitySchema,Getter> getters;
+		static {
+			getters = new EnumMap<CapabilitySchema,Getter>(CapabilitySchema.class);
+			getters.put(CapabilitySchema.UUID, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.key.id; }
+			});
+			getters.put(CapabilitySchema.ORIGIN, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.key.origin; }
+			});
+			getters.put(CapabilitySchema.OPERATOR, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.key.operator; }
+			});
+			getters.put(CapabilitySchema.TOPIC, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.key.topic; }
+			});
+			getters.put(CapabilitySchema.SUBTOPIC, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.key.subtopic; }
+			});
+			
+			getters.put(CapabilitySchema.EXPIRATION, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.expiration; }
+			});
+			getters.put(CapabilitySchema.FIRST, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.first; }
+			});
+			getters.put(CapabilitySchema.LATEST, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.latest; }
+			});
+			getters.put(CapabilitySchema.COUNT, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.count; }
+			});
+		}
+		
+		
+
+		// what about message rates?
+	}
+
+	public static Collection<Item> query() {
+		return Capability.INSTANCE.relMap.values();
+	}
 
 }

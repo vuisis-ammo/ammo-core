@@ -200,7 +200,7 @@ public class SerialChannel extends NetChannel
                 try {
                     mConnector.join();
                 } catch (InterruptedException ex) {
-                    logger.warn("Interrupted while trying to join connector thread {}", ex.getStackTrace() );
+                    logger.warn("Interrupted while trying to join connector thread {}", ex);
                 }
                 mConnector = null;
             }
@@ -606,8 +606,7 @@ public class SerialChannel extends NetChannel
                      && Thread.currentThread().getId() != mReceiver.getId() )
                     mReceiver.join();
             } catch (java.lang.InterruptedException ex ) {
-                logger.warn( "disconnect: interrupted exception while waiting for threads to die: {}",
-                             ex.getStackTrace() );
+                logger.warn( "disconnect: interrupted exception while waiting for threads to die: {}", ex );
             }
 
             mSender = null;
@@ -1305,11 +1304,11 @@ public class SerialChannel extends NetChannel
                     }
                 }
             } catch ( IOException ex ) {
-                logger.warn( "receiver threw an IOException {}", ex.getStackTrace() );
+                logger.warn( "receiver threw an IOException {}", ex);
                 setReceiverState( INetChannel.INTERRUPTED );
                 ioOperationFailed();
             } catch ( Exception ex ) {
-                logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
+                logger.warn( "receiver threw an exception {}", ex);
                 setReceiverState( INetChannel.INTERRUPTED );
                 ioOperationFailed();
             }

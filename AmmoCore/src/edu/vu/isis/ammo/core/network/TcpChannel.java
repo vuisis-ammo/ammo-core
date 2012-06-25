@@ -703,7 +703,7 @@ public class TcpChannel extends NetChannel {
                 }
                 this.parent.socket.close();
             } catch (IOException ex) {
-                logger.error("channel closing without proper socket {}", ex.getStackTrace());
+                logger.error("channel closing without proper socket {}", ex);
             }
             logger.error("channel closing");
         }
@@ -1059,7 +1059,7 @@ public class TcpChannel extends NetChannel {
                 }
                 catch ( Exception ex )
                 {
-                    logger.warn("sender threw exception {}", ex.getStackTrace());
+                    logger.warn("sender threw exception {}", ex);
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
                     setSenderState( INetChannel.INTERRUPTED );
@@ -1189,11 +1189,11 @@ public class TcpChannel extends NetChannel {
                     bbuf.compact();
 
                 } catch (ClosedChannelException ex) {
-                    logger.warn("receiver threw exception {}", ex.getStackTrace());
+                    logger.warn("receiver threw exception {}", ex);
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 } catch ( Exception ex ) {
-                    logger.warn("receiver threw exception {}", ex.getStackTrace());
+                    logger.warn("receiver threw exception {}", ex);
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }

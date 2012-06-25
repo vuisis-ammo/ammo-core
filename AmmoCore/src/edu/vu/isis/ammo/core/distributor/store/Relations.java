@@ -24,23 +24,36 @@ package edu.vu.isis.ammo.core.distributor.store;
  * The rule for disposition rows is cascade delete.
  */
 public enum Relations {
+	/** A record of the visibility of device/operator */
 	PRESENCE(101, "presence"),
+	/** A record of the interest which an operator has in a topic */
 	CAPABILITY(102, "capability"),
+	/** The state of the delivery channels */
 	CHANNEL(103, "channel"),
+	/** The base request */
 	REQUEST(200, "request"),
-	POSTAL(2100, "postal"),
+	/** The base request disposal state */
+	DISPOSAL(201, "disposal"),
+	/** The postal request indicates that content is available for sharing */
+	POSTAL(210, "postal"),
+	/** The disposal status of postal requests */
 	POSTAL_DISPOSAL(211, "postal_disposal"),
+	/** The retrieval or pull request indicates that historical content is requested from a named source */
 	RETRIEVAL(220, "retrieval"),
+	/** The disposal status of retrieval requests */
 	RETRIEVAL_DISPOSAL(221, "retrieval_disposal"),
+	/** The subscribe request indicates that content posted is requested as it becomes available */
 	SUBSCRIBE(230, "subscribe"),
+	/** The disposal status of subscribe requests */
 	SUBSCRIBE_DISPOSAL(231, "subscribe_disposal"),
+	/** A record of acknowledgments */
 	RECIPIENT(300, "recipient");
 
-	final public int o;
+	final public int nominal;
 	final public String n;
 
-	private Relations(int ordinal, String name) {
-		this.o = ordinal;
+	private Relations(int nominal, String name) {
+		this.nominal = nominal;
 		this.n = name;
 	}
 
@@ -53,11 +66,49 @@ public enum Relations {
 		return new StringBuilder().append('\'').append(this.cv()).append('\'').toString();
 	}
 	public String cv() {
-		return String.valueOf(this.o);
+		return String.valueOf(this.nominal);
 	}
 	// The quoted index name
 	public String qIndex() {
 		return new StringBuilder().append('"').append(this.n).append("_index").append('"').toString();
+	}
+
+	/**
+	 * Produce string builders of the form...
+	 * CREATE TABLE "<table-name>" ( <row defs> );
+	 *
+	 */
+
+	public String sqlCreate(String fields) {
+		return new StringBuilder()
+		.append("CREATE TABLE ")
+		.append('"').append(this.n).append('"')
+		.append(" (").append(fields).append(");")
+		.toString();
+	}
+
+	/**
+	 * Produce string builders of the form...
+	 * DROP TABLE "<table-name>";
+	 *
+	 */
+	public String sqlDrop() {
+		return new StringBuilder()
+		.append("DROP TABLE ")
+		.append('"').append(this.n).append('"')
+		.append(";")
+		.toString();
+	}
+
+	/**
+	 * The ordinal value provided by the uri matcher is used to 
+	 * index into the enum.
+	 * 
+	 * @param ordinal
+	 * @return the corresponding enum Relation object
+	 */
+	public static Relations getValue(int ordinal) {
+		return Relations.values()[ordinal];
 	}
 
 }

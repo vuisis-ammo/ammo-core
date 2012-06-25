@@ -1222,13 +1222,13 @@ public class ReliableMulticastChannel extends NetChannel
                 }
                 catch ( ClosedChannelException ex )
                 {
-                    logger.warn( "receiver threw ClosedChannelException {}", ex.getStackTrace() );
+                    logger.warn( "receiver threw ClosedChannelException {}", ex);
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
                 catch ( Exception ex )
                 {
-                    logger.warn( "receiver threw exception {}", ex.getStackTrace() );
+                    logger.warn( "receiver threw exception {}", ex);
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }

@@ -14,33 +14,31 @@ import android.database.Cursor;
 import android.os.Bundle;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.store.Relations;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
 
-public class SubscribeTableViewer extends DistributorTableViewer {
+public class CapabilityTableViewer extends DistributorTableViewer {
 
 	private TextView tvLabel;
 	
-	public SubscribeTableViewer() {
-		super(Relations.SUBSCRIBE);
+	public CapabilityTableViewer() {
+		super(Relations.CAPABILITY);
 	}
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		this.uri = DistributorSchema.CONTENT_URI.get(Relations.SUBSCRIBE.n);
+		this.uri = DistributorSchema.CONTENT_URI.get(Relations.CAPABILITY.n);
 		
-		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
-                SubscribeTableSchema._ID + " DESC");
+		final Cursor cursor = this.managedQuery(this.uri, null, null, null, "DESC");
 		
-		this.adapter = new SubscribeTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
+		this.adapter = new CapabilityTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
 		
 		super.onCreate(bun);
 	}
 
 	@Override
 	public void setViewAttributes() {
-		tvLabel.setText("Subscription Table");
+		tvLabel.setText("Capability Relation");
 	}
 	
 
