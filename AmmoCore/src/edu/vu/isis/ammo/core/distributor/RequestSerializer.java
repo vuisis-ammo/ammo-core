@@ -83,7 +83,7 @@ public class RequestSerializer {
 	public static final int FIELD_TYPE_TIMESTAMP = 12;
 	public static final int FIELD_TYPE_SHORT = 13;
 
-        private enum FieldTypeEnum { FIELD_TYPE_STRING, FIELD_TYPE_BLOB; }
+	private enum FieldTypeEnum { FIELD_TYPE_STRING, FIELD_TYPE_BLOB; }
 
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
@@ -552,38 +552,43 @@ public class RequestSerializer {
 		logger.trace("getting the blob fields");	
 		final List<String> blobFieldNameList = new ArrayList<String>(blobCount);
 		// final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
-                final byte[][] fieldBlobList = new byte[blobCursor.getColumnCount()][];
+		final byte[][] fieldBlobList = new byte[blobCursor.getColumnCount()][];
 		final byte[] buffer = new byte[1024]; 
 		for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
 			final String fieldName = blobCursor.getColumnName(ix);
 			logger.trace("processing blob {}", fieldName);
 			blobFieldNameList.add(fieldName);
 
-                        FieldTypeEnum dataType; //  = blobCursor.getType(ix);
-                        try {
-			    final String fieldValue = blobCursor.getString(ix);
-                            dataType = FieldTypeEnum.FIELD_TYPE_STRING;
-                        } catch (Exception ex) {
-                            dataType = FieldTypeEnum.FIELD_TYPE_BLOB;
-                        }
+			/* WATCHME 
+			 * The following type detection is a hack to determine the data type.
+			 * The blob data type indicates the actual blob data
+			 * The string data type indicates a file containing the blob.
+			 */
+			FieldTypeEnum dataType; //  = blobCursor.getType(ix);
+			try {
+				blobCursor.getString(ix);
+				dataType = FieldTypeEnum.FIELD_TYPE_STRING;
+			} catch (Exception ex) {
+				dataType = FieldTypeEnum.FIELD_TYPE_BLOB;
+			}
 
-                        switch (dataType) {
-                           case FIELD_TYPE_BLOB:
-                           	fieldBlobList[ix] = blobCursor.getBlob(ix);
-                           	break;
-                           case FIELD_TYPE_STRING:
+			switch (dataType) {
+			case FIELD_TYPE_BLOB:
+				fieldBlobList[ix] = blobCursor.getBlob(ix);
+				break;
+			case FIELD_TYPE_STRING:
 				final Uri fieldUri = Uri.withAppendedPath(tupleUri, blobCursor.getString(ix));
 				try {
 					final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
 					if (afd == null) {
 						logger.warn("could not acquire file descriptor {}", fieldUri);
-			//			throw new IOException("could not acquire file descriptor "+fieldUri);
-                           	                fieldBlobList[ix] = blobCursor.getBlob(ix);
+						//			throw new IOException("could not acquire file descriptor "+fieldUri);
+						fieldBlobList[ix] = blobCursor.getBlob(ix);
 						logger.warn("Blob found {}", fieldBlobList[ix]);
-                                                break;
+						break;
 					}
 					final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-	
+
 					final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
 					final BufferedInputStream bis = new BufferedInputStream(instream);
 					final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
@@ -592,15 +597,15 @@ public class RequestSerializer {
 					}
 					bis.close();
 					fieldBlobList[ix] = fieldBlob.toByteArray();
-	
+
 				} catch (IOException ex) {
 					logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
 					throw new FileNotFoundException("Unable to create stream");
 				}
-       	                	break;
-       	                   default:
+				break;
+			default:
 				logger.warn("not a known data type {}", dataType);
-                        }
+			}
 		}
 
 		logger.trace("loading larger tuple buffer");
@@ -880,7 +885,7 @@ public class RequestSerializer {
 				int length = (svalue == null) ? 0 : svalue.length();
 				tuple.putShort( (short) length );
 				if (length > 0)
-				    tuple.put( svalue.getBytes("UTF8") );
+					tuple.put( svalue.getBytes("UTF8") );
 				// for ( int i = 0; i < length; i++ ) {
 				// 	char c = svalue.charAt(i);
 				// 	tuple.putChar( c );
@@ -892,7 +897,7 @@ public class RequestSerializer {
 			case FIELD_TYPE_SHORT: {
 				final short shortValue = tupleCursor.getShort(columnIndex);
 				tuple.putShort(shortValue);
-			        break; }
+				break; }
 			case FIELD_TYPE_BOOL:
 			case FIELD_TYPE_INTEGER:
 			case FIELD_TYPE_EXCLUSIVE:
@@ -906,10 +911,10 @@ public class RequestSerializer {
 				tuple.putDouble(doubleValue);
 				break; }
 			case FIELD_TYPE_BLOB: {
-			        final byte[] bytesValue = tupleCursor.getBlob(columnIndex);
+				final byte[] bytesValue = tupleCursor.getBlob(columnIndex);
 				// check that bytes count does not exceed our buffer size
 				tuple.putShort((short)bytesValue.length);
-			        tuple.put(bytesValue);
+				tuple.put(bytesValue);
 				break; }
 			default:
 				logger.warn("unhandled data type {}", type);
@@ -973,8 +978,8 @@ public class RequestSerializer {
 					//wrap.put(key, null);
 					break;
 				case FIELD_TYPE_SHORT:
-				        final short shortValue = tuple.getShort();
-				        wrap.put(key, shortValue);
+					final short shortValue = tuple.getShort();
+					wrap.put(key, shortValue);
 					break;
 				case FIELD_TYPE_LONG:
 				case FIELD_TYPE_FK: {
@@ -990,15 +995,15 @@ public class RequestSerializer {
 				case FIELD_TYPE_GUID: {
 					final short textLength = tuple.getShort();
 					if (textLength > 0) {
-					    try {
-						byte [] textBytes = new byte[textLength];
-						tuple.get(textBytes, 0, textLength);
-						String textValue = new String(textBytes, "UTF8");
-						wrap.put(key, textValue);
-					    } catch ( java.io.UnsupportedEncodingException ex ) {
-						logger.error("Error in string encoding{}",
-							new Object[] { ex.getStackTrace() } );
-					    }
+						try {
+							byte [] textBytes = new byte[textLength];
+							tuple.get(textBytes, 0, textLength);
+							String textValue = new String(textBytes, "UTF8");
+							wrap.put(key, textValue);
+						} catch ( java.io.UnsupportedEncodingException ex ) {
+							logger.error("Error in string encoding{}",
+									new Object[] { ex.getStackTrace() } );
+						}
 					}
 					// final char[] textValue = new char[textLength];
 					// for (int ix=0; ix < textLength; ++ix) {
@@ -1019,15 +1024,15 @@ public class RequestSerializer {
 					wrap.put(key, doubleValue);
 					break; }
 				case FIELD_TYPE_BLOB: {
-				        final short bytesLength = tuple.getShort();
+					final short bytesLength = tuple.getShort();
 					if (bytesLength > 0) {
-					    final byte[] bytesValue = new byte[bytesLength];
-					    tuple.get(bytesValue, 0, bytesLength);
-					    wrap.put(key, bytesValue);
+						final byte[] bytesValue = new byte[bytesLength];
+						tuple.get(bytesValue, 0, bytesLength);
+						wrap.put(key, bytesValue);
 					}
 					break; }
 				default:
-				    logger.warn("unhandled data type {}", type);
+					logger.warn("unhandled data type {}", type);
 				}
 			}
 			serialMetaCursor.close();
