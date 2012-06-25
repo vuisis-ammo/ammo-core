@@ -83,6 +83,8 @@ public class RequestSerializer {
 	public static final int FIELD_TYPE_TIMESTAMP = 12;
 	public static final int FIELD_TYPE_SHORT = 13;
 
+        private enum FieldTypeEnum { FIELD_TYPE_STRING, FIELD_TYPE_BLOB; }
+
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
 	}
@@ -549,35 +551,56 @@ public class RequestSerializer {
 
 		logger.trace("getting the blob fields");	
 		final List<String> blobFieldNameList = new ArrayList<String>(blobCount);
-		final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
+		// final List<ByteArrayOutputStream> fieldBlobList = new ArrayList<ByteArrayOutputStream>(blobCount);
+                final byte[][] fieldBlobList = new byte[blobCursor.getColumnCount()][];
 		final byte[] buffer = new byte[1024]; 
 		for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
 			final String fieldName = blobCursor.getColumnName(ix);
 			logger.trace("processing blob {}", fieldName);
 			blobFieldNameList.add(fieldName);
 
-			final Uri fieldUri = Uri.withAppendedPath(tupleUri, blobCursor.getString(ix));
-			try {
-				final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
-				if (afd == null) {
-					logger.warn("could not acquire file descriptor {}", serialUri);
-					throw new IOException("could not acquire file descriptor "+fieldUri);
-				}
-				final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+                        FieldTypeEnum dataType; //  = blobCursor.getType(ix);
+                        try {
+			    final String fieldValue = blobCursor.getString(ix);
+                            dataType = FieldTypeEnum.FIELD_TYPE_STRING;
+                        } catch (Exception ex) {
+                            dataType = FieldTypeEnum.FIELD_TYPE_BLOB;
+                        }
 
-				final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-				final BufferedInputStream bis = new BufferedInputStream(instream);
-				final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
-				for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-					fieldBlob.write(buffer, 0, bytesRead);
+                        switch (dataType) {
+                           case FIELD_TYPE_BLOB:
+                           	fieldBlobList[ix] = blobCursor.getBlob(ix);
+                           	break;
+                           case FIELD_TYPE_STRING:
+				final Uri fieldUri = Uri.withAppendedPath(tupleUri, blobCursor.getString(ix));
+				try {
+					final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
+					if (afd == null) {
+						logger.warn("could not acquire file descriptor {}", fieldUri);
+			//			throw new IOException("could not acquire file descriptor "+fieldUri);
+                           	                fieldBlobList[ix] = blobCursor.getBlob(ix);
+						logger.warn("Blob found {}", fieldBlobList[ix]);
+                                                break;
+					}
+					final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+	
+					final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+					final BufferedInputStream bis = new BufferedInputStream(instream);
+					final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
+					for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+						fieldBlob.write(buffer, 0, bytesRead);
+					}
+					bis.close();
+					fieldBlobList[ix] = fieldBlob.toByteArray();
+	
+				} catch (IOException ex) {
+					logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
+					throw new FileNotFoundException("Unable to create stream");
 				}
-				bis.close();
-				fieldBlobList.add(fieldBlob);
-
-			} catch (IOException ex) {
-				logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
-				throw new FileNotFoundException("Unable to create stream");
-			}
+       	                	break;
+       	                   default:
+				logger.warn("not a known data type {}", dataType);
+                        }
 		}
 
 		logger.trace("loading larger tuple buffer");
@@ -591,13 +614,13 @@ public class RequestSerializer {
 			bigTuple.write(fieldName.getBytes());
 			bigTuple.write(0x0);
 
-			final ByteArrayOutputStream fieldBlob = fieldBlobList.get(ix);
+			final byte[] fieldBlob = fieldBlobList[ix];
 			final ByteBuffer bb = ByteBuffer.allocate(4);
 			bb.order(ByteOrder.BIG_ENDIAN); 
-			final int size = fieldBlob.size();
+			final int size = fieldBlob.length;
 			bb.putInt(size);
 			bigTuple.write(bb.array());
-			bigTuple.write(fieldBlob.toByteArray());
+			bigTuple.write(fieldBlob);
 			bigTuple.write(bb.array());
 		}
 		blobCursor.close();
@@ -605,6 +628,8 @@ public class RequestSerializer {
 		bigTuple.close();
 		PLogger.API_STORE.debug("json tuple=[{}] size=[{}]", 
 				tuple, finalTuple.length);
+		PLogger.API_STORE.trace("json finalTuple=[{}]", 
+				finalTuple);
 		return ByteBufferFuture.wrap(finalTuple);
 	}
 
