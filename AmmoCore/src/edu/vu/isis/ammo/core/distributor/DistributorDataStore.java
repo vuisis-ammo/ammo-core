@@ -20,8 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.distributor.store.Capability;
-import edu.vu.isis.ammo.core.distributor.store.CapabilitySchema;
 import edu.vu.isis.ammo.core.distributor.store.Relations;
+import edu.vu.isis.ammo.core.provider.CapabilitySchema;
 
 import android.content.ContentValues;
 import android.content.Context;

@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import android.text.TextUtils;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.provider.PresenceSchema;
 
 /**
  * The presence set, is the set of all capabilities known by the device.

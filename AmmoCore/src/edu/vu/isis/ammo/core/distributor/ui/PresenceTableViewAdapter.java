@@ -18,7 +18,7 @@ import android.database.Cursor;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.store.PresenceSchema;
+import edu.vu.isis.ammo.core.provider.PresenceSchema;
 
 /**
  * CursorAdapter used by AmmoCore to display its tables in a human-readable format.
