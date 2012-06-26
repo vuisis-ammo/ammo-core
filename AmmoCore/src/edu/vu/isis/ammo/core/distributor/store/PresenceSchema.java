@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.core.distributor.store;
 
+import java.util.ArrayList;
+
 import android.provider.BaseColumns;
 import edu.vu.isis.ammo.util.EnumUtils;
 
@@ -62,8 +64,8 @@ public enum PresenceSchema {
 	 * @param names an array of field names
 	 * @return an array of fields
 	 */
-	public static PresenceSchema[] mapFields(final String[] names) {
-		return EnumUtils.mapFields(PresenceSchema.class, names);
+	public static ArrayList<PresenceSchema> mapFields(final String[] names) {
+		return EnumUtils.getFields(PresenceSchema.class, names);
 	}
 	
 }

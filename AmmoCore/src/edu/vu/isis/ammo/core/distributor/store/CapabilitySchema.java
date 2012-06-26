@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.core.distributor.store;
 
+import java.util.ArrayList;
+
 import android.provider.BaseColumns;
 import edu.vu.isis.ammo.util.EnumUtils;
 
@@ -68,8 +70,8 @@ public enum CapabilitySchema {
 	 * @param names an array of field names
 	 * @return an array of fields
 	 */
-	public static CapabilitySchema[] mapFields(final String[] names) {
-		return EnumUtils.mapFields(CapabilitySchema.class, names);
+	public static ArrayList<CapabilitySchema> mapFields(final String[] names) {
+		return EnumUtils.getFields(CapabilitySchema.class, names);
 	}
 	
 }
