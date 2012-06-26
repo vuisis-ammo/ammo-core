@@ -157,7 +157,7 @@
 			android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider" />
 
 		<provider android:name=".provider.DistributorProvider"
-			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider" />
+			android:authorities="edu.vu.isis.ammo.core.provider.distributor" />
 
 	</application>
 
