@@ -38,8 +38,8 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PriorityType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
-import edu.vu.isis.ammo.core.distributor.store.Relations;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 
 

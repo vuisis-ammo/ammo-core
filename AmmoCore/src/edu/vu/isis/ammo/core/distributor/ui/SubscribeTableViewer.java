@@ -15,8 +15,8 @@ import android.os.Bundle;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
-import edu.vu.isis.ammo.core.distributor.store.Relations;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 public class SubscribeTableViewer extends DistributorTableViewer {
 

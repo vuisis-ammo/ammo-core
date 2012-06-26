@@ -28,13 +28,15 @@ import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.store.Relations;
+import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
 
 
 public class DistributorProvider extends ContentProvider {
 	// =================================
 	// Constants
 	// =================================
+	
+	public static final String DATABASE_NAME = DistributorDataStore.SQLITE_NAME;
 
 	private static final UriMatcher uriMatcher;
 	private static final UriMatcher garbageMatcher;
@@ -109,7 +111,7 @@ public class DistributorProvider extends ContentProvider {
 		if (this.dds == null) return -1;
 		logger.trace("delete on distributor provider {} {}", uri, selection);
 
-		switch(Relations.getValue(uriMatcher.match(uri))) {
+		switch(RelationsHelper.getValue(uriMatcher.match(uri))) {
 		case POSTAL:
 			return dds.deletePostal(selection, selectionArgs);
 		case RETRIEVAL:
@@ -125,7 +127,7 @@ public class DistributorProvider extends ContentProvider {
 			return this.dds.deleteCapability();
 		}
 
-		switch(Relations.getValue(garbageMatcher.match(uri))) {
+		switch(RelationsHelper.getValue(garbageMatcher.match(uri))) {
 		case POSTAL:
 			return dds.deletePostalGarbage();
 		case RETRIEVAL:

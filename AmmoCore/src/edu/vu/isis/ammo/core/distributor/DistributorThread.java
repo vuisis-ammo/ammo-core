@@ -70,7 +70,6 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSche
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
 import edu.vu.isis.ammo.core.distributor.store.Presence;
-import edu.vu.isis.ammo.core.distributor.store.Relations;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetChannel;
@@ -79,6 +78,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
+import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
 import edu.vu.isis.ammo.util.FullTopic;
 

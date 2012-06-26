@@ -31,7 +31,7 @@ import android.widget.ListView;
 import android.widget.PopupWindow;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.store.Relations;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 /**
  * ListActivity class used in viewing the distributor's tables.

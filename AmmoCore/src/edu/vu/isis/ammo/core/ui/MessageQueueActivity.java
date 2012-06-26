@@ -19,8 +19,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
-import edu.vu.isis.ammo.core.distributor.store.Relations;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 public class MessageQueueActivity extends Activity {
 	public static final Logger logger = LoggerFactory.getLogger("ui.messagequeue");

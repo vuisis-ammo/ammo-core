@@ -20,8 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.distributor.store.Capability;
-import edu.vu.isis.ammo.core.distributor.store.Relations;
+import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
 import edu.vu.isis.ammo.core.provider.CapabilitySchema;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -603,71 +604,71 @@ public class DistributorDataStore {
 
 	public enum RetrievalTableSchema {
 		_ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-		
+
 		/** This is a unique identifier for the request */
 		UUID("uuid", "TEXT"),
-		
+
 		/** When the request was made */
 		CREATED("created", "INTEGER"),
-		
+
 		/** When the request was last modified */
 		MODIFIED("modified", "INTEGER"),
-		
+
 		/** This is the data type */
 		TOPIC("topic", "TEXT"),
-		
+
 		/**
 		 *  This is a unique identifier for the request
 		 *  as specified by the application 
 		 */
 		AUID("auid", "TEXT"),
-		
+
 		/** The uri of the content provider */
 		PROVIDER("provider", "TEXT"),
-		
+
 		/** A description of what is to be done when various state-transition occur. */
 		NOTICE("notice", "BLOB"),
-		
+
 		/** What order should this message be sent. Negative priorities indicated less than normal. */
 		PRIORITY("priority", "INTEGER"),
-		
+
 		/** The fields/columns wanted. */
 		PROJECTION("projection", "TEXT"),
-		
+
 		/** The rows/tuples wanted. */
 		SELECTION("selection", "TEXT"),
-		
+
 		/** The values using in the selection. */
 		ARGS("args", "TEXT"),
-		
+
 		/** The order the values are to be returned in. */
 		ORDERING("ordering", "TEXT"),
-		
+
 		/**
 		 *  The maximum number of items to retrieve
 		 *  as items are obtained the count should be decremented
 		 */
 		LIMIT("maxrows", "INTEGER"),
-		
+
 		/** The current best guess of the status of the request. */
 		DISPOSITION("disposition", "INTEGER"),
-		
+
 		/** Time-stamp at which request entry becomes stale. */
 		EXPIRATION("expiration", "INTEGER"),
-		
+
 		/** Units associated with {@link #VALUE}. Used to determine whether should occur. */
 		UNIT("unit", "TEXT"),
-		
+
 		/** Arbitrary value linked to importance that entry is transmitted and battery drain. */
 		VALUE("value", "INTEGER"),
-		
+
 		/**
 		 * If the If null then the data file corresponding to the
 		 * column name and record id should be used. 
 		 * This is done when the data size is larger than that allowed for a field contents.
 		 */
 		DATA("data", "TEXT"),
-		
+
 		/**
 		 *  The meaning changes based on the continuity type.
 		 *  <ul>
@@ -1050,27 +1051,34 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-	private static final String POSTAL_STATUS_QUERY = new StringBuilder()
-	.append(" SELECT ").append(" * ")
-	.append(" FROM ").append(Relations.POSTAL.q()).append(" AS p ")
-	.append(" WHERE EXISTS (SELECT * ")
-	.append(" FROM ").append(Relations.DISPOSAL.q()).append(" AS d ")
-	.append(" INNER JOIN ").append(Relations.CHANNEL.q()).append(" AS c ")
-	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
-	.append(" WHERE p.").append(PostalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
-	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append('=').append(Relations.POSTAL.qv())
-	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (")
-	.append(DisposalState.REJECTED.q()).append(',')
-	.append(DisposalState.BUSY.q()).append(',')
-	.append(DisposalState.PENDING.q()).append(')')
-	.append(')') // close exists clause	
-	.append(" ORDER BY ")
-	.append(PostalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
-	.append(PostalTableSchema._ID.q()).append(" ASC ")
-	.append(';')
-	.toString();
+	private static final String POSTAL_STATUS_QUERY;
+	static {
+		final RelationsHelper rel_postal = new RelationsHelper(Relations.POSTAL);
+		final RelationsHelper rel_disposal = new RelationsHelper(Relations.DISPOSAL);
+		final RelationsHelper rel_channel = new RelationsHelper(Relations.CHANNEL);
+		POSTAL_STATUS_QUERY = new StringBuilder()
+		.append(" SELECT ").append(" * ")
+		.append(" FROM ").append(rel_postal.q()).append(" AS p ")
+		.append(" WHERE EXISTS (SELECT * ")
+		.append(" FROM ").append(rel_disposal.q()).append(" AS d ")
+		.append(" INNER JOIN ").append(rel_channel.q()).append(" AS c ")
+		.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
+		.append(" WHERE p.").append(PostalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
+		.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append('=').append(rel_postal.qv())
+		.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
+		.append("   AND d.").append(DisposalTableSchema.STATE.q())
+		.append(" IN (")
+		.append(DisposalState.REJECTED.q()).append(',')
+		.append(DisposalState.BUSY.q()).append(',')
+		.append(DisposalState.PENDING.q()).append(')')
+		.append(')') // close exists clause	
+		.append(" ORDER BY ")
+		.append(PostalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
+		.append(PostalTableSchema._ID.q()).append(" ASC ")
+		.append(';')
+		.toString();
+	}
+
 
 
 	public synchronized Cursor queryRetrieval(String[] projection, String selection, String[] selectArgs, String sortOrder) {
@@ -1123,25 +1131,31 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-	private static final String RETRIEVAL_STATUS_QUERY = new StringBuilder()
-	.append(" SELECT ").append(" * ")
-	.append(" FROM ").append(Relations.RETRIEVAL.q()).append(" AS p ")
-	.append(" WHERE EXISTS (SELECT * ")
-	.append(" FROM ").append(Relations.DISPOSAL.q()).append(" AS d ")
-	.append(" INNER JOIN ").append(Relations.CHANNEL.q()).append(" AS c ")
-	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
-	.append(" WHERE p.").append(RetrievalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
-	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Relations.RETRIEVAL.qv())
-	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (")
-	.append(DisposalState.REJECTED.q()).append(',')
-	.append(DisposalState.PENDING.q()).append(')')
-	.append(')') // close exists clause
-	.append(" ORDER BY ")
-	.append(RetrievalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
-	.append(RetrievalTableSchema._ID.q()).append(" ASC ")	
-	.toString();
+	private static final String RETRIEVAL_STATUS_QUERY;
+	static {
+		final RelationsHelper rel_retrieval = new RelationsHelper(Relations.RETRIEVAL);
+		final RelationsHelper rel_disposal = new RelationsHelper(Relations.DISPOSAL);
+		final RelationsHelper rel_channel = new RelationsHelper(Relations.CHANNEL);
+		RETRIEVAL_STATUS_QUERY = new StringBuilder()
+		.append(" SELECT ").append(" * ")
+		.append(" FROM ").append(rel_retrieval.q()).append(" AS p ")
+		.append(" WHERE EXISTS (SELECT * ")
+		.append(" FROM ").append(rel_disposal.q()).append(" AS d ")
+		.append(" INNER JOIN ").append(rel_channel.q()).append(" AS c ")
+		.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
+		.append(" WHERE p.").append(RetrievalTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
+		.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(rel_retrieval.qv())
+		.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
+		.append("   AND d.").append(DisposalTableSchema.STATE.q())
+		.append(" IN (")
+		.append(DisposalState.REJECTED.q()).append(',')
+		.append(DisposalState.PENDING.q()).append(')')
+		.append(')') // close exists clause
+		.append(" ORDER BY ")
+		.append(RetrievalTableSchema.PRIORITY.q()).append(" DESC ").append(',')
+		.append(RetrievalTableSchema._ID.q()).append(" ASC ")	
+		.toString();
+	}
 
 
 	public synchronized Cursor querySubscribe(String[] projection, String selection,
@@ -1193,25 +1207,31 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-	private static final String SUBSCRIBE_STATUS_QUERY = new StringBuilder()
-	.append(" SELECT ").append(" * ")
-	.append(" FROM ").append(Relations.SUBSCRIBE.q()).append(" AS p ")
-	.append(" WHERE EXISTS (SELECT * ")
-	.append(" FROM ").append(Relations.DISPOSAL.q()).append(" AS d ")
-	.append(" INNER JOIN ").append(Relations.CHANNEL.q()).append(" AS c ")
-	.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
-	.append(" WHERE p.").append(SubscribeTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
-	.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(Relations.SUBSCRIBE.qv())
-	.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
-	.append("   AND d.").append(DisposalTableSchema.STATE.q())
-	.append(" IN (")
-	.append(DisposalState.REJECTED.q()).append(',')
-	.append(DisposalState.PENDING.q()).append(')')
-	.append(')') // close exists clause
-	.append(" ORDER BY ")
-	.append(SubscribeTableSchema.PRIORITY.q()).append(" DESC ").append(',')
-	.append(SubscribeTableSchema._ID.q()).append(" ASC ")	
-	.toString();
+	private static final String SUBSCRIBE_STATUS_QUERY;
+	static {
+		final RelationsHelper rel_subscribe = new RelationsHelper(Relations.SUBSCRIBE);
+		final RelationsHelper rel_disposal = new RelationsHelper(Relations.DISPOSAL);
+		final RelationsHelper rel_channel = new RelationsHelper(Relations.CHANNEL); 
+		SUBSCRIBE_STATUS_QUERY = new StringBuilder()
+		.append(" SELECT ").append(" * ")
+		.append(" FROM ").append(rel_subscribe.q()).append(" AS p ")
+		.append(" WHERE EXISTS (SELECT * ")
+		.append(" FROM ").append(rel_disposal.q()).append(" AS d ")
+		.append(" INNER JOIN ").append(rel_channel.q()).append(" AS c ")
+		.append(" ON d.").append(DisposalTableSchema.CHANNEL.q()).append("=c.").append(ChannelTableSchema.NAME.q())
+		.append(" WHERE p.").append(SubscribeTableSchema._ID.q()).append("=d.").append(DisposalTableSchema.PARENT.q())
+		.append("   AND d.").append(DisposalTableSchema.TYPE.q()).append("=").append(rel_subscribe.qv())
+		.append("   AND c.").append(ChannelTableSchema.STATE.q()).append('=').append(ChannelState.ACTIVE.q())
+		.append("   AND d.").append(DisposalTableSchema.STATE.q())
+		.append(" IN (")
+		.append(DisposalState.REJECTED.q()).append(',')
+		.append(DisposalState.PENDING.q()).append(')')
+		.append(')') // close exists clause
+		.append(" ORDER BY ")
+		.append(SubscribeTableSchema.PRIORITY.q()).append(" DESC ").append(',')
+		.append(SubscribeTableSchema._ID.q()).append(" ASC ")	
+		.toString();
+	}
 
 
 
@@ -1249,12 +1269,16 @@ public class DistributorDataStore {
 		}
 		return null;
 	}
-	private static final String DISPOSAL_STATUS_QUERY = new StringBuilder()
-	.append("SELECT * ")
-	.append(" FROM ").append(Relations.DISPOSAL.q()).append(" AS d ")
-	.append(" WHERE d.").append(DisposalTableSchema.TYPE.q()).append("=? ")
-	.append("   AND d.").append(DisposalTableSchema.PARENT.q()).append("=? ")
-	.toString();
+	private static final String DISPOSAL_STATUS_QUERY;
+	static {
+		final RelationsHelper rel_disposal = new RelationsHelper(Relations.DISPOSAL);
+		DISPOSAL_STATUS_QUERY = new StringBuilder()
+		.append("SELECT * ")
+		.append(" FROM ").append(rel_disposal.q()).append(" AS d ")
+		.append(" WHERE d.").append(DisposalTableSchema.TYPE.q()).append("=? ")
+		.append("   AND d.").append(DisposalTableSchema.PARENT.q()).append("=? ")
+		.toString();
+	}
 
 	public synchronized Cursor queryChannel(String[] projection, String selection,
 			String[] selectionArgs, String sortOrder) {
@@ -1402,7 +1426,7 @@ public class DistributorDataStore {
 	}
 	private synchronized long upsertDisposalByParent(Relations type, long id, String channel, DisposalState status) {
 		try {
-			final String typeVal = type.cv();
+			final String typeVal = new RelationsHelper(type).cv();
 
 			final ContentValues cv = new ContentValues();
 			cv.put(DisposalTableSchema.TYPE.cv(), typeVal);
@@ -1487,15 +1511,19 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}	
-	static final private String DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
-	.append(DisposalTableSchema.CHANNEL.q()).append("=?")
-	.append(" AND ")
-	.append(DisposalTableSchema.TYPE.q())
-	.append(" IN (").append(Relations.SUBSCRIBE.qv()).append(')')
-	.append(" AND ")
-	.append(DisposalTableSchema.STATE.q())
-	.append(" NOT IN (").append(DisposalState.BAD.q()).append(')')
-	.toString();
+	static final private String DISPOSAL_DEACTIVATE_CLAUSE;
+	static {
+		final RelationsHelper rel_subscribe = new RelationsHelper(Relations.SUBSCRIBE);
+		DISPOSAL_DEACTIVATE_CLAUSE = new StringBuilder()
+		.append(DisposalTableSchema.CHANNEL.q()).append("=?")
+		.append(" AND ")
+		.append(DisposalTableSchema.TYPE.q())
+		.append(" IN (").append(rel_subscribe.qv()).append(')')
+		.append(" AND ")
+		.append(DisposalTableSchema.STATE.q())
+		.append(" NOT IN (").append(DisposalState.BAD.q()).append(')')
+		.toString();
+	}
 
 	/**
 	 * When a channel is activated nothing really needs to be done.
@@ -1791,14 +1819,18 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Relations.POSTAL.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Relations.POSTAL.q())
-	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	.append('=').append(Relations.POSTAL.q()).append(".").append(PostalTableSchema._ID.q())
-	.append(')')
-	.toString();
+	private static final String DISPOSAL_POSTAL_ORPHAN_CONDITION;
+	static {
+		final RelationsHelper rel_postal = new RelationsHelper(Relations.POSTAL);
+		DISPOSAL_POSTAL_ORPHAN_CONDITION= new StringBuilder()
+		.append(DisposalTableSchema.TYPE.q()).append('=').append(rel_postal.cv())
+		.append(" AND NOT EXISTS (SELECT * ")
+		.append(" FROM ").append(rel_postal.q())
+		.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
+		.append('=').append(rel_postal.q()).append(".").append(PostalTableSchema._ID.q())
+		.append(')')
+		.toString();
+	}
 
 	private static final String POSTAL_EXPIRATION_CONDITION = new StringBuilder()
 	.append('"').append(PostalTableSchema.EXPIRATION.n).append('"')
@@ -1839,14 +1871,18 @@ public class DistributorDataStore {
 
 		return 0;
 	}
-	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Relations.RETRIEVAL.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Relations.RETRIEVAL.q())
-	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	.append('=').append(Relations.RETRIEVAL.q()).append(".").append(RetrievalTableSchema._ID.q())
-	.append(')')
-	.toString();
+	private static final String DISPOSAL_RETRIEVAL_ORPHAN_CONDITION;
+	static {
+		final RelationsHelper rel_retrieval = new RelationsHelper(Relations.RETRIEVAL);
+		DISPOSAL_RETRIEVAL_ORPHAN_CONDITION = new StringBuilder()
+		.append(DisposalTableSchema.TYPE.q()).append('=').append(rel_retrieval.cv())
+		.append(" AND NOT EXISTS (SELECT * ")
+		.append(" FROM ").append(rel_retrieval.q())
+		.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
+		.append('=').append(rel_retrieval.q()).append(".").append(RetrievalTableSchema._ID.q())
+		.append(')')
+		.toString();
+	}
 
 	private static final String RETRIEVAL_EXPIRATION_CONDITION = new StringBuilder()
 	.append('"').append(RetrievalTableSchema.EXPIRATION.n).append('"')
@@ -1862,7 +1898,8 @@ public class DistributorDataStore {
 	public synchronized int purgeRetrieval() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			db.delete(Relations.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Relations.RETRIEVAL.qv()});
+			db.delete(Relations.DISPOSAL.n, DISPOSAL_PURGE, 
+					new String[]{ new RelationsHelper(Relations.RETRIEVAL).qv()});
 			return db.delete(Relations.RETRIEVAL.n, null, null);
 		} catch (IllegalArgumentException ex) {
 			logger.error("purgeRetrieval");
@@ -1901,14 +1938,18 @@ public class DistributorDataStore {
 		}
 		return 0;
 	}
-	private static final String DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION = new StringBuilder()
-	.append(DisposalTableSchema.TYPE.q()).append('=').append(Relations.SUBSCRIBE.cv())
-	.append(" AND NOT EXISTS (SELECT * ")
-	.append(" FROM ").append(Relations.SUBSCRIBE.q())
-	.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
-	.append('=').append(Relations.SUBSCRIBE.q()).append(".").append(SubscribeTableSchema._ID.q())
-	.append(')')
-	.toString();
+	private static final String DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION;
+	static {
+		final RelationsHelper rel_subscribe = new RelationsHelper(Relations.SUBSCRIBE);
+		DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION = new StringBuilder()
+		.append(DisposalTableSchema.TYPE.q()).append('=').append(rel_subscribe.cv())
+		.append(" AND NOT EXISTS (SELECT * ")
+		.append(" FROM ").append(rel_subscribe.q())
+		.append(" WHERE ").append(DisposalTableSchema.PARENT.q())
+		.append('=').append(rel_subscribe.q()).append(".").append(SubscribeTableSchema._ID.q())
+		.append(')')
+		.toString();
+	}
 
 	private static final String SUBSCRIBE_EXPIRATION_CONDITION = new StringBuilder()
 	.append('"').append(SubscribeTableSchema.EXPIRATION.n).append('"')
@@ -1925,7 +1966,8 @@ public class DistributorDataStore {
 	public synchronized int purgeSubscribe() {
 		try {
 			final SQLiteDatabase db = this.helper.getWritableDatabase();
-			db.delete(Relations.DISPOSAL.n, DISPOSAL_PURGE, new String[]{ Relations.SUBSCRIBE.qv()});
+			db.delete(Relations.DISPOSAL.n, DISPOSAL_PURGE, 
+					new String[]{ new RelationsHelper(Relations.SUBSCRIBE).qv()});
 			return db.delete(Relations.SUBSCRIBE.n, null, null);
 		} catch (IllegalArgumentException ex) {
 			logger.error("purgeSubscribe");
@@ -2048,7 +2090,7 @@ public class DistributorDataStore {
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Relations.POSTAL.sqlCreate(sb.toString()).toString());
+				db.execSQL(RelationsHelper.sqlCreate(Relations.POSTAL, sb.toString()).toString());
 
 			} catch (SQLException ex) {
 				ex.printStackTrace();
@@ -2062,7 +2104,7 @@ public class DistributorDataStore {
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Relations.RETRIEVAL.sqlCreate(sb.toString()).toString());
+				db.execSQL(RelationsHelper.sqlCreate(Relations.RETRIEVAL, sb.toString()).toString());
 
 			} catch (SQLException ex) {
 				ex.printStackTrace();
@@ -2075,7 +2117,7 @@ public class DistributorDataStore {
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Relations.SUBSCRIBE.sqlCreate(sb.toString()).toString());
+				db.execSQL(RelationsHelper.sqlCreate(Relations.SUBSCRIBE, sb.toString()).toString());
 
 			} catch (SQLException ex) {
 				ex.printStackTrace();
@@ -2088,13 +2130,14 @@ public class DistributorDataStore {
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Relations.DISPOSAL.sqlCreate(sb.toString()).toString());
+				db.execSQL(RelationsHelper.sqlCreate(Relations.DISPOSAL, sb.toString()).toString());
 
 				// === INDICIES ======
+				final RelationsHelper rel_disposal = new RelationsHelper(Relations.DISPOSAL);
 				db.execSQL(new StringBuilder()
 				.append("CREATE UNIQUE INDEX ") 
-				.append(Relations.DISPOSAL.qIndex())
-				.append(" ON ").append(Relations.DISPOSAL.q())
+				.append(rel_disposal.qIndex())
+				.append(" ON ").append(rel_disposal.q())
 				.append(" ( ").append(DisposalTableSchema.TYPE.q())
 				.append(" , ").append(DisposalTableSchema.PARENT.q())
 				.append(" , ").append(DisposalTableSchema.CHANNEL.q())
@@ -2112,7 +2155,7 @@ public class DistributorDataStore {
 						sb.append(",");
 					sb.append(field.addfield());
 				}
-				db.execSQL(Relations.CHANNEL.sqlCreate(sb.toString()).toString());
+				db.execSQL(RelationsHelper.sqlCreate(Relations.CHANNEL, sb.toString()).toString());
 
 			} catch (SQLException ex) {
 				ex.printStackTrace();
@@ -2181,7 +2224,7 @@ public class DistributorDataStore {
 		public synchronized void clear(SQLiteDatabase db) {
 			for (Relations table : Relations.values()) {
 				try {
-					db.execSQL(table.sqlDrop().toString());
+					db.execSQL(RelationsHelper.sqlDrop(table).toString());
 				} catch (SQLiteException ex) {
 					logger.warn("defective database being dropped {}", ex.getLocalizedMessage());
 				}
