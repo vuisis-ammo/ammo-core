@@ -70,7 +70,7 @@ public class SerialChannel extends NetChannel
                           Context context )
     {
         super( theName );
-        logger.trace( "SerialChannel::SerialChannel()" );
+        logger.debug( "SerialChannel::SerialChannel()" );
 
         mChannelManager = iChannelManager;
         mContext = context;
@@ -85,7 +85,7 @@ public class SerialChannel extends NetChannel
      */
     public void enable()
     {
-        logger.trace( "SerialChannel::enable()" );
+        logger.info( "SerialChannel::enable()" );
 
         mEnabled = true;
 
@@ -101,7 +101,7 @@ public class SerialChannel extends NetChannel
      */
     public void disable()
     {
-        logger.trace( "SerialChannel::disable()" );
+        logger.info( "SerialChannel::disable()" );
 
         mEnabled = false;
 
@@ -116,7 +116,7 @@ public class SerialChannel extends NetChannel
      */
     public void linkUp( String devname )
     {
-        logger.error( "SerialChannel::linkUp() old: {}, new: {}", mDevice, devname );
+        logger.debug( "SerialChannel::linkUp() old: {}, new: {}", mDevice, devname );
 
         // Ff device name changed and the channel was running for some
         // reason, we should stop and then start again.
@@ -133,10 +133,10 @@ public class SerialChannel extends NetChannel
      */
     public void linkDown( String devname )
     {
-        logger.error( "SerialChannel::linkDown() old: {}, new: {}", mDevice, devname );
+        logger.debug( "SerialChannel::linkDown() old: {}, new: {}", mDevice, devname );
 
         if ( devname.equals( mDevice )) {
-            logger.error( "SerialChannel::linkDown(). Resetting channel." );
+            logger.debug( "SerialChannel::linkDown(). Resetting channel." );
             reset();
         }
     }
@@ -155,10 +155,10 @@ public class SerialChannel extends NetChannel
      */
     public void reset()
     {
-        logger.trace( "SerialChannel::reset()" );
+        logger.debug( "SerialChannel::reset()" );
 
         if ( mIsConnected.compareAndSet( true, false )) {
-            logger.error( "I/O operation failed.  Resetting channel." );
+            logger.warn( "I/O operation failed.  Resetting channel." );
             stop();     // this was wrapped in synchronized, took that out to prevent deadlock
             if ( mEnabled ) {
                 start();
@@ -172,7 +172,7 @@ public class SerialChannel extends NetChannel
      */
     private void start()
     {
-        logger.error( "SerialChannel::start()" );
+        logger.debug( "SerialChannel::start()" );
         if ( mState.compareAndSet( SERIAL_DISABLED, SERIAL_WAITING_FOR_TTY )) {
             setState( SERIAL_WAITING_FOR_TTY ); // Need this to update the GUI.
             mConnector = new Connector();
@@ -188,7 +188,7 @@ public class SerialChannel extends NetChannel
      */
     private void stop()
     {
-        logger.error( "SerialChannel::stop()" );
+        logger.debug( "SerialChannel::stop()" );
         if ( mState.getAndSet(SERIAL_DISABLED) == SERIAL_DISABLED )
             logger.warn( "disable() called on an already disabled channel" );
         else {
@@ -234,12 +234,11 @@ public class SerialChannel extends NetChannel
     // needed, but fix this at some point.
 
     /**
-     * FIXME: This call is no longer needed.  Go through the code and remove it
-     * and the prefs that correspond to it.
+     *
      */
     public void setDevice( String device )
     {
-        logger.trace( "Device set to {}", device );
+        logger.info( "Device set to {}", device );
         mDevice = device;
     }
 
@@ -249,7 +248,7 @@ public class SerialChannel extends NetChannel
      */
     public void setBaudRate( int baudRate )
     {
-        logger.trace( "Baud rate set to {}", baudRate );
+        logger.info( "Baud rate set to {}", baudRate );
         mBaudRate = baudRate;
     }
 
@@ -263,7 +262,7 @@ public class SerialChannel extends NetChannel
      */
     public void setSlotNumber( int slotNumber )
     {
-        logger.trace( "Slot set to {}", slotNumber );
+        logger.info( "Slot set to {}", slotNumber );
         mSlotNumber.set( slotNumber );
     }
 
@@ -272,7 +271,7 @@ public class SerialChannel extends NetChannel
      */
     public void setRadiosInGroup( int radiosInGroup )
     {
-        logger.error( "Radios in group set to {}", radiosInGroup );
+        logger.info( "Radios in group set to {}", radiosInGroup );
         mRadiosInGroup.set( radiosInGroup );
     }
 
@@ -282,7 +281,7 @@ public class SerialChannel extends NetChannel
      */
     public void setSlotDuration( int slotDuration )
     {
-        logger.error( "Slot duration set to {}", slotDuration );
+        logger.info( "Slot duration set to {}", slotDuration );
         mSlotDuration.set( slotDuration );
     }
 
@@ -291,7 +290,7 @@ public class SerialChannel extends NetChannel
      */
     public void setTransmitDuration( int transmitDuration )
     {
-        logger.error( "Transmit duration set to {}", transmitDuration );
+        logger.info( "Transmit duration set to {}", transmitDuration );
         mTransmitDuration.set( transmitDuration );
     }
 
@@ -301,7 +300,7 @@ public class SerialChannel extends NetChannel
      */
     public void setSenderEnabled( boolean enabled )
     {
-        logger.error( "Sender enabled set to {}", enabled );
+        logger.info( "Sender enabled set to {}", enabled );
         mSenderEnabled.set( enabled );
     }
 
@@ -311,7 +310,7 @@ public class SerialChannel extends NetChannel
      */
     public void setReceiverEnabled( boolean enabled )
     {
-        logger.error( "Receiver enabled set to {}", enabled );
+        logger.info( "Receiver enabled set to {}", enabled );
         mReceiverEnabled.set( enabled );
     }
 
@@ -408,7 +407,7 @@ public class SerialChannel extends NetChannel
          */
         public Connector()
         {
-            logger.trace( "SerialChannel.Connector::Connector()" );
+            logger.debug( "SerialChannel.Connector::Connector()" );
         }
 
 
@@ -418,13 +417,13 @@ public class SerialChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.trace( "SerialChannel.Connector::run()",
+            logger.debug( "SerialChannel.Connector::run()",
                           Thread.currentThread().getId() );
 
             // We might have been disabled before the thread even gets
             // a chance to run, so check that before doing anything.
             if ( isInterrupted() ) {
-                logger.trace( "SenderThread <{}>::run() was interrupted before run().",
+                logger.debug( "SenderThread <{}>::run() was interrupted before run().",
                               Thread.currentThread().getId() );
                 return;
             }
@@ -451,9 +450,9 @@ public class SerialChannel extends NetChannel
                 if ( !isDisabled() )
                     Looper.loop();
             } catch ( IllegalMonitorStateException e ) {
-                logger.error("IllegalMonitorStateException thrown.");
+                logger.warn( "IllegalMonitorStateException thrown: {}", e.getStackTrace() );
             } catch ( InterruptedException e ) {
-                logger.error("Connector interrupted. Exiting.");
+                logger.warn( "Connector interrupted. Exiting: {}", e.getStackTrace() );
                 // Do nothing here.  If we were interrupted, we need
                 // to catch the exception and exit cleanly.
             } catch ( Exception e ) {
@@ -465,7 +464,7 @@ public class SerialChannel extends NetChannel
             Looper.myLooper().quit();
             disconnect();
 
-            logger.trace( "Connector <{}>::run() exiting.", Thread.currentThread().getId() );
+            logger.debug( "Connector <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
@@ -475,7 +474,7 @@ public class SerialChannel extends NetChannel
         @SuppressWarnings("unused")
 		public void terminate()
         {
-            logger.trace( "SerialChannel.Connector::terminate()" );
+            logger.debug( "SerialChannel.Connector::terminate()" );
             this.interrupt();
         }
 
@@ -485,20 +484,20 @@ public class SerialChannel extends NetChannel
          */
         private boolean connect()
         {
-            logger.trace( "SerialChannel.Connector::connect()" );
+            logger.info( "SerialChannel.Connector::connect()" );
 
             // Create the SerialPort.
             if ( mPort != null )
-                logger.error( "Tried to create mPort when we already had one." );
+                logger.warn( "Tried to create mPort when we already had one." );
             try {
                 mPort = new SerialPort( new File(mDevice), mBaudRate );
             } catch ( Exception e ) {
-                logger.trace( "Connection to serial port failed" );
+                logger.warn( "Connection to serial port failed: {}", e.getStackTrace() );
                 mPort = null;
                 return false;
             }
 
-            logger.trace( "Connection to serial port established " );
+            logger.info( "Connection to serial port established " );
 
             // FIXME: Do better error handling.  If we can't enable Nmea
             // messages, should we close the channel?
@@ -506,14 +505,14 @@ public class SerialChannel extends NetChannel
             try {
                 if ( !enableNmeaMessages() )
                 {
-                    logger.error( "Could not enable Nmea messages." );
+                    logger.warn( "Could not enable Nmea messages." );
                     return false;
                 }
             } catch ( Exception e ) {
-                logger.error( "Exception thrown in enableNmeaMessages() {} \n {}",
+                logger.warn( "Exception thrown in enableNmeaMessages() {} \n {}",
                               e,
                               e.getStackTrace());
-                logger.trace( "Connection to serial port failed" );
+                logger.warn( "Connection to serial port failed" );
                 return false;
             }
 
@@ -522,24 +521,24 @@ public class SerialChannel extends NetChannel
             // message before the SecurityObject is ready to have it
             // delivered.
             if ( getSecurityObject() != null )
-                logger.error( "Tried to create SecurityObject when we already had one." );
+                logger.warn( "Tried to create SecurityObject when we already had one." );
             setSecurityObject( new SerialSecurityObject( SerialChannel.this ));
 
             // Create the retransmitter.
             if ( getRetransmitter() != null )
-                logger.error( "Tried to create SerialRetransmitter when we already had one." );
+                logger.warn( "Tried to create SerialRetransmitter when we already had one." );
             setRetransmitter( new SerialRetransmitter( SerialChannel.this, mChannelManager ));
 
             // Create the sending thread.
             if ( mSender != null )
-                logger.error( "Tried to create Sender when we already had one." );
+                logger.warn( "Tried to create Sender when we already had one." );
             mSender = new SenderThread();
             setIsAuthorized( true );
             mSender.start();
 
             // Create the receiving thread.
             if ( mReceiver != null )
-                logger.error( "Tried to create Receiver when we already had one." );
+                logger.warn( "Tried to create Receiver when we already had one." );
             mReceiver = new ReceiverThread();
             mReceiver.start();
 
@@ -565,7 +564,7 @@ public class SerialChannel extends NetChannel
      */
     private void disconnect()
     {
-        logger.trace( "SerialChannel::disconnect()" );
+        logger.info( "SerialChannel::disconnect()" );
 
         try {
             mIsConnected.set( false );
@@ -580,14 +579,14 @@ public class SerialChannel extends NetChannel
             mSenderQueue.reset();
 
             if ( mPort != null ) {
-                logger.debug( "Closing SerialPort..." );
+                logger.info( "Closing SerialPort..." );
 
                 // Closing the port doesn't interrupt blocked read()s,
                 // so we close the streams first.
                 mPort.getInputStream().getChannel().close();
                 mPort.getOutputStream().getChannel().close();
                 mPort.close();
-                logger.debug( "Done" );
+                logger.info( "Done" );
 
                 mPort = null;
             }
@@ -612,7 +611,7 @@ public class SerialChannel extends NetChannel
             mSender = null;
             mReceiver = null;
         } catch ( Exception e ) {
-            logger.error( "Caught exception while closing serial port." );
+            logger.warn( "Caught exception while closing serial port: {}", e.getStackTrace() );
             // Do this here, too, since if we exited early because
             // of an exception, we want to make sure that we're in
             // an unauthorized state.
@@ -631,7 +630,7 @@ public class SerialChannel extends NetChannel
      */
     private void ioOperationFailed()
     {
-        logger.error( "I/O operation failed.  Resetting channel." );
+        logger.warn( "I/O operation failed.  Resetting channel." );
         reset();
     }
 
@@ -681,7 +680,7 @@ public class SerialChannel extends NetChannel
                 @Override
                 public void onNmeaReceived(long timestamp, String nmea) {
                     if (nmea.indexOf("GPGGA") >= 0) {
-                        //logger.error( "Received an NMEA message" );
+                        //logger.trace( "Received an NMEA message" );
                         String[] toks = nmea.split(",");
                         if (toks[6].compareTo("1") == 0) {
                             // calendar from callback timestamp
@@ -714,7 +713,7 @@ public class SerialChannel extends NetChannel
                             mDeltaSamples[ mCount % numSamples ] = delta;
                             mCount++;
 
-                            logger.debug( String.valueOf(mDelta) + ",TS,"
+                            logger.trace( String.valueOf(mDelta) + ",TS,"
                                           + String.valueOf(timestamp) + "," + nmea );
                         }
                     }
@@ -762,10 +761,10 @@ public class SerialChannel extends NetChannel
          */
         public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
         {
-            logger.trace( "putFromDistributor()" );
+            logger.debug( "putFromDistributor()" );
             try {
                 if ( !mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
-                    logger.warn( "serial channel not taking messages {}",
+                    logger.debug( "serial channel not taking messages {}",
                                  DisposalState.BUSY );
                     return DisposalState.BUSY;
                 }
@@ -782,7 +781,7 @@ public class SerialChannel extends NetChannel
         @SuppressWarnings("unused")
         public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
         {
-            logger.trace( "putFromSecurityObject()" );
+            logger.debug( "putFromSecurityObject()" );
             mAuthQueue.offer( iMessage );
         }
 
@@ -793,7 +792,7 @@ public class SerialChannel extends NetChannel
         @SuppressWarnings("unused")
         public synchronized void finishedPuttingFromSecurityObject()
         {
-            logger.trace( "finishedPuttingFromSecurityObject()" );
+            logger.debug( "finishedPuttingFromSecurityObject()" );
             notifyAll();
         }
 
@@ -805,7 +804,7 @@ public class SerialChannel extends NetChannel
          */
         public synchronized void markAsAuthorized()
         {
-            logger.trace( "Marking channel as authorized" );
+            logger.info( "Marking channel as authorized" );
             notifyAll();
         }
 
@@ -837,7 +836,7 @@ public class SerialChannel extends NetChannel
          */
         public synchronized AmmoGatewayMessage take() throws InterruptedException
         {
-            logger.trace( "taking from SenderQueue" );
+            logger.debug( "taking from SenderQueue" );
             if ( getIsAuthorized() ) {
                 // This is where the authorized SenderThread blocks.
                 return mDistQueue.take();
@@ -847,7 +846,7 @@ public class SerialChannel extends NetChannel
                     // it from the queue.
                     return mAuthQueue.remove();
                 } else {
-                    logger.trace( "wait()ing in SenderQueue" );
+                    logger.debug( "wait()ing in SenderQueue" );
                     wait(); // This is where the SenderThread blocks.
 
                     if ( getIsAuthorized() ) {
@@ -869,7 +868,7 @@ public class SerialChannel extends NetChannel
          */
         public synchronized void reset()
         {
-            logger.trace( "reset()ing the SenderQueue" );
+            logger.debug( "reset()ing the SenderQueue" );
             // Tell the distributor that we couldn't send these
             // packets.
             AmmoGatewayMessage msg = mDistQueue.poll();
@@ -901,7 +900,7 @@ public class SerialChannel extends NetChannel
          */
         public SenderThread()
         {
-            logger.trace( "SenderThread::SenderThread", Thread.currentThread().getId() );
+            logger.debug( "SenderThread::SenderThread", Thread.currentThread().getId() );
         }
 
 
@@ -912,7 +911,9 @@ public class SerialChannel extends NetChannel
         public void run()
         {
             Process.setThreadPriority( -8 ); // this is a jitter sensitive thread, it should run on real-time-priority
-            logger.trace( "SenderThread <{}>::run() @prio: {}", Thread.currentThread().getId(), Process.getThreadPriority( Process.myTid() ) );
+            logger.debug( "SenderThread <{}>::run() @prio: {}",
+                          Thread.currentThread().getId(),
+                          Process.getThreadPriority( Process.myTid() ));
 
             // Sleep until our slot in the round.  If, upon waking, we find that
             // we are in the right slot, check to see if a packet is available
@@ -1063,7 +1064,7 @@ public class SerialChannel extends NetChannel
 
                 mPort.write( buf.array() );
 
-                logger.trace(
+                logger.debug(
                              "sent message size={}, checksum={}, data:{}",
                              new Object[] { msg.size,
                                             Long.toHexString(msg.payload_checksum),
@@ -1126,7 +1127,7 @@ public class SerialChannel extends NetChannel
          */
         public ReceiverThread()
         {
-            logger.trace( "ReceiverThread::ReceiverThread()", Thread.currentThread().getId() );
+            logger.debug( "ReceiverThread::ReceiverThread()", Thread.currentThread().getId() );
             mInputStream = mPort.getInputStream();
         }
 
@@ -1137,7 +1138,7 @@ public class SerialChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.trace( "ReceiverThread <{}>::run()", Thread.currentThread().getId() );
+            logger.debug( "ReceiverThread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the SerialPort until we get some data.
             // If we get an error, notify our parent and go into an error state.
@@ -1165,7 +1166,7 @@ public class SerialChannel extends NetChannel
 
                     switch ( state ) {
                     case 0:
-                        logger.debug( "Waiting for magic sequence." );
+                        logger.trace( "Waiting for magic sequence." );
                         c = readAByte();
                         if ( c == first ) {
                             state = c;
@@ -1233,7 +1234,7 @@ public class SerialChannel extends NetChannel
 
                         agmb = AmmoGatewayMessage.extractHeader( header );
                         if ( agmb == null ) {
-                            logger.error( "Deserialization failure." );
+                            logger.debug( "Deserialization failure." );
                             mCorruptMessages.getAndIncrement();
                             state = 0;
                         } else {
@@ -1274,7 +1275,7 @@ public class SerialChannel extends NetChannel
                                       currentSlot,
                                       currentTime );
                         mMessagesReceived.getAndIncrement();
-                        logger.trace( "received message size={}, checksum={}, data:{}",
+                        logger.debug( "received message size={}, checksum={}, data:{}",
                                       new Object[] {
                                           agm.size,
                                           Long.toHexString(agm.payload_checksum),
@@ -1288,7 +1289,7 @@ public class SerialChannel extends NetChannel
                             if ( mReceiverEnabled.get() ) {
                                 deliverMessage( agm );
                             } else {
-                                logger.trace( "Receiving disabled, discarding message." );
+                                logger.debug( "Receiving disabled, discarding message." );
                             }
                         }
 
@@ -1313,7 +1314,7 @@ public class SerialChannel extends NetChannel
                 ioOperationFailed();
             }
 
-            logger.trace( "ReceiverThread <{}>::run() exiting.", Thread.currentThread().getId() );
+            logger.debug( "ReceiverThread <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
@@ -1331,7 +1332,7 @@ public class SerialChannel extends NetChannel
                     mSecondsSinceByteRead.getAndIncrement();
             }
 
-            logger.debug( "val={}", (byte) val );
+            logger.trace( "val={}", (byte) val );
             mBytesSinceMagic.getAndIncrement();
 
             return (byte) val;
@@ -1372,10 +1373,10 @@ public class SerialChannel extends NetChannel
 
         boolean result;
         if ( mIsAuthorized.get() ) {
-            logger.trace( " delivering to channel manager" );
+            logger.debug( " delivering to channel manager" );
             result = mChannelManager.deliver( agm );
         } else {
-            logger.trace( " delivering to security object" );
+            logger.debug( " delivering to security object" );
             result = getSecurityObject().deliverMessage( agm );
         }
         return result;
@@ -1434,7 +1435,7 @@ public class SerialChannel extends NetChannel
      */
     private void setIsAuthorized( boolean iValue )
     {
-        logger.trace( "In setIsAuthorized(). value={}", iValue );
+        logger.debug( "In setIsAuthorized(). value={}", iValue );
 
         mIsAuthorized.set( iValue );
     }
@@ -1524,7 +1525,7 @@ public class SerialChannel extends NetChannel
     private void setState( int state )
     {
         // Create a method is NetChannel to convert the numbers to strings.
-        logger.trace( "changing state from {} to {}",
+        logger.debug( "changing state from {} to {}",
                       mState,
                       state );
         mState.set( state );
