@@ -8,36 +8,34 @@
         android:id="@+id/ammo_outer_linear_layout"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="82"
-        android:orientation="vertical" >
+        android:layout_weight="95"
+        android:orientation="horizontal" >
 
         <include
             android:id="@+id/gateway_layout"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="60"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="50"
             layout="@layout/gateway_activity" />
 
-        <!--
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:background="@color/grey2" />
-        -->
+        <View
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/grey2" />
 
         <include
             android:id="@+id/netlink_layout"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="40"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="50"
             layout="@layout/netlink_activity" />
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/linearLayout1"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="9"
-        android:orientation="horizontal" >
+        android:layout_height="wrap_content"
+        android:layout_weight="5" >
 
         <Button
             android:id="@+id/view_tables_button"
@@ -60,14 +58,6 @@
             android:layout_height="match_parent"
             android:text="@string/debug_label"
             android:onClick="@string/debug_onclick" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="9"
-        android:orientation="horizontal" >
-
         <Button
             android:id="@+id/loggers_button"
             android:layout_width="0dp"
