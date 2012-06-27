@@ -28,5 +28,7 @@
 <string name="logger_onclick">loggingToolsClick</string>
 <string name="hard_reset_onclick">hardResetClick</string>
 <string name="about_onclick">helpClick</string>
+<string name="purge_label">Purge</string>
+<string name="garbage_label">Garbage</string>
 
 </resources>

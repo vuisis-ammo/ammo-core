@@ -76,34 +76,40 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	// Menus
 	// ===========================================================
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		super.onCreateOptionsMenu(menu);
-		logger.trace("::onCreateOptionsMenu");
-		menu.add(Menu.NONE, MENU_PURGE, Menu.NONE, "Purge");
-		menu.add(Menu.NONE, MENU_GARBAGE, Menu.NONE+1, "Garbage");
-		return true;
-	}
+
+	
+	//disabled the options menu in lieu of new buttons
+	
+//	@Override
+//	public boolean onCreateOptionsMenu(Menu menu) {
+//		super.onCreateOptionsMenu(menu);
+//		logger.trace("::onCreateOptionsMenu");
+//		menu.add(Menu.NONE, MENU_PURGE, Menu.NONE, "Purge");
+//		menu.add(Menu.NONE, MENU_GARBAGE, Menu.NONE+1, "Garbage");
+//		return true;
+//	}
 
 	protected String[] completeDisp = null;
 	
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		logger.trace("::onOptionsItemSelected");
-		int count;
-		switch (item.getItemId()) {
-		case MENU_PURGE:
-			// Delete everything.
-			count = getContentResolver().delete(this.uri, "_id > -1", null);
-			logger.debug("Deleted " + count + "subscriptions");
-			break;
-		case MENU_GARBAGE:
-			// Delete requests channel dispositions which are in a terminated state.
-			count = getContentResolver().delete(Uri.withAppendedPath(this.uri, "garbage"), null, null);
-			logger.trace("Deleted {} requests",count);
-		}
-		return true;
-	}
+	//Disabled, as options menu will not be showing
+	
+//	@Override
+//	public boolean onOptionsItemSelected(MenuItem item) {
+//		logger.trace("::onOptionsItemSelected");
+//		int count;
+//		switch (item.getItemId()) {
+//		case MENU_PURGE:
+//			// Delete everything.
+//			count = getContentResolver().delete(this.uri, "_id > -1", null);
+//			logger.debug("Deleted " + count + "subscriptions");
+//			break;
+//		case MENU_GARBAGE:
+//			// Delete requests channel dispositions which are in a terminated state.
+//			count = getContentResolver().delete(Uri.withAppendedPath(this.uri, "garbage"), null, null);
+//			logger.trace("Deleted {} requests",count);
+//		}
+//		return true;
+//	}
 
 	@Override
 	public void onCreateContextMenu(ContextMenu menu, View v,
