@@ -18,7 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.app.AlertDialog;
-import android.app.AlertDialog.Builder;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -27,18 +26,15 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
-import android.widget.TabHost;
 import android.widget.Toast;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.AmmoService;
@@ -53,7 +49,6 @@ import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
-import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 import edu.vu.isis.logger.ui.LoggerEditor;
 
 /**
@@ -64,13 +59,6 @@ import edu.vu.isis.logger.ui.LoggerEditor;
  */
 public class AmmoCore extends ActivityEx {
 	public static final Logger logger = LoggerFactory.getLogger("ui");
-
-	private static final int VIEW_TABLES_MENU = Menu.NONE + 0;
-	private static final int CONFIG_MENU = Menu.NONE + 1;
-	private static final int DEBUG_MENU = Menu.NONE + 2;
-	private static final int LOGGER_MENU = Menu.NONE + 3;
-	private static final int ABOUT_MENU = Menu.NONE + 4;
-	private static final int RESET_MENU = Menu.NONE + 5;
 
 	public static final String PREF_KEY = "prefkey";
 
@@ -273,75 +261,18 @@ public class AmmoCore extends ActivityEx {
 			}
 		}
 	}
+	
 
-	// Menus have been removed by request of Beau
-	// @Override
-	// public boolean onCreateOptionsMenu(Menu menu) {
-	// super.onCreateOptionsMenu(menu);
-	// logger.trace("::onCreateOptionsMenu");
-	// menu.add(Menu.NONE, VIEW_TABLES_MENU, Menu.NONE,
-	// getResources().getString(R.string.view_tables_label));
-	// menu.add(Menu.NONE, CONFIG_MENU, Menu.NONE,
-	// getResources().getString(R.string.logging_label));
-	// menu.add(Menu.NONE, DEBUG_MENU, Menu.NONE,
-	// getResources().getString((!this.netlinkAdvancedView)?(R.string.debug_label):(R.string.user_label)));
-	// menu.add(Menu.NONE, LOGGER_MENU, Menu.NONE,
-	// getResources().getString(R.string.logger_viewer_label));
-	// menu.add(Menu.NONE, ABOUT_MENU, Menu.NONE,
-	// getResources().getString(R.string.about_label));
-	// menu.add(Menu.NONE, RESET_MENU, Menu.NONE, "Hard Reset");
-	//
-	// //ANDROID3.0
-	// //Store the reference to the menu so we can use it in the toggle
-	// //function
-	// //this.activity_menu = menu;
-	// return true;
-	// }
-	//
-	// @Override
-	// public boolean onPrepareOptionsMenu(Menu menu) {
-	// logger.trace("::onPrepareOptionsMenu");
-	//
-	// menu.findItem(DEBUG_MENU).setTitle((!this.netlinkAdvancedView)?(R.string.debug_label):(R.string.user_label));
-	// return true;
-	// }
-	//
-	// @Override
-	// public boolean onOptionsItemSelected(MenuItem item) {
-	// logger.trace("::onOptionsItemSelected");
-	// Intent intent = new Intent();
-	// boolean returnValue = true;
-	// switch (item.getItemId()) {
-	// case DEBUG_MENU:
-	// toggleMode();
-	// break;
-	// case VIEW_TABLES_MENU:
-	// intent.setClass(this, DistributorTabActivity.class);
-	// this.startActivity(intent);
-	// break;
-	// case CONFIG_MENU:
-	// intent.setClass(this, GeneralPreferences.class);
-	// this.startActivity(intent);
-	// break;
-	// case ABOUT_MENU:
-	// intent.setClass(this, AboutActivity.class);
-	// this.startActivity(intent);
-	// break;
-	// case RESET_MENU:
-	// intent.setAction("edu.vu.isis.ammo.AMMO_HARD_RESET");
-	// intent.setClass(this, AmmoService.class);
-	// this.startService(intent);
-	// break;
-	// case LOGGER_MENU:
-	// intent.setClass(this, LoggerEditor.class);
-	// this.startActivity(intent);
-	// break;
-	// default:
-	// returnValue = false;
-	// }
-	//
-	// return returnValue;
-	// }
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		logger.trace("::onDestroy");
+		unbindService(networkServiceConnection);
+	}
+
+	// ===========================================================
+	// UI Management
+	// ===========================================================
 
 	public void viewTablesClick(View v) {
 		startActivity(new Intent().setClass(this, DistributorTabActivity.class));
@@ -352,7 +283,7 @@ public class AmmoCore extends ActivityEx {
 	}
 
 	public void debugModeClick(View v) {
-		Toast.makeText(this, "Debug tools are not yet available",
+		Toast.makeText(this, "Debugging tools are not yet available",
 				Toast.LENGTH_LONG).show();
 	}
 
@@ -387,31 +318,5 @@ public class AmmoCore extends ActivityEx {
 	public void helpClick(View v) {
 		startActivity(new Intent().setClass(this, AboutActivity.class));
 	}
-
-	@Override
-	public void onDestroy() {
-		super.onDestroy();
-		logger.trace("::onDestroy");
-		unbindService(networkServiceConnection);
-	}
-
-	// ===========================================================
-	// UI Management
-	// ===========================================================
-
-	//
-	// Used to toggle the netlink view between simple and advanced.
-	//
-
-	// There is no longer a user mode and an advanced mode by request of Beau
-
-	// public void toggleMode()
-	// {
-	// this.netlinkAdvancedView = !this.netlinkAdvancedView;
-	// SharedPreferences prefs =
-	// PreferenceManager.getDefaultSharedPreferences(this);
-	// prefs.edit().putBoolean("debug_mode", this.netlinkAdvancedView).commit();
-	// this.netlinkAdapter.notifyDataSetChanged();
-	// this.channelAdapter.notifyDataSetChanged();
-	// }
+	
 }
