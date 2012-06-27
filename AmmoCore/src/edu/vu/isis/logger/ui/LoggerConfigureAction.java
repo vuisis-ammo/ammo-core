@@ -51,10 +51,11 @@ public class LoggerConfigureAction extends Action {
 		if (appenderNames != null) {
 			logger.detachAndStopAllAppenders();
 			for(int i=0; i<appenderNames.length; i++) {
-				final Appender<ILoggingEvent> appender = findMatchingAppender(
-						AppenderStore.getInstance().getAppenders(), appenderNames[i]);
-				if (appender != null)
-					logger.addAppender(appender);
+				//TODO: This will have to be made to work with a content provider
+//				final Appender<ILoggingEvent> appender = findMatchingAppender(
+//						AppenderStore.getInstance().getAppenders(), appenderNames[i]);
+//				if (appender != null)
+//					logger.addAppender(appender);
 			}
 		}
 		

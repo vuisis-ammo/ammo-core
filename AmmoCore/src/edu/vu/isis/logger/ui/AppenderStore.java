@@ -1,41 +1,50 @@
 package edu.vu.isis.logger.ui;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.Appender;
+import java.util.Map;
 
 public class AppenderStore {
 
-	private static AppenderStore singleton = null;
-	private final ArrayList<Appender<ILoggingEvent>> appenderList =
-			new ArrayList<Appender<ILoggingEvent>>();
+	private final Map appenderBag;
+	private static AppenderStore instance = null;
+
+	private AppenderStore() { 
+		appenderBag = null; 
+		throw new AssertionError("This constructor should never be called");
+	}
 	
-	// Hide the default constructor to prevent instantiation
-	private AppenderStore() {}
+	private AppenderStore(Map map) {
+		appenderBag = map;
+	}
 	
-	public static AppenderStore getInstance() {
-		if(singleton == null) {
-			singleton = new AppenderStore();
+	/**
+	 * Stores a reference to the map of appenders created by Joran.  This method
+	 * may only be called once per classloader.
+	 * @param map The map of appenders
+	 * @throws IllegalStateException if this method has already been called.
+	 */
+	public static synchronized void storeReference(Map map) {
+		if (instance != null) {
+			throw new IllegalStateException(
+					"A reference has already been stored.");
 		}
-		return singleton;
+		instance = new AppenderStore(map);
 	}
-	
-	
-	public synchronized void addAppender(Appender<ILoggingEvent> appender) {
-		if(!appenderList.contains(appender)) appenderList.add(appender);
+
+	/**
+	 * Gets the map of appenders created by Joran.
+	 * @return the map of appenders
+	 * @throws IllegalStateException if no reference to the map has yet been stored
+	 */
+	public static synchronized Map getAppenderMap() {
+		if (instance == null) {
+			throw new IllegalStateException(
+					"No reference has yet been stored.");
+		}
+		return instance.getAppenderBag();
 	}
-	
-	
-	public synchronized void removeAppender(Appender<ILoggingEvent> appender) {
-		appenderList.remove(appender);
+
+	private Map getAppenderBag() {
+		return appenderBag;
 	}
-	
-	
-	public synchronized List<Appender<ILoggingEvent>> getAppenders() {
-		return appenderList;
-	}
-	
-	
+
 }

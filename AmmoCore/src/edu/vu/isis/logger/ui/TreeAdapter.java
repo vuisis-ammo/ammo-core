@@ -139,8 +139,8 @@ public class TreeAdapter<T> extends BaseAdapter {
 		
 	}
 	
-	static class ViewHolder {
-		TextView tv;
+	public static class ViewHolder {
+		public TextView tv;
 	}
 	
 	private int getNestLevel(Tree<T> tree, int nestLvl) {

@@ -2,4 +2,5 @@
 <resources>
     <string name="serverlist">List of available servers</string>
     <string name="title_close">X</string>
+	<string name="log_viewer_dialog_desc">Logs can be viewed from Logcat, or you can select an Appender that is writing to a file to read its logs.</string>
 </resources>

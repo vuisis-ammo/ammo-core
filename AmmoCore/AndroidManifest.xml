@@ -56,7 +56,8 @@
 		<activity android:name=".ui.AboutActivity" />
 		<activity android:name="edu.vu.isis.logger.ui.LoggerEditor" />
 		<activity android:name="edu.vu.isis.logger.ui.AppenderSelector" />
-		<activity android:name="edu.vu.isis.logger.ui.LogViewer" />
+		<activity android:name="edu.vu.isis.logger.ui.LogcatLogViewer" />
+		<activity android:name="edu.vu.isis.logger.ui.FileLogViewer" />
 		<activity android:name="edu.vu.isis.logger.ui.LogViewerPreferences" />
 
 		<activity android:name=".distributor.ui.DistributorTableViewer" />
