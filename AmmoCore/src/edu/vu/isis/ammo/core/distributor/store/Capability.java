@@ -35,9 +35,11 @@ public enum Capability {
 		this.relMap = new ConcurrentHashMap<Item.Key, Item>();
 
 		// a dummy item for testing
+		/*
 		final Builder build = Capability.newBuilder();
 		build.operator("dummy").origin("self");
-		this.relMap.put(build.buildKey(), build.buildItem()); 
+		this.relMap.put(build.buildKey(), build.buildItem());
+		*/ 
 	}
 
 	/**
@@ -122,6 +124,16 @@ public enum Capability {
 		private String subtopic;
 
 		private Worker() {}
+		
+		@Override
+		public String toString() {
+			return new StringBuilder().
+					append("device=\"").append(this.origin).append("\",").
+					append("operator=\"").append(this.operator).append("\",").
+					append("topic=\"").append(this.topic).append("\",").
+					append("subtopic=\"").append(this.subtopic).append("\"").
+					toString();
+		}
 
 		public Worker origin(String value) {
 			this.origin = value;
@@ -132,11 +144,11 @@ public enum Capability {
 			return this;
 		}
 		public Worker topic(String value) {
-			this.origin = value;
+			this.topic = value;
 			return this;
 		}
 		public Worker subtopic(String value) {
-			this.operator = value;
+			this.subtopic = value;
 			return this;
 		}
 
@@ -161,14 +173,20 @@ public enum Capability {
 				try {
 					final Item.Key key = builder.buildKey();
 
-					final Item cap = relation.relMap.get(key);
-					if (cap == null) {
-						PLogger.STORE_CAPABILITY_DML.debug("updated cap=[{}]", 
-								this);
-						return -1;
+					if (relation.relMap.containsKey(key)) {
+						final Item item = relation.relMap.get(key);
+					
+						item.latest = now;
+						item.count++;
+						PLogger.STORE_CAPABILITY_DML.debug("updated item=[{}]", item);
+						return 1;
+					} else {
+						final Item item = builder.buildItem();
+						relation.relMap.put(key, item);
+						PLogger.STORE_CAPABILITY_DML.debug("inserted item=[{}]", item);
+						return 1;
 					} 
-					cap.latest = now;
-					cap.count++;
+					
 				} catch (IllegalArgumentException ex) {
 					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
 				} finally {
@@ -259,20 +277,20 @@ public enum Capability {
 				hc *= 31;
 				hc += ((int) (this.id ^ (this.id >>> 32)));
 				 */
+				hc *= 31;
 				if (this.origin != null) {
-					hc *= 31;
 					hc += this.origin.hashCode();
 				}
-				if (this.operator != null) {
-					hc *= 31;
+				hc *= 31;
+				if (this.operator != null) {	
 					hc += this.operator.hashCode();
 				}
+				hc *= 31;
 				if (this.topic != null) {
-					hc *= 31;
 					hc += this.topic.hashCode();
 				}
+				hc *= 31;
 				if (this.subtopic != null) {
-					hc *= 31;
 					hc += this.subtopic.hashCode();
 				}
 				this.hashCode = hc;

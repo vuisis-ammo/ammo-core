@@ -813,7 +813,8 @@ public class DistributorThread extends Thread {
 				if (dm.hasOriginDevice()) {
 					Presence.getWorker()
 					.device(dm.getOriginDevice())
-					.operator(dm.getUserId());
+					.operator(dm.getUserId())
+					.upsert();
 				}
 			}
 			break;
@@ -1232,10 +1233,12 @@ public class DistributorThread extends Thread {
 							.setUserId(ammoService.getOperatorId())
 							.setOriginDevice(ammoService.getDeviceId())
 							.setData(ByteString.copyFrom(serialized));
+					
 					final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
 							.setDeviceDelivered(notice.atDeviceDelivered.via.isActive())
 							.setAndroidPluginReceived(notice.atGatewayDelivered.via.isActive())
 							.setPluginDelivered(notice.atPluginDelivered.via.isActive());
+					
 					pushReq.setThresholds(noticeBuilder);
 
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
@@ -1848,6 +1851,9 @@ public class DistributorThread extends Thread {
 
 		final AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
 		subscribeReq.setMimeType(topic);
+		subscribeReq
+		.setOriginDevice(this.ammoService.getDeviceId())
+		.setOriginUser(this.ammoService.getOperatorId());
 
 		if (subscribeReq != null)
 			subscribeReq.setQuery(selection);
@@ -1861,7 +1867,6 @@ public class DistributorThread extends Thread {
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
 				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 				mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
-				// mw.setSessionUuid(sessionId);
 				mw.setSubscribeMessage(subscribeReq_);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
 				return agmb.build();

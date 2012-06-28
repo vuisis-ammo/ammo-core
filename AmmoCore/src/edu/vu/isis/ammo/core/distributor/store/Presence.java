@@ -34,14 +34,12 @@ public enum Presence {
 	private Presence() {
 		this.relMap = new ConcurrentHashMap<Item.Key, Item>();
 
-		try {
-			// a dummy item for testing
-			final Builder build = Presence.newBuilder();
-			build.operator("dummy").origin("self");
-			this.relMap.put(build.buildKey(), build.buildItem()); 
-		} catch (Exception ex) {
-			LoggerFactory.getLogger("class.store.presence.set").error("could not initialize?", ex);
-		}
+		/*
+		// a dummy item for testing
+		final Builder build = Presence.newBuilder();
+		build.operator("dummy").origin("self");
+		this.relMap.put(build.buildKey(), build.buildItem()); 
+		*/
 	}
 
 	/**
@@ -114,6 +112,14 @@ public enum Presence {
 		private String operator;
 
 		private Worker() {}
+		
+		@Override
+		public String toString() {
+			return new StringBuilder().
+					append("device=\"").append(this.device).append("\",").
+					append("operator=\"").append(this.operator).append("\"").
+					toString();
+		}
 
 		public Worker device(String value) {
 			this.device = value;
@@ -144,16 +150,21 @@ public enum Presence {
 				try {
 					final Item.Key key = builder.buildKey();
 
-					final Item cap = relation.relMap.get(key);
-					if (cap == null) {
-						PLogger.STORE_PRESENCE_DML.debug("updated cap=[{}]", 
-								this);
-						return -1;
+					if (relation.relMap.containsKey(key)) {
+						final Item item = relation.relMap.get(key);
+					
+						item.latest = now;
+						item.count++;
+						PLogger.STORE_PRESENCE_DML.debug("updated item=[{}]", item);
+						return 1;
+					} else {
+						final Item item = builder.buildItem();
+						relation.relMap.put(key, item);
+						PLogger.STORE_PRESENCE_DML.debug("inserted item=[{}]", item);
+						return 1;
 					} 
-					cap.latest = now;
-					cap.count++;
 				} catch (IllegalArgumentException ex) {
-					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
+					logger.error("update presence: ex=[{}]", ex.getLocalizedMessage());
 				} finally {
 					// this.db.endTransaction();
 				}
@@ -237,12 +248,12 @@ public enum Presence {
 				hc *= 31;
 				hc += ((int) (this.id ^ (this.id >>> 32)));
 				 */
+				hc *= 31;
 				if (this.origin != null) {
-					hc *= 31;
 					hc += this.origin.hashCode();
 				}
+				hc *= 31;
 				if (this.operator != null) {
-					hc *= 31;
 					hc += this.operator.hashCode();
 				}
 				this.hashCode = hc;
@@ -354,7 +365,8 @@ public enum Presence {
 	}
 
 	public static Collection<Item> query() {
-		return Presence.INSTANCE.relMap.values();
+		final Collection<Item> values = Presence.INSTANCE.relMap.values();
+		return values;
 	}
 
 
