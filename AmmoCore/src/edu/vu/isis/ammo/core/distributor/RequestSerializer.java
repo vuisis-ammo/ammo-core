@@ -84,6 +84,13 @@ public class RequestSerializer {
 	public static final int FIELD_TYPE_TIMESTAMP = 12;
 	public static final int FIELD_TYPE_SHORT = 13;
 
+	/**
+	 * The presence of the BLOB_MARKER_FIELD as the first byte in the 
+	 * footer for a blob data section indicates where the blob should 
+	 * be placed in the content provider.
+	 */
+	public static final byte BLOB_MARKER_FIELD = (byte)0xff;
+
 	private enum FieldTypeEnum { FIELD_TYPE_FILE, FIELD_TYPE_BLOB; }
 
 	public interface OnReady  {
@@ -520,12 +527,16 @@ public class RequestSerializer {
 
 		logger.info("Serialized message, content {}", json.toString() );
 
+		logger.trace("loading larger tuple buffer");
+		final ByteArrayOutputStream bigTuple = new ByteArrayOutputStream();
+
+		bigTuple.write(tuple); 
+		bigTuple.write(0x0);
+
 		logger.trace("Serialize the blob data (if any)");
 		final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
 		Cursor blobCursor = null;
 		final int blobCount;
-		final List<String> blobFieldNameList;
-		final List<ByteBuffer> fieldBlobList;
 		try {
 			try {
 				blobCursor = resolver.query(blobUri, null, null, null, null);
@@ -547,15 +558,16 @@ public class RequestSerializer {
 				return ByteBufferFuture.wrap(tuple);
 			}
 
-			logger.trace("getting the blob fields");	
-			blobFieldNameList = new ArrayList<String>(blobCount);
-			fieldBlobList = new ArrayList<ByteBuffer>(blobCount);
+			logger.trace("getting the blob fields");
 			final byte[] buffer = new byte[1024]; 
 			for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
+
 				final String fieldName = blobCursor.getColumnName(ix);
+				bigTuple.write(fieldName.getBytes());
+				bigTuple.write(0x0);
+
 				final byte[] fieldNameBlob = fieldName.getBytes("UTF-8");
 				logger.trace("processing blob {}", fieldName);
-				blobFieldNameList.add(fieldName);
 
 				final byte[] blob = blobCursor.getBlob(ix);
 				final FieldTypeEnum dataType;
@@ -571,20 +583,30 @@ public class RequestSerializer {
 
 				switch (dataType) {
 				case FIELD_TYPE_BLOB:
-					logger.trace("field name=[{}] blob=[{}]", fieldName, blob);
-					fieldBlobList.add(ByteBuffer.wrap(blob));
+					try {
+						logger.trace("field name=[{}] blob=[{}]", fieldName, blob);
+						final ByteBuffer fieldBlobBuffer = ByteBuffer.wrap(blob);
+
+						final ByteBuffer bb = ByteBuffer.allocate(4);
+						bb.order(ByteOrder.BIG_ENDIAN); 
+						final int size = fieldBlobBuffer.capacity();
+						bb.putInt(size);
+						bigTuple.write(bb.array());
+
+						bigTuple.write(fieldBlobBuffer.array());
+
+						bigTuple.write(BLOB_MARKER_FIELD);
+						bigTuple.write(bb.array(),1,bb.array().length-1);
+					} finally { }
 					break;
-				case FIELD_TYPE_FILE:
+				case FIELD_TYPE_FILE: 
 					logger.trace("field name=[{}] ", fieldName);
 					final Uri fieldUri = Uri.withAppendedPath(tupleUri, fieldName);
 					try {
 						final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
 						if (afd == null) {
 							logger.warn("could not acquire file descriptor {}", fieldUri);
-							//			throw new IOException("could not acquire file descriptor "+fieldUri);
-							fieldBlobList.add(ByteBuffer.wrap(blob));
-							logger.warn("Blob found {}", fieldBlobList.get(ix));
-							break;
+							throw new IOException("could not acquire file descriptor "+fieldUri);
 						}
 						final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
 
@@ -595,7 +617,17 @@ public class RequestSerializer {
 							fieldBlob.write(buffer, 0, bytesRead);
 						}
 						bis.close();
-						fieldBlobList.add(ByteBuffer.wrap(fieldBlob.toByteArray()));
+						final ByteBuffer fieldBlobBuffer = ByteBuffer.wrap(fieldBlob.toByteArray());
+
+                        // write it out
+						final ByteBuffer bb = ByteBuffer.allocate(4);
+						bb.order(ByteOrder.BIG_ENDIAN); 
+						final int size = fieldBlobBuffer.capacity();
+						bb.putInt(size);
+						bigTuple.write(bb.array());
+
+						bigTuple.write(fieldBlobBuffer.array());
+						bigTuple.write(bb.array());
 
 					} catch (IOException ex) {
 						logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
@@ -610,26 +642,6 @@ public class RequestSerializer {
 			if (blobCursor != null) blobCursor.close();
 		}
 
-		logger.trace("loading larger tuple buffer");
-		final ByteArrayOutputStream bigTuple = new ByteArrayOutputStream();
-
-		bigTuple.write(tuple); 
-		bigTuple.write(0x0);
-
-		for (int ix=0; ix < blobCount; ix++) {
-			final String fieldName = blobFieldNameList.get(ix);
-			bigTuple.write(fieldName.getBytes());
-			bigTuple.write(0x0);
-
-			final ByteBuffer fieldBlob = fieldBlobList.get(ix);
-			final ByteBuffer bb = ByteBuffer.allocate(4);
-			bb.order(ByteOrder.BIG_ENDIAN); 
-			final int size = fieldBlob.capacity();
-			bb.putInt(size);
-			bigTuple.write(bb.array());
-			bigTuple.write(fieldBlob.array());
-			bigTuple.write(bb.array());
-		}
 		final byte[] finalTuple = bigTuple.toByteArray();
 		bigTuple.close();
 		PLogger.API_STORE.debug("json tuple=[{}] size=[{}]", 
@@ -741,6 +753,7 @@ public class RequestSerializer {
 
 		position++; // move past the null terminator
 		dataBuff.position(position);
+		int blobCount = 0;
 		while (dataBuff.position() < data.length) {
 			// get the field name
 			final int nameStart = dataBuff.position();
@@ -749,7 +762,15 @@ public class RequestSerializer {
 				if (data[position] == 0x0) break;
 			}
 			final String fieldName = new String(data, nameStart, nameLength);
-			position++; // move past the null			
+			position++; // move past the null	
+
+			// get the last three bytes of the length, to be used as a simple checksum
+			dataBuff.position(position);
+			dataBuff.get();
+			final byte[] beginningPsuedoChecksum = new byte[3];
+			dataBuff.get(beginningPsuedoChecksum);
+
+			// get the blob length for real
 			dataBuff.position(position);
 			final int dataLength = dataBuff.getInt();
 
@@ -758,34 +779,67 @@ public class RequestSerializer {
 						dataLength, data.length);
 				return null;
 			}
+			// get the blob data
 			final byte[] blob = new byte[dataLength];
 			final int blobStart = dataBuff.position();
 			System.arraycopy(data, blobStart, blob, 0, dataLength);
 			dataBuff.position(blobStart+dataLength);
-			final int dataLengthFinal = dataBuff.getInt();
-			if (dataLengthFinal != dataLength) {
-				logger.error("data length mismatch {} {}", dataLength, dataLengthFinal);
+
+			// check for storage type
+			final byte storageMarker = dataBuff.get();
+
+			// get and compare the beginning and ending checksum
+			final byte[] endingPsuedoChecksum = new byte[3];
+			dataBuff.get(endingPsuedoChecksum);
+			if (! Arrays.equals(endingPsuedoChecksum, beginningPsuedoChecksum)) {
+				logger.error("blob checksum mismatch {} {}", endingPsuedoChecksum, beginningPsuedoChecksum);
+				break;
 			}
 
-			final Uri fieldUri = updateTuple.appendPath(fieldName).build();			
+			// write the blob to the appropriate place
+			switch (storageMarker) {
+			case BLOB_MARKER_FIELD:
+				blobCount++;
+				cv.put(fieldName, blob);
+				break;
+			default:
+				final Uri fieldUri = updateTuple.appendPath(fieldName).build();			
+				try {
+					final OutputStream outstream = resolver.openOutputStream(fieldUri);
+					if (outstream == null) {
+						logger.error( "failed to open output stream to content provider: {} ",
+								fieldUri);
+						return null;
+					}
+					outstream.write(blob);
+					outstream.close();
+				} catch (SQLiteException ex) {
+					logger.error("in provider {} could not open output stream {}", 
+							fieldUri, ex.getLocalizedMessage());
+				} catch (FileNotFoundException ex) {
+					logger.error( "blob file not found: {}",fieldUri, ex);
+				} catch (IOException ex) {
+					logger.error( "error writing blob file: {}",fieldUri, ex);
+				}
+			}
+		}
+		if (blobCount > 0) {
 			try {
-				final OutputStream outstream = resolver.openOutputStream(fieldUri);
-				if (outstream == null) {
-					logger.error( "failed to open output stream to content provider: {} ",
-							fieldUri);
+				final Uri blobUri = resolver.insert(provider, cv); 
+				if (blobUri == null) {
+					logger.warn("could not insert {} into {}", cv, provider);
 					return null;
 				}
-				outstream.write(blob);
-				outstream.close();
+				logger.trace("Deserialized Received message blobs, content {}", cv);
+
 			} catch (SQLiteException ex) {
-				logger.error("in provider {} could not open output stream {}", 
-						fieldUri, ex.getLocalizedMessage());
-			} catch (FileNotFoundException ex) {
-				logger.error( "blob file not found: {}",fieldUri, ex);
-			} catch (IOException ex) {
-				logger.error( "error writing blob file: {}",fieldUri, ex);
-			}
-		}	
+				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
+				return null;
+			} catch (IllegalArgumentException ex) {
+				logger.warn("bad provider or values: {}", ex.getLocalizedMessage());
+				return null;
+			}		
+		}
 		return new UriFuture(tupleUri);
 	}
 
