@@ -11,8 +11,8 @@ an ammo request
 
     <RelativeLayout
         android:layout_width="0dp"
-        android:layout_height="wrap_content" 
-        android:layout_weight="50">
+        android:layout_height="wrap_content"
+        android:layout_weight="50" >
 
         <TextView
             android:id="@+id/last_seen_label"
@@ -22,55 +22,40 @@ an ammo request
             android:text="@string/time_since_last_seen_ms_" />
 
         <TextView
+            android:id="@+id/dist_capability_view_item_latest"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_below="@id/last_seen_label"
+            android:padding="5dp"
+            android:textColor="#FFF"
+            android:textSize="18dp" />
+        
+        <TextView
             android:id="@+id/first_seen_label"
             style="@style/blue_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
-            android:layout_below="@+id/dist_presence_view_item_first"
+            android:layout_below="@id/dist_capability_view_item_latest"
             android:text="@string/time_since_first_seen_ms_" />
 
         <TextView
             android:id="@+id/dist_capability_view_item_first"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/last_seen_label"
+            android:layout_below="@id/first_seen_label"
             android:padding="5dp"
             android:textColor="#FFF"
             android:textSize="18dp" />
-
-        <TextView
-            android:id="@+id/dist_capability_view_item_latest"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_below="@+id/first_seen_label"
-            android:padding="5dp"
-            android:textColor="#FFF"
-            android:textSize="18dp" />
+        
     </RelativeLayout>
 
     <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="0dp"
-    android:layout_height="wrap_content" >
-
-    <!--
-  <TextView
-      android:id="@+id/dist_capability_view_item_topic"
-      android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:padding="5dp"
-      android:textColor="#00ffff"
-      android:textSize="18dp" />
-
-  <TextView
-      android:id="@+id/dist_capability_view_item_subtopic"
-      android:layout_width="fill_parent"
-      android:layout_height="wrap_content"
-      android:padding="5dp"
-      android:textColor="#00ffff"
-      android:textSize="18dp" />
-    -->
+    android:layout_height="wrap_content"
+    android:layout_weight="50"
+    android:layout_marginLeft="50dp" >
 
     <TextView
         android:id="@+id/item_device_label"
