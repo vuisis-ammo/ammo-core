@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -29,9 +30,10 @@ import android.view.View;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ListView;
 import android.widget.PopupWindow;
+import android.widget.Toast;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.provider.Relations;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
@@ -76,34 +78,39 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	// Menus
 	// ===========================================================
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		super.onCreateOptionsMenu(menu);
-		logger.trace("::onCreateOptionsMenu");
-		menu.add(Menu.NONE, MENU_PURGE, Menu.NONE, "Purge");
-		menu.add(Menu.NONE, MENU_GARBAGE, Menu.NONE+1, "Garbage");
-		return true;
-	}
+	// disabled the options menu in lieu of new buttons
+
+	// @Override
+	// public boolean onCreateOptionsMenu(Menu menu) {
+	// super.onCreateOptionsMenu(menu);
+	// logger.trace("::onCreateOptionsMenu");
+	// menu.add(Menu.NONE, MENU_PURGE, Menu.NONE, "Purge");
+	// menu.add(Menu.NONE, MENU_GARBAGE, Menu.NONE+1, "Garbage");
+	// return true;
+	// }
 
 	protected String[] completeDisp = null;
 	
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		logger.trace("::onOptionsItemSelected");
-		int count;
-		switch (item.getItemId()) {
-		case MENU_PURGE:
-			// Delete everything.
-			count = getContentResolver().delete(this.uri, "_id > -1", null);
-			logger.debug("Deleted " + count + "subscriptions");
-			break;
-		case MENU_GARBAGE:
-			// Delete requests channel dispositions which are in a terminated state.
-			count = getContentResolver().delete(Uri.withAppendedPath(this.uri, "garbage"), null, null);
-			logger.trace("Deleted {} requests",count);
-		}
-		return true;
-	}
+	// Disabled, as options menu will not be showing
+
+	// @Override
+	// public boolean onOptionsItemSelected(MenuItem item) {
+	// logger.trace("::onOptionsItemSelected");
+	// int count;
+	// switch (item.getItemId()) {
+	// case MENU_PURGE:
+	// // Delete everything.
+	// count = getContentResolver().delete(this.uri, "_id > -1", null);
+	// logger.debug("Deleted " + count + "subscriptions");
+	// break;
+	// case MENU_GARBAGE:
+	// // Delete requests channel dispositions which are in a terminated state.
+	// count = getContentResolver().delete(Uri.withAppendedPath(this.uri,
+	// "garbage"), null, null);
+	// logger.trace("Deleted {} requests",count);
+	// }
+	// return true;
+	// }
 
 	@Override
 	public void onCreateContextMenu(ContextMenu menu, View v,
@@ -131,8 +138,9 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	// List Management
 	// ===========================================================
-	private final Relations table;
-	public DistributorTableViewer(Relations table) {
+	private final Tables table;
+
+	public DistributorTableViewer(Tables table) {
 		super();
 		this.table = table;
 	}
@@ -140,25 +148,31 @@ implements IAmmoActivitySetup
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
 		super.onListItemClick(l, v, position, id);
-		final LayoutInflater inflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		final LayoutInflater inflater = (LayoutInflater) this
+				.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 		
-		// Get the display dimensions and use them for figuring out the dimensions of our popover.
+		// Get the display dimensions and use them for figuring out the
+		// dimensions of our popover.
 		Display display = getWindowManager().getDefaultDisplay();
 		int popoverWidth = (int) (display.getWidth()*0.9);
 		int popoverHeight = (int) (display.getHeight()*0.75);
 		
-	    pw = new RequestPopupWindow(this, inflater, popoverWidth, popoverHeight, position, this.adapter.getCursor(), this.table);
+		pw = new RequestPopupWindow(this, inflater, popoverWidth,
+				popoverHeight, position, this.adapter.getCursor(), this.table);
 	    pw.setBackgroundDrawable(new BitmapDrawable());
 	    pw.showAtLocation(this.getListView(), Gravity.CENTER, 0, 0); 
 	}
 	
 	public void removeMenuItem(MenuItem item) {
 		// Get the row id and uri of the selected item.
-		final AdapterContextMenuInfo acmi = (AdapterContextMenuInfo)item.getMenuInfo();
+		final AdapterContextMenuInfo acmi = (AdapterContextMenuInfo) item
+				.getMenuInfo();
 		@SuppressWarnings("unused")
 		int rowId = (int)acmi.id;
-		//int count = getContentResolver().delete(this.uri, SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
-		//Toast.makeText(this, "Removed " + String.valueOf(count) + " entry", Toast.LENGTH_SHORT).show();
+		// int count = getContentResolver().delete(this.uri,
+		// SubscriptionTableSchema._ID + "=" + String.valueOf(rowId), null);
+		// Toast.makeText(this, "Removed " + String.valueOf(count) + " entry",
+		// Toast.LENGTH_SHORT).show();
 	}
 
 	// ===========================================================
@@ -170,8 +184,7 @@ implements IAmmoActivitySetup
 
 	}
 	
-	public void closePopup(View v)
-	{
+	public void closePopup(View v) {
 		if(pw == null)
 			return;
 		
@@ -182,5 +195,28 @@ implements IAmmoActivitySetup
 		
 	}
 
+	// ===========================================================
+	// UI Management
+	// ===========================================================
+
+	//Added methods for new buttons on View Table layout
+	
+	public void purgeClick(View v) {
+
+		// Delete everything.
+		int count;
+		count = getContentResolver().delete(this.uri, "_id > -1", null);
+		logger.debug("Deleted " + count + "subscriptions");
+		Toast.makeText(this, "You purged stuff", 1000);
+	}
+
+	public void garbageClick(View v) {
+		int count;
+		// Delete requests channel dispositions which are in a terminated state.
+		count = getContentResolver().delete(
+				Uri.withAppendedPath(this.uri, "garbage"), null, null);
+		logger.trace("Deleted {} requests", count);
+		Toast.makeText(this, "Garbage!", 1000);
+	}
 
 }

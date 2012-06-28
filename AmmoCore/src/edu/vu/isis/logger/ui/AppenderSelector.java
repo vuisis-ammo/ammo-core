@@ -1,6 +1,7 @@
 package edu.vu.isis.logger.ui;
 
-import java.util.List;
+import java.util.Map;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.widget.CheckBox;
@@ -24,10 +25,9 @@ public class AppenderSelector extends Activity {
 
 	private Logger selectedLogger;
 	private OnCheckedChangeListener myOnCheckedChangeListener;
+	@SuppressWarnings("unchecked")
+	private final Map<String, Appender<ILoggingEvent>> availableAppenders = AppenderStore.getAppenderMap();
 
-	private final List<Appender<ILoggingEvent>> availableAppenders = AppenderStore
-			.getInstance().getAppenders();
-			
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 
@@ -59,12 +59,12 @@ public class AppenderSelector extends Activity {
 		};
 
 
-		for (Appender<ILoggingEvent> appender : this.availableAppenders) {
-			addCheckBoxToLayout(ll, appender.getName(), appender);
-			if (Loggers.isAttachedEffective(selectedLogger, appender)) {
-				selectedLogger.addAppender(appender);
-			}
-		}
+//		for (Appender<ILoggingEvent> appender : this.availableAppenders) {
+//			addCheckBoxToLayout(ll, appender.getName(), appender);
+//			if (Loggers.isAttachedEffective(selectedLogger, appender)) {
+//				selectedLogger.addAppender(appender);
+//			}
+//		}
 
 	}
 

@@ -15,8 +15,11 @@
     <color name="fail_text_color">#FF00FB</color>
     <string name="fail_text_name">Fail</string>
     
-    <color name="none_text_color">#FFFFFF</color>
+    <!-- Other log level option names -->
+    <string name="off_text_name">Off</string>
+    <string name="clear_text_name">Clear</string>
     <string name="none_text_name">None</string>
+    <color name="none_text_color">#FFFFFF</color>
     <color name="trace_text_color">#42C0FF</color>
     <string name="trace_text_name">Trace</string>
     

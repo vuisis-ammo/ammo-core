@@ -1,21 +1,14 @@
 package edu.vu.isis.logger.ui;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import net.jcip.annotations.ThreadSafe;
 
 import android.content.Context;
 import android.os.Handler;
-import android.os.Message;
 
-public abstract class LogReader {
-	
-	/** the log cache */
-	protected ArrayList<LogElement> mLogCache = new ArrayList<LogElement>();
-	
-	/** BufferedReader to use for reading input streams */
-	protected BufferedReader mReader;
+@ThreadSafe
+public class LogReader {
 	
 	/** the handler to which Messages are sent */
 	protected Handler mHandler;
@@ -23,167 +16,77 @@ public abstract class LogReader {
 	/** the Context which is using this LogReader */
 	protected Context mContext;
 	
-	/** whether or not sending new cache updates is paused */
-	protected AtomicBoolean isSendingPaused = new AtomicBoolean(false);
+	/** Whether this LogReader has been paused or resumed */
+	protected AtomicBoolean isPaused = new AtomicBoolean(true);
+	
+	protected AtomicBoolean hasBeenStarted = new AtomicBoolean(false);
+	
+	protected AtomicBoolean hasBeenTerminated = new AtomicBoolean(false);
+	
 	
 	/**
-	 * Responsible for reading in new data to the cache. By default, simply
-	 * reads lines from the BufferedReader until no lines are left.
-	 * 
-	 * @return whether new data was actually read
+	 * Tells this LogReader to start itself
 	 */
-	protected boolean bufferNewData() {
+	public void start() {
 		
-		try {
-			
-			String nextLine = this.mReader.readLine();
-			if(nextLine == null) return false;
-			
-				while (nextLine != null) {
-					
-					// Try to send an update every 100 entries
-					// Probably inefficient, but good to let user know
-					// that data is being loaded
-					if(mLogCache.size() % 101 == 100) {
-						sendCacheAndClear();
-					}
-					
-					final LogLevel level = getCorrespondingLevel(nextLine);
-					this.mLogCache.add(new LogElement(level, nextLine));
-					
-					nextLine = this.mReader.readLine();
-					
-				}
-				
-		} catch (IOException e) {
-			e.printStackTrace();
+		if(this.hasBeenStarted.getAndSet(true)) {
+			throw new IllegalStateException("This LogReader has already been started");
 		}
-		
-		return true;
 		
 	}
 	
 	
 	/**
-	 * Clears the log cache
+	 * Tells this LogReader to halt all reading and close its streams.  This
+	 * LogReader may not be used after this method has been called.
 	 */
-	protected void clearCache() {
-		synchronized(mLogCache) {
-			mLogCache.clear();
+	public synchronized void terminate() {
+		checkValidState();
+		this.hasBeenTerminated.set(true);
+	}
+	
+	
+	/**
+	 * Checks whether this LogReader has been started and has not
+	 * been terminated and throws exceptions if these conditions are not true.
+	 */
+	protected synchronized void checkValidState() {
+		if(!this.hasBeenStarted.get()) {
+			throw new IllegalStateException("This LogReader has not been started");
+		}
+		
+		if(this.hasBeenTerminated.get()) {
+			throw new IllegalStateException("This LogReader has been terminated");
 		}
 	}
 	
 	
 	/**
-	 * Tells this LogReader to start its initial reading threads.
+	 * Tells this LogReader to temporarily pause reading
 	 */
-	public abstract void start();
-	
-	
-	/**
-	 * Tells this LogReader to halt all reading terminate its threads.
-	 */
-	public abstract void terminate();
-	
-	
-	/**
-	 * Tells this LogReader to begin periodically reporting its cache again.
-	 * Its initial report will include all log messages cached since the
-	 * last pause.
-	 */
-	public void resumeUpdating() {
-		this.isSendingPaused.set(false);
+	public synchronized void pause() {
+		checkValidState();
+		this.isPaused.set(true);
 	}
 	
 	
 	/**
-	 * Tells this LogReader to stop periodically reporting its cache.  
-	 * However, it will continue to cache new log messages as they become
-	 * available.
+	 * Tells this LogReader to resume reading
 	 */
-	public void stopUpdating() {
-		this.isSendingPaused.set(true);
+	public synchronized void resume() {
+		checkValidState();
+		this.isPaused.set(false);
 	}
+	
 	
 	
 	/**
 	 * Attaches a Handler to this LogReader.
 	 * @param handler -- the Handler to which Messages will be sent
 	 */
-	public void setHandler(Handler handler) {
+	public synchronized void setHandler(Handler handler) {
+		checkValidState();
 		this.mHandler = handler;
-	}
-	
-	
-	/**
-	 * Forces this LogReader to send its cache regardless of its state
-	 */
-	public synchronized void forceUpdate() {
-		sendCacheAndClear();
-	}
-	
-	
-	/**
-	 * Sends the current log cache and clears it if sending has not been
-	 * paused and the log cache is not empty
-	 */
-	protected void sendCacheAndClear() {
-		if(!this.isSendingPaused.get() && !this.mLogCache.isEmpty()) {
-			sendCacheMsg();
-			clearCache();
-		}
-	}
-	
-	
-	/**
-	 * Sends the log cache to the attached Handler
-	 */
-	protected void sendCacheMsg() {
-		
-		if (!this.isSendingPaused.get()) {
-			final Message msg = Message.obtain();
-			msg.what = LogViewer.NEW_DATA_MSG;
-			
-			synchronized(this.mLogCache) {
-				msg.obj = this.mLogCache.clone();
-			}
-
-			msg.setTarget(mHandler);
-			msg.sendToTarget();
-		}
-		
-	}
-	
-	
-	/**
-	 * Sends a message to the attached Handler, telling the Handler to
-	 * display a progress dialog that will let the user know that data
-	 * is currently being loaded.
-	 */
-	protected void sendStartProgressDlgMsg() {
-		
-		final Message msg = Message.obtain();
-		msg.what = LogViewer.START_PROG_DIALOG;
-		
-		msg.setTarget(mHandler);
-		msg.sendToTarget();
-		
-	}
-	
-	
-	/**
-	 * Sends a message to the attached Handler, telling the Handler to
-	 * display a progress dialog that will let the user know that data
-	 * is currently being loaded.
-	 */
-	protected void sendDismissProgressDlgMsg() {
-		
-		final Message msg = Message.obtain();
-		msg.what = LogViewer.DISMISS_PROG_DIALOG;
-		
-		msg.setTarget(mHandler);
-		msg.sendToTarget();
-		
 	}
 	
 	

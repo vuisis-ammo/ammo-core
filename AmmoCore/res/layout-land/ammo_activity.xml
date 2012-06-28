@@ -1,43 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-     >
+    android:orientation="vertical" >
 
     <LinearLayout
-        android:id="@+id/ammo_outer_linear_layout"
+        android:layout_alignParentBottom="true"
+        android:id="@+id/ammo_activity_toolbar_layout"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="vertical" >
-
-        <include
-            android:id="@+id/gateway_layout"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="60"
-            layout="@layout/gateway_activity" />
-
-        <!--
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:background="@color/grey2" />
-        -->
-
-        <include
-            android:id="@+id/netlink_layout"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="40"
-            layout="@layout/netlink_activity" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal" >
+        android:layout_height="wrap_content" >
 
         <Button
             android:id="@+id/view_tables_button"
@@ -62,12 +33,6 @@
             android:layout_weight="1"
             android:onClick="@string/debug_onclick"
             android:text="@string/debug_label" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal" >
 
         <Button
             android:id="@+id/loggers_button"
@@ -75,7 +40,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:onClick="@string/logger_onclick"
-            android:text="Logging Tools" />
+            android:text="@string/logger_viewer_label" />
 
         <Button
             android:id="@+id/hard_reset_button"
@@ -93,5 +58,33 @@
             android:onClick="@string/about_onclick"
             android:text="@string/about_label" />
     </LinearLayout>
+    
+     <LinearLayout
+        android:layout_alignParentTop="true"
+        android:layout_above="@id/ammo_activity_toolbar_layout"
+        android:id="@+id/gateway_netlink_linear_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" >
 
-</LinearLayout>
+        <include
+            android:id="@+id/gateway_layout"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="50"
+            layout="@layout/gateway_activity" />
+
+        <View
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/grey2" />
+
+        <include
+            android:id="@+id/netlink_layout"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="50"
+            layout="@layout/netlink_activity" />
+    </LinearLayout>
+
+</RelativeLayout>

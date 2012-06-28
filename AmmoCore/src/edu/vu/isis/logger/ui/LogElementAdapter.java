@@ -2,6 +2,9 @@ package edu.vu.isis.logger.ui;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +13,7 @@ import android.widget.TextView;
 
 public class LogElementAdapter extends ArrayAdapter<LogElement> {
 
+	private Logger logger = LoggerFactory.getLogger("ui.logger.adapter");
 	
 	private Context mContext;
 	private int maxNumLines = 0; // 0 means unlimited lines
@@ -23,6 +27,8 @@ public class LogElementAdapter extends ArrayAdapter<LogElement> {
 	
 	@Override
 	public View getView(int position, View convertView, ViewGroup parent) {
+		
+		logger.trace("Adding view for position {}", position);
 		
 		View view = super.getView(position, convertView, parent);
 		
@@ -42,13 +48,13 @@ public class LogElementAdapter extends ArrayAdapter<LogElement> {
 			
 			for(LogElement e : elemList) {
 				
-				if(this.maxNumLines != 0 && this.maxNumLines < this.getCount()) {
+				super.add(e);
+				
+				if(this.maxNumLines != 0 && this.maxNumLines < super.getCount()) {
 					// Remove the first item in the list if we have exceeded the
 					// max number of lines allowed
 					super.remove(super.getItem(0));
 				}
-				
-				super.add(e);
 				
 			}
 			
@@ -56,8 +62,26 @@ public class LogElementAdapter extends ArrayAdapter<LogElement> {
 	}
 	
 	
+	/**
+	 * Sets the max number of elements that will be held by this adapter.
+	 * The adapter will remove all elements that exceed the new max
+	 * automatically.
+	 * @param newMax
+	 */
 	public void setMaxLines(int newMax) {
 		this.maxNumLines = newMax;
+		reduceCacheSizeToNewMax();
+	}
+	
+	private void reduceCacheSizeToNewMax() {
+		
+		if(!(this.maxNumLines < super.getCount())) return;
+		if(this.maxNumLines == 0) return;
+		
+		while(this.maxNumLines < super.getCount()) {
+			super.remove(super.getItem(0));
+		}
+		
 	}
 	
 	
