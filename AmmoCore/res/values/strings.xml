@@ -10,4 +10,8 @@
     <string name="postal_label">Postal</string>
     <string name="capability_label">Capability</string>
     <string name="presence_label">Presence</string>
+    <string name="device">Device</string>
+    <string name="operator">Operator</string>
+    <string name="time_since_first_seen_ms_">Time since first seen (ms)</string>
+    <string name="time_since_last_seen_ms_">Time since last seen (ms)</string>
 </resources>
