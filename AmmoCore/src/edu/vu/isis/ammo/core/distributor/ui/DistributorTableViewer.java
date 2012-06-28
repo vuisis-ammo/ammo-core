@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -33,7 +32,7 @@ import android.widget.PopupWindow;
 import android.widget.Toast;
 import edu.vu.isis.ammo.IAmmoActivitySetup;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 /**
  * ListActivity class used in viewing the distributor's tables.
@@ -46,8 +45,10 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	public static final Logger logger = LoggerFactory.getLogger("ui.dist.tab.view");
 	
+	/*
 	private static final int MENU_PURGE = 1;
 	private static final int MENU_GARBAGE = 2;
+	*/
 	
 	public static final int MENU_CONTEXT_DELETE = 1;
 	
@@ -138,9 +139,9 @@ implements IAmmoActivitySetup
 	// ===========================================================
 	// List Management
 	// ===========================================================
-	private final Tables table;
+	private final Relations table;
 
-	public DistributorTableViewer(Tables table) {
+	public DistributorTableViewer(Relations table) {
 		super();
 		this.table = table;
 	}
