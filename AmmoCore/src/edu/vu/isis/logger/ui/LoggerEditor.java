@@ -63,7 +63,6 @@ public class LoggerEditor extends ListActivity {
 	private static final int LOAD_CONFIGURATION_MENU = Menu.NONE + 3;
 	private static final int SAVE_CONFIGURATION_MENU = Menu.NONE + 4;
 
-	private static final int APPENDER_REQUEST_CODE = 0;
 	private static final int PICKFILE_REQUEST_CODE = 1;
 
 	private static final String DEFAULT_SAVE_DIRECTORY = "/logger/save";
@@ -100,7 +99,7 @@ public class LoggerEditor extends ListActivity {
 				return;
 			}
 
-			final Appender<ILoggingEvent> checkApp = (Appender<ILoggingEvent>) buttonView
+			Appender<ILoggingEvent> checkApp = (Appender<ILoggingEvent>) buttonView
 					.getTag();
 
 			if (isChecked) {
@@ -119,6 +118,19 @@ public class LoggerEditor extends ListActivity {
 				Loggers.clearAppenders(selectedLogger);
 			} else {
 				selectedLogger.setAdditive(false);
+
+				// Now that we have set the additivity to false, we need to
+				// make sure that the logger has all of the appenders attached
+				// to it that its checkboxes are indicating
+
+				for (CheckBox cb : appenderCheckboxes) {
+					checkApp = (Appender<ILoggingEvent>) cb.getTag();
+					if (cb.isChecked()) {
+						selectedLogger.addAppender(checkApp);
+					} else {
+						selectedLogger.detachAppender(checkApp);
+					}
+				}
 			}
 			refreshList();
 
@@ -849,11 +861,18 @@ public class LoggerEditor extends ListActivity {
 	}
 
 	public void onClearButtonClick(View v) {
+		if (selectedLogger == null) {
+			Toast.makeText(this, "Please select a logger.", Toast.LENGTH_SHORT)
+					.show();
+			return;
+		}
+		
 		if (selectedLogger.equals(Loggers.ROOT_LOGGER)) {
 			Toast.makeText(this, "Clearing the root logger is not allowed",
 					Toast.LENGTH_LONG).show();
 			return;
 		}
+		
 		selectedLogger.setLevel(null);
 		updateIcon(selectedLogger.getEffectiveLevel(), selectedView);
 	}

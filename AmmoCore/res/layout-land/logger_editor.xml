@@ -41,78 +41,19 @@
             scrollview takes care of the rest
             -->
 
-            <LinearLayout
-                android:id="@+id/level_linearlayout"
+            <include
+                android:id="@+id/level_linearlayout_ref"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical" >
-
-                <Button
-                    android:id="@+id/trace_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:onClick="onTraceButtonClick"
-                    android:text="@string/trace_text_name" />
-
-                <Button
-                    android:id="@+id/debug_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:onClick="onDebugButtonClick"
-                    android:text="@string/debug_text_name" />
-
-                <Button
-                    android:id="@+id/info_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:onClick="onInfoButtonClick"
-                    android:text="@string/info_text_name" />
-
-                <Button
-                    android:id="@+id/warn_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:onClick="onWarnButtonClick"
-                    android:text="@string/warn_text_name" />
-
-                <Button
-                    android:id="@+id/error_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:onClick="onErrorButtonClick"
-                    android:text="@string/error_text_name" />
-
-                <Button
-                    android:id="@+id/off_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:onClick="onOffButtonClick"
-                    android:text="@string/off_text_name" />
-
-                <Button
-                    android:id="@+id/clear_button"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:onClick="onClearButtonClick"
-                    android:text="@string/clear_text_name" />
-            </LinearLayout>
+                layout="@layout/level_linearlayout" />
         </ScrollView>
 
-        <ScrollView
-            android:id="@+id/appender_scrollview"
+        <include
+            android:id="@+id/appender_scrollview_ref"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="50" >
-
-            <LinearLayout
-                android:id="@+id/appender_linearlayout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" >
-
-                <!-- We will add checkboxes here programmatically -->
-            </LinearLayout>
-        </ScrollView>
+            android:layout_weight="50"
+            layout="@layout/appender_scrollview" />
     </LinearLayout>
 
 </LinearLayout>
