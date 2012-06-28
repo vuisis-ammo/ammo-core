@@ -27,7 +27,7 @@ import edu.vu.isis.ammo.core.provider.CapabilitySchema;
  */
 public class CapabilityTableViewAdapter extends DistributorTableViewAdapter
 {
-	public static final Logger logger = LoggerFactory.getLogger("ui.dist.capability");
+	public static final Logger logger = LoggerFactory.getLogger("ui.dist.Capability");
 
 	public CapabilityTableViewAdapter(Context context, int layout, Cursor cursor) 
 	{
@@ -46,35 +46,29 @@ public class CapabilityTableViewAdapter extends DistributorTableViewAdapter
 		// deal with the displaying of the first
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.dist_capability_view_item_first);
-			int disposition = cursor.getInt(cursor.getColumnIndex(CapabilitySchema.FIRST.name()));
-			if (dispositionStateMap.containsKey(disposition)) {
-				tv.setText(dispositionStateMap.get(disposition));
-				tv.setTextColor(dispositionColorMap.get(disposition));
-			} else {
-				tv.setText("Unknown Disposition");
-			}
+			int first = cursor.getInt(cursor.getColumnIndex(CapabilitySchema.FIRST.name()));
+			tv.setText(String.valueOf(first));
 		}
 
 		// deal with the displaying of the latest timestamp
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.dist_capability_view_item_latest);
-			long timestamp = cursor.getLong(cursor.getColumnIndex(CapabilitySchema.LATEST.name()));
-			this.expiration.clear();
-			this.expiration.setTimeInMillis(timestamp);
-			String timed = SDF.format(this.expiration.getTime());
-			logger.debug("tuple timestamp {}",timed);
-			tv.setText(timed);
+			long latest = cursor.getLong(cursor.getColumnIndex(CapabilitySchema.LATEST.name()));
+		
+			//String timed = SDF.format(this.expiration.getTime());
+			//logger.debug("tuple timestamp {}",timed);
+			tv.setText(String.valueOf(latest));
 		}
 
 		// set the mime-type / topic
 		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_capability_view_item_topic);
-			tv.setText(cursor.getString(cursor.getColumnIndex(CapabilitySchema.TOPIC.name())));
+			final TextView tv = (TextView)view.findViewById(R.id.dist_capability_view_item_device);
+			tv.setText(cursor.getString(cursor.getColumnIndex(CapabilitySchema.ORIGIN.name())));
 		}
 		// set the subtopic
 		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_capability_view_item_subtopic);
-			tv.setText(cursor.getString(cursor.getColumnIndex(CapabilitySchema.SUBTOPIC.name())));
+			final TextView tv = (TextView)view.findViewById(R.id.dist_capability_view_item_operator);
+			tv.setText(cursor.getString(cursor.getColumnIndex(CapabilitySchema.OPERATOR.name())));
 		}
 
 	}

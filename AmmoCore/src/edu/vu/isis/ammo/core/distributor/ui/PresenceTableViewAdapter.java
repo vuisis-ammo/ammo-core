@@ -46,14 +46,14 @@ public class PresenceTableViewAdapter extends DistributorTableViewAdapter
 		// deal with the displaying of the first
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_first);
-			int first = cursor.getInt(cursor.getColumnIndex(PresenceSchema.FIRST.name()));
+			int first = cursor.getInt(cursor.getColumnIndex(PresenceSchema.FIRST.field));
 			tv.setText(String.valueOf(first));
 		}
 
 		// deal with the displaying of the latest timestamp
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_latest);
-			long latest = cursor.getLong(cursor.getColumnIndex(PresenceSchema.LATEST.name()));
+			long latest = cursor.getLong(cursor.getColumnIndex(PresenceSchema.LATEST.field));
 		
 			//String timed = SDF.format(this.expiration.getTime());
 			//logger.debug("tuple timestamp {}",timed);
@@ -63,12 +63,12 @@ public class PresenceTableViewAdapter extends DistributorTableViewAdapter
 		// set the mime-type / topic
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_device);
-			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.ORIGIN.name())));
+			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.ORIGIN.field)));
 		}
 		// set the subtopic
 		{
 			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_operator);
-			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.OPERATOR.name())));
+			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.OPERATOR.field)));
 		}
 
 	}

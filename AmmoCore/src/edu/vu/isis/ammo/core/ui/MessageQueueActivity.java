@@ -38,8 +38,8 @@ public class MessageQueueActivity extends Activity {
         @SuppressWarnings("unused")
 		String tableName = Relations.DISPOSAL.n;
         @SuppressWarnings("unused")
-		Uri uri = DistributorSchema.CONTENT_URI.get(Relations.CHANNEL.n);
-        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(Relations.DISPOSAL.n), null, null, null, null);
+		Uri uri = DistributorSchema.CONTENT_URI.get(Relations.CHANNEL);
+        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(Relations.DISPOSAL), null, null, null, null);
         logger.trace("message{}", c);
         
         

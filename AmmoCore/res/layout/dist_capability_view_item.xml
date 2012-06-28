@@ -45,5 +45,19 @@ an ammo request
   		android:padding="5dp"
   		android:textSize="18dp"
   		android:textColor="#FFF" />
+  
+   <TextView android:id="@+id/dist_capability_view_item_device"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:padding="5dp"
+		android:textSize="18dp"
+		android:textColor="#FFF" />
+		
+  <TextView android:id="@+id/dist_capability_view_item_operator"
+  		android:layout_width="fill_parent"
+  		android:layout_height="wrap_content"
+  		android:padding="5dp"
+  		android:textSize="18dp"
+  		android:textColor="#FFF" />
   		
 </LinearLayout>

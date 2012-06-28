@@ -27,11 +27,11 @@ public class CapabilityTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		this.uri = DistributorSchema.CONTENT_URI.get(Relations.CAPABILITY.n);
+		this.uri = DistributorSchema.CONTENT_URI.get(Relations.CAPABILITY);
 		
 		final Cursor cursor = this.managedQuery(this.uri, null, null, null, "DESC");
 		
-		this.adapter = new CapabilityTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
+		this.adapter = new CapabilityTableViewAdapter(this, R.layout.dist_capability_view_item, cursor);
 		
 		super.onCreate(bun);
 	}

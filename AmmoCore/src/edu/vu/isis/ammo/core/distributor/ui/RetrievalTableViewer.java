@@ -28,7 +28,7 @@ public class RetrievalTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		this.uri = DistributorSchema.CONTENT_URI.get(Relations.RETRIEVAL.n);
+		this.uri = DistributorSchema.CONTENT_URI.get(Relations.RETRIEVAL);
 		
 		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 RetrievalTableSchema._ID + " DESC");

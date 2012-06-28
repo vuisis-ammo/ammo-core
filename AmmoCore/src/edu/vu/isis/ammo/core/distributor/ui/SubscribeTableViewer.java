@@ -28,7 +28,7 @@ public class SubscribeTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		this.uri = DistributorSchema.CONTENT_URI.get(Relations.SUBSCRIBE.n);
+		this.uri = DistributorSchema.CONTENT_URI.get(Relations.SUBSCRIBE);
 		
 		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 SubscribeTableSchema._ID + " DESC");

@@ -28,7 +28,7 @@ public class PostalTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		this.uri = DistributorSchema.CONTENT_URI.get(Relations.POSTAL.n);
+		this.uri = DistributorSchema.CONTENT_URI.get(Relations.POSTAL);
 		
 		final Cursor cursor = this.managedQuery(this.uri, null, null, null, 
                 PostalTableSchema._ID + " DESC");

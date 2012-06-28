@@ -12,6 +12,7 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -20,8 +21,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.distributor.store.Capability;
+import edu.vu.isis.ammo.core.distributor.store.Presence;
 import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
 import edu.vu.isis.ammo.core.provider.CapabilitySchema;
+import edu.vu.isis.ammo.core.provider.PresenceSchema;
 import edu.vu.isis.ammo.core.provider.Relations;
 
 import android.content.ContentValues;
@@ -2259,16 +2262,22 @@ public class DistributorDataStore {
 
 
 	public Cursor queryPresence() {
-		// TODO Auto-generated method stub
-		return null;
+		final Presence collection = Presence.INSTANCE;
+		final MatrixCursor cursor = new MatrixCursor(PresenceSchema.FIELD_NAMES, collection.size());
+		final EnumSet<PresenceSchema> set = EnumSet.allOf(PresenceSchema.class);
+		for (final Presence.Item item : Presence.query()) {
+			cursor.addRow(item.getValues(set));
+		}
+		return cursor;
 	}
 
 
 	public Cursor queryCapability() {
 		final Capability collection = Capability.INSTANCE;
 		final MatrixCursor cursor = new MatrixCursor(CapabilitySchema.FIELD_NAMES, collection.size());
+		final EnumSet<CapabilitySchema> set = EnumSet.allOf(CapabilitySchema.class);
 		for (final Capability.Item item : Capability.query()) {
-			cursor.addRow(item.getValues(CapabilitySchema.values()));
+			cursor.addRow(item.getValues(set));
 		}
 		return cursor;
 	}

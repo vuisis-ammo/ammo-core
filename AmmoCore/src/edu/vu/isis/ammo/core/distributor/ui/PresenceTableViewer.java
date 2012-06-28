@@ -27,11 +27,11 @@ public class PresenceTableViewer extends DistributorTableViewer {
 	
 	@Override 
 	public void onCreate(Bundle bun) {
-		this.uri = DistributorSchema.CONTENT_URI.get(Relations.PRESENCE.n);
+		this.uri = DistributorSchema.CONTENT_URI.get(Relations.PRESENCE);
 		
 		final Cursor cursor = this.managedQuery(this.uri, null, null, null, "DESC");
 		
-		this.adapter = new PresenceTableViewAdapter(this, R.layout.dist_table_view_item, cursor);
+		this.adapter = new PresenceTableViewAdapter(this, R.layout.dist_presence_view_item, cursor);
 		
 		super.onCreate(bun);
 	}

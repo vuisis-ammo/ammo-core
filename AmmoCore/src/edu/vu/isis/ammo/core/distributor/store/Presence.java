@@ -1,9 +1,11 @@
 package edu.vu.isis.ammo.core.distributor.store;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
-import java.util.HashMap;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +23,7 @@ import edu.vu.isis.ammo.core.provider.PresenceSchema;
 public enum Presence {
 	INSTANCE;
 
-	private final static Logger logger = LoggerFactory.getLogger("class.store.presence.set");
+	private final static Logger logger = LoggerFactory.getLogger("class.store.presence");
 
 	/*
 	 * A map of keys to items.
@@ -30,7 +32,16 @@ public enum Presence {
 	public int size() { return this.relMap.size(); }
 
 	private Presence() {
-		this.relMap = new HashMap<Item.Key, Item>();
+		this.relMap = new ConcurrentHashMap<Item.Key, Item>();
+
+		try {
+			// a dummy item for testing
+			final Builder build = Presence.newBuilder();
+			build.operator("dummy").origin("self");
+			this.relMap.put(build.buildKey(), build.buildItem()); 
+		} catch (Exception ex) {
+			LoggerFactory.getLogger("class.store.presence.set").error("could not initialize?", ex);
+		}
 	}
 
 	/**
@@ -41,16 +52,18 @@ public enum Presence {
 	static public Builder newBuilder() {
 		return new Builder();
 	}
-	
+
 	private static volatile long _id_seq = Long.MIN_VALUE;
 
 	public static final class Builder {
-		private String origin;
-		private String operator;
-		
-		private long lifespan;
+		private final static Logger logger = LoggerFactory.getLogger("class.store.presence.builder");
 
-		private Builder() { }
+		private String origin = "default origin";
+		private String operator = "default operator";
+
+		private long lifespan = 10L * 60L * 1000L; // ten minutes
+
+		private Builder() {}
 
 		public Builder origin(String value) {
 			this.origin = value;
@@ -66,9 +79,9 @@ public enum Presence {
 		}
 
 		public Item buildItem() {
-			final Item cap = new Item(this);
-			logger.debug("ctor [{}]", cap);
-			return cap;
+			final Item item = new Item(this);
+			logger.debug("ctor [{}]", item);
+			return item;
 		}
 		public Item.Key buildKey() {
 			return new Item.Key(this);
@@ -77,9 +90,9 @@ public enum Presence {
 		@Override
 		public String toString() {
 			final Item.Key key = new Item.Key(this);
-			return new StringBuilder()
-			.append("key=[").append(key)
-			.toString();
+			return new StringBuilder().
+					append("key={").append(key).append("}").
+					toString();
 		}
 	}
 
@@ -95,6 +108,7 @@ public enum Presence {
 	}
 
 	public static class Worker {
+		private final Logger logger = LoggerFactory.getLogger("class.store.presence.worker");
 
 		private String device;
 		private String operator;
@@ -210,24 +224,30 @@ public enum Presence {
 
 			final private int hashCode;
 			@Override
-		    public int hashCode() { return this.hashCode; }
-			
+			public int hashCode() { return this.hashCode; }
+
 			private Key(Builder that) {
 				Presence._id_seq++;
 				this.id = Presence._id_seq;
 				this.origin = that.origin;
 				this.operator = that.operator;
-				
+
 				int hc = 17;
+				/* don't include id in hash code
 				hc *= 31;
 				hc += ((int) (this.id ^ (this.id >>> 32)));
-				hc *= 31;
-				hc += this.origin.hashCode();
-				hc *= 31;
-				hc += this.operator.hashCode();
-		        this.hashCode = hc;
+				 */
+				if (this.origin != null) {
+					hc *= 31;
+					hc += this.origin.hashCode();
+				}
+				if (this.operator != null) {
+					hc *= 31;
+					hc += this.operator.hashCode();
+				}
+				this.hashCode = hc;
 			}
-			
+
 			@Override
 			public boolean equals(Object o) {
 				if (!(o instanceof Key)) return false;
@@ -237,8 +257,17 @@ public enum Presence {
 				if (! TextUtils.equals(this.operator, that.operator)) return false;
 				return true;
 			}
+
+			@Override
+			public String toString() {
+				return new StringBuilder().
+						append("id=\"").append(this.id).append("\",").
+						append("origin=\"").append(this.origin).append("\",").
+						append("operator=\"").append(this.operator).append("\"").
+						toString();
+			}
 		}
-		
+
 		public final Key key;
 
 		public Item(Builder that) {
@@ -251,6 +280,16 @@ public enum Presence {
 			this.count = 1;
 		}
 
+		@Override 
+		public String toString() {
+			return new StringBuilder().
+					append("key={").append(this.key).append("},").
+					append("first=\"").append(this.first).append("\",").
+					append("latest=\"").append(this.latest).append("\",").
+					append("count=\"").append(this.count).append("\"").
+					toString();
+		}
+
 		public final long expiration;
 		public final long first;
 		public long latest;
@@ -259,18 +298,28 @@ public enum Presence {
 		/**
 		 * Rather than using a big switch, this makes use of an EnumMap
 		 */
-		public Object[] getValues(final PresenceSchema[] fields) {
-			final Object[] row = new Object[fields.length];
-			int ix = 0;
-			for (final PresenceSchema field : fields) {
-				row[ix] = getters.get(field).getValue(this);
+		public Object[] getValues(final EnumSet<PresenceSchema> set) {
+			final ArrayList<Object> row = new ArrayList<Object>(set.size());
+			for (final PresenceSchema field : set) {
+				final Getter getter = getters.get(field);
+				if (getter == null) {
+					logger.warn("missing getter for field {}", field);
+					row.add(null);
+					continue;
+				}
+				row.add(getter.getValue(this));
 			}
-			return row;
+			return row.toArray();
 		}
+
 		private interface Getter { public Object getValue(final Item item); }
 		final static private Map<PresenceSchema,Getter> getters;
 		static {
 			getters = new EnumMap<PresenceSchema,Getter>(PresenceSchema.class);
+			getters.put(PresenceSchema.ID, new Getter() { 
+				@Override
+				public Object getValue(final Item item) { return item.key.id; }
+			});
 			getters.put(PresenceSchema.UUID, new Getter() {
 				@Override
 				public Object getValue(final Item item) { return item.key.id; }
@@ -283,8 +332,8 @@ public enum Presence {
 				@Override
 				public Object getValue(final Item item) { return item.key.operator; }
 			});
-			
-			
+
+
 			getters.put(PresenceSchema.EXPIRATION, new Getter() {
 				@Override
 				public Object getValue(final Item item) { return item.expiration; }

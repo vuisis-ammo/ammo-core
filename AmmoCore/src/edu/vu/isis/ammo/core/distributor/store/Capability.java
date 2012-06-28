@@ -1,15 +1,16 @@
 package edu.vu.isis.ammo.core.distributor.store;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
-import java.util.HashMap;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.text.TextUtils;
-
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.provider.CapabilitySchema;
 
@@ -22,7 +23,7 @@ import edu.vu.isis.ammo.core.provider.CapabilitySchema;
 public enum Capability {
 	INSTANCE;
 
-	private final static Logger logger = LoggerFactory.getLogger("class.store.capability.set");
+	private final static Logger logger = LoggerFactory.getLogger("class.store.capability");
 
 	/*
 	 * A map of keys to items.
@@ -31,9 +32,14 @@ public enum Capability {
 	public int size() { return this.relMap.size(); }
 
 	private Capability() {
-		this.relMap = new HashMap<Item.Key, Item>();
+		this.relMap = new ConcurrentHashMap<Item.Key, Item>();
+
+		// a dummy item for testing
+		final Builder build = Capability.newBuilder();
+		build.operator("dummy").origin("self");
+		this.relMap.put(build.buildKey(), build.buildItem()); 
 	}
-	
+
 	/**
 	 * The builder is used to construct new capabilities and capability.Key.
 	 * 
@@ -42,18 +48,19 @@ public enum Capability {
 	static public Builder newBuilder() {
 		return new Builder();
 	}
-	
+
 	private static volatile long _id_seq = Long.MIN_VALUE;
-	
+
 	public static final class Builder {
-		
-		private String origin;
-		private String operator;
-		
-		private String topic;
-		private String subtopic;
-		
-		private long lifespan;
+		private final static Logger logger = LoggerFactory.getLogger("class.store.capability.builder");
+
+		private String origin = "default origin";
+		private String operator = "default operator";
+
+		private String topic = "default topic";
+		private String subtopic = null;
+
+		private long lifespan = 10L * 60L * 1000L; // ten minutes
 
 		private Builder() { }
 
@@ -79,9 +86,9 @@ public enum Capability {
 		}
 
 		public Item buildItem() {
-			final Item cap = new Item(this);
-			logger.debug("ctor [{}]", cap);
-			return cap;
+			final Item item = new Item(this);
+			logger.debug("ctor [{}]", item);
+			return item;
 		}
 		public Item.Key buildKey() {
 			return new Item.Key(this);
@@ -90,9 +97,9 @@ public enum Capability {
 		@Override
 		public String toString() {
 			final Item.Key key = new Item.Key(this);
-			return new StringBuilder()
-			.append("key=[").append(key)
-			.toString();
+			return new StringBuilder().
+					append("key={").append(key).append("}").
+					toString();
 		}
 	}
 
@@ -107,6 +114,7 @@ public enum Capability {
 	}
 
 	public static class Worker {
+		private final Logger logger = LoggerFactory.getLogger("class.store.capability.worker");
 
 		private String origin;
 		private String operator;
@@ -233,10 +241,10 @@ public enum Capability {
 			public final String operator;
 			public final String topic;
 			public final String subtopic;
-			
+
 			final private int hashCode;
 			@Override
-		    public int hashCode() { return this.hashCode; }		
+			public int hashCode() { return this.hashCode; }		
 
 			private Key(Builder that) {
 				Capability._id_seq++;
@@ -245,21 +253,31 @@ public enum Capability {
 				this.operator = that.operator;
 				this.topic = that.topic;
 				this.subtopic = that.subtopic;
-				
+
 				int hc = 17;
+				/* don't include id in hash code
 				hc *= 31;
 				hc += ((int) (this.id ^ (this.id >>> 32)));
-				hc *= 31;
-				hc += this.origin.hashCode();
-				hc *= 31;
-				hc += this.operator.hashCode();
-				hc *= 31;
-				hc += this.topic.hashCode();
-				hc *= 31;
-				hc += this.subtopic.hashCode();
-		        this.hashCode = hc;
+				 */
+				if (this.origin != null) {
+					hc *= 31;
+					hc += this.origin.hashCode();
+				}
+				if (this.operator != null) {
+					hc *= 31;
+					hc += this.operator.hashCode();
+				}
+				if (this.topic != null) {
+					hc *= 31;
+					hc += this.topic.hashCode();
+				}
+				if (this.subtopic != null) {
+					hc *= 31;
+					hc += this.subtopic.hashCode();
+				}
+				this.hashCode = hc;
 			}
-			
+
 			@Override
 			public boolean equals(Object o) {
 				if (!(o instanceof Key)) return false;
@@ -271,17 +289,17 @@ public enum Capability {
 				if (! TextUtils.equals(this.subtopic, that.subtopic)) return false;
 				return true;
 			}
-			
+
 			@Override
 			public String toString() {
-				return new StringBuilder()
-				.append("origin=\"").append(this.origin).append("\" ")
-				.append("operator=\"").append(this.operator).append("\" ")
-				.append("topic=\"").append(this.topic).append("\" ")
-				.append("subtopic=\"").append(this.subtopic)
-				.toString();
+				return new StringBuilder().
+						append("origin=\"").append(this.origin).append("\",").
+						append("operator=\"").append(this.operator).append("\",").
+						append("topic=\"").append(this.topic).append("\",").
+						append("subtopic=\"").append(this.subtopic).append("\"").
+						toString();
 			}
-			
+
 		}
 		public final Key key;
 
@@ -300,18 +318,34 @@ public enum Capability {
 		public long latest;
 		public int count;
 
+		@Override 
+		public String toString() {
+			return new StringBuilder().
+					append("key={").append(this.key).append("},").
+					append("first=\"").append(this.first).append("\",").
+					append("latest=\"").append(this.latest).append("\",").
+					append("count=\"").append(this.count).append("\"").
+					toString();
+		}
 
 		/**
 		 * Rather than using a big switch, this makes use of an EnumMap
 		 */
-		public Object[] getValues(final CapabilitySchema[] fields) {
-			final Object[] row = new Object[fields.length];
-			int ix = 0;
-			for (final CapabilitySchema field : fields) {
-				row[ix] = getters.get(field).getValue(this);
+		public Object[] getValues(final EnumSet<CapabilitySchema> set) {
+			final ArrayList<Object> row = new ArrayList<Object>(set.size());
+			for (final CapabilitySchema field : set) {
+				final Getter getter = getters.get(field);
+				if (getter == null) {
+					logger.warn("missing getter for field {}", field);
+					row.add(null);
+					continue;
+				}
+				row.add(getter.getValue(this));
 			}
-			return row;
+			return row.toArray();
 		}
+
+
 		private interface Getter { public Object getValue(final Item item); }
 		final static private Map<CapabilitySchema,Getter> getters;
 		static {
@@ -336,7 +370,7 @@ public enum Capability {
 				@Override
 				public Object getValue(final Item item) { return item.key.subtopic; }
 			});
-			
+
 			getters.put(CapabilitySchema.EXPIRATION, new Getter() {
 				@Override
 				public Object getValue(final Item item) { return item.expiration; }
@@ -354,8 +388,8 @@ public enum Capability {
 				public Object getValue(final Item item) { return item.count; }
 			});
 		}
-		
-		
+
+
 
 		// what about message rates?
 	}
