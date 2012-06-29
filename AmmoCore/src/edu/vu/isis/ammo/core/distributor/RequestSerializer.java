@@ -91,7 +91,45 @@ public class RequestSerializer {
 	 */
 	public static final byte BLOB_MARKER_FIELD = (byte)0xff;
 
-	private enum FieldTypeEnum { FIELD_TYPE_FILE, FIELD_TYPE_BLOB; }
+	private enum FieldTypeEnum { 
+        FIELD_TYPE_FILE, FIELD_TYPE_BLOB; 
+
+        /**
+         * The problem here is that the blob may have trailing null bytes.
+         * e.g.
+         *  fieldName = [data], fieldNameBlob= [[100, 97, 116, 97]], blob = [[100, 97, 116, 97, 0]]
+         * These should result it a match.
+         */
+				public static FieldTypeEnum infer(String fieldName, byte[] blob) {
+       
+			   	final byte[] fieldNameBlob; 
+          try {
+              fieldNameBlob = fieldName.getBytes("UTF-8");
+          } catch (java.io.UnsupportedEncodingException ex) {
+              return FIELD_TYPE_BLOB;
+          }
+
+				  logger.trace("processing blob fieldName = [{}], fieldNameBlob= [{}], blob = [{}]", 
+             new Object[] {fieldName, fieldNameBlob, blob});
+
+				  if (blob == null) return FIELD_TYPE_FILE;
+				  if (blob.length < 1) return FIELD_TYPE_FILE;
+
+          if (fieldNameBlob.length == blob.length)
+              return Arrays.equals(blob, fieldNameBlob) ? FIELD_TYPE_FILE : FIELD_TYPE_BLOB;
+
+          if (fieldNameBlob.length > blob.length) return FIELD_TYPE_BLOB;
+
+          int i;
+          for (i = 0; i < fieldNameBlob.length; i++) {
+             if (fieldNameBlob[i] != blob[i]) return FIELD_TYPE_BLOB;
+          }
+          for (; i < blob.length; i++) {
+               if (blob[i] != (byte)0) return FIELD_TYPE_BLOB;
+          }
+				  return FIELD_TYPE_FILE;
+        }
+  }
 
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
@@ -361,13 +399,14 @@ public class RequestSerializer {
 		default:
 			uri = RequestSerializer.deserializeCustomToProvider(context, channelName, provider, encoding, data);	
 		}
+    if (uri == null) return null;
 		try {
 			return uri.get();
 		} catch (InterruptedException ex) {
-			ex.printStackTrace();
+			logger.error("interrupted thread ", ex);
 			return null;
 		} catch (ExecutionException ex) {
-			ex.printStackTrace();
+			logger.error("execution error thread ", ex);
 			return null;
 		}
 	}
@@ -462,6 +501,7 @@ public class RequestSerializer {
 		context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
 		return null;
 	}
+
 	/**
 	 * The JSON serialization is of the following form...
 	 * serialized tuple : A list of non-null bytes which serialize the tuple, 
@@ -566,20 +606,8 @@ public class RequestSerializer {
 				bigTuple.write(fieldName.getBytes());
 				bigTuple.write(0x0);
 
-				final byte[] fieldNameBlob = fieldName.getBytes("UTF-8");
-				logger.trace("processing blob {}", fieldName);
-
 				final byte[] blob = blobCursor.getBlob(ix);
-				final FieldTypeEnum dataType;
-				if (blob == null) {
-					dataType = FieldTypeEnum.FIELD_TYPE_FILE;
-				} else if (blob.length < 1) {
-					dataType = FieldTypeEnum.FIELD_TYPE_FILE;
-				} else if (Arrays.equals(blob, fieldNameBlob)) {
-					dataType = FieldTypeEnum.FIELD_TYPE_FILE;
-				} else {
-					dataType = FieldTypeEnum.FIELD_TYPE_BLOB;
-				}
+				final FieldTypeEnum dataType = FieldTypeEnum.infer(fieldName, blob);
 
 				switch (dataType) {
 				case FIELD_TYPE_BLOB:
@@ -738,10 +766,10 @@ public class RequestSerializer {
 			logger.info("Deserialized Received message, content {}", cv);
 
 		} catch (SQLiteException ex) {
-			logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
+			logger.warn("invalid sql insert", ex);
 			return null;
 		} catch (IllegalArgumentException ex) {
-			logger.warn("bad provider or values: {}", ex.getLocalizedMessage());
+			logger.warn("bad provider or values", ex);
 			return null;
 		}		
 		if (position == data.length) return new UriFuture(tupleUri);
@@ -833,10 +861,10 @@ public class RequestSerializer {
 				logger.trace("Deserialized Received message blobs, content {}", cv);
 
 			} catch (SQLiteException ex) {
-				logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
+				logger.warn("invalid sql blob insert", ex);
 				return null;
 			} catch (IllegalArgumentException ex) {
-				logger.warn("bad provider or values: {}", ex.getLocalizedMessage());
+				logger.warn("bad provider or blob values", ex);
 				return null;
 			}		
 		}
