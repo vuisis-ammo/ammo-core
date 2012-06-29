@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import android.app.ListActivity;
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
@@ -71,7 +70,8 @@ implements IAmmoActivitySetup
 			logger.error("no uri provided...exiting");
 			return;
 		}
-
+		
+		this.getListView().setEmptyView(findViewById(R.id.empty_view));
 		this.setListAdapter(this.adapter);
 		this.registerForContextMenu(this.getListView());
 	}

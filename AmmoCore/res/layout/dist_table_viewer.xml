@@ -3,19 +3,22 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent" >
 
+    <TextView 
+        android:id="@+id/empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="List is empty"
+        android:gravity="center"
+        android:layout_alignParentTop="true"
+        android:paddingTop="50dp"
+        android:textSize="30sp"/>
+    
     <Button
         android:id="@+id/button1"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:text="@string/purge_label" />
-
-    <TextView
-        android:id="@+id/distributor_table_viewer_label"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="" />
 
     <ListView
         android:id="@id/android:list"

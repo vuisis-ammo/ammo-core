@@ -6,5 +6,5 @@
 	android:clickable="false"
 	android:focusable="false"
 	android:focusableInTouchMode="false"
-	android:button="@drawable/btn_supress" />
+	android:button="@drawable/status_indicator" />
 

@@ -13,12 +13,14 @@ package edu.vu.isis.ammo.core.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnDismissListener;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.preference.Preference;
+import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceScreen;
 import android.view.KeyEvent;
 import android.widget.Adapter;
@@ -47,6 +49,9 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	public static final String LAUNCH = "edu.vu.isis.ammo.core.LoggingPreferences.LAUNCH";
 
 	public static final String PREF_LOG_LEVEL = "CORE_LOG_LEVEL";
+
+	private static final String TRUE_TITLE_SUFFIX = "is enabled.";
+	private static final String FALSE_TITLE_SUFFIX = "is disabled.";
 
 	// ===========================================================
 	// Fields
@@ -133,6 +138,10 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.gwOpEnablePref = (MyCheckBoxPreference) this
 				.findPreference(INetPrefKeys.GATEWAY_DISABLED);
 
+		gwOpEnablePref.setTrueTitle("Gateway " + TRUE_TITLE_SUFFIX);
+		gwOpEnablePref.setFalseTitle("Gateway " + FALSE_TITLE_SUFFIX);
+		gwOpEnablePref.setOnPreferenceClickListener(sendToPantherPrefsListener);
+
 		// Connection Idle Timeout
 		this.gwConnIdlePref = (MyEditIntegerPreference) this
 				.findPreference(INetPrefKeys.GATEWAY_TIMEOUT);
@@ -158,6 +167,9 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		// Enabled Preference Setup
 		this.mcOpEnablePref = (MyCheckBoxPreference) this
 				.findPreference(INetPrefKeys.MULTICAST_DISABLED);
+		mcOpEnablePref.setTrueTitle("Multicast " + TRUE_TITLE_SUFFIX);
+		mcOpEnablePref.setFalseTitle("Multicast " + FALSE_TITLE_SUFFIX);
+		mcOpEnablePref.setOnPreferenceClickListener(sendToPantherPrefsListener);
 
 		// Connection Idle Timeout
 		this.mcConnIdlePref = (MyEditIntegerPreference) this
@@ -189,6 +201,11 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		// Enabled Preference Setup
 		this.rmcOpEnablePref = (MyCheckBoxPreference) this
 				.findPreference(INetPrefKeys.RELIABLE_MULTICAST_DISABLED);
+		rmcOpEnablePref.setTrueTitle("Reliable Multicast " + TRUE_TITLE_SUFFIX);
+		rmcOpEnablePref.setFalseTitle("Reliable Multicast "
+				+ FALSE_TITLE_SUFFIX);
+		rmcOpEnablePref
+				.setOnPreferenceClickListener(sendToPantherPrefsListener);
 
 		// Connection Idle Timeout
 		this.rmcConnIdlePref = (MyEditIntegerPreference) this
@@ -210,6 +227,17 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		 */
 		this.serialOpEnablePref = (MyCheckBoxPreference) this
 				.findPreference(INetPrefKeys.SERIAL_DISABLED);
+		serialOpEnablePref.setTrueTitle("Serial " + TRUE_TITLE_SUFFIX);
+		serialOpEnablePref.setFalseTitle("Serial " + FALSE_TITLE_SUFFIX);
+		serialOpEnablePref.setSummary("Touch me to toggle");
+		serialOpEnablePref
+				.setOnPreferenceClickListener(new OnPreferenceClickListener() {
+					@Override
+					public boolean onPreferenceClick(Preference preference) {
+						serialOpEnablePref.toggle();
+						return true;
+					}
+				});
 
 		this.serialDevicePref = (MyEditTextPreference) this
 				.findPreference(INetPrefKeys.SERIAL_DEVICE);
@@ -312,18 +340,18 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		}
 
 	}
-	
+
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
 	}
-	
+
 	@Override
 	public boolean onKeyDown(int keyCode, KeyEvent event) {
-	    if (keyCode == KeyEvent.KEYCODE_BACK) {
-	        logger.error("back button pressed");
-	    }
-	    return super.onKeyDown(keyCode, event);
+		if (keyCode == KeyEvent.KEYCODE_BACK) {
+			logger.error("back button pressed");
+		}
+		return super.onKeyDown(keyCode, event);
 	}
 
 	// ===========================================================
@@ -344,24 +372,23 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	private void autoSelect(int which) {
 		final PreferenceScreen screen = getPreferenceScreen();
 		final Preference pref;
-		
+
 		switch (which) {
 		case AmmoCore.GATEWAY:
-			pref = screen.findPreference(
-					getResources().getString(R.string.gateway_pref_screen));
+			pref = screen.findPreference(getResources().getString(
+					R.string.gateway_pref_screen));
 			break;
 		case AmmoCore.MULTICAST:
-			pref = screen.findPreference(
-					getResources().getString(R.string.multicast_pref_screen));
+			pref = screen.findPreference(getResources().getString(
+					R.string.multicast_pref_screen));
 			break;
 		case AmmoCore.RELIABLE_MULTICAST:
-			pref = screen.findPreference(
-					getResources().getString(
-							R.string.reliable_multicast_pref_screen));
+			pref = screen.findPreference(getResources().getString(
+					R.string.reliable_multicast_pref_screen));
 			break;
 		case AmmoCore.SERIAL:
-			pref = screen.findPreference(
-					getResources().getString(R.string.serial_pref_screen));
+			pref = screen.findPreference(getResources().getString(
+					R.string.serial_pref_screen));
 			break;
 		default:
 			logger.error("Got invalid preference number in intent");
@@ -370,34 +397,34 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		}
 
 		int pos = searchForPreference(pref, screen.getRootAdapter());
-		
-		if(pos == -1) {
+
+		if (pos == -1) {
 			logger.error("Did not find preference " + pref);
-			Toast.makeText(this, "Preference screen does not exist", Toast.LENGTH_LONG);
+			Toast.makeText(this, "Preference screen does not exist",
+					Toast.LENGTH_LONG);
 			return;
 		}
-		
-		screen.onItemClick(null, null, pos, 0);
-		
-		if(pref instanceof PreferenceScreen) {
-			((PreferenceScreen) pref).getDialog().setOnDismissListener(new OnDismissListener() {
 
-				GeneralPreferences parent = GeneralPreferences.this;
-				
-				@Override
-				public void onDismiss(DialogInterface dialog) {
-					parent.logger.error("Dismiss called");
-					((PreferenceScreen) pref).onDismiss(dialog);
-					parent.onBackPressed();
-				}
-				
-			});
+		screen.onItemClick(null, null, pos, 0);
+
+		if (pref instanceof PreferenceScreen) {
+			((PreferenceScreen) pref).getDialog().setOnDismissListener(
+					new OnDismissListener() {
+
+						GeneralPreferences parent = GeneralPreferences.this;
+
+						@Override
+						public void onDismiss(DialogInterface dialog) {
+							parent.logger.error("Dismiss called");
+							((PreferenceScreen) pref).onDismiss(dialog);
+							parent.onBackPressed();
+						}
+
+					});
 		}
-		
 
 	}
-	
-	
+
 	/**
 	 * Linearly searches for a given preference inside an adapter. Returns the
 	 * index of the preference in the adapter or -1 if it is not found.
@@ -428,8 +455,14 @@ public class GeneralPreferences extends PreferenceActivityEx {
 	// Inner and Anonymous Classes
 	// ===========================================================
 
-	
-	
-	
-	
+	final OnPreferenceClickListener sendToPantherPrefsListener = new OnPreferenceClickListener() {
+		@Override
+		public boolean onPreferenceClick(Preference preference) {
+			startActivity(new Intent()
+					.setComponent(new ComponentName("transapps.settings",
+							"transapps.settings.SettingsActivity")));
+			return true;
+		}
+	};
+
 }

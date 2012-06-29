@@ -63,17 +63,15 @@ public class FileLogViewer extends LogViewerBase {
 					mHandler, filepath, numLines);
 		} catch (FileNotFoundException e) {
 			String errorMsg = "Could not find file: " + filepath;
-			Toast.makeText(this, errorMsg, Toast.LENGTH_LONG);
+			Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
 			logger.error(errorMsg);
 			e.printStackTrace();
-			onBackPressed();
 			return;
 		} catch (IOException e) {
 			String errorMsg = "Error reading from file: " + filepath;
-			Toast.makeText(this, errorMsg, Toast.LENGTH_LONG);
+			Toast.makeText(this, errorMsg, Toast.LENGTH_LONG).show();
 			logger.error(errorMsg);
 			e.printStackTrace();
-			onBackPressed();
 			return;
 		}
 

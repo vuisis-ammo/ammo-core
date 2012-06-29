@@ -534,13 +534,12 @@ public class LoggerEditor extends ListActivity {
 			button.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
 			button.setText(a.getName());
 			button.setOnClickListener(new View.OnClickListener() {
-
 				@Override
 				public void onClick(View v) {
 					Intent intent = new Intent().setClass(LoggerEditor.this,
 							FileLogViewer.class);
 					intent.putExtra(LogViewerBase.EXTRA_NAME,
-							((FileAppender) a).getFile());
+							((FileAppender<ILoggingEvent>) a).getFile());
 					startActivity(intent);
 					dialog.dismiss();
 				}
