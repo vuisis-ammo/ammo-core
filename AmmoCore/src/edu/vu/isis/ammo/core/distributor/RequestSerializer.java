@@ -69,10 +69,27 @@ public class RequestSerializer {
 	private static final Logger logger = LoggerFactory.getLogger("dist.serializer");
 
 	public enum FieldType {
-		NULL(0), BOOL(1), BLOB(2), FLOAT(3),
-		INTEGER(4), LONG(5), TEXT(6), REAL(7),
-		FK(8), GUID(9), EXCLUSIVE(10), INCLUSIVE(11),
-		TIMESTAMP(12);
+		NULL(0), 
+		BOOL(1), 
+		BLOB(2), 
+		FLOAT(3),
+		INTEGER(4), 
+		LONG(5), 
+		TEXT(6), 
+		REAL(7),
+		FK(8), 
+		GUID(9), 
+		EXCLUSIVE(10), 
+		INCLUSIVE(11),
+		TIMESTAMP(12),
+		SHORT(13);
+
+		/**
+		 * The presence of the BLOB_MARKER_FIELD as the first byte in the 
+		 * footer for a blob data section indicates where the blob should 
+		 * be placed in the content provider.
+		 */
+		public static final byte BLOB_MARKER_FIELD = (byte)0xff;
 
 		private final int code;
 
@@ -96,7 +113,7 @@ public class RequestSerializer {
 			return FieldType.codemap.get(code);
 		}
 	}
-	
+
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
 	}
@@ -874,6 +891,10 @@ public class RequestSerializer {
 				// the length should correspondingly be short not long
 				// do the deserialize as well
 				break;
+			case SHORT: {
+				final short shortValue = tupleCursor.getShort(columnIndex);
+				tuple.putShort(shortValue);
+				break; }
 			case BOOL:
 			case INTEGER:
 			case EXCLUSIVE:
@@ -949,6 +970,10 @@ public class RequestSerializer {
 				switch (FieldType.fromCode(type)) {
 				case NULL:
 					//wrap.put(key, null);
+					break;
+				case SHORT:
+					final short shortValue = tuple.getShort();
+					wrap.put(key, shortValue);
 					break;
 				case LONG:
 				case FK:
