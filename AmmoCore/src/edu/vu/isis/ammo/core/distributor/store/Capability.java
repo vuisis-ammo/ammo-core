@@ -62,8 +62,6 @@ public enum Capability {
 		private String topic = "default topic";
 		private String subtopic = null;
 
-		private long lifespan = 10L * 60L * 1000L; // ten minutes
-
 		private Builder() { }
 
 		public Builder origin(String value) {
@@ -82,11 +80,7 @@ public enum Capability {
 			this.subtopic = value;
 			return this;
 		}
-		public Builder lifespan(long value) {
-			this.lifespan = value;
-			return this;
-		}
-
+		
 		public Item buildItem() {
 			final Item item = new Item(this);
 			logger.debug("ctor [{}]", item);
@@ -163,8 +157,7 @@ public enum Capability {
 					this.origin, this);
 			final Capability relation = Capability.INSTANCE;
 			synchronized(relation) {
-				final Long now = Long.valueOf(System.currentTimeMillis());
-
+				
 				final Builder builder = newBuilder()
 						.operator(this.operator)
 						.origin(this.origin)
@@ -175,9 +168,7 @@ public enum Capability {
 
 					if (relation.relMap.containsKey(key)) {
 						final Item item = relation.relMap.get(key);
-					
-						item.latest = now;
-						item.count++;
+					    item.update();
 						PLogger.STORE_CAPABILITY_DML.debug("updated item=[{}]", item);
 						return 1;
 					} else {
@@ -207,8 +198,7 @@ public enum Capability {
 					this.origin, this);
 			final Capability relation = Capability.INSTANCE;
 			synchronized(relation) {
-				final Long now = Long.valueOf(System.currentTimeMillis());
-
+				
 				final Builder builder = newBuilder()
 						.operator(this.operator)
 						.origin(this.origin)
@@ -217,14 +207,12 @@ public enum Capability {
 				try {
 					final Item.Key key = builder.buildKey();
 
-					final Item cap = relation.relMap.get(key);
-					if (cap == null) {
-						PLogger.STORE_CAPABILITY_DML.debug("updated cap=[{}]", 
-								this);
+					final Item item = relation.relMap.get(key);
+					if (item == null) {
+						PLogger.STORE_CAPABILITY_DML.debug("updated cap=[{}]", this);
 						return -1;
 					} 
-					cap.latest = now;
-					cap.count++;
+					item.update();
 				} catch (IllegalArgumentException ex) {
 					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
 				} finally {
@@ -235,7 +223,7 @@ public enum Capability {
 		}
 	}
 
-	public static class Item {
+	public static class Item  extends TemporalItem {
 		/**
 		 *  The tuple identifier 
 		 *  (required)
@@ -318,27 +306,15 @@ public enum Capability {
 		public final Key key;
 
 		public Item(Builder that) {
+			super();
 			this.key = new Key(that);
-
-			this.first = System.currentTimeMillis();
-			this.expiration = that.lifespan;
-
-			this.latest = this.first;
-			this.count = 1;
 		}
-
-		public final long expiration;
-		public final long first;
-		public long latest;
-		public int count;
 
 		@Override 
 		public String toString() {
 			return new StringBuilder().
 					append("key={").append(this.key).append("},").
-					append("first=\"").append(this.first).append("\",").
-					append("latest=\"").append(this.latest).append("\",").
-					append("count=\"").append(this.count).append("\"").
+					append(super.toString()).
 					toString();
 		}
 
@@ -385,10 +361,6 @@ public enum Capability {
 				public Object getValue(final Item item) { return item.key.subtopic; }
 			});
 
-			getters.put(CapabilitySchema.EXPIRATION, new Getter() {
-				@Override
-				public Object getValue(final Item item) { return item.expiration; }
-			});
 			getters.put(CapabilitySchema.FIRST, new Getter() {
 				@Override
 				public Object getValue(final Item item) { return item.first; }
@@ -400,6 +372,15 @@ public enum Capability {
 			getters.put(CapabilitySchema.COUNT, new Getter() {
 				@Override
 				public Object getValue(final Item item) { return item.count; }
+			});
+			
+			getters.put(CapabilitySchema.EXPIRATION, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.getExpiration(); }
+			});
+			getters.put(CapabilitySchema.STATE, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.getState();  }
 			});
 		}
 

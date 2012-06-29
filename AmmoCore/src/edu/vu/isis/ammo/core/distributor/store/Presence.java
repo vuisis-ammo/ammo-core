@@ -59,8 +59,6 @@ public enum Presence {
 		private String origin = "default origin";
 		private String operator = "default operator";
 
-		private long lifespan = 10L * 60L * 1000L; // ten minutes
-
 		private Builder() {}
 
 		public Builder origin(String value) {
@@ -69,10 +67,6 @@ public enum Presence {
 		}
 		public Builder operator(String value) {
 			this.operator = value;
-			return this;
-		}
-		public Builder lifespan(long value) {
-			this.lifespan = value;
 			return this;
 		}
 
@@ -142,8 +136,7 @@ public enum Presence {
 					this.device, this);
 			final Presence relation = Presence.INSTANCE;
 			synchronized(relation) {
-				final Long now = Long.valueOf(System.currentTimeMillis());
-
+				
 				final Builder builder = newBuilder()
 						.operator(this.operator)
 						.origin(this.device);
@@ -152,9 +145,7 @@ public enum Presence {
 
 					if (relation.relMap.containsKey(key)) {
 						final Item item = relation.relMap.get(key);
-					
-						item.latest = now;
-						item.count++;
+					    item.update();
 						PLogger.STORE_PRESENCE_DML.debug("updated item=[{}]", item);
 						return 1;
 					} else {
@@ -183,8 +174,6 @@ public enum Presence {
 					this.device, this);
 			final Presence relation = Presence.INSTANCE;
 			synchronized(relation) {
-				final Long now = Long.valueOf(System.currentTimeMillis());
-
 				final Builder builder = newBuilder()
 						.operator(this.operator)
 						.origin(this.device);
@@ -197,8 +186,8 @@ public enum Presence {
 								this);
 						return -1;
 					} 
-					cap.latest = now;
-					cap.count++;
+					cap.update();
+					
 				} catch (IllegalArgumentException ex) {
 					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
 				} finally {
@@ -210,7 +199,7 @@ public enum Presence {
 	}
 
 
-	public static class Item {
+	public static class Item extends TemporalItem {
 		/**
 		 *  The tuple identifier 
 		 *  (required)
@@ -281,29 +270,17 @@ public enum Presence {
 		public final Key key;
 
 		public Item(Builder that) {
+			super();
 			this.key = new Key(that);
-
-			this.first = System.currentTimeMillis();
-			this.expiration = that.lifespan;
-
-			this.latest = this.first;
-			this.count = 1;
 		}
 
 		@Override 
 		public String toString() {
 			return new StringBuilder().
 					append("key={").append(this.key).append("},").
-					append("first=\"").append(this.first).append("\",").
-					append("latest=\"").append(this.latest).append("\",").
-					append("count=\"").append(this.count).append("\"").
+					append(super.toString()).
 					toString();
 		}
-
-		public final long expiration;
-		public final long first;
-		public long latest;
-		public int count;
 
 		/**
 		 * Rather than using a big switch, this makes use of an EnumMap
@@ -344,10 +321,6 @@ public enum Presence {
 			});
 
 
-			getters.put(PresenceSchema.EXPIRATION, new Getter() {
-				@Override
-				public Object getValue(final Item item) { return item.expiration; }
-			});
 			getters.put(PresenceSchema.FIRST, new Getter() {
 				@Override
 				public Object getValue(final Item item) { return item.first; }
@@ -359,6 +332,15 @@ public enum Presence {
 			getters.put(PresenceSchema.COUNT, new Getter() {
 				@Override
 				public Object getValue(final Item item) { return item.count; }
+			});
+			
+			getters.put(PresenceSchema.EXPIRATION, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.getExpiration(); }
+			});
+			getters.put(PresenceSchema.STATE, new Getter() {
+				@Override
+				public Object getValue(final Item item) { return item.getState();  }
 			});
 		}
 	}
