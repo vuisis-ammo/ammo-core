@@ -111,43 +111,49 @@ an ammo request
             android:textColor="#FFF"
             android:textSize="18dp" />
 
-        <TextView
-            android:id="@+id/topic_label"
-            style="@style/blue_label"
+        <RelativeLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
-            android:layout_below="@+id/dist_capability_view_item_operator"
-            android:text="Topic" />
+            android:layout_below="@+id/dist_capability_view_item_operator" >
 
-        <TextView
-            android:id="@+id/dist_capability_view_item_topic"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_below="@+id/topic_label"
-            android:padding="3dp"
-            android:textColor="#FFF"
-            android:textSize="18dp" />
+            <TextView
+                android:id="@+id/topic_label"
+                style="@style/blue_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Topic" />
 
-        <TextView
-            android:id="@+id/subtopic_label"
-            style="@style/blue_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_below="@+id/dist_capability_view_item_topic"
-            android:text="Subtopic" />
+            <TextView
+                android:id="@+id/dist_capability_view_item_topic"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_below="@id/topic_label"
+                android:padding="3dp"
+                android:textColor="#FFF"
+                android:textSize="18dp" />
 
-        <TextView
-            android:id="@+id/dist_capability_view_item_subtopic"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_below="@+id/subtopic_label"
-            android:padding="3dp"
-            android:textColor="#FFF"
-            android:textSize="18dp" />
+            <TextView
+                android:id="@+id/subtopic_label"
+                style="@style/blue_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentLeft="true"
+                android:layout_below="@+id/dist_capability_view_item_topic"
+                android:text="Subtopic" />
+
+            <TextView
+                android:id="@+id/dist_capability_view_item_subtopic"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_alignParentLeft="true"
+                android:padding="3dp"
+                android:textColor="#FFF"
+                android:textSize="18dp" />
+
+        </RelativeLayout>
 
     </RelativeLayout>
 
