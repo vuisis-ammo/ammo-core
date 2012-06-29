@@ -497,7 +497,7 @@ public class DistributorThread extends Thread {
 			return request.uuid;
 
 		} catch (InterruptedException ex) {
-			logger.error("Exception while distributing request {}", ex);
+			logger.error("Exception while distributing request", ex);
 		}
 		return null;
 	}
@@ -639,7 +639,7 @@ public class DistributorThread extends Thread {
 
 			}
 		} catch (InterruptedException ex) {
-			logger.warn("task interrupted {}", ex);
+			logger.warn("task interrupted", ex);
 		}
 		return;
 	}
@@ -789,7 +789,7 @@ public class DistributorThread extends Thread {
 		try {
 			mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
 		} catch (InvalidProtocolBufferException ex) {
-			logger.error("parsing gateway message {}", ex);
+			logger.error("parsing gateway message", ex);
 			return false;
 		}
 		if (mw == null) {
@@ -838,7 +838,7 @@ public class DistributorThread extends Thread {
 			if (mw.hasSubscribeMessage()) {
 				final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
 				final FullTopic fulltopic = FullTopic.fromType(sm.getMimeType());
-			
+
 				if (sm.hasOriginDevice()) {
 					final String deviceId = sm.getOriginDevice();
 					final String operator = sm.getOriginUser();
@@ -994,8 +994,8 @@ public class DistributorThread extends Thread {
 							.toString(), 
 							new String[] {e.missingTupleUri.getPath(), topic});
 							return null;
-						} catch (NonConformingAmmoContentProvider e) {
-							e.printStackTrace();
+						} catch (NonConformingAmmoContentProvider ex) {
+							logger.error("non-conforming content provider", ex);
 							return null;
 						}
 					}
@@ -1032,7 +1032,7 @@ public class DistributorThread extends Thread {
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed {}", ex);
+			logger.warn("sending to gateway failed", ex);
 		}
 	}
 
@@ -1186,7 +1186,7 @@ public class DistributorThread extends Thread {
 					this.store.updatePostalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("error posting message {}", ex);
+				logger.warn("error posting message", ex);
 			}
 		}
 		pending.close();
@@ -1233,12 +1233,12 @@ public class DistributorThread extends Thread {
 							.setUserId(ammoService.getOperatorId())
 							.setOriginDevice(ammoService.getDeviceId())
 							.setData(ByteString.copyFrom(serialized));
-					
+
 					final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
 							.setDeviceDelivered(notice.atDeviceDelivered.via.isActive())
 							.setAndroidPluginReceived(notice.atGatewayDelivered.via.isActive())
 							.setPluginDelivered(notice.atPluginDelivered.via.isActive());
-					
+
 					pushReq.setThresholds(noticeBuilder);
 
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
@@ -1450,7 +1450,7 @@ public class DistributorThread extends Thread {
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed {}", ex);
+			logger.warn("sending to gateway failed", ex);
 		}
 	}
 
@@ -1547,7 +1547,7 @@ public class DistributorThread extends Thread {
 					this.store.updateRetrievalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("NullPointerException, sending to gateway failed {}", ex);
+				logger.warn("sending to gateway failed", ex);
 			}
 		}
 		pending.close();
@@ -1606,7 +1606,7 @@ public class DistributorThread extends Thread {
 			});
 			return dispersal.multiplexRequest(that, serializer);
 		} catch (com.google.protobuf.UninitializedMessageException ex) {
-			logger.warn("Failed to marshal the message: {}", ex);
+			logger.warn("Failed to marshal the message", ex);
 		}
 		return dispersal;
 
@@ -1729,7 +1729,7 @@ public class DistributorThread extends Thread {
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed {}", ex);
+			logger.warn("sending to gateway failed", ex);
 		}
 	}
 
@@ -1832,7 +1832,7 @@ public class DistributorThread extends Thread {
 					this.store.updateSubscribeByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("NullPointerException, sending to gateway failed {}", ex);
+				logger.warn("sending to gateway failed", ex);
 			}
 		}
 		pending.close();
