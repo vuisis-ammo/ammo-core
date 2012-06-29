@@ -273,10 +273,7 @@ public enum Capability {
 				this.subtopic = that.subtopic;
 
 				int hc = 17;
-				/* don't include id in hash code
-				hc *= 31;
-				hc += ((int) (this.id ^ (this.id >>> 32)));
-				 */
+				/* don't include id in hash code */
 				hc *= 31;
 				if (this.origin != null) {
 					hc += this.origin.hashCode();
@@ -300,7 +297,6 @@ public enum Capability {
 			public boolean equals(Object o) {
 				if (!(o instanceof Key)) return false;
 				final Key that = (Key) o;
-				if (this.id != that.id) return false;
 				if (! TextUtils.equals(this.origin, that.origin)) return false;
 				if (! TextUtils.equals(this.operator, that.operator)) return false;
 				if (! TextUtils.equals(this.topic, that.topic)) return false;

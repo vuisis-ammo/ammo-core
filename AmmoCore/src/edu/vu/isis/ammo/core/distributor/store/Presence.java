@@ -263,7 +263,6 @@ public enum Presence {
 			public boolean equals(Object o) {
 				if (!(o instanceof Key)) return false;
 				final Key that = (Key) o;
-				if (this.id != that.id) return false;
 				if (! TextUtils.equals(this.origin, that.origin)) return false;
 				if (! TextUtils.equals(this.operator, that.operator)) return false;
 				return true;
