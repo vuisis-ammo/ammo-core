@@ -143,4 +143,20 @@ Such that if the prior channel succeeds the next channel is not attempted.
 		</routing>
 	</topic>
 
+	<topic type="ammo/transapps.pli.locations">
+		<description>
+PLI to:
+-          Serial channel first (terse encoding),
+-          Multicast channel next,
+-          Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
+		</description>
+		<routing priority="normal">
+			<clause>
+				<literal term="serial" condition="success" encoding="terse" />
+				<literal term="multicast" condition="success" encoding="json" />
+				<literal term="gateway" condition="success" encoding="json" />
+			</clause>
+		</routing>
+	</topic>
 </policy>

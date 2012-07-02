@@ -38,6 +38,12 @@ public class AmmoMimeTypes {
         mimeTypes.put( 4, "ammo/transapps.chat.message_groupAll" );
         mimeIds.put( "ammo/transapps.chat.message_groupAll", 4 );
         
+        mimeTypes.put( 5, "ammo/transapps.pli.locations" );
+        mimeIds.put( "ammo/transapps.pli.locations", 5 );
+
+        mimeTypes.put( 6, "ammo/transapps.pli.group_locations" );
+        mimeIds.put( "ammo/transapps.pli.group_locations", 6 );
+
         // NO blob, no media
         // mimeTypes.put( 4, "ammo/edu.vu.isis.ammo.dash.media" );
         // mimeIds.put( "ammo/edu.vu.isis.ammo.dash.media", 4 );
