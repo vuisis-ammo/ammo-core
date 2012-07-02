@@ -139,24 +139,21 @@ public class AmmoCore extends ActivityEx {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
-				Intent intent = new Intent().setClass(AmmoCore.this,
-						GeneralPreferences.class);
-				int value;
+				Intent intent = new Intent();
 				Channel selectedChannel = channelAdapter.getItem(position);
 				if (selectedChannel instanceof Gateway) {
-					value = GATEWAY;
+					intent.setClass(AmmoCore.this, GatewayPreferences.class);
 				} else if (selectedChannel instanceof Serial) {
-					value = SERIAL;
+					intent.setClass(AmmoCore.this, SerialPreferences.class);
 				} else if (selectedChannel instanceof ReliableMulticast) {
-					value = RELIABLE_MULTICAST;
+					intent.setClass(AmmoCore.this, ReliableMulticastPreferences.class);
 				} else if (selectedChannel instanceof Multicast) {
-					value = MULTICAST;
+					intent.setClass(AmmoCore.this, MulticastPreferences.class);
 				} else {
 					Toast.makeText(AmmoCore.this, "Did not recognize channel",
 							Toast.LENGTH_SHORT).show();
 					return;
 				}
-				intent.putExtra(PREF_KEY, value);
 				AmmoCore.this.startActivity(intent);
 			}
 
@@ -291,9 +288,7 @@ public class AmmoCore extends ActivityEx {
 		startActivity(new Intent().setClass(this, DistributorTabActivity.class));
 	}
 
-	public void generalOptionsClick(View v) {
-		startActivity(new Intent().setClass(this, GeneralPreferences.class));
-	}
+	
 
 	public void debugModeClick(View v) {
 		Toast.makeText(this, "Debugging tools are not yet available",

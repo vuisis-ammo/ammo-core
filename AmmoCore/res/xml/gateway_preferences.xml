@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/preferences_layout"
+    android:key="@string/gateway_pref_screen"
+    android:title="Gateway Preferences" >
+
+    <edu.vu.isis.ammo.core.MyCheckBoxPreference
+        android:name="Suppress Channel"
+        android:defaultValue="false"
+        android:key="@string/network_gw_disable"
+        android:title="Disable"
+        android:widgetLayout="@layout/cb_supress" />
+
+    <edu.vu.isis.ammo.core.MyEditTextPreference
+        android:name="IP Address"
+        android:defaultValue="129.59.129.191"
+        android:inputType="phone"
+        android:key="@string/network_gw_host"
+        android:title="IP Address" />
+
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Port"
+        android:defaultValue="33289"
+        android:inputType="number"
+        android:key="@string/network_gw_port"
+        android:title="Port" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Network Connection Timeout (s)"
+        android:defaultValue="1000"
+        android:inputType="number"
+        android:key="@string/network_gw_timeout_flat_line"
+        android:title="Network Connection Timeout (s)" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Connection Idle Timeout (s)"
+        android:defaultValue="3000"
+        android:inputType="number"
+        android:key="@string/network_gw_timeout_connect"
+        android:title="Connection Idle Timeout (s)" />
+
+</PreferenceScreen>

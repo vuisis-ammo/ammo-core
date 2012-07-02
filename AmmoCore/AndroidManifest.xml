@@ -52,7 +52,10 @@
 		<activity android:name=".ui.DeliveryStatus" />
 		<activity android:name=".ui.SubscriptionStatus" />
 		<activity android:name=".ui.Subscribe" />
-		<activity android:name=".ui.GeneralPreferences" />
+		<activity android:name=".ui.GatewayPreferences" />
+		<activity android:name=".ui.SerialPreferences" />
+		<activity android:name=".ui.MulticastPreferences" />
+		<activity android:name=".ui.ReliableMulticastPreferences" />
 		<activity android:name=".ui.AboutActivity" />
 		<activity android:name="edu.vu.isis.logger.ui.LoggerEditor" />
 		<activity android:name="edu.vu.isis.logger.ui.AppenderSelector" />
