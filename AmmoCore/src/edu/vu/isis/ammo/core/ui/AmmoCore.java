@@ -35,7 +35,9 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.R;
@@ -87,6 +89,7 @@ public class AmmoCore extends ActivityEx {
 	// Views
 	// ===========================================================
 
+	private TextView operatorTv;
 	private ChannelListView channelList = null;
 	private ListView netlinkList = null;
 
@@ -105,7 +108,9 @@ public class AmmoCore extends ActivityEx {
 			final AmmoService.DistributorServiceAidl binder = (AmmoService.DistributorServiceAidl) service;
 			parent.networkServiceBinder = binder.getService();
 			initializeGatewayAdapter();
-			initializeNetlinkAdapter();
+			
+			// Netlink Adapter is disabled for now (doesn't work)
+//			initializeNetlinkAdapter();
 		}
 
 		public void onServiceDisconnected(ComponentName name) {
@@ -176,6 +181,7 @@ public class AmmoCore extends ActivityEx {
 		super.onCreate(savedInstanceState);
 		logger.trace("::onCreate");
 		this.setContentView(R.layout.ammo_activity);
+		operatorTv = (TextView) findViewById(R.id.operator_id_tv);
 
 		// Get a reference to the AmmoService.
 		final Intent networkServiceIntent = new Intent(this, AmmoService.class);
@@ -212,7 +218,7 @@ public class AmmoCore extends ActivityEx {
 	public void onStart() {
 		super.onStart();
 		logger.trace("::onStart");
-
+		operatorTv = (TextView) findViewById(R.id.operator_id_tv_ref);
 		// reset all rows
 		if (channelList != null) {
 			for (int ix = 0; ix < channelList.getChildCount(); ix++) {
@@ -232,6 +238,13 @@ public class AmmoCore extends ActivityEx {
 			channelAdapter.notifyDataSetChanged();
 		if (netlinkAdapter != null)
 			netlinkAdapter.notifyDataSetChanged();
+	}
+	
+	@Override
+	public void onResume() {
+		super.onResume();
+		String operatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, "operator");
+		operatorTv.setText("Operator ID: " + operatorId);
 	}
 
 	@Override
@@ -317,6 +330,12 @@ public class AmmoCore extends ActivityEx {
 
 	public void helpClick(View v) {
 		startActivity(new Intent().setClass(this, AboutActivity.class));
+	}
+	
+	public void operatorIdClick(View v) {
+		startActivity(new Intent()
+		.setComponent(new ComponentName("transapps.settings",
+				"transapps.settings.SettingsActivity")));
 	}
 	
 }

@@ -3,63 +3,8 @@
     android:id="@+id/level_linearlayout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:baselineAligned="false" >
-
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="50"
-        android:orientation="vertical" >
-
-        <Button
-            android:id="@+id/trace_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="onTraceButtonClick"
-            android:text="@string/trace_text_name" />
-
-        <Button
-            android:id="@+id/debug_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="onDebugButtonClick"
-            android:text="@string/debug_text_name" />
-
-        <Button
-            android:id="@+id/info_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="onInfoButtonClick"
-            android:text="@string/info_text_name" />
-
-        <Button
-            android:id="@+id/warn_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="onWarnButtonClick"
-            android:text="@string/warn_text_name" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="50"
-        android:orientation="vertical" >
-
-        <Button
-            android:id="@+id/error_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="onErrorButtonClick"
-            android:text="@string/error_text_name" />
-
-        <Button
-            android:id="@+id/off_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:onClick="onOffButtonClick"
-            android:text="@string/off_text_name" />
 
         <Button
             android:id="@+id/clear_button"
@@ -67,6 +12,46 @@
             android:layout_height="wrap_content"
             android:onClick="onClearButtonClick"
             android:text="@string/clear_text_name" />
-    </LinearLayout>
+        
+        <Button
+            android:id="@+id/off_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onOffButtonClick"
+            android:text="@string/off_text_name" />
+        
+        <Button
+            android:id="@+id/error_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onErrorButtonClick"
+            android:text="@string/error_text_name" />
+        
+        <Button
+            android:id="@+id/warn_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onWarnButtonClick"
+            android:text="@string/warn_text_name" />
+        <Button
+            android:id="@+id/info_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onInfoButtonClick"
+            android:text="@string/info_text_name" />
+        
+        <Button
+            android:id="@+id/debug_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onDebugButtonClick"
+            android:text="@string/debug_text_name" />
+        
+        <Button
+            android:id="@+id/trace_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:onClick="onTraceButtonClick"
+            android:text="@string/trace_text_name" />
 
 </LinearLayout>

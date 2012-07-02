@@ -112,6 +112,9 @@ public class LoggerEditor extends ListActivity {
 			 * Determine if appenders match the parent. Additivity is used as
 			 * the "effective v. actual" indicator.
 			 */
+			
+			// We leave the root logger alone
+			if(selectedLogger == Loggers.ROOT_LOGGER) return;
 
 			if (Loggers.hasSameAppendersAsParent(selectedLogger)) {
 				selectedLogger.setAdditive(true);
@@ -536,12 +539,17 @@ public class LoggerEditor extends ListActivity {
 			button.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View v) {
-					Intent intent = new Intent().setClass(LoggerEditor.this,
-							FileLogViewer.class);
-					intent.putExtra(LogViewerBase.EXTRA_NAME,
-							((FileAppender<ILoggingEvent>) a).getFile());
-					startActivity(intent);
-					dialog.dismiss();
+					
+					//TODO: Remove this toast once file reading works
+					Toast.makeText(LoggerEditor.this, "File reading is not yet available", Toast.LENGTH_LONG).show();
+					return;
+					
+//					Intent intent = new Intent().setClass(LoggerEditor.this,
+//							FileLogViewer.class);
+//					intent.putExtra(LogViewerBase.EXTRA_NAME,
+//							((FileAppender<ILoggingEvent>) a).getFile());
+//					startActivity(intent);
+//					dialog.dismiss();
 				}
 			});
 			ll.addView(button);

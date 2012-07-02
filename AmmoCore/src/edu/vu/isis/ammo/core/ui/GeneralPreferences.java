@@ -231,7 +231,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 				.findPreference(INetPrefKeys.SERIAL_DISABLED);
 		this.serialOpEnablePref.setTrueTitle("Serial " + TRUE_TITLE_SUFFIX);
 		this.serialOpEnablePref.setFalseTitle("Serial " + FALSE_TITLE_SUFFIX);
-		this.serialOpEnablePref.setSummary("Touch me to toggle");
+		this.serialOpEnablePref.setSummary("Tap to toggle");
 		this.serialOpEnablePref
 				.setOnPreferenceClickListener(new OnPreferenceClickListener() {
 					@Override

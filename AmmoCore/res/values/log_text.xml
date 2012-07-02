@@ -17,7 +17,7 @@
     
     <!-- Other log level option names -->
     <string name="off_text_name">Off</string>
-    <string name="clear_text_name">Clear</string>
+    <string name="clear_text_name">Default</string>
     <string name="none_text_name">None</string>
     <color name="none_text_color">#FFFFFF</color>
     <color name="trace_text_color">#42C0FF</color>
