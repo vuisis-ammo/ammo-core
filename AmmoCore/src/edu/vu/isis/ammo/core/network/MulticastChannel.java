@@ -272,10 +272,8 @@ public class MulticastChannel extends NetChannel
 					this.connectorThread.state.value,
 					senderState,
 					receiverState );
-		} catch ( Exception e ) {
-			logger.error( "Exception thrown in statusChange() {} \n {}",
-					e.getLocalizedMessage(),
-					e.getStackTrace());
+		} catch ( Exception ex ) {
+			logger.error( "Exception thrown in statusChange()", ex);
 		}
 	}
 
@@ -636,7 +634,7 @@ public class MulticastChannel extends NetChannel
 						}
 						this.parent.statusChange();
 					} catch (InterruptedException ex) {
-						logger.warn("sleep interrupted - intentional disable, exiting thread ... {}", ex);
+						logger.warn("sleep interrupted - intentional disable, exiting thread...", ex);
 						this.reset();
 						break MAINTAIN_CONNECTION;
 					}
@@ -674,7 +672,7 @@ public class MulticastChannel extends NetChannel
 							}
 							this.parent.statusChange();
 						} catch (InterruptedException ex) {
-							logger.warn("sleep interrupted - intentional disable, exiting thread ...{}", ex);
+							logger.warn("sleep interrupted - intentional disable, exiting thread...", ex);
 							this.reset();
 							break MAINTAIN_CONNECTION;
 						}
@@ -682,7 +680,7 @@ public class MulticastChannel extends NetChannel
 				}
 
 			} catch (Exception ex) {
-				logger.error("failed to run multicast {}", ex.getLocalizedMessage());
+				logger.error("failed to run multicast", ex);
 				this.state.set(NetChannel.EXCEPTION);
 			}
 			try {
@@ -885,7 +883,8 @@ public class MulticastChannel extends NetChannel
 			logger.info( "putFromDistributor() in ChannelQueue size={}", mDistQueue.size() );
 			try {
 				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
-					logger.warn("multicast channel not taking messages {} {}", DisposalState.BUSY, mDistQueue.size() );
+					logger.warn("multicast channel not taking messages {} {}", 
+                          DisposalState.BUSY, mDistQueue.size() );
 					return DisposalState.BUSY;
 				}
 			} catch (InterruptedException e) {
@@ -1019,8 +1018,7 @@ public class MulticastChannel extends NetChannel
 				}
 				catch ( InterruptedException ex )
 				{
-					logger.error( "interrupted taking messages from send queue: {}",
-							ex.getLocalizedMessage() );
+					logger.error( "interrupted taking messages from send queue", ex);
 					setSenderState( INetChannel.INTERRUPTED );
 					mParent.socketOperationFailed();
 					break;
@@ -1028,7 +1026,7 @@ public class MulticastChannel extends NetChannel
 				catch ( Exception e )
 				{
 					e.printStackTrace();
-					logger.error("sender threw exception while take()ing {}", e.getStackTrace());
+					logger.error("sender threw exception while take()ing", e);
 					setSenderState( INetChannel.INTERRUPTED );
 					mParent.socketOperationFailed();
 					break;
@@ -1067,16 +1065,16 @@ public class MulticastChannel extends NetChannel
 				}
 				catch ( SocketException ex )
 				{
-					logger.debug( "sender caught SocketException" );
+					logger.debug( "sender caught SocketException");
 					if ( msg.handler != null )
 						mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
 					setSenderState( INetChannel.INTERRUPTED );
 					mParent.socketOperationFailed();
 					break;
 				}
-				catch ( Exception e )
+				catch ( Exception ex )
 				{
-					logger.warn("sender threw exception {}", e.getStackTrace() );
+					logger.warn("sender threw exception", ex );
 					if ( msg.handler != null )
 						mChannel.ackToHandler( msg.handler, DisposalState.BAD );
 					setSenderState( INetChannel.INTERRUPTED );
@@ -1183,13 +1181,13 @@ public class MulticastChannel extends NetChannel
 				}
 				catch ( ClosedChannelException ex )
 				{
-					logger.warn( "receiver threw ClosedChannelException {}", ex);
+					logger.warn( "receiver threw ClosedChannelException", ex);
 					setReceiverState( INetChannel.INTERRUPTED );
 					mParent.socketOperationFailed();
 				}
 				catch ( Exception ex )
 				{
-					logger.warn( "receiver threw exception {}", ex);
+					logger.warn( "receiver threw exception", ex);
 					setReceiverState( INetChannel.INTERRUPTED );
 					mParent.socketOperationFailed();
 				}
@@ -1239,7 +1237,7 @@ public class MulticastChannel extends NetChannel
 		}
 		catch (SocketException ex)
 		{
-			logger.error( ex.toString());
+			logger.error( "opening socket", ex);
 		}
 
 		return addresses;

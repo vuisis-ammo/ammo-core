@@ -155,7 +155,7 @@ public enum Presence {
 						return 1;
 					} 
 				} catch (IllegalArgumentException ex) {
-					logger.error("update presence: ex=[{}]", ex.getLocalizedMessage());
+					logger.error("update presence", ex);
 				} finally {
 					// this.db.endTransaction();
 				}
@@ -189,7 +189,7 @@ public enum Presence {
 					cap.update();
 					
 				} catch (IllegalArgumentException ex) {
-					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
+					logger.error("update presence", ex);
 				} finally {
 					// this.db.endTransaction();
 				}

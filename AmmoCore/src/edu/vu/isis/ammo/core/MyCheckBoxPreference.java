@@ -19,9 +19,8 @@ import android.preference.Preference.OnPreferenceClickListener;
 import android.util.AttributeSet;
 
 /**
- * This is a checkbox widget that can be used in the preferences screen of
- * AmmoCore.
- * 
+ * This is a checkbox widget that can be used 
+ * in the preferences screen of AmmoCore. 
  * @author demetri
  * 
  */

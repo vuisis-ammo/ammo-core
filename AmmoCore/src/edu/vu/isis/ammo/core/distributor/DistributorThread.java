@@ -605,7 +605,7 @@ public class DistributorThread extends Thread {
 
 							this.doChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
-							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
+							logger.error("channel ack queue contains illegal item of class", ex);
 						}
 					}
 
@@ -618,7 +618,7 @@ public class DistributorThread extends Thread {
 							logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
 							this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
-							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
+							logger.error("response queue contains illegal item of class", ex);
 						}
 					}
 
@@ -631,7 +631,7 @@ public class DistributorThread extends Thread {
 
 							this.doRequest(ammoService, ar);
 						} catch (ClassCastException ex) {
-							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
+							logger.error("request queue contains illegal item of class", ex);
 						}
 					}
 				}
@@ -982,8 +982,8 @@ public class DistributorThread extends Thread {
 								logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
 							}
 							return result;
-						} catch (IOException e1) {
-							logger.error("invalid row for serialization", e1);
+						} catch (IOException ex) {
+							logger.error("invalid row for serialization", ex);
 							return null;
 						} catch (TupleNotFoundException e) {
 							logger.error("tuple not found when processing postal table");

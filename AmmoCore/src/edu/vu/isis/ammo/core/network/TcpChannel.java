@@ -258,9 +258,7 @@ public class TcpChannel extends NetChannel {
                                           senderState,
                                           receiverState );
         } catch ( Exception ex ) {
-            logger.error( "Exception thrown in statusChange() {} \n {}",
-                          ex.getLocalizedMessage(),
-                          ex.getStackTrace());
+            logger.error( "Exception thrown in statusChange()", ex);
         }
 	}
 
@@ -694,7 +692,7 @@ public class TcpChannel extends NetChannel {
 
             } catch (Exception ex) {
                 this.state.setUnlessDisabled(NetChannel.EXCEPTION);
-                logger.error("channel exception {} \n {}", ex.getLocalizedMessage(), ex.getStackTrace());
+                logger.error("channel exception", ex);
             }
             try {
                 if (this.parent.socket == null) {
@@ -703,7 +701,7 @@ public class TcpChannel extends NetChannel {
                 }
                 this.parent.socket.close();
             } catch (IOException ex) {
-                logger.error("channel closing without proper socket {}", ex);
+                logger.error("channel closing without proper socket", ex);
             }
             logger.error("channel closing");
         }
@@ -739,25 +737,21 @@ public class TcpChannel extends NetChannel {
                     boolean result = parent.mSocketChannel.finishConnect();
             }
             catch ( AsynchronousCloseException ex ) {
-                logger.warn( "connection to {}:{} {} async close failure: {}",
-                             new Object[]{ipaddr, port, 
-                                          ex.getLocalizedMessage()});
+                logger.warn( "connection to {}:{} async close failure",
+                             new Object[]{ipaddr, port}, ex);
                 parent.mSocketChannel = null;
                 return false;
             }
             catch ( ClosedChannelException ex ) {
-                logger.warn( "connection to {}:{} {} closed channel failure: {}",
-                             new Object[]{ipaddr, port, 
-                                          ex.getLocalizedMessage()});
+                logger.warn( "connection to {}:{} closed channel failure",
+                		new Object[]{ipaddr, port}, ex);
                 parent.mSocketChannel = null;
                 return false;
             }
-            catch ( Exception e )
+            catch ( Exception ex )
             {
-                logger.warn( "connection to {}:{} {} failed: {}",
-                             new Object[]{ipaddr, port, 
-                                          e.getClass().getName(),
-                                          e.getLocalizedMessage()});
+                logger.warn( "connection to {}:{} failed",
+                		new Object[]{ipaddr, port}, ex);
                 parent.mSocketChannel = null;
                 return false;
             }
@@ -1036,8 +1030,7 @@ public class TcpChannel extends NetChannel {
                 }
                 catch ( InterruptedException ex )
                 {
-                    logger.debug( "interrupted taking messages from send queue: {}",
-                                  ex.getLocalizedMessage() );
+                    logger.debug( "interrupted taking messages from send queue", ex );
                     setSenderState( INetChannel.INTERRUPTED );
                     break;
                 }
@@ -1059,7 +1052,7 @@ public class TcpChannel extends NetChannel {
                 }
                 catch ( Exception ex )
                 {
-                    logger.warn("sender threw exception {}", ex);
+                    logger.warn("sender threw exception", ex);
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
                     setSenderState( INetChannel.INTERRUPTED );
@@ -1189,11 +1182,11 @@ public class TcpChannel extends NetChannel {
                     bbuf.compact();
 
                 } catch (ClosedChannelException ex) {
-                    logger.warn("receiver threw exception {}", ex);
+                    logger.warn("receiver threw exception", ex);
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 } catch ( Exception ex ) {
-                    logger.warn("receiver threw exception {}", ex);
+                    logger.warn("receiver threw exception", ex);
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
@@ -1241,7 +1234,7 @@ public class TcpChannel extends NetChannel {
                 }
             }
         } catch (SocketException ex) {
-            logger.error( ex.toString());
+            logger.error( "get local IP address", ex);
         }
         return null;
     }

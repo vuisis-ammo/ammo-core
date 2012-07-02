@@ -179,7 +179,7 @@ public enum Capability {
 					} 
 					
 				} catch (IllegalArgumentException ex) {
-					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
+					logger.error("update capablity", ex);
 				} finally {
 					// this.db.endTransaction();
 				}
@@ -214,7 +214,7 @@ public enum Capability {
 					} 
 					item.update();
 				} catch (IllegalArgumentException ex) {
-					logger.error("update capablity: ex=[{}]", ex.getLocalizedMessage());
+					logger.error("update capablity", ex);
 				} finally {
 					// this.db.endTransaction();
 				}

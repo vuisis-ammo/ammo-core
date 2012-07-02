@@ -957,10 +957,13 @@ public class DistributorDataStore {
 	// ===========================================================
 	// Methods
 	// ===========================================================
-
+    /**
+     * Use Relations.NAME - to create mounted database.
+     * Use of null for the name causes an in memory database.
+     */
 	public DistributorDataStore(Context context) {
 		this.context = context;
-		this.helper = new DataStoreHelper(this.context, null, null, VERSION); // Relations.NAME - to create in memory database
+		this.helper = new DataStoreHelper(this.context, null, null, VERSION);
 
 		// ========= INITIALIZE CONSTANTS ========
 		this.applDir = context.getDir("support", Context.MODE_PRIVATE);
@@ -1050,7 +1053,7 @@ public class DistributorDataStore {
 		try {
 			return db.rawQuery(POSTAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
+			logger.error("sql error", ex);
 		}
 		return null;
 	}
@@ -1130,7 +1133,7 @@ public class DistributorDataStore {
 			logger.trace("retrieval ready {}", RETRIEVAL_STATUS_QUERY);
 			return db.rawQuery(RETRIEVAL_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
+			logger.error("sql error", ex);
 		}
 		return null;
 	}
@@ -1206,7 +1209,7 @@ public class DistributorDataStore {
 		try {
 			return this.db.rawQuery(SUBSCRIBE_STATUS_QUERY, null);
 		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
+			logger.error("sql error", ex);
 		}
 		return null;
 	}
@@ -1268,7 +1271,7 @@ public class DistributorDataStore {
 			logger.trace("disposal ready {} {} {}", new Object[]{DISPOSAL_STATUS_QUERY, type, parent} );
 			return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[]{String.valueOf(type), String.valueOf(parent)});
 		} catch(SQLiteException ex) {
-			logger.error("sql error {}", ex.getLocalizedMessage());
+			logger.error("sql error", ex);
 		}
 		return null;
 	}
@@ -1816,9 +1819,9 @@ public class DistributorDataStore {
 			logger.trace("Postal garbage {} {}", expireCount, disposalCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+			logger.error("deletePostalGarbage", ex);
 		} catch (SQLiteException ex) {
-			logger.error("deletePostalGarbage {}", ex.getLocalizedMessage());
+			logger.error("deletePostalGarbage", ex);
 		}
 		return 0;
 	}
@@ -1867,9 +1870,9 @@ public class DistributorDataStore {
 			logger.trace("Retrieval garbage {} {}", expireCount, disposalCount);
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
+			logger.error("deleteRetrievalGarbage", ex);
 		} catch (SQLiteException ex) {
-			logger.error("deleteRetrievalGarbage {}", ex.getLocalizedMessage());
+			logger.error("deleteRetrievalGarbage", ex);
 		}
 
 		return 0;
@@ -1935,9 +1938,9 @@ public class DistributorDataStore {
 					new Object[] {expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION} );
 			return expireCount;
 		} catch (IllegalArgumentException ex) {
-			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
+			logger.error("deleteSubscribeGarbage", ex);
 		} catch (SQLiteException ex) {
-			logger.error("deleteSubscribeGarbage {}", ex.getLocalizedMessage());
+			logger.error("deleteSubscribeGarbage", ex);
 		}
 		return 0;
 	}
@@ -2195,13 +2198,13 @@ public class DistributorDataStore {
 				return super.getWritableDatabase();
 
 			} catch (SQLiteDiskIOException ex) {
-				logger.error("corrupted database {}", ex.getLocalizedMessage());
+				logger.error("corrupted database", ex);
 			}
 			try {
 				this.archive();
 				return super.getReadableDatabase();
 			} catch (SQLiteException ex) {
-				logger.error("unrecoverablly corrupted database {}", ex.getLocalizedMessage());
+				logger.error("unrecoverablly corrupted database", ex);
 			}
 			return null;
 		}
@@ -2211,13 +2214,13 @@ public class DistributorDataStore {
 			try {
 				return super.getReadableDatabase();
 			} catch (SQLiteDiskIOException ex) {
-				logger.error("corrupted database {}", ex.getLocalizedMessage());		
+				logger.error("corrupted database", ex);		
 			}
 			try {
 				this.archive();
 				return super.getReadableDatabase();
 			} catch (SQLiteException ex) {
-				logger.error("unrecoverablly corrupted database {}", ex.getLocalizedMessage());
+				logger.error("unrecoverablly corrupted database", ex);
 			}
 			return null;
 		}
@@ -2229,7 +2232,7 @@ public class DistributorDataStore {
 				try {
 					db.execSQL(RelationsHelper.sqlDrop(table).toString());
 				} catch (SQLiteException ex) {
-					logger.warn("defective database being dropped {}", ex.getLocalizedMessage());
+					logger.warn("defective database being dropped", ex);
 				}
 			}
 		}
