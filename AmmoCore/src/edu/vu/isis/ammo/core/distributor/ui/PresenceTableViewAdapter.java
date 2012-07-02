@@ -61,7 +61,7 @@ public class PresenceTableViewAdapter extends DistributorTableViewAdapter
 			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.OPERATOR.field)));
 		}
 		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_operator);
+			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_state);
 			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.STATE.field)));
 		}
 	}

@@ -738,20 +738,20 @@ public class TcpChannel extends NetChannel {
             }
             catch ( AsynchronousCloseException ex ) {
                 logger.warn( "connection to {}:{} async close failure",
-                             ipaddr, port, ex);
+                             new Object[]{ipaddr, port}, ex);
                 parent.mSocketChannel = null;
                 return false;
             }
             catch ( ClosedChannelException ex ) {
                 logger.warn( "connection to {}:{} closed channel failure",
-                             ipaddr, port, ex);
+                		new Object[]{ipaddr, port}, ex);
                 parent.mSocketChannel = null;
                 return false;
             }
             catch ( Exception ex )
             {
                 logger.warn( "connection to {}:{} failed",
-                             ipaddr, port, ex);
+                		new Object[]{ipaddr, port}, ex);
                 parent.mSocketChannel = null;
                 return false;
             }

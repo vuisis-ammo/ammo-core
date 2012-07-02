@@ -1382,7 +1382,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		try {
 			mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
 		} catch (InvalidProtocolBufferException ex) {
-			logger.error("parsing payload failed {}", ex.getLocalizedMessage());
+			logger.error("parsing payload failed", ex);
 			return;
 		}
 		if (mw == null) {

@@ -1013,13 +1013,13 @@ public class SerialChannel extends NetChannel
                                 // since the send call is not true synchronous
                                 thisSlotConsumed += (peekedMsgLength / bytesPerMs);
                             } catch ( IOException e ) {
-                                logger.warn("sender threw exception {}", e.getStackTrace() );
+                                logger.warn("sender threw exception", e );
                                 if ( msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.REJECTED );
                                 setSenderState( INetChannel.INTERRUPTED );
                                 ioOperationFailed();
                             } catch ( Exception e ) {
-                                logger.warn("sender threw exception {}", e.getStackTrace() );
+                                logger.warn("sender threw exception", e );
                                 if ( msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.BAD );
                                 setSenderState( INetChannel.INTERRUPTED );

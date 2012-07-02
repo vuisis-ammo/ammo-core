@@ -771,8 +771,8 @@ public class ReliableMulticastChannel extends NetChannel
             catch ( Exception ex )
             {
                 logger.warn( "connection to {}:{} failed: ",
-                             parent.mMulticastGroup,
-                             parent.mMulticastPort, ex);
+                             new Object[]{ parent.mMulticastGroup, parent.mMulticastPort}, 
+                             ex);
                 parent.mJGroupChannel = null;
                 return false;
             }

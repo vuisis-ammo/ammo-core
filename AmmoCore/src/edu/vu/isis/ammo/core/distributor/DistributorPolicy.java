@@ -111,13 +111,13 @@ public class DistributorPolicy implements ContentHandler {
 				inputStream = am.open(policy_file);	
 
 			} catch (NotFoundException ex) {
-				logger.error("asset not available {}", ex.getMessage());
+				logger.error("asset not available", ex);
 				return null;
 			} catch (FileNotFoundException ex) {
-				logger.error("file not available {}", ex.getMessage());
+				logger.error("file not available", ex);
 				return null;
 			} catch (IOException ex) {
-				logger.error("file not writable {}", ex.getMessage());
+				logger.error("file not writable", ex);
 				return null;
 			}
 		}

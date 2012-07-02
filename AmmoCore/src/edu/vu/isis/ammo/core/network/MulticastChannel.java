@@ -272,10 +272,8 @@ public class MulticastChannel extends NetChannel
 					this.connectorThread.state.value,
 					senderState,
 					receiverState );
-		} catch ( Exception e ) {
-			logger.error( "Exception thrown in statusChange() {} \n {}",
-					e.getLocalizedMessage(),
-					e.getStackTrace());
+		} catch ( Exception ex ) {
+			logger.error( "Exception thrown in statusChange()", ex);
 		}
 	}
 

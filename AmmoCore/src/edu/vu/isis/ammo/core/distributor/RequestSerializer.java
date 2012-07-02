@@ -408,7 +408,7 @@ public class RequestSerializer {
 		try {
 			tupleCursor = resolver.query(serialUri, null, null, null, null);
 		} catch(IllegalArgumentException ex) {
-			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+			logger.warn("unknown content provider", ex);
 			return null;
 		}
 		if (tupleCursor == null) {
@@ -510,7 +510,7 @@ public class RequestSerializer {
 		try {
 			tupleCursor = resolver.query(serialUri, null, null, null, null);
 		} catch(IllegalArgumentException ex) {
-			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+			logger.warn("unknown content provider", ex);
 			return null;
 		}
 		if (tupleCursor == null) {
@@ -559,7 +559,7 @@ public class RequestSerializer {
 		try {
 			blobCursor = resolver.query(blobUri, null, null, null, null);
 		} catch(IllegalArgumentException ex) {
-			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+			logger.warn("unknown content provider", ex);
 			return null;
 		}
 		if (blobCursor == null) {
@@ -606,7 +606,7 @@ public class RequestSerializer {
 				fieldBlobList.add(fieldBlob);
 
 			} catch (IOException ex) {
-				logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
+				logger.trace("unable to create stream {}", serialUri, ex);
 				throw new FileNotFoundException("Unable to create stream");
 			}
 		}
@@ -680,10 +680,10 @@ public class RequestSerializer {
 				return null;
 			}
 		} catch (ClassCastException ex) {
-			logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+			logger.warn("invalid JSON content", ex);
 			return null;
 		} catch (JSONException ex) {
-			logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+			logger.warn("invalid JSON content", ex);
 			return null;
 		}
 		final ContentValues cv = new ContentValues();
@@ -726,10 +726,10 @@ public class RequestSerializer {
 			logger.info("Deserialized Received message, content {}", cv);
 
 		} catch (SQLiteException ex) {
-			logger.warn("invalid sql insert {}", ex.getLocalizedMessage());
+			logger.warn("invalid sql insert", ex);
 			return null;
 		} catch (IllegalArgumentException ex) {
-			logger.warn("bad provider or values: {}", ex.getLocalizedMessage());
+			logger.warn("bad provider or values", ex);
 			return null;
 		}		
 		if (position == data.length) return new UriFuture(tupleUri);
@@ -778,8 +778,7 @@ public class RequestSerializer {
 				outstream.write(blob);
 				outstream.close();
 			} catch (SQLiteException ex) {
-				logger.error("in provider {} could not open output stream {}", 
-						fieldUri, ex.getLocalizedMessage());
+				logger.error("in provider {} could not open output stream", fieldUri, ex);
 			} catch (FileNotFoundException ex) {
 				logger.error( "blob file not found: {}",fieldUri, ex);
 			} catch (IOException ex) {
