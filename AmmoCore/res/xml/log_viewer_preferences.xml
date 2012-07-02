@@ -9,16 +9,15 @@
             android:summary="Max number of lines displayed by appenders using Logcat"
             android:dialogTitle="Max Logcat lines"
             android:dialogMessage="Enter a positive integer, or 0 for unlimited lines"
-            android:defaultValue="0"
+            android:defaultValue="1000"
             android:inputType="numberSigned" />
         <EditTextPreference 
-            android:key="file_max_lines"
-            android:title="File appenders"
-            android:summary="Max number of lines displayed by appenders writing files"
-            android:dialogTitle="Max file lines"
-            android:dialogMessage="Enter a positive integer, or 0 for unlimited lines"
-            android:defaultValue="0"
-            android:inputType="numberSigned" />
+            android:key="regular_expression"
+            android:title="Regular expression"
+            android:summary="Regular expression to match against incoming logs"
+            android:dialogTitle="Regular expression"
+            android:dialogMessage="Enter a Java regular expression"
+            android:defaultValue="" />
     </PreferenceCategory>
 
 </PreferenceScreen>

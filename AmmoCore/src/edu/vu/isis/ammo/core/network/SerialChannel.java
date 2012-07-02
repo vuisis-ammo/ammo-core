@@ -200,7 +200,7 @@ public class SerialChannel extends NetChannel
                 try {
                     mConnector.join();
                 } catch (InterruptedException ex) {
-                    logger.warn("Interrupted while trying to join connector thread {}", ex.getStackTrace() );
+                    logger.warn("Interrupted while trying to join connector thread", ex);
                 }
                 mConnector = null;
             }
@@ -450,13 +450,13 @@ public class SerialChannel extends NetChannel
                 if ( !isDisabled() )
                     Looper.loop();
             } catch ( IllegalMonitorStateException e ) {
-                logger.warn( "IllegalMonitorStateException thrown: {}", e.getStackTrace() );
+                logger.warn( "IllegalMonitorStateException thrown", e );
             } catch ( InterruptedException e ) {
-                logger.warn( "Connector interrupted. Exiting: {}", e.getStackTrace() );
+                logger.warn( "Connector interrupted. Exiting", e );
                 // Do nothing here.  If we were interrupted, we need
                 // to catch the exception and exit cleanly.
             } catch ( Exception e ) {
-                logger.warn("Connector threw exception {}", e.getStackTrace() );
+                logger.warn("Connector threw exception", e );
             }
 
             // Do we need to call some sort of quit() for the looper here? The
@@ -492,7 +492,7 @@ public class SerialChannel extends NetChannel
             try {
                 mPort = new SerialPort( new File(mDevice), mBaudRate );
             } catch ( Exception e ) {
-                logger.warn( "Connection to serial port failed: {}", e.getStackTrace() );
+                logger.warn( "Connection to serial port failed", e );
                 mPort = null;
                 return false;
             }
@@ -509,9 +509,7 @@ public class SerialChannel extends NetChannel
                     return false;
                 }
             } catch ( Exception e ) {
-                logger.warn( "Exception thrown in enableNmeaMessages() {} \n {}",
-                              e,
-                              e.getStackTrace());
+                logger.warn( "Exception thrown in enableNmeaMessages()", e);
                 logger.warn( "Connection to serial port failed" );
                 return false;
             }
@@ -605,14 +603,13 @@ public class SerialChannel extends NetChannel
                      && Thread.currentThread().getId() != mReceiver.getId() )
                     mReceiver.join();
             } catch (java.lang.InterruptedException ex ) {
-                logger.warn( "disconnect: interrupted exception while waiting for threads to die: {}",
-                             ex.getStackTrace() );
+                logger.warn( "disconnect: interrupted exception while waiting for threads to die", ex );
             }
 
             mSender = null;
             mReceiver = null;
         } catch ( Exception e ) {
-            logger.warn( "Caught exception while closing serial port: {}", e.getStackTrace() );
+            logger.warn( "Caught exception while closing serial port", e );
             // Do this here, too, since if we exited early because
             // of an exception, we want to make sure that we're in
             // an unauthorized state.
@@ -714,8 +711,8 @@ public class SerialChannel extends NetChannel
                             mDeltaSamples[ mCount % numSamples ] = delta;
                             mCount++;
 
-                            logger.trace( String.valueOf(mDelta) + ",TS,"
-                                          + String.valueOf(timestamp) + "," + nmea );
+                            logger.trace( "{},TS,{},{}",
+                                   new Object[] {mDelta, timestamp, nmea });
                         }
                     }
                 }
@@ -1016,13 +1013,13 @@ public class SerialChannel extends NetChannel
                                 // since the send call is not true synchronous
                                 thisSlotConsumed += (peekedMsgLength / bytesPerMs);
                             } catch ( IOException e ) {
-                                logger.warn("sender threw exception {}", e.getStackTrace() );
+                                logger.warn("sender threw exception", e );
                                 if ( msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.REJECTED );
                                 setSenderState( INetChannel.INTERRUPTED );
                                 ioOperationFailed();
                             } catch ( Exception e ) {
-                                logger.warn("sender threw exception {}", e.getStackTrace() );
+                                logger.warn("sender threw exception", e );
                                 if ( msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.BAD );
                                 setSenderState( INetChannel.INTERRUPTED );
@@ -1035,8 +1032,7 @@ public class SerialChannel extends NetChannel
                     if ( goalTakeTime > currentGpsTime )
                         Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
-                    logger.debug( "interrupted taking messages from send queue: {}",
-                                  ex.getLocalizedMessage() );
+                    logger.debug( "interrupted taking messages from send queue", ex );
                     setSenderState( INetChannel.INTERRUPTED );
                     break;
                 }
@@ -1306,11 +1302,11 @@ public class SerialChannel extends NetChannel
                     }
                 }
             } catch ( IOException ex ) {
-                logger.warn( "receiver threw an IOException {}", ex.getStackTrace() );
+                logger.warn( "receiver threw an IOException", ex);
                 setReceiverState( INetChannel.INTERRUPTED );
                 ioOperationFailed();
             } catch ( Exception ex ) {
-                logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
+                logger.warn( "receiver threw an exception", ex);
                 setReceiverState( INetChannel.INTERRUPTED );
                 ioOperationFailed();
             }

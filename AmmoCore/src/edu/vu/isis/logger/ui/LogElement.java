@@ -28,9 +28,25 @@ public class LogElement {
 		return this.mMessage;
 	}
 	
-//	@Override
-//	public String toString() {
-//		return "LogElement Level: " + mLevel.toString() + 
-//	}
+	@Override
+	public String toString() {
+		return "LogElement Level: [" + mLevel.toString() + "] Message: [" + mMessage + "]";
+	}
+	
+	@Override
+	public int hashCode() {
+		int result = 731;
+		result = 31 * result + mLevel.hashCode();
+		result = 31 * result + mMessage.hashCode();
+		return result;
+	}
+	
+	
+	@Override
+	public boolean equals(Object other) {
+		if(!(other instanceof LogElement)) return false;
+		LogElement otherElement = (LogElement) other;
+		return otherElement.mMessage.equals(this.mMessage) && otherElement.mLevel.equals(this.mLevel);
+	}
 	
 }

@@ -1,6 +1,6 @@
 package edu.vu.isis.logger.ui;
 
-import edu.vu.isis.ammo.R;
+import edu.vu.isis.ammo.core.R;
 import android.content.Context;
 
 /**

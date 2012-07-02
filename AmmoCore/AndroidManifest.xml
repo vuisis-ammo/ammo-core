@@ -52,17 +52,24 @@
 		<activity android:name=".ui.DeliveryStatus" />
 		<activity android:name=".ui.SubscriptionStatus" />
 		<activity android:name=".ui.Subscribe" />
-		<activity android:name=".ui.GeneralPreferences" />
+		<activity android:name=".ui.GatewayPreferences" />
+		<activity android:name=".ui.SerialPreferences" />
+		<activity android:name=".ui.MulticastPreferences" />
+		<activity android:name=".ui.ReliableMulticastPreferences" />
 		<activity android:name=".ui.AboutActivity" />
 		<activity android:name="edu.vu.isis.logger.ui.LoggerEditor" />
 		<activity android:name="edu.vu.isis.logger.ui.AppenderSelector" />
-		<activity android:name="edu.vu.isis.logger.ui.LogViewer" />
+		<activity android:name="edu.vu.isis.logger.ui.LogcatLogViewer" />
+		<activity android:name="edu.vu.isis.logger.ui.FileLogViewer" />
 		<activity android:name="edu.vu.isis.logger.ui.LogViewerPreferences" />
 
 		<activity android:name=".distributor.ui.DistributorTableViewer" />
 		<activity android:name=".distributor.ui.RetrievalTableViewer" />
 		<activity android:name=".distributor.ui.SubscribeTableViewer" />
 		<activity android:name=".distributor.ui.PostalTableViewer" />
+		<activity android:name=".distributor.ui.PresenceTableViewer" />
+		<activity android:name=".distributor.ui.CapabilityTableViewer" />
+		
 		<activity android:name=".distributor.ui.DistributorTabActivity" />
 
 		<!-- ========== RECIEVER SECTION ================= -->
@@ -149,12 +156,11 @@
 		</service>
 
 		<!-- ========== PROVIDER SECTION ================= -->
-		<!-- <provider android:name=".provider.DistributorProvider" android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider"/> -->
 		<provider android:name=".provider.PreferenceProvider"
 			android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider" />
 
 		<provider android:name=".provider.DistributorProvider"
-			android:authorities="edu.vu.isis.ammo.core.provider.distributorprovider" />
+			android:authorities="edu.vu.isis.ammo.core.provider.distributor" />
 
 	</application>
 

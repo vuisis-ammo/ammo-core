@@ -67,8 +67,9 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.distributor.store.Capability;
+import edu.vu.isis.ammo.core.distributor.store.Presence;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetChannel;
@@ -77,7 +78,9 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
+import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
+import edu.vu.isis.ammo.util.FullTopic;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -325,7 +328,7 @@ public class DistributorThread extends Thread {
 	private final LinkedBlockingQueue<ChannelAck> channelAck;
 
 	private class ChannelAck {
-		public final Tables type;
+		public final Relations type;
 		public final long id;
 
 		public final String topic;
@@ -336,7 +339,7 @@ public class DistributorThread extends Thread {
 		public final String channel;
 		public final DisposalState status;
 
-		public ChannelAck(Tables type, long id, UUID uuid,
+		public ChannelAck(Relations type, long id, UUID uuid,
 				String topic, String auid,  Notice notice,
 				String channel, DisposalState status) 
 		{
@@ -494,7 +497,7 @@ public class DistributorThread extends Thread {
 			return request.uuid;
 
 		} catch (InterruptedException ex) {
-			logger.error("Exception while distributing request {}", ex.getStackTrace());
+			logger.error("Exception while distributing request", ex);
 		}
 		return null;
 	}
@@ -602,7 +605,7 @@ public class DistributorThread extends Thread {
 
 							this.doChannelAck(this.context, ack);
 						} catch (ClassCastException ex) {
-							logger.error("channel ack queue contains illegal item of class {}", ex.getLocalizedMessage());
+							logger.error("channel ack queue contains illegal item of class", ex);
 						}
 					}
 
@@ -615,7 +618,7 @@ public class DistributorThread extends Thread {
 							logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
 							this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
-							logger.error("response queue contains illegal item of class {}", ex.getLocalizedMessage());
+							logger.error("response queue contains illegal item of class", ex);
 						}
 					}
 
@@ -628,7 +631,7 @@ public class DistributorThread extends Thread {
 
 							this.doRequest(ammoService, ar);
 						} catch (ClassCastException ex) {
-							logger.error("request queue contains illegal item of class {}", ex.getLocalizedMessage());
+							logger.error("request queue contains illegal item of class", ex);
 						}
 					}
 				}
@@ -636,7 +639,7 @@ public class DistributorThread extends Thread {
 
 			}
 		} catch (InterruptedException ex) {
-			logger.warn("task interrupted {}", ex.getStackTrace());
+			logger.warn("task interrupted", ex);
 		}
 		return;
 	}
@@ -786,7 +789,7 @@ public class DistributorThread extends Thread {
 		try {
 			mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
 		} catch (InvalidProtocolBufferException ex) {
-			logger.error("parsing gateway message {}", ex.getStackTrace());
+			logger.error("parsing gateway message", ex);
 			return false;
 		}
 		if (mw == null) {
@@ -805,6 +808,15 @@ public class DistributorThread extends Thread {
 		case TERSE_MESSAGE:
 			final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel, agm.priority);
 			logger.debug("subscribe reply {}", subscribeResult);
+			if (mw.hasDataMessage()) {
+				final AmmoMessages.DataMessage dm = mw.getDataMessage();
+				if (dm.hasOriginDevice()) {
+					Presence.getWorker()
+					.device(dm.getOriginDevice())
+					.operator(dm.getUserId())
+					.upsert();
+				}
+			}
 			break;
 
 		case AUTHENTICATION_RESULT:
@@ -822,8 +834,31 @@ public class DistributorThread extends Thread {
 			logger.debug("retrieve response {}", retrieveResult);
 			break;
 
-		case AUTHENTICATION_MESSAGE:
 		case SUBSCRIBE_MESSAGE:
+			if (mw.hasSubscribeMessage()) {
+				final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
+				final FullTopic fulltopic = FullTopic.fromType(sm.getMimeType());
+
+				if (sm.hasOriginDevice()) {
+					final String deviceId = sm.getOriginDevice();
+					final String operator = sm.getOriginUser();
+
+					Capability.getWorker()
+					.origin(deviceId)
+					.operator(operator)
+					.topic(fulltopic.topic)
+					.subtopic(fulltopic.subtopic)
+					.upsert();
+
+					Presence.getWorker()
+					.device(deviceId)
+					.operator(operator)
+					.upsert();
+				} 
+			} 
+			break;
+
+		case AUTHENTICATION_MESSAGE:
 		case PULL_REQUEST:
 		case UNSUBSCRIBE_MESSAGE:
 			logger.debug("{} message, no processing", mw.getType());
@@ -831,6 +866,7 @@ public class DistributorThread extends Thread {
 		default:
 			logger.error("unexpected reply type. {}", mw.getType());
 		}
+
 		return true;
 	}
 
@@ -946,16 +982,20 @@ public class DistributorThread extends Thread {
 								logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
 							}
 							return result;
-						} catch (IOException e1) {
-							logger.error("invalid row for serialization {}", e1.getLocalizedMessage());
+						} catch (IOException ex) {
+							logger.error("invalid row for serialization", ex);
 							return null;
 						} catch (TupleNotFoundException e) {
 							logger.error("tuple not found when processing postal table");
-							parent.store().deletePostal(new StringBuilder().append(PostalTableSchema.PROVIDER.q()).append("=?").append(" AND ")
-									.append(PostalTableSchema.TOPIC.q()).append("=?").toString(), new String[] {e.missingTupleUri.getPath(), topic});
+							parent.store().deletePostal(new StringBuilder()
+							.append(PostalTableSchema.PROVIDER.q()).append("=?")
+							.append(" AND ")
+							.append(PostalTableSchema.TOPIC.q()).append("=?")
+							.toString(), 
+							new String[] {e.missingTupleUri.getPath(), topic});
 							return null;
-						} catch (NonConformingAmmoContentProvider e) {
-							e.printStackTrace();
+						} catch (NonConformingAmmoContentProvider ex) {
+							logger.error("non-conforming content provider", ex);
 							return null;
 						}
 					}
@@ -980,7 +1020,7 @@ public class DistributorThread extends Thread {
 
 					@Override
 					public boolean ack(String channel, DisposalState status) {
-						final ChannelAck chack = new ChannelAck(Tables.POSTAL, 
+						final ChannelAck chack = new ChannelAck(Relations.POSTAL, 
 								id_, uuid_,
 								topic_, auid_,  notice_,
 								channel, status);
@@ -992,7 +1032,7 @@ public class DistributorThread extends Thread {
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+			logger.warn("sending to gateway failed", ex);
 		}
 	}
 
@@ -1098,7 +1138,7 @@ public class DistributorThread extends Thread {
 			final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
 			final Dispersal dispersal = policy.makeRouteMap(channelFilter);
 			{
-				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.POSTAL.o, id);
+				final Cursor channelCursor = this.store.queryDisposalByParent(Relations.POSTAL.nominal, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; 
 						moreChannels = channelCursor.moveToNext()) 
 				{
@@ -1137,7 +1177,7 @@ public class DistributorThread extends Thread {
 
 								@Override
 								public boolean ack(String channel, DisposalState status) {
-									final ChannelAck chack = new ChannelAck(Tables.POSTAL, id_, uuid_,
+									final ChannelAck chack = new ChannelAck(Relations.POSTAL, id_, uuid_,
 											topic_, auid_, notice_, 
 											channel, status);
 									return parent.announceChannelAck(chack);
@@ -1146,7 +1186,7 @@ public class DistributorThread extends Thread {
 					this.store.updatePostalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("error posting message {}", ex.getStackTrace());
+				logger.warn("error posting message", ex);
 			}
 		}
 		pending.close();
@@ -1193,10 +1233,12 @@ public class DistributorThread extends Thread {
 							.setUserId(ammoService.getOperatorId())
 							.setOriginDevice(ammoService.getDeviceId())
 							.setData(ByteString.copyFrom(serialized));
+
 					final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds.newBuilder()
 							.setDeviceDelivered(notice.atDeviceDelivered.via.isActive())
 							.setAndroidPluginReceived(notice.atGatewayDelivered.via.isActive())
 							.setPluginDelivered(notice.atPluginDelivered.via.isActive());
+
 					pushReq.setThresholds(noticeBuilder);
 
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
@@ -1396,7 +1438,7 @@ public class DistributorThread extends Thread {
 
 					@Override
 					public boolean ack(String channel, DisposalState status) {
-						final ChannelAck chack = new ChannelAck(Tables.RETRIEVAL, 
+						final ChannelAck chack = new ChannelAck(Relations.RETRIEVAL, 
 								id_, uuid_, 
 								topic_, auid_,  notice_,
 								channel, status);
@@ -1407,7 +1449,7 @@ public class DistributorThread extends Thread {
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+			logger.warn("sending to gateway failed", ex);
 		}
 	}
 
@@ -1455,7 +1497,7 @@ public class DistributorThread extends Thread {
 			final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
 			final Dispersal dispersal = policy.makeRouteMap(null);
 			{
-				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.RETRIEVAL.o, id);
+				final Cursor channelCursor = this.store.queryDisposalByParent(Relations.RETRIEVAL.nominal, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
@@ -1494,7 +1536,7 @@ public class DistributorThread extends Thread {
 
 						@Override
 						public boolean ack(String channel, DisposalState status) {
-							final ChannelAck chack = new ChannelAck(Tables.RETRIEVAL, 
+							final ChannelAck chack = new ChannelAck(Relations.RETRIEVAL, 
 									id, uuid_, 
 									topic_, auid_, notice_,
 									channel, status);
@@ -1504,7 +1546,7 @@ public class DistributorThread extends Thread {
 					this.store.updateRetrievalByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+				logger.warn("sending to gateway failed", ex);
 			}
 		}
 		pending.close();
@@ -1563,7 +1605,7 @@ public class DistributorThread extends Thread {
 			});
 			return dispersal.multiplexRequest(that, serializer);
 		} catch (com.google.protobuf.UninitializedMessageException ex) {
-			logger.warn("Failed to marshal the message: {}", ex.getStackTrace());
+			logger.warn("Failed to marshal the message", ex);
 		}
 		return dispersal;
 
@@ -1675,7 +1717,7 @@ public class DistributorThread extends Thread {
 					final Notice notice_ = new Notice();
 					@Override
 					public boolean ack(String channel, DisposalState status) {
-						final ChannelAck chack = new ChannelAck(Tables.SUBSCRIBE, 
+						final ChannelAck chack = new ChannelAck(Relations.SUBSCRIBE, 
 								id_, uuid_,
 								topic_, auid_, notice_,
 								channel, status);
@@ -1686,7 +1728,7 @@ public class DistributorThread extends Thread {
 			}
 
 		} catch (NullPointerException ex) {
-			logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+			logger.warn("sending to gateway failed", ex);
 		}
 	}
 
@@ -1704,7 +1746,7 @@ public class DistributorThread extends Thread {
 			.append(SubscribeTableSchema.TOPIC.q()).append("=?")
 			.toString();
 			final String[] selectionArgs = new String[] {provider, topic};
-			
+
 			this.store().deleteSubscribe(selection, selectionArgs);
 		} finally {
 
@@ -1746,7 +1788,7 @@ public class DistributorThread extends Thread {
 			final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 			final Dispersal dispersal = policy.makeRouteMap(null);
 			{
-				final Cursor channelCursor = this.store.queryDisposalByParent(Tables.SUBSCRIBE.o, id);
+				final Cursor channelCursor = this.store.queryDisposalByParent(Relations.SUBSCRIBE.nominal, id);
 				for (boolean moreChannels = channelCursor.moveToFirst(); moreChannels; moreChannels = channelCursor.moveToNext()) {
 					final String channel = channelCursor.getString(channelCursor.getColumnIndex(DisposalTableSchema.CHANNEL.n));
 					final short channelState = channelCursor.getShort(channelCursor.getColumnIndex(DisposalTableSchema.STATE.n));
@@ -1779,7 +1821,7 @@ public class DistributorThread extends Thread {
 
 						@Override
 						public boolean ack(String channel, DisposalState status) {
-							final ChannelAck chack = new ChannelAck(Tables.SUBSCRIBE, 
+							final ChannelAck chack = new ChannelAck(Relations.SUBSCRIBE, 
 									id_, uuid_,
 									topic_, auid_,  notice_, 
 									channel, status);
@@ -1789,7 +1831,7 @@ public class DistributorThread extends Thread {
 					this.store.updateSubscribeByKey(id, null, dispatchResult);
 				}
 			} catch (NullPointerException ex) {
-				logger.warn("NullPointerException, sending to gateway failed {}", ex.getStackTrace());
+				logger.warn("sending to gateway failed", ex);
 			}
 		}
 		pending.close();
@@ -1808,6 +1850,9 @@ public class DistributorThread extends Thread {
 
 		final AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage.newBuilder();
 		subscribeReq.setMimeType(topic);
+		subscribeReq
+		.setOriginDevice(this.ammoService.getDeviceId())
+		.setOriginUser(this.ammoService.getOperatorId());
 
 		if (subscribeReq != null)
 			subscribeReq.setQuery(selection);
@@ -1821,7 +1866,6 @@ public class DistributorThread extends Thread {
 			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
 				final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
 				mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
-				// mw.setSessionUuid(sessionId);
 				mw.setSubscribeMessage(subscribeReq_);
 				final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
 				return agmb.build();

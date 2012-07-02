@@ -2,13 +2,13 @@
 <resources>
 
 <string name="pref_label">Preferences</string>
-<string name="debug_label">Debug Mode</string>
+<string name="debug_label">Debugging Tools</string>
 <string name="user_label">User Mode</string>
 <string name="channel_journal_label">Channel Journal Order</string>
 <string name="delivery_status_label">Delivery Status</string>
 <string name="subscription_label">Registered Subscriptions</string>
 
-<string name="logging_label">General Options</string>
+<string name="general_options_label">General Options</string>
 <string name="service_label">Restart Service</string>
 
 <string name="disconnect_button_label">Disconnect</string>
@@ -18,7 +18,17 @@
 <string name="about_label">Help/About</string>
 
 <string name="netlink_title">Available Netlinks</string>
-<string name="gateway_title">AMMO Gateway List</string>
-<string name="logger_viewer_label">Loggers</string>
+<string name="gateway_title">AMMO Channel List</string>
+<string name="logger_viewer_label">Logging Tools</string>
+<string name="hard_reset_label">Hard Reset</string>
+
+<string name="view_tables_onclick">viewTablesClick</string>
+<string name="general_options_onclick">generalOptionsClick</string>
+<string name="debug_onclick">debugModeClick</string>
+<string name="logger_onclick">loggingToolsClick</string>
+<string name="hard_reset_onclick">hardResetClick</string>
+<string name="about_onclick">helpClick</string>
+<string name="purge_label">Purge</string>
+<string name="garbage_label">Garbage</string>
 
 </resources>

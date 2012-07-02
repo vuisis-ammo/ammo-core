@@ -71,19 +71,19 @@ public class RequestSerializer {
 
 	public enum FieldType {
 		NULL(0), 
-        BOOL(1), 
-        BLOB(2), 
-        FLOAT(3),
+		BOOL(1), 
+		BLOB(2), 
+		FLOAT(3),
 		INTEGER(4), 
-        LONG(5), 
-        TEXT(6), 
-        REAL(7),
+		LONG(5), 
+		TEXT(6), 
+		REAL(7),
 		FK(8), 
-        GUID(9), 
-        EXCLUSIVE(10), 
-        INCLUSIVE(11),
+		GUID(9), 
+		EXCLUSIVE(10), 
+		INCLUSIVE(11),
 		TIMESTAMP(12),
-        SHORT(13);
+		SHORT(13);
 
 		private final int code;
 
@@ -152,9 +152,9 @@ public class RequestSerializer {
                if (blob[i] != (byte)0) return FIELD_TYPE_BLOB;
           }
 				  return FIELD_TYPE_FILE;
-        }
-  }
-
+		}
+	}
+	
 	public interface OnReady  {
 		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
 	}
@@ -450,7 +450,7 @@ public class RequestSerializer {
 		try {
 			tupleCursor = resolver.query(serialUri, null, null, null, null);
 		} catch(IllegalArgumentException ex) {
-			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+			logger.warn("unknown content provider", ex);
 			return null;
 		}
 		if (tupleCursor == null) {
@@ -580,7 +580,7 @@ public class RequestSerializer {
 			try {
 				json.put(name, value);
 			} catch (JSONException ex) {
-				logger.warn("invalid content provider {}", ex.getStackTrace());
+				logger.warn("invalid content provider", ex);
 			}
 			}
 		} finally {
@@ -598,6 +598,7 @@ public class RequestSerializer {
 		bigTuple.write(0x0);
 
 		logger.trace("Serialize the blob data (if any)");
+
 		final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
 		Cursor blobCursor = null;
 		final int blobCount;
@@ -605,7 +606,7 @@ public class RequestSerializer {
 		try {
 			blobCursor = resolver.query(blobUri, null, null, null, null);
 		} catch(IllegalArgumentException ex) {
-			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+			logger.warn("unknown content provider", ex);
 			return null;
 		}
 		if (blobCursor == null) {
@@ -682,7 +683,7 @@ public class RequestSerializer {
 						bigTuple.write(bb.array());
 
 			} catch (IOException ex) {
-				logger.trace("unable to create stream {} {}",serialUri, ex.getMessage());
+				logger.trace("unable to create stream {}", serialUri, ex);
 				throw new FileNotFoundException("Unable to create stream");
 			}
 					break;
@@ -744,10 +745,10 @@ public class RequestSerializer {
 				return null;
 			}
 		} catch (ClassCastException ex) {
-			logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+			logger.warn("invalid JSON content", ex);
 			return null;
 		} catch (JSONException ex) {
-			logger.warn("invalid JSON content {}", ex.getLocalizedMessage());
+			logger.warn("invalid JSON content", ex);
 			return null;
 		}
 		final ContentValues cv = new ContentValues();
@@ -992,7 +993,7 @@ public class RequestSerializer {
 				int length = (svalue == null) ? 0 : svalue.length();
 				tuple.putShort( (short) length );
 				if (length > 0)
-				    tuple.put( svalue.getBytes("UTF8") );
+					tuple.put( svalue.getBytes("UTF8") );
 				// for ( int i = 0; i < length; i++ ) {
 				// 	char c = svalue.charAt(i);
 				// 	tuple.putChar( c );
@@ -1102,15 +1103,15 @@ public class RequestSerializer {
 				case GUID: {
 					final short textLength = tuple.getShort();
 					if (textLength > 0) {
-                        try {
-                            byte [] textBytes = new byte[textLength];
-                            tuple.get(textBytes, 0, textLength);
-                            String textValue = new String(textBytes, "UTF8");
-                            wrap.put(key, textValue);
-                        } catch ( java.io.UnsupportedEncodingException ex ) {
-                            logger.error("Error in string encoding{}",
-                                         new Object[] { ex.getStackTrace() } );
-                        }
+						try {
+							byte [] textBytes = new byte[textLength];
+							tuple.get(textBytes, 0, textLength);
+							String textValue = new String(textBytes, "UTF8");
+							wrap.put(key, textValue);
+						} catch ( java.io.UnsupportedEncodingException ex ) {
+							logger.error("Error in string encoding{}",
+									new Object[] { ex.getStackTrace() } );
+						}
 					}
 					// final char[] textValue = new char[textLength];
 					// for (int ix=0; ix < textLength; ++ix) {

@@ -32,15 +32,14 @@ import android.widget.PopupWindow;
 import android.widget.TableRow;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PriorityType;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.Tables;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 
 
@@ -112,7 +111,7 @@ public class RequestPopupWindow extends PopupWindow {
 	}
 
 	public RequestPopupWindow(final Activity activity, final LayoutInflater inflater, final int popupWidth, final int popupHeight, int position, 
-			final Cursor requestCursor, Tables table)
+			final Cursor requestCursor, Relations table)
 	{
 		super(inflater.inflate(R.layout.dist_table_item_detail_view, null, false),popupWidth,popupHeight,true);
 		requestCursor.moveToFirst();
@@ -175,12 +174,12 @@ public class RequestPopupWindow extends PopupWindow {
 			row.setVisibility(View.VISIBLE);
 		}
 		// Now handle the channel disposition
-		final Uri channelUri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.DISPOSAL.n);
+		final Uri channelUri = DistributorSchema.CONTENT_URI.get(Relations.DISPOSAL);
 		final int id = requestCursor.getInt(requestCursor.getColumnIndex(BaseColumns._ID));
 		// final Uri disposalUri = ContentUris.withAppendedId(channelUri, id);
 
 		final Cursor channelCursor = activity.managedQuery(channelUri, null, 
-				CHANNEL_SELECTION, new String[]{ String.valueOf(table.o), String.valueOf(id) }, 
+				CHANNEL_SELECTION, new String[]{ String.valueOf(table.nominal), String.valueOf(id) }, 
 				null);
 
 		final ListView list = ((ListView)this.getContentView().findViewById(R.id.dist_channel_content));

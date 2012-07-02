@@ -112,7 +112,7 @@ public class Gateway extends Channel implements OnSharedPreferenceChangeListener
 
     public static Gateway getInstance(Context context, NetChannel channel) {
         // initialize the gateway from the shared preferences
-        return new Gateway(context, "Default Gateway", channel);
+        return new Gateway(context, "Gateway Channel", channel);
     }
 
     public String toString() {
