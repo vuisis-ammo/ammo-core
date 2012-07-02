@@ -12,6 +12,8 @@
     <string name="presence_label">Presence</string>
     <string name="device">Device</string>
     <string name="operator">Operator</string>
-    <string name="time_since_first_seen_ms_">Time since first seen (ms)</string>
-    <string name="time_since_last_seen_ms_">Time since last seen (ms)</string>
+    <string name="time_since_first_seen_ms_">Time since first seen</string>
+    <string name="time_since_last_seen_ms_">Time since last seen</string>
+    <string name="time_since_first_seen">Time_since_first_seen</string>
+    <string name="time_since_last_seen">Time_since_last_seen</string>
 </resources>

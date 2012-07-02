@@ -19,7 +19,7 @@ an ammo request
             style="@style/blue_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/time_since_last_seen_ms_" />
+            android:text="Time since last seen" />
 
         <TextView
             android:id="@+id/dist_capability_view_item_latest"
@@ -38,7 +38,7 @@ an ammo request
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
             android:layout_below="@id/dist_capability_view_item_latest"
-            android:text="@string/time_since_first_seen_ms_" />
+            android:text="Time since first seen" />
 
         <TextView
             android:id="@+id/dist_capability_view_item_first"

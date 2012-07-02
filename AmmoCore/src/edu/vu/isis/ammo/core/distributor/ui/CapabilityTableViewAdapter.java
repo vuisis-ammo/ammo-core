@@ -71,7 +71,7 @@ public class CapabilityTableViewAdapter extends DistributorTableViewAdapter
 			tv.setText(cursor.getString(cursor.getColumnIndex(CapabilitySchema.OPERATOR.field)));
 		}
 		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_capability_view_item_operator);
+			final TextView tv = (TextView)view.findViewById(R.id.dist_capability_view_item_state);
 			tv.setText(cursor.getString(cursor.getColumnIndex(CapabilitySchema.STATE.field)));
 		}
 
