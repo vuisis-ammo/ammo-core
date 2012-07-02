@@ -318,10 +318,8 @@ public class ReliableMulticastChannel extends NetChannel
                                           this.connectorThread.state.value,
                                           senderState,
                                           receiverState );
-        } catch ( Exception e ) {
-            logger.error( "Exception thrown in statusChange() {} \n {}",
-                          e.getLocalizedMessage(),
-                          e.getStackTrace());
+        } catch ( Exception ex ) {
+            logger.error( "Exception thrown in statusChange()", ex);
         }
 	}
 
@@ -727,7 +725,7 @@ public class ReliableMulticastChannel extends NetChannel
                 }
 
             } catch (Exception ex) {
-                logger.warn("failed to run multicast {}", ex.getLocalizedMessage());
+                logger.warn("failed to run multicast", ex);
                 this.state.set(NetChannel.EXCEPTION);
             }
             try {
@@ -737,8 +735,7 @@ public class ReliableMulticastChannel extends NetChannel
                 }
                 this.parent.socket.close();
             } catch (IOException ex) {
-                ex.printStackTrace();
-                logger.error("channel closing without proper socket");
+                logger.error("channel closing without proper socket", ex);
             }
             logger.error("channel closing");
         }
@@ -771,11 +768,11 @@ public class ReliableMulticastChannel extends NetChannel
             	//parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT, Boolean.TRUE ); // deprecated
         		parent.mJGroupChannel.connect( "AmmoGroup" );
             }
-            catch ( Exception e )
+            catch ( Exception ex )
             {
-                logger.warn( "connection to {}:{} failed: " + e.getLocalizedMessage(),
+                logger.warn( "connection to {}:{} failed: ",
                              parent.mMulticastGroup,
-                             parent.mMulticastPort );
+                             parent.mMulticastPort, ex);
                 parent.mJGroupChannel = null;
                 return false;
             }
@@ -868,7 +865,7 @@ public class ReliableMulticastChannel extends NetChannel
             }
             catch ( Exception e )
             {
-                logger.error( "Caught Exception" );
+                logger.error( "Caught Exception", e );
                 // Do this here, too, since if we exited early because
                 // of an exception, we want to make sure that we're in
                 // an unauthorized state.
@@ -1063,16 +1060,14 @@ public class ReliableMulticastChannel extends NetChannel
                 }
                 catch ( InterruptedException ex )
                 {
-                    logger.debug( "interrupted taking messages from send queue: {}",
-                                  ex.getLocalizedMessage() );
+                    logger.debug( "interrupted taking messages from send queue", ex);
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;
                 }
-                catch ( Exception e )
+                catch ( Exception ex )
                 {
-                    e.printStackTrace();
-                    logger.warn("sender threw exception while take()ing");
+                    logger.warn("sender threw exception while take()ing", ex);
                     setSenderState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                     break;
@@ -1114,9 +1109,9 @@ public class ReliableMulticastChannel extends NetChannel
                     mParent.socketOperationFailed();
                     break;
                 }
-                catch ( Exception e )
+                catch ( Exception ex )
                 {
-                    logger.warn("sender threw exception {}", e.getStackTrace() );
+                    logger.warn("sender threw exception", ex );
                     if ( msg.handler != null )
                         mChannel.ackToHandler( msg.handler, DisposalState.BAD );
                     setSenderState( INetChannel.INTERRUPTED );
@@ -1222,13 +1217,13 @@ public class ReliableMulticastChannel extends NetChannel
                 }
                 catch ( ClosedChannelException ex )
                 {
-                    logger.warn( "receiver threw ClosedChannelException {}", ex);
+                    logger.warn( "receiver threw ClosedChannelException", ex);
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
                 catch ( Exception ex )
                 {
-                    logger.warn( "receiver threw exception {}", ex);
+                    logger.warn( "receiver threw exception", ex);
                     setReceiverState( INetChannel.INTERRUPTED );
                     mParent.socketOperationFailed();
                 }
@@ -1290,7 +1285,7 @@ public class ReliableMulticastChannel extends NetChannel
         }
         catch (SocketException ex)
         {
-            logger.error( ex.toString());
+            logger.error( "get local IP address", ex);
         }
 
         return addresses;

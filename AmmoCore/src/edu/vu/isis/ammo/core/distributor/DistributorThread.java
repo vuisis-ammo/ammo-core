@@ -982,8 +982,8 @@ public class DistributorThread extends Thread {
 								logger.error("Null result from serialize {} {} ", serializer_.provider, encode);
 							}
 							return result;
-						} catch (IOException e1) {
-							logger.error("invalid row for serialization", e1);
+						} catch (IOException ex) {
+							logger.error("invalid row for serialization", ex);
 							return null;
 						} catch (TupleNotFoundException e) {
 							logger.error("tuple not found when processing postal table");

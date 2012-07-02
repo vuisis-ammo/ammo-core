@@ -957,10 +957,13 @@ public class DistributorDataStore {
 	// ===========================================================
 	// Methods
 	// ===========================================================
-
+    /**
+     * Use Relations.NAME - to create mounted database.
+     * Use of null for the name causes an in memory database.
+     */
 	public DistributorDataStore(Context context) {
 		this.context = context;
-		this.helper = new DataStoreHelper(this.context, null, null, VERSION); // Relations.NAME - to create in memory database
+		this.helper = new DataStoreHelper(this.context, null, null, VERSION);
 
 		// ========= INITIALIZE CONSTANTS ========
 		this.applDir = context.getDir("support", Context.MODE_PRIVATE);

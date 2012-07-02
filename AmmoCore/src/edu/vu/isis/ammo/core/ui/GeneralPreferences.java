@@ -399,7 +399,7 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		int pos = searchForPreference(pref, screen.getRootAdapter());
 
 		if (pos == -1) {
-			logger.error("Did not find preference " + pref);
+			logger.error("Did not find preference {}", pref);
 			Toast.makeText(this, "Preference screen does not exist",
 					Toast.LENGTH_LONG);
 			return;

@@ -88,7 +88,7 @@ public class DistributorPolicy implements ContentHandler {
 			try {
 				inputStream = new FileInputStream(file);
 			} catch (FileNotFoundException ex) {
-				logger.error("no policy file {} {}", file, ex);
+				logger.error("no policy file {}", file, ex);
 				return null;
 			}
 		}
@@ -126,7 +126,7 @@ public class DistributorPolicy implements ContentHandler {
 		try {
 			inputStream.close();
 		} catch (IOException ex) {
-			logger.error("could not close distributor configuration file {}", ex);
+			logger.error("could not close distributor configuration file", ex);
 		}
 		return policy;
 	}
@@ -156,16 +156,16 @@ public class DistributorPolicy implements ContentHandler {
 			reader.parse(is);
 
 		} catch (MalformedURLException ex) {
-			logger.warn("malformed file name {}", ex);
+			logger.warn("malformed file name", ex);
 			this.setDefaultRule();
 		} catch (ParserConfigurationException ex) {
-			logger.warn("parse error {}", ex);
+			logger.warn("parse error", ex);
 			this.setDefaultRule();
 		} catch (SAXException ex) {
-			logger.warn("sax error {}", ex);
+			logger.warn("sax error", ex);
 			this.setDefaultRule();
 		} catch (IOException ex) {
-			logger.warn("general io error {}", ex);
+			logger.warn("general io error", ex);
 			this.setDefaultRule();
 		}
 
