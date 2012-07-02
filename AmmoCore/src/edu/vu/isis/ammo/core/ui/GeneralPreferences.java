@@ -115,10 +115,10 @@ public class GeneralPreferences extends PreferenceActivityEx {
 
 		final Resources res = this.getResources();
 
-		name = (MyEditTextPreference) this
+		this.name = (MyEditTextPreference) this
 				.findPreference(INetPrefKeys.CORE_OPERATOR_ID);
-		name.setSummaryPrefix(res.getString(R.string.operator_id_label));
-		name.setType(MyEditTextPreference.Type.OPERATOR_ID);
+		this.name.setSummaryPrefix(res.getString(R.string.operator_id_label));
+		this.name.setType(MyEditTextPreference.Type.OPERATOR_ID);
 
 		/*
 		 * Gateway Setup
@@ -128,6 +128,8 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.gwIpPref = (MyEditTextPreference) this
 				.findPreference(INetPrefKeys.GATEWAY_HOST);
 		this.gwIpPref.setType(MyEditTextPreference.Type.IP);
+		this.gwIpPref.setSummarySuffix(" (Set in Panther Prefs)");
+		this.gwIpPref.setOnPreferenceClickListener(sendToPantherPrefsListener);
 
 		// Port Preference Setup
 		this.gwPortPref = (MyEditIntegerPreference) this
@@ -138,9 +140,9 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.gwOpEnablePref = (MyCheckBoxPreference) this
 				.findPreference(INetPrefKeys.GATEWAY_DISABLED);
 
-		gwOpEnablePref.setTrueTitle("Gateway " + TRUE_TITLE_SUFFIX);
-		gwOpEnablePref.setFalseTitle("Gateway " + FALSE_TITLE_SUFFIX);
-		gwOpEnablePref.setOnPreferenceClickListener(sendToPantherPrefsListener);
+		this.gwOpEnablePref.setTrueTitle("Gateway " + TRUE_TITLE_SUFFIX);
+		this.gwOpEnablePref.setFalseTitle("Gateway " + FALSE_TITLE_SUFFIX);
+		this.gwOpEnablePref.setOnPreferenceClickListener(sendToPantherPrefsListener);
 
 		// Connection Idle Timeout
 		this.gwConnIdlePref = (MyEditIntegerPreference) this
@@ -227,10 +229,10 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		 */
 		this.serialOpEnablePref = (MyCheckBoxPreference) this
 				.findPreference(INetPrefKeys.SERIAL_DISABLED);
-		serialOpEnablePref.setTrueTitle("Serial " + TRUE_TITLE_SUFFIX);
-		serialOpEnablePref.setFalseTitle("Serial " + FALSE_TITLE_SUFFIX);
-		serialOpEnablePref.setSummary("Touch me to toggle");
-		serialOpEnablePref
+		this.serialOpEnablePref.setTrueTitle("Serial " + TRUE_TITLE_SUFFIX);
+		this.serialOpEnablePref.setFalseTitle("Serial " + FALSE_TITLE_SUFFIX);
+		this.serialOpEnablePref.setSummary("Touch me to toggle");
+		this.serialOpEnablePref
 				.setOnPreferenceClickListener(new OnPreferenceClickListener() {
 					@Override
 					public boolean onPreferenceClick(Preference preference) {
@@ -241,7 +243,6 @@ public class GeneralPreferences extends PreferenceActivityEx {
 
 		this.serialDevicePref = (MyEditTextPreference) this
 				.findPreference(INetPrefKeys.SERIAL_DEVICE);
-		// this.devicePref.setType(MyEditTextPreference.Type.DEVICE_ID);
 
 		// Baud rate was removed from prefs
 		// this.serialBaudPref =
@@ -251,10 +252,14 @@ public class GeneralPreferences extends PreferenceActivityEx {
 		this.serialSlotPref = (MyEditIntegerPreference) this
 				.findPreference(INetPrefKeys.SERIAL_SLOT_NUMBER);
 		this.serialSlotPref.setType(Type.SLOT_NUMBER);
+		this.serialSlotPref.setSummarySuffix(" (Set in Panther Prefs)");
+		this.serialSlotPref.setOnPreferenceClickListener(sendToPantherPrefsListener);
 
 		this.serialRadiosInGroupPref = (MyEditIntegerPreference) this
 				.findPreference(INetPrefKeys.SERIAL_RADIOS_IN_GROUP);
 		this.serialRadiosInGroupPref.setType(Type.RADIOS_IN_GROUP);
+		this.serialRadiosInGroupPref.setSummarySuffix(" (Set in Panther Prefs)");
+		this.serialRadiosInGroupPref.setOnPreferenceClickListener(sendToPantherPrefsListener);
 
 		this.serialSlotDurationPref = (MyEditIntegerPreference) this
 				.findPreference(INetPrefKeys.SERIAL_SLOT_DURATION);
