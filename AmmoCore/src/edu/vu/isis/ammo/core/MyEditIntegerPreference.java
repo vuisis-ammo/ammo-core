@@ -41,6 +41,8 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	// Fields
 	// ===========================================================
 	private String summaryPrefix = "";
+	private String summarySuffix = "";
+	private OnPreferenceClickListener mOnPreferenceClickListener;
 	private Type mType;
 	private Context context;
 
@@ -63,10 +65,11 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		this.context = context;
 	}
 	
-	public MyEditIntegerPreference(Context context, String aSummaryPrefix) {
+	public MyEditIntegerPreference(Context context, String aSummaryPrefix, String aSummarySuffix) {
 		super(context);
 		this.context = context;
 		summaryPrefix = aSummaryPrefix;
+		summarySuffix = aSummarySuffix;
 	}
 
 	// ===========================================================
@@ -171,7 +174,7 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		}
 
 		super.setText(checkedText);
-		this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).toString());
+		this.setSummary(new StringBuilder().append(summaryPrefix).append(checkedText).append(summarySuffix).toString());
 	}
 
 
@@ -375,9 +378,19 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		this.setSummary(new StringBuilder()
 		    .append(summaryPrefix)
 		    .append(cooked_value)
+		    .append(summarySuffix)
 		    .toString() );
 	}
 
+	@Override
+	public void onClick() {
+		if(mOnPreferenceClickListener == null) {
+			super.onClick();
+		} else {
+			mOnPreferenceClickListener.onPreferenceClick(this);
+		}
+	}
+	
 	// ===========================================================
 	// Getters/Setters Methods
 	// ===========================================================
@@ -389,6 +402,19 @@ public class MyEditIntegerPreference extends EditTextPreference {
 		this.summaryPrefix = summaryPrefix;
 	}
 
+	public String getSummarySuffix() {
+		return summarySuffix;
+	}
+	
+	public void setSummarySuffix(String summarySuffix) {
+		this.summarySuffix = summarySuffix;
+	}
+	
+	@Override
+	public void setOnPreferenceClickListener(OnPreferenceClickListener listener) {
+		this.mOnPreferenceClickListener = listener;
+	}
+	
 	public void setType(Type mType) {
 		this.mType = mType;
 	}
