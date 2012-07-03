@@ -921,7 +921,7 @@ public class SerialChannel extends NetChannel
 
             // CONSTANTS
             final int slotDuration = mSlotDuration.get();
-            final int offset = mSlotNumber.get() * slotDuration;
+            final int offset = ((mSlotNumber.get() - 1) % mRadiosInGroup.get()) * slotDuration;
             final int cycleDuration = slotDuration * mRadiosInGroup.get();
             final double bytesPerMs = mBaudRate / (10*1000.0); // baudrate == symbols/sec, 1 byte == 10 symbols, 1 sec = 1000msec
             final long MAX_SEND_PAYLOAD_SIZE = (long) (mTransmitDuration.get() * bytesPerMs);
