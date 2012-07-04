@@ -1253,7 +1253,6 @@ public class DistributorThread extends Thread {
 					final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
 							.newBuilder()
 							.setMimeType(mimeId)
-							.setUserId(ammoService.getOperatorId())
 							.setData(ByteString.copyFrom(serialized));
 					mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
 					mw.setTerseMessage(pushReq);
@@ -1922,7 +1921,7 @@ public class DistributorThread extends Thread {
 			final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
 			mime = AmmoMimeTypes.mimeTypes.get( resp.getMimeType());
 			data = resp.getData();
-			originUser = resp.getUserId();
+			originUser = resp.getUserId(); // SERIAL does not have this -- do we have a use for it?
 			encode = "TERSE";
 		}
 

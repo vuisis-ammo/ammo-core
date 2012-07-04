@@ -781,7 +781,8 @@ public class MulticastChannel extends NetChannel
 		{
 			logger.trace( "Thread <{}>ConnectorThread::disconnect",
 					Thread.currentThread().getId() );
-
+            try
+            {
 			mIsConnected.set( false );
 
 			// Have to close the socket first unless we convert to
@@ -828,7 +829,16 @@ public class MulticastChannel extends NetChannel
 			setIsAuthorized( false );
 
 			parent.setSecurityObject( null );
-
+            }
+            catch ( Exception e )
+            {
+                logger.error( "Caught General Exception", e );
+                // Do this here, too, since if we exited early because
+                // of an exception, we want to make sure that we're in
+                // an unauthorized state.
+                setIsAuthorized( false );
+                return false;
+            }
 			logger.debug( "returning after successful disconnect()." );
 			return true;
 		}

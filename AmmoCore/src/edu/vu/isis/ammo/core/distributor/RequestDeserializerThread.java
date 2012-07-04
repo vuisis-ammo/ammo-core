@@ -105,8 +105,8 @@ public class RequestDeserializerThread extends Thread {
 							new Object[]{item.provider, tuple, queue.size()} );
 
 				} catch (Exception ex) {
-					logger.error("insert failed provider: [{}], remaining in insert queue [{}] : ex=[{}]", 
-							new Object[]{item.provider, queue.size()}, ex);
+					logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
+							new Object []{item.provider, queue.size()}, ex);
 				}
 
 			}
