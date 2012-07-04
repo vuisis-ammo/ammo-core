@@ -13,11 +13,19 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
 
+/**
+ * A log viewer designed specifically for viewing logs from Logcat. The actual
+ * reading from Logcat is handled by a LogcatLogReader. This class's
+ * responsibility is only to connect the LogcatLogReader to the UI.
+ * 
+ * @author nick
+ * 
+ */
 public class LogcatLogViewer extends LogViewerBase {
 
-	public static final int CONCAT_DATA_MSG = 0;
-	public static final int NOTIFY_INVALID_REGEX_MSG = 1;
-
+	// Menu constants
+	private static final int JUMP_TOP_MENU = Menu.NONE + 1;
+	private static final int JUMP_BOTTOM_MENU = Menu.NONE + 2;
 	private static final int OPEN_PREFS_MENU = Menu.NONE + 3;
 
 	private SharedPreferences prefs;
@@ -30,14 +38,14 @@ public class LogcatLogViewer extends LogViewerBase {
 		public void handleMessage(Message msg) {
 
 			switch (msg.what) {
-			case CONCAT_DATA_MSG:
+			case LogcatLogReader.CONCAT_DATA_MSG:
 				if (msg.obj != null) {
 					@SuppressWarnings("unchecked")
 					final List<LogElement> elemList = (List<LogElement>) msg.obj;
 					refreshList(elemList);
 				}
 				break;
-			case NOTIFY_INVALID_REGEX_MSG:
+			case LogcatLogReader.NOTIFY_INVALID_REGEX_MSG:
 				Toast.makeText(parent, "Syntax of regex is invalid",
 						Toast.LENGTH_LONG).show();
 				break;
@@ -52,7 +60,7 @@ public class LogcatLogViewer extends LogViewerBase {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		
+
 		prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		String regex = prefs.getString("regular_expression", "");
 
@@ -69,7 +77,7 @@ public class LogcatLogViewer extends LogViewerBase {
 		mLogReader.start();
 
 	}
-	
+
 	@Override
 	public void onResume() {
 		super.onResume();
@@ -90,6 +98,8 @@ public class LogcatLogViewer extends LogViewerBase {
 
 		final boolean returnValue = true && super.onPrepareOptionsMenu(menu);
 
+		menu.add(Menu.NONE, JUMP_BOTTOM_MENU, Menu.NONE, "Go to bottom");
+		menu.add(Menu.NONE, JUMP_TOP_MENU, Menu.NONE, "Go to top");
 		menu.add(Menu.NONE, OPEN_PREFS_MENU, Menu.NONE, "Open preferences");
 
 		return returnValue;
@@ -98,13 +108,23 @@ public class LogcatLogViewer extends LogViewerBase {
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		if (item.getItemId() == OPEN_PREFS_MENU) {
+		boolean returnValue = true;
+		switch (item.getItemId()) {
+		case JUMP_BOTTOM_MENU:
+			setScrollToBottom();
+			break;
+		case JUMP_TOP_MENU:
+			setScrollToTop();
+			break;
+		case OPEN_PREFS_MENU:
 			final Intent intent = new Intent().setClass(this,
 					LogViewerPreferences.class);
 			startActivityForResult(intent, 0);
-			return true;
+			break;
+		default:
+			returnValue = false;
 		}
-		return super.onOptionsItemSelected(item);
+		return returnValue || super.onOptionsItemSelected(item);
 	}
 
 	@Override
@@ -120,23 +140,26 @@ public class LogcatLogViewer extends LogViewerBase {
 
 	}
 
+	/**
+	 * Set our list adapter's max lines as specified in the preferences
+	 */
 	private void configureMaxLinesFromPrefs() {
 		mAdapter.setMaxLines(Math.abs(Integer.parseInt(prefs.getString(
 				"logcat_max_lines", "1000"))));
 	}
 
+	/**
+	 * Adds all of the new logs to the list adapter and jumps to the bottom of
+	 * the list if appropriate
+	 * 
+	 * @param elemList
+	 */
 	private void refreshList(List<LogElement> elemList) {
-
-		updateAdapter(elemList);
+		mAdapter.addAll(elemList);
+		mAdapter.notifyDataSetChanged();
 		if (isAutoJump.get()) {
 			setScrollToBottom();
 		}
-
-	}
-
-	private void updateAdapter(List<LogElement> elemList) {
-		mAdapter.addAll(elemList);
-		mAdapter.notifyDataSetChanged();
 	}
 
 }

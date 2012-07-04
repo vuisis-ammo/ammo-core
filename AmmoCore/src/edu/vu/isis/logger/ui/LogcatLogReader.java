@@ -16,10 +16,31 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Message;
 
+/**
+ * A log reader that reads from the Logcat output stream. A LogcatLogReader
+ * sends all new LogElements read to a Handler through Messages tagged with the
+ * constant CONCAT_DATA_MSG. These messages will be sent with a fixed period.
+ * <p>
+ * If an invalid regular expression is given to this log reader, then a Message
+ * tagged with the constant NOTIFY_INVALID_REGEX_MSG will be sent to the
+ * Handler.
+ * <p>
+ * It is extremely important to call the terminate method on any
+ * LogcatLogReaders that have been started. This allows the log readers to
+ * terminate their threads and stop caching new messages. Failing to call
+ * terminate will result in a nasty memory leak and reduced performance from the
+ * threads not terminating after their references are lost.
+ * 
+ * @author Nick King
+ * 
+ */
 public class LogcatLogReader extends LogReader {
 
 	private static final int BUFFER_SIZE = 1024;
 	private static final long SEND_DELAY = 10;
+
+	public static final int CONCAT_DATA_MSG = 0;
+	public static final int NOTIFY_INVALID_REGEX_MSG = 1;
 
 	private final BufferedReader mReader;
 	private final ArrayList<LogElement> mLogCache = new ArrayList<LogElement>();
@@ -63,7 +84,7 @@ public class LogcatLogReader extends LogReader {
 
 		if (!this.isPaused.get()) {
 			final Message msg = Message.obtain();
-			msg.what = LogcatLogViewer.CONCAT_DATA_MSG;
+			msg.what = CONCAT_DATA_MSG;
 
 			synchronized (this.mLogCache) {
 				msg.obj = this.mLogCache.clone();
@@ -75,6 +96,11 @@ public class LogcatLogReader extends LogReader {
 
 	}
 
+	/**
+	 * Starts this LogcatLogReader's reading and sending threads. It is
+	 * extremely important that after this method is called, the terminate
+	 * method is called when this object is no longer needed.
+	 */
 	@Override
 	public void start() {
 
@@ -88,6 +114,10 @@ public class LogcatLogReader extends LogReader {
 				SEND_DELAY, TimeUnit.MILLISECONDS);
 	}
 
+	/**
+	 * Allows this LogcatLogReader to terminate its thread. It is extremely
+	 * important to call this method when this object is no longer needed.
+	 */
 	@Override
 	public void terminate() {
 		super.terminate();
@@ -150,7 +180,7 @@ public class LogcatLogReader extends LogReader {
 			mPattern = Pattern.compile(newRegex);
 		} catch (PatternSyntaxException pe) {
 			mPattern = Pattern.compile("");
-			mHandler.sendEmptyMessage(LogcatLogViewer.NOTIFY_INVALID_REGEX_MSG);
+			mHandler.sendEmptyMessage(NOTIFY_INVALID_REGEX_MSG);
 		}
 	}
 

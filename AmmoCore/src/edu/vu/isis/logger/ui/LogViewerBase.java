@@ -18,6 +18,19 @@ import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
 import android.widget.ListView;
 
+/**
+ * A base class for Activities designed to view logs. This class is meant to be
+ * extended and not used directly. It encapsulates behaviors that are common to
+ * all log viewers.
+ * 
+ * All log viewers are coupled with a log reader. The log reader is strictly
+ * responsible for reading the log messages from whatever the source may be and
+ * wrapping those messages inside LogElement objects. The log viewer is strictly
+ * responsible for displaying the LogElements from its log reader on screen.
+ * 
+ * @author Nick King
+ * 
+ */
 public class LogViewerBase extends ListActivity {
 
 	protected LogElementAdapter mAdapter;
@@ -28,8 +41,6 @@ public class LogViewerBase extends ListActivity {
 
 	/* Menu constants */
 	protected static final int TOGGLE_MENU = Menu.NONE + 0;
-	protected static final int JUMP_TOP_MENU = Menu.NONE + 1;
-	protected static final int JUMP_BOTTOM_MENU = Menu.NONE + 2;
 
 	/* Configuration instance array constants */
 	protected static final int LOG_READER_INDEX = 0;
@@ -118,6 +129,9 @@ public class LogViewerBase extends ListActivity {
 		return false;
 	}
 
+	/**
+	 * Convenience method for reporting that our log reader is null
+	 */
 	private void warnNullReader() {
 		this.logger.warn("Log reader was never initialized!");
 	}
@@ -129,8 +143,6 @@ public class LogViewerBase extends ListActivity {
 
 		menu.add(Menu.NONE, TOGGLE_MENU, Menu.NONE,
 				(this.isPaused.get() ? "Play" : "Pause"));
-		menu.add(Menu.NONE, JUMP_BOTTOM_MENU, Menu.NONE, "Go to bottom");
-		menu.add(Menu.NONE, JUMP_TOP_MENU, Menu.NONE, "Go to top");
 
 		return super.onPrepareOptionsMenu(menu);
 
@@ -147,38 +159,52 @@ public class LogViewerBase extends ListActivity {
 				pause();
 			}
 			break;
-		case JUMP_BOTTOM_MENU:
-			setScrollToBottom();
-			break;
-		case JUMP_TOP_MENU:
-			setScrollToTop();
-			break;
 		default:
 			returnValue = false;
 		}
 		return returnValue;
 	}
 
+	/**
+	 * Unpauses the log reader, causing it to resume its reading
+	 */
 	protected void play() {
 		this.isPaused.set(false);
-		if (mLogReader != null)
+		if (mLogReader != null) {
 			this.mLogReader.resume();
+		}
 	}
 
+	/**
+	 * Pauses the log reader, causing it to stop reading temporarily.
+	 */
 	protected void pause() {
 		this.isPaused.set(true);
-		this.mLogReader.pause();
+		if (mLogReader != null) {
+			this.mLogReader.pause();
+		}
 	}
 
+	/**
+	 * Sets the listview's scroll to the top of the list
+	 */
 	protected void setScrollToTop() {
 		this.mListView.setSelection(0);
 		this.isAutoJump.set(false);
 	}
 
+	/**
+	 * Sets the listview's scroll to the bottom of the list
+	 */
 	protected void setScrollToBottom() {
 		this.mListView.setSelection(this.mAdapter.getCount() - 1);
 		this.isAutoJump.set(true);
 	}
+
+	/*
+	 * The inner classes below allow us to determine when to have the list
+	 * scroll down automatically whenever a new log comes in.
+	 */
 
 	protected class MyOnScrollListener implements OnScrollListener {
 

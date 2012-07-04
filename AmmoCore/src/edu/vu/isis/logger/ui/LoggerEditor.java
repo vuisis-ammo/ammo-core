@@ -441,8 +441,7 @@ public class LoggerEditor extends ListActivity {
 			personalLogger.info("Directory {} was not created for save",
 					dirs.getAbsolutePath());
 		}
-
-		// TODO: Make sure this is okay according to Android IO conventions
+		
 		PrintStream outStream = null;
 		try {
 			outStream = new PrintStream(directory + "/" + filename);
@@ -539,20 +538,22 @@ public class LoggerEditor extends ListActivity {
 			button.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View v) {
+					// TODO: Remove debug code!
+					String debugFile = "/mnt/sdcard/lined.log";
 					
-					//TODO: Remove this toast once file reading works
-					Toast.makeText(LoggerEditor.this, "File reading is not yet available", Toast.LENGTH_LONG).show();
-					return;
+					Intent intent = new Intent().setClass(LoggerEditor.this,
+							FileLogViewer.class);
+					intent.putExtra(LogViewerBase.EXTRA_NAME, debugFile);
 					
-//					Intent intent = new Intent().setClass(LoggerEditor.this,
-//							FileLogViewer.class);
 //					intent.putExtra(LogViewerBase.EXTRA_NAME,
 //							((FileAppender<ILoggingEvent>) a).getFile());
-//					startActivity(intent);
-//					dialog.dismiss();
+					
+					startActivity(intent);
+					dialog.dismiss();
 				}
 			});
 			ll.addView(button);
+			
 		}
 
 		dialog.show();
