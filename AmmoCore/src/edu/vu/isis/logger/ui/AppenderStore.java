@@ -46,5 +46,9 @@ public class AppenderStore {
 	private Map getAppenderBag() {
 		return appenderBag;
 	}
+	
+	public static synchronized void reset() {
+	  instance = null;
+	}
 
 }

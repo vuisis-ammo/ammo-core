@@ -62,6 +62,7 @@
 		<activity android:name="edu.vu.isis.logger.ui.LogcatLogViewer" />
 		<activity android:name="edu.vu.isis.logger.ui.FileLogViewer" />
 		<activity android:name="edu.vu.isis.logger.ui.LogViewerPreferences" />
+    <activity android:name="edu.vu.isis.logger.ui.LogbackReconfigureActivity" />
 
 		<activity android:name=".distributor.ui.DistributorTableViewer" />
 		<activity android:name=".distributor.ui.RetrievalTableViewer" />
