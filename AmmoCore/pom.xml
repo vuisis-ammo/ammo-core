@@ -9,7 +9,7 @@
   <properties>
 <!-- TEMPLATE2:BEGIN
 -->
-     <repo.addr>Vanderbilt/</repo.addr> <!-- This field should read "Vanderbilt/" for releases --> 
+     <repo.addr>vanderbilt-snapshot/</repo.addr> <!-- This field should read "Vanderbilt/" for releases --> 
                                                  <!-- else it should read "vanderbilt-snapshot/" for snapshots-->
 <!-- TEMPLATE2:END -->
      <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
@@ -22,7 +22,7 @@
   <groupId>edu.vu.isis</groupId>
 <!-- TEMPLATE:BEGIN
 -->
-  <version>1.5.13</version> 
+  <version>1.5.15-SNAPSHOT</version> 
 <!-- TEMPLATE:END -->
 
 <!--parent>
@@ -245,7 +245,7 @@
         <dependency>
             <groupId>org.jgroups</groupId>
             <artifactId>jgroups-ammo</artifactId>
-            <version>${project.version}</version>
+            <version>1.5.13</version>
         </dependency>
         <!--dependency>
             <groupId>edu.vu.isis.ammo</groupId>
@@ -255,7 +255,7 @@
         <dependency>
             <groupId>edu.vu.isis</groupId>
             <artifactId>ammolib</artifactId>
-            <version>1.5.13.1-SNAPSHOT</version>
+            <version>1.5.14</version>
             <type>apklib</type>
         </dependency>
         <dependency>
