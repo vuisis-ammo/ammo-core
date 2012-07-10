@@ -14,6 +14,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 
 public class RequestDeserializerThread extends Thread {
 	private static final Logger logger = LoggerFactory.getLogger("dist.deserializer");
+	private static final Logger tlogger = LoggerFactory.getLogger("test.queue.insert");
 
 	private final PriorityBlockingQueue<Item> queue;
 	private AtomicInteger masterSequence;
@@ -103,10 +104,11 @@ public class RequestDeserializerThread extends Thread {
 					final Uri tuple = RequestSerializer.deserializeToProvider(item.context, item.channelName, item.provider, item.encoding, item.data);
 					logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
 							new Object[]{item.provider, tuple, queue.size()} );
+					tlogger.info(TestJSONWriter.queueReport("insert_queue", queue.size()));
 
 				} catch (Exception ex) {
-					logger.error("insert failed provider: [{}], remaining in insert queue [{}] : ex=[{}]", 
-							new Object[]{item.provider, queue.size()}, ex);
+					logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
+							new Object []{item.provider, queue.size()}, ex);
 				}
 
 			}

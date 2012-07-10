@@ -200,7 +200,7 @@ public class SerialChannel extends NetChannel
                 try {
                     mConnector.join();
                 } catch (InterruptedException ex) {
-                    logger.warn("Interrupted while trying to join connector thread {}", ex.getStackTrace() );
+                    logger.warn("Interrupted while trying to join connector thread" );
                 }
                 mConnector = null;
             }
@@ -450,9 +450,9 @@ public class SerialChannel extends NetChannel
                 if ( !isDisabled() )
                     Looper.loop();
             } catch ( IllegalMonitorStateException e ) {
-                logger.warn( "IllegalMonitorStateException thrown: {}", e.getStackTrace() );
+                logger.warn( "IllegalMonitorStateException thrown {}", e.getStackTrace() );
             } catch ( InterruptedException e ) {
-                logger.warn( "Connector interrupted. Exiting: {}", e.getStackTrace() );
+                logger.warn( "Connector interrupted. Exiting {}", e.getStackTrace() );
                 // Do nothing here.  If we were interrupted, we need
                 // to catch the exception and exit cleanly.
             } catch ( Exception e ) {
@@ -492,7 +492,7 @@ public class SerialChannel extends NetChannel
             try {
                 mPort = new SerialPort( new File(mDevice), mBaudRate );
             } catch ( Exception e ) {
-                logger.warn( "Connection to serial port failed: {}", e.getStackTrace() );
+                logger.warn( "Connection to serial port failed" );
                 mPort = null;
                 return false;
             }
@@ -509,9 +509,7 @@ public class SerialChannel extends NetChannel
                     return false;
                 }
             } catch ( Exception e ) {
-                logger.warn( "Exception thrown in enableNmeaMessages() {} \n {}",
-                              e,
-                              e.getStackTrace());
+                logger.warn( "Exception thrown in enableNmeaMessages() {}", e.getStackTrace() );
                 logger.warn( "Connection to serial port failed" );
                 return false;
             }
@@ -604,15 +602,15 @@ public class SerialChannel extends NetChannel
                 if ( mReceiver != null
                      && Thread.currentThread().getId() != mReceiver.getId() )
                     mReceiver.join();
-            } catch (java.lang.InterruptedException ex ) {
-                logger.warn( "disconnect: interrupted exception while waiting for threads to die: {}",
+            } catch ( java.lang.InterruptedException ex ) {
+                logger.warn( "disconnect: interrupted exception while waiting for threads to die {}",
                              ex.getStackTrace() );
             }
 
             mSender = null;
             mReceiver = null;
         } catch ( Exception e ) {
-            logger.warn( "Caught exception while closing serial port: {}", e.getStackTrace() );
+            logger.warn( "Caught exception while closing serial port {}", e.getStackTrace() );
             // Do this here, too, since if we exited early because
             // of an exception, we want to make sure that we're in
             // an unauthorized state.
@@ -714,8 +712,8 @@ public class SerialChannel extends NetChannel
                             mDeltaSamples[ mCount % numSamples ] = delta;
                             mCount++;
 
-                            logger.trace( String.valueOf(mDelta) + ",TS,"
-                                          + String.valueOf(timestamp) + "," + nmea );
+                            logger.trace( "{},TS,{},{}",
+                                   new Object[] {mDelta, timestamp, nmea });
                         }
                     }
                 }
@@ -923,7 +921,7 @@ public class SerialChannel extends NetChannel
 
             // CONSTANTS
             final int slotDuration = mSlotDuration.get();
-            final int offset = mSlotNumber.get() * slotDuration;
+            final int offset = ((mSlotNumber.get() - 1) % mRadiosInGroup.get()) * slotDuration;
             final int cycleDuration = slotDuration * mRadiosInGroup.get();
             final double bytesPerMs = mBaudRate / (10*1000.0); // baudrate == symbols/sec, 1 byte == 10 symbols, 1 sec = 1000msec
             final long MAX_SEND_PAYLOAD_SIZE = (long) (mTransmitDuration.get() * bytesPerMs);
@@ -1035,8 +1033,7 @@ public class SerialChannel extends NetChannel
                     if ( goalTakeTime > currentGpsTime )
                         Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
-                    logger.debug( "interrupted taking messages from send queue: {}",
-                                  ex.getLocalizedMessage() );
+                    logger.debug( "interrupted taking messages from send queue" );
                     setSenderState( INetChannel.INTERRUPTED );
                     break;
                 }

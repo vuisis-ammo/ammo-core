@@ -20,6 +20,7 @@ import android.os.Bundle;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.provider.DistributorSchema;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 public class MessageQueueActivity extends Activity {
 	public static final Logger logger = LoggerFactory.getLogger("ui.messagequeue");
@@ -35,10 +36,10 @@ public class MessageQueueActivity extends Activity {
         setOnClickListeners();
         
         @SuppressWarnings("unused")
-		String tableName = DistributorDataStore.Tables.DISPOSAL.n;
+		String tableName = Relations.DISPOSAL.n;
         @SuppressWarnings("unused")
-		Uri uri = DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.CHANNEL.n);
-        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(DistributorDataStore.Tables.DISPOSAL.n), null, null, null, null);
+		Uri uri = DistributorSchema.CONTENT_URI.get(Relations.CHANNEL);
+        Cursor c = this.getContentResolver().query(DistributorSchema.CONTENT_URI.get(Relations.DISPOSAL), null, null, null, null);
         logger.trace("message{}", c);
         
         

@@ -185,8 +185,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
                 // In debug mode we are displaying stats about packets sent,
                 // packets received, etc., instead of the normal text.
 
-                Serial s = (Serial) channel;
-                SerialChannel ch = s.mChannel;
+                SerialChannel ch = Serial.mChannel;
 
                 switch ( status[0] ) {
                 case INetChannel.DISABLED:

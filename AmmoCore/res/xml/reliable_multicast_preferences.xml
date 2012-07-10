@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/reliable_multicast_prefs"
+    android:key="@string/reliable_multicast_pref_screen"
+    android:title="Reliable Multicast Preferences" >
+
+    <edu.vu.isis.ammo.core.MyCheckBoxPreference
+        android:name="Suppress Channel"
+        android:defaultValue="false"
+        android:key="@string/network_rmc_disable"
+        android:title="Disable"
+        android:widgetLayout="@layout/cb_supress" />
+
+    <edu.vu.isis.ammo.core.MyEditTextPreference
+        android:name="IP Address"
+        android:defaultValue="228.8.8.8"
+        android:enabled="false"
+        android:inputType="phone"
+        android:key="@string/network_rmc_host"
+        android:title="IP Address" />
+
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Port"
+        android:defaultValue="45588"
+        android:enabled="false"
+        android:inputType="number"
+        android:key="@string/network_rmc_port"
+        android:title="Port" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Network Connection Timeout (s)"
+        android:defaultValue="1000"
+        android:inputType="number"
+        android:key="@string/network_rmc_timeout_connect"
+        android:title="Network Connection Timeout (s)" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Connection Idle Timeout (s)"
+        android:defaultValue="3000"
+        android:inputType="number"
+        android:key="@string/network_rmc_timeout_idle"
+        android:title="Connection Idle Timeout (s)" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Time To Live (s)"
+        android:defaultValue="8"
+        android:enabled="false"
+        android:inputType="number"
+        android:key="@string/network_rmc_ttl"
+        android:title="Time To Live (s)" />
+
+</PreferenceScreen>

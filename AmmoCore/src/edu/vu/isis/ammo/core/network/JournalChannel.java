@@ -323,7 +323,7 @@ public class JournalChannel extends NetChannel {
 							try {
 								JournalChannel.isConnected.wait();
 							} catch (InterruptedException ex) {
-								logger.warn("thread interupted {}",ex.getLocalizedMessage());
+								logger.warn("thread interupted",ex);
 								return; // looks like the thread is being shut down.
 							}
 						}

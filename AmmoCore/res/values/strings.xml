@@ -2,4 +2,18 @@
 <resources>
     <string name="serverlist">List of available servers</string>
     <string name="title_close">X</string>
+
+   <string name="log_viewer_dialog_desc">Logs can be viewed from Logcat, or you can select an Appender that is writing to a file to read its logs.</string>
+
+    <string name="retrieval_label">Retrieval</string>
+    <string name="subscribe_label">Subscribe</string>
+    <string name="postal_label">Postal</string>
+    <string name="capability_label">Capability</string>
+    <string name="presence_label">Presence</string>
+    <string name="device">Device</string>
+    <string name="operator">Operator</string>
+    <string name="time_since_first_seen_ms_">Time since first seen</string>
+    <string name="time_since_last_seen_ms_">Time since last seen</string>
+    <string name="time_since_first_seen">Time_since_first_seen</string>
+    <string name="time_since_last_seen">Time_since_last_seen</string>
 </resources>

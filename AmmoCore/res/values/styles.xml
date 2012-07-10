@@ -1,9 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-<style name="TableRowTextView">
+	<style name="TableRowTextView">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textColor">#FFFFFF</item>
         <item name="android:padding">3dip</item>
     </style>
+<style name="log_viewer_dialog_spacer">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">2dp</item>
+        <item name="android:background">#90909090</item>
+    </style>
+<style name="blueText" parent="android:Widget.TextView">
+    <item name="android:padding">5dp</item>
+    <item name="android:textColor">#00ffff</item>
+    <item name="android:textSize">18dp</item>
+</style>
+<style name="blue_label" parent="android:Widget.TextView">
+    <item name="android:padding">5dp</item>
+    <item name="android:textColor">#00ffff</item>
+    <item name="android:textSize">18dp</item>
+</style>
 </resources>
