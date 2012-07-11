@@ -292,10 +292,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.isMulticast = builder.isMulticast;
         this.isSerialChannel = builder.isSerialChannel;
         this.isGateway = builder.isGateway;
-	this.channel = builder.channel;
-	// record the time when the message is built so we can sort it by time
-	// if the priority is same
-	this.buildTime = System.currentTimeMillis();
+	    this.channel = builder.channel;
+	    // record the time when the message is built so we can sort it by time
+	    // if the priority is same
+	    this.buildTime = System.currentTimeMillis();
     }
 
     public static AmmoGatewayMessage.Builder newBuilder( AmmoMessages.MessageWrapper.Builder mwb,
