@@ -98,6 +98,25 @@ public class RequestSerializer {
 				FieldType.codemap.put(t.code, t);
 			}
 		}
+		
+		private static final HashMap<String, FieldType> stringMap =
+				new HashMap<String, FieldType>();
+		static {
+			stringMap.put("NULL", NULL);
+			stringMap.put("BOOL", BOOL);
+			stringMap.put("BLOB", BLOB);
+			stringMap.put("FLOAT", FLOAT);
+			stringMap.put("INTEGER", INTEGER);
+			stringMap.put("LONG", LONG);
+			stringMap.put("TEXT", TEXT);
+			stringMap.put("REAL", REAL);
+			stringMap.put("FK", FK);
+			stringMap.put("GUID", GUID);
+			stringMap.put("EXCLUSIVE", EXCLUSIVE);
+			stringMap.put("INCLUSIVE", INCLUSIVE);
+			stringMap.put("TIMESTAMP", TIMESTAMP);
+			stringMap.put("SHORT", SHORT);
+		}
 
 		public int toCode() {
 			return this.code;
@@ -105,6 +124,10 @@ public class RequestSerializer {
 
 		public static FieldType fromCode(final int code) {
 			return FieldType.codemap.get(code);
+		}
+
+		public static FieldType fromContractString(String dtype) {
+			return stringMap.get(dtype);
 		}
 	}
 
@@ -275,6 +298,18 @@ public class RequestSerializer {
 		}
 
 		return json.toString().getBytes();
+	}
+	
+	private static ContentValues decodeAsTerseWithContractRelation(byte[] data, ContractStore.Relation relation) {		
+		List<String> fieldNames = new ArrayList<String>(relation.getFields().size());
+		List<FieldType> dataTypes = new ArrayList<FieldType>(relation.getFields().size());
+		
+		for(ContractStore.Field f : relation.getFields()) {
+			fieldNames.add(f.getName().getSnake());
+			dataTypes.add(FieldType.fromContractString(f.getDtype()));
+		}
+		
+		return deserializeTerse(data, fieldNames, dataTypes);
 	}
 
 	/**
@@ -1076,72 +1111,15 @@ public class RequestSerializer {
 				return null;
 			}
 
-			final ByteBuffer tuple = ByteBuffer.wrap(data);
-			final ContentValues wrap = new ContentValues();
-
-			for (final String key : serialMetaCursor.getColumnNames()) {
-				final int type = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
-				switch (FieldType.fromCode(type)) {
-				case NULL:
-					//wrap.put(key, null);
-					break;
-				case SHORT: {
-					final short shortValue = tuple.getShort();
-					wrap.put(key, shortValue);
-					break; }
-				case LONG:
-				case FK: {
-					final long longValue = tuple.getLong();
-					wrap.put(key, longValue);
-					break; }
-				case TIMESTAMP: {
-					final int intValue = tuple.getInt();
-					final long longValue = 1000l*(long)intValue; // seconds --> milliseconds
-					wrap.put(key, longValue);
-					break; }
-				case TEXT:
-				case GUID: {
-					final short textLength = tuple.getShort();
-					if (textLength > 0) {
-						try {
-							byte [] textBytes = new byte[textLength];
-							tuple.get(textBytes, 0, textLength);
-							String textValue = new String(textBytes, "UTF8");
-							wrap.put(key, textValue);
-						} catch ( java.io.UnsupportedEncodingException ex ) {
-							logger.error("Error in string encoding{}",
-									new Object[] { ex.getStackTrace() } );
-						}
-					}
-					// final char[] textValue = new char[textLength];
-					// for (int ix=0; ix < textLength; ++ix) {
-					// 	textValue[ix] = tuple.getChar();
-					// }
-					break; }
-				case BOOL:
-				case INTEGER:
-				case EXCLUSIVE:
-				case INCLUSIVE: {
-					final int intValue = tuple.getInt();
-					wrap.put(key, intValue);
-					break; }
-				case REAL:
-				case FLOAT: {
-					final double doubleValue = tuple.getDouble();
-					wrap.put(key, doubleValue);
-					break; }
-				case BLOB: {
-					final short bytesLength = tuple.getShort();
-					if (bytesLength > 0) {
-						final byte[] bytesValue = new byte[bytesLength];
-						tuple.get(bytesValue, 0, bytesLength);
-						wrap.put(key, bytesValue);
-					}
-					break; }
-				default:
-					logger.warn("unhandled data type {}", type);
-				}
+			List<String> columnNames = Arrays.asList(serialMetaCursor.getColumnNames());
+			List<FieldType> dataTypes = new ArrayList<FieldType>(columnNames.size());
+			
+			for(String key : columnNames) {
+				dataTypes.add(FieldType.fromCode(serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key))));
 			}
+			
+			final ContentValues wrap = deserializeTerse(data, columnNames, dataTypes);
+			
 			serialMetaCursor.close();
 
 			wrap.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
@@ -1155,6 +1133,78 @@ public class RequestSerializer {
 			return new UriFuture(tupleUri);
 		}
 
+	}
+	
+	private static ContentValues deserializeTerse(byte[] data, List<String> fieldNames, List<FieldType> dataTypes) {
+		ContentValues decodedObject = new ContentValues();
+		
+		final ByteBuffer tuple = ByteBuffer.wrap(data);
+		int i = 0;
+		for(String key : fieldNames) {
+			FieldType type = dataTypes.get(i);
+			i++;
+			switch (type) {
+			case NULL:
+				//wrap.put(key, null);
+				break;
+			case SHORT: {
+				final short shortValue = tuple.getShort();
+				decodedObject.put(key, shortValue);
+				break; }
+			case LONG:
+			case FK: {
+				final long longValue = tuple.getLong();
+				decodedObject.put(key, longValue);
+				break; }
+			case TIMESTAMP: {
+				final int intValue = tuple.getInt();
+				final long longValue = 1000l*(long)intValue; // seconds --> milliseconds
+				decodedObject.put(key, longValue);
+				break; }
+			case TEXT:
+			case GUID: {
+				final short textLength = tuple.getShort();
+				if (textLength > 0) {
+					try {
+						byte [] textBytes = new byte[textLength];
+						tuple.get(textBytes, 0, textLength);
+						String textValue = new String(textBytes, "UTF8");
+						decodedObject.put(key, textValue);
+					} catch ( java.io.UnsupportedEncodingException ex ) {
+						logger.error("Error in string encoding{}",
+								new Object[] { ex.getStackTrace() } );
+					}
+				}
+				// final char[] textValue = new char[textLength];
+				// for (int ix=0; ix < textLength; ++ix) {
+				// 	textValue[ix] = tuple.getChar();
+				// }
+				break; }
+			case BOOL:
+			case INTEGER:
+			case EXCLUSIVE:
+			case INCLUSIVE: {
+				final int intValue = tuple.getInt();
+				decodedObject.put(key, intValue);
+				break; }
+			case REAL:
+			case FLOAT: {
+				final double doubleValue = tuple.getDouble();
+				decodedObject.put(key, doubleValue);
+				break; }
+			case BLOB: {
+				final short bytesLength = tuple.getShort();
+				if (bytesLength > 0) {
+					final byte[] bytesValue = new byte[bytesLength];
+					tuple.get(bytesValue, 0, bytesLength);
+					decodedObject.put(key, bytesValue);
+				}
+				break; }
+			default:
+				logger.warn("unhandled data type {}", type);
+			}
+		}
+		return decodedObject;
 	}
 }
 
