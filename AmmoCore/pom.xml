@@ -16,20 +16,14 @@
      <vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
      <vandylib.eucleo.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/eucleo/</vandylib.eucleo.url>
      <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-     <build>${basedir}/../../build</build>
+     <root.basedir>${basedir}/../..</root.basedir>
   </properties>
 
-  <groupId>edu.vu.isis</groupId>
-<!-- TEMPLATE:BEGIN
--->
-  <version>1.5.15-SNAPSHOT</version> 
-<!-- TEMPLATE:END -->
-
-<!--parent>
+<parent>
   <groupId>edu.vu.isis</groupId>
   <artifactId>ammo-parent</artifactId>
-  <version>1.5.5-SNAPSHOT</version>
-</parent-->
+  <version>1.5.15-SNAPSHOT</version>
+</parent>
 
   <artifactId>AmmoCore</artifactId>
   <packaging>apk</packaging>
@@ -46,7 +40,7 @@
      </snapshotRepository>
   </distributionManagement>
 
-	<repositories>
+  <repositories>
         <repository>
             <id>nexus-snapshot</id>
             <url>${vandylib.snapshot.url}</url>
@@ -59,7 +53,7 @@
             <id>nexus-eucleo</id>
             <url>${vandylib.eucleo.url}</url>
         </repository>
-	</repositories>
+  </repositories>
 
 
     <build>
@@ -80,17 +74,16 @@
                          </goals>
                         <configuration>
                             <sources>
-                                <source>${basedir}/target/generated-sources</source>
+                                <source>${root.basedir}/target/generated-sources</source>
                             </sources>
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
             <plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.6</version>
-				<executions>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
                     <execution>
                         <id>version_gen</id>
                         <phase>validate</phase>
@@ -101,9 +94,9 @@
                                 </ant>
                             </target>
                         </configuration>
-						<goals>
-							<goal>run</goal>
-						</goals>
+            <goals>
+              <goal>run</goal>
+            </goals>
                     </execution>
                  <execution>
                         <id>ndk_gen</id>
@@ -115,16 +108,17 @@
                              searchpath="true"/>
                             </tasks>
                         </configuration>
-						<goals>
-							<goal>run</goal>
-						</goals>
+            <goals>
+              <goal>run</goal>
+            </goals>
                     </execution>
                     <execution>
                         <id>make_tar</id>
                         <phase>install</phase>
                         <configuration>
                             <tasks>
-                                <copy todir="${build}">
+                                <mkdir dir="${root.basedir}/build"/>
+                                <copy todir="${root.basedir}/build">
                                     <fileset dir="${basedir}/target">
                                         <include name="*-${project.version}.apk"/>
                                     </fileset>
@@ -135,19 +129,19 @@
                             <goal>run</goal>
                         </goals>
                     </execution>
-					<!--execution>
-						<phase>deploy</phase> <!-should only build javadoc when you need to deploy->
-						<configuration>
-							<target>
-								<ant antfile="build-javadoc.xml" inheritAll="true" inheritRefs="true">
-									<target name="javadoc"/>
-								</ant>
-							</target>
-						</configuration>
-						<goals>
-							<goal>run</goal>
-						</goals>
-					</execution-->
+          <!--execution>
+            <phase>deploy</phase> <!-should only build javadoc when you need to deploy->
+            <configuration>
+              <target>
+                <ant antfile="build-javadoc.xml" inheritAll="true" inheritRefs="true">
+                  <target name="javadoc"/>
+                </ant>
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution-->
                     <!--execution>
                         <id>generate-sources</id>
                         <phase>generate-sources</phase>
@@ -168,26 +162,25 @@
                             <goal>run</goal>
                         </goals>
                     </execution-->
-				</executions>
-				<dependencies>
-					<dependency>
-						<groupId>ant-contrib</groupId>
-						<artifactId>ant-contrib</artifactId>
-						<version>1.0b3</version>
-						<exclusions>
-							<exclusion>
-								<groupId>ant</groupId>
-								<artifactId>ant</artifactId>
-							</exclusion>
-						</exclusions>
-					</dependency>
-				</dependencies>
-			</plugin>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>ant-contrib</groupId>
+            <artifactId>ant-contrib</artifactId>
+            <version>1.0b3</version>
+            <exclusions>
+              <exclusion>
+                <groupId>ant</groupId>
+                <artifactId>ant</artifactId>
+              </exclusion>
+            </exclusions>
+          </dependency>
+        </dependencies>
+      </plugin>
 
-	        <plugin>
+          <plugin>
                 <groupId>com.jayway.maven.plugins.android.generation2</groupId>
                 <artifactId>android-maven-plugin</artifactId>
-                <version>3.2.0</version>
                 <extensions>true</extensions>
                     <configuration>
                         <sdk>
@@ -200,7 +193,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
                 <configuration>
                     <!--<source>1.6</source>
                     <target>1.6</target>-->
@@ -213,20 +205,17 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>1.6.4</version>
         </dependency>
         <!--dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.8.1</version>
             <scope>test</scope>
         </dependency-->
-        <dependency>
+        <!-- dependency>
             <groupId>com.google.android</groupId>
             <artifactId>android</artifactId>
-            <version>2.2.1</version>
             <scope>provided</scope>
-        </dependency>
+        </dependency -->
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
@@ -235,33 +224,25 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback</artifactId>
-            <version>1.0.1</version>
         </dependency>
         <dependency>
             <groupId>com.google.android</groupId>
             <artifactId>android-test</artifactId>
-            <version>2.2.1</version>
         </dependency>
         <dependency>
             <groupId>org.jgroups</groupId>
             <artifactId>jgroups-ammo</artifactId>
             <version>1.5.13</version>
         </dependency>
-        <!--dependency>
-            <groupId>edu.vu.isis.ammo</groupId>
-            <artifactId>jgroups</artifactId>
-            <version>${project.version}</version>
-        </dependency-->
         <dependency>
             <groupId>edu.vu.isis</groupId>
             <artifactId>ammolib</artifactId>
-            <version>1.5.14</version>
+            <version>${project.version}</version>
             <type>apklib</type>
         </dependency>
         <dependency>
             <groupId>transapps</groupId>
             <artifactId>tasettings-api</artifactId>
-	        <version>1.0.9</version>
         </dependency>
     </dependencies>
 
@@ -291,7 +272,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-antrun-plugin</artifactId>
-          <version>1.6</version>
           <executions>                                 
             <execution>
               <id>generate-sources</id>
@@ -378,7 +358,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-antrun-plugin</artifactId>
-          <version>1.6</version>
           <executions>                                 
             <execution>
               <id>generate-sources</id>
@@ -411,25 +390,28 @@
           <dependencies>
             <dependency>
               <groupId>ant-contrib</groupId>
-            <artifactId>ant-contrib</artifactId>
-            <version>1.0b3</version>
-            <exclusions>
-              <exclusion>
-                <groupId>ant</groupId>
-                <artifactId>ant</artifactId>
-              </exclusion>
-            </exclusions>
-          </dependency>
+              <artifactId>ant-contrib</artifactId>
+              <version>1.0b3</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>ant</groupId>
+                  <artifactId>ant</artifactId>
+                </exclusion>
+              </exclusions>
+            </dependency>
+
             <dependency>
               <groupId>org.slf4j</groupId>
               <artifactId>slf4j-api</artifactId>
               <version>1.6.4</version>
             </dependency>
-             <dependency>
+
+            <dependency>
               <groupId>com.google.protobuf</groupId>
               <artifactId>protobuf-java</artifactId>
               <version>2.3.0</version>
             </dependency>
+
             <dependency>
               <groupId>org.json</groupId>
               <artifactId>json</artifactId>
@@ -465,7 +447,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-antrun-plugin</artifactId>
-          <version>1.6</version>
           <executions>                                 
             <execution>
               <id>generate-sources</id>
@@ -536,7 +517,6 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-antrun-plugin</artifactId>
-          <version>1.6</version>
           <executions>                                 
             <execution>
               <id>generate-sources</id>
