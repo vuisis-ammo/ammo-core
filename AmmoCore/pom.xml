@@ -16,6 +16,7 @@
      <vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
      <vandylib.eucleo.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/eucleo/</vandylib.eucleo.url>
      <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+     <root.basedir>${basedir}/../..</root.basedir>
   </properties>
 
 <parent>
@@ -118,7 +119,7 @@
                             <tasks>
                                 <mkdir dir="${root.basedir}/build"/>
                                 <copy todir="${root.basedir}/build">
-                                    <fileset dir="${root.basedir}/target">
+                                    <fileset dir="${basedir}/target">
                                         <include name="*-${project.version}.apk"/>
                                     </fileset>
                                 </copy>
@@ -315,10 +316,12 @@
             <dependency>
               <groupId>org.slf4j</groupId>
               <artifactId>slf4j-api</artifactId>
+              <version>1.6.4</version>
             </dependency>
              <dependency>
               <groupId>com.google.protobuf</groupId>
               <artifactId>protobuf-java</artifactId>
+              <version>2.3.0</version>
             </dependency>
             <dependency>
               <groupId>org.json</groupId>
