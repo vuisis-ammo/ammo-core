@@ -59,7 +59,7 @@
 <!-- extension targets. Uncomment the ones where you want to do custom work
      in between standard targets -->
 
-    <property name="android.lib" value="lib"/>
+    <property name="android.lib" value="libs"/>
 
     <target name="-pre-build">
         <echo>configure ammo core libraries for ${basedir}.</echo>
