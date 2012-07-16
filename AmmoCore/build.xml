@@ -59,14 +59,15 @@
 <!-- extension targets. Uncomment the ones where you want to do custom work
      in between standard targets -->
 
+    <property name="android.lib" value="libs"/>
 
     <target name="-pre-build">
         <echo>configure ammo core libraries for ${basedir}.</echo>
         <!-- configure protobuf -->
-        <mkdir dir="libs"/>
+        <mkdir dir="${android.lib}"/>
 
         <symlink taskname="add-protobuf-libs" action="single" overwrite="true" 
-              link="${basedir}/libs/protobuf.jar" 
+              link="${basedir}/${android.lib}/protobuf.jar" 
               resource="${protobuf-unix-source}"/>
 <!--
         <symlink taskname="add-protobuf-lib" action="single" overwrite="true" 
@@ -78,7 +79,7 @@
            <condition>
                <not>
                    <resourcecount count="1">
-                       <fileset id="simlinks" dir="libs">
+                       <fileset id="simlinks" dir="${android.lib}">
                          <include name="protobuf.jar"/>
                        </fileset>
                    </resourcecount>
@@ -118,7 +119,7 @@
         <!-- ndk-build clean isn't currently removing the dirs -->
         <!-- in addition, go ahead and remove the gen dir from AmmoGen -->
         <echo>Removing obj, gen, and libs dirs</echo>
-        <delete dir="libs"/>
+        <delete dir="${android.lib}"/>
         <delete dir="obj"/>
         <delete dir="gen"/>
     </target>
