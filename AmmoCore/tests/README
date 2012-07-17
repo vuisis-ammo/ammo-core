@@ -1,0 +1,39 @@
+#===============================================================================
+#
+# AMMO CORE UNIT TESTS
+#
+#===============================================================================
+
+INTRODUCTION
+============
+
+This directory contains a project to build unit tests for AmmoCore.
+
+
+BUILDING
+========
+
+Build the tests with either of these commands:
+
+$ ant release
+$ ant dist
+
+
+RUNNING
+=======
+
+The tests must be installed on a phone and run there.  Install the test APK onto the phone with this command:
+
+$ adb install -r AmmoCoreTest-release.apk
+
+
+Run the tests with this command:
+
+$ adb shell am instrument -w  edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
+
+Test output will be displayed in the shell where this adb command is invoked.
+
+
+
+
+
