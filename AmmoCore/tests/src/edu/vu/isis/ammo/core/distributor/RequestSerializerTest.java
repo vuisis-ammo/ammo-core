@@ -1,21 +1,21 @@
 
 package edu.vu.isis.ammo.core;
 
-//import android.test.ActivityInstrumentationTestCase2;
 import android.test.AndroidTestCase;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
-//import edu.vu.isis.ammo.core.TLogger;
-
 import edu.vu.isis.ammo.core.distributor.RequestSerializer;
-//import edu.vu.isis.ammo.api.type.Payload;
-//import edu.vu.isis.ammo.api.type.Provider;
-
-import android.content.ContentValues;
+import edu.vu.isis.ammo.api.type.Payload;
+import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+
+import android.net.Uri;
+import android.content.ContentValues;
+import android.os.Parcel;
+
 
 /**
  * This is a simple framework for a test of an Application.  See
@@ -29,7 +29,6 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
  */
 
 
-//public class RequestSerializerTest extends ActivityInstrumentationTestCase2<RequestSerializer> {
 public class RequestSerializerTest extends AndroidTestCase {
 
     private RequestSerializer rsc;
@@ -63,17 +62,21 @@ public class RequestSerializerTest extends AndroidTestCase {
 
     public void testNewInstanceNoArgs()
     {
-	//TLogger.TEST_LOG.info("testNewInstance");
 	RequestSerializer rs = RequestSerializer.newInstance();
         assertNotNull(rs);
-	//assertTrue(true);
     }
 
     public void testNewInstanceArgs()
     {
-	//RequestSerializer rs = RequestSerializer.newInstance(Provider.Type.URI, Payload.Type.CV, );
-        //assertNotNull(rs);
-	assertTrue(true);
+	Uri uri = null;
+	Provider p1 = new Provider(uri);
+	
+	Parcel par = null;
+	Payload  p2 = new Payload(par);
+
+	// Provider.Type.URI, Payload.Type.CV
+	RequestSerializer rs = RequestSerializer.newInstance(p1,p2);
+        assertNotNull(rs);
     }
     
     public void testSerializeFromContentValues()
