@@ -11,10 +11,14 @@ import edu.vu.isis.ammo.core.distributor.RequestSerializer;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.distributor.NonConformingAmmoContentProvider;
+import edu.vu.isis.ammo.core.distributor.TupleNotFoundException;
 
 import android.net.Uri;
 import android.content.ContentValues;
+import android.content.ContentResolver;
 import android.os.Parcel;
+import java.io.IOException;
 
 
 /**
@@ -60,18 +64,30 @@ public class RequestSerializerTest extends AndroidTestCase {
 	// ...
     }
 
+    // =========================================================
+    // 
+    // test methods
+    // 
+    // =========================================================
+
+    // =========================================================
+    // newInstance() with no parameters
+    // =========================================================
     public void testNewInstanceNoArgs()
     {
 	RequestSerializer rs = RequestSerializer.newInstance();
         assertNotNull(rs);
     }
 
+    // =========================================================
+    // newInstance() with parameters
+    // =========================================================
     public void testNewInstanceArgs()
     {
 	Uri uri = null;
 	Provider p1 = new Provider(uri);
 	
-	Parcel par = null;
+	Parcel par = utilCreatePayloadParcel();
 	Payload  p2 = new Payload(par);
 
 	// Provider.Type.URI, Payload.Type.CV
@@ -79,22 +95,73 @@ public class RequestSerializerTest extends AndroidTestCase {
         assertNotNull(rs);
     }
     
-    public void testSerializeFromContentValues()
+    // =========================================================
+    // serialize from ContentValues (JSON encoding)
+    // =========================================================
+    public void testSerializeFromContentValuesJSON()
     {
-	//TLogger.TEST_LOG.info("testSerializeFromContentValues");
-
-	ContentValues cv = new ContentValues();
-	cv.put("foo", "bar");
+	ContentValues cv = utilCreateContentValues();
 
 	RequestSerializer rs = RequestSerializer.newInstance();
         //assertNotNull(rs);
 
 	// JSON encoding
 	Encoding encJson = Encoding.newInstance(Encoding.Type.JSON);
-	
 	byte[] rval = RequestSerializer.serializeFromContentValues(cv, encJson);
 	
+	assertTrue(true);
+    }
+    
+    // =========================================================
+    // serialize from ContentValues (terse encoding)
+    // =========================================================
+    public void testSerializeFromContentValuesTerse()
+    {
+	ContentValues cv = utilCreateContentValues();
+
+	RequestSerializer rs = RequestSerializer.newInstance();
+        //assertNotNull(rs);
+
 	// Terse encoding
+	Encoding encTerse = Encoding.newInstance(Encoding.Type.TERSE);
+	byte[] rval = RequestSerializer.serializeFromContentValues(cv, encTerse);
+	
+	assertTrue(true);
+    }
+
+    // =========================================================
+    // serialize from ContentProvider (JSON encoding)
+    // =========================================================
+    public void testSerializeFromProviderJSON()
+    {
+	RequestSerializer rs = RequestSerializer.newInstance();
+        //assertNotNull(rs);
+
+	// JSON encoding
+	Encoding enc = Encoding.newInstance(Encoding.Type.JSON);
+
+	ContentResolver cr = null;
+	Uri uri = null;
+
+	byte[] rval = null; 
+	try 
+	    {
+		rval = RequestSerializer.serializeFromProvider(cr, uri, enc);
+	    }
+	catch (NonConformingAmmoContentProvider ex)
+	    {
+		fail("Should not have thrown NonConformingAmmoContentProvider in this case");
+	    }
+	catch (TupleNotFoundException ex)
+	    {
+		fail("Should not have thrown TupleNotFoundException in this case");
+	    }
+	catch (IOException ex) 
+	    {
+		// This is an error rather than a failure... Handle in some way.
+		assertTrue(false);
+	    }
+	
 	assertTrue(true);
     }
 
@@ -102,6 +169,24 @@ public class RequestSerializerTest extends AndroidTestCase {
     {
 	//fail("RS failure");
 	//assertTrue(true);
+    }
+
+    // =========================================================
+    // 
+    // utility methods to assist testing
+    // 
+    // =========================================================
+
+    private Parcel utilCreatePayloadParcel()
+    {
+	return null;
+    }
+
+    private ContentValues utilCreateContentValues()
+    {
+	ContentValues cv = new ContentValues();
+	cv.put("foo", "bar");
+	return cv;
     }
 
 }
