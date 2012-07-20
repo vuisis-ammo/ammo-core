@@ -28,16 +28,23 @@ $ ant dist
 RUNNING
 =======
 
-The tests must be installed on a phone and run there.  Install the test APK onto the phone with this command:
+The tests must be installed on a phone and run there.  You can use the 'run-tests' ant target to build the test APK, install it on a phone, and run it all in a single step.
+
+$ ant run-tests
+
+See "OUTPUT" below about viewing test results.
+
+Alternatively, you can "manually" install the APK onto the phone and run the tests with with these commands:
 
 $ adb install -r AmmoCoreTest-release.apk
 
-
-Run the tests with this command:
-
 $ adb shell am instrument -w edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner
 
-Test output will be displayed in the shell where this adb command is invoked.  XML files with the test result data are also stored on the phone, and can be retrieved as follows:
+
+OUTPUT
+======
+
+Test output will be displayed in the shell where the adb command is invoked.  XML files with the test result data are also stored on the phone, and can be retrieved as follows:
 
 adb pull /data/data/edu.vu.isis.ammo.core/files/
 
