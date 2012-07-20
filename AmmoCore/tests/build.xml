@@ -116,6 +116,44 @@
         </fail>
     </target>
 
+    <target name="run-tests" depends="release"
+	    description="build and run unit tests on attached device">
+      <fail message="Unit test APK is missing -- cannot continue.">
+           <condition>
+               <not>
+                   <resourcecount count="1">
+		       <fileset dir="${out.dir}">
+			 <include name="${ant.project.name}-release.apk"/>
+		       </fileset>
+                   </resourcecount>
+               </not>
+           </condition>
+        </fail>
+
+      <echo message="Uninstalling previous installation of unit tests on attached device..."/> 
+      <exec executable="adb">
+        <arg value="uninstall"/>
+        <arg value="edu.vu.isis.ammo.core.tests"/>
+      </exec>
+
+      <echo message="Installing unit tests on attached device..."/> 
+      <exec executable="adb">
+        <arg value="install"/>
+        <arg value="${out.dir}/${ant.project.name}-release.apk"/>
+      </exec>
+
+
+      <echo message="Running unit tests..."/> 
+      <exec executable="adb">
+        <arg value="shell"/>
+        <arg value="am"/>
+        <arg value="instrument"/>
+        <arg value="-w"/>
+        <arg value="edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner"/>
+      </exec>
+
+    </target>
+    
     <!-- version-tag: 1 -->
     <import file="${sdk.dir}/tools/ant/build.xml" />
 
