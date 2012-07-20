@@ -631,8 +631,35 @@ public class RequestSerializer {
 				bigTuple.write(fieldName.getBytes());
 				bigTuple.write(0x0);
 
-				final byte[] blob = blobCursor.getBlob(ix);
-				final FieldTypeEnum dataType = FieldTypeEnum.infer(fieldName, blob);
+				// "Manual merge" of fix for blob/file handling
+				/*
+				 * If it is a file field type the value is a string,
+				 * If a blob then the field type is a blob, but
+				 * you can not check the field type directly so we
+				 * let the exception happen if we try the wrong type.
+				 */
+				final String fileName;
+				final byte[] blob;
+				final FieldTypeEnum dataType;
+				try {
+				    String tempFileName = null;
+				    byte[] tempBlob = null;
+				    FieldTypeEnum tempDataType = null;
+				    try {
+					tempFileName = blobCursor.getString(ix);
+					tempDataType = FieldTypeEnum.FIELD_TYPE_FILE;
+				    } catch (Exception ex) {
+					tempBlob = blobCursor.getBlob(ix);
+					tempDataType = FieldTypeEnum.infer(fieldName, tempBlob);
+				    }
+				    fileName = tempFileName;
+				    blob = tempBlob;	
+				    dataType = tempDataType;
+				} catch (Exception ex) {
+				    logger.error("something bad happened reading the field value", ex);
+				    continue;
+				}
+				
 
 				switch (dataType) {
 				case FIELD_TYPE_BLOB:
