@@ -7,6 +7,9 @@ import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
+import android.test.mock.MockContentResolver;
+import android.test.mock.MockContentProvider;
+
 import edu.vu.isis.ammo.core.distributor.RequestSerializer;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
@@ -17,6 +20,7 @@ import edu.vu.isis.ammo.core.distributor.TupleNotFoundException;
 import android.net.Uri;
 import android.content.ContentValues;
 import android.content.ContentResolver;
+import android.content.ContentProvider;
 import android.os.Parcel;
 import java.io.IOException;
 
@@ -140,7 +144,7 @@ public class RequestSerializerTest extends AndroidTestCase {
 	// JSON encoding
 	Encoding enc = Encoding.newInstance(Encoding.Type.JSON);
 
-	ContentResolver cr = null;
+	ContentResolver cr = utilGetContentResolver();
 	Uri uri = null;
 
 	byte[] rval = null; 
@@ -187,6 +191,23 @@ public class RequestSerializerTest extends AndroidTestCase {
 	ContentValues cv = new ContentValues();
 	cv.put("foo", "bar");
 	return cv;
+    }
+
+    private MockContentResolver utilGetContentResolver()
+    {
+	MockContentResolver mcr = new MockContentResolver();
+
+	String authority = "MY_AUTHORITY";
+	ContentProvider provider = null;
+	mcr.addProvider(authority, provider);
+
+	return mcr;
+    }
+
+    private MockContentProvider utilGetContentProvider()
+    {
+	MockContentProvider mcp = new MockContentProvider(getContext());
+	return mcp;
     }
 
 }
