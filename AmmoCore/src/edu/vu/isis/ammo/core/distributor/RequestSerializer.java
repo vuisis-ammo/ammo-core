@@ -647,7 +647,7 @@ public class RequestSerializer {
 				    FieldTypeEnum tempDataType = null;
 				    try {
 					tempFileName = blobCursor.getString(ix);
-					if (tempFileName == null || tempFileName.length == 0)
+					if (tempFileName == null || tempFileName.length() == 0)
 					    tempDataType = FieldTypeEnum.FIELD_TYPE_BLOB;
 					else
 					    tempDataType = FieldTypeEnum.FIELD_TYPE_FILE;
