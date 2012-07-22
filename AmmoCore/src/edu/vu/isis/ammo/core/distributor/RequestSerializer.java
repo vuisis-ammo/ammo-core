@@ -668,15 +668,17 @@ public class RequestSerializer {
 				case FIELD_TYPE_BLOB:
 					try {
 						logger.trace("field name=[{}] blob=[{}]", fieldName, blob);
-						final ByteBuffer fieldBlobBuffer = ByteBuffer.wrap(blob);
 
 						final ByteBuffer bb = ByteBuffer.allocate(4);
 						bb.order(ByteOrder.BIG_ENDIAN); 
-						final int size = fieldBlobBuffer.capacity();
+						final int size = (blob == null) ? 0 : blob.length;
 						bb.putInt(size);
-						bigTuple.write(bb.array());
 
-						bigTuple.write(fieldBlobBuffer.array());
+						bigTuple.write(bb.array());
+						
+						if (blob != null) {
+						    bigTuple.write(blob);
+						}
 
 						bigTuple.write(BLOB_MARKER_FIELD);
 						bigTuple.write(bb.array(),1,bb.array().length-1);
