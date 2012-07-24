@@ -650,7 +650,11 @@ public class RequestSerializer {
           BlobTypeEnum tempDataType = null;
           try {
             tempFileName = blobCursor.getString(ix);
-            tempDataType = BlobTypeEnum.LARGE;
+            if (tempFileName == null || tempFileName.length() < 1) {
+            	tempDataType = BlobTypeEnum.SMALL;
+            } else {
+            	tempDataType = BlobTypeEnum.LARGE;
+            }
           } catch (Exception ex) {
             tempBlob = blobCursor.getBlob(ix);
             tempDataType = BlobTypeEnum.infer(fieldName, tempBlob);
@@ -667,16 +671,15 @@ public class RequestSerializer {
         case SMALL:
           try {
             logger.trace("field name=[{}] blob=[{}]", fieldName, blob);
-            final ByteBuffer fieldBlobBuffer = ByteBuffer.wrap(blob);
-
+           
             final ByteBuffer bb = ByteBuffer.allocate(4);
             bb.order(ByteOrder.BIG_ENDIAN); 
-            final int size = fieldBlobBuffer.capacity();
+            final int size = (blob == null) ? 0 : blob.length;
             bb.putInt(size);
             bigTuple.write(bb.array());
-
-            bigTuple.write(fieldBlobBuffer.array());
-
+            if (blob != null) {
+            	bigTuple.write(blob);
+            }
             bigTuple.write(BLOB_MARKER_FIELD);
             bigTuple.write(bb.array(),1,bb.array().length-1);
           } finally { }
