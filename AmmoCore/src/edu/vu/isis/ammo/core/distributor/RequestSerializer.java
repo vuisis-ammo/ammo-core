@@ -985,6 +985,7 @@ public class RequestSerializer {
       final Object value = new JSONTokener(parsePayload).nextValue();
       if (value instanceof JSONObject) {
         input = (JSONObject) value;
+        logger.trace("JSON payload=[{}]", value);
       } else if (value instanceof JSONArray) {
         logger.warn("invalid JSON payload=[{}]", parsePayload);
         return null;
