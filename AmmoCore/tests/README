@@ -1,0 +1,51 @@
+#===============================================================================
+#
+# AMMO CORE UNIT TESTS
+#
+#===============================================================================
+
+INTRODUCTION
+============
+
+This directory contains a project to build unit tests for AmmoCore.
+
+Our unit tests make use of a custom Android JUnit test runner, found here:
+http://code.google.com/p/the-missing-android-xml-junit-test-runner/
+
+This runner enables the use of XML-formatted reports from unit tests.  Currently (July 2012) we are using version 1.3_2 of this library.
+
+
+
+BUILDING
+========
+
+Build the tests with either of these commands:
+
+$ ant release
+$ ant dist
+
+
+RUNNING
+=======
+
+The tests must be installed on a phone and run there.  You can use the 'run-tests' ant target to build the test APK, install it on a phone, and run it all in a single step.
+
+$ ant run-tests
+
+See "OUTPUT" below about viewing test results.
+
+Alternatively, you can "manually" install the APK onto the phone and run the tests with with these commands:
+
+$ adb install -r AmmoCoreTest-release.apk
+
+$ adb shell am instrument -w edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner
+
+
+OUTPUT
+======
+
+Test output will be displayed in the shell where the adb command is invoked.  XML files with the test result data are also stored on the phone, and can be retrieved as follows:
+
+adb pull /data/data/edu.vu.isis.ammo.core/files/
+
+

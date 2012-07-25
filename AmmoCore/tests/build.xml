@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="AmmoCore" default="help">
+<project name="AmmoCoreTest" default="help">
 
     <!-- The local.properties file is created and updated by the 'android' tool.
          It contains the path to the SDK. It should *NOT* be checked into
@@ -44,94 +44,10 @@
             message="sdk.dir is missing. Make sure to generate local.properties using 'android update project'"
             unless="sdk.dir"
     />
-    
-    <condition property="protobuf-unix-source" value="/usr/share/java/protobuf-java.jar">
-      <available file="protobuf-java.jar" filepath="/usr/share/java/" />
-    </condition>
-    
-    <condition property="protobuf-unix-source" value="/usr/share/java/protobuf.jar">
-      <not>
-        <available file="protobuf-java.jar" filepath="/usr/share/java/" />
-      </not>
-    </condition>
 
 
 <!-- extension targets. Uncomment the ones where you want to do custom work
      in between standard targets -->
-
-    <property name="android.libs" value="libs"/>
-
-    <target name="-dependencies">
-        <echo>configure ammo core libraries for ${basedir}.</echo>
-        <!-- configure protobuf -->
-        <mkdir dir="${android.libs}"/>
-
-        <symlink taskname="add-protobuf-libs" action="single" overwrite="true" 
-              link="${basedir}/${android.libs}/protobuf.jar" 
-              resource="${protobuf-unix-source}"/>
-
-        <fail message="Files are missing.">
-           <condition>
-               <not>
-                   <resourcecount count="1">
-                       <fileset id="simlinks" dir="${android.libs}">
-                         <include name="protobuf.jar"/>
-                       </fileset>
-                   </resourcecount>
-               </not>
-           </condition>
-        </fail>
-    </target>
-
-    <property name="proto.dir" value="../../Gateway/common/protocol"/>
-
-    <target name="protobuf">
-        <echo>Generating protocol buffers</echo>
-        <mkdir dir="gen"/>
-        <exec executable="protoc" taskname="pb">
-            <arg value="--proto_path"/>
-            <arg value="${proto.dir}"/>
-            <arg value="--java_out=gen"/>
-            <arg value="${proto.dir}/AmmoMessages.proto"/>
-        </exec>
-    </target>
-
-    <target name="-pre-compile" depends="-dependencies,protobuf,-ndk-build"/>
-
-    <target name="-ndk-build">
-        <echo>Building ethertracker library</echo>
-        <exec executable="ndk-build" dir="." 
-              searchpath="true"/>
-    </target>
-
-    <target name="realclean" depends="clean">
-        <echo>Cleaning ndk-build generated files...</echo>
-        <exec executable="ndk-build" dir="." 
-              searchpath="true">
-           <arg line="clean"/>
-        </exec>
-
-        <!-- ndk-build clean isn't currently removing the dirs -->
-        <!-- in addition, go ahead and remove the gen dir from AmmoGen -->
-        <echo>Removing obj, gen, and libs dirs</echo>
-        <delete dir="${android.lib}"/>
-        <delete dir="obj"/>
-        <delete dir="gen"/>
-    </target>
-
-    <target name="dist" depends="release">
-        <exec executable="git" dir="." 
-              searchpath="true" 
-              outputproperty="version">
-          <arg value="describe" />
-          <arg value="--match" />
-          <arg value="release-*" />
-        </exec>
-
-        <move file="${out.dir}/${ant.project.name}-release.apk"
-              tofile="${out.dir}/${ant.project.name}-${version}.apk" />
-    </target>
-
 <!--
     <target name="-pre-build">
     </target>
@@ -163,6 +79,81 @@
          In all cases you must update the value of version-tag below to read 'custom' instead of an integer,
          in order to avoid having your file be overridden by tools such as "android update project"
     -->
+
+
+    <target name="dist" depends="release">
+        <exec executable="git" dir="." 
+              searchpath="true" 
+              outputproperty="version">
+          <arg value="describe" />
+          <arg value="--match" />
+          <arg value="release-*" />
+        </exec>
+
+        <move file="${out.dir}/${ant.project.name}-release.apk"
+              tofile="${out.dir}/${ant.project.name}-${version}.apk" />
+    </target>
+
+    <target name="-dependencies"
+          description="get java jar libraries" >
+        <mkdir dir="${basedir}/libs"/> 
+        <symlink taskname="add-junitrunner-lib" action="single" overwrite="true"
+              link="${basedir}/libs/android-xml-junit-test-runner.jar"
+              resource="${repo.dir}/Android-libs/java/android-xml-junit-test-runner.jar"/>
+    </target>
+
+    <target name="-pre-compile" depends="-dependencies">
+        <fail message="Files are missing.">
+           <condition>
+               <not>
+                   <resourcecount count="1">
+                       <fileset id="simlinks" dir="libs">
+                          <include name="android-xml-junit-test-runner.jar"/>
+                       </fileset>
+                   </resourcecount>
+               </not>
+           </condition>
+        </fail>
+    </target>
+
+    <target name="run-tests" depends="release"
+	    description="build and run unit tests on attached device">
+      <fail message="Unit test APK is missing -- cannot continue.">
+           <condition>
+               <not>
+                   <resourcecount count="1">
+		       <fileset dir="${out.dir}">
+			 <include name="${ant.project.name}-release.apk"/>
+		       </fileset>
+                   </resourcecount>
+               </not>
+           </condition>
+        </fail>
+
+      <echo message="Uninstalling previous installation of unit tests on attached device..."/> 
+      <exec executable="adb">
+        <arg value="uninstall"/>
+        <arg value="edu.vu.isis.ammo.core.tests"/>
+      </exec>
+
+      <echo message="Installing unit tests on attached device..."/> 
+      <exec executable="adb">
+        <arg value="install"/>
+        <arg value="${out.dir}/${ant.project.name}-release.apk"/>
+      </exec>
+
+
+      <echo message="Running unit tests..."/> 
+      <exec executable="adb">
+        <arg value="shell"/>
+        <arg value="am"/>
+        <arg value="instrument"/>
+        <arg value="-w"/>
+        <arg value="edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner"/>
+      </exec>
+
+    </target>
+    
     <!-- version-tag: 1 -->
     <import file="${sdk.dir}/tools/ant/build.xml" />
 

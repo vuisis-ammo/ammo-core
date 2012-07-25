@@ -696,6 +696,10 @@ public class DistributorThread extends Thread {
 		case UNSUBSCRIBE:
 			cancelSubscribeRequest(that, agm);
 			break;
+		case NONE:
+		case PUBLISH:
+		default:
+			break;
 		}
 		return true;
 	}
