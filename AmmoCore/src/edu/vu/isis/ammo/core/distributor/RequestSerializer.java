@@ -605,29 +605,30 @@ public class RequestSerializer {
     Cursor blobCursor = null;
     final int blobCount;
     try {
-    try {
-      blobCursor = resolver.query(blobUri, null, null, null, null);
-    } catch(IllegalArgumentException ex) {
-      logger.warn("unknown content provider", ex);
-      return null;
-    }
-    if (blobCursor == null) {
-      PLogger.API_STORE.debug("json tuple=[{}]", tuple);
-      return ByteBufferFuture.wrap(tuple);
-    }
-    if (! blobCursor.moveToFirst()) {
-      PLogger.API_STORE.debug("json tuple=[{}]", tuple);
-      return ByteBufferFuture.wrap(tuple);
-    }
+      try {
+        PLogger.API_STORE.debug("get blobs uri=[{}]", blobUri);
+        blobCursor = resolver.query(blobUri, null, null, null, null);
+      } catch(IllegalArgumentException ex) {
+        logger.warn("unknown content provider", ex);
+        return null;
+      }
+      if (blobCursor == null) {
+        PLogger.API_STORE.debug("null blob json tuple=[{}]", tuple);
+        return ByteBufferFuture.wrap(tuple);
+      }
+      if (! blobCursor.moveToFirst()) {
+        PLogger.API_STORE.debug("no blob json tuple=[{}]", tuple);
+        return ByteBufferFuture.wrap(tuple);
+      }
       blobCount = blobCursor.getColumnCount();
-    if (blobCount < 1)  {
-      PLogger.API_STORE.debug("json tuple=[{}]", tuple);
-      return ByteBufferFuture.wrap(tuple);
-    }
+      if (blobCount < 1)  {
+        PLogger.API_STORE.debug("empty blob json tuple=[{}]", tuple);
+        return ByteBufferFuture.wrap(tuple);
+      }
 
-    logger.trace("getting the blob fields");  
-    final byte[] buffer = new byte[1024]; 
-    for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
+      logger.trace("getting the blob fields");  
+      final byte[] buffer = new byte[1024]; 
+      for (int ix=0; ix < blobCursor.getColumnCount(); ix++) {
 
         final String fieldName = blobCursor.getColumnName(ix);
         bigTuple.write(fieldName.getBytes());
@@ -641,7 +642,7 @@ public class RequestSerializer {
          * let the exception happen if we try the wrong type.
          */
         @SuppressWarnings("unused")
-		final String fileName;
+	final String fileName;
         final byte[] blob;
         final BlobTypeEnum dataType;
         try {
@@ -670,6 +671,7 @@ public class RequestSerializer {
         switch (dataType) {
         case SMALL:
           try {
+            PLogger.API_STORE.trace("small blob field name=[{}]", fieldName);
             logger.trace("field name=[{}] blob=[{}]", fieldName, blob);
            
             final ByteBuffer bb = ByteBuffer.allocate(4);
@@ -685,6 +687,7 @@ public class RequestSerializer {
           } finally { }
           break;
         case LARGE: 
+          PLogger.API_STORE.trace("large blob field name=[{}]", fieldName);
           logger.trace("field name=[{}] ", fieldName);
           final Uri fieldUri = Uri.withAppendedPath(tupleUri, fieldName);
           try {
@@ -985,22 +988,22 @@ public class RequestSerializer {
       final Object value = new JSONTokener(parsePayload).nextValue();
       if (value instanceof JSONObject) {
         input = (JSONObject) value;
-        logger.trace("JSON payload=[{}]", value);
+        PLogger.API_STORE.trace("JSON payload=[{}]", value);
       } else if (value instanceof JSONArray) {
-        logger.warn("invalid JSON payload=[{}]", parsePayload);
+        PLogger.API_STORE.warn("invalid JSON payload=[{}]", parsePayload);
         return null;
       } else if (value == JSONObject.NULL) {
-        logger.warn("null JSON payload=[{}]", parsePayload);
+        PLogger.API_STORE.warn("null JSON payload=[{}]", parsePayload);
         return null;
       } else {
-        logger.warn("{} JSON payload=[{}]", value.getClass().getName(), parsePayload);
+        PLogger.API_STORE.warn("{} JSON payload=[{}]", value.getClass().getName(), parsePayload);
         return null;
       }
     } catch (ClassCastException ex) {
-      logger.warn("invalid JSON content", ex);
+      PLogger.API_STORE.warn("invalid JSON content", ex);
       return null;
     } catch (JSONException ex) {
-      logger.warn("invalid JSON content", ex);
+      PLogger.API_STORE.warn("invalid JSON content", ex);
       return null;
     }
     final ContentValues cv = new ContentValues();
@@ -1019,17 +1022,17 @@ public class RequestSerializer {
         try {
           value = input.get(key);
         } catch (JSONException ex) {
-          logger.error("invalid JSON key=[{}] ex=[{}]", key, ex);
+          PLogger.API_STORE.error("invalid JSON key=[{}]", key, ex);
           continue;
         }
         if (value instanceof String) {
           cv.put(key, (String) value);
         } else {
-          logger.error("value has unexpected typ JSON key=[{}] value=[{}]", key, value);
+          PLogger.API_STORE.error("value has unexpected typ JSON key=[{}] value=[{}]", key, value);
           continue;
         }
       } else {
-        logger.error("invalid JSON key=[{}]", keyObj);
+        PLogger.API_STORE.error("invalid JSON key=[{}]", keyObj);
       }
     }
 
@@ -1110,6 +1113,7 @@ public class RequestSerializer {
       default:
       final Uri fieldUri = updateTuple.appendPath(fieldName).build();      
       try {
+        PLogger.API_STORE.debug("write blob uri=[{}]", fieldUri);
         final OutputStream outstream = resolver.openOutputStream(fieldUri);
         if (outstream == null) {
           logger.error( "failed to open output stream to content provider: {} ",
@@ -1130,6 +1134,7 @@ public class RequestSerializer {
     }
     if (blobCount > 0) {
       try {
+        PLogger.API_STORE.debug("insert blob uri=[{}]", provider);
         final Uri blobUri = resolver.insert(provider, cv); 
         if (blobUri == null) {
           logger.warn("could not insert {} into {}", cv, provider);
