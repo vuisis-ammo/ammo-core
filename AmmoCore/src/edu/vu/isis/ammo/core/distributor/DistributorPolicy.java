@@ -83,52 +83,58 @@ public class DistributorPolicy implements ContentHandler {
 		final File dir = context.getDir(policy_dir, Context.MODE_WORLD_READABLE);
 		final File file = new File(dir, policy_file);
 
-		final InputStream inputStream;
-		if (file.exists()) {
-			try {
-				inputStream = new FileInputStream(file);
-			} catch (FileNotFoundException ex) {
-				logger.error("no policy file {}", file, ex);
-				return null;
-			}
-		}
-		else {
-			logger.warn("no policy file {}, using and writing default", file);
-			try {
-				final AssetManager am = context.getAssets();
-				final InputStream copiable = am.open(policy_file);
-
-				// final InputStream copiable = context.getResources().openRawResource(R.raw.distribution_policy);				
-				final OutputStream out = new FileOutputStream(file);
-				final byte[] buf = new byte[1024];
-				int len;
-				while ((len = copiable.read(buf)) > 0) {
-					out.write(buf, 0, len);
-				}
-				copiable.close();
-				out.close();
-
-				inputStream = am.open(policy_file);	
-
-			} catch (NotFoundException ex) {
-				logger.error("asset not available", ex);
-				return null;
-			} catch (FileNotFoundException ex) {
-				logger.error("file not available", ex);
-				return null;
-			} catch (IOException ex) {
-				logger.error("file not writable", ex);
-				return null;
-			}
-		}
-		final InputSource is = new InputSource(new InputStreamReader(inputStream));
-		final DistributorPolicy policy = new DistributorPolicy(is);
+		InputStream inputStream = null;
 		try {
-			inputStream.close();
-		} catch (IOException ex) {
-			logger.error("could not close distributor configuration file", ex);
+			if (file.exists()) {
+				try {
+					inputStream = new FileInputStream(file);
+				} catch (FileNotFoundException ex) {
+					logger.error("no policy file {}", file, ex);
+					return null;
+				}
+			}
+			else {
+				logger.warn("no policy file {}, using and writing default", file);
+				try {
+					final AssetManager am = context.getAssets();
+					final InputStream copiable = am.open(policy_file);
+
+					// final InputStream copiable = context.getResources().openRawResource(R.raw.distribution_policy);				
+					final OutputStream out = new FileOutputStream(file);
+					final byte[] buf = new byte[1024];
+					int len;
+					while ((len = copiable.read(buf)) > 0) {
+						out.write(buf, 0, len);
+					}
+					copiable.close();
+					out.close();
+
+					inputStream = am.open(policy_file);	
+
+				} catch (NotFoundException ex) {
+					logger.error("asset not available", ex);
+					return null;
+				} catch (FileNotFoundException ex) {
+					logger.error("file not available", ex);
+					return null;
+				} catch (IOException ex) {
+					logger.error("file not writable", ex);
+					return null;
+				}
+			}
+			final InputSource is = new InputSource(new InputStreamReader(inputStream));
+			final DistributorPolicy policy = new DistributorPolicy(is);
+			return policy;
+			
+		} finally {
+			if (inputStream != null) {
+				try {
+					inputStream.close();
+				} catch (IOException ex) {
+					logger.error("could not close distributor configuration file", ex);
+				}
+			}
 		}
-		return policy;
 	}
 	/**
 	 * Load the policy information from an xml file
@@ -393,7 +399,7 @@ public class DistributorPolicy implements ContentHandler {
 				logger.debug("appl lifespan [{}] expiration [{}]", this.lifespan, workingExpiration);
 				return workingExpiration;
 			}
-			
+
 			final long maxExpiration = System.currentTimeMillis() + this.lifespan;
 
 			if (maxExpiration < workingExpiration) {
@@ -809,6 +815,9 @@ public class DistributorPolicy implements ContentHandler {
 					break;
 				case RETRIEVAL:
 					this.retrievalPolicy.insert(topic.getType(), topic );
+					break;
+				case PUBLISH:
+				default:
 					break;
 				}
 				logger.debug("end 'routing'");
