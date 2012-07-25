@@ -60,6 +60,7 @@ public class SerialChannel extends NetChannel
     public static final int SERIAL_DISABLED        = INetChannel.DISABLED;
     public static final int SERIAL_WAITING_FOR_TTY = INetChannel.LINK_WAIT;
     public static final int SERIAL_CONNECTED       = INetChannel.CONNECTED;
+    public static final int SERIAL_BUSY            = INetChannel.BUSY;
 
 
     /**
@@ -200,7 +201,7 @@ public class SerialChannel extends NetChannel
                 try {
                     mConnector.join();
                 } catch (InterruptedException ex) {
-                    logger.warn("Interrupted while trying to join connector thread", ex);
+                    logger.warn("Interrupted while trying to join connector thread" );
                 }
                 mConnector = null;
             }
@@ -450,13 +451,13 @@ public class SerialChannel extends NetChannel
                 if ( !isDisabled() )
                     Looper.loop();
             } catch ( IllegalMonitorStateException e ) {
-                logger.warn( "IllegalMonitorStateException thrown", e );
+                logger.warn( "IllegalMonitorStateException thrown {}", e.getStackTrace() );
             } catch ( InterruptedException e ) {
-                logger.warn( "Connector interrupted. Exiting", e );
+                logger.warn( "Connector interrupted. Exiting {}", e.getStackTrace() );
                 // Do nothing here.  If we were interrupted, we need
                 // to catch the exception and exit cleanly.
             } catch ( Exception e ) {
-                logger.warn("Connector threw exception", e );
+                logger.warn("Connector threw exception {}", e.getStackTrace() );
             }
 
             // Do we need to call some sort of quit() for the looper here? The
@@ -492,7 +493,7 @@ public class SerialChannel extends NetChannel
             try {
                 mPort = new SerialPort( new File(mDevice), mBaudRate );
             } catch ( Exception e ) {
-                logger.warn( "Connection to serial port failed", e );
+                logger.warn( "Connection to serial port failed" );
                 mPort = null;
                 return false;
             }
@@ -509,7 +510,7 @@ public class SerialChannel extends NetChannel
                     return false;
                 }
             } catch ( Exception e ) {
-                logger.warn( "Exception thrown in enableNmeaMessages()", e);
+                logger.warn( "Exception thrown in enableNmeaMessages() {}", e.getStackTrace() );
                 logger.warn( "Connection to serial port failed" );
                 return false;
             }
@@ -602,14 +603,15 @@ public class SerialChannel extends NetChannel
                 if ( mReceiver != null
                      && Thread.currentThread().getId() != mReceiver.getId() )
                     mReceiver.join();
-            } catch (java.lang.InterruptedException ex ) {
-                logger.warn( "disconnect: interrupted exception while waiting for threads to die", ex );
+            } catch ( java.lang.InterruptedException ex ) {
+                logger.warn( "disconnect: interrupted exception while waiting for threads to die {}",
+                             ex.getStackTrace() );
             }
 
             mSender = null;
             mReceiver = null;
         } catch ( Exception e ) {
-            logger.warn( "Caught exception while closing serial port", e );
+            logger.warn( "Caught exception while closing serial port {}", e.getStackTrace() );
             // Do this here, too, since if we exited early because
             // of an exception, we want to make sure that we're in
             // an unauthorized state.
@@ -747,7 +749,7 @@ public class SerialChannel extends NetChannel
         public SenderQueue()
         {
             setIsAuthorized( false );
-            mDistQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( 20 );
+            mDistQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( SENDQUEUE_MAX_SIZE );
             mAuthQueue = new LinkedList<AmmoGatewayMessage>();
         }
 
@@ -760,6 +762,15 @@ public class SerialChannel extends NetChannel
         public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
         {
             logger.debug( "putFromDistributor()" );
+
+            // There is a chance that the Distributor could try to send a
+            // message while the channel is going down, and we don't want
+            // the message to be stranded in the queue until the channel
+            // comes back up.  Reject the packet in these cases.
+            if ( getState() != SERIAL_CONNECTED ) {
+                return DisposalState.REJECTED;
+            }
+
             try {
                 if ( !mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
                     logger.debug( "serial channel not taking messages {}",
@@ -769,6 +780,16 @@ public class SerialChannel extends NetChannel
             } catch ( InterruptedException e ) {
                 return DisposalState.BAD;
             }
+
+            synchronized ( mDistQueueSize ) {
+                ++mDistQueueSize;
+                logger.trace( "Incrementing mDistQueueSize to {}", mDistQueueSize );
+                if ( mDistQueueSize == SENDQUEUE_MAX_SIZE ) {
+                    mWasBusy = true;
+                    setState( SERIAL_BUSY );
+                }
+            }
+
             return DisposalState.QUEUED;
         }
 
@@ -877,6 +898,7 @@ public class SerialChannel extends NetChannel
                 msg = mDistQueue.poll();
             }
 
+            mDistQueueSize = 0;
             setIsAuthorized( false );
         }
 
@@ -908,7 +930,8 @@ public class SerialChannel extends NetChannel
         @Override
         public void run()
         {
-            Process.setThreadPriority( -8 ); // this is a jitter sensitive thread, it should run on real-time-priority
+            // this is a jitter sensitive thread, it should run on real-time-priority
+            Process.setThreadPriority( -8 );
             logger.debug( "SenderThread <{}>::run() @prio: {}",
                           Thread.currentThread().getId(),
                           Process.getThreadPriority( Process.myTid() ));
@@ -922,7 +945,9 @@ public class SerialChannel extends NetChannel
             final int slotDuration = mSlotDuration.get();
             final int offset = ((mSlotNumber.get() - 1) % mRadiosInGroup.get()) * slotDuration;
             final int cycleDuration = slotDuration * mRadiosInGroup.get();
-            final double bytesPerMs = mBaudRate / (10*1000.0); // baudrate == symbols/sec, 1 byte == 10 symbols, 1 sec = 1000msec
+            final double bytesPerMs = mBaudRate / (10*1000.0); // baudrate == symbols/sec,
+                                                               // 1 byte == 10 symbols,
+                                                               // 1 sec = 1000msec
             final long MAX_SEND_PAYLOAD_SIZE = (long) (mTransmitDuration.get() * bytesPerMs);
 
             long currentGpsTime = System.currentTimeMillis() - mDelta;
@@ -933,10 +958,14 @@ public class SerialChannel extends NetChannel
                 try {
                     waitSlot: {
                         currentGpsTime = System.currentTimeMillis() - mDelta;
-                        final long thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration; // which cycle are we in
-                        final long thisSlotBegin = thisCycleStartTime + offset; // for this cycle when does our slot begin
-                        final long thisSlotEnd = thisSlotBegin + mTransmitDuration.get(); // for this cycle when does our slot end (begin + xmit-window)
-                        long thisSlotConsumed = 0; // how much data (in time units) have we sent so far in this slot
+                        // which cycle are we in
+                        final long thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration;
+                        // for this cycle when does our slot begin
+                        final long thisSlotBegin = thisCycleStartTime + offset;
+                        // for this cycle when does our slot end (begin + xmit-window)
+                        final long thisSlotEnd = thisSlotBegin + mTransmitDuration.get();
+                        // how much data (in time units) have we sent so far in this slot
+                        long thisSlotConsumed = 0;
 
                         if ( currentGpsTime < thisSlotBegin ) {
                             // too early - goto sleep till current slot begins
@@ -967,12 +996,14 @@ public class SerialChannel extends NetChannel
                                                   thisSlotEnd - currentGpsTime  );
                                     if ( getRetransmitter() != null )
                                         sendRetransmitIfPossible( thisSlotEnd, thisSlotConsumed, bytesPerMs );
-                                    goalTakeTime = thisSlotBegin + cycleDuration; // nothing in queue, wait till next slot
+                                    // nothing in queue, wait till next slot
+                                    goalTakeTime = thisSlotBegin + cycleDuration;
                                     break waitSlot;
                                 }
 
                                 AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
-                                int peekedMsgLength = peekedMsg.payload.length + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
+                                int peekedMsgLength = peekedMsg.payload.length
+                                                      + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
 
                                 if ( peekedMsgLength > MAX_SEND_PAYLOAD_SIZE ) {
                                     logger.warn( "Rejecting: messageLength={}, maxSize={}",
@@ -983,28 +1014,48 @@ public class SerialChannel extends NetChannel
                                     msg = mSenderQueue.take(); // Will not block
                                     if ( msg.handler != null )
                                         ackToHandler( msg.handler, DisposalState.BAD );
+                                    synchronized ( mDistQueueSize ) {
+                                        --mDistQueueSize;
+                                        logger.trace( "Decrementing mDistQueueSize to {}", mDistQueueSize );
+                                        if ( mDistQueueSize == SENDQUEUE_LOW_WATER && mWasBusy ) {
+                                            mWasBusy = false;
+                                            setState( SERIAL_CONNECTED );
+                                        }
+                                    }
+
                                     continue; // examine the next item in queue
                                 }
 
-                                // update our time (could potentially change from last read because of context switch etc..)
+                                // update our time (could potentially change from last read
+                                // because of context switch etc..)
                                 currentGpsTime = System.currentTimeMillis() - mDelta;
-                                final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
+                                // how much time do we have left in slot
+                                final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed;
                                 final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
 
                                 if ( peekedMsgLength > bytesThatWillFit ) {
                                     logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
                                                   peekedMsgLength,
                                                   bytesThatWillFit );
-                                    // since we process queue in order and next message is bigger than our available time
-                                    // goto sleep till next slot
+                                    // since we process queue in order and next message is bigger
+                                    // than our available time, goto sleep till next slot
                                     if ( getRetransmitter() != null )
                                         sendRetransmitIfPossible( thisSlotEnd, thisSlotConsumed, bytesPerMs );
                                     goalTakeTime = thisSlotBegin + cycleDuration;
                                     break waitSlot;
                                 }
 
-                                // now take and send assuming that our time has not diverged significantly from the last time we measured
+                                // now take and send assuming that our time has not diverged
+                                // significantly from the last time we measured
                                 msg = mSenderQueue.take(); // Will not block
+                                synchronized ( mDistQueueSize ) {
+                                    --mDistQueueSize;
+                                    logger.trace( "Decrementing mDistQueueSize to {}", mDistQueueSize );
+                                    if ( mDistQueueSize == SENDQUEUE_LOW_WATER && mWasBusy ) {
+                                        mWasBusy = false;
+                                        setState( SERIAL_CONNECTED );
+                                    }
+                                }
 
                                 logger.debug("Took a message from the send queue");
                                 sendMessage(msg);
@@ -1013,13 +1064,13 @@ public class SerialChannel extends NetChannel
                                 // since the send call is not true synchronous
                                 thisSlotConsumed += (peekedMsgLength / bytesPerMs);
                             } catch ( IOException e ) {
-                                logger.warn("sender threw exception", e );
+                                logger.warn("sender threw exception {}", e.getStackTrace() );
                                 if ( msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.REJECTED );
                                 setSenderState( INetChannel.INTERRUPTED );
                                 ioOperationFailed();
                             } catch ( Exception e ) {
-                                logger.warn("sender threw exception", e );
+                                logger.warn("sender threw exception {}", e.getStackTrace() );
                                 if ( msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.BAD );
                                 setSenderState( INetChannel.INTERRUPTED );
@@ -1032,7 +1083,7 @@ public class SerialChannel extends NetChannel
                     if ( goalTakeTime > currentGpsTime )
                         Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
-                    logger.debug( "interrupted taking messages from send queue", ex );
+                    logger.debug( "interrupted taking messages from send queue" );
                     setSenderState( INetChannel.INTERRUPTED );
                     break;
                 }
@@ -1302,11 +1353,11 @@ public class SerialChannel extends NetChannel
                     }
                 }
             } catch ( IOException ex ) {
-                logger.warn( "receiver threw an IOException", ex);
+                logger.warn( "receiver threw an IOException {}", ex.getStackTrace() );
                 setReceiverState( INetChannel.INTERRUPTED );
                 ioOperationFailed();
             } catch ( Exception ex ) {
-                logger.warn( "receiver threw an exception", ex);
+                logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
                 setReceiverState( INetChannel.INTERRUPTED );
                 ioOperationFailed();
             }
@@ -1538,6 +1589,13 @@ public class SerialChannel extends NetChannel
 
     private SenderThread mSender;
     private ReceiverThread mReceiver;
+
+    private static final int SENDQUEUE_MAX_SIZE = 20;
+    private static final int SENDQUEUE_LOW_WATER = 5;
+
+    // Used for synchronization
+    private Integer mDistQueueSize = new Integer( 0 );
+    private boolean mWasBusy = false;
 
     private SenderQueue mSenderQueue = new SenderQueue();
 

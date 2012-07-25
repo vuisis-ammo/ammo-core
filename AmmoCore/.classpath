@@ -1,13 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
-	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="src" path="gen"/>
-	<classpathentry exported="true" kind="lib" path="/usr/share/java/protobuf-java.jar"/>
-	<classpathentry exported="true" kind="lib" path="/Android-libs/java/logback-android.jar" sourcepath="/opt/logback-android"/>
-	<classpathentry exported="true" kind="lib" path="/Android-libs/java/slf4j-api.jar" sourcepath="/opt/slf4j-android/"/>
-	<classpathentry exported="true" kind="lib" path="/Android-libs/java/jgroups.jar"/>
-	<classpathentry kind="con" path="com.android.ide.eclipse.adt.LIBRARIES"/>
-	<classpathentry exported="true" kind="lib" path="/Android-libs/java/tasettings-api-1.0.3.jar" sourcepath="/Android-libs/java/tasettings-api-1.0.3-javadoc.jar"/>
-	<classpathentry kind="output" path="bin/classes"/>
+	<classpathentry kind="src" output="target/classes" path="src">
+		<attributes>
+			<attribute name="optional" value="true"/>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" path="target/generated-sources/pb"/>
+	<classpathentry kind="src" path="target/generated-sources/r"/>
+	<classpathentry kind="src" path="target/generated-sources/annotations"/>
+	<classpathentry kind="src" path="target/generated-sources/aidl"/>
+	<classpathentry kind="lib" path="/ammolib/target/ammolib-1.5.15-SNAPSHOT.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER">
+		<attributes>
+			<attribute name="maven.pomderived" value="true"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="output" path="target/classes"/>
 </classpath>

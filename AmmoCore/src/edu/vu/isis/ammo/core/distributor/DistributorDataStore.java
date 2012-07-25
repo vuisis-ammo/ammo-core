@@ -20,13 +20,6 @@ import java.util.Map.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.distributor.store.Capability;
-import edu.vu.isis.ammo.core.distributor.store.Presence;
-import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
-import edu.vu.isis.ammo.core.provider.CapabilitySchema;
-import edu.vu.isis.ammo.core.provider.PresenceSchema;
-import edu.vu.isis.ammo.core.provider.Relations;
-
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -40,6 +33,12 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
 import android.provider.BaseColumns;
 import android.text.TextUtils;
+import edu.vu.isis.ammo.core.distributor.store.Capability;
+import edu.vu.isis.ammo.core.distributor.store.Presence;
+import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
+import edu.vu.isis.ammo.core.provider.CapabilitySchema;
+import edu.vu.isis.ammo.core.provider.PresenceSchema;
+import edu.vu.isis.ammo.core.provider.Relations;
 
 /**
  * The Distributor Store Object is managed by the distributor thread.
@@ -316,6 +315,10 @@ public class DistributorDataStore {
 			case BUSY:
 			case BAD:
 				if (goalCondition == false) return true;
+				break;
+			case NEW:
+			case TOLD:
+			default:
 				break;
 			}
 			return false;

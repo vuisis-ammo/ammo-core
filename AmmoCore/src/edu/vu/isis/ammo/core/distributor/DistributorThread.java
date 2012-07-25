@@ -93,6 +93,8 @@ public class DistributorThread extends Thread {
 	// Constants
 	// ===========================================================
 	private static final Logger logger = LoggerFactory.getLogger("dist.thread");
+	private static final Logger resLogger = LoggerFactory.getLogger("test.queue.response");
+	private static final Logger reqLogger = LoggerFactory.getLogger("test.queue.request");
 	private static final boolean RUN_TRACE = false;
 
 	private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
@@ -616,6 +618,7 @@ public class DistributorThread extends Thread {
 									new Object[]{ this.responseQueue.size(), agm.payload_checksum, agm.size , agm});
 
 							logger.info("processing response {}, recvd @{}, remaining {}", new Object[]{agm.payload_checksum, agm.buildTime, this.responseQueue.size()} );
+							resLogger.info(TestJSONWriter.queueReport("response_queue", responseQueue.size()));
 							this.doResponse(ammoService, agm);
 						} catch (ClassCastException ex) {
 							logger.error("response queue contains illegal item of class", ex);
@@ -626,6 +629,7 @@ public class DistributorThread extends Thread {
 						try {
 							final AmmoRequest ar = this.requestQueue.take();
 							logger.info("processing request uuid {}, remaining {}", ar.uuid, this.requestQueue.size());
+							reqLogger.info(TestJSONWriter.queueReport("request_queue", responseQueue.size()));							
 							PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT,
 									new Object[]{ this.requestQueue.size(), ar.uuid, "n/a", ar});
 
@@ -691,6 +695,10 @@ public class DistributorThread extends Thread {
 			break;
 		case UNSUBSCRIBE:
 			cancelSubscribeRequest(that, agm);
+			break;
+		case NONE:
+		case PUBLISH:
+		default:
 			break;
 		}
 		return true;

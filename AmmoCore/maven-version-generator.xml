@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="AMMO" default="help">
+
+      <!-- DASH has moved to its own repository -->
+
+    <target name="help">
+        <echo message="To see available targets run 'ant -p' or 'ant -projecthelp' " />
+        <java classname="org.apache.tools.ant.Main">
+            <arg value="-projecthelp" />
+        </java>
+    </target>
+
+    <description>
+    This file should generate the res/values/version.xml file for the AmmoCore project.
+    
+    </description>
+
+    <!-- When running dist target, always specify a version for the
+        tarball. Otherwise, the tarball will be created with the
+        default version being 0 (e.g. Gateway.0.tar.gz) -->
+
+    <property name="android.target" value="android-8"/>
+
+    <!--property name="project" value="${ant.project.name}"/-->
+    <property name="build" value="build"/>
+    <!--property name="dist" value="dist"/-->
+
+    <!--property name="gateway.dir" value="Gateway"/!-->
+    <property name="android.dir" value="../../Android"/>
+
+    <!--property name="apk.doc" value="docs/apk/html"/!-->
+    <!--property name="gateway.doc" value="docs/gateway/html"/!-->
+    <property name="version.file" value="maven-VERSION"/>
+
+    <!--property name="user.guide" value="docs/user-guide"/!-->
+    <property name="dev.guide" value="docs/dev-guide"/>
+
+    <defaultexcludes add="**/.git"/>
+    <defaultexcludes add="**/.git/**"/>
+    <defaultexcludes add="**/.gitattributes"/>
+    <defaultexcludes add="**/.gitignore"/>
+    <defaultexcludes add="**/.gitmodules"/>
+
+
+    <target name="-init-version" unless="version">
+        <exec executable="git" dir="." 
+              searchpath="true" 
+              outputproperty="version">
+          <arg value="describe" />
+          <arg value="--long" />
+          <arg value="--match" />
+          <arg value="release-*" />
+        </exec>
+
+        <loadfile property="reversion" srcFile="${version.file}" quiet="true"/>
+        <condition  property="is.new.version" >
+           <equals arg1="${version}" arg2="${reversion}"/>
+        </condition>
+        <echo message="~~~~~~~~~~ setting property file1 ~~~~~~~~~~"/>
+        <property file="${android.dir}/../version.properties"/>
+        <echo message="~~~~~~~~~~ property file set1 ~~~~~~~~~~"/>
+        <echo message="~~~~~~~~~~ CHECKING property file1 ~~~~~~~~~~"/>
+        <echo message="version.code1 = ${version.code}"/>
+        <echo message="version.name1 = ${version.name}"/>
+        <echo message="~~~~~~~~~~ Done checking property file1 ~~~~~~~~~~"/>
+
+        <echo message="configure AmmoCore..."/>
+        <exec executable="android" dir="${android.dir}/AmmoCore" searchpath="true">
+           <arg line="update"/> <arg line="lib-project"/>
+           <arg line="--path"/> <arg line="."/>
+           <arg line="--target"/> <arg line="${android.target}"/>
+        </exec>
+        <echo message="android.library=true" file="${android.dir}/AmmoCore/project.properties" append="true"/>
+
+    </target>
+
+    <target name="-update-version" depends="-init-version" unless="is.new.version">
+        <echo message="~~~~~~~~~~ setting property file2 ~~~~~~~~~~"/>
+        <property file="${android.dir}/../version.properties"/>
+        <echo message="~~~~~~~~~~ property file set2 ~~~~~~~~~~"/>
+        <echo message="~~~~~~~~~~ CHECKING property file2 ~~~~~~~~~~"/>
+        <echo message="version.code2 = ${version.code}"/>
+        <echo message="version.name2 = ${version.name}"/>
+        <echo message="~~~~~~~~~~ Done checking property file2 ~~~~~~~~~~"/>
+        
+        <echo message="${version}" file="./maven-VERSION"/>
+        
+        <property name="android.version.file" value="${android.dir}/version.xml"/>
+
+        <copy file="${android.dir}/version.xml.in" tofile="${android.version.file}"/>
+
+        <replace file="${android.version.file}">
+            <replacefilter 
+               token="@@VERSION@@" 
+               value="${version}"/>
+            <replacefilter 
+               token="@@VERSION_CODE@@" 
+               value="${version.code}"/>
+            <!--replacefilter 
+               token="@@VERSION_CODE@@" 
+               property="version.code"/-->
+            <replacefilter 
+               token="@@VERSION_NAME@@" 
+               value="${version.name}"/>
+            <!--replacefilter 
+               token="@@VERSION_NAME@@" 
+               property="version.name"/-->
+        </replace>
+
+        <copy file="${android.version.file}" 
+              tofile="${android.dir}/AmmoCore/res/values/version.xml"/>
+        
+    </target>
+    <target name="update-version" depends="-update-version"
+         description="force the version to update" />
+</project>
