@@ -87,19 +87,6 @@
             </goals>
           </execution>
           <execution>
-            <id>ndk_gen</id>
-            <phase>validate</phase>
-            <configuration>
-              <tasks>
-                <echo>Building ethertracker library</echo>
-                <exec executable="ndk-build" dir="." searchpath="true" />
-              </tasks>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
-          <execution>
             <id>make_tar</id>
             <phase>install</phase>
             <configuration>
@@ -284,6 +271,19 @@
                   <goal>run</goal>
                 </goals>
               </execution>
+          <execution>
+            <id>ndk_gen</id>
+            <phase>validate</phase>
+            <configuration>
+              <tasks>
+                <echo>Building ethertracker library</echo>
+                <exec executable="ndk-build" dir="." searchpath="true" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -370,6 +370,19 @@
                   <goal>run</goal>
                 </goals>
               </execution>
+          <execution>
+            <id>ndk_gen</id>
+            <phase>validate</phase>
+            <configuration>
+              <tasks>
+                <echo>Building ethertracker library</echo>
+                <exec executable="ndk-build" dir="." searchpath="true" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -455,6 +468,19 @@
                   <goal>run</goal>
                 </goals>
               </execution>
+          <execution>
+            <id>ndk_gen</id>
+            <phase>validate</phase>
+            <configuration>
+              <tasks>
+                <echo>Building ethertracker library</echo>
+                <exec executable="ndk-build.cmd" dir="." searchpath="true" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -520,6 +546,19 @@
                   <goal>run</goal>
                 </goals>
               </execution>
+          <execution>
+            <id>ndk_gen</id>
+            <phase>validate</phase>
+            <configuration>
+              <tasks>
+                <echo>Building ethertracker library</echo>
+                <exec executable="ndk-build" dir="." searchpath="true" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
             </executions>
             <dependencies>
               <dependency>
