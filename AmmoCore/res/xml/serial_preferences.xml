@@ -42,13 +42,13 @@
         android:title="Radios in Group" />
     <edu.vu.isis.ammo.core.MyEditIntegerPreference
         android:name="Slot Duration"
-        android:defaultValue="125"
+        android:defaultValue="750"
         android:inputType="number"
         android:key="@string/network_serial_slot_duration"
         android:title="Slot Duration (ms)" />
     <edu.vu.isis.ammo.core.MyEditIntegerPreference
         android:name="Transmit Duration"
-        android:defaultValue="50"
+        android:defaultValue="500"
         android:inputType="number"
         android:key="@string/network_serial_xmit_duration"
         android:title="Transmit Duration (ms)" />
