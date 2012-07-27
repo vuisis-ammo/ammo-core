@@ -634,9 +634,9 @@ public class RequestSerializer {
         bigTuple.write(fieldName.getBytes());
         bigTuple.write(0x0);
 
+       // "Manual merge" of fix for blob/file handling
         /*
-         * An awful hack.
-         * If it is a file field type the value is a string,
+        * If it is a file field type the value is a string,
          * If a blob then the field type is a blob, but
          * you can not check the field type directly so we
          * let the exception happen if we try the wrong type.
@@ -716,7 +716,6 @@ public class RequestSerializer {
 
             bigTuple.write(fieldBlobBuffer.array());
             bigTuple.write(bb.array());
-
           } catch (SQLiteException ex) {
             logger.error("unable to create stream {}", serialUri, ex);
             continue;
@@ -724,7 +723,6 @@ public class RequestSerializer {
           } catch (IOException ex) {
             logger.trace("unable to create stream {}", serialUri, ex);
             throw new FileNotFoundException("Unable to create stream");
-
           } catch (Exception ex) {
             logger.error("content provider unable to create stream {}", serialUri, ex);
             continue;
