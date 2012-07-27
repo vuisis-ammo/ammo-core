@@ -17,7 +17,9 @@
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammo-parent</artifactId>
+    <!-- TEMPLATE:BEGIN-->
     <version>1.6.0-SNAPSHOT</version>
+    <!-- TEMPLATE:END -->
   </parent>
   <artifactId>AmmoCore</artifactId>
   <packaging>apk</packaging>
@@ -84,19 +86,6 @@
                   <target name="update-version" />
                 </ant>
               </target>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>ndk_gen</id>
-            <phase>validate</phase>
-            <configuration>
-              <tasks>
-                <echo>Building ethertracker library</echo>
-                <exec executable="ndk-build" dir="." searchpath="true" />
-              </tasks>
             </configuration>
             <goals>
               <goal>run</goal>
@@ -287,6 +276,19 @@
                   <goal>run</goal>
                 </goals>
               </execution>
+          <execution>
+            <id>ndk_gen</id>
+            <phase>validate</phase>
+            <configuration>
+              <tasks>
+                <echo>Building ethertracker library</echo>
+                <exec executable="ndk-build" dir="." searchpath="true" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -373,6 +375,19 @@
                   <goal>run</goal>
                 </goals>
               </execution>
+          <execution>
+            <id>ndk_gen</id>
+            <phase>validate</phase>
+            <configuration>
+              <tasks>
+                <echo>Building ethertracker library</echo>
+                <exec executable="ndk-build" dir="." searchpath="true" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -458,6 +473,19 @@
                   <goal>run</goal>
                 </goals>
               </execution>
+          <execution>
+            <id>ndk_gen</id>
+            <phase>validate</phase>
+            <configuration>
+              <tasks>
+                <echo>Building ethertracker library</echo>
+                <exec executable="ndk-build.cmd" dir="." searchpath="true" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -523,6 +551,19 @@
                   <goal>run</goal>
                 </goals>
               </execution>
+          <execution>
+            <id>ndk_gen</id>
+            <phase>validate</phase>
+            <configuration>
+              <tasks>
+                <echo>Building ethertracker library</echo>
+                <exec executable="ndk-build" dir="." searchpath="true" />
+              </tasks>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
             </executions>
             <dependencies>
               <dependency>
