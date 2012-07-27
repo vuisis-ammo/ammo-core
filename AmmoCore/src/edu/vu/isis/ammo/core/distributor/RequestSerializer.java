@@ -717,9 +717,17 @@ public class RequestSerializer {
             bigTuple.write(fieldBlobBuffer.array());
             bigTuple.write(bb.array());
 
+          } catch (SQLiteException ex) {
+            logger.error("unable to create stream {}", serialUri, ex);
+            continue;
+
           } catch (IOException ex) {
             logger.trace("unable to create stream {}", serialUri, ex);
             throw new FileNotFoundException("Unable to create stream");
+
+          } catch (Exception ex) {
+            logger.error("content provider unable to create stream {}", serialUri, ex);
+            continue;
           }
           break;
         default:
@@ -1025,10 +1033,28 @@ public class RequestSerializer {
           PLogger.API_STORE.error("invalid JSON key=[{}]", key, ex);
           continue;
         }
-        if (value instanceof String) {
+        if (value == null) {
+          cv.put(key, "");
+          PLogger.API_STORE.error("json value is null key=[{}]", key);
+          continue;
+        } else if (value instanceof String) {
           cv.put(key, (String) value);
+        } else if (value instanceof Boolean) {
+          cv.put(key, (Boolean) value);
+        } else if (value instanceof Integer) {
+          cv.put(key, (Integer) value);
+        } else if (value instanceof Long) {
+          cv.put(key, (Long) value);
+        } else if (value instanceof Double) {
+          cv.put(key, (Double) value);
+        } else if (value instanceof JSONObject) {
+          PLogger.API_STORE.error("value has unexpected type=[JSONObject] key=[{}] value=[{}]", key, value);
+          continue;
+        } else if (value instanceof JSONArray) {
+          PLogger.API_STORE.error("value has unexpected type=[JSONArray] key=[{}] value=[{}]", key, value);
+          continue;
         } else {
-          PLogger.API_STORE.error("value has unexpected typ JSON key=[{}] value=[{}]", key, value);
+          PLogger.API_STORE.error("value has unexpected type JSON key=[{}] value=[{}]", key, value);
           continue;
         }
       } else {
