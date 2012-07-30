@@ -958,42 +958,34 @@ public class ReliableMulticastChannel extends NetChannel
             notifyAll();
         }
 
-
+        /**
+         * Condition wait for the some request to the channel.
+         * 
+         * An initial request cannot be processed until
+         * the channel has authenticated.
+         * 
+         * This is where the authorized SenderThread blocks when 
+         * taking a distribution request.
+         * If not yet authorized then return the first item in 
+         * the authentication queue, removing that item from its queue.
+         * 
+         * @return
+         * @throws InterruptedException
+         */
         public synchronized AmmoGatewayMessage take() throws InterruptedException
         {
-            logger.trace( "taking from SenderQueue" );
-            if ( mChannel.getIsAuthorized() )
-            {
-                // This is where the authorized SenderThread blocks.
-                return mDistQueue.take();
-            }
-            else
-            {
-                if ( mAuthQueue.size() > 0 )
-                {
-                    // return the first item in mAuthqueue and remove
-                    // it from the queue.
-                    return mAuthQueue.remove();
-                }
-                else
-                {
-                    logger.trace( "wait()ing in SenderQueue" );
-                    wait(); // This is where the SenderThread blocks.
-
-                    if ( mChannel.getIsAuthorized() )
-                    {
-                        return mDistQueue.take();
-                    }
-                    else
-                    {
-                        // We are not yet authorized, so return the
-                        // first item in mAuthqueue and remove
-                        // it from the queue.
-                        return mAuthQueue.remove();
-                    }
-                }
-            }
+          logger.trace( "taking from SenderQueue" );
+          while (! mChannel.getIsAuthorized() && mAuthQueue.size() < 1) {
+            logger.trace( "wait()ing in SenderQueue" );
+            wait();
+          }
+          if ( mChannel.getIsAuthorized() ) {
+            return mDistQueue.take();
+          }
+          // must be the  mAuthQueue.size() > 0
+          return mAuthQueue.remove();
         }
+        
 
 
         // Somehow synchronize this here.
