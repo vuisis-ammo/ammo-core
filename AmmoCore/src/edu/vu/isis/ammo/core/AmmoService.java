@@ -811,7 +811,7 @@ INetworkService.OnSendMessageHandler, IChannelManager {
 		serialChannel.setReceiverEnabled(this.localSettings
 				.getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED, 
 						INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED) );
-		this.reliableMulticastChannel.toLog("acquire ");
+		this.serialChannel.toLog("acquire ");
 	}
 
 
