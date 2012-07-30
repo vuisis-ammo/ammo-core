@@ -21,7 +21,7 @@
     <version>1.6.0-SNAPSHOT</version>
     <!-- TEMPLATE:END -->
   </parent>
-  <artifactId>AmmoCore</artifactId>
+  <artifactId>ammocore</artifactId>
   <packaging>apk</packaging>
   <name>Ammo Core Application</name>
 
