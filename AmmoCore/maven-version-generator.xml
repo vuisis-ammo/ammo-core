@@ -66,8 +66,8 @@
 
         <echo message="configure AmmoCore..."/>
         <!-- This fails for the Windows build... <exec executable="android" dir="${android.dir}/AmmoCore" searchpath="true">
-           <arg line="update"/> <arg line="lib-project"/>
-           <arg line="-DOUBLEDASH-path"/> <arg line="."/>
+           <arg line="update"/> <arg line="project"/>          
+           <arg line="-DOUBLEDASH-path"/> <arg line="."/>                      ***********THIS HAS BEEN MOVED TO THE POMS***********
            <arg line="-DOUBLEDASH-target"/> <arg line="${android.target}"/>
         </exec-->
         <echo message="android.library=true" file="${android.dir}/AmmoCore/project.properties" append="true"/>
