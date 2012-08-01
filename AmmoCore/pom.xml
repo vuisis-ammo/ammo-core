@@ -199,8 +199,14 @@
       <version>2.3.0</version>
     </dependency>
     <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback</artifactId>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-core</artifactId>
+        <version>1.0.6-2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-classic</artifactId>
+        <version>1.0.6-2</version>
     </dependency>
     <dependency>
       <groupId>com.google.android</groupId>
