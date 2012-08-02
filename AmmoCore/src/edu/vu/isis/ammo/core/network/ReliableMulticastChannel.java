@@ -7,7 +7,8 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
+
 package edu.vu.isis.ammo.core.network;
 
 import java.io.File;
@@ -52,39 +53,34 @@ import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
-
-public class ReliableMulticastChannel extends NetChannel
-{
+public class ReliableMulticastChannel extends NetChannel {
     private static final Logger logger = LoggerFactory.getLogger("net.rmcast");
 
-    private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
+    private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in
+                                                   // milliseconds
 
     /**
-     * $ sysctl net.ipv4.tcp_rmem
-     * or
-     * $ cat /proc/sys/net/ipv4/tcp_rmem
-     * 4096   87380   4194304
-     * 0x1000 0x15554 0x400000
-     *
-     * The first value tells the kernel the minimum receive buffer for each TCP connection, and
-     * this buffer is always allocated to a TCP socket, even under high pressure on the system.
-     *
-     * The second value specified tells the kernel the default receive buffer allocated for each TCP socket.
-     * This value overrides the /proc/sys/net/core/rmem_default value used by other protocols.
-     *
-     * The third and last value specified in this variable specifies the maximum receive buffer
-     * that can be allocated for a TCP socket.
-     *
+     * $ sysctl net.ipv4.tcp_rmem or $ cat /proc/sys/net/ipv4/tcp_rmem 4096
+     * 87380 4194304 0x1000 0x15554 0x400000 The first value tells the kernel
+     * the minimum receive buffer for each TCP connection, and this buffer is
+     * always allocated to a TCP socket, even under high pressure on the system.
+     * The second value specified tells the kernel the default receive buffer
+     * allocated for each TCP socket. This value overrides the
+     * /proc/sys/net/core/rmem_default value used by other protocols. The third
+     * and last value specified in this variable specifies the maximum receive
+     * buffer that can be allocated for a TCP socket.
      */
     @SuppressWarnings("unused")
-	private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
+    private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum
+                                                           // receive buffer
+                                                           // size
     @SuppressWarnings("unused")
-	private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
+    private static final int MAX_MESSAGE_SIZE = 0x100000; // arbitrary max size
     private boolean isEnabled = true;
-    
-	public final static String config_dir = "config";
-	public final static String config_file = "udp.xml";
-	private File configFile = null;
+
+    public final static String config_dir = "config";
+    public final static String config_file = "udp.xml";
+    private File configFile = null;
 
     private final Socket socket = null;
     private ConnectorThread connectorThread;
@@ -94,23 +90,23 @@ public class ReliableMulticastChannel extends NetChannel
     private ChannelReceiver mReceiver;
 
     @SuppressWarnings("unused")
-    private int connectTimeout = 5 * 1000; // this should come from network preferences
+    private int connectTimeout = 5 * 1000; // this should come from network
+                                           // preferences
     @SuppressWarnings("unused")
     private int socketTimeout = 5 * 1000; // milliseconds.
 
     /*
-    private String gatewayHost = null;
-    private int gatewayPort = -1;
+     * private String gatewayHost = null; private int gatewayPort = -1;
      */
     private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
     private final Object syncObj;
 
     private boolean shouldBeDisabled = false;
     @SuppressWarnings("unused")
-	private final long flatLineTime;
+    private final long flatLineTime;
 
-	private JChannel mJGroupChannel;
-    //private MulticastSocket mSocket;
+    private JChannel mJGroupChannel;
+    // private MulticastSocket mSocket;
     private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
     private int mMulticastPort;
@@ -119,101 +115,108 @@ public class ReliableMulticastChannel extends NetChannel
     private SenderQueue mSenderQueue;
 
     private final AtomicBoolean mIsAuthorized;
-    
+
     private final AtomicInteger mMessagesSent = new AtomicInteger();
     private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
     // I made this public to support the hack to get authentication
-    // working before Nilabja's code is ready.  Make it private again
+    // working before Nilabja's code is ready. Make it private again
     // once his stuff is in.
     public final IChannelManager mChannelManager;
-	private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
+    private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
     private Context context;
 
-    private ReliableMulticastChannel(String name, IChannelManager iChannelManager ) {
+    private ReliableMulticastChannel(String name,
+            IChannelManager iChannelManager) {
         super(name);
 
-        logger.trace("Thread <{}>ReliableMulticastChannel::<constructor>", Thread.currentThread().getId());
+        logger.trace("Thread <{}>ReliableMulticastChannel::<constructor>",
+                Thread.currentThread().getId());
         this.syncObj = this;
 
-        mIsAuthorized = new AtomicBoolean( false );
-        mMulticastTTL = new AtomicInteger( 1 );
+        mIsAuthorized = new AtomicBoolean(false);
+        mMulticastTTL = new AtomicInteger(1);
 
         mChannelManager = iChannelManager;
 
         this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
 
-        mSenderQueue = new SenderQueue( this );
+        mSenderQueue = new SenderQueue(this);
 
         // The thread is start()ed the first time the network disables and
         // reenables it.
         this.connectorThread = new ConnectorThread(this);
-        
+
     }
-    
+
     @Override
-    public void init( Context context ) {
-    	this.context = context;
+    public void init(Context context) {
+        this.context = context;
 
-		// We need a context, so do this here instead of in the channel.
-		createReliableMulticastConfigFile( this.context);
+        // We need a context, so do this here instead of in the channel.
+        createReliableMulticastConfigFile(this.context);
     }
 
-	private void createReliableMulticastConfigFile( Context context )
-    {
-		final File dir = this.context.getDir(config_dir, Context.MODE_WORLD_READABLE);
-		this.configFile = new File(dir, config_file);
-		if ( !this.configFile.exists() ) {
-			try {
-				InputStream inputStream = context.getAssets().open( "udp.xml" );
-				OutputStream out = new FileOutputStream( this.configFile );
+    private void createReliableMulticastConfigFile(Context context) {
+        final File dir = this.context.getDir(config_dir,
+                Context.MODE_WORLD_READABLE);
+        this.configFile = new File(dir, config_file);
+        if (!this.configFile.exists()) {
+            try {
+                InputStream inputStream = context.getAssets().open("udp.xml");
+                OutputStream out = new FileOutputStream(this.configFile);
 
-				byte[] buffer = new byte[4096];
-				int n = 0;
-				while ( -1 != (n = inputStream.read(buffer)) ) {
-					out.write(buffer, 0, n);
-				}
-				out.close();
-				inputStream.close();
-			} catch ( Exception e ) {
-				e.printStackTrace();
-			}
-		}
-	}
-	
-	@Override
-	public String getSendReceiveStats () {
-	    StringBuilder countsString = new StringBuilder();
-	    countsString.append( "S:" ).append( mMessagesSent.get() ).append( " " );
-	    countsString.append( "R:" ).append( mMessagesReceived.get() );
-	    return countsString.toString();
-	}
+                byte[] buffer = new byte[4096];
+                int n = 0;
+                while (-1 != (n = inputStream.read(buffer))) {
+                    out.write(buffer, 0, n);
+                }
+                out.close();
+                inputStream.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
+    @Override
+    public String getSendReceiveStats() {
+        StringBuilder countsString = new StringBuilder();
+        countsString.append("S:").append(mMessagesSent.get()).append(" ");
+        countsString.append("R:").append(mMessagesReceived.get());
+        return countsString.toString();
+    }
 
-    public static ReliableMulticastChannel getInstance(String name, IChannelManager iChannelManager, Context context )
-    {
+    public static ReliableMulticastChannel getInstance(String name,
+            IChannelManager iChannelManager, Context context) {
         logger.trace("Thread <{}> ReliableMulticastChannel::getInstance()",
-                     Thread.currentThread().getId());
-        ReliableMulticastChannel instance = new ReliableMulticastChannel(name, iChannelManager );
+                Thread.currentThread().getId());
+        ReliableMulticastChannel instance = new ReliableMulticastChannel(name,
+                iChannelManager);
         return instance;
     }
- 
-    public boolean isConnected() { return this.connectorThread.isConnected(); }
+
+    public boolean isConnected() {
+        return this.connectorThread.isConnected();
+    }
 
     /**
      * Was the status changed as a result of enabling the connection.
+     * 
      * @return
      */
-    public boolean isEnabled() { return this.isEnabled; }
-
+    public boolean isEnabled() {
+        return this.isEnabled;
+    }
 
     public void enable() {
         logger.trace("Thread <{}>::enable", Thread.currentThread().getId());
         synchronized (this.syncObj) {
-            if ( !this.isEnabled ) {
+            if (!this.isEnabled) {
                 this.isEnabled = true;
 
-                // if (! this.connectorThread.isAlive()) this.connectorThread.start();
+                // if (! this.connectorThread.isAlive())
+                // this.connectorThread.start();
 
                 logger.warn("::enable - Setting the state to STALE");
                 this.shouldBeDisabled = false;
@@ -222,83 +225,100 @@ public class ReliableMulticastChannel extends NetChannel
         }
     }
 
-
     public void disable() {
         logger.trace("Thread <{}>::disable", Thread.currentThread().getId());
         synchronized (this.syncObj) {
-            if ( this.isEnabled ) {
+            if (this.isEnabled) {
                 this.isEnabled = false;
                 logger.warn("::disable - Setting the state to DISABLED");
                 this.shouldBeDisabled = true;
                 this.connectorThread.state.set(NetChannel.DISABLED);
 
-                //          this.connectorThread.stop();
+                // this.connectorThread.stop();
             }
         }
     }
 
-    public boolean close() { return false; }
+    public boolean close() {
+        return false;
+    }
 
     public boolean setConnectTimeout(int value) {
-        logger.trace("Thread <{}>::setConnectTimeout {}", Thread.currentThread().getId(), value);
+        logger.trace("Thread <{}>::setConnectTimeout {}", Thread
+                .currentThread().getId(), value);
         this.connectTimeout = value;
         return true;
     }
+
     public boolean setSocketTimeout(int value) {
-        logger.trace("Thread <{}>::setSocketTimeout {}", Thread.currentThread().getId(), value);
+        logger.trace("Thread <{}>::setSocketTimeout {}", Thread.currentThread()
+                .getId(), value);
         this.socketTimeout = value;
         this.reset();
         return true;
     }
 
     public void setFlatLineTime(long flatLineTime) {
-        //this.flatLineTime = flatLineTime;  // currently broken
+        // this.flatLineTime = flatLineTime; // currently broken
     }
 
     public boolean setHost(String host) {
-        logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
-        if ( this.mMulticastAddress != null && this.mMulticastAddress.equals(host) ) return false;
+        logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(),
+                host);
+        if (this.mMulticastAddress != null
+                && this.mMulticastAddress.equals(host))
+            return false;
         this.mMulticastAddress = host;
         this.reset();
         return true;
     }
 
     public boolean setPort(int port) {
-        logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
-        if (this.mMulticastPort == port) return false;
+        logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(),
+                port);
+        if (this.mMulticastPort == port)
+            return false;
         this.mMulticastPort = port;
         this.reset();
         return true;
     }
 
-    public void setTTL( int ttl ) {
-        logger.trace("Thread <{}>::setTTL {}", Thread.currentThread().getId(), ttl);
-        this.mMulticastTTL.set( ttl );
+    public void setTTL(int ttl) {
+        logger.trace("Thread <{}>::setTTL {}", Thread.currentThread().getId(),
+                ttl);
+        this.mMulticastTTL.set(ttl);
     }
 
     public String toString() {
-        return "socket: host["+this.mMulticastAddress+"] port["+this.mMulticastPort+"]";
+        return "socket: host[" + this.mMulticastAddress + "] port["
+                + this.mMulticastPort + "]";
     }
 
     public void linkUp() {
         this.connectorThread.state.linkUp();
     }
+
     public void linkDown() {
         this.connectorThread.state.linkDown();
     }
+
     /**
      * forces a reconnection.
      */
     public void reset() {
         logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
-        logger.trace("connector: {} sender: {} receiver: {}",
-                    new Object[] {
+        logger.trace(
+                "connector: {} sender: {} receiver: {}",
+                new Object[] {
                         this.connectorThread.showState(),
-                        (this.mSender == null ? "none" : this.mSender.getSenderState()),
-                        (this.mReceiver == null ? "none" : this.mReceiver.getReceiverState())});
+                        (this.mSender == null ? "none" : this.mSender
+                                .getSenderState()),
+                        (this.mReceiver == null ? "none" : this.mReceiver
+                                .getReceiverState())
+                });
 
         synchronized (this.syncObj) {
-            if (! this.connectorThread.isAlive()) {
+            if (!this.connectorThread.isAlive()) {
                 this.connectorThread = new ConnectorThread(this);
                 this.connectorThread.start();
             }
@@ -307,155 +327,134 @@ public class ReliableMulticastChannel extends NetChannel
         }
     }
 
-
-	private void statusChange()
-	{
-		int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
-		int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
+    private void statusChange() {
+        int senderState = (mSender != null) ? mSender.getSenderState()
+                : INetChannel.PENDING;
+        int receiverState = (mReceiver != null) ? mReceiver.getReceiverState()
+                : INetChannel.PENDING;
 
         try {
-            mChannelManager.statusChange( this,
-                                          this.connectorThread.state.value,
-                                          senderState,
-                                          receiverState );
-        } catch ( Exception ex ) {
-            logger.error( "Exception thrown in statusChange()", ex);
+            mChannelManager.statusChange(this,
+                    this.connectorThread.state.value, senderState,
+                    receiverState);
+        } catch (Exception ex) {
+            logger.error("Exception thrown in statusChange()", ex);
         }
-	}
-
-
-	private void setSecurityObject( ISecurityObject iSecurityObject )
-	{
-        mSecurityObject.set( iSecurityObject );
-	}
-
-
-	private ISecurityObject getSecurityObject()
-	{
-		return mSecurityObject.get();
-	}
-
-
-    private void setIsAuthorized( boolean iValue )
-    {
-        logger.trace( "In setIsAuthorized(). value={}", iValue );
-
-        mIsAuthorized.set( iValue );
     }
 
+    private void setSecurityObject(ISecurityObject iSecurityObject) {
+        mSecurityObject.set(iSecurityObject);
+    }
 
-    public boolean getIsAuthorized()
-    {
+    private ISecurityObject getSecurityObject() {
+        return mSecurityObject.get();
+    }
+
+    private void setIsAuthorized(boolean iValue) {
+        logger.trace("In setIsAuthorized(). value={}", iValue);
+
+        mIsAuthorized.set(iValue);
+    }
+
+    public boolean getIsAuthorized() {
         return mIsAuthorized.get();
     }
 
-
-    public void authorizationSucceeded( AmmoGatewayMessage agm )
-    {
-        setIsAuthorized( true );
+    public void authorizationSucceeded(AmmoGatewayMessage agm) {
+        setIsAuthorized(true);
         mSenderQueue.markAsAuthorized();
 
         // Tell the AmmoService that we're authorized and have it
         // notify the apps.
-        mChannelManager.authorizationSucceeded(this, agm );
+        mChannelManager.authorizationSucceeded(this, agm);
     }
 
-
-    public void authorizationFailed()
-    {
+    public void authorizationFailed() {
         // Disconnect the channel.
         reset();
     }
 
-
     // Called by ReceiverThread to send an incoming message to the
     // appropriate destination.
-    private boolean deliverMessage( AmmoGatewayMessage agm )
-    {
-        logger.debug( "In deliverMessage() {} ", agm );
+    private boolean deliverMessage(AmmoGatewayMessage agm) {
+        logger.debug("In deliverMessage() {} ", agm);
 
         boolean result;
-        if ( mIsAuthorized.get() )
-        {
-            logger.trace( " delivering to channel manager" );
-            result = mChannelManager.deliver( agm );
-        }
-        else
-        {
-            logger.trace( " delivering to security object" );
-            result = getSecurityObject().deliverMessage( agm );
+        if (mIsAuthorized.get()) {
+            logger.trace(" delivering to channel manager");
+            result = mChannelManager.deliver(agm);
+        } else {
+            logger.trace(" delivering to security object");
+            result = getSecurityObject().deliverMessage(agm);
         }
         return result;
     }
 
     /**
-     *  Called by the SenderThread.
-     *  This exists primarily to make a place to add instrumentation.
-     *  Also, follows the delegation pattern.
+     * Called by the SenderThread. This exists primarily to make a place to add
+     * instrumentation. Also, follows the delegation pattern.
      */
-    private boolean ackToHandler( INetworkService.OnSendMessageHandler handler,
-    		DisposalState status )
-    {
-        return handler.ack( this.name, status );
+    private boolean ackToHandler(INetworkService.OnSendMessageHandler handler,
+            DisposalState status) {
+        return handler.ack(this.name, status);
     }
 
     // Called by the ConnectorThread.
-    private boolean isAnyLinkUp()
-    {
+    private boolean isAnyLinkUp() {
         return mChannelManager.isAnyLinkUp();
     }
 
-
     @SuppressWarnings("unused")
-	private final AtomicLong mTimeOfLastGoodRead = new AtomicLong( 0 );
-
+    private final AtomicLong mTimeOfLastGoodRead = new AtomicLong(0);
 
     // Heartbeat-related members.
     private final long mHeartbeatInterval = 10 * 1000; // ms
-    private final AtomicLong mNextHeartbeatTime = new AtomicLong( 0 );
+    private final AtomicLong mNextHeartbeatTime = new AtomicLong(0);
 
     // Send a heartbeat packet to the gateway if enough time has elapsed.
     // Note: the way this currently works, the heartbeat can only be sent
-    // in intervals that are multiples of the burp time.  This may change
+    // in intervals that are multiples of the burp time. This may change
     // later if I can eliminate some of the wait()s.
     @SuppressWarnings("unused")
-	private void sendHeartbeatIfNeeded()
-    {
-        //logger.warn( "In sendHeartbeatIfNeeded()." );
+    private void sendHeartbeatIfNeeded() {
+        // logger.warn( "In sendHeartbeatIfNeeded()." );
 
         long nowInMillis = System.currentTimeMillis();
-        if ( nowInMillis < mNextHeartbeatTime.get() ) return;
+        if (nowInMillis < mNextHeartbeatTime.get())
+            return;
 
         // Send the heartbeat here.
-        logger.warn( "Sending a heartbeat. t={}", nowInMillis );
+        logger.warn("Sending a heartbeat. t={}", nowInMillis);
 
         // Create a heartbeat message and call the method to send it.
-        final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
-        mw.setType( AmmoMessages.MessageWrapper.MessageType.HEARTBEAT );
+        final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
+                .newBuilder();
+        mw.setType(AmmoMessages.MessageWrapper.MessageType.HEARTBEAT);
         mw.setMessagePriority(AmmoGatewayMessage.PriorityLevel.FLASH.v);
 
-        final AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat.newBuilder();
-        message.setSequenceNumber( nowInMillis ); // Just for testing
+        final AmmoMessages.Heartbeat.Builder message = AmmoMessages.Heartbeat
+                .newBuilder();
+        message.setSequenceNumber(nowInMillis); // Just for testing
 
-        mw.setHeartbeat( message );
+        mw.setHeartbeat(message);
 
-        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
+        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+                mw, null);
         agmb.isGateway(true);
-        sendRequest( agmb.build() );
+        sendRequest(agmb.build());
 
-        mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
-        //logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
+        mNextHeartbeatTime.set(nowInMillis + mHeartbeatInterval);
+        // logger.warn( "Next heartbeat={}", mNextHeartbeatTime );
     }
 
     /**
-     * manages the connection.
-     * enable or disable expresses the operator intent.
-     * There is no reason to run the thread unless the channel is enabled.
-     *
-     * Any of the properties of the channel
+     * manages the connection. enable or disable expresses the operator intent.
+     * There is no reason to run the thread unless the channel is enabled. Any
+     * of the properties of the channel
      */
     private class ConnectorThread extends Thread implements ChannelListener {
-        private final Logger logger = LoggerFactory.getLogger( "net.rmcast.connector" );
+        private final Logger logger = LoggerFactory
+                .getLogger("net.rmcast.connector");
 
         // private final String DEFAULT_HOST = "192.168.1.100";
         // private final int DEFAULT_PORT = 33289;
@@ -465,27 +464,35 @@ public class ReliableMulticastChannel extends NetChannel
 
         private AtomicBoolean mIsConnected;
 
-        public void statusChange() { parent.statusChange(); }
+        public void statusChange() {
+            parent.statusChange();
+        }
 
-        public void channelConnected(Channel channel) {}
-        public void channelDisconnected(Channel channel) { socketOperationFailed(); } // Is this right?
-        public void channelClosed(Channel channel) { socketOperationFailed(); }       // Is this right?
+        public void channelConnected(Channel channel) {
+        }
+
+        public void channelDisconnected(Channel channel) {
+            socketOperationFailed();
+        } // Is this right?
+
+        public void channelClosed(Channel channel) {
+            socketOperationFailed();
+        } // Is this right?
 
         // Called by the sender and receiver when they have an exception on the
-        // socket.  We only want to call reset() once, so we use an
+        // socket. We only want to call reset() once, so we use an
         // AtomicBoolean to keep track of whether we need to call it.
-        public void socketOperationFailed()
-        {
-            if ( mIsConnected.compareAndSet( true, false ))
+        public void socketOperationFailed() {
+            if (mIsConnected.compareAndSet(true, false))
                 state.reset();
         }
 
-
-        private ConnectorThread( ReliableMulticastChannel parent ) {
-            logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
+        private ConnectorThread(ReliableMulticastChannel parent) {
+            logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread
+                    .currentThread().getId());
             this.parent = parent;
             this.state = new State();
-            mIsConnected = new AtomicBoolean( false );
+            mIsConnected = new AtomicBoolean(false);
         }
 
         private class State {
@@ -498,65 +505,76 @@ public class ReliableMulticastChannel extends NetChannel
                 this.value = STALE;
                 this.attempt = Long.MIN_VALUE;
             }
+
             public synchronized void linkUp() {
                 this.notifyAll();
             }
+
             public synchronized void linkDown() {
                 this.reset();
             }
+
             public synchronized void set(int state) {
-                logger.trace("Thread <{}>State::set", Thread.currentThread().getId());
-                if ( state == STALE ) {
-					this.reset();
+                logger.trace("Thread <{}>State::set", Thread.currentThread()
+                        .getId());
+                if (state == STALE) {
+                    this.reset();
                 } else {
                     this.value = state;
                     this.notifyAll();
                 }
             }
+
             /**
-			 * changes the state as requested unless
-			 * the current state is disabled.
-			 * 
-			 * @param state
-			 * @return false if disabled; true otherwise
-			 */
-			public synchronized boolean setUnlessDisabled(int state) {
-				logger.trace("Thread <{}>State::setUnlessDisabled", 
-						Thread.currentThread().getId());
-				if (state == DISABLED) return false;
-				this.set(state);
+             * changes the state as requested unless the current state is
+             * disabled.
+             * 
+             * @param state
+             * @return false if disabled; true otherwise
+             */
+            public synchronized boolean setUnlessDisabled(int state) {
+                logger.trace("Thread <{}>State::setUnlessDisabled", Thread
+                        .currentThread().getId());
+                if (state == DISABLED)
+                    return false;
+                this.set(state);
                 return true;
-			}
-            public synchronized int get() { return this.value; }
+            }
+
+            public synchronized int get() {
+                return this.value;
+            }
 
             public synchronized boolean isConnected() {
                 return this.value == INetChannel.CONNECTED;
             }
-            
+
             public synchronized boolean isDisabled() {
-            	return this.value == INetChannel.DISABLED;
+                return this.value == INetChannel.DISABLED;
             }
 
-
             /**
-             * Previously this method would only set the state to stale
-             * if the current state were CONNECTED.  It may be important
-             * to return to STALE from other states as well.
-             * For example during a failed link attempt.
-             * Therefore if the attempt value matches then reset to STALE
-             * This also causes a reset to reliably perform a notify.
-             *
+             * Previously this method would only set the state to stale if the
+             * current state were CONNECTED. It may be important to return to
+             * STALE from other states as well. For example during a failed link
+             * attempt. Therefore if the attempt value matches then reset to
+             * STALE This also causes a reset to reliably perform a notify.
+             * 
              * @param attempt value (an increasing integer)
              * @return
              */
             public synchronized boolean failure(long attempt) {
-                if (attempt != this.attempt) return true;
+                if (attempt != this.attempt)
+                    return true;
                 return this.reset();
             }
+
             public synchronized boolean failureUnlessDisabled(long attempt) {
-            	if (this.value == INetChannel.DISABLED) return false; 
-            	return this.failure(attempt);
+                if (this.value == INetChannel.DISABLED)
+                    return false;
+                return this.failure(attempt);
             }
+
             public synchronized boolean reset() {
                 attempt++;
                 this.value = STALE;
@@ -564,21 +582,26 @@ public class ReliableMulticastChannel extends NetChannel
                 return true;
             }
 
-            public String showState () {
+            public String showState() {
                 if (this.value == this.actual)
                     return parent.showState(this.value);
                 else
-                    return parent.showState(this.actual) + "->" + parent.showState(this.value);
+                    return parent.showState(this.actual) + "->"
+                            + parent.showState(this.value);
             }
         }
 
         public boolean isConnected() {
             return this.state.isConnected();
         }
+
         public long getAttempt() {
             return this.state.attempt;
         }
-        public String showState() { return this.state.showState( ); }
+
+        public String showState() {
+            return this.state.showState();
+        }
 
         /**
          * reset forces the channel closed if open.
@@ -588,139 +611,154 @@ public class ReliableMulticastChannel extends NetChannel
         }
 
         /**
-         * A value machine based.
-         * Most of the time this machine will be in a CONNECTED value.
-         * In that CONNECTED value the machine wait for the connection value to
-         * change or for an interrupt indicating that the thread is being shut down.
-         *
-         *  The value machine takes care of the following constraints:
-         * We don't need to reconnect unless.
-         * 1) the connection has been lost
-         * 2) the connection has been marked stale
-         * 3) the connection is enabled.
-         * 4) an explicit reconnection was requested
-         *
+         * A value machine based. Most of the time this machine will be in a
+         * CONNECTED value. In that CONNECTED value the machine wait for the
+         * connection value to change or for an interrupt indicating that the
+         * thread is being shut down. The value machine takes care of the
+         * following constraints: We don't need to reconnect unless. 1) the
+         * connection has been lost 2) the connection has been marked stale 3)
+         * the connection is enabled. 4) an explicit reconnection was requested
+         * 
          * @return
          */
         @Override
         public void run() {
             try {
-                logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+                logger.trace("Thread <{}>ConnectorThread::run", Thread
+                        .currentThread().getId());
                 MAINTAIN_CONNECTION: while (true) {
-                    logger.trace("connector state: {}",this.showState());
+                    logger.trace("connector state: {}", this.showState());
 
-                    if(this.parent.shouldBeDisabled) this.state.set(NetChannel.DISABLED);
+                    if (this.parent.shouldBeDisabled)
+                        this.state.set(NetChannel.DISABLED);
                     switch (this.state.get()) {
-                    case NetChannel.DISABLED:
-                        try {
-                            synchronized (this.state) {
-                                logger.trace("this.state.get() = {}", this.state.get());
-                                this.parent.statusChange();
-                                disconnect();
-
-                                // Wait for a link interface.
-                                while (this.state.isDisabled())
-                                {
-                                    logger.trace("Looping in Disabled");
-                                    this.state.wait(BURP_TIME);
-                                }
-                            }
-                        } catch (InterruptedException ex) {
-                            logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.setUnlessDisabled(NetChannel.STALE);
-                            break MAINTAIN_CONNECTION;
-                        }
-                        break;
-                    case NetChannel.STALE:
-                        disconnect();
-                        this.state.setUnlessDisabled(NetChannel.LINK_WAIT);
-                        break;
-
-                    case NetChannel.LINK_WAIT:
-                        this.parent.statusChange();
-                        try {
-                        	synchronized (this.state) {
-	                        	while (! parent.isAnyLinkUp()  && ! this.state.isDisabled()) {
-	                            	this.state.wait(BURP_TIME);   // wait for a link interface
-	                            }   
-	                            this.state.setUnlessDisabled(NetChannel.DISCONNECTED);
-                        	}
-                        } catch (InterruptedException ex) {
-                            logger.warn("connection intentionally disabled {}", this.state );
-                            this.state.setUnlessDisabled(NetChannel.STALE);
-                            break MAINTAIN_CONNECTION;
-                        }
-                        this.parent.statusChange();
-                        // or else wait for link to come up, triggered through broadcast receiver
-                        break;
-
-                    case NetChannel.DISCONNECTED:
-                        this.parent.statusChange();
-                        if ( !this.connect() ) {
-                            this.state.setUnlessDisabled(NetChannel.CONNECTING);
-                        } else {
-                            this.state.setUnlessDisabled(NetChannel.CONNECTED);
-                        }
-                        break;
-
-                    case NetChannel.CONNECTING: // keep trying
-                        try {
-                            this.parent.statusChange();
-                            long attempt = this.getAttempt();
-                           
-                            synchronized (this.state) {
-	                            this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
-	                            if ( this.connect() ) {
-	                                this.state.setUnlessDisabled(NetChannel.CONNECTED);
-	                            } else {
-	                                this.state.failureUnlessDisabled(attempt);
-	                            }
-                            }
-                            this.parent.statusChange();
-                        } catch (InterruptedException ex) {
-                            logger.trace("sleep interrupted - intentional disable, exiting thread ...");
-                            this.reset();
-                            break MAINTAIN_CONNECTION;
-                        }
-                        break;
-
-                    case NetChannel.CONNECTED:
-                        {
-                            this.parent.statusChange();
+                        case NetChannel.DISABLED:
                             try {
                                 synchronized (this.state) {
-                                    while (this.isConnected()) // this is IMPORTANT don't remove it.
-                                    {
-                                        if ( HEARTBEAT_ENABLED );
-//                                            parent.sendHeartbeatIfNeeded();
+                                    logger.trace("this.state.get() = {}",
+                                            this.state.get());
+                                    this.parent.statusChange();
+                                    disconnect();
 
-                                        // wait for somebody to change the connection status
+                                    // Wait for a link interface.
+                                    while (this.state.isDisabled()) {
+                                        logger.trace("Looping in Disabled");
                                         this.state.wait(BURP_TIME);
                                     }
                                 }
                             } catch (InterruptedException ex) {
-                                logger.warn("connection intentionally disabled {}", this.state );
+                                logger.warn("connection intentionally disabled {}",
+                                        this.state);
+                                this.state.setUnlessDisabled(NetChannel.STALE);
+                                break MAINTAIN_CONNECTION;
+                            }
+                            break;
+                        case NetChannel.STALE:
+                            disconnect();
+                            this.state.setUnlessDisabled(NetChannel.LINK_WAIT);
+                            break;
+
+                        case NetChannel.LINK_WAIT:
+                            this.parent.statusChange();
+                            try {
+                                synchronized (this.state) {
+                                    while (!parent.isAnyLinkUp()
+                                            && !this.state.isDisabled()) {
+                                        this.state.wait(BURP_TIME); // wait for
+                                                                    // a
+                                                                    // link
+                                                                    // interface
+                                    }
+                                    this.state
+                                            .setUnlessDisabled(NetChannel.DISCONNECTED);
+                                }
+                            } catch (InterruptedException ex) {
+                                logger.warn("connection intentionally disabled {}",
+                                        this.state);
+                                this.state.setUnlessDisabled(NetChannel.STALE);
+                                break MAINTAIN_CONNECTION;
+                            }
+                            this.parent.statusChange();
+                            // or else wait for link to come up, triggered
+                            // through
+                            // broadcast receiver
+                            break;
+
+                        case NetChannel.DISCONNECTED:
+                            this.parent.statusChange();
+                            if (!this.connect()) {
+                                this.state.setUnlessDisabled(NetChannel.CONNECTING);
+                            } else {
+                                this.state.setUnlessDisabled(NetChannel.CONNECTED);
+                            }
+                            break;
+
+                        case NetChannel.CONNECTING: // keep trying
+                            try {
+                                this.parent.statusChange();
+                                long attempt = this.getAttempt();
+
+                                synchronized (this.state) {
+                                    this.state
+                                            .wait(NetChannel.CONNECTION_RETRY_DELAY);
+                                    if (this.connect()) {
+                                        this.state
+                                                .setUnlessDisabled(NetChannel.CONNECTED);
+                                    } else {
+                                        this.state.failureUnlessDisabled(attempt);
+                                    }
+                                }
+                                this.parent.statusChange();
+                            } catch (InterruptedException ex) {
+                                logger.trace("sleep interrupted - intentional disable, exiting thread ...");
+                                this.reset();
+                                break MAINTAIN_CONNECTION;
+                            }
+                            break;
+
+                        case NetChannel.CONNECTED: {
+                            this.parent.statusChange();
+                            try {
+                                synchronized (this.state) {
+                                    while (this.isConnected()) // this is
+                                                               // IMPORTANT
+                                                               // don't remove
+                                                               // it.
+                                    {
+                                        if (HEARTBEAT_ENABLED)
+                                            ;
+                                        // parent.sendHeartbeatIfNeeded();
+
+                                        // wait for somebody to change the
+                                        // connection status
+                                        this.state.wait(BURP_TIME);
+                                    }
+                                }
+                            } catch (InterruptedException ex) {
+                                logger.warn("connection intentionally disabled {}",
+                                        this.state);
                                 this.state.setUnlessDisabled(NetChannel.STALE);
                                 break MAINTAIN_CONNECTION;
                             }
                             this.parent.statusChange();
                         }
-                        break;
-                    default:
-                        try {
-                            long attempt = this.getAttempt();
-                            this.parent.statusChange();
-                            synchronized (this.state){ 
-	                            this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
-	                            
-	                            this.state.failureUnlessDisabled(attempt);
+                            break;
+                        default:
+                            try {
+                                long attempt = this.getAttempt();
+                                this.parent.statusChange();
+                                synchronized (this.state) {
+                                    this.state
+                                            .wait(NetChannel.CONNECTION_RETRY_DELAY);
+
+                                    this.state.failureUnlessDisabled(attempt);
+                                }
+                                this.parent.statusChange();
+                            } catch (InterruptedException ex) {
+                                logger.trace("sleep interrupted - intentional disable, exiting thread ...");
+                                this.reset();
+                                break MAINTAIN_CONNECTION;
                             }
-                            this.parent.statusChange();
-                        } catch (InterruptedException ex) {
-                            logger.trace("sleep interrupted - intentional disable, exiting thread ...");
-                            this.reset();
-                            break MAINTAIN_CONNECTION;
-                        }
                     }
                 }
 
@@ -740,560 +778,521 @@ public class ReliableMulticastChannel extends NetChannel
             logger.error("channel closing");
         }
 
+        private boolean connect() {
+            logger.trace("Thread <{}>ConnectorThread::connect", Thread
+                    .currentThread().getId());
 
-        private boolean connect()
-        {
-            logger.trace( "Thread <{}>ConnectorThread::connect",
-                         Thread.currentThread().getId() );
-
-            try
-            {
-                parent.mMulticastGroup = InetAddress.getByName( parent.mMulticastAddress );
-            }
-            catch ( UnknownHostException e )
-            {
-                logger.warn( "could not resolve host name" );
+            try {
+                parent.mMulticastGroup = InetAddress
+                        .getByName(parent.mMulticastAddress);
+            } catch (UnknownHostException e) {
+                logger.warn("could not resolve host name");
                 return false;
             }
 
             // Create the MulticastSocket.
-            if ( parent.mJGroupChannel != null )
-                logger.error( "Tried to create mJGroupChannel when we already had one." );
-            try
-            {
-            	parent.mJGroupChannel = new JChannel( parent.configFile );
-            	// Put call to set operator ID here.
-            	parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
-            	
-            	//parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT, Boolean.TRUE ); // deprecated
-        		parent.mJGroupChannel.connect( "AmmoGroup" );
-            }
-            catch ( Exception ex )
-            {
-                logger.warn( "connection to {}:{} failed: ",
-                             new Object[]{ parent.mMulticastGroup, parent.mMulticastPort}, 
-                             ex);
+            if (parent.mJGroupChannel != null)
+                logger.error("Tried to create mJGroupChannel when we already had one.");
+            try {
+                parent.mJGroupChannel = new JChannel(parent.configFile);
+                // Put call to set operator ID here.
+                parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
+
+                // parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT,
+                // Boolean.TRUE ); // deprecated
+                parent.mJGroupChannel.connect("AmmoGroup");
+            } catch (Exception ex) {
+                logger.warn("connection to {}:{} failed: ", new Object[] {
+                        parent.mMulticastGroup, parent.mMulticastPort
+                }, ex);
                 parent.mJGroupChannel = null;
                 return false;
             }
 
-            logger.info( "connection to {}:{} established ",
-                         parent.mMulticastGroup,
-                         parent.mMulticastPort );
+            logger.info("connection to {}:{} established ",
+                    parent.mMulticastGroup, parent.mMulticastPort);
 
-            mIsConnected.set( true );
+            mIsConnected.set(true);
 
-            // Create the security object.  This must be done before
+            // Create the security object. This must be done before
             // the ReceiverThread is created in case we receive a
             // message before the SecurityObject is ready to have it
             // delivered.
-            if ( parent.getSecurityObject() != null )
-                logger.error( "Tried to create SecurityObject when we already had one." );
-            parent.setSecurityObject( new ReliableMulticastSecurityObject( parent ));
+            if (parent.getSecurityObject() != null)
+                logger.error("Tried to create SecurityObject when we already had one.");
+            parent.setSecurityObject(new ReliableMulticastSecurityObject(parent));
 
             // Create the sending thread.
-            if ( parent.mSender != null )
-                logger.error( "Tried to create Sender when we already had one." );
-            parent.mSender = new SenderThread( this,
-                                               parent,
-                                               parent.mSenderQueue,
-                                               parent.mJGroupChannel );
+            if (parent.mSender != null)
+                logger.error("Tried to create Sender when we already had one.");
+            parent.mSender = new SenderThread(this, parent,
+                    parent.mSenderQueue, parent.mJGroupChannel);
             parent.mSender.start();
 
             // Create the receiving thread.
-            if ( parent.mReceiver != null )
-                logger.error( "Tried to create Receiver when we already had one." );
-            parent.mReceiver = new ChannelReceiver( this, parent );
+            if (parent.mReceiver != null)
+                logger.error("Tried to create Receiver when we already had one.");
+            parent.mReceiver = new ChannelReceiver(this, parent);
 
-        	parent.mJGroupChannel.setReceiver( parent.mReceiver );
-        	//parent.mJGroupChannel.addChannelListener( this ); // don't do this yet
-        	
-/*        	try {
-        		parent.mJGroupChannel.connect( "AmmoGroup" );
-        	} catch ( Exception ex ) {
-        		// FIXME: shouldn't happen, but figure out how to clean up and return false.
-        	}*/
+            parent.mJGroupChannel.setReceiver(parent.mReceiver);
+            // parent.mJGroupChannel.addChannelListener( this ); // don't do
+            // this yet
 
-        	// Should this be moved to before the construction of the Sender and Receiver?
-            // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
+            /*
+             * try { parent.mJGroupChannel.connect( "AmmoGroup" ); } catch (
+             * Exception ex ) { // FIXME: shouldn't happen, but figure out how
+             * to clean up and return false. }
+             */
+
+            // Should this be moved to before the construction of the Sender and
+            // Receiver?
+            // FIXME: don't pass in the result of buildAuthenticationRequest().
+            // This is
             // just a temporary hack.
-            //parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest());
-            setIsAuthorized( true );
+            // parent.getSecurityObject().authorize(
+            // mChannelManager.buildAuthenticationRequest());
+            setIsAuthorized(true);
             mSenderQueue.markAsAuthorized();
 
             return true;
         }
 
-
-        private boolean disconnect()
-        {
-            logger.trace( "Thread <{}>ConnectorThread::disconnect",
-                         Thread.currentThread().getId() );
-            try
-            {
-                mIsConnected.set( false );
+        private boolean disconnect() {
+            logger.trace("Thread <{}>ConnectorThread::disconnect", Thread
+                    .currentThread().getId());
+            try {
+                mIsConnected.set(false);
 
                 // Have to close the socket first unless we convert to
                 // an interruptible datagram socket.
-                if ( parent.mJGroupChannel != null )
-                {
-                    logger.debug( "Closing ReliableMulticastSocket." );
-                    parent.mJGroupChannel.close(); // will disconnect first if still connected
-                    logger.debug( "Done" );
+                if (parent.mJGroupChannel != null) {
+                    logger.debug("Closing ReliableMulticastSocket.");
+                    parent.mJGroupChannel.close(); // will disconnect first if
+                                                   // still connected
+                    logger.debug("Done");
 
                     parent.mJGroupChannel = null;
                 }
 
- 				if ( mSender != null ) {
-                    logger.debug( "interrupting SenderThread" );
-					mSender.interrupt();
+                if (mSender != null) {
+                    logger.debug("interrupting SenderThread");
+                    mSender.interrupt();
                 }
 
                 // We need to wait here until the threads have stopped.
-                logger.debug( "calling join() on SenderThread" );
-                mSender.join();
+                try {
+                    logger.debug("calling join() on SenderThread");
+                    if (mSender != null) {
+                        mSender.join();
+                    }
+                } catch (InterruptedException ex) {
+                    logger.info("socket i/o exception", ex);
+                    // Do this here, too, since if we exited early because
+                    // of an exception, we want to make sure that we're in
+                    // an unauthorized state.
+                    mSenderQueue.reset();
+                    setIsAuthorized(false);
+                    return false;
+                }
 
                 parent.mSender = null;
                 parent.mReceiver = null;
 
-                logger.debug( "resetting SenderQueue" );
+                logger.debug("resetting SenderQueue");
                 mSenderQueue.reset();
 
-                setIsAuthorized( false );
+                setIsAuthorized(false);
 
-                parent.setSecurityObject( null );
-            }
-            catch ( Exception e )
-            {
-                logger.error( "Caught Exception", e );
+                parent.setSecurityObject(null);
+            } catch (Exception e) {
+                logger.error("Caught Exception", e);
                 // Do this here, too, since if we exited early because
                 // of an exception, we want to make sure that we're in
                 // an unauthorized state.
-                setIsAuthorized( false );
+                setIsAuthorized(false);
                 return false;
             }
-            logger.debug( "returning after successful disconnect()." );
+            logger.debug("returning after successful disconnect().");
             return true;
         }
     }
 
-
     /**
-     * do your best to send the message.
-     * This makes use of the blocking "put" call.
-     * A proper producer-consumer should use put or add and not offer.
-     * "put" is blocking call.
-     * If this were on the UI thread then offer would be used.
-     *
+     * do your best to send the message. This makes use of the blocking "put"
+     * call. A proper producer-consumer should use put or add and not offer.
+     * "put" is blocking call. If this were on the UI thread then offer would be
+     * used.
+     * 
      * @param agm AmmoGatewayMessage
      * @return
      */
-    public DisposalState sendRequest( AmmoGatewayMessage agm )
-    {
-        return mSenderQueue.putFromDistributor( agm );
+    public DisposalState sendRequest(AmmoGatewayMessage agm) {
+        return mSenderQueue.putFromDistributor(agm);
     }
 
-    public void putFromSecurityObject( AmmoGatewayMessage agm )
-    {
-        mSenderQueue.putFromSecurityObject( agm );
+    public void putFromSecurityObject(AmmoGatewayMessage agm) {
+        mSenderQueue.putFromSecurityObject(agm);
     }
 
-    public void finishedPuttingFromSecurityObject()
-    {
+    public void finishedPuttingFromSecurityObject() {
         mSenderQueue.finishedPuttingFromSecurityObject();
     }
 
-
-    ///////////////////////////////////////////////////////////////////////////
+    // /////////////////////////////////////////////////////////////////////////
     //
-    class SenderQueue
-    {
-        public SenderQueue( ReliableMulticastChannel iChannel )
-        {
+    class SenderQueue {
+        public SenderQueue(ReliableMulticastChannel iChannel) {
             mChannel = iChannel;
 
-            setIsAuthorized( false );
+            setIsAuthorized(false);
             // mDistQueue = new LinkedBlockingQueue<AmmoGatewayMessage>( 20 );
-            mDistQueue = new PriorityBlockingQueue<AmmoGatewayMessage>( 20 );
+            mDistQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(20);
             mAuthQueue = new LinkedList<AmmoGatewayMessage>();
         }
 
-
         // In the new design, aren't we supposed to let the
         // AmmoService know if the outgoing queue is full or not?
-        public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
-        {
-            logger.trace( "putFromDistributor()" );
+        public DisposalState putFromDistributor(AmmoGatewayMessage iMessage) {
+            logger.trace("putFromDistributor()");
             try {
-				if (! mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
-					logger.warn("reliable multicast channel not taking messages {}", DisposalState.BUSY );
-				    return DisposalState.BUSY;
-				}
-			} catch (InterruptedException e) {
-				return DisposalState.REJECTED;
-			}
+                if (!mDistQueue.offer(iMessage, 1, TimeUnit.SECONDS)) {
+                    logger.warn(
+                            "reliable multicast channel not taking messages {}",
+                            DisposalState.BUSY);
+                    return DisposalState.BUSY;
+                }
+            } catch (InterruptedException e) {
+                return DisposalState.REJECTED;
+            }
             return DisposalState.QUEUED;
         }
 
-
-        public synchronized void putFromSecurityObject( AmmoGatewayMessage iMessage )
-        {
-            logger.trace( "putFromSecurityObject()" );
-            mAuthQueue.offer( iMessage );
+        public synchronized void putFromSecurityObject(
+                AmmoGatewayMessage iMessage) {
+            logger.trace("putFromSecurityObject()");
+            mAuthQueue.offer(iMessage);
         }
 
-
-        public synchronized void finishedPuttingFromSecurityObject()
-        {
-            logger.trace( "finishedPuttingFromSecurityObject()" );
+        public synchronized void finishedPuttingFromSecurityObject() {
+            logger.trace("finishedPuttingFromSecurityObject()");
             notifyAll();
         }
 
-
         // This is called when the SecurityObject has successfully
         // authorized the channel.
-        public synchronized void markAsAuthorized()
-        {
-            logger.trace( "Marking channel as authorized" );
+        public synchronized void markAsAuthorized() {
+            logger.trace("Marking channel as authorized");
             notifyAll();
         }
 
         /**
-         * Condition wait for the some request to the channel.
-         * 
-         * An initial request cannot be processed until
-         * the channel has authenticated.
-         * 
-         * This is where the authorized SenderThread blocks when 
-         * taking a distribution request.
-         * If not yet authorized then return the first item in 
-         * the authentication queue, removing that item from its queue.
+         * Condition wait for the some request to the channel. An initial
+         * request cannot be processed until the channel has authenticated. This
+         * is where the authorized SenderThread blocks when taking a
+         * distribution request. If not yet authorized then return the first
+         * item in the authentication queue, removing that item from its queue.
          * 
          * @return
          * @throws InterruptedException
          */
-        public synchronized AmmoGatewayMessage take() throws InterruptedException
-        {
-          logger.trace( "taking from SenderQueue" );
-          while (! mChannel.getIsAuthorized() && mAuthQueue.size() < 1) {
-            logger.trace( "wait()ing in SenderQueue" );
-            wait();
-          }
-          if ( mChannel.getIsAuthorized() ) {
-            return mDistQueue.take();
-          }
-          // must be the  mAuthQueue.size() > 0
-          return mAuthQueue.remove();
+        public synchronized AmmoGatewayMessage take()
+                throws InterruptedException {
+            logger.trace("taking from SenderQueue");
+            while (!mChannel.getIsAuthorized() && mAuthQueue.size() < 1) {
+                logger.trace("wait()ing in SenderQueue");
+                wait();
+            }
+            if (mChannel.getIsAuthorized()) {
+                return mDistQueue.take();
+            }
+            // must be the mAuthQueue.size() > 0
+            return mAuthQueue.remove();
         }
-        
-
 
         // Somehow synchronize this here.
-        public synchronized void reset()
-        {
-            logger.trace( "reset()ing the SenderQueue" );
+        public synchronized void reset() {
+            logger.trace("reset()ing the SenderQueue");
             // Tell the distributor that we couldn't send these
             // packets.
             AmmoGatewayMessage msg = mDistQueue.poll();
-            while ( msg != null )
-            {
-                if ( msg.handler != null )
-                    mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
+            while (msg != null) {
+                if (msg.handler != null)
+                    mChannel.ackToHandler(msg.handler, DisposalState.REJECTED);
                 msg = mDistQueue.poll();
             }
 
-            setIsAuthorized( false );
+            setIsAuthorized(false);
         }
-
 
         private BlockingQueue<AmmoGatewayMessage> mDistQueue;
         private LinkedList<AmmoGatewayMessage> mAuthQueue;
         private ReliableMulticastChannel mChannel;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
+    // /////////////////////////////////////////////////////////////////////////
     //
-    class SenderThread extends Thread
-    {
-        public SenderThread( ConnectorThread iParent,
-                             ReliableMulticastChannel iChannel,
-                             SenderQueue iQueue,
-                             JChannel iJChannel )
-        {
+    class SenderThread extends Thread {
+        public SenderThread(ConnectorThread iParent,
+                ReliableMulticastChannel iChannel, SenderQueue iQueue,
+                JChannel iJChannel) {
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
             mJChannel = iJChannel;
         }
 
-
         /**
          * the message format is
-         *
          */
         @Override
-        public void run()
-        {
-            logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
+        public void run() {
+            logger.trace("Thread <{}>::run()", Thread.currentThread().getId());
 
             // Block on reading from the queue until we get a message to send.
             // Then send it on the socket channel. Upon getting a socket error,
             // notify our parent and go into an error state.
 
-            while ( mState != INetChannel.INTERRUPTED )
-            {
+            while (mState != INetChannel.INTERRUPTED) {
                 AmmoGatewayMessage msg = null;
-                try
-                {
-                    setSenderState( INetChannel.TAKING );
+                try {
+                    setSenderState(INetChannel.TAKING);
                     msg = mQueue.take(); // The main blocking call
 
-                    logger.debug( "Took a message from the send queue" );
-                }
-                catch ( InterruptedException ex )
-                {
-                    logger.debug( "interrupted taking messages from send queue", ex);
-                    setSenderState( INetChannel.INTERRUPTED );
+                    logger.debug("Took a message from the send queue");
+                } catch (InterruptedException ex) {
+                    logger.debug("interrupted taking messages from send queue",
+                            ex);
+                    setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
-                }
-                catch ( Exception ex )
-                {
+                } catch (Exception ex) {
                     logger.warn("sender threw exception while take()ing", ex);
-                    setSenderState( INetChannel.INTERRUPTED );
+                    setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 }
 
-                try
-                {
-                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0);
-                    setSenderState( INetChannel.SENDING );
+                try {
+                    ByteBuffer buf = msg.serialize(endian,
+                            AmmoGatewayMessage.VERSION_1_FULL, (byte) 0);
+                    setSenderState(INetChannel.SENDING);
 
-                    DatagramPacket packet =
-                        new DatagramPacket( buf.array(),
-                                            buf.remaining(),
-                                            mChannel.mMulticastGroup,
-                                            mChannel.mMulticastPort );
-                    logger.debug( "Sending datagram packet. length={}", packet.getLength() );
+                    DatagramPacket packet = new DatagramPacket(buf.array(),
+                            buf.remaining(), mChannel.mMulticastGroup,
+                            mChannel.mMulticastPort);
+                    logger.debug("Sending datagram packet. length={}",
+                            packet.getLength());
 
-                    logger.debug( "...{}", buf.array() );
-                    logger.debug( "...{}", buf.remaining() );
-                    logger.debug( "...{}", mChannel.mMulticastGroup );
-                    logger.debug( "...{}", mChannel.mMulticastPort );
+                    logger.debug("...{}", buf.array());
+                    logger.debug("...{}", buf.remaining());
+                    logger.debug("...{}", mChannel.mMulticastGroup);
+                    logger.debug("...{}", mChannel.mMulticastPort);
 
-                    mJChannel.send( null, buf.array() );
-                    
+                    mJChannel.send(null, buf.array());
+
                     mMessagesSent.incrementAndGet();
-                    
-                    logger.info( "Send packet to Network, size ({})", packet.getLength() );
+
+                    logger.info("Send packet to Network, size ({})",
+                            packet.getLength());
 
                     // legitimately sent to gateway.
-                    if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, DisposalState.SENT );
-                }
-                catch ( SocketException ex )
-                {
-                    logger.debug( "sender caught SocketException" );
-                    if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
-                    setSenderState( INetChannel.INTERRUPTED );
+                    if (msg.handler != null)
+                        mChannel.ackToHandler(msg.handler, DisposalState.SENT);
+                } catch (SocketException ex) {
+                    logger.debug("sender caught SocketException");
+                    if (msg.handler != null)
+                        mChannel.ackToHandler(msg.handler,
+                                DisposalState.REJECTED);
+                    setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
-                }
-                catch ( Exception ex )
-                {
-                    logger.warn("sender threw exception", ex );
-                    if ( msg.handler != null )
-                        mChannel.ackToHandler( msg.handler, DisposalState.BAD );
-                    setSenderState( INetChannel.INTERRUPTED );
+                } catch (Exception ex) {
+                    logger.warn("sender threw exception", ex);
+                    if (msg.handler != null)
+                        mChannel.ackToHandler(msg.handler, DisposalState.BAD);
+                    setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 }
             }
         }
 
-
-        private void setSenderState( int iState )
-        {
-            synchronized ( this )
-            {
+        private void setSenderState(int iState) {
+            synchronized (this) {
                 mState = iState;
             }
             mParent.statusChange();
         }
 
-        public synchronized int getSenderState() { return mState; }
+        public synchronized int getSenderState() {
+            return mState;
+        }
 
         private int mState = INetChannel.TAKING;
         private ConnectorThread mParent;
         private ReliableMulticastChannel mChannel;
         private SenderQueue mQueue;
         private JChannel mJChannel;
-        private final Logger logger = LoggerFactory.getLogger( "net.rmcast.sender" );
+        private final Logger logger = LoggerFactory
+                .getLogger("net.rmcast.sender");
     }
 
-
-    ///////////////////////////////////////////////////////////////////////////
+    // /////////////////////////////////////////////////////////////////////////
     //
-    class ChannelReceiver extends ReceiverAdapter implements MembershipListener
-    {
-        public ChannelReceiver( ConnectorThread iParent,
-                                ReliableMulticastChannel iDestination )
-        {
+    class ChannelReceiver extends ReceiverAdapter implements MembershipListener {
+        public ChannelReceiver(ConnectorThread iParent,
+                ReliableMulticastChannel iDestination) {
             mParent = iParent;
             mDestination = iDestination;
-            setReceiverState( INetChannel.START );
+            setReceiverState(INetChannel.START);
         }
 
         @Override
-        public void receive( Message msg )
-        {
-            logger.trace( "Thread <{}>: ChannelReceiver::receive()", Thread.currentThread().getId() );
+        public void receive(Message msg) {
+            logger.trace("Thread <{}>: ChannelReceiver::receive()", Thread
+                    .currentThread().getId());
 
             // If we get an error, notify our parent and go into an error state.
 
-            // This code assumes that each datagram contained exactly one message.
+            // This code assumes that each datagram contained exactly one
+            // message.
             // If this needs to change in the future, this code will need to be
             // revised.
 
-            //List<InetAddress> addresses = getLocalIpAddresses();
+            // List<InetAddress> addresses = getLocalIpAddresses();
 
-            //byte[] raw = new byte[100000]; // FIXME: What is max datagram size?
-            if  ( getReceiverState() != INetChannel.INTERRUPTED )
-            {
-                try
-                {
-                    //DatagramPacket packet = new DatagramPacket( raw, raw.length );
-                    //logger.debug( "Calling receive() on the MulticastSocket." );
+            // byte[] raw = new byte[100000]; // FIXME: What is max datagram
+            // size?
+            if (getReceiverState() != INetChannel.INTERRUPTED) {
+                try {
+                    // DatagramPacket packet = new DatagramPacket( raw,
+                    // raw.length );
+                    // logger.debug( "Calling receive() on the MulticastSocket."
+                    // );
 
-                    setReceiverState( INetChannel.START );
+                    setReceiverState(INetChannel.START);
 
-                    //mSocket.receive( packet );
-                    //logger.debug( "Received a packet. length={}", packet.getLength() );
-                    //logger.debug( "source IP={}", packet.getAddress() );
-                    //if ( addresses.contains( packet.getAddress() ))
-                    //{
-                    //    logger.error( "Discarding packet from self." );
-                    //    continue;
-                    //}
-                    logger.info( "Received a packet from ({}) size({})", msg.getSrc(), msg.getLength()  );
+                    // mSocket.receive( packet );
+                    // logger.debug( "Received a packet. length={}",
+                    // packet.getLength() );
+                    // logger.debug( "source IP={}", packet.getAddress() );
+                    // if ( addresses.contains( packet.getAddress() ))
+                    // {
+                    // logger.error( "Discarding packet from self." );
+                    // continue;
+                    // }
+                    logger.info("Received a packet from ({}) size({})",
+                            msg.getSrc(), msg.getLength());
 
-                    if(msg.getSrc().toString().equals(mChannelManager.getOperatorId())) {
-                        logger.warn( "Got a Message looped back to me : Ignoring" );
+                    if (msg.getSrc().toString()
+                            .equals(mChannelManager.getOperatorId())) {
+                        logger.warn("Got a Message looped back to me : Ignoring");
                         return;
                     }
 
-                    ByteBuffer buf = ByteBuffer.wrap( msg.getBuffer() );
-                    //ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
-                    //        packet.getOffset(),
-                    //        packet.getLength() );
-                    buf.order( endian );
+                    ByteBuffer buf = ByteBuffer.wrap(msg.getBuffer());
+                    // ByteBuffer buf = ByteBuffer.wrap( packet.getData(),
+                    // packet.getOffset(),
+                    // packet.getLength() );
+                    buf.order(endian);
 
                     // wrap() creates a buffer that is ready to be drained,
                     // so there is no need to flip() it.
-                    AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader( buf );
+                    AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage
+                            .extractHeader(buf);
 
-                    if ( agmb == null )
-                    {
-                        logger.error( "Deserialization failure. Discarded invalid packet." );
+                    if (agmb == null) {
+                        logger.error("Deserialization failure. Discarded invalid packet.");
                         return;
                     }
 
                     // extract the payload
                     byte[] payload = new byte[agmb.size()];
-                    buf.get( payload, 0, buf.remaining() );
+                    buf.get(payload, 0, buf.remaining());
 
-                    AmmoGatewayMessage agm = agmb.payload( payload ).channel(this.mDestination).build();
-                    setReceiverState( INetChannel.DELIVER );
-                    mDestination.deliverMessage( agm );
-                    logger.trace( "received a message, size ({})", payload.length );
-                    
+                    AmmoGatewayMessage agm = agmb.payload(payload)
+                            .channel(this.mDestination).build();
+                    setReceiverState(INetChannel.DELIVER);
+                    mDestination.deliverMessage(agm);
+                    logger.trace("received a message, size ({})",
+                            payload.length);
+
                     mMessagesReceived.incrementAndGet(); // got another msg
-                }
-                catch ( ClosedChannelException ex )
-                {
-                    logger.warn( "receiver threw ClosedChannelException", ex);
-                    setReceiverState( INetChannel.INTERRUPTED );
+                } catch (ClosedChannelException ex) {
+                    logger.warn("receiver threw ClosedChannelException", ex);
+                    setReceiverState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
-                }
-                catch ( Exception ex )
-                {
-                    logger.warn( "receiver threw exception", ex);
-                    setReceiverState( INetChannel.INTERRUPTED );
+                } catch (Exception ex) {
+                    logger.warn("receiver threw exception", ex);
+                    setReceiverState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                 }
             }
         }
 
         @Override
-        public void viewAccepted(View new_view)
-        {
+        public void viewAccepted(View new_view) {
             // I have kept this error, need to change it to info .. NR
-            logger.error( "Membership View Changed: {}", new_view );
-        }
-        
-        @Override
-        public void suspect(Address suspected_mbr)
-        {
-            logger.error( "Member Suspected : {}", suspected_mbr.toString());
+            logger.error("Membership View Changed: {}", new_view);
         }
 
-        private void setReceiverState( int iState )
-        {
-            synchronized ( this )
-            {
+        @Override
+        public void suspect(Address suspected_mbr) {
+            logger.error("Member Suspected : {}", suspected_mbr.toString());
+        }
+
+        private void setReceiverState(int iState) {
+            synchronized (this) {
                 mState = iState;
             }
             mParent.statusChange();
         }
 
-        public synchronized int getReceiverState() { return mState; }
+        public synchronized int getReceiverState() {
+            return mState;
+        }
 
         private int mState = INetChannel.TAKING; // fixme
         private ConnectorThread mParent;
         private ReliableMulticastChannel mDestination;
-        private final Logger logger
-            = LoggerFactory.getLogger( "net.rmcast.receiver" );
+        private final Logger logger = LoggerFactory
+                .getLogger("net.rmcast.receiver");
     }
-
 
     // ********** UTILITY METHODS ****************
 
-
     // A routine to get all local IP addresses
     //
-    public List<InetAddress> getLocalIpAddresses()
-    {
+    public List<InetAddress> getLocalIpAddresses() {
         List<InetAddress> addresses = new ArrayList<InetAddress>();
-        try
-        {
-            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();)
-            {
+        try {
+            for (Enumeration<NetworkInterface> en = NetworkInterface
+                    .getNetworkInterfaces(); en.hasMoreElements();) {
                 NetworkInterface intf = en.nextElement();
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();)
-                {
+                for (Enumeration<InetAddress> enumIpAddr = intf
+                        .getInetAddresses(); enumIpAddr.hasMoreElements();) {
                     InetAddress inetAddress = enumIpAddr.nextElement();
-                    addresses.add( inetAddress );
-                    logger.error( "address: {}", inetAddress );
+                    addresses.add(inetAddress);
+                    logger.error("address: {}", inetAddress);
                 }
             }
-        }
-        catch (SocketException ex)
-        {
-            logger.error( "get local IP address", ex);
+        } catch (SocketException ex) {
+            logger.error("get local IP address", ex);
         }
 
         return addresses;
     }
 
+    @Override
+    public boolean isBusy() {
+        return false;
+    }
 
-	@Override
-	public boolean isBusy() { return false; }
-
-	@Override
-	public void toLog(String context) {
-		PLogger.SET_PANTHR_RMC.debug("{} {}:{} ", 
-				new Object[]{context, mMulticastAddress, mMulticastPort});
-	}
+    @Override
+    public void toLog(String context) {
+        PLogger.SET_PANTHR_RMC.debug("{} {}:{} ", new Object[] {
+                context,
+                mMulticastAddress, mMulticastPort
+        });
+    }
 }
