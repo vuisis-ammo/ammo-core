@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.testutils;
+package edu.vu.isis.ammo.testutils;
 
 /**
  * Commonly-needed functions for testing, e.g. random string generation
@@ -8,21 +8,19 @@ package edu.vu.isis.ammo.core.testutils;
 
 
 import java.math.BigInteger;
-import java.util.Random;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.JSONTokener;
 
-import android.util.Log;
 import android.content.ContentValues;
 
 public class TestUtils
 {
+    @SuppressWarnings("unused")
     private static final String TAG = "TestUtils";
 
     // random seed
@@ -57,6 +55,7 @@ public class TestUtils
     // =========================================================
     // another way to generate a pseudorandom string
     // =========================================================
+    @SuppressWarnings("unused")
     private static String pseudoRandomString2()
     {
         return new BigInteger(130, random).toString(32);

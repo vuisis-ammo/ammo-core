@@ -9,6 +9,13 @@ import junit.framework.TestSuite;
 
 import android.test.mock.MockContentResolver;
 import android.test.mock.MockContentProvider;
+
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteDatabase.CursorFactory;
+import android.database.sqlite.SQLiteDiskIOException;
+import android.database.sqlite.SQLiteException;
+import android.database.sqlite.SQLiteOpenHelper;
 import edu.vu.isis.ammo.provider.AmmoMockProvider01;
 
 import edu.vu.isis.ammo.core.distributor.RequestSerializer;
@@ -138,18 +145,34 @@ public class RequestSerializerTest extends AndroidTestCase {
     assertTrue(true);
   }
 
-  // =========================================================
-  // serialize from ContentProvider (JSON encoding)
-  // =========================================================
-  public void testSerializeFromProviderJSON()
+  /**
+   * serialize from ContentProvider (JSON encoding)
+   * 
+   * This test 
+   * <ol>
+   * <li>constructs a mock content provider,
+   * <li>loads some data into the content provider,
+   * <li>serializes that data into a json string
+   * <li>clears the database
+   * <li>deserializes back into the content provider,
+   * <li>checks that the result in the database is as expected.
+   * </ol>
+   * This procedure is repeated with different cases.
+   */
+  public void testSerializeFromProviderJson()
   {
-    RequestSerializer rs = RequestSerializer.newInstance();
+    final RequestSerializer rs = RequestSerializer.newInstance();
     //assertNotNull(rs);
 
     // JSON encoding
-    Encoding enc = Encoding.newInstance(Encoding.Type.JSON);
+    final Encoding enc = Encoding.newInstance(Encoding.Type.JSON);
 
-    ContentResolver cr = utilGetContentResolver();
+    final AmmoMockProvider01 provider = AmmoMockProvider01.getInstance(getContext());
+    final SQLiteDatabase db = provider.getDatabase();
+
+    final MockContentResolver cr = new MockContentResolver();
+    cr.addProvider(AmmoMockSchema01.AUTHORITY, provider);
+
     final Uri baseUri = AmmoTableSchema.CONTENT_URI;
     final Uri tupleUri = Uri.withAppendedPath(baseUri, "rel01");
 

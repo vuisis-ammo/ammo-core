@@ -26,7 +26,12 @@ public class AmmoMockProvider01 extends AmmoMockProviderBase {
   protected AmmoMockProvider01( Context context ) {
     super(context);
   }
+  
   public static AmmoMockProvider01 getInstance(Context context) {
     return new AmmoMockProvider01(context);
+  }
+  
+  public SQLiteDatabase getDatabase() {
+    return this.openHelper.getWritableDatabase();
   }
 }

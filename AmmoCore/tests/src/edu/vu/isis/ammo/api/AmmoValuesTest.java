@@ -1,5 +1,5 @@
 
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.api;
 
 import android.test.AndroidTestCase;
 

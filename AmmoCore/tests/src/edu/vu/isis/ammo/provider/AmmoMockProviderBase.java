@@ -161,7 +161,7 @@ public abstract class AmmoMockProviderBase extends MockContentProvider {
         createTriggers(db);
 
       } catch (SQLiteException ex) {
-        ex.printStackTrace();
+        logger.error("problem creating database", ex);
       }
     }
 
