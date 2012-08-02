@@ -1,12 +1,13 @@
 
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.api.type;
 
-import android.test.AndroidTestCase;
+import java.util.Arrays;
 
 import junit.framework.Test;
-import junit.framework.TestCase;
 import junit.framework.TestSuite;
-
+import android.content.ContentValues;
+import android.os.Parcel;
+import android.test.AndroidTestCase;
 /**
  * Unit test for the Payload API class 
  * 
@@ -18,12 +19,6 @@ import junit.framework.TestSuite;
  * -e class edu.vu.isis.ammo.core.PayloadTest \
  * edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
  */
-
-import edu.vu.isis.ammo.api.type.Payload;
-import android.content.ContentValues;
-import android.os.Parcel;
-import android.os.Parcelable;
-import java.util.Arrays;
 
 
 public class PayloadTest extends AndroidTestCase 
