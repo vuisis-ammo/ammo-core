@@ -3,6 +3,7 @@ package edu.vu.isis.ammo.core.distributor;
 
 import android.test.AndroidTestCase;
 
+import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
@@ -37,10 +38,13 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.ContentResolver;
 import android.content.ContentProvider;
+import android.content.Context;
 import android.os.Parcel;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,12 +176,13 @@ public class RequestSerializerTest extends AndroidTestCase {
      */
     public void testSerializeFromProviderJson()
     {
-
-        final AmmoMockProvider01 provider = AmmoMockProvider01.getInstance(getContext());
+        final Context context = getContext();
+        final AmmoMockProvider01 provider = AmmoMockProvider01.getInstance(context);
         final SQLiteDatabase db = provider.getDatabase();
 
         final ContentValues cv = new ContentValues();
-        cv.put(AmmoTableSchema.A_FOREIGN_KEY_REF, "-1");
+        final int sampleForeignKey = -1;
+        cv.put(AmmoTableSchema.A_FOREIGN_KEY_REF, sampleForeignKey);
         cv.put(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION, AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH);
         cv.put(AmmoTableSchema.AN_INCLUSIVE_ENUMERATION, AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE);
         final long rowid = db.insert(Tables.AMMO_TBL, AmmoTableSchemaBase.A_FOREIGN_KEY_REF, cv);
@@ -201,55 +206,71 @@ public class RequestSerializerTest extends AndroidTestCase {
         catch (NonConformingAmmoContentProvider ex)
         {
             fail("Should not have thrown NonConformingAmmoContentProvider in this case");
+            return;
         }
         catch (TupleNotFoundException ex)
         {
             fail("Should not have thrown TupleNotFoundException in this case");
+            return;
         }
         catch (IOException ex) 
         {
-            fail("failure of the test itself");
+            Assert.fail("failure of the test itself");
+            return;
         }
 
-        final String jsonString = new String(jsonBlob, "US-ASCII");
-        final JSONObject json = new JSONObject(jsonString);
+        final String jsonString;
+        try {
+            jsonString = new String(jsonBlob, "US-ASCII");
+        } catch (UnsupportedEncodingException ex) {
+            Assert.fail(new StringBuilder().
+                    append("could not convert json blob to string").append(jsonBlob).
+                    append(" with exception ").append(ex.getLocalizedMessage()).
+                    toString());
+            return;
+        }
+        final JSONObject json;
+        try {
+            json = new JSONObject(jsonString);
+        } catch (JSONException ex) {
+            Assert.fail(new StringBuilder().
+                    append("could not parse json blob ").append(jsonBlob).
+                    append(" with exception ").append(ex.getLocalizedMessage()).
+                    toString());
+        }
         logger.info("encoded json=[{}]", jsonString);
-
-        assertTrue("a bad foreign key", cv.getAsInteger(AmmoTableSchema.A_FOREIGN_KEY_REF));
+        Assert.assertEquals("the enumeration changed", "foo", "foo");
+        
+        // assertFalse("a bad foreign key", );
         
         final long count = db.delete(Tables.AMMO_TBL, new StringBuilder().
                 append(AmmoTableSchema._ID).append(" = ?").
                 toString(),
                 new String[]{ String.valueOf(rowid) } );
-        assertTrue("did not delete the record added", (count == 1));
+        Assert.assertTrue("did not delete the record added", (count == 1));
 
         final Uri tupleIn;
-        try 
-        {
-            tupleIn = RequestSerializer.deserializeToProvider(cr, tupleUri, enc);
-        }
-        catch (NonConformingAmmoContentProvider ex)
-        {
-            fail("Should not have thrown NonConformingAmmoContentProvider in this case");
-        }
-        catch (TupleNotFoundException ex)
-        {
-            fail("Should not have thrown TupleNotFoundException in this case");
-        }
-        catch (IOException ex) 
-        {
-            fail("failure of the test itself");
-        }
+        tupleIn = RequestSerializer.deserializeToProvider(context, "dummy", tupleUri, enc, jsonBlob);
+        Assert.assertEquals("foo", tupleIn.toString());
 
+        final String table = Tables.AMMO_TBL;
+        final String[] projection = null;
+        final String selection = null;
+        final String[] selectArgs = null;
+        final String groupBy = null;
+        final String having = null;
+        final String orderBy = null;
+        final String limit = null;
         
-        final Cursor cursor = db.query(Tables.AMMO_TBL, null, null, null);
-        assertFalse("failed cursor", (cursor == null);
-        assertTrue("empty cursor", (cursor.getCount() == 1);
+        final Cursor cursor = db.query(table, projection, selection, selectArgs,
+                groupBy, having, orderBy, limit);
+        assertFalse("failed cursor", (cursor == null));
+        assertTrue("empty cursor", (cursor.getCount() == 1));
         assertTrue("could not get first tuple", cursor.moveToFirst());
         assertTrue("a mis-decoded foreign key", 
-                (cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.A_FOREIGN_KEY_REF))));
+                (sampleForeignKey == cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.A_FOREIGN_KEY_REF))));
         
-        success();
+        
     }
 
     public void testFail()
