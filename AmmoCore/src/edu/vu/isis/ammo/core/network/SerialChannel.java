@@ -948,7 +948,13 @@ public class SerialChannel extends NetChannel
             final double bytesPerMs = mBaudRate / (10*1000.0); // baudrate == symbols/sec,
                                                                // 1 byte == 10 symbols,
                                                                // 1 sec = 1000msec
-            final long MAX_SEND_PAYLOAD_SIZE = (long) (mTransmitDuration.get() * bytesPerMs);
+
+            // We have found that the variability in the timing due to
+            // context switches and other factors can prevent us from
+            // sending packets that are smaller than the theoretical
+            // maximum but close to it.  Subtract 50 to provide some
+            // leeway.
+            final long MAX_SEND_PAYLOAD_SIZE = ((long) (mTransmitDuration.get() * bytesPerMs)) - 50;
 
             long currentGpsTime = System.currentTimeMillis() - mDelta;
             long goalTakeTime = currentGpsTime; // initialize to now, will get recomputed
