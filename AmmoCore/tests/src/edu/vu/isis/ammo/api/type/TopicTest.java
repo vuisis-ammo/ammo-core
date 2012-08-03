@@ -1,11 +1,12 @@
 
 package edu.vu.isis.ammo.api.type;
 
+import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestSuite;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.test.AndroidTestCase;
-import edu.vu.isis.ammo.api.IncompleteRequest;
 
 /**
  * Unit test for Topic API class 
@@ -55,58 +56,47 @@ public class TopicTest extends AndroidTestCase
     }
 
     /**
-     * Test methods
+     * Test case of passing in a null Parcel 
+     * - should throw a null pointer exception
      */
-    public void testConstructorWithParcel()
+    public void testParcel()
     {
-        // Test with null Parcel arg to constructor
-        try
-        {
-            Parcel par1 = null;
-            Topic t1 = new Topic(par1);
-            assertNotNull(t1);
+        /**
+         * Test case of passing in a null Parcel 
+         * - should throw a null pointer exception
+         */
+        boolean success = false;
+        try {
+            final Parcel p1 = null;
+            Topic.readFromParcel(p1);
+            
+        } catch (NullPointerException ex) {
+            success = true;
         }
-        catch (IncompleteRequest ex) 
-        {
-            // This should not have happened
-            fail("Should not have thrown IncompleteRequest in this case");
-        }
+        Assert.assertTrue("passing a null reference should fail", success);
 
-        // Test constructor with Parcel 
-        try
+        /**
+         * Pass in a non-null Parcel containing a null Topic
+         * - should return non-null
+         */
         {
-            Parcel par2 = null;
-            @SuppressWarnings("unused")
-            Topic t2 = new Topic(par2);
+            final Topic expected = null;
+            final Parcel parcel = Parcel.obtain();
+            Topic.writeToParcel(expected, parcel, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+            final Topic actual = Topic.CREATOR.createFromParcel(parcel);
+            Assert.assertNull("wrote a null but got something else back", actual);
         }
-        catch (IncompleteRequest ex) 
+        /**
+         * Pass in a non-null Parcel 
+         * - should return non-null
+         */
         {
-            // This should not have happened
-            fail("Should not have thrown IncompleteRequest in this case");
-        }
-        catch(Throwable ex)
-        {
-            // This should also not have happened
-            fail("Caught an unexpected exception");
-        }
-
-        // Test constructor with Parcel, intentionally cause exception
-        // to be thrown (IncompleteRequest)
-        try
-        {
-            Parcel par3 = null;
-            @SuppressWarnings("unused")
-            Topic t3 = new Topic(par3);
-        }
-        catch (IncompleteRequest ex) 
-        {
-            // Got the expected exception - correct behavior
-            assertTrue(true);
-        }
-        catch(Throwable ex)
-        {
-            // Got an unexpected exception
-            fail("Caught an unexpected exception");
+            final Topic expected = new Topic("an arbitrary topic");
+            final Parcel parcel = Parcel.obtain();
+            Topic.writeToParcel(expected, parcel, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+            final Topic actual = Topic.CREATOR.createFromParcel(parcel);
+            Assert.assertNotNull("wrote something but got a null back", actual);
+            Assert.assertEquals("did not get back an equivalent topic", expected, actual);
         }
     }
 

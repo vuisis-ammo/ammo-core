@@ -114,27 +114,33 @@ public class PayloadTest extends AndroidTestCase
         Assert.assertTrue("passing a null reference should fail", success);
 
         /**
-         * Pass in a non-null Parcel containing a null payload
+         * Generate a non-null Parcel containing a null payload
          * - should return non-null
          */
         {
             final Payload expected = null;
             final Parcel parcel = Parcel.obtain();
             Payload.writeToParcel(expected, parcel, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
-            final Payload actual = Payload.readFromParcel(parcel);
-            Assert.assertNull("wrote a null but got something else back", actual);
+            final Payload actual = Payload.CREATOR.createFromParcel(parcel);
+            Assert.assertEquals(new StringBuilder().
+                    append("wrote a null but got something else back =["). 
+                    append(actual).append("]").toString(), actual, Payload.NONE);
         }
         /**
-         * Pass in a non-null Parcel 
+         * Generate a non-null Parcel containing a simple string payload
          * - should return non-null
          */
         {
             final Payload expected = new Payload("an arbitrary payload");
             final Parcel parcel = Parcel.obtain();
             Payload.writeToParcel(expected, parcel, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
-            final Payload actual = Payload.readFromParcel(parcel);
-            Assert.assertNotNull("wrote something but got a null back", actual);
-            Assert.assertEquals("did not get back an equivalent payload", expected, actual);
+            final Payload actual = Payload.CREATOR.createFromParcel(parcel);
+            Assert.assertNotNull(new StringBuilder().
+                    append("wrote something but got a null back =["). 
+                    append(actual).append("]").toString(), actual);
+            Assert.assertEquals(new StringBuilder().
+                    append("did not get back an equivalent payload =["). 
+                    append(actual).append("]").toString(), expected, actual);
         }
     }
 
