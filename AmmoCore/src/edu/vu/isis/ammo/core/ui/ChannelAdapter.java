@@ -31,7 +31,7 @@ import android.widget.ToggleButton;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.model.Channel;
+import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.ReliableMulticast;
@@ -44,18 +44,18 @@ import edu.vu.isis.ammo.core.network.SerialChannel;
  * An adapter for the channels.
  *
  */
-public class ChannelAdapter extends ArrayAdapter<Channel>
+public class ChannelAdapter extends ArrayAdapter<ModelChannel>
     implements OnTouchListener, OnNameChangeListener
 {
     public static final Logger logger = LoggerFactory.getLogger("ui.channel");
 
     private final AmmoCore parent;
     private final Resources res;
-    private final List<Channel> model;
+    private final List<ModelChannel> model;
     private SharedPreferences prefs = null;
 
 
-    public ChannelAdapter( AmmoCore parent, List<Channel> model )
+    public ChannelAdapter( AmmoCore parent, List<ModelChannel> model )
     {
         super( parent,
                android.R.layout.simple_list_item_1,
@@ -65,7 +65,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
         this.model = model;
         this.prefs = PreferenceManager.getDefaultSharedPreferences( parent );
 
-        for ( Channel c : model ) {
+        for ( ModelChannel c : model ) {
             if ( Gateway.class.isInstance( c )) {
                 if ( prefs.getBoolean( INetPrefKeys.GATEWAY_DISABLED, 
                                        INetPrefKeys.DEFAULT_GATEWAY_DISABLED ))
@@ -93,16 +93,16 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
             } else {
                 logger.error( "Invalid channel type." );
             }
+            c.setOnNameChangeListener(this);
         }
     }
 
 
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-    	Channel channel = this.model.get(position);
+    	ModelChannel channel = this.model.get(position);
     	View row = channel.getView(convertView, this.parent.getLayoutInflater());
     	onStatusChange( row, channel );
-    	channel.setOnNameChangeListener(this, parent);
     	return row;
     }
 
@@ -130,7 +130,7 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
     }
 
 
-    private boolean onStatusChange( View item, Channel channel )
+    private boolean onStatusChange( View item, ModelChannel channel )
     {
         int[] status = channel.getStatus();
 
@@ -447,16 +447,8 @@ public class ChannelAdapter extends ArrayAdapter<Channel>
     }
     
     @Override
-    public boolean onNameChange(View item, String name) {
-        ((TextView)item.findViewById(R.id.gateway_name)).setText(name);
-        item.refreshDrawableState();
-        return false;
-    }
-    
-    @Override
-    public boolean onFormalChange(View item, String formal) {
-        ((TextView)item.findViewById(R.id.gateway_formal)).setText(formal);
-        item.refreshDrawableState();
+    public boolean onNameChange() {
+        parent.refreshList();
         return false;
     }
 

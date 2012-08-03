@@ -10,6 +10,7 @@ purpose whatsoever, and to have or authorize others to do so.
  */
 //There are things in this file that are prepared for the Android 3.0 port
 //They are tagged by ANDROID3.0
+
 package edu.vu.isis.ammo.core.ui;
 
 import java.util.List;
@@ -42,7 +43,7 @@ import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
-import edu.vu.isis.ammo.core.model.Channel;
+import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
@@ -57,280 +58,279 @@ import edu.vu.isis.logger.ui.LoggerEditor;
  * The principle activity for ammo core. Provides a means for... ...changing the
  * user preferences. ...checking delivery status of various messages.
  * ...registering/unregistering content interest requests.
- * 
  */
 public class AmmoCore extends ActivityEx {
-	public static final Logger logger = LoggerFactory.getLogger("ui");
+    public static final Logger logger = LoggerFactory.getLogger("ui");
 
-	public static final String PREF_KEY = "prefkey";
+    public static final String PREF_KEY = "prefkey";
 
-	public static final int MULTICAST = 0;
-	public static final int RELIABLE_MULTICAST = 1;
-	public static final int SERIAL = 2;
-	public static final int GATEWAY = 3;
+    public static final int MULTICAST = 0;
+    public static final int RELIABLE_MULTICAST = 1;
+    public static final int SERIAL = 2;
+    public static final int GATEWAY = 3;
 
-	// ===========================================================
-	// Fields
-	// ===========================================================
+    // ===========================================================
+    // Fields
+    // ===========================================================
 
-	private List<Channel> channelModel = null;
-	private ChannelAdapter channelAdapter = null;
+    private List<ModelChannel> channelModel = null;
+    private ChannelAdapter channelAdapter = null;
 
-	private List<Netlink> netlinkModel = null;
-	private NetlinkAdapter netlinkAdapter = null;
+    private List<Netlink> netlinkModel = null;
+    private NetlinkAdapter netlinkAdapter = null;
 
-	public static final boolean netlinkAdvancedView = true;
+    public static final boolean netlinkAdvancedView = true;
 
-	@SuppressWarnings("unused")
-	private Menu activity_menu;
-	SharedPreferences prefs = null;
+    @SuppressWarnings("unused")
+    private Menu activity_menu;
+    SharedPreferences prefs = null;
 
-	// ===========================================================
-	// Views
-	// ===========================================================
+    // ===========================================================
+    // Views
+    // ===========================================================
 
-	private TextView operatorTv;
-	private ChannelListView channelList = null;
-	private ListView netlinkList = null;
+    private TextView operatorTv;
+    private ChannelListView channelList = null;
+    private ListView netlinkList = null;
 
-	private INetworkService networkServiceBinder;
+    private INetworkService networkServiceBinder;
 
-	/*
-	 * FIXME : I believe that since the services were combined into a single
-	 * service this is no longer necessary. That is the calls should not be
-	 * deferred but performed directly here.
-	 */
-	private ServiceConnection networkServiceConnection = new ServiceConnection() {
-		final private AmmoCore parent = AmmoCore.this;
+    /*
+     * FIXME : I believe that since the services were combined into a single
+     * service this is no longer necessary. That is the calls should not be
+     * deferred but performed directly here.
+     */
+    private ServiceConnection networkServiceConnection = new ServiceConnection() {
+        final private AmmoCore parent = AmmoCore.this;
 
-		public void onServiceConnected(ComponentName name, IBinder service) {
-			logger.trace("::onServiceConnected - Network Service");
-			final AmmoService.DistributorServiceAidl binder = (AmmoService.DistributorServiceAidl) service;
-			parent.networkServiceBinder = binder.getService();
-			initializeGatewayAdapter();
-			
-			// Netlink Adapter is disabled for now (doesn't work)
-//			initializeNetlinkAdapter();
-		}
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            logger.trace("::onServiceConnected - Network Service");
+            final AmmoService.DistributorServiceAidl binder = (AmmoService.DistributorServiceAidl) service;
+            parent.networkServiceBinder = binder.getService();
+            initializeGatewayAdapter();
 
-		public void onServiceDisconnected(ComponentName name) {
-			logger.trace("::onServiceDisconnected - Network Service");
-			parent.networkServiceBinder = null;
-		}
-	};
+            // Netlink Adapter is disabled for now (doesn't work)
+            // initializeNetlinkAdapter();
+        }
 
-	private void initializeGatewayAdapter() {
-		channelModel = networkServiceBinder.getGatewayList();
+        public void onServiceDisconnected(ComponentName name) {
+            logger.trace("::onServiceDisconnected - Network Service");
+            parent.networkServiceBinder = null;
+        }
+    };
 
-		// set gateway view references
-		channelList = (ChannelListView) findViewById(R.id.gateway_list);
-		channelAdapter = new ChannelAdapter(this, channelModel);
-		channelList.setAdapter(channelAdapter);
+    private void initializeGatewayAdapter() {
+        channelModel = networkServiceBinder.getGatewayList();
 
-		// reset all rows
-		for (int ix = 0; ix < channelList.getChildCount(); ix++) {
-			View row = channelList.getChildAt(ix);
-			row.setBackgroundColor(Color.TRANSPARENT);
-		}
+        // set gateway view references
+        channelList = (ChannelListView) findViewById(R.id.gateway_list);
+        channelAdapter = new ChannelAdapter(this, channelModel);
+        channelList.setAdapter(channelAdapter);
 
-		// add click listener to channelList
-		channelList.setOnItemClickListener(new OnItemClickListener() {
+        // reset all rows
+        for (int ix = 0; ix < channelList.getChildCount(); ix++) {
+            View row = channelList.getChildAt(ix);
+            row.setBackgroundColor(Color.TRANSPARENT);
+        }
 
-			@Override
-			public void onItemClick(AdapterView<?> parent, View view,
-					int position, long id) {
-				Intent intent = new Intent();
-				Channel selectedChannel = channelAdapter.getItem(position);
-				if (selectedChannel instanceof Gateway) {
-					intent.setClass(AmmoCore.this, GatewayPreferences.class);
-				} else if (selectedChannel instanceof Serial) {
-					intent.setClass(AmmoCore.this, SerialPreferences.class);
-				} else if (selectedChannel instanceof ReliableMulticast) {
-					intent.setClass(AmmoCore.this, ReliableMulticastPreferences.class);
-				} else if (selectedChannel instanceof Multicast) {
-					intent.setClass(AmmoCore.this, MulticastPreferences.class);
-				} else {
-					Toast.makeText(AmmoCore.this, "Did not recognize channel",
-							Toast.LENGTH_SHORT).show();
-					return;
-				}
-				AmmoCore.this.startActivity(intent);
-			}
+        // add click listener to channelList
+        channelList.setOnItemClickListener(new OnItemClickListener() {
 
-		});
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view,
+                    int position, long id) {
+                Intent intent = new Intent();
+                ModelChannel selectedChannel = channelAdapter.getItem(position);
+                if (selectedChannel instanceof Gateway) {
+                    intent.setClass(AmmoCore.this, GatewayPreferences.class);
+                } else if (selectedChannel instanceof Serial) {
+                    intent.setClass(AmmoCore.this, SerialPreferences.class);
+                } else if (selectedChannel instanceof ReliableMulticast) {
+                    intent.setClass(AmmoCore.this, ReliableMulticastPreferences.class);
+                } else if (selectedChannel instanceof Multicast) {
+                    intent.setClass(AmmoCore.this, MulticastPreferences.class);
+                } else {
+                    Toast.makeText(AmmoCore.this, "Did not recognize channel",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                AmmoCore.this.startActivity(intent);
+            }
 
-	}
+        });
 
-	private void initializeNetlinkAdapter() {
-		netlinkModel = networkServiceBinder.getNetlinkList();
+    }
 
-		// set netlink view references
-		netlinkList = (ListView) findViewById(R.id.netlink_list);
-		netlinkAdapter = new NetlinkAdapter(this, netlinkModel);
-		netlinkList.setAdapter(netlinkAdapter);
-	}
+    private void initializeNetlinkAdapter() {
+        netlinkModel = networkServiceBinder.getNetlinkList();
 
-	/**
-	 * @Cateogry Lifecycle
-	 */
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		logger.trace("::onCreate");
-		this.setContentView(R.layout.ammo_activity);
-		operatorTv = (TextView) findViewById(R.id.operator_id_tv);
+        // set netlink view references
+        netlinkList = (ListView) findViewById(R.id.netlink_list);
+        netlinkAdapter = new NetlinkAdapter(this, netlinkModel);
+        netlinkList.setAdapter(netlinkAdapter);
+    }
 
-		// Get a reference to the AmmoService.
-		final Intent networkServiceIntent = new Intent(this, AmmoService.class);
-		boolean result = bindService(networkServiceIntent,
-				networkServiceConnection, BIND_AUTO_CREATE);
-		if (!result)
-			logger.error("AmmoActivity failed to bind to the AmmoService!");
+    /**
+     * @Cateogry Lifecycle
+     */
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        logger.trace("::onCreate");
+        this.setContentView(R.layout.ammo_activity);
+        operatorTv = (TextView) findViewById(R.id.operator_id_tv);
 
-		final Intent intent = new Intent();
+        // Get a reference to the AmmoService.
+        final Intent networkServiceIntent = new Intent(this, AmmoService.class);
+        boolean result = bindService(networkServiceIntent,
+                networkServiceConnection, BIND_AUTO_CREATE);
+        if (!result)
+            logger.error("AmmoActivity failed to bind to the AmmoService!");
 
-		// let others know we are running
-		intent.setAction(StartUpReceiver.RESET);
-		this.sendBroadcast(intent);
+        final Intent intent = new Intent();
 
-		/*
-		 * Commented out for NTCNIE branch
-		 * 
-		 * spec = tabHost.newTabSpec("message_queue");
-		 * spec.setIndicator("Message Queue",
-		 * res.getDrawable(R.drawable.mailbox_icon)); spec.setContent(new
-		 * Intent("edu.vu.isis.ammo.core.ui.MessageQueueActivity.LAUNCH"));
-		 * getTabHost().addTab(spec);
-		 */
+        // let others know we are running
+        intent.setAction(StartUpReceiver.RESET);
+        this.sendBroadcast(intent);
 
-		this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        /*
+         * Commented out for NTCNIE branch spec =
+         * tabHost.newTabSpec("message_queue");
+         * spec.setIndicator("Message Queue",
+         * res.getDrawable(R.drawable.mailbox_icon)); spec.setContent(new
+         * Intent("edu.vu.isis.ammo.core.ui.MessageQueueActivity.LAUNCH"));
+         * getTabHost().addTab(spec);
+         */
 
-		// Advanced view is now the one and only view
-		// this.netlinkAdvancedView = prefs.getBoolean("debug_mode",
-		// this.netlinkAdvancedView);
+        this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
-	}
+        // Advanced view is now the one and only view
+        // this.netlinkAdvancedView = prefs.getBoolean("debug_mode",
+        // this.netlinkAdvancedView);
 
-	@Override
-	public void onStart() {
-		super.onStart();
-		logger.trace("::onStart");
-		operatorTv = (TextView) findViewById(R.id.operator_id_tv_ref);
-		// reset all rows
-		if (channelList != null) {
-			for (int ix = 0; ix < channelList.getChildCount(); ix++) {
-				View row = channelList.getChildAt(ix);
-				row.setBackgroundColor(Color.TRANSPARENT);
-			}
-		}
+    }
 
-		mReceiver = new StatusReceiver();
+    @Override
+    public void onStart() {
+        super.onStart();
+        logger.trace("::onStart");
+        operatorTv = (TextView) findViewById(R.id.operator_id_tv_ref);
+        // reset all rows
+        if (channelList != null) {
+            for (int ix = 0; ix < channelList.getChildCount(); ix++) {
+                View row = channelList.getChildAt(ix);
+                row.setBackgroundColor(Color.TRANSPARENT);
+            }
+        }
 
-		final IntentFilter statusFilter = new IntentFilter();
-		statusFilter.addAction(AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
-		statusFilter.addAction(AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE);
-		registerReceiver(mReceiver, statusFilter);
+        mReceiver = new StatusReceiver();
 
-		if (channelAdapter != null)
-			channelAdapter.notifyDataSetChanged();
-		if (netlinkAdapter != null)
-			netlinkAdapter.notifyDataSetChanged();
-	}
-	
-	@Override
-	public void onResume() {
-		super.onResume();
-		String operatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, "operator");
-		operatorTv.setText("Operator ID: " + operatorId);
-	}
+        final IntentFilter statusFilter = new IntentFilter();
+        statusFilter.addAction(AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
+        statusFilter.addAction(AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE);
+        registerReceiver(mReceiver, statusFilter);
 
-	@Override
-	public void onStop() {
-		super.onStop();
-		try {
-			unregisterReceiver(mReceiver);
-		} catch (IllegalArgumentException ex) {
-			logger.trace("tearing down the gateway status object");
-		}
-	}
+        if (channelAdapter != null)
+            channelAdapter.notifyDataSetChanged();
+        if (netlinkAdapter != null)
+            netlinkAdapter.notifyDataSetChanged();
+    }
 
-	private StatusReceiver mReceiver = null;
+    @Override
+    public void onResume() {
+        super.onResume();
+        String operatorId = prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, "operator");
+        operatorTv.setText("Operator ID: " + operatorId);
+    }
 
-	private class StatusReceiver extends BroadcastReceiver {
-		@Override
-		public void onReceive(Context context, Intent iIntent) {
-			final String action = iIntent.getAction();
+    @Override
+    public void onStop() {
+        super.onStop();
+        try {
+            unregisterReceiver(mReceiver);
+        } catch (IllegalArgumentException ex) {
+            logger.trace("tearing down the gateway status object");
+        }
+    }
 
-			if (action.equals(AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE)) {
-				if (channelAdapter != null)
-					channelAdapter.notifyDataSetChanged();
-			} else if (action
-					.equals(AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE)) {
-				if (netlinkAdapter != null)
-					netlinkAdapter.notifyDataSetChanged();
-			}
-		}
-	}
-	
+    private StatusReceiver mReceiver = null;
 
-	@Override
-	public void onDestroy() {
-		super.onDestroy();
-		logger.trace("::onDestroy");
-		unbindService(networkServiceConnection);
-	}
+    private class StatusReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent iIntent) {
+            final String action = iIntent.getAction();
 
-	// ===========================================================
-	// UI Management
-	// ===========================================================
+            if (action.equals(AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE)) {
+                if (channelAdapter != null)
+                    channelAdapter.notifyDataSetChanged();
+            } else if (action
+                    .equals(AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE)) {
+                if (netlinkAdapter != null)
+                    netlinkAdapter.notifyDataSetChanged();
+            }
+        }
+    }
 
-	public void viewTablesClick(View v) {
-		startActivity(new Intent().setClass(this, DistributorTabActivity.class));
-	}
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        logger.trace("::onDestroy");
+        unbindService(networkServiceConnection);
+    }
 
-	
+    // ===========================================================
+    // UI Management
+    // ===========================================================
 
-	public void debugModeClick(View v) {
-		Toast.makeText(this, "Debugging tools are not yet available",
-				Toast.LENGTH_LONG).show();
-	}
+    public void viewTablesClick(View v) {
+        startActivity(new Intent().setClass(this, DistributorTabActivity.class));
+    }
 
-	public void loggingToolsClick(View v) {
-		startActivity(new Intent().setClass(this, LoggerEditor.class));
-	}
+    public void debugModeClick(View v) {
+        Toast.makeText(this, "Debugging tools are not yet available",
+                Toast.LENGTH_LONG).show();
+    }
 
-	public void hardResetClick(View v) {
-		DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
+    public void loggingToolsClick(View v) {
+        startActivity(new Intent().setClass(this, LoggerEditor.class));
+    }
 
-			@Override
-			public void onClick(DialogInterface dialog, int which) {
-				switch (which) {
-				case DialogInterface.BUTTON_POSITIVE:
-					Intent intent = new Intent();
-					intent.setAction("edu.vu.isis.ammo.AMMO_HARD_RESET");
-					intent.setClass(AmmoCore.this, AmmoService.class);
-					startService(intent);
-					break;
-				case DialogInterface.BUTTON_NEGATIVE:
-					break;
-				}
+    public void hardResetClick(View v) {
+        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
 
-			}
-		};
-		AlertDialog.Builder bldr = new AlertDialog.Builder(this);
-		bldr.setMessage("Are you sure you want to reset the service?")
-				.setPositiveButton("Yes", listener)
-				.setNegativeButton("No", listener).show();
-	}
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch (which) {
+                    case DialogInterface.BUTTON_POSITIVE:
+                        Intent intent = new Intent();
+                        intent.setAction("edu.vu.isis.ammo.AMMO_HARD_RESET");
+                        intent.setClass(AmmoCore.this, AmmoService.class);
+                        startService(intent);
+                        break;
+                    case DialogInterface.BUTTON_NEGATIVE:
+                        break;
+                }
 
-	public void helpClick(View v) {
-		startActivity(new Intent().setClass(this, AboutActivity.class));
-	}
-	
-	public void operatorIdClick(View v) {
-		startActivity(new Intent()
-		.setComponent(new ComponentName("transapps.settings",
-				"transapps.settings.SettingsActivity")));
-	}
-	
+            }
+        };
+        AlertDialog.Builder bldr = new AlertDialog.Builder(this);
+        bldr.setMessage("Are you sure you want to reset the service?")
+                .setPositiveButton("Yes", listener)
+                .setNegativeButton("No", listener).show();
+    }
+
+    public void helpClick(View v) {
+        startActivity(new Intent().setClass(this, AboutActivity.class));
+    }
+
+    public void operatorIdClick(View v) {
+        startActivity(new Intent()
+                .setComponent(new ComponentName("transapps.settings",
+                        "transapps.settings.SettingsActivity")));
+    }
+
+    public void refreshList() {
+        channelList.invalidateViews();
+    }
+
 }

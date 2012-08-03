@@ -13,7 +13,7 @@ package edu.vu.isis.ammo.core.network;
 import java.util.List;
 
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.model.Channel;
+import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.model.Netlink;
 
 
@@ -25,23 +25,23 @@ import edu.vu.isis.ammo.core.model.Netlink;
 public interface INetworkService {
 
     // Intent action constants
-    String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP";
-    String UPDATE_IP = "edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP";
-    String ACTION = "edu.vu.isis.ammo.core.network.NetworkService.ACTION";
-    String ACTION_RECONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_BEGIN_ACTION";
-    String ACTION_DISCONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_HALT_ACTION";
+    public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP";
+    public static final String UPDATE_IP = "edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP";
+    public static final String ACTION = "edu.vu.isis.ammo.core.network.NetworkService.ACTION";
+    public static final String ACTION_RECONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_BEGIN_ACTION";
+    public static final String ACTION_DISCONNECT = "edu.vu.isis.ammo.core.network.NetworkService.RUN_STATUS_HALT_ACTION";
 
     // Callback interfaces
-    interface OnSendMessageHandler {
+    public interface OnSendMessageHandler {
     	boolean ack(String channel, DisposalState status);
     }
 
     // methods
-    void teardown();
-    boolean isConnected();
+    public void teardown();
+    public boolean isConnected();
 
     public DisposalState sendRequest(AmmoGatewayMessage agm, String channel);
 
-    List<Channel> getGatewayList();
-    List<Netlink> getNetlinkList();
+    public List<ModelChannel> getGatewayList();
+    public List<Netlink> getNetlinkList();
 }

@@ -7,9 +7,9 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
-package edu.vu.isis.ammo.core.model;
+ */
 
+package edu.vu.isis.ammo.core.model;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -18,119 +18,106 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.network.NetChannel;
 
-public class Multicast extends Channel {
+public class Multicast extends ModelChannel {
 
-	public static String KEY = "MulticastUiChannel";
-	boolean election = false;
-	int [] status = null;
-	String formalIP = "formal ip";
-	String port = "port";
-	protected Multicast(Context context, String name, NetChannel channel) {
-		super(context, name);
-		this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST, 
-		                                     INetPrefKeys.DEFAULT_MULTICAST_HOST);
-		this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT, 
-				                         String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT));
-		this.election = ! this.prefs.getBoolean(INetPrefKeys.MULTICAST_DISABLED,
-		                                      INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
-		
-		mNetChannel = channel;
-	}
+    public static String KEY = "MulticastUiChannel";
+    boolean election = false;
+    int[] status = null;
+    String formalIP = "formal ip";
+    String port = "port";
 
-	private static Multicast instance = null;
-	public static Multicast getInstance(Context context, NetChannel channel)
-	{
-		if(instance == null)
-			instance = new Multicast(context, "Multicast Channel", channel);
-		return instance;
-	}
-	
-	@Override
-	public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
-			String key) {
-		if(key.equals(INetPrefKeys.MULTICAST_HOST))
-		{
-			this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST, 
-			                                     INetPrefKeys.DEFAULT_MULTICAST_HOST);
-			
-		}
-		
-		if(key.equals(INetPrefKeys.MULTICAST_PORT))
-		{
-			this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT,
-					String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT));
-		}
+    protected Multicast(Context context, String name, NetChannel channel) {
+        super(context, name);
+        this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST,
+                INetPrefKeys.DEFAULT_MULTICAST_HOST);
+        this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT,
+                String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT));
+        this.election = !this.prefs.getBoolean(INetPrefKeys.MULTICAST_DISABLED,
+                INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
 
-	}
+        mNetChannel = channel;
+    }
 
-	@Override
-	public void enable() {
-		this.setElection(true);
+    private static Multicast instance = null;
 
-	}
+    public static Multicast getInstance(Context context, NetChannel channel) {
+        if (instance == null)
+            instance = new Multicast(context, "Multicast Channel", channel);
+        return instance;
+    }
 
-	@Override
-	public void disable() {
-		this.setElection(false);
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,
+            String key) {
+        if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
+            this.formalIP = this.prefs.getString(INetPrefKeys.MULTICAST_HOST,
+                    INetPrefKeys.DEFAULT_MULTICAST_HOST);
+            callOnNameChange();
+        } else if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
+            this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT,
+                    String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT));
+            callOnNameChange();
+        }
 
-	}
+    }
 
-	@Override
-	public void toggle() {
-		this.setElection(!this.election);
+    @Override
+    public void enable() {
+        this.setElection(true);
 
-	}
+    }
 
-// FIXME : Should this view only user interface be writing this value?
-	private void setElection(boolean b)
-	{
+    @Override
+    public void disable() {
+        this.setElection(false);
+    }
+
+    @Override
+    public void toggle() {
+        this.setElection(!this.election);
+    }
+
+    // FIXME : Should this view only user interface be writing this value?
+    private void setElection(boolean b)
+    {
         this.election = b;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.MULTICAST_DISABLED, ! this.election);
+        editor.putBoolean(INetPrefKeys.MULTICAST_DISABLED, !this.election);
         editor.commit();
-	}
-	
-	@Override
-	public boolean isEnabled() {
-		return this.election;
-	}
+    }
 
-	@Override
-	public View getView(View row, LayoutInflater inflater) {
+    @Override
+    public boolean isEnabled() {
+        return this.election;
+    }
 
-		row = inflater.inflate(edu.vu.isis.ammo.core.R.layout.multicast_item, null);
-		
-		TextView formal = (TextView) row.findViewById(R.id.multicast_formal);
-		TextView name = (TextView) row.findViewById(R.id.multicast_name);
-		((TextView)row.findViewById(R.id.channel_type)).setText(Multicast.KEY);
-		
+    @Override
+    public View getView(View row, LayoutInflater inflater) {
 
-		name.setText(this.name);
-		formal.setText(this.formalIP + ":" + this.port);
-		//set vals
-		return row;
-	}
+        row = inflater.inflate(edu.vu.isis.ammo.core.R.layout.multicast_item, null);
 
-	@Override
-	public int[] getStatus() {
-		return this.status;
-	}
+        TextView formal = (TextView) row.findViewById(R.id.multicast_formal);
+        TextView name = (TextView) row.findViewById(R.id.multicast_name);
+        ((TextView) row.findViewById(R.id.channel_type)).setText(Multicast.KEY);
 
-	@Override
-	public void setOnNameChangeListener(OnNameChangeListener listener, View view) {
-		// TODO Auto-generated method stub
+        name.setText(this.name);
+        formal.setText(this.formalIP + ":" + this.port);
+        // set vals
+        return row;
+    }
 
-	}
+    @Override
+    public int[] getStatus() {
+        return this.status;
+    }
 
-	@Override
-	public void setStatus(int[] statusCode) {
-		this.status = statusCode;
+    @Override
+    public void setStatus(int[] statusCode) {
+        this.status = statusCode;
 
-	}
-
+    }
 
 }
