@@ -99,7 +99,7 @@
         <mkdir dir="${basedir}/libs"/> 
         <symlink taskname="add-junitrunner-lib" action="single" overwrite="true"
               link="${basedir}/libs/android-xml-junit-test-runner.jar"
-              resource="${basedir}/${repo.dir}/Android-libs/java/android-xml-junit-test-runner.jar"/>
+              resource="${repo.dir}/Android-libs/java/android-xml-junit-test-runner.jar"/>
     </target>
 
     <target name="-pre-compile" depends="-dependencies">
