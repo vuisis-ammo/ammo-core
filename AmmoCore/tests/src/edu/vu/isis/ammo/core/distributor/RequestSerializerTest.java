@@ -33,6 +33,8 @@ import edu.vu.isis.ammo.provider.AmmoMockSchema01.QuickTableSchema;
 import edu.vu.isis.ammo.provider.AmmoMockSchema01.StartTableSchema;
 import edu.vu.isis.ammo.provider.AmmoMockSchemaBase.AmmoTableSchemaBase;
 
+import edu.vu.isis.ammo.testutils.TestUtils;
+
 import android.net.Uri;
 import android.content.ContentUris;
 import android.content.ContentValues;
@@ -173,6 +175,7 @@ public class RequestSerializerTest extends AndroidTestCase {
     /**
      * Serialize from ContentProvider (JSON encoding)
      * 
+     * Basic use case of serializing from provider.
      * This test 
      * <ol>
      * <li>constructs a mock content provider,
@@ -266,20 +269,42 @@ public class RequestSerializerTest extends AndroidTestCase {
 
     }
 
+    /**
+     * Serialize to ContentProvider (JSON encoding)
+     * Basic use case of serializing a JSON-encoded message into a provider table.
+     */
     public void testDeserializeToProviderJson()
     {
-	/*
-	final long count = db.delete(Tables.AMMO_TBL, new StringBuilder().
-				     append(AmmoTableSchema._ID).append(" = ?").
-				     toString(),
-				     new String[]{ String.valueOf(rowid) } );
-        Assert.assertTrue("did not delete the record added", (count == 1));
+	// Test content provider (belongs to the application side)
+        final AmmoMockProvider01 provider = utilMakeTestProvider01(mContext);
+	assertNotNull(provider);
+	SQLiteDatabase db = provider.getDatabase();
 
+	// Content resolver (don't need for this test?)
+	//final MockContentResolver cr = new MockContentResolver();
+        //cr.addProvider(AmmoMockSchema01.AUTHORITY, provider);
+
+	// Choose JSON encoding for this test
+        final Encoding enc = Encoding.newInstance(Encoding.Type.JSON);
+
+	// Create JSON to deserialize into provider
+	final ContentValues cv = new ContentValues();
+        final int sampleForeignKey = -1;
+        cv.put(AmmoTableSchema.A_FOREIGN_KEY_REF, sampleForeignKey);
+        cv.put(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION, AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH);
+        cv.put(AmmoTableSchema.AN_INCLUSIVE_ENUMERATION, AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE);
+	byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
+
+	
         final Uri tupleIn;
-        tupleIn = RequestSerializer.deserializeToProvider(mContext, "dummy", tupleUri, enc, jsonBlob);
-        Assert.assertEquals("foo", tupleIn.toString());
+        tupleIn = RequestSerializer.deserializeToProvider(mContext, "dummy", mBaseUri, enc, jsonBytes);
 
-        final String table = Tables.AMMO_TBL;
+	// We ought to know that the URI... should be row 1, right? 
+        //assertEquals(ContentUris.withAppendedId(mBaseUri, 1), tupleIn);
+
+	// Now query the provider and examine its contents, checking that they're
+	// the same as the original JSON.
+	final String table = Tables.AMMO_TBL;
         final String[] projection = null;
         final String selection = null;
         final String[] selectArgs = null;
@@ -287,18 +312,26 @@ public class RequestSerializerTest extends AndroidTestCase {
         final String having = null;
         final String orderBy = null;
         final String limit = null;
-        
         final Cursor cursor = db.query(table, projection, selection, selectArgs,
-                groupBy, having, orderBy, limit);
-        assertFalse("failed cursor", (cursor == null));
-        assertTrue("empty cursor", (cursor.getCount() == 1));
-        assertTrue("could not get first tuple", cursor.moveToFirst());
-        assertTrue("a mis-decoded foreign key", 
-                (sampleForeignKey == cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.A_FOREIGN_KEY_REF))));
-        
-	*/
+				       groupBy, having, orderBy, limit);
+
+	// The query should have succeeded
+        assertFalse("Query into provider failed", (cursor == null));
+
+	// There should be only one entry
+        assertTrue("Unexpected number of rows in cursor", (cursor.getCount() == 1));
+
+	// Row should be accessible with a cursor
+        assertTrue("Row not accessible with cursor", (cursor.moveToFirst()));
+
+	// Examine the provider content in detail, making sure it contains what we expect
+	// (i.e. the contents of the original JSON)
+        assertEquals(sampleForeignKey, cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.A_FOREIGN_KEY_REF)));
+        assertEquals(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH, 
+		     cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION)));
+	assertEquals(AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE, 
+		     cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.AN_INCLUSIVE_ENUMERATION)));
        
-	assertTrue(true);
     }
 
     // =========================================================
