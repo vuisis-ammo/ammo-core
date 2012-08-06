@@ -83,17 +83,24 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  * Network Service is responsible for all networking between the core
  * application and the server. Currently, this service implements a UDP
  * connection for periodic data updates and a long-polling TCP connection for
- * event driven notifications. The AmmoService is responsible for prioritizing
- * and serializing requests for data communications between distributed
- * application databases. The AmmoService issues calls to the AmmoService for
- * updates and then writes the results to the correct content provider using the
- * deserialization mechanism defined by each content provider. Any activity or
- * application wishing to send data via the AmmoService should use one of the
- * AmmoRequest API methods for communication between said application and
- * AmmoCore. Any activity or application wishing to receive updates when a
- * content provider has been modified can register via a custom ContentObserver
- * subclass. The real work is delegated to the Distributor Thread, which
- * maintains a queue.
+ * event driven notifications.
+ * <p>
+ * The AmmoService is responsible for prioritizing and serializing
+ * requests for data communications between distributed application databases. 
+ * The AmmoService issues calls to the AmmoService for updates and then writes the
+ * results to the correct content provider using the deserialization mechanism
+ * defined by each content provider.
+ * <p>
+ * Any activity or application wishing to send data via the AmmoService
+ * should use one of the AmmoRequest API methods for communication between
+ * said application and AmmoCore.
+ * <p>
+ * Any activity or application wishing to receive updates when a content
+ * provider has been modified can register via a custom ContentObserver
+ * subclass.
+ * <p>
+ * The real work is delegated to the Distributor Thread, which maintains a queue.
+ * 
  */
 public class AmmoService extends Service implements INetworkService,
         INetworkService.OnSendMessageHandler, IChannelManager {
@@ -109,7 +116,9 @@ public class AmmoService extends Service implements INetworkService,
     public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.AmmoService.SEND_SERIALIZED";
 
     /**
-     * The channel status map It should not be changed by the main thread.
+     * The channel status map.
+     * <p>
+     * It should not be changed by the main thread.
      */
     public enum ChannelChange {
         ACTIVATE(1), DEACTIVATE(2), REPAIR(3);
@@ -286,7 +295,9 @@ public class AmmoService extends Service implements INetworkService,
     /**
      * In order for the service to be shutdown cleanly the 'serviceStart()'
      * method may be used to prepare_for_stop, it will be stopped shortly and it
-     * needs to have some things done before that happens. When the user changes
+     * needs to have some things done before that happens. 
+     * <p>
+     * When the user changes
      * the configuration 'startService()' is run to change the settings.
      */
     @Override
