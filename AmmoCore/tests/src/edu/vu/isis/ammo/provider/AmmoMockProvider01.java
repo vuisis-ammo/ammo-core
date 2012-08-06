@@ -28,7 +28,9 @@ public class AmmoMockProvider01 extends AmmoMockProviderBase {
   }
   
   public static AmmoMockProvider01 getInstance(Context context) {
-    return new AmmoMockProvider01(context);
+     AmmoMockProvider01 f = new AmmoMockProvider01(context);
+     f.onCreate();
+     return f;
   }
   
   public SQLiteDatabase getDatabase() {
