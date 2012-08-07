@@ -103,11 +103,12 @@
     </target>
 
     <target name="-pre-compile" depends="-dependencies">
+        <echo>${basedir}/libs</echo>
         <fail message="Files are missing.">
            <condition>
                <not>
                    <resourcecount count="1">
-                       <fileset id="simlinks" dir="libs">
+                       <fileset id="simlinks" dir="${basedir}/libs">
                           <include name="android-xml-junit-test-runner.jar"/>
                        </fileset>
                    </resourcecount>
@@ -116,14 +117,14 @@
         </fail>
     </target>
 
-    <target name="run-tests" depends="release"
+    <target name="run-tests" depends="dist"
 	    description="build and run unit tests on attached device">
       <fail message="Unit test APK is missing -- cannot continue.">
            <condition>
                <not>
                    <resourcecount count="1">
 		       <fileset dir="${out.dir}">
-			 <include name="${ant.project.name}-release.apk"/>
+			 <include name="${ant.project.name}-${version}.apk"/>
 		       </fileset>
                    </resourcecount>
                </not>
@@ -139,7 +140,7 @@
       <echo message="Installing unit tests on attached device..."/> 
       <exec executable="adb">
         <arg value="install"/>
-        <arg value="${out.dir}/${ant.project.name}-release.apk"/>
+        <arg value="${out.dir}/${ant.project.name}-${version}.apk"/>
       </exec>
 
 
@@ -150,6 +151,13 @@
         <arg value="instrument"/>
         <arg value="-w"/>
         <arg value="edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner"/>
+      </exec>
+      
+      <echo message="Retrieving unit test output files... "/> 
+      <exec executable="adb">
+        <arg value="pull"/>
+        <arg value="/data/data/edu.vu.isis.ammo.core/files/"/>
+        <arg value="/tmp/"/>
       </exec>
 
     </target>

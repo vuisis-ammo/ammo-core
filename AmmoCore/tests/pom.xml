@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <properties>
+    <!-- TEMPLATE2:BEGIN
+-->
+    <repo.addr>vanderbilt-snapshot/</repo.addr>
+    <!-- This field should read "Vanderbilt/" for releases -->
+    <!-- else it should read "vanderbilt-snapshot/" for snapshots-->
+    <!-- TEMPLATE2:END -->
+    <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
+    <vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
+    <vandylib.eucleo.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/eucleo/</vandylib.eucleo.url>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <root.basedir>${basedir}/../..</root.basedir>
+  </properties>
+  <parent>
+    <groupId>edu.vu.isis</groupId>
+    <artifactId>ammo-parent</artifactId>
+    <!-- TEMPLATE:BEGIN-->
+    <version>1.6.1-SNAPSHOT</version>
+    <!-- TEMPLATE:END -->
+    <relativePath>../../</relativePath>
+  </parent>
+  <artifactId>ammotest</artifactId>
+  <packaging>apk</packaging>
+  <name>Ammo Test Project</name>
+  <distributionManagement>
+    <repository>
+      <id>nexus-vanderbilt</id>
+      <url>${vandylib.release.url}</url>
+    </repository>
+    <snapshotRepository>
+      <id>nexus-snapshot</id>
+      <url>${vandylib.snapshot.url}</url>
+    </snapshotRepository>
+  </distributionManagement>
+  <repositories>
+    <repository>
+      <id>nexus-vanderbilt</id>
+      <url>${vandylib.release.url}</url>
+    </repository>
+    <repository>
+      <id>nexus-eucleo</id>
+      <url>${vandylib.eucleo.url}</url>
+    </repository>
+    <repository>
+      <id>nexus-snapshot</id>
+      <url>${vandylib.snapshot.url}</url>
+    </repository>
+  </repositories>
+  <build>
+    <directory>target</directory>
+    <sourceDirectory>src</sourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <executions>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>ant-contrib</groupId>
+            <artifactId>ant-contrib</artifactId>
+            <version>1.0b3</version>
+            <exclusions>
+              <exclusion>
+                <groupId>ant</groupId>
+                <artifactId>ant</artifactId>
+              </exclusion>
+            </exclusions>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
+        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+        <artifactId>android-maven-plugin</artifactId>
+        <extensions>true</extensions>
+        <configuration>
+          <sdk>
+            <platform>8</platform>
+          </sdk>
+          <undeployBeforeDeploy>true</undeployBeforeDeploy>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>android</artifactId>
+    </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-classic</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammolib</artifactId>
+      <version>1.6.0</version>
+    </dependency>
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammocorelib</artifactId>
+      <version>1.6.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>android-test</artifactId>
+    </dependency>
+  </dependencies>
+</project>

@@ -67,7 +67,7 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
  *
  */
 public class RequestSerializer {
-  private static final Logger logger = LoggerFactory.getLogger("dist.serializer");
+  /* package */ static final Logger logger = LoggerFactory.getLogger("dist.serializer");
 
   /**
    * This enumeration's codes must match those of 
@@ -444,7 +444,7 @@ public class RequestSerializer {
   /**
    * @see serializeFromProvider with which this method is symmetric.
    */
-  public static Uri deserializeToProvider(final Context context, final String channelName,
+  public static Uri deserializeToProvider(final Context context, final ContentResolver resolver, final String channelName,
       final Uri provider, final Encoding encoding, final byte[] data) {
 
     logger.debug("deserialize message");
@@ -452,16 +452,16 @@ public class RequestSerializer {
     final UriFuture uri;
     switch (encoding.getType()) {
     case CUSTOM:
-      uri = RequestSerializer.deserializeCustomToProvider(context, channelName, provider, encoding, data);
+      uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName, provider, encoding, data);
       break;
     case JSON: 
-      uri = RequestSerializer.deserializeJsonToProvider(context, channelName, provider, encoding, data);
+      uri = RequestSerializer.deserializeJsonToProvider(context, resolver, channelName, provider, encoding, data);
       break;
     case TERSE: 
-      uri = RequestSerializer.deserializeTerseToProvider(context, channelName, provider, encoding, data);
+      uri = RequestSerializer.deserializeTerseToProvider(context, resolver, channelName, provider, encoding, data);
       break;
     default:
-      uri = RequestSerializer.deserializeCustomToProvider(context, channelName, provider, encoding, data);  
+      uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName, provider, encoding, data);  
     }
     if (uri == null) return null;
     try {
@@ -523,8 +523,8 @@ public class RequestSerializer {
    * @param data
    * @return
    */
-  public static UriFuture deserializeCustomToProvider(final Context context, final String channelName,
-      final Uri provider, final Encoding encoding, final byte[] data) {
+  public static UriFuture deserializeCustomToProvider(final Context context, final ContentResolver resolver, 
+          final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
     final String key = provider.toString();
     if ( RequestSerializer.remoteServiceMap.containsKey(key)) {
@@ -672,9 +672,9 @@ public class RequestSerializer {
         bigTuple.write(fieldName.getBytes());
         bigTuple.write(0x0);
 
+       // "Manual merge" of fix for blob/file handling
         /*
-         * An awful hack.
-         * If it is a file field type the value is a string,
+        * If it is a file field type the value is a string,
          * If a blob then the field type is a blob, but
          * you can not check the field type directly so we
          * let the exception happen if we try the wrong type.
@@ -755,10 +755,16 @@ public class RequestSerializer {
 
             bigTuple.write(fieldBlobBuffer.array());
             bigTuple.write(bb.array());
+          } catch (SQLiteException ex) {
+            logger.error("unable to create stream {}", serialUri, ex);
+            continue;
 
           } catch (IOException ex) {
             logger.trace("unable to create stream {}", serialUri, ex);
             throw new FileNotFoundException("Unable to create stream");
+          } catch (Exception ex) {
+            logger.error("content provider unable to create stream {}", serialUri, ex);
+            continue;
           }
           break;
         default:
@@ -1009,10 +1015,9 @@ public class RequestSerializer {
    * @param data
    * @return
    */
-  public static UriFuture deserializeJsonToProvider(final Context context, final String channelName,
-      final Uri provider, final Encoding encoding, final byte[] data) {
+  public static UriFuture deserializeJsonToProvider(final Context context, final ContentResolver resolver, 
+          final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
-    final ContentResolver resolver = context.getContentResolver();
     final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
     // find the end of the json portion of the data
     int position = 0;
@@ -1064,10 +1069,28 @@ public class RequestSerializer {
           PLogger.API_STORE.error("invalid JSON key=[{}]", key, ex);
           continue;
         }
-        if (value instanceof String) {
+        if (value == null) {
+          cv.put(key, "");
+          PLogger.API_STORE.error("json value is null key=[{}]", key);
+          continue;
+        } else if (value instanceof String) {
           cv.put(key, (String) value);
+        } else if (value instanceof Boolean) {
+          cv.put(key, (Boolean) value);
+        } else if (value instanceof Integer) {
+          cv.put(key, (Integer) value);
+        } else if (value instanceof Long) {
+          cv.put(key, (Long) value);
+        } else if (value instanceof Double) {
+          cv.put(key, (Double) value);
+        } else if (value instanceof JSONObject) {
+          PLogger.API_STORE.error("value has unexpected type=[JSONObject] key=[{}] value=[{}]", key, value);
+          continue;
+        } else if (value instanceof JSONArray) {
+          PLogger.API_STORE.error("value has unexpected type=[JSONArray] key=[{}] value=[{}]", key, value);
+          continue;
         } else {
-          PLogger.API_STORE.error("value has unexpected typ JSON key=[{}] value=[{}]", key, value);
+          PLogger.API_STORE.error("value has unexpected type JSON key=[{}] value=[{}]", key, value);
           continue;
         }
       } else {
@@ -1341,10 +1364,9 @@ public class RequestSerializer {
    * @param data
    * @return
    */
-  private static UriFuture deserializeTerseToProvider(final Context context, final String channelName,
-      final Uri provider, final Encoding encoding, final byte[] data) {
+  private static UriFuture deserializeTerseToProvider(final Context context, final ContentResolver resolver,
+          final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
     {
-      final ContentResolver resolver = context.getContentResolver();
       /**
        * 1) perform a query to get the field: names, types.
        * 2) parse the incoming data using the order of the names

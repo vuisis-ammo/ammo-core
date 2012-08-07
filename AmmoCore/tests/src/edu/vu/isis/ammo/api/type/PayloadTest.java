@@ -1,12 +1,15 @@
 
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.api.type;
 
-import android.test.AndroidTestCase;
+import java.util.Arrays;
 
+import junit.framework.Assert;
 import junit.framework.Test;
-import junit.framework.TestCase;
 import junit.framework.TestSuite;
-
+import android.content.ContentValues;
+import android.os.Parcel;
+import android.os.Parcelable;
+import android.test.AndroidTestCase;
 /**
  * Unit test for the Payload API class 
  * 
@@ -15,15 +18,10 @@ import junit.framework.TestSuite;
  * 
  * To run this test, you can type:
  * adb shell am instrument -w \
- * -e class edu.vu.isis.ammo.core.PayloadTest \
- * edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
+  -e class edu.vu.isis.ammo.api.type.PayloadTest \
+ edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner
+ * 
  */
-
-import edu.vu.isis.ammo.api.type.Payload;
-import android.content.ContentValues;
-import android.os.Parcel;
-import android.os.Parcelable;
-import java.util.Arrays;
 
 
 public class PayloadTest extends AndroidTestCase 
@@ -49,7 +47,7 @@ public class PayloadTest extends AndroidTestCase
      */
     protected void setUp() throws Exception
     {
-	// ...
+        // ...
     }
 
     /**
@@ -57,102 +55,150 @@ public class PayloadTest extends AndroidTestCase
      */
     protected void tearDown() throws Exception
     {
-	// ...
+        // ...
     }
 
     /**
      * Test methods
      */
-    public void testConstructorWithParcel()
-    {
-	//Parcel par = null;
-	//Payload p = new Payload(par);
-	//assertNotNull(p);
+
+    /**
+     * All the tests expect equivalence to work correctly.
+     * So we best verify that equivalence works.
+     */
+    public void testEquivalence() {
+        Assert.assertEquals("a none is equal to itself", Payload.NONE, Payload.NONE);
     }
+
 
     public void testConstructorWithString()
     {
-	final String in = "foo";
-	Payload p = new Payload(in);
-	assertNotNull(p);
+        final String in = "foo";
+        Payload p = new Payload(in);
+        assertNotNull(p);
 
-	// Need some Payload public accessors to examine content
-	// e.g.
-	// assertTrue(p.getString() == in);
+        // Need some Payload public accessors to examine content
+        // e.g.
+        // assertTrue(p.getString() == in);
     }
-    
+
     public void testConstructorWithByteArray()
     {
-	byte[] ba = new byte[10];
-	Payload p = new Payload(ba);
-	assertNotNull(p);
+        byte[] ba = new byte[10];
+        Payload p = new Payload(ba);
+        assertNotNull(p);
     }
 
     public void testConstructorWithContentValues()
     {
-	ContentValues cv = new ContentValues();
-	cv.put("ammo", "great");
-	Payload p = new Payload(cv);
-	assertNotNull(p);
+        ContentValues cv = new ContentValues();
+        cv.put("ammo", "great");
+        Payload p = new Payload(cv);
+        assertNotNull(p);
     }
-    
-    public void testReadFromParcel()
-    {
-	// Test case of passing in a null Parcel (should return null)
-	Parcel p1 = null;
-	Payload rv1 = Payload.readFromParcel(p1);
-	assertTrue(rv1 == null);
-	
-	// Pass in a non-null Parcel (should return non-null)
-	//Parcel p2 = new Parcel(...);
-	//Payload rv2 = Payload.readFromParcel(p2);
-	//assertNotNull(rv2);
+
+    /**
+     * Test case of passing in a null Parcel 
+     * - should throw a null pointer exception
+     */
+    public void testNullParcel() {
+        /**
+         * Test case of passing in a null Parcel 
+         * - should throw a null pointer exception
+         */
+        boolean success = false;
+        try {
+            final Parcel p1 = null;
+            Payload.readFromParcel(p1);
+
+        } catch (NullPointerException ex) {
+            success = true;
+        }
+        Assert.assertTrue("passing a null reference should fail", success);
     }
-    
+
+    /**
+     * Generate a non-null Parcel containing a null payload
+     * When unmarshalled this produces a NONE payload.
+     * - should return non-null
+     */
+    public void testNullContentParcel() {
+        {
+            final Payload expected = null;
+            final Parcel parcel = Parcel.obtain();
+            Payload.writeToParcel(expected, parcel, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+            parcel.setDataPosition(0);
+            final Payload actual = Payload.CREATOR.createFromParcel(parcel);
+            Assert.assertEquals("wrote a null but got something else", actual, Payload.NONE);
+        }
+    }
+    /**
+     * Generate a non-null Parcel containing a simple string payload
+     * - should return non-null
+     */
+    public void testParcel() {
+        final Parcel parcel1 = Parcel.obtain();
+        final Parcel parcel2 = Parcel.obtain();
+        try {
+            final Payload expected = new Payload("an arbitrary Payload");
+            Payload.writeToParcel(expected, parcel1, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+            final byte[] bytes = parcel1.marshall();
+            // Assert.assertEquals(4, bytes[0]);
+            parcel2.unmarshall(bytes, 0, bytes.length);
+            parcel2.setDataPosition(0);
+            final Payload actual = Payload.CREATOR.createFromParcel(parcel2);
+            Assert.assertNotNull("wrote something but got a null back", actual);
+            // Assert.assertEquals("did not get back an equivalent Payload", expected, actual);
+        } finally {
+            parcel1.recycle();
+            parcel2.recycle();
+        }
+    }
+
     public void testWhatContent()
     {
-	// Type STR
-	Payload p1 = new Payload("foo");
-	assertTrue(p1.whatContent() == Payload.Type.STR);
-	
-	// Type BYTE
-	byte[] ba = new byte[10];
-	Payload p2 = new Payload(ba);
-	assertNotNull(p2);
-	assertTrue(p2.whatContent() == Payload.Type.BYTE);
+        // Type STR
+        Payload p1 = new Payload("foo");
+        assertTrue(p1.whatContent() == Payload.Type.STR);
 
-	// Type CV
-	ContentValues cv = new ContentValues();
-	cv.put("ammo", "great");
-	Payload p3 = new Payload(cv);
-	assertNotNull(p3);
-	assertTrue(p3.whatContent() == Payload.Type.CV);
+        // Type BYTE
+        byte[] ba = new byte[10];
+        Payload p2 = new Payload(ba);
+        assertNotNull(p2);
+        assertTrue(p2.whatContent() == Payload.Type.BYTE);
+
+        // Type CV
+        ContentValues cv = new ContentValues();
+        cv.put("ammo", "great");
+        Payload p3 = new Payload(cv);
+        assertNotNull(p3);
+        assertTrue(p3.whatContent() == Payload.Type.CV);
     }
 
     public void testAsBytes()
     {
-	// Construct a payload from byte array
-	byte[] ba = new byte[10];
-	Payload p = new Payload(ba);
-	assertNotNull(p);
-	assertTrue(p.whatContent() == Payload.Type.BYTE);
-	
-	// Make sure the returned byte array is same as original
-	assertTrue(Arrays.equals(ba, p.asBytes()));
+        // Construct a payload from byte array
+        byte[] ba = new byte[10];
+        Payload p = new Payload(ba);
+        assertNotNull(p);
+        assertTrue(p.whatContent() == Payload.Type.BYTE);
+
+        // Make sure the returned byte array is same as original
+        assertTrue(Arrays.equals(ba, p.asBytes()));
     }
 
     public void testGetCV()
     {
-	// cv to initialize with
-	ContentValues cv = new ContentValues();
-	cv.put("foo", "bar");
-	
-	// Construct a payload with the cv
-	Payload p = new Payload(cv);
-	assertNotNull(p);
-	assertTrue(p.whatContent() == Payload.Type.CV);
+        // cv to initialize with
+        ContentValues cv = new ContentValues();
+        cv.put("foo", "bar");
 
-	// Check that retrieved cv is same as original
-	assertTrue(p.getCV() == cv);
+        // Construct a payload with the cv
+        Payload p = new Payload(cv);
+        assertNotNull(p);
+        assertTrue(p.whatContent() == Payload.Type.CV);
+
+        // Check that retrieved cv is same as original
+        assertTrue(p.getCV() == cv);
     }
 }
