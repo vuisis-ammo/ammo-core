@@ -1067,7 +1067,7 @@ public class RequestSerializer {
         return null;
       }
       logger.info("Deserialized Received message, content {}", cv);
-
+      PLogger.TEST_FUNCTIONAL.info("cv: {}, provider:{}", cv, provider);
     } catch (SQLiteException ex) {
       logger.warn("invalid sql insert", ex);
       return null;

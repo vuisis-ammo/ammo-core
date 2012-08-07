@@ -127,6 +127,13 @@ public abstract class PLogger {
 	public static final Logger STORE_CAPABILITY_DQL = LoggerFactory.getLogger( "store.capability.dql" );
 	public static final Logger STORE_PRESENCE_DQL = LoggerFactory.getLogger( "store.presence.dql" );
 	public static final Logger STORE_DISPOSAL_DQL = LoggerFactory.getLogger( "store.disposal.dql" );
+	
+	/**
+	 * Loggers and format strings for use with python tests.
+	 */
+	public static final String TEST_QUEUE_FORMAT = "{\"timestamp\": {}, \"queue_name\": \"{}\", \"queue_size\": {}}";
+
+	public static final Logger TEST_FUNCTIONAL = LoggerFactory.getLogger("test.functional");
 
 	/**
 	 * Typically the "toString()" method for intents doesn't print the extras.
