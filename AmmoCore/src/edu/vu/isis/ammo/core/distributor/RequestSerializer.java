@@ -65,7 +65,7 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
  *
  */
 public class RequestSerializer {
-  private static final Logger logger = LoggerFactory.getLogger("dist.serializer");
+  /* package */ static final Logger logger = LoggerFactory.getLogger("dist.serializer");
 
   /**
    * This enumeration's codes must match those of 
@@ -406,7 +406,7 @@ public class RequestSerializer {
   /**
    * @see serializeFromProvider with which this method is symmetric.
    */
-  public static Uri deserializeToProvider(final Context context, final String channelName,
+  public static Uri deserializeToProvider(final Context context, final ContentResolver resolver, final String channelName,
       final Uri provider, final Encoding encoding, final byte[] data) {
 
     logger.debug("deserialize message");
@@ -414,16 +414,16 @@ public class RequestSerializer {
     final UriFuture uri;
     switch (encoding.getType()) {
     case CUSTOM:
-      uri = RequestSerializer.deserializeCustomToProvider(context, channelName, provider, encoding, data);
+      uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName, provider, encoding, data);
       break;
     case JSON: 
-      uri = RequestSerializer.deserializeJsonToProvider(context, channelName, provider, encoding, data);
+      uri = RequestSerializer.deserializeJsonToProvider(context, resolver, channelName, provider, encoding, data);
       break;
     case TERSE: 
-      uri = RequestSerializer.deserializeTerseToProvider(context, channelName, provider, encoding, data);
+      uri = RequestSerializer.deserializeTerseToProvider(context, resolver, channelName, provider, encoding, data);
       break;
     default:
-      uri = RequestSerializer.deserializeCustomToProvider(context, channelName, provider, encoding, data);  
+      uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName, provider, encoding, data);  
     }
     if (uri == null) return null;
     try {
@@ -485,8 +485,8 @@ public class RequestSerializer {
    * @param data
    * @return
    */
-  public static UriFuture deserializeCustomToProvider(final Context context, final String channelName,
-      final Uri provider, final Encoding encoding, final byte[] data) {
+  public static UriFuture deserializeCustomToProvider(final Context context, final ContentResolver resolver, 
+          final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
     final String key = provider.toString();
     if ( RequestSerializer.remoteServiceMap.containsKey(key)) {
@@ -976,10 +976,9 @@ public class RequestSerializer {
    * @param data
    * @return
    */
-  public static UriFuture deserializeJsonToProvider(final Context context, final String channelName,
-      final Uri provider, final Encoding encoding, final byte[] data) {
+  public static UriFuture deserializeJsonToProvider(final Context context, final ContentResolver resolver, 
+          final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
-    final ContentResolver resolver = context.getContentResolver();
     final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
     // find the end of the json portion of the data
     int position = 0;
@@ -1326,10 +1325,9 @@ public class RequestSerializer {
    * @param data
    * @return
    */
-  private static UriFuture deserializeTerseToProvider(final Context context, final String channelName,
-      final Uri provider, final Encoding encoding, final byte[] data) {
+  private static UriFuture deserializeTerseToProvider(final Context context, final ContentResolver resolver,
+          final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
     {
-      final ContentResolver resolver = context.getContentResolver();
       /**
        * 1) perform a query to get the field: names, types.
        * 2) parse the incoming data using the order of the names
