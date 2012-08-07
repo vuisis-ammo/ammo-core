@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Process;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 
 public class RequestDeserializerThread extends Thread {
