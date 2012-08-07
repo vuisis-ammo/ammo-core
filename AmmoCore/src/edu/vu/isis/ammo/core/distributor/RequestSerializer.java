@@ -57,6 +57,7 @@ import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.ContractStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -104,25 +105,25 @@ public class RequestSerializer {
       }
     }
 
-		private static final HashMap<String, FieldType> stringMap =
-				new HashMap<String, FieldType>();
-		static {
-			stringMap.put("NULL", NULL);
-			stringMap.put("BOOL", BOOL);
-			stringMap.put("BLOB", BLOB);
-			stringMap.put("FLOAT", FLOAT);
-			stringMap.put("INTEGER", INTEGER);
-			stringMap.put("LONG", LONG);
-			stringMap.put("TEXT", TEXT);
-			stringMap.put("REAL", REAL);
-			stringMap.put("FK", FK);
-			stringMap.put("GUID", GUID);
-			stringMap.put("EXCLUSIVE", EXCLUSIVE);
-			stringMap.put("INCLUSIVE", INCLUSIVE);
-			stringMap.put("TIMESTAMP", TIMESTAMP);
-			stringMap.put("SHORT", SHORT);
-			stringMap.put("FILE", FILE);
-		}
+	private static final HashMap<String, FieldType> stringMap =
+		new HashMap<String, FieldType>();
+	static {
+		stringMap.put("NULL", NULL);
+		stringMap.put("BOOL", BOOL);
+		stringMap.put("BLOB", BLOB);
+		stringMap.put("FLOAT", FLOAT);
+		stringMap.put("INTEGER", INTEGER);
+		stringMap.put("LONG", LONG);
+		stringMap.put("TEXT", TEXT);
+		stringMap.put("REAL", REAL);
+		stringMap.put("FK", FK);
+		stringMap.put("GUID", GUID);
+		stringMap.put("EXCLUSIVE", EXCLUSIVE);
+		stringMap.put("INCLUSIVE", INCLUSIVE);
+		stringMap.put("TIMESTAMP", TIMESTAMP);
+		stringMap.put("SHORT", SHORT);
+		stringMap.put("FILE", FILE);
+	}
 
     public int toCode() {
       return this.code;
@@ -305,7 +306,7 @@ public class RequestSerializer {
     return json.toString().getBytes();
   }
 
-	private static ContentValues decodeAsTerseWithContractRelation(byte[] data, ContractStore.Relation relation) {		
+	private static ContentValues deserializeTerseWithContractRelation(byte[] data, ContractStore.Relation relation) {		
 		List<String> fieldNames = new ArrayList<String>(relation.getFields().size());
 		List<FieldType> dataTypes = new ArrayList<FieldType>(relation.getFields().size());
 		
