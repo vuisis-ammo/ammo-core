@@ -36,4 +36,8 @@ public class AmmoMockProvider01 extends AmmoMockProviderBase {
   public SQLiteDatabase getDatabase() {
     return this.openHelper.getWritableDatabase();
   }
+  
+  public void release() {
+      this.openHelper.close();
+  }
 }
