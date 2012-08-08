@@ -1,36 +1,43 @@
 
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.api.type;
 
-import android.test.AndroidTestCase;
+import java.io.UnsupportedEncodingException;
 
+import junit.framework.Assert;
 import junit.framework.Test;
-import junit.framework.TestCase;
 import junit.framework.TestSuite;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import android.os.Parcel;
+import android.os.Parcelable;
+import android.test.AndroidTestCase;
+import ch.qos.logback.classic.Level;
+
 /**
- * Unit test for Topic API class 
- * 
- * Use this class as a template to create new Ammo unit tests
- * for classes which use Android-specific components.
- * 
- * To run this test, you can type:
+ * Unit test for Topic API class
+ * <p>
+ * Use this class as a template to create new Ammo unit tests for classes which
+ * use Android-specific components.
+ * <p>
+ * To run this test, you can type: <code>
  * adb shell am instrument -w \
  * -e class edu.vu.isis.ammo.core.TopicTest \
  * edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
+ * </code>
  */
-
 // [IMPORT AMMO CLASS(ES) TO BE TESTED HERE]
-import edu.vu.isis.ammo.api.type.Topic;
-import edu.vu.isis.ammo.api.IncompleteRequest;
-import android.os.Parcel;
 
-public class TopicTest extends AndroidTestCase 
+public class TopicTest extends AndroidTestCase
 {
-    public TopicTest() 
+    final static private Logger logger = LoggerFactory.getLogger("trial.api.type.topic");
+
+    public TopicTest()
     {
     }
 
-    public TopicTest( String testName )
+    public TopicTest(String testName)
     {
     }
 
@@ -39,7 +46,7 @@ public class TopicTest extends AndroidTestCase
      */
     public static Test suite()
     {
-        return new TestSuite( TopicTest.class );
+        return new TestSuite(TopicTest.class);
     }
 
     /**
@@ -47,7 +54,7 @@ public class TopicTest extends AndroidTestCase
      */
     protected void setUp() throws Exception
     {
-	// ...
+        // ...
     }
 
     /**
@@ -55,84 +62,96 @@ public class TopicTest extends AndroidTestCase
      */
     protected void tearDown() throws Exception
     {
-	// ...
+        // ...
     }
 
     /**
-     * Test methods
+     * All the tests expect equivalence to work correctly. So we best verify
+     * that equivalence works.
      */
-    public void testConstructorWithParcel()
-    {
-	// Test with null Parcel arg to constructor
-	try
-	    {
-		Parcel par1 = null;
-		Topic t1 = new Topic(par1);
-		assertNotNull(t1);
-	    }
-	catch (IncompleteRequest ex) 
-	    {
-		// This should not have happened
-		fail("Should not have thrown IncompleteRequest in this case");
-	    }
-	
-	// Test constructor with Parcel 
-	try
-	    {
-		Parcel par2 = null;
-		Topic t2 = new Topic(par2);
-	    }
-	catch (IncompleteRequest ex) 
-	    {
-		// This should not have happened
-		fail("Should not have thrown IncompleteRequest in this case");
-	    }
-	catch(Throwable ex)
-	    {
-		// This should also not have happened
-		fail("Caught an unexpected exception");
-	    }
-	
-	// Test constructor with Parcel, intentionally cause exception
-	// to be thrown (IncompleteRequest)
-	try
-	    {
-		Parcel par3 = null;
-		Topic t3 = new Topic(par3);
-	    }
-	catch (IncompleteRequest ex) 
-	    {
-		// Got the expected exception - correct behavior
-		assertTrue(true);
-	    }
-	catch(Throwable ex)
-	    {
-		// Got an unexpected exception
-		fail("Caught an unexpected exception");
-	    }
+    public void testEquivalence() {
+        final Topic first = new Topic("this is a string");
+        final Topic second = new Topic("this is a differenct string");
+        Assert.assertEquals("an object should be equal to itself", first, first);
+        Assert.assertFalse("an objects which are not equal", first.equals(second));
+    }
+
+    /**
+     * Test case of passing in a null Parcel - should throw a null pointer
+     * exception
+     */
+    public void testNullParcel() {
+        boolean success = false;
+        try {
+            final Parcel p1 = null;
+            Topic.readFromParcel(p1);
+
+        } catch (NullPointerException ex) {
+            success = true;
+        }
+        Assert.assertTrue("passing a null reference should fail", success);
+    }
+
+    /**
+     * Generate a non-null Parcel containing a null Topic When unmarshalled this
+     * produces a NONE Topic. - should return non-null
+     */
+    public void testNullContentParcel() {
+        final Topic expected = null;
+        final Parcel parcel = Parcel.obtain();
+        Topic.writeToParcel(expected, parcel, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+        parcel.setDataPosition(0);
+        final Topic actual = Topic.CREATOR.createFromParcel(parcel);
+        Assert.assertEquals("wrote a null expecting a NONE but got something else back", actual,
+                Topic.NONE);
+    }
+
+    /**
+     * Generate a non-null Parcel containing a simple string Topic - should
+     * return non-null
+     */
+    public void testParcel() {
+        ((ch.qos.logback.classic.Logger) logger).setLevel(Level.TRACE);
+
+        final Parcel parcel1 = Parcel.obtain();
+        final Parcel parcel2 = Parcel.obtain();
+        try {
+            final Topic expected = new Topic("an arbitrary Topic");
+            logger.info("parcel 1 position before {}", parcel1.dataPosition());
+            Topic.writeToParcel(expected, parcel1, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+            logger.info("parcel 1 position after {}", parcel1.dataPosition());
+
+            final byte[] expectedBytes = parcel1.marshall();
+            logger.info("parcel 1 content [{}] [{}]", expectedBytes, new String(expectedBytes,
+                    "UTF-8"));
+            // Assert.assertEquals(4, bytes[0]);
+            parcel2.unmarshall(expectedBytes, 0, expectedBytes.length);
+            logger.info("parcel 2 position before {}", parcel2.dataPosition());
+
+            parcel2.setDataPosition(0);
+            logger.info("parcel 2 position after {}", parcel2.dataPosition());
+            final Topic actual = Topic.readFromParcel(parcel2);
+            logger.info("actual {}", actual);
+            Assert.assertNotNull("wrote something but got a null back", actual);
+            Assert.assertEquals("did not get back an equivalent Topic", expected, actual);
+
+        } catch (UnsupportedEncodingException ex) {
+            logger.error("bad byte array encoding");
+        } finally {
+            parcel1.recycle();
+            parcel2.recycle();
+        }
     }
 
     public void testConstructorWithString()
     {
-	final String in = "foo";
-	Topic t = new Topic(in);
-	assertNotNull(t);
+        final String in = "foo";
+        Topic t = new Topic(in);
+        assertNotNull(t);
 
-	// Need some Topic public accessors to examine content
-	// e.g.
-	// assertTrue(t.getString() == in);
+        // Need some Topic public accessors to examine content
+        // e.g.
+        // assertTrue(t.getString() == in);
     }
-    
-    public void testReadFromParcel()
-    {
-	// Test case of passing in a null Parcel (should return null)
-	Parcel p1 = null;
-	Topic rv1 = Topic.readFromParcel(p1);
-	assertTrue(rv1 == null);
-	
-	// Pass in a non-null Parcel (should return non-null)
-	//Parcel p2 = new Parcel(...);
-	//Topic rv2 = Topic.readFromParcel(p2);
-	//assertNotNull(rv2);
-    }
+
 }

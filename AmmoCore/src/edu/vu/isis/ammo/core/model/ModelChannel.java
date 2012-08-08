@@ -10,6 +10,9 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.model;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
@@ -19,20 +22,25 @@ import android.view.View;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.network.NetChannel;
 
-public abstract class Channel implements OnSharedPreferenceChangeListener{
+public abstract class ModelChannel implements OnSharedPreferenceChangeListener{
 
+    private static final Logger logger = LoggerFactory.getLogger("model.channel");
+    
+    protected OnNameChangeListener mOnNameChangeListener; 
+    
 	protected Context context = null;
 	protected String name = "";
 	protected SharedPreferences prefs = null;
 	
 	protected NetChannel mNetChannel = null;
 	
-	protected Channel(Context context, String name)
+	protected ModelChannel(Context context, String name)
 	{
 		this.context = context;
 		this.name = name;
 		this.prefs = PreferenceManager.getDefaultSharedPreferences(context);
 		this.prefs.registerOnSharedPreferenceChangeListener(this);
+		logger.trace("Channel {} constructed", name);
 	}
 	
 	public NetChannel getNetChannel () {return mNetChannel;}
@@ -52,6 +60,13 @@ public abstract class Channel implements OnSharedPreferenceChangeListener{
 	public abstract boolean isEnabled();
 	public abstract View getView(View row, LayoutInflater inflater);
 	public abstract int[] getStatus();
-	public abstract void setOnNameChangeListener(OnNameChangeListener listener, View view);
+	public void setOnNameChangeListener(OnNameChangeListener listener) {
+	    mOnNameChangeListener = listener;
+	}
+	protected void callOnNameChange() {
+	    if(mOnNameChangeListener != null) {
+            mOnNameChangeListener.onNameChange();
+        }
+	}
 	public abstract void setStatus(int [] statusCode);
 }

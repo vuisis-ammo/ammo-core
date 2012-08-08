@@ -13,15 +13,19 @@
     <vandylib.eucleo.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/eucleo/</vandylib.eucleo.url>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <root.basedir>${basedir}/../..</root.basedir>
+    <android.target>android-8</android.target>
   </properties>
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammo-parent</artifactId>
-    <version>1.5.15-SNAPSHOT</version>
+    <!-- TEMPLATE:BEGIN-->
+    <version>1.6.1-SNAPSHOT</version>
+    <!-- TEMPLATE:END -->
   </parent>
-  <artifactId>AmmoCore</artifactId>
+  <artifactId>ammocore</artifactId>
   <packaging>apk</packaging>
   <name>Ammo Core Application</name>
+
   <distributionManagement>
     <repository>
       <id>nexus-vanderbilt</id>
@@ -32,6 +36,7 @@
       <url>${vandylib.snapshot.url}</url>
     </snapshotRepository>
   </distributionManagement>
+
   <repositories>
     <repository>
       <id>nexus-snapshot</id>
@@ -46,6 +51,7 @@
       <url>${vandylib.eucleo.url}</url>
     </repository>
   </repositories>
+
   <build>
     <directory>target</directory>
     <sourceDirectory>src</sourceDirectory>
@@ -193,8 +199,14 @@
       <version>2.3.0</version>
     </dependency>
     <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback</artifactId>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-core</artifactId>
+        <version>1.0.6-2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-classic</artifactId>
+        <version>1.0.6-2</version>
     </dependency>
     <dependency>
       <groupId>com.google.android</groupId>
@@ -271,19 +283,36 @@
                   <goal>run</goal>
                 </goals>
               </execution>
-          <execution>
-            <id>ndk_gen</id>
-            <phase>validate</phase>
-            <configuration>
-              <tasks>
-                <echo>Building ethertracker library</echo>
-                <exec executable="ndk-build" dir="." searchpath="true" />
-              </tasks>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
+              <execution>
+                <id>ndk_gen</id>
+                <phase>initialize</phase>
+                <configuration>
+                  <tasks>
+                    <echo>Building ethertracker library</echo>
+                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <tasks>
+                    <echo message="configure AmmoCore..."/>
+                    <exec executable="android" dir="${basedir}" searchpath="true">
+                      <arg line="update"/> <arg line="project"/>
+                      <arg line="--path"/> <arg line="."/>
+                      <arg line="--target"/> <arg line="${android.target}"/>
+                    </exec>
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -370,19 +399,36 @@
                   <goal>run</goal>
                 </goals>
               </execution>
-          <execution>
-            <id>ndk_gen</id>
-            <phase>validate</phase>
-            <configuration>
-              <tasks>
-                <echo>Building ethertracker library</echo>
-                <exec executable="ndk-build" dir="." searchpath="true" />
-              </tasks>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
+              <execution>
+                <id>ndk_gen</id>
+                <phase>initialize</phase>
+                <configuration>
+                  <tasks>
+                    <echo>Building ethertracker library</echo>
+                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <tasks>
+                    <echo message="configure AmmoCore..."/>
+                    <exec executable="android" dir="${basedir}" searchpath="true">
+                      <arg line="update"/> <arg line="project"/>
+                      <arg line="--path"/> <arg line="."/>
+                      <arg line="--target"/> <arg line="${android.target}"/>
+                    </exec>
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -468,19 +514,36 @@
                   <goal>run</goal>
                 </goals>
               </execution>
-          <execution>
-            <id>ndk_gen</id>
-            <phase>validate</phase>
-            <configuration>
-              <tasks>
-                <echo>Building ethertracker library</echo>
-                <exec executable="ndk-build.cmd" dir="." searchpath="true" />
-              </tasks>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
+              <execution>
+                <id>ndk_gen</id>
+                <phase>initialize</phase>
+                <configuration>
+                  <tasks>
+                    <echo>Building ethertracker library</echo>
+                    <exec executable="ndk-build.cmd" dir="." searchpath="true" failonerror="true" />
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <tasks>
+                    <echo message="configure AmmoCore..."/>
+                    <exec executable="android.bat" dir="${basedir}" searchpath="true">
+                      <arg line="update"/> <arg line="project"/>
+                      <arg line="--path"/> <arg line="."/>
+                      <arg line="--target"/> <arg line="${android.target}"/>
+                    </exec>
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
             </executions>
             <dependencies>
               <dependency>
@@ -546,19 +609,153 @@
                   <goal>run</goal>
                 </goals>
               </execution>
-          <execution>
-            <id>ndk_gen</id>
-            <phase>validate</phase>
-            <configuration>
-              <tasks>
-                <echo>Building ethertracker library</echo>
-                <exec executable="ndk-build" dir="." searchpath="true" />
-              </tasks>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
+              <execution>
+                <id>ndk_gen</id>
+                <phase>initialize</phase>
+                <configuration>
+                  <tasks>
+                    <echo>Building ethertracker library</echo>
+                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <tasks>
+                    <echo message="configure AmmoCore..."/>
+                    <exec executable="android" dir="${basedir}" searchpath="true">
+                      <arg line="update"/> <arg line="project"/>
+                      <arg line="--path"/> <arg line="."/>
+                      <arg line="--target"/> <arg line="${android.target}"/>
+                    </exec>
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <dependencies>
+              <dependency>
+                <groupId>ant-contrib</groupId>
+                <artifactId>ant-contrib</artifactId>
+                <version>1.0b3</version>
+                <exclusions>
+                  <exclusion>
+                    <groupId>ant</groupId>
+                    <artifactId>ant</artifactId>
+                  </exclusion>
+                </exclusions>
+              </dependency>
+              <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.6.4</version>
+              </dependency>
+              <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>2.3.0</version>
+              </dependency>
+              <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20090211</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>mac</id>
+      <activation>
+        <!--activeByDefault>true</activeByDefault-->
+        <os>
+          <family>mac</family>
+        </os>
+      </activation>
+      <properties>
+        <protoc.path>mac</protoc.path>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protoc-gateway-mac</artifactId>
+          <version>2.3.0</version>
+          <type>exe</type>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>generate-sources</id>
+                <phase>generate-sources</phase>
+                <configuration>
+                  <tasks>
+                    <exec executable="echo">
+                      <arg value="${os.arch}" />
+                      <arg value="${os.family}" />
+                    </exec>
+                    <mkdir dir="target/generated-sources/pb" />
+                    <property name="proto.dir" value="../../Gateway/common/protocol" />
+                    <exec executable="chmod">
+                      <arg value="555" />
+                      <arg value="${com.google.protobuf:protoc-gateway-mac:exe}" />
+                    </exec>
+                    <echo>Generating protocol buffers</echo>
+                    <exec executable="${com.google.protobuf:protoc-gateway-mac:exe}" taskname="pb">
+                      <arg value="--proto_path" />
+                      <arg value="${proto.dir}" />
+                      <arg value="--java_out=target/generated-sources/pb" />
+                      <arg value="${proto.dir}/AmmoMessages.proto" />
+                    </exec>
+                  </tasks>
+                  <sourceRoot>target/generated-sources</sourceRoot>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>ndk_gen</id>
+                <phase>initialize</phase>
+                <configuration>
+                  <tasks>
+                    <echo>Building ethertracker library</echo>
+                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <tasks>
+                    <echo message="configure AmmoCore..."/>
+                    <exec executable="android" dir="${basedir}" searchpath="true">
+                      <arg line="update"/> <arg line="project"/>
+                      <arg line="--path"/> <arg line="."/>
+                      <arg line="--target"/> <arg line="${android.target}"/>
+                    </exec>
+                  </tasks>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
             </executions>
             <dependencies>
               <dependency>

@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core;
+package edu.vu.isis.ammo.core.ui;
 
 import android.test.ActivityInstrumentationTestCase2;
 
