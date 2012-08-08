@@ -3,6 +3,11 @@ package edu.vu.isis.ammo.api.type;
 
 import java.util.Arrays;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import ch.qos.logback.classic.Level;
+
 import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestSuite;
@@ -10,22 +15,24 @@ import android.content.ContentValues;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.test.AndroidTestCase;
+
 /**
- * Unit test for the Payload API class 
- * 
- * Use this class as a template to create new Ammo unit tests
- * for classes which use Android-specific components.
- * 
- * To run this test, you can type:
+ * Unit test for Payload API class
+ * <p>
+ * Use this class as a template to create new Ammo unit tests for classes which
+ * use Android-specific components.
+ * <p>
+ * To run this test, you can type: <code>
  * adb shell am instrument -w \
-  -e class edu.vu.isis.ammo.api.type.PayloadTest \
- edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner
- * 
+ * -e class edu.vu.isis.ammo.core.TopicTest \
+ * edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
+ * </code>
  */
 
 
 public class PayloadTest extends AndroidTestCase 
 {
+    final static private Logger logger = LoggerFactory.getLogger("trial.api.type.payload");
     public PayloadTest() 
     {
     }
@@ -137,18 +144,20 @@ public class PayloadTest extends AndroidTestCase
      * - should return non-null
      */
     public void testParcel() {
+        ((ch.qos.logback.classic.Logger) logger).setLevel(Level.TRACE);
+        
         final Parcel parcel1 = Parcel.obtain();
         final Parcel parcel2 = Parcel.obtain();
         try {
             final Payload expected = new Payload("an arbitrary Payload");
             Payload.writeToParcel(expected, parcel1, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
-            final byte[] bytes = parcel1.marshall();
+            final byte[] expectedBytes = parcel1.marshall();
             // Assert.assertEquals(4, bytes[0]);
-            parcel2.unmarshall(bytes, 0, bytes.length);
+            parcel2.unmarshall(expectedBytes, 0, expectedBytes.length);
             parcel2.setDataPosition(0);
-            final Payload actual = Payload.CREATOR.createFromParcel(parcel2);
+            final Payload actual = Payload.readFromParcel(parcel2);
             Assert.assertNotNull("wrote something but got a null back", actual);
-            // Assert.assertEquals("did not get back an equivalent Payload", expected, actual);
+            Assert.assertEquals("did not get back an equivalent Payload", expected, actual);
         } finally {
             parcel1.recycle();
             parcel2.recycle();
