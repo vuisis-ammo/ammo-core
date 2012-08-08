@@ -212,21 +212,21 @@ public class RequestSerializer {
     static {
         remoteServiceMap = new HashMap<String, IDistributorAdaptor>(10);
     }
-    
+
     private static class BlobData {
         public final BlobTypeEnum blobType;
         public final byte[] blob;
-        
+
         public BlobData(BlobTypeEnum blobType, byte[] blob) {
             this.blobType = blobType;
             this.blob = blob;
         }
     }
-    
+
     private static class DeserializedMessage {
         public ContentValues cv;
         public Map<String, BlobData> blobs;
-        
+
         public DeserializedMessage() {
             cv = new ContentValues();
             blobs = new HashMap<String, BlobData>();
@@ -1306,15 +1306,16 @@ public class RequestSerializer {
     public static UriFuture deserializeJsonToProvider(final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
-        
+
         DeserializedMessage msg = deserializeJson(data);
-        
+
         final Uri tupleUri;
         try {
-            tupleUri = resolver.insert(provider, msg.cv); // TBD SKN --- THIS IS A
-                                                      // SYNCHRONOUS IPC? we
-                                                      // will block here for a
-                                                      // while ...
+            tupleUri = resolver.insert(provider, msg.cv); // TBD SKN --- THIS IS
+                                                          // A
+            // SYNCHRONOUS IPC? we
+            // will block here for a
+            // while ...
             if (tupleUri == null) {
                 logger.warn("could not insert {} into {}", msg.cv, provider);
                 return null;
@@ -1328,10 +1329,10 @@ public class RequestSerializer {
             logger.warn("bad provider or values", ex);
             return null;
         }
-        //TODO: decide if we want to do an early return if there aren't any blobs
-        //if (position == data.length)
-        //    return new UriFuture(tupleUri);
-        
+        // TODO: decide if we want to do an early return if there aren't any
+        // blobs
+        // if (position == data.length)
+        // return new UriFuture(tupleUri);
 
         msg.cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
         final StringBuilder sb = new StringBuilder()
@@ -1340,16 +1341,14 @@ public class RequestSerializer {
                 .append(channelName);
         msg.cv.put(AmmoProviderSchema._DISPOSITION, sb.toString());
 
-        
-        
         // write the blob to the appropriate place
-        //do this for each blob
+        // do this for each blob
         final long tupleId = ContentUris.parseId(tupleUri);
         final Uri.Builder uriBuilder = provider.buildUpon();
         final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
 
         int blobCount = 0;
-        for(String fieldName : msg.blobs.keySet()) {
+        for (String fieldName : msg.blobs.keySet()) {
             BlobData blobData = msg.blobs.get(fieldName);
             switch (blobData.blobType) {
                 case SMALL:
@@ -1480,12 +1479,12 @@ public class RequestSerializer {
                 PLogger.API_STORE.error("invalid JSON key=[{}]", keyObj);
             }
         }
-        
-        //if we're already at the end of the message, we're done
-        if(position == data.length) {
+
+        // if we're already at the end of the message, we're done
+        if (position == data.length) {
             return msg;
         }
-        
+
         // process the blobs
         position++; // move past the null terminator
         dataBuff.position(position);
@@ -1534,15 +1533,15 @@ public class RequestSerializer {
                 break;
             }
             BlobTypeEnum blobType;
-            
-            if(storageMarker == BLOB_MARKER_FIELD) {
+
+            if (storageMarker == BLOB_MARKER_FIELD) {
                 blobType = BlobTypeEnum.SMALL;
             } else {
                 blobType = BlobTypeEnum.LARGE;
             }
             msg.blobs.put(fieldName, new BlobData(blobType, blob));
         }
-        
+
         return msg;
     }
 
