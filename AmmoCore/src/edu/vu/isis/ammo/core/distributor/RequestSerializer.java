@@ -58,7 +58,6 @@ import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.ContractStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -420,8 +419,8 @@ public class RequestSerializer {
     }
 
     /**
-     *
-     */
+   *
+   */
 
     public static byte[] serializeFromProvider(final ContentResolver resolver,
             final Uri tupleUri, final DistributorPolicy.Encoding encoding)
@@ -752,7 +751,6 @@ public class RequestSerializer {
                         try {
                             PLogger.API_STORE.trace("small blob field name=[{}]", fieldName);
                             logger.trace("field name=[{}] blob=[{}]", fieldName, blob);
-                            final ByteBuffer fieldBlobBuffer = ByteBuffer.wrap(blob);
 
                             final ByteBuffer bb = ByteBuffer.allocate(4);
                             bb.order(ByteOrder.BIG_ENDIAN);
@@ -1848,4 +1846,5 @@ public class RequestSerializer {
         }
         return decodedObject;
     }
+
 }

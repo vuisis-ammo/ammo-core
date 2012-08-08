@@ -285,11 +285,11 @@
               </execution>
               <execution>
                 <id>ndk_gen</id>
-                <phase>validate</phase>
+                <phase>initialize</phase>
                 <configuration>
                   <tasks>
                     <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build" dir="." searchpath="true" />
+                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
                   </tasks>
                 </configuration>
                 <goals>
@@ -401,11 +401,11 @@
               </execution>
               <execution>
                 <id>ndk_gen</id>
-                <phase>validate</phase>
+                <phase>initialize</phase>
                 <configuration>
                   <tasks>
                     <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build" dir="." searchpath="true" />
+                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
                   </tasks>
                 </configuration>
                 <goals>
@@ -516,11 +516,11 @@
               </execution>
               <execution>
                 <id>ndk_gen</id>
-                <phase>validate</phase>
+                <phase>initialize</phase>
                 <configuration>
                   <tasks>
                     <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build.cmd" dir="." searchpath="true" />
+                    <exec executable="ndk-build.cmd" dir="." searchpath="true" failonerror="true" />
                   </tasks>
                 </configuration>
                 <goals>
@@ -611,11 +611,11 @@
               </execution>
               <execution>
                 <id>ndk_gen</id>
-                <phase>validate</phase>
+                <phase>initialize</phase>
                 <configuration>
                   <tasks>
                     <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build" dir="." searchpath="true" />
+                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
                   </tasks>
                 </configuration>
                 <goals>
@@ -728,11 +728,11 @@
               </execution>
               <execution>
                 <id>ndk_gen</id>
-                <phase>validate</phase>
+                <phase>initialize</phase>
                 <configuration>
                   <tasks>
                     <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build" dir="." searchpath="true" />
+                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
                   </tasks>
                 </configuration>
                 <goals>

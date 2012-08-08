@@ -46,6 +46,7 @@ import android.os.Parcel;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
+import java.util.Map;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -53,7 +54,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Level;
-
 
 /**
  * This is a simple framework for a test of an Application.  See
@@ -105,11 +105,18 @@ public class RequestSerializerTest extends AndroidTestCase {
         //cr = null;
     }
 
-    // =========================================================
-    // 
-    // test methods
-    // 
-    // =========================================================
+
+    /**====================================================================
+     *  ---D
+     *  ---E
+     *  ---E
+     *  ---P
+     *  
+     *  --TESTS-
+     *  These tests focus on the Request Serializer methods.
+     *  Namely intricacies of how a specific part behaves with differing content.
+     *=====================================================================
+     */
 
     // =========================================================
     // newInstance() with no parameters
@@ -192,7 +199,6 @@ public class RequestSerializerTest extends AndroidTestCase {
         AmmoMockProvider01 provider = null;
         try {
             provider = utilMakeTestProvider01(mContext);
-
             assertNotNull(provider);
             //if (provider == null) { fail("could not get mock content provider"); }
 
@@ -322,7 +328,6 @@ public class RequestSerializerTest extends AndroidTestCase {
             final String having = null;
             final String orderBy = null;
             final String limit = null;
-
             final Cursor cursor = db.query(table, projection, selection, selectArgs,
                     groupBy, having, orderBy, limit);
 
@@ -392,6 +397,45 @@ public class RequestSerializerTest extends AndroidTestCase {
         return tupleUri;
     }
 
+    /**====================================================================
+     *  ---W---I---D---E------T---E---S---T---S---
+     *  These tests focus on the Request Serializer objects as components.
+     *  Namely how the parts interact with the differing content.
+     *=====================================================================
+     */
+    private interface SerialChecker {
+        public void check(final byte[] bytes);
+    }
+    
+    public void testRoundTripJson()
+    {
+        final ContentValues cv = new ContentValues();
+        final int sampleForeignKey = -1;
+        cv.put(AmmoTableSchema.A_FOREIGN_KEY_REF, sampleForeignKey);
+        cv.put(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION, AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH);
+        cv.put(AmmoTableSchema.AN_INCLUSIVE_ENUMERATION, AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE);
+
+        this.roundTripTrial(Encoding.newInstance(Encoding.Type.JSON), cv, Tables.AMMO_TBL,
+                new SerialChecker() {
+            @Override public void check(final byte[] bytes) {
+                String jsonStr = null;
+                try {
+                    jsonStr = new String(bytes, "UTF-8");
+                    final JSONObject jsonObj = new JSONObject(jsonStr);
+                    Assert.assertEquals("quick check json", 
+                            String.valueOf(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH),
+                            jsonObj.get(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION));
+
+                } catch (UnsupportedEncodingException ex) {
+                    Assert.fail("unsupported encoding");
+                    return;
+                } catch (JSONException ex) {
+                    Assert.fail("invalid json "+ jsonStr);
+                    return;
+                }
+            }
+        });
+    }
 
     /**
      * This is round trip test what is taken from the database 
@@ -405,122 +449,118 @@ public class RequestSerializerTest extends AndroidTestCase {
      * <li>deserialize into the content provider
      * <li>check the content of the content provider,(imitating the application)
      * </ol>
+     * @param serialChecker 
+     * @param ammoTbl 
+     * @param cv 
+     * @param encoding 
      */
-    public void testRoundTripJson()
-    {
+    private void roundTripTrial(Encoding encoding, ContentValues cv, String table, SerialChecker checker) {
+
         ((ch.qos.logback.classic.Logger) RequestSerializerTest.logger).setLevel(Level.TRACE);
         ((ch.qos.logback.classic.Logger) AmmoMockProviderBase.clogger).setLevel(Level.TRACE);
         ((ch.qos.logback.classic.Logger) AmmoMockProviderBase.hlogger).setLevel(Level.TRACE);
         ((ch.qos.logback.classic.Logger) RequestSerializer.logger).setLevel(Level.TRACE);
-        
+
         AmmoMockProvider01 provider = null;
         try {
             provider = AmmoMockProvider01.getInstance(mContext);
             Assert.assertNotNull(provider);
-            final String table = Tables.AMMO_TBL;
             Assert.assertNotNull(provider);
-            final SQLiteDatabase db = provider.getDatabase();
+            final MockContentResolver resolver = new MockContentResolver();
+            resolver.addProvider(AmmoMockSchema01.AUTHORITY, provider);
 
-            final MockContentResolver cr = new MockContentResolver();
-            cr.addProvider(AmmoMockSchema01.AUTHORITY, provider);
-
-            // Populate content provider with "application-provided data"
-            // (this step simulates what the application would already have done
-            // before RequestSerializer is called)
-            final ContentValues cv = new ContentValues();
-            final int sampleForeignKey = -1;
-            cv.put(AmmoTableSchema.A_FOREIGN_KEY_REF, sampleForeignKey);
-            cv.put(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION, AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH);
-            cv.put(AmmoTableSchema.AN_INCLUSIVE_ENUMERATION, AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE);
-
-            long rowid = db.insert(Tables.AMMO_TBL, AmmoTableSchemaBase.A_FOREIGN_KEY_REF, cv);
-            final Uri tupleUri = ContentUris.withAppendedId(mBaseUri, rowid);
-
-            // Choose JSON encoding for this test
-            final Encoding enc = Encoding.newInstance(Encoding.Type.JSON);
-
-            // Serialize the provider content into JSON bytes
-            final byte[] jsonBytes; 
-            try 
-            {
-                jsonBytes = RequestSerializer.serializeFromProvider(cr, tupleUri, enc);
-            }
-            catch (NonConformingAmmoContentProvider ex)
-            {
-                Assert.fail("Should not have thrown NonConformingAmmoContentProvider in this case");
-                return;
-            }
-            catch (TupleNotFoundException ex)
-            {
-                Assert.fail("Should not have thrown TupleNotFoundException in this case");
-                return;
-            }
-            catch (IOException ex) 
-            {
-                Assert.fail("failure of the test itself");
-                return;
-            }
-
-            String jsonStr = null;
-            try {
-                jsonStr = new String(jsonBytes, "UTF-8");
-                final JSONObject jsonObj = new JSONObject(jsonStr);
-                Assert.assertEquals("quick check json", 
-                        String.valueOf(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH),
-                        jsonObj.get(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION));
-                
-            } catch (UnsupportedEncodingException ex) {
-                Assert.fail("unsupported encoding");
-                return;
-            } catch (JSONException ex) {
-                Assert.fail("invalid json "+ jsonStr);
-                return;
-            }
-
-            final int deletedCount = db.delete(table, null, null);
-            Assert.assertEquals("check deleted tuple count", 1, deletedCount);
-            final Uri tupleIn = RequestSerializer.deserializeToProvider(mContext, cr,
-                    "dummy channel", mBaseUri, enc, jsonBytes);
-
-            // We ought to know that the URI... we deleted row 1 so it should be row 2 
-            Assert.assertEquals(ContentUris.withAppendedId(mBaseUri, 2), tupleIn);
-
-            // Now query the provider and examine its contents, 
-            // checking that they're the same as the original.
-
-            final String[] projection = null;
-            final String selection = null;
-            final String[] selectArgs = null;
-            final String groupBy = null;
-            final String having = null;
-            final String orderBy = null;
-            final String limit = null;
-            final Cursor cursor = db.query(table, projection, selection, selectArgs,
-                    groupBy, having, orderBy, limit);
-
-            // The query should have succeeded
-            Assert.assertFalse("Query into provider failed", (cursor == null));
-
-            // There should be only one entry
-            Assert.assertEquals("Unexpected number of rows in cursor", 1, cursor.getCount());
-
-            // Row should be accessible with a cursor
-            Assert.assertTrue("Row not accessible with cursor", (cursor.moveToFirst()));
-
-            // Examine the provider content in detail, making sure it contains what we expect
-            // (i.e. the contents of the original JSON)
-            Assert.assertEquals("foreign key changed/not verified",
-                    sampleForeignKey, cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.A_FOREIGN_KEY_REF)));
-            Assert.assertEquals("exclusive enumeration has changed/not verified",
-                    AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH, 
-                    cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION)));
-            Assert.assertEquals("exclusive enumeration has changed/not verified",
-                    AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE, 
-                    cursor.getInt(cursor.getColumnIndex(AmmoTableSchema.AN_INCLUSIVE_ENUMERATION)));
+            final byte[] encodedBytes = encodeTripTrial(provider, resolver, encoding, cv, table);
+            decodeTripTrial(provider, resolver, encoding, cv, table, encodedBytes);
 
         } finally {
             if (provider != null) provider.release();
         }
 
+
+    }
+    private byte[] encodeTripTrial(final AmmoMockProvider01 provider,
+            final ContentResolver resolver,
+            final Encoding enc, final ContentValues cv, final String table) {
+
+        final SQLiteDatabase db = provider.getDatabase();
+
+        long rowid = db.insert(table, AmmoTableSchemaBase.A_FOREIGN_KEY_REF, cv);
+        final Uri tupleUri = ContentUris.withAppendedId(mBaseUri, rowid);
+
+
+        // Serialize the provider content into JSON bytes
+        final byte[] encodedBytes; 
+        try 
+        {
+            encodedBytes = RequestSerializer.serializeFromProvider(resolver, tupleUri, enc);
+        }
+        catch (NonConformingAmmoContentProvider ex)
+        {
+            Assert.fail("Should not have thrown NonConformingAmmoContentProvider in this case");
+            return null;
+        }
+        catch (TupleNotFoundException ex)
+        {
+            Assert.fail("Should not have thrown TupleNotFoundException in this case");
+            return null;
+        }
+        catch (IOException ex) 
+        {
+            Assert.fail("failure of the test itself");
+            return null;
+        }
+        return encodedBytes;
+    }
+
+
+    private void decodeTripTrial(final AmmoMockProvider01 provider,
+            final ContentResolver resolver,
+            final Encoding enc, final ContentValues cv, final String table,
+            final byte[] encodedBytes) {
+
+        final SQLiteDatabase db = provider.getDatabase();
+        final int deletedCount = db.delete(table, null, null);
+        Assert.assertEquals("check deleted tuple count", 1, deletedCount);
+        final Uri tupleIn = RequestSerializer.deserializeToProvider(mContext, resolver,
+                "dummy channel", mBaseUri, enc, encodedBytes);
+
+        // We ought to know that the URI... we deleted row 1 so it should be row 2 
+        Assert.assertEquals(ContentUris.withAppendedId(mBaseUri, 2), tupleIn);
+
+        // Now query the provider and examine its contents, 
+        // checking that they're the same as the original.
+
+        final String[] projection = null;
+        final String selection = null;
+        final String[] selectArgs = null;
+        final String groupBy = null;
+        final String having = null;
+        final String orderBy = null;
+        final String limit = null;
+        final Cursor cursor = db.query(table, projection, selection, selectArgs,
+                groupBy, having, orderBy, limit);
+
+        // The query should have succeeded
+        Assert.assertFalse("Query into provider failed", (cursor == null));
+
+        // There should be only one entry
+        Assert.assertEquals("Unexpected number of rows in cursor", 1, cursor.getCount());
+
+        // Row should be accessible with a cursor
+        Assert.assertTrue("Row not accessible with cursor", (cursor.moveToFirst()));
+
+        // Examine the provider content in detail, making sure it contains what we expect
+        // (i.e. the contents of the original JSON)
+        for (final Map.Entry<String,Object> entry : cv.valueSet()) {
+            final Object valueObj = entry.getValue();
+            if (valueObj instanceof Integer) {
+                Assert.assertEquals("foreign key changed/not verified",
+                        entry.getValue(), 
+                        cursor.getInt(cursor.getColumnIndex(entry.getKey())));
+            } else {
+                Assert.fail("unhandled data type"+valueObj.getClass().getCanonicalName());
+                return;
+            }
+        }
     }
 }

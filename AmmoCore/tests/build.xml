@@ -143,6 +143,9 @@
         <arg value="${out.dir}/${ant.project.name}-${version}.apk"/>
       </exec>
 
+      <!-- Let device catch up with package mgmt (crash-preventing step)   -->
+      <echo message="Pausing for 5 seconds..."/> 
+      <sleep seconds="5"/>
 
       <echo message="Running unit tests..."/> 
       <exec executable="adb">
