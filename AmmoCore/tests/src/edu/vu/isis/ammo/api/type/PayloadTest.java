@@ -127,6 +127,21 @@ public class PayloadTest extends AndroidTestCase
 	Payload p14 = new Payload(pp);
 	assertEquals(p13, p14);
 	
+	// A payload should be equal to itself
+	Payload p15 = new Payload(pp);
+	assertEquals("A payload should be equal to itself", p15, p15);
+		
+	// A payload should not be equal to an object of a different type
+	Payload p16 = new Payload(pp);
+	String p16str = "I am not a Payload object";
+	assertFalse(p16.equals(p16str));
+
+	// A payload should not be equal to a payload of different type
+	Payload p17 = new Payload(pp);
+	String p18str = "I am a Payload object of type string";
+	Payload p18 = new Payload(p18str);
+	assertFalse(p17.equals(p18));
+
 	// A "none" payload should be equal to itself
         assertEquals("a none is equal to itself", Payload.NONE, Payload.NONE);
     }
