@@ -104,6 +104,31 @@ public class PayloadTest extends AndroidTestCase
         assertNotNull(p);
     }
 
+    public void testConstructorWithParcel()
+    {
+	// Initialize payload with empty parcel
+	try {
+	    final Parcel in = Parcel.obtain();
+	    Payload p = new Payload(in);
+	    assertNotNull(p);
+	} catch (Exception e) {
+	    fail("Unexpected exception");
+	}
+	
+	// Initialize payload with null parcel
+	try {
+	    final Parcel in = null;
+	    Payload p = new Payload(in);
+	    assertNotNull(p);
+	} catch (NullPointerException e) {
+	    // Expected behavior
+	    assertTrue(true);
+	} catch (Exception e) {
+	    fail("Unexpected exception");
+	}
+    }
+
+
     /**
      * Test case of passing in a null Parcel 
      * - should throw a null pointer exception
