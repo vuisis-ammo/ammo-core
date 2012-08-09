@@ -19,10 +19,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -52,6 +54,7 @@ import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
+import edu.vu.isis.logger.ui.LogcatLogViewer;
 import edu.vu.isis.logger.ui.LoggerEditor;
 
 /**
@@ -161,6 +164,7 @@ public class AmmoCore extends ActivityEx {
 
     }
 
+    @SuppressWarnings("unused")
     private void initializeNetlinkAdapter() {
         netlinkModel = networkServiceBinder.getNetlinkList();
 
@@ -192,15 +196,6 @@ public class AmmoCore extends ActivityEx {
         // let others know we are running
         intent.setAction(StartUpReceiver.RESET);
         this.sendBroadcast(intent);
-
-        /*
-         * Commented out for NTCNIE branch spec =
-         * tabHost.newTabSpec("message_queue");
-         * spec.setIndicator("Message Queue",
-         * res.getDrawable(R.drawable.mailbox_icon)); spec.setContent(new
-         * Intent("edu.vu.isis.ammo.core.ui.MessageQueueActivity.LAUNCH"));
-         * getTabHost().addTab(spec);
-         */
 
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this);
 
@@ -287,9 +282,40 @@ public class AmmoCore extends ActivityEx {
     }
 
     public void debugModeClick(View v) {
-        Toast.makeText(this, "Debugging tools are not yet available",
-                Toast.LENGTH_LONG).show();
-    }
+        String[] tools = {
+                "Logcat Viewer", "Shell Command Buttons"
+        };
+        OnClickListener dialogListener = new OnClickListener() {
+            private final int LOGCAT = 0;
+            private final int AUTOBOT = 1;
+
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Intent intent = new Intent();
+                switch (which) {
+                    case LOGCAT:
+                        intent.setClass(AmmoCore.this, LogcatLogViewer.class);
+                        break;
+                    case AUTOBOT:
+                        intent.setAction("edu.vu.isis.tools.autobot.action.LAUNCH_AUTOBOT");
+                        break;
+                    default:
+                        logger.warn("Invalid choice selected in debugging tools dialog");
+                }
+                try {
+                    startActivity(intent);
+                } catch (ActivityNotFoundException e) {
+                    Toast.makeText(AmmoCore.this, "Tool not found on this device",
+                            Toast.LENGTH_LONG).show();
+                    logger.warn("Activity not found for debugging tools", e);
+                }
+            }
+        };
+
+        AlertDialog.Builder bldr = new AlertDialog.Builder(this);
+        bldr.setTitle("Select a Tool").setItems(tools, dialogListener);
+        bldr.create().show();
+    };
 
     public void loggingToolsClick(View v) {
         startActivity(new Intent().setClass(this, LoggerEditor.class));
