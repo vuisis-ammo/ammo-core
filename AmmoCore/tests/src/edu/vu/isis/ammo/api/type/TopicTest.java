@@ -15,6 +15,8 @@ import android.os.Parcelable;
 import android.test.AndroidTestCase;
 import ch.qos.logback.classic.Level;
 
+import edu.vu.isis.ammo.api.IncompleteRequest;
+
 /**
  * Unit test for Topic API class
  * <p>
@@ -143,6 +145,9 @@ public class TopicTest extends AndroidTestCase
         }
     }
 
+    /**
+     * Test Topic constructor with string
+     */
     public void testConstructorWithString()
     {
         final String in = "foo";
@@ -154,4 +159,38 @@ public class TopicTest extends AndroidTestCase
         // assertTrue(t.getString() == in);
     }
 
+    /**
+     * Test Topic constructor with parcel
+     */
+    public void testConstructorWithParcel()
+    {
+
+	// Initialize topic with empty parcel
+	try {
+	    final Parcel in = Parcel.obtain();
+	    Topic t = new Topic(in);
+	    assertNotNull(t);
+	} catch (IncompleteRequest e) {
+	    fail("Unexpected IncompleteRequest exception");
+	} catch (Exception e) {
+	    fail("Unexpected exception");
+	}
+
+	// Initialize topic with null parcel - should throw NullPointerException
+	try {
+	    final Parcel in = null;
+	    Topic t = new Topic(in);
+	    assertNotNull(t);
+	} catch (NullPointerException e) {
+	    // Expected behavior
+	    assertTrue(true);
+	} catch (IncompleteRequest e) {
+	    fail("Unexpected IncompleteRequest exception");
+	} catch (Exception e) {
+	    fail("Unexpected exception");
+	}
+
+	// TODO:  Try a malformed parcel -- should throw IncompleteRequest
+	
+    }
 }
