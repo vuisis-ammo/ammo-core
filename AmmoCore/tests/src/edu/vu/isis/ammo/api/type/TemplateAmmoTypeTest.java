@@ -17,7 +17,9 @@ import android.os.Parcelable;
 import android.test.AndroidTestCase;
 
 /**
- * Unit test for Payload API class
+ * This is the cannonical example of a test for Ammo Types.
+ * 
+ * Unit test for Template API class
  * <p>
  * Use this class as a template to create new Ammo unit tests for classes which
  * use Android-specific components.
@@ -30,14 +32,14 @@ import android.test.AndroidTestCase;
  */
 
 
-public class PayloadTest extends AndroidTestCase 
+public class TemplateAmmoTypeTest extends AndroidTestCase 
 {
-    final static private Logger logger = LoggerFactory.getLogger("trial.api.type.payload");
-    public PayloadTest() 
+    final static private Logger logger = LoggerFactory.getLogger("trial.api.type.template");
+    public TemplateAmmoTypeTest() 
     {
     }
 
-    public PayloadTest( String testName )
+    public TemplateAmmoTypeTest( String testName )
     {
     }
 
@@ -46,7 +48,7 @@ public class PayloadTest extends AndroidTestCase
      */
     public static Test suite()
     {
-        return new TestSuite( PayloadTest.class );
+        return new TestSuite( TemplateAmmoTypeTest.class );
     }
 
     /**
@@ -74,17 +76,17 @@ public class PayloadTest extends AndroidTestCase
      * So we best verify that equivalence works.
      */
     public void testEquivalence() {
-        Assert.assertEquals("a none is equal to itself", Payload.NONE, Payload.NONE);
+        Assert.assertEquals("a none is equal to itself", Template.NONE, Template.NONE);
     }
 
 
     public void testConstructorWithString()
     {
         final String in = "foo";
-        Payload p = new Payload(in);
+        Template p = new Template(in);
         assertNotNull(p);
 
-        // Need some Payload public accessors to examine content
+        // Need some Template public accessors to examine content
         // e.g.
         // assertTrue(p.getString() == in);
     }
@@ -92,7 +94,7 @@ public class PayloadTest extends AndroidTestCase
     public void testConstructorWithByteArray()
     {
         byte[] ba = new byte[10];
-        Payload p = new Payload(ba);
+        Template p = new Template(ba);
         assertNotNull(p);
     }
 
@@ -100,7 +102,7 @@ public class PayloadTest extends AndroidTestCase
     {
         ContentValues cv = new ContentValues();
         cv.put("ammo", "great");
-        Payload p = new Payload(cv);
+        Template p = new Template(cv);
         assertNotNull(p);
     }
 
@@ -116,7 +118,7 @@ public class PayloadTest extends AndroidTestCase
         boolean success = false;
         try {
             final Parcel p1 = null;
-            Payload.readFromParcel(p1);
+            Template.readFromParcel(p1);
 
         } catch (NullPointerException ex) {
             success = true;
@@ -125,22 +127,22 @@ public class PayloadTest extends AndroidTestCase
     }
 
     /**
-     * Generate a non-null Parcel containing a null payload
-     * When unmarshalled this produces a NONE payload.
+     * Generate a non-null Parcel containing a null template
+     * When unmarshalled this produces a NONE template.
      * - should return non-null
      */
     public void testNullContentParcel() {
         {
-            final Payload expected = null;
+            final Template expected = null;
             final Parcel parcel = Parcel.obtain();
-            Payload.writeToParcel(expected, parcel, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+            Template.writeToParcel(expected, parcel, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
             parcel.setDataPosition(0);
-            final Payload actual = Payload.CREATOR.createFromParcel(parcel);
-            Assert.assertEquals("wrote a null but got something else", actual, Payload.NONE);
+            final Template actual = Template.CREATOR.createFromParcel(parcel);
+            Assert.assertEquals("wrote a null but got something else", actual, Template.NONE);
         }
     }
     /**
-     * Generate a non-null Parcel containing a simple string payload
+     * Generate a non-null Parcel containing a simple string template
      * - should return non-null
      */
     public void testParcel() {
@@ -149,15 +151,15 @@ public class PayloadTest extends AndroidTestCase
         final Parcel parcel1 = Parcel.obtain();
         final Parcel parcel2 = Parcel.obtain();
         try {
-            final Payload expected = new Payload("an arbitrary Payload");
-            Payload.writeToParcel(expected, parcel1, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+            final Template expected = new Template("an arbitrary Template");
+            Template.writeToParcel(expected, parcel1, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
             final byte[] expectedBytes = parcel1.marshall();
             // Assert.assertEquals(4, bytes[0]);
             parcel2.unmarshall(expectedBytes, 0, expectedBytes.length);
             parcel2.setDataPosition(0);
-            final Payload actual = Payload.readFromParcel(parcel2);
+            final Template actual = Template.readFromParcel(parcel2);
             Assert.assertNotNull("wrote something but got a null back", actual);
-            Assert.assertEquals("did not get back an equivalent Payload", expected, actual);
+            Assert.assertEquals("did not get back an equivalent Template", expected, actual);
         } finally {
             parcel1.recycle();
             parcel2.recycle();
@@ -167,31 +169,31 @@ public class PayloadTest extends AndroidTestCase
     public void testWhatContent()
     {
         // Type STR
-        Payload p1 = new Payload("foo");
+        Template p1 = new Template("foo");
         assertNotNull(p1);
-        assertTrue(p1.whatContent() == Payload.Type.STR);
+        assertTrue(p1.whatContent() == Template.Type.STR);
 
         // Type BYTE
         byte[] ba = new byte[10];
-        Payload p2 = new Payload(ba);
+        Template p2 = new Template(ba);
         assertNotNull(p2);
-        assertTrue(p2.whatContent() == Payload.Type.BYTE);
+        assertTrue(p2.whatContent() == Template.Type.BYTE);
 
         // Type CV
         ContentValues cv = new ContentValues();
         cv.put("ammo", "great");
-        Payload p3 = new Payload(cv);
+        Template p3 = new Template(cv);
         assertNotNull(p3);
-        assertTrue(p3.whatContent() == Payload.Type.CV);
+        assertTrue(p3.whatContent() == Template.Type.CV);
     }
 
     public void testAsBytes()
     {
-        // Construct a payload from byte array
+        // Construct a template from byte array
         byte[] ba = new byte[10];
-        Payload p = new Payload(ba);
+        Template p = new Template(ba);
         assertNotNull(p);
-        assertTrue(p.whatContent() == Payload.Type.BYTE);
+        assertTrue(p.whatContent() == Template.Type.BYTE);
 
         // Make sure the returned byte array is same as original
         assertTrue(Arrays.equals(ba, p.asBytes()));
@@ -203,10 +205,10 @@ public class PayloadTest extends AndroidTestCase
         ContentValues cv = new ContentValues();
         cv.put("foo", "bar");
 
-        // Construct a payload with the cv
-        Payload p = new Payload(cv);
+        // Construct a template with the cv
+        Template p = new Template(cv);
         assertNotNull(p);
-        assertTrue(p.whatContent() == Payload.Type.CV);
+        assertTrue(p.whatContent() == Template.Type.CV);
 
         // Check that retrieved cv is same as original
         assertTrue(p.getCV() == cv);
