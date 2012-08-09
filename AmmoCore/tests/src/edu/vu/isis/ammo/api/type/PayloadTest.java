@@ -16,6 +16,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.test.AndroidTestCase;
 
+import edu.vu.isis.ammo.testutils.TestUtils;
+
 /**
  * Unit test for Payload API class
  * <p>
@@ -71,19 +73,72 @@ public class PayloadTest extends AndroidTestCase
 
     /**
      * All the tests expect equivalence to work correctly.
-     * So we best verify that equivalence works.
+     * Verify that equivalence works.
      */
     public void testEquivalence() {
-        Assert.assertEquals("a none is equal to itself", Payload.NONE, Payload.NONE);
+	// Construct with a known string
+	final String in = "foo";
+        Payload p1 = new Payload(in);
+	Payload p2 = new Payload(in);
+	assertEquals(p1, p2);
+	
+	// Construct with a random string
+	final int strSize = 20;
+	final String in2 = TestUtils.randomText(strSize);
+        Payload p3 = new Payload(in2);
+	Payload p4 = new Payload(in2);
+	assertEquals(p3, p4);
+	
+	// Construct with known byte array
+        final byte[] ba = new byte[] {0, 1, 2, 3, 4, 5, 7, 10, 20, 50, 100};
+        Payload p5 = new Payload(ba);
+	Payload p6 = new Payload(ba);
+	assertEquals(p5, p6);
+
+	// Construct with random byte array
+	final int bufSize = 80;
+        byte[] ba2 = TestUtils.randomBytes(bufSize);
+        Payload p7 = new Payload(ba2);
+        Payload p8 = new Payload(ba2);
+	assertEquals(p7, p8);
+	
+	// Construct with CV (known)
+	ContentValues cv = TestUtils.createContentValues();
+        Payload p09 = new Payload(cv);
+        Payload p10 = new Payload(cv);
+	assertEquals(p09, p10);
+
+	// Construct with CV (random)
+	final int cvSize = 20;
+	ContentValues cv2 = TestUtils.randomContentValues(cvSize);
+        Payload p11 = new Payload(cv2);
+        Payload p12 = new Payload(cv2);
+	assertEquals(p11, p12);
+	
+	// Construct with parcel
+	final Parcel pp = Parcel.obtain();
+	Payload p13 = new Payload(pp);
+	Payload p14 = new Payload(pp);
+	assertEquals(p13, p14);
+	
+	// A "none" payload should be equal to itself
+        assertEquals("a none is equal to itself", Payload.NONE, Payload.NONE);
     }
 
 
     public void testConstructorWithString()
     {
+	// Construct with a known string
         final String in = "foo";
         Payload p = new Payload(in);
         assertNotNull(p);
-
+	
+	// Construct with a random string
+	final int size = 20;
+	final String in2 = TestUtils.randomText(size);
+	Payload p2 = new Payload(in2);
+        assertNotNull(p2);
+	
         // Need some Payload public accessors to examine content
         // e.g.
         // assertTrue(p.getString() == in);
@@ -91,9 +146,16 @@ public class PayloadTest extends AndroidTestCase
 
     public void testConstructorWithByteArray()
     {
+	// Constructor with known byte array
         byte[] ba = new byte[10];
         Payload p = new Payload(ba);
         assertNotNull(p);
+
+	// Constructor with random byte array
+	final int size = 80;
+        byte[] ba2 = TestUtils.randomBytes(size);
+        Payload p2 = new Payload(ba2);
+        assertNotNull(p2);
     }
 
     public void testConstructorWithContentValues()
@@ -103,6 +165,31 @@ public class PayloadTest extends AndroidTestCase
         Payload p = new Payload(cv);
         assertNotNull(p);
     }
+
+    public void testConstructorWithParcel()
+    {
+	// Initialize payload with empty parcel
+	try {
+	    final Parcel in = Parcel.obtain();
+	    Payload p = new Payload(in);
+	    assertNotNull(p);
+	} catch (Exception e) {
+	    fail("Unexpected exception");
+	}
+	
+	// Initialize payload with null parcel
+	try {
+	    final Parcel in = null;
+	    Payload p = new Payload(in);
+	    assertNotNull(p);
+	} catch (NullPointerException e) {
+	    // Expected behavior
+	    assertTrue(true);
+	} catch (Exception e) {
+	    fail("Unexpected exception");
+	}
+    }
+
 
     /**
      * Test case of passing in a null Parcel 
