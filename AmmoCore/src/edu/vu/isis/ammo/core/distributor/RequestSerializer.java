@@ -284,9 +284,11 @@ public class RequestSerializer {
     }
 
     public static byte[] serializeFromContentValues(ContentValues cv,
-            final DistributorPolicy.Encoding encoding) {
+            final DistributorPolicy.Encoding encoding, final String mimeType) {
+        
+        throw new RuntimeException("Not yet implemented");
 
-        logger.trace("serializing using content values and encoding {}", encoding);
+        /*logger.trace("serializing using content values and encoding {}", encoding);
         switch (encoding.getType()) {
             case JSON: {
                 return encodeAsJson(cv);
@@ -302,7 +304,12 @@ public class RequestSerializer {
             default: {
             }
         }
-        return null;
+        return null;*/
+    }
+    
+    public static ContentValues deserializeToContentValues(byte[] data, final DistributorPolicy.Encoding encoding,
+            final String mimeType) {
+        throw new RuntimeException("Not yet implemented");
     }
 
     private static byte[] encodeAsJson(ContentValues cv) {
@@ -340,6 +347,18 @@ public class RequestSerializer {
         }
 
         return deserializeTerse(data, fieldNames, dataTypes);
+    }
+    
+    private static ContentValues deserialzeJsonWithContractRelation(byte[] data, ContractStore.Relation relation) {
+        throw new RuntimeException("Not yet implemented");
+    }
+    
+    private static byte[] serializeTerseWithContractRelation(ContentValues cv, ContractStore.Relation relation) {
+        throw new RuntimeException("Not yet implemented");
+    }
+    
+    private static byte[] serializeJsonWithContractRelation(ContentValues cv, ContractStore.Relation relation) {
+        throw new RuntimeException("Not yet implemented");
     }
 
     /**

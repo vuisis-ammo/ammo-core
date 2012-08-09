@@ -975,7 +975,7 @@ public class DistributorThread extends Thread {
 						final byte[] result = 
 								RequestSerializer.serializeFromContentValues(
 										serializer_.payload.getCV(),
-										encode);
+										encode, ar.topic.asString());
 
 						if (result == null) {
 							logger.error("Null result from serialize content value, encoding into {}", encode);
