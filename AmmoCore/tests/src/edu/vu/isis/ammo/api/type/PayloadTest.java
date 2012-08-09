@@ -89,6 +89,12 @@ public class PayloadTest extends AndroidTestCase
 	Payload p4 = new Payload(in2);
 	assertEquals(p3, p4);
 	
+	// Construct with an empty string
+	final String empty = "";
+        Payload p3a = new Payload(empty);
+	Payload p4a = new Payload(empty);
+	assertEquals(p3a, p4a);
+	
 	// Construct with known byte array
         final byte[] ba = new byte[] {0, 1, 2, 3, 4, 5, 7, 10, 20, 50, 100};
         Payload p5 = new Payload(ba);
@@ -139,6 +145,17 @@ public class PayloadTest extends AndroidTestCase
 	Payload p2 = new Payload(in2);
         assertNotNull(p2);
 	
+	// Construct with an empty string
+	final String in3 = "";
+	Payload p3 = new Payload(in3);
+        assertNotNull(p3);
+	
+	// Construct with a null string
+	final String in4 = null;
+	Payload p4 = new Payload(in4);
+        assertNotNull(p4);
+	
+	
         // Need some Payload public accessors to examine content
         // e.g.
         // assertTrue(p.getString() == in);
@@ -147,7 +164,7 @@ public class PayloadTest extends AndroidTestCase
     public void testConstructorWithByteArray()
     {
 	// Constructor with known byte array
-        byte[] ba = new byte[10];
+        byte[] ba = new byte[] {0, 1, 2, 3, 4, 5, 7, 10, 20, 50, 100};
         Payload p = new Payload(ba);
         assertNotNull(p);
 
@@ -156,14 +173,32 @@ public class PayloadTest extends AndroidTestCase
         byte[] ba2 = TestUtils.randomBytes(size);
         Payload p2 = new Payload(ba2);
         assertNotNull(p2);
+	
+	// Constructor with empty byte array
+	byte[] ba3 = new byte[10];
+        Payload p3 = new Payload(ba3);
+        assertNotNull(p3);
+	
+	// Constructor with null-pointer byte array
+	byte[] ba4 = new byte[10];
+	ba4 = null;
+        Payload p4 = new Payload(ba4);
+        assertNotNull(p4);
     }
 
     public void testConstructorWithContentValues()
     {
+	// Construct with small, simple CV
         ContentValues cv = new ContentValues();
         cv.put("ammo", "great");
         Payload p = new Payload(cv);
         assertNotNull(p);
+
+	// Construct with random CV
+	final int cvSize = 20;
+	ContentValues cv2 = TestUtils.randomContentValues(cvSize);
+	Payload p2 = new Payload(cv2);
+        assertNotNull(p2);
     }
 
     public void testConstructorWithParcel()
@@ -275,13 +310,23 @@ public class PayloadTest extends AndroidTestCase
     public void testAsBytes()
     {
         // Construct a payload from byte array
-        byte[] ba = new byte[10];
+        final byte[] ba = new byte[] {0, 1, 2, 3, 4, 5, 7, 10, 20, 50, 100};
         Payload p = new Payload(ba);
         assertNotNull(p);
         assertTrue(p.whatContent() == Payload.Type.BYTE);
 
         // Make sure the returned byte array is same as original
         assertTrue(Arrays.equals(ba, p.asBytes()));
+
+
+	// Construct with random byte array
+	final int bufSize = 80;
+        byte[] ba2 = TestUtils.randomBytes(bufSize);
+        Payload p2 = new Payload(ba2);
+	assertTrue(p2.whatContent() == Payload.Type.BYTE);
+
+	// Make sure the returned byte array is same as original
+        assertTrue(Arrays.equals(ba2, p2.asBytes()));
     }
 
     public void testGetCV()
