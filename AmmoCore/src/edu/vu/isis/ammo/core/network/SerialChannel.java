@@ -952,9 +952,12 @@ public class SerialChannel extends NetChannel
             // We have found that the variability in the timing due to
             // context switches and other factors can prevent us from
             // sending packets that are smaller than the theoretical
-            // maximum but close to it.  Subtract 50 to provide some
-            // leeway.
-            final long MAX_SEND_PAYLOAD_SIZE = ((long) (mTransmitDuration.get() * bytesPerMs)) - 50;
+            // maximum but close to it.  Use a slightly larger value
+            // for transmit duration so that we can fill up the
+            // transmit window.
+            final long transmitDuration = mTransmitDuration.get();
+            final long tweakedTransmitDuration = transmitDuration + (long) Math.min( 50, 0.1 * transmitDuration );
+            final long MAX_SEND_PAYLOAD_SIZE = ((long) (transmitDuration * bytesPerMs));
 
             long currentGpsTime = System.currentTimeMillis() - mDelta;
             long goalTakeTime = currentGpsTime; // initialize to now, will get recomputed
@@ -969,7 +972,7 @@ public class SerialChannel extends NetChannel
                         // for this cycle when does our slot begin
                         final long thisSlotBegin = thisCycleStartTime + offset;
                         // for this cycle when does our slot end (begin + xmit-window)
-                        final long thisSlotEnd = thisSlotBegin + mTransmitDuration.get();
+                        final long thisSlotEnd = thisSlotBegin + tweakedTransmitDuration;
                         // how much data (in time units) have we sent so far in this slot
                         long thisSlotConsumed = 0;
 
