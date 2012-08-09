@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Process;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 
 public class RequestDeserializerThread extends Thread {
@@ -106,7 +107,7 @@ public class RequestDeserializerThread extends Thread {
                             item.channelName, item.provider, item.encoding, item.data);
                     logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
                             new Object[]{item.provider, tuple, queue.size()} );
-                    tlogger.info(TestJSONWriter.queueReport("insert_queue", queue.size()));
+                    tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[]{System.currentTimeMillis(), "insert_queue", this.queue.size()});
 
                 } catch (Exception ex) {
                     logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
