@@ -1,12 +1,9 @@
 
-package edu.vu.isis.ammo.core;
-
-import android.test.AndroidTestCase;
+package edu.vu.isis.ammo.core.distributor;
 
 import junit.framework.Test;
-import junit.framework.TestCase;
 import junit.framework.TestSuite;
-
+import android.test.AndroidTestCase;
 /**
  * Unit test for DistributorPolicy
  * 
@@ -15,8 +12,6 @@ import junit.framework.TestSuite;
  * -e class edu.vu.isis.ammo.core.DistributorPolicyTest \
  * edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
  */
-
-import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 
 public class DistributorPolicyTest extends AndroidTestCase 
 {
