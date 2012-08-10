@@ -1,26 +1,15 @@
 package edu.vu.isis.ammo.core.distributor;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
-// import org.apache.tools.ant.BuildException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
@@ -30,6 +19,7 @@ import org.xml.sax.SAXException;
 
 import android.content.Context;
 import android.os.FileObserver;
+// import org.apache.tools.ant.BuildException;
 
 public class ContractStore {
 	private static final Logger logger = LoggerFactory.getLogger("dist.contractparser");
