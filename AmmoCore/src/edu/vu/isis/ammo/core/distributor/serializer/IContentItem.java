@@ -10,7 +10,7 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.distributor.serializer;
 
-import java.util.List;
+import java.io.Closeable;
 import java.util.Set;
 
 import edu.vu.isis.ammo.core.distributor.RequestSerializer;
@@ -29,7 +29,7 @@ import edu.vu.isis.ammo.core.distributor.RequestSerializer;
  * 
  * @author jwilliams
  */
-public interface IContentItem {
+public interface IContentItem extends Closeable {
     
     /**
      * Closes any underlying resources held by this content item.  This should
