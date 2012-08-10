@@ -100,11 +100,11 @@ public class AmmoServiceAccessTest  extends android.test.ServiceTestCase<AmmoSer
     public void testWiredState() {
         logger.info("status : wired network connection");
         
-        final boolean actual = AmmoPreference
+        final int actual = AmmoPreference
             .newInstance(this.getContext())
-            .getBoolean(INetDerivedKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, true /* AmmoIntents.LINK_UP */ );
+            .getInt(INetDerivedKeys.PHYSICAL_LINK_PREF_IS_ACTIVE, AmmoIntents.LINK_UP);
         logger.info("wired link status [{}]", actual);
-        assertEquals("wired link status", /* AmmoIntents.LINK_DOWN */ false, actual);
+        assertEquals("wired link status", AmmoIntents.LINK_DOWN, actual);
     }
     
     public void testWifiState() {

@@ -453,6 +453,11 @@ public class RequestSerializerTest extends AndroidTestCase {
 
         } finally {
             if (provider != null) provider.release();
+            
+            ((ch.qos.logback.classic.Logger) RequestSerializerTest.logger).setLevel(Level.OFF);
+            ((ch.qos.logback.classic.Logger) AmmoMockProviderBase.clogger).setLevel(Level.OFF);
+            ((ch.qos.logback.classic.Logger) AmmoMockProviderBase.hlogger).setLevel(Level.OFF);
+            ((ch.qos.logback.classic.Logger) RequestSerializer.logger).setLevel(Level.WARN);
         }
 
 
