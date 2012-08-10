@@ -8,7 +8,7 @@ perform, display, or disclose computer software or computer software
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
 */
-package edu.vu.isis.ammo.util;
+package edu.vu.isis.ammo.core.distributor.serializer;
 
 import java.util.List;
 import java.util.Set;
@@ -30,6 +30,13 @@ import edu.vu.isis.ammo.core.distributor.RequestSerializer;
  * @author jwilliams
  */
 public interface IContentItem {
+    
+    /**
+     * Closes any underlying resources held by this content item.  This should
+     * be called when the serializer is done with this item, to allow resources
+     * such as database cursors to be closed in a timely manner.
+     */
+    public void close();
     /**
      * Gets a set of all the keys.
      * @return a set of all the keys
