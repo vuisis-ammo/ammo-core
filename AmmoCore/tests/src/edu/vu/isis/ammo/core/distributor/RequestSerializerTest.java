@@ -1,59 +1,38 @@
 
 package edu.vu.isis.ammo.core.distributor;
 
-import android.test.AndroidTestCase;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.Map;
 
 import junit.framework.Assert;
 import junit.framework.Test;
-import junit.framework.TestCase;
 import junit.framework.TestSuite;
-
-import android.test.mock.MockContentResolver;
-import android.test.mock.MockContentProvider;
-
-import android.database.Cursor;
-import android.database.SQLException;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteDatabase.CursorFactory;
-import android.database.sqlite.SQLiteDiskIOException;
-import android.database.sqlite.SQLiteException;
-import android.database.sqlite.SQLiteOpenHelper;
-import edu.vu.isis.ammo.provider.AmmoMockProvider01;
-
-import edu.vu.isis.ammo.core.distributor.RequestSerializer;
-import edu.vu.isis.ammo.api.type.Payload;
-import edu.vu.isis.ammo.api.type.Provider;
-import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.distributor.NonConformingAmmoContentProvider;
-import edu.vu.isis.ammo.core.distributor.TupleNotFoundException;
-import edu.vu.isis.ammo.provider.AmmoMockProviderBase;
-import edu.vu.isis.ammo.provider.AmmoMockSchema01;
-import edu.vu.isis.ammo.provider.AmmoMockProviderBase.Tables;
-import edu.vu.isis.ammo.provider.AmmoMockSchema01.AmmoTableSchema;
-import edu.vu.isis.ammo.provider.AmmoMockSchema01.QuickTableSchema;
-import edu.vu.isis.ammo.provider.AmmoMockSchema01.StartTableSchema;
-import edu.vu.isis.ammo.provider.AmmoMockSchemaBase.AmmoTableSchemaBase;
-
-import edu.vu.isis.ammo.testutils.TestUtils;
-
-import android.net.Uri;
-import android.content.ContentUris;
-import android.content.ContentValues;
-import android.content.ContentResolver;
-import android.content.ContentProvider;
-import android.content.Context;
-import android.os.Parcel;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
-import java.util.Map;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
+import android.os.Parcel;
+import android.test.AndroidTestCase;
+import android.test.mock.MockContentResolver;
 import ch.qos.logback.classic.Level;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.provider.AmmoMockProvider01;
+import edu.vu.isis.ammo.provider.AmmoMockProviderBase;
+import edu.vu.isis.ammo.provider.AmmoMockProviderBase.Tables;
+import edu.vu.isis.ammo.provider.AmmoMockSchema01;
+import edu.vu.isis.ammo.provider.AmmoMockSchema01.AmmoTableSchema;
+import edu.vu.isis.ammo.provider.AmmoMockSchemaBase.AmmoTableSchemaBase;
+import edu.vu.isis.ammo.testutils.TestUtils;
 
 /**
  * This is a simple framework for a test of an Application.  See
