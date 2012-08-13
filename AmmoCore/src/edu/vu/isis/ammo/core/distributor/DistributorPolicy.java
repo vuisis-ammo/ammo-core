@@ -256,7 +256,6 @@ public class DistributorPolicy implements ContentHandler {
     public Topic matchPostal(String key) {
         final Topic rule = this.postalPolicy.longestPrefix(key);
         logger.debug("match postal topic=[{}] rule=[{}]", key, rule);
-        logger.debug("match postal policy=[{}] ", this.postalPolicy);
         return rule;
     }
 
