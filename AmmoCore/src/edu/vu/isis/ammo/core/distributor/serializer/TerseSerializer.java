@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import android.content.ContentValues;
+
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.ByteBufferFuture;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.DeserializedMessage;
@@ -113,8 +115,86 @@ public class TerseSerializer implements ISerializer {
     @Override
     public DeserializedMessage deserialize(byte[] data, List<String> fieldNames,
             List<FieldType> dataTypes) {
-        // TODO Auto-generated method stub
-        return null;
+        DeserializedMessage decodedObject = new DeserializedMessage();
+
+        final ByteBuffer tuple = ByteBuffer.wrap(data);
+        int i = 0;
+        for (String key : fieldNames) {
+            FieldType type = dataTypes.get(i);
+            i++;
+            switch (type) {
+                case NULL:
+                    // wrap.put(key, null);
+                    break;
+                case SHORT: {
+                    final short shortValue = tuple.getShort();
+                    decodedObject.cv.put(key, shortValue);
+                    break;
+                }
+                case LONG:
+                case FK: {
+                    final long longValue = tuple.getLong();
+                    decodedObject.cv.put(key, longValue);
+                    break;
+                }
+                case TIMESTAMP: {
+                    final int intValue = tuple.getInt();
+                    final long longValue = 1000l * (long) intValue; // seconds
+                                                                    // -->
+                                                                    // milliseconds
+                    decodedObject.cv.put(key, longValue);
+                    break;
+                }
+                case TEXT:
+                case GUID: {
+                    final short textLength = tuple.getShort();
+                    if (textLength > 0) {
+                        try {
+                            byte[] textBytes = new byte[textLength];
+                            tuple.get(textBytes, 0, textLength);
+                            String textValue = new String(textBytes, "UTF8");
+                            decodedObject.cv.put(key, textValue);
+                        } catch (java.io.UnsupportedEncodingException ex) {
+                            logger.error("Error in string encoding{}",
+                                    new Object[] {
+                                        ex.getStackTrace()
+                                    });
+                        }
+                    }
+                    // final char[] textValue = new char[textLength];
+                    // for (int ix=0; ix < textLength; ++ix) {
+                    // textValue[ix] = tuple.getChar();
+                    // }
+                    break;
+                }
+                case BOOL:
+                case INTEGER:
+                case EXCLUSIVE:
+                case INCLUSIVE: {
+                    final int intValue = tuple.getInt();
+                    decodedObject.cv.put(key, intValue);
+                    break;
+                }
+                case REAL:
+                case FLOAT: {
+                    final double doubleValue = tuple.getDouble();
+                    decodedObject.cv.put(key, doubleValue);
+                    break;
+                }
+                case BLOB: {
+                    final short bytesLength = tuple.getShort();
+                    if (bytesLength > 0) {
+                        final byte[] bytesValue = new byte[bytesLength];
+                        tuple.get(bytesValue, 0, bytesLength);
+                        decodedObject.cv.put(key, bytesValue); //TODO: put this in the DecodedMessage blob field like in the JSON serializer
+                    }
+                    break;
+                }
+                default:
+                    logger.warn("unhandled data type {}", type);
+            }
+        }
+        return decodedObject;
     }
 
 }
