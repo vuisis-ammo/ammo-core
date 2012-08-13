@@ -1,5 +1,6 @@
 package edu.vu.isis.ammo.core.distributor.serializer;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -8,8 +9,6 @@ import org.slf4j.LoggerFactory;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.DeserializedMessage;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
 
-import android.content.ContentValues;
-
 public interface ISerializer {
     static final Logger logger = LoggerFactory.getLogger("dist.serializer.json");
     /**
@@ -17,8 +16,9 @@ public interface ISerializer {
      * 
      * @param item The item to be serialized
      * @return the serialized content
+     * @throws IOException 
      */
-    public byte[] serialize(IContentItem item);
+    public byte[] serialize(IContentItem item) throws IOException;
     
     /**
      * Deserializes a content item.

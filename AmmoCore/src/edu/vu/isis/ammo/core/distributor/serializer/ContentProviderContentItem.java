@@ -1,5 +1,6 @@
 package edu.vu.isis.ammo.core.distributor.serializer;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -8,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.ContentResolver;
+import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.net.Uri;
 
@@ -22,17 +24,19 @@ public class ContentProviderContentItem implements IContentItem {
     
     private Cursor cursor;
     private final ContentResolver resolver;
+    private final Uri tupleUri;
     private Map<String, FieldType> fieldMap;
     private Map<String, Integer> columnIndexMap;
     
     public ContentProviderContentItem(Uri tupleUri, ContentResolver res) throws NonConformingAmmoContentProvider, TupleNotFoundException {
-        cursor = null;
-        resolver = res;
+        this.cursor = null;
+        this.resolver = res;
+        this.tupleUri = tupleUri;
         
         //Preload the list of keys and their types
         Cursor serialMetaCursor = null;
         
-        fieldMap = null;
+        this.fieldMap = null;
         String[] serialOrder = null; //TODO: do we need this?  Should we even compute this?
         
         try {
@@ -118,6 +122,18 @@ public class ContentProviderContentItem implements IContentItem {
         } else {
             return null; //probably should throw an exception here
         }
+    }
+    
+    @Override
+    public AssetFileDescriptor getAssetFileDescriptor(String field) throws IOException {
+        final Uri fieldUri = Uri.withAppendedPath(tupleUri, field);
+        final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri,
+                "r");
+        if (afd == null) {
+            logger.warn("could not acquire file descriptor {}", fieldUri);
+            throw new IOException("could not acquire file descriptor " + fieldUri);
+        }
+        return afd;
     }
 
     @Override

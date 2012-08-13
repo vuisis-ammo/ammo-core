@@ -11,7 +11,10 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.distributor.serializer;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Set;
+
+import android.content.res.AssetFileDescriptor;
 
 import edu.vu.isis.ammo.core.distributor.RequestSerializer;
 
@@ -49,6 +52,8 @@ public interface IContentItem extends Closeable {
      * @return the type of the key
      */
     public RequestSerializer.FieldType getTypeForKey(String key);
+    
+    public AssetFileDescriptor getAssetFileDescriptor(String field) throws IOException;
     
     /**
      * Gets a value.

@@ -1,5 +1,6 @@
 package edu.vu.isis.ammo.core.distributor.serializer;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -8,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.ContentValues;
+import android.content.res.AssetFileDescriptor;
 
 import edu.vu.isis.ammo.core.distributor.ContractStore;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
@@ -91,6 +93,12 @@ public class ContentValuesContentItem implements IContentItem {
     @Override
     public String getAsString(String key) {
         return cv.getAsString(key);
+    }
+
+    @Override
+    public AssetFileDescriptor getAssetFileDescriptor(String field) throws IOException {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }
