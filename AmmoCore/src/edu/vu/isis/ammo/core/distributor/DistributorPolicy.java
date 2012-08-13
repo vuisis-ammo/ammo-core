@@ -254,15 +254,22 @@ public class DistributorPolicy implements ContentHandler {
      * @return
      */
     public Topic matchPostal(String key) {
-        return this.postalPolicy.longestPrefix(key);
+        final Topic rule = this.postalPolicy.longestPrefix(key);
+        logger.debug("match postal topic=[{}] rule=[{}]", key, rule);
+        logger.debug("match postal policy=[{}] ", this.postalPolicy);
+        return rule;
     }
 
     public Topic matchSubscribe(String key) {
-        return this.subscribePolicy.longestPrefix(key);
+        final Topic rule =  this.subscribePolicy.longestPrefix(key);
+        logger.debug("match subscribe topic=[{}] rule=[{}]", key, rule);
+        return rule;
     }
 
     public Topic matchRetrieval(String key) {
-        return this.retrievalPolicy.longestPrefix(key);
+        final Topic rule =  this.retrievalPolicy.longestPrefix(key);
+        logger.debug("match retrieval topic=[{}] rule=[{}]", key, rule);
+        return rule;
     }
 
     private int indent = 0;
