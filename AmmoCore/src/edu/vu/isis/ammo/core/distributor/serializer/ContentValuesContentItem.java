@@ -19,14 +19,19 @@ public class ContentValuesContentItem implements IContentItem {
     
     private final ContentValues cv;
     private final Map<String, FieldType> fieldTypes;
+    private String[] serialOrder;
     
     public ContentValuesContentItem(ContentValues cv, ContractStore.Relation relation) {
         this.cv = cv;
         
         fieldTypes = new HashMap<String, FieldType>(cv.size());
+        serialOrder = new String[cv.size()];
+        
+        int i = 0;
         
         for (ContractStore.Field f : relation.getFields()) {
             fieldTypes.put(f.getName().getSnake(), FieldType.fromContractString(f.getDtype()));
+            serialOrder[i] = f.getName().getSnake();
         }
     }
 
@@ -38,6 +43,10 @@ public class ContentValuesContentItem implements IContentItem {
     @Override
     public Set<String> keySet() {
         return fieldTypes.keySet();
+    }
+    
+    public String[] getOrderedKeys() {
+        return serialOrder;
     }
 
     @Override

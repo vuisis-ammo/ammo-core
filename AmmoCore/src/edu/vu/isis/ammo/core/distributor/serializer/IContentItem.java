@@ -40,11 +40,19 @@ public interface IContentItem extends Closeable {
      * such as database cursors to be closed in a timely manner.
      */
     public void close();
+    
     /**
      * Gets a set of all the keys.
      * @return a set of all the keys
      */
     public Set<String> keySet();
+    
+    /**
+     * Gets an array of all the keys, in serialization order.
+     * @return an array of all the keys, in the order that they
+     * should be serialized.
+     */
+    public String[] getOrderedKeys();
     
     /**
      * Gets the type of a key (as specified by the contract or content provider).

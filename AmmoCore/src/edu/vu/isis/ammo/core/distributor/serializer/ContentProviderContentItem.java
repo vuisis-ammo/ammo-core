@@ -2,6 +2,7 @@ package edu.vu.isis.ammo.core.distributor.serializer;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,6 +28,7 @@ public class ContentProviderContentItem implements IContentItem {
     private final Uri tupleUri;
     private Map<String, FieldType> fieldMap;
     private Map<String, Integer> columnIndexMap;
+    private String[] serialOrder;
     
     public ContentProviderContentItem(Uri tupleUri, ContentResolver res) throws NonConformingAmmoContentProvider, TupleNotFoundException {
         this.cursor = null;
@@ -37,7 +39,7 @@ public class ContentProviderContentItem implements IContentItem {
         Cursor serialMetaCursor = null;
         
         this.fieldMap = null;
-        String[] serialOrder = null; //TODO: do we need this?  Should we even compute this?
+        serialOrder = null;
         
         try {
             try {
@@ -113,6 +115,10 @@ public class ContentProviderContentItem implements IContentItem {
         } else {
             return null; //probably should throw an exception here
         }
+    }
+    
+    public String[] getOrderedKeys() {
+        return serialOrder;
     }
 
     @Override
