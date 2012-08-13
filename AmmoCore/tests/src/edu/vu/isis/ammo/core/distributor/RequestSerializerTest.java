@@ -290,6 +290,7 @@ public class RequestSerializerTest extends AndroidTestCase {
             byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
 
 
+            @SuppressWarnings("unused")
             final Uri tupleIn;
             tupleIn = RequestSerializer.deserializeToProvider(mContext, resolver, "dummy", mBaseUri, enc, jsonBytes);
 
@@ -338,11 +339,13 @@ public class RequestSerializerTest extends AndroidTestCase {
     // 
     // =========================================================
 
+    @SuppressWarnings("unused")
     private Parcel utilCreatePayloadParcel()
     {
         return null;
     }
 
+    @SuppressWarnings("unused")
     private ContentValues utilCreateContentValues()
     {
         final ContentValues cv = new ContentValues();
@@ -354,6 +357,7 @@ public class RequestSerializerTest extends AndroidTestCase {
     }
 
 
+    @SuppressWarnings("unused")
     private MockContentResolver utilGetContentResolver()
     {
         final MockContentResolver mcr = new MockContentResolver();

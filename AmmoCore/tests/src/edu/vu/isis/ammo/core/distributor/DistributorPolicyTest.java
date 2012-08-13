@@ -62,12 +62,17 @@ public class DistributorPolicyTest extends AndroidTestCase
      */
     /**
      * This test verifies that the default policy file works as intended.
+     * <p>
+     * The toString() and asString() methods (for Topic) do not return the same
+     * string. The toString is for humans while the asString is for machines.
+     * <p>
      */
     public void testDefaultMatchExactInterstitial()
     {
         ((ch.qos.logback.classic.Logger) logger).setLevel(Level.TRACE);
 
         final String topicName = "ammo/transapps.pli.locations";
+        final edu.vu.isis.ammo.api.type.Topic topic = new edu.vu.isis.ammo.api.type.Topic(topicName);
         final Topic expected = this.policy
                 .newBuilder()
                 .newRouting(
@@ -81,7 +86,10 @@ public class DistributorPolicyTest extends AndroidTestCase
 
         expected.setType(topicName);
 
-        final Topic actual = this.policy.matchPostal(topicName);
+        final Topic fail_actual = this.policy.matchPostal(topic.toString());
+        assertFalse("topic matches", expected.equals(fail_actual));
+
+        final Topic actual = this.policy.matchPostal(topic.asString());
         assertEquals("topic does not match", expected, actual);
 
         ((ch.qos.logback.classic.Logger) logger).setLevel(Level.OFF);
