@@ -118,6 +118,8 @@ public class DistributorThread extends Thread {
      * The backing store for the distributor
      */
     final private DistributorDataStore store;
+    
+    final private ContractStore contractStore;
 
     private static final int SERIAL_NOTIFY_ID = 1;
     private static final int IP_NOTIFY_ID = 2;
@@ -139,6 +141,7 @@ public class DistributorThread extends Thread {
         this.deserialThread = new RequestDeserializerThread();
         this.deserialThread.start();
         this.store = new DistributorDataStore(context);
+        this.contractStore = ContractStore.newInstance(context);
 
         this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
         this.channelDelta = new AtomicBoolean(true);
@@ -1000,7 +1003,7 @@ public class DistributorThread extends Thread {
                         final byte[] result =
                                 RequestSerializer.serializeFromContentValues(
                                         serializer_.payload.getCV(),
-                                        encode, ar.topic.asString());
+                                        encode, ar.topic.asString(), contractStore);
 
                         if (result == null) {
                             logger.error(

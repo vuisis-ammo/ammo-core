@@ -2,7 +2,6 @@ package edu.vu.isis.ammo.core.distributor.serializer;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 

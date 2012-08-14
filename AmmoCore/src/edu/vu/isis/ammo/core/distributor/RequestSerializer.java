@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.List;
 import java.util.ArrayList;
@@ -60,6 +61,11 @@ import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.distributor.serializer.ContentProviderContentItem;
+import edu.vu.isis.ammo.core.distributor.serializer.ContentValuesContentItem;
+import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
+import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
+import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
 /**
@@ -68,6 +74,7 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
  */
 public class RequestSerializer {
     /* package */static final Logger logger = LoggerFactory.getLogger("dist.serializer");
+    
 
     /**
      * This enumeration's codes must match those of the AmmoGen files.
@@ -284,32 +291,84 @@ public class RequestSerializer {
     }
 
     public static byte[] serializeFromContentValues(ContentValues cv,
-            final DistributorPolicy.Encoding encoding, final String mimeType) {
+            final DistributorPolicy.Encoding encoding, final String mimeType, final ContractStore contractStore) {
+        logger.trace("serializing using content values and encoding {}", encoding);
         
-        throw new RuntimeException("Not yet implemented");
-
-        /*logger.trace("serializing using content values and encoding {}", encoding);
+        ISerializer serializer;
+        
         switch (encoding.getType()) {
             case JSON: {
-                return encodeAsJson(cv);
+                serializer = new JsonSerializer();
+                break;
             }
-
             case TERSE: {
-                // Need to be implemented ...
+                serializer = new TerseSerializer();
+                break;
             }
             // TODO custom still needs a lot of work
             // It will presume the presence of a SyncAdaptor for the content
             // provider.
             case CUSTOM:
             default: {
+                throw new UnsupportedOperationException("Custom serialization from ContentValues is not supported");
             }
         }
-        return null;*/
+        
+        ContractStore.Relation relation = contractStore.getRelationForType(mimeType);
+        
+        ContentValuesContentItem item = new ContentValuesContentItem(cv, relation);
+        
+        byte[] result = null;
+        
+        try {
+            result = serializer.serialize(item);
+        } catch(IOException e) {
+            logger.error("IOException occurred while serializing from content values", e);
+        }
+        
+        return result;
     }
     
     public static ContentValues deserializeToContentValues(byte[] data, final DistributorPolicy.Encoding encoding,
-            final String mimeType) {
-        throw new RuntimeException("Not yet implemented");
+            final String mimeType, final ContractStore contractStore) {
+        ISerializer serializer;
+        
+        switch (encoding.getType()) {
+            case JSON: {
+                serializer = new JsonSerializer();
+                break;
+            }
+            case TERSE: {
+                serializer = new TerseSerializer();
+                break;
+            }
+            // TODO custom still needs a lot of work
+            // It will presume the presence of a SyncAdaptor for the content
+            // provider.
+            case CUSTOM:
+            default: {
+                throw new UnsupportedOperationException("Custom serialization from ContentValues is not supported");
+            }
+        }
+        
+        ContractStore.Relation relation = contractStore.getRelationForType(mimeType);
+        
+        List<String> fieldNames = new ArrayList<String>(relation.getFields().size());
+        List<FieldType> dataTypes = new ArrayList<FieldType>(relation.getFields().size());
+
+        for(ContractStore.Field f : relation.getFields()) {
+            fieldNames.add(f.getName().getSnake());
+            dataTypes.add(FieldType.fromContractString(f.getDtype()));
+        }
+        
+        DeserializedMessage msg = serializer.deserialize(data, fieldNames, dataTypes);
+        
+        for(Entry<String, BlobData> blobEntry : msg.blobs.entrySet()) {
+            //TODO:  this is going to put large blobs/files into our CV object...  might not be desirable
+            msg.cv.put(blobEntry.getKey(), blobEntry.getValue().blob);
+        }
+        
+        return msg.cv;
     }
 
     private static byte[] encodeAsJson(ContentValues cv) {
@@ -446,31 +505,37 @@ public class RequestSerializer {
             throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
         logger.trace("serializing using encoding {}", encoding);
-        final ByteBufferFuture result;
+        
+        ISerializer serializer = null;
+        
         final Encoding.Type encodingType = encoding.getType();
         switch (encodingType) {
-            case CUSTOM:
-                result = RequestSerializer
-                        .serializeCustomFromProvider(resolver, tupleUri, encoding);
-                break;
             case JSON:
-                result = RequestSerializer.serializeJsonFromProvider(resolver, tupleUri, encoding);
+                serializer = new JsonSerializer();
                 break;
             case TERSE:
-                result = RequestSerializer.serializeTerseFromProvider(resolver, tupleUri, encoding);
+                serializer = new TerseSerializer();
                 break;
             default:
-                result = RequestSerializer
+                //TODO: integrate custom serialization into the new serialization framework
+                final ByteBufferFuture res = RequestSerializer
                         .serializeCustomFromProvider(resolver, tupleUri, encoding);
+                try {
+                    return res.get().array();
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                } catch (ExecutionException ex) {
+                    ex.printStackTrace();
+                }
+                return null;
         }
-        try {
-            return result.get().array();
-        } catch (InterruptedException ex) {
-            ex.printStackTrace();
-        } catch (ExecutionException ex) {
-            ex.printStackTrace();
-        }
-        return null;
+        
+        final ContentProviderContentItem item = new ContentProviderContentItem(tupleUri, resolver);
+        byte[] result = serializer.serialize(item);
+        
+        item.close();
+        
+        return result;
     }
 
     /**
@@ -498,34 +563,160 @@ public class RequestSerializer {
         logger.debug("deserialize message");
 
         final UriFuture uri;
+        
+        ISerializer serializer;
         switch (encoding.getType()) {
-            case CUSTOM:
-                uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
-                        provider, encoding, data);
-                break;
             case JSON:
-                uri = RequestSerializer.deserializeJsonToProvider(context, resolver, channelName,
-                        provider, encoding, data);
+                serializer = new  JsonSerializer();
                 break;
             case TERSE:
-                uri = RequestSerializer.deserializeTerseToProvider(context, resolver, channelName,
-                        provider, encoding, data);
+                serializer = new TerseSerializer();
                 break;
             default:
+                //TODO: integrate custom serialization into the new serialization framework
                 uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
                         provider, encoding, data);
+                
+                if (uri == null)
+                    return null;
+                try {
+                    return uri.get();
+                } catch (InterruptedException ex) {
+                    logger.error("interrupted thread ", ex);
+                    return null;
+                } catch (ExecutionException ex) {
+                    logger.error("execution error thread ", ex);
+                    return null;
+                }
         }
-        if (uri == null)
-            return null;
+        
+        /**
+         * 1) perform a query to get the field: names, types.
+         * 
+         * 2) parse the incoming data using the order of the names 
+         * and their types as a guide.
+         */
+        //TODO:  Move this someplace else?  (Into ContentProviderContentItem?)
+        final Cursor serialMetaCursor;
         try {
-            return uri.get();
-        } catch (InterruptedException ex) {
-            logger.error("interrupted thread ", ex);
-            return null;
-        } catch (ExecutionException ex) {
-            logger.error("execution error thread ", ex);
+            serialMetaCursor = resolver.query(Uri.withAppendedPath(provider, "_data_type"),
+                    null, null, null, null);
+        } catch (IllegalArgumentException ex) {
+            logger.warn("unknown content provider ", ex);
             return null;
         }
+        if (serialMetaCursor == null)
+            return null;
+
+        if (!serialMetaCursor.moveToFirst()) {
+            serialMetaCursor.close();
+            return null;
+        }
+        int columnCount = serialMetaCursor.getColumnCount();
+        if (columnCount < 1) {
+            serialMetaCursor.close();
+            return null;
+        }
+
+        List<String> columnNames = Arrays.asList(serialMetaCursor.getColumnNames());
+        List<FieldType> dataTypes = new ArrayList<FieldType>(columnNames.size());
+
+        for (String key : columnNames) {
+            dataTypes.add(FieldType.fromCode(serialMetaCursor.getInt(serialMetaCursor
+                    .getColumnIndex(key))));
+        }
+        
+        DeserializedMessage msg = serializer.deserialize(data, columnNames, dataTypes);
+        
+        final Uri tupleUri;
+        try {
+            tupleUri = resolver.insert(provider, msg.cv); // TBD SKN --- THIS IS
+                                                          // A
+            // SYNCHRONOUS IPC? we
+            // will block here for a
+            // while ...
+            if (tupleUri == null) {
+                logger.warn("could not insert {} into {}", msg.cv, provider);
+                return null;
+            }
+            logger.info("Deserialized Received message, content {}", msg.cv);
+
+        } catch (SQLiteException ex) {
+            logger.warn("invalid sql insert", ex);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            logger.warn("bad provider or values", ex);
+            return null;
+        }
+        
+        // TODO: decide if we want to do an early return if there aren't any
+        // blobs
+        // if (position == data.length)
+        // return new UriFuture(tupleUri);
+
+        msg.cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+        final StringBuilder sb = new StringBuilder()
+                .append(AmmoProviderSchema.Disposition.REMOTE.name())
+                .append('.')
+                .append(channelName);
+        msg.cv.put(AmmoProviderSchema._DISPOSITION, sb.toString());
+
+        // write the blob to the appropriate place
+        // do this for each blob
+        final long tupleId = ContentUris.parseId(tupleUri);
+        final Uri.Builder uriBuilder = provider.buildUpon();
+        final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
+
+        int blobCount = 0;
+        for (String fieldName : msg.blobs.keySet()) {
+            BlobData blobData = msg.blobs.get(fieldName);
+            switch (blobData.blobType) {
+                case SMALL:
+                    blobCount++;
+                    msg.cv.put(fieldName, blobData.blob);
+                    break;
+                default:
+                    final Uri fieldUri = updateTuple.appendPath(fieldName).build();
+                    try {
+                        PLogger.API_STORE.debug("write blob uri=[{}]", fieldUri);
+                        final OutputStream outstream = resolver.openOutputStream(fieldUri);
+                        if (outstream == null) {
+                            logger.error("failed to open output stream to content provider: {} ",
+                                    fieldUri);
+                            return null;
+                        }
+                        outstream.write(blobData.blob);
+                        outstream.close();
+                    } catch (SQLiteException ex) {
+                        logger.error("in provider {} could not open output stream {}",
+                                fieldUri, ex.getLocalizedMessage());
+                    } catch (FileNotFoundException ex) {
+                        logger.error("blob file not found: {}", fieldUri, ex);
+                    } catch (IOException ex) {
+                        logger.error("error writing blob file: {}", fieldUri, ex);
+                    }
+            }
+        }
+        if (blobCount > 0) {
+            try {
+                PLogger.API_STORE.debug("insert blob uri=[{}]", provider);
+                final Uri blobUri = resolver.insert(provider, msg.cv);
+                if (blobUri == null) {
+                    logger.warn("could not insert {} into {}", msg.cv, provider);
+                    return null;
+                }
+                logger.trace("Deserialized Received message blobs, content {}", msg.cv);
+
+            } catch (SQLiteException ex) {
+                logger.warn("invalid sql blob insert", ex);
+                return null;
+            } catch (IllegalArgumentException ex) {
+                logger.warn("bad provider or blob values", ex);
+                return null;
+            }
+        }
+        
+        return tupleUri;
     }
 
     /**

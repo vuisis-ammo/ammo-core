@@ -10,7 +10,6 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -142,37 +141,40 @@ public class JsonSerializer implements ISerializer {
                 logger.trace("field name=[{}] ", field);
                 try {
                     final AssetFileDescriptor afd = item.getAssetFileDescriptor(field);
-                    final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-                    final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(
-                            pfd);
-                    final ByteBuffer fieldBlobBuffer;
-                    ByteArrayOutputStream fieldBlob = null;
-                    BufferedInputStream bis = null;
-                    try {
-                        bis = new BufferedInputStream(instream);
-                        fieldBlob = new ByteArrayOutputStream();
-                        for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-                            fieldBlob.write(buffer, 0, bytesRead);
+                    if(afd != null) {
+                        final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+    
+                        final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(
+                                pfd);
+                        final ByteBuffer fieldBlobBuffer;
+                        ByteArrayOutputStream fieldBlob = null;
+                        BufferedInputStream bis = null;
+                        try {
+                            bis = new BufferedInputStream(instream);
+                            fieldBlob = new ByteArrayOutputStream();
+                            for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+                                fieldBlob.write(buffer, 0, bytesRead);
+                            }
+                            fieldBlobBuffer = ByteBuffer.wrap(fieldBlob.toByteArray());
+                        } finally {
+                            if (bis != null)
+                                bis.close();
+                            if (fieldBlob != null)
+                                fieldBlob.close();
                         }
-                        fieldBlobBuffer = ByteBuffer.wrap(fieldBlob.toByteArray());
-                    } finally {
-                        if (bis != null)
-                            bis.close();
-                        if (fieldBlob != null)
-                            fieldBlob.close();
+    
+                        // write it out
+                        final ByteBuffer bb = ByteBuffer.allocate(4);
+                        bb.order(ByteOrder.BIG_ENDIAN);
+                        final int size = fieldBlobBuffer.capacity();
+                        bb.putInt(size);
+                        bigTuple.write(bb.array());
+    
+                        bigTuple.write(fieldBlobBuffer.array());
+                        bigTuple.write(bb.array());
+                    } else {
+                        logger.error("Didn't get an asset file descriptor for field {}", field);
                     }
-
-                    // write it out
-                    final ByteBuffer bb = ByteBuffer.allocate(4);
-                    bb.order(ByteOrder.BIG_ENDIAN);
-                    final int size = fieldBlobBuffer.capacity();
-                    bb.putInt(size);
-                    bigTuple.write(bb.array());
-
-                    bigTuple.write(fieldBlobBuffer.array());
-                    bigTuple.write(bb.array());
-
                 } catch (IOException ex) {
                     logger.trace("unable to create stream {}", field, ex);
                     throw new FileNotFoundException("Unable to create stream");
