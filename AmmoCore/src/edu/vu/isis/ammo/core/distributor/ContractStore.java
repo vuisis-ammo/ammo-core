@@ -487,6 +487,7 @@ public class ContractStore {
 		
 		//Add observer so we catch new contracts as they're added
 		observer = new ContractObserver(dir.getPath(), ContractObserver.CREATE | ContractObserver.MODIFY);
+		observer.startWatching();
 	}
 	
 	public void addContractFromFile(File f) {
