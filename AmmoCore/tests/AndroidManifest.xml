@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- package name must be unique so suffix with "tests" so package loader doesn't ignore us -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="edu.vu.isis.ammo.core.tests"
-          android:versionCode="1"
-          android:versionName="1.0">
-    <!-- We add an application tag here just so that we can indicate that
+    package="edu.vu.isis.ammo.core.tests"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <!--
+         We add an application tag here just so that we can indicate that
          this package needs to link against the android.test library,
-         which is needed when building test cases. -->
+         which is needed when building test cases.
+    -->
+    <uses-sdk
+        android:minSdkVersion="8"
+        android:targetSdkVersion="8" />
+
     <application>
         <uses-library android:name="android.test.runner" />
     </application>
@@ -21,8 +28,9 @@
                      android:targetPackage="edu.vu.isis.ammo.core"
                      android:label="Tests for edu.vu.isis.ammo.core"/>
     -->
-    <instrumentation android:name="pl.polidea.instrumentation.PolideaInstrumentationTestRunner"
-		     android:targetPackage="edu.vu.isis.ammo.core"
-                     android:label="Tests for edu.vu.isis.ammo.core"/>
+    <instrumentation
+        android:name="pl.polidea.instrumentation.PolideaInstrumentationTestRunner"
+        android:label="Tests for edu.vu.isis.ammo.core"
+        android:targetPackage="edu.vu.isis.ammo.core" />
 
 </manifest>

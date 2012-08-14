@@ -6,7 +6,6 @@ package edu.vu.isis.ammo.testutils;
  *
  */
 
-
 import java.math.BigInteger;
 import java.util.Iterator;
 import java.util.Map;
@@ -17,6 +16,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.content.ContentValues;
+import android.util.Log;
 
 public class TestUtils
 {
@@ -112,6 +112,36 @@ public class TestUtils
         // random boolean
         boolean f = random.nextBoolean();
         return f;
+    }
+    
+    // =========================================================
+    // randomBytes()
+    // =========================================================
+    public static byte[] randomBytes(int size)
+    {
+        // random byte array
+        byte[] buf = new byte[size];
+	random.nextBytes(buf);
+	return buf;
+    }
+
+    // =========================================================
+    // randomContentValues()
+    // =========================================================
+    public static ContentValues randomContentValues(int size)
+    {
+	// CV container filled with random keys and values; a total
+	// of 'size' key-value pairs will be inserted.
+
+	// size of random strings themselves
+	final int n = 20;
+
+	ContentValues cv = new ContentValues();
+	for (int i=0; i < size; i++) {
+	    cv.put(randomText(n), randomText(n));
+	}
+	//Log.d(TAG, "cv = [   " + cv.toString() + "    ]");
+	return cv;
     }
 
     // =========================================================

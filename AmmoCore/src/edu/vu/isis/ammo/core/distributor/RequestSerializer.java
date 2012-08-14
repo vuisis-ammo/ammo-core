@@ -143,7 +143,7 @@ public class RequestSerializer {
      */
     public static final byte BLOB_MARKER_FIELD = (byte) 0xff;
 
-    private enum BlobTypeEnum {
+    public enum BlobTypeEnum {
         LARGE, SMALL;
 
         /**
@@ -212,7 +212,7 @@ public class RequestSerializer {
         remoteServiceMap = new HashMap<String, IDistributorAdaptor>(10);
     }
 
-    private static class BlobData {
+    public static class BlobData {
         public final BlobTypeEnum blobType;
         public final byte[] blob;
 
@@ -222,7 +222,7 @@ public class RequestSerializer {
         }
     }
 
-    private static class DeserializedMessage {
+    public static class DeserializedMessage {
         public ContentValues cv;
         public Map<String, BlobData> blobs;
 
