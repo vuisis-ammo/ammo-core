@@ -85,22 +85,22 @@ import edu.vu.isis.ammo.util.UniqueIdentifiers;
  * connection for periodic data updates and a long-polling TCP connection for
  * event driven notifications.
  * <p>
- * The AmmoService is responsible for prioritizing and serializing
- * requests for data communications between distributed application databases. 
- * The AmmoService issues calls to the AmmoService for updates and then writes the
+ * The AmmoService is responsible for prioritizing and serializing requests for
+ * data communications between distributed application databases. The
+ * AmmoService issues calls to the AmmoService for updates and then writes the
  * results to the correct content provider using the deserialization mechanism
  * defined by each content provider.
  * <p>
- * Any activity or application wishing to send data via the AmmoService
- * should use one of the AmmoRequest API methods for communication between
- * said application and AmmoCore.
+ * Any activity or application wishing to send data via the AmmoService should
+ * use one of the AmmoRequest API methods for communication between said
+ * application and AmmoCore.
  * <p>
  * Any activity or application wishing to receive updates when a content
  * provider has been modified can register via a custom ContentObserver
  * subclass.
  * <p>
- * The real work is delegated to the Distributor Thread, which maintains a queue.
- * 
+ * The real work is delegated to the Distributor Thread, which maintains a
+ * queue.
  */
 public class AmmoService extends Service implements INetworkService,
         INetworkService.OnSendMessageHandler, IChannelManager {
@@ -295,10 +295,10 @@ public class AmmoService extends Service implements INetworkService,
     /**
      * In order for the service to be shutdown cleanly the 'serviceStart()'
      * method may be used to prepare_for_stop, it will be stopped shortly and it
-     * needs to have some things done before that happens. 
+     * needs to have some things done before that happens.
      * <p>
-     * When the user changes
-     * the configuration 'startService()' is run to change the settings.
+     * When the user changes the configuration 'startService()' is run to change
+     * the settings.
      */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -353,6 +353,10 @@ public class AmmoService extends Service implements INetworkService,
 
     private Settings globalSettings; // from tasettings
     private SharedPreferences localSettings; // local copy
+
+    // moving the variable to be a class variable instead 
+    // of being a local variable within the oncreate method
+    private WifiManager.MulticastLock multicastLock = null; 
 
     public Handler notifyMsg = null;
 
@@ -437,7 +441,8 @@ public class AmmoService extends Service implements INetworkService,
                 Multicast.getInstance(getBaseContext(), multicastChannel));
         modelChannelMap.put(reliableMulticastChannel.name,
                 ReliableMulticast.getInstance(getBaseContext(), reliableMulticastChannel));
-        modelChannelMap.put(serialChannel.name, Serial.getInstance(getBaseContext(), serialChannel));
+        modelChannelMap
+                .put(serialChannel.name, Serial.getInstance(getBaseContext(), serialChannel));
 
         mNetlinks.add(WifiNetlink.getInstance(getBaseContext()));
         mNetlinks.add(WiredNetlink.getInstance(getBaseContext()));
@@ -446,8 +451,8 @@ public class AmmoService extends Service implements INetworkService,
         // FIXME: find the appropriate time to release() the multicast lock.
         logger.trace("Acquiring multicast lock()");
         WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        WifiManager.MulticastLock multicastLock =
-                wm.createMulticastLock("mydebuginfo");
+        multicastLock = wm.createMulticastLock("mydebuginfo");
+
         multicastLock.acquire();
         logger.trace("...acquired multicast lock()");
 
@@ -545,11 +550,16 @@ public class AmmoService extends Service implements INetworkService,
     @Override
     public void onDestroy() {
         logger.warn("::onDestroy - AmmoService");
-        this.gwChannel.disable();
-        this.multicastChannel.disable();
-        this.reliableMulticastChannel.disable();
-        this.journalChannel.close();
-        this.serialChannel.disable();
+        if (gwChannel != null)
+            this.gwChannel.disable();
+        if (multicastChannel != null)
+            this.multicastChannel.disable();
+        if (reliableMulticastChannel != null)
+            this.reliableMulticastChannel.disable();
+        if (journalChannel != null)
+            this.journalChannel.close();
+        if (serialChannel != null)
+            this.serialChannel.disable();
 
         if (this.tm != null)
             this.tm.listen(cellPhoneListener, PhoneStateListener.LISTEN_NONE);

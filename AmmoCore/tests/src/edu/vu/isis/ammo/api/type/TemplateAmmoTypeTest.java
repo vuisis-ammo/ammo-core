@@ -190,7 +190,7 @@ public class TemplateAmmoTypeTest extends AndroidTestCase
     public void testAsBytes()
     {
         // Construct a template from byte array
-        byte[] ba = new byte[10];
+        final byte[] ba = new byte[] {0, 1, 2, 3, 4, 5, 7, 10, 20, 50, 100};
         Template p = new Template(ba);
         assertNotNull(p);
         assertTrue(p.whatContent() == Template.Type.BYTE);

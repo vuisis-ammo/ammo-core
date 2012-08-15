@@ -74,7 +74,6 @@ public class AmmoValuesTest extends AndroidTestCase
     final int size = 10;
     AmmoValues av = new AmmoValues(size);
     assertNotNull(av);
-    // [TODO: fails?]  assertEquals(size, av.size());
   }
 
   public void testConstructorWithContentValues()
@@ -84,27 +83,29 @@ public class AmmoValuesTest extends AndroidTestCase
     AmmoValues av = new AmmoValues(cv);
     assertNotNull(av);
 
-    // [TODO: fails?]  assertTrue(cv == av.asContentValues());
+    // TODO: [test is failing]    assertTrue(av.equals(cv));
     assertEquals(cv.size(), av.size());
     assertTrue(av.containsKey("ammo"));
   }
 
   public void testClearCV()
   {
-    final int size = 10;
-    AmmoValues av = new AmmoValues(size);
+    ContentValues cv = new ContentValues();
+    cv.put("ammo", "great");  // cv size == 1
+    final int size = 1;
+    AmmoValues av = new AmmoValues(cv);
     assertNotNull(av);
-    // [TODO: fails?]  assertEquals(size, av.size());
+    assertEquals(size, av.size());
 
     // Clear and check that size is now zero
     av.clear();
     assertEquals(0, av.size());
+    assertFalse(av.containsKey("ammo"));
   }
 
   public void testContainsKey()
   {
     // Construct a CV object with known contents
-    //ContentValues cv = utilCreateContentValues();
     ContentValues cv = new ContentValues();
     cv.put("ammo", "great");
     AmmoValues av = new AmmoValues(cv);
@@ -143,23 +144,5 @@ public class AmmoValuesTest extends AndroidTestCase
     assertEquals(1, av2.size());
   }
 
-  public void testNumberOne()
-  {
-    assertTrue(true);
-  }
-
-  // =========================================================
-  // 
-  // utility methods to assist testing
-  // 
-  // =========================================================
-
-  private ContentValues utilCreateContentValues()
-  {
-    ContentValues cv = new ContentValues();
-    cv.put("foo", "bar");
-    cv.put("ammo", "great");
-    return cv;
-  }
 
 }
