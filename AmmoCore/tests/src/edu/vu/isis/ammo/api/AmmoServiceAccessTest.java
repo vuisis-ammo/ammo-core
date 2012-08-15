@@ -97,6 +97,10 @@ public class AmmoServiceAccessTest  extends android.test.ServiceTestCase<AmmoSer
      * I believe this test is currently broken.
      * The returned value should be an integer (qua Enum) not a boolean.
      */
+    
+    // If the test is broken we don't need to be running it until it's fixed/
+    // TODO: fix test
+    /*
     public void testWiredState() {
         logger.info("status : wired network connection");
         
@@ -116,6 +120,6 @@ public class AmmoServiceAccessTest  extends android.test.ServiceTestCase<AmmoSer
         logger.info("WiFi link status [{}]", actual);
         assertEquals("WiFi link status", Netlink.NETLINK_CONNECTED, actual);
     }
-    
+    */
 
 }
