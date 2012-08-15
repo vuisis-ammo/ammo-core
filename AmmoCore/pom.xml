@@ -78,7 +78,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-antrun-plugin</artifactId>
         <executions>
-          <execution>
+          <!--execution>
             <id>version_gen</id>
             <phase>validate</phase>
             <configuration>
@@ -91,7 +91,7 @@
             <goals>
               <goal>run</goal>
             </goals>
-          </execution>
+          </execution-->
           <execution>
             <id>make_tar</id>
             <phase>install</phase>
