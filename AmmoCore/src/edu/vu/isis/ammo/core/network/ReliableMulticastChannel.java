@@ -1032,6 +1032,10 @@ public class ReliableMulticastChannel extends NetChannel {
     // /////////////////////////////////////////////////////////////////////////
     //
     class SenderThread extends Thread {
+
+	// Asserted maximum useful size of trace logging message (e.g. size of PLI msg)
+	private static final int TRACE_CUTOFF_SIZE = 512;
+
         public SenderThread(ConnectorThread iParent,
                 ReliableMulticastChannel iChannel, SenderQueue iQueue,
                 JChannel iJChannel) {
@@ -1083,7 +1087,11 @@ public class ReliableMulticastChannel extends NetChannel {
                     logger.debug("Sending datagram packet. length={}",
                             packet.getLength());
 
-                    logger.debug("...{}", buf.array());
+		    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
+			logger.debug("...{}", buf.array());
+		    } else {
+			logger.debug("...buffer: {} bytes", buf.array().length);
+		    }
                     logger.debug("...{}", buf.remaining());
                     logger.debug("...{}", mChannel.mMulticastGroup);
                     logger.debug("...{}", mChannel.mMulticastPort);

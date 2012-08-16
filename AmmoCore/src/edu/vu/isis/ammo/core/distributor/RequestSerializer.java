@@ -561,6 +561,9 @@ public class RequestSerializer {
 
         logger.trace("Serialize the non-blob data");
 
+	// Asserted maximum useful size of trace logging message (e.g. size of PLI msg)
+	final int TRACE_CUTOFF_SIZE = 512;
+
         final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
         Cursor tupleCursor = null;
         final byte[] tuple;
@@ -766,8 +769,11 @@ public class RequestSerializer {
         bigTuple.close();
         PLogger.API_STORE.debug("json tuple=[{}] size=[{}]",
                 tuple, finalTuple.length);
-        PLogger.API_STORE.trace("json finalTuple=[{}]",
-                finalTuple);
+	if (finalTuple.length <= TRACE_CUTOFF_SIZE) {
+	    PLogger.API_STORE.trace("json finalTuple=[{}]", finalTuple);
+	} else { 
+	    PLogger.API_STORE.trace("json tuple=[{}] size=[{}]", tuple, finalTuple.length);
+	}
         return ByteBufferFuture.wrap(finalTuple);
     }
 
