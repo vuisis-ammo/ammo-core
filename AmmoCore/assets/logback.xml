@@ -44,13 +44,7 @@
        <appender-ref ref="STATS" />
   </logger>
   -->
-  <logger name="dist.policy" level="TRACE">
-       <appender-ref ref="STATS" />
-  </logger>
-  <logger name="dist.thread" level="TRACE">
-       <appender-ref ref="STATS" />
-  </logger>
-  
+ 
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
   </root>

@@ -57,7 +57,6 @@ public class AmmoServiceAccessTest  extends android.test.ServiceTestCase<AmmoSer
     @Override
     protected void tearDown () throws Exception {
         logger.info("Tear Down" );
-        super.tearDown();
     }
 
     /**
