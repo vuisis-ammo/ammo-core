@@ -13,6 +13,7 @@ import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.net.Uri;
 
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.NonConformingAmmoContentProvider;
 import edu.vu.isis.ammo.core.distributor.TupleNotFoundException;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
@@ -29,21 +30,59 @@ public class ContentProviderContentItem implements IContentItem {
     private Map<String, Integer> columnIndexMap;
     private String[] serialOrder;
     
-    public ContentProviderContentItem(Uri tupleUri, ContentResolver res) throws NonConformingAmmoContentProvider, TupleNotFoundException {
+    public ContentProviderContentItem(Uri tupleUri, ContentResolver res, Encoding encoding) throws NonConformingAmmoContentProvider, TupleNotFoundException {
         this.cursor = null;
         this.resolver = res;
         this.tupleUri = tupleUri;
         
         //Preload the list of keys and their types
         Cursor serialMetaCursor = null;
+        Cursor blobMetaCursor = null;
         
         this.fieldMap = null;
         serialOrder = null;
         
         try {
             try {
-                final Uri dUri = Uri.withAppendedPath(tupleUri, "_data_type");
-                serialMetaCursor = resolver.query(dUri, null, null, null, null);
+                final Uri baseDataTypeUri = Uri.withAppendedPath(tupleUri, "_data_type");
+                
+                final Uri encodingSpecificUri = Uri.withAppendedPath(tupleUri, encoding.name());
+                
+                try {
+                    serialMetaCursor = resolver.query(encodingSpecificUri, null, null, null, null);
+                } catch (IllegalArgumentException ex) {
+                    logger.warn("Data-type specific metadata doesn't exist...  falling back to old behavior");
+                    //row didn't exist, move on to fallback behavior
+                }
+                blobMetaCursor = null; //only used by JSON serialization as a fallback
+                
+                if(serialMetaCursor == null) {
+                    //Fallback logic to maintain backwards compatibility...  if terse, we fall back to
+                    //the _data_type URI; if json, we use the old heuristics (pull names of columns
+                    //containing strings from /_serial; pull names of blobs from /_blob)
+                    switch(encoding.getType()) {
+                        case TERSE:
+                            serialMetaCursor = resolver.query(baseDataTypeUri, null, null, null, null);
+                            break;
+                        case JSON:
+                            final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
+                            serialMetaCursor = resolver.query(serialUri, null, null, null, null);
+                            
+                            final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
+                            blobMetaCursor = resolver.query(blobUri, null, null, null, null);
+                            
+                            if(blobMetaCursor == null) {
+                                throw new NonConformingAmmoContentProvider("while getting metadata from provider",
+                                        tupleUri);
+                            }
+                            break;
+                        default:
+                            //Custom encoding (for now) falls back to the same way terse does it
+                            serialMetaCursor = resolver.query(baseDataTypeUri, null, null, null, null);
+                            break;
+                    }
+                    
+                }
             } catch (IllegalArgumentException ex) {
                 logger.warn("unknown content provider ", ex);
                 return;
@@ -72,16 +111,42 @@ public class ContentProviderContentItem implements IContentItem {
                 }
                 int columnIndex = serialMetaCursor.getColumnIndex(key);
                 final int value = serialMetaCursor.getInt(columnIndex);
-                fieldMap.put(key, FieldType.fromCode(value));
+                if(blobMetaCursor == null) {
+                    fieldMap.put(key, FieldType.fromCode(value));
+                } else {
+                    //If blobMetaCursor is non-null, we're in fallback mode for JSON encoding...
+                    //treat all fields from this cursor as string-typed (since we don't have access
+                    //to that metadata)
+                    logger.warn("Putting key {} of type TEXT", key);
+                    fieldMap.put(key,  FieldType.TEXT);
+                }
                 serialOrder[ix] = key;
                 ix++;
             }
+            
+            //If blobMetaCursor is non-null, we're in fallback mode for JSON encoding...  look up
+            //blob fields in that cursor
+            if(blobMetaCursor != null) {
+                for(final String key : blobMetaCursor.getColumnNames()) {
+                    if(key.startsWith("_")) {
+                        continue; //don't send any local fields
+                    }
+                    logger.warn("Putting key {} of type BLOB", key);
+                    fieldMap.put(key,  FieldType.BLOB);
+                }
+            }
+            
         } finally {
             if (serialMetaCursor != null) {
                 serialMetaCursor.close();
             }
+            
+            if(blobMetaCursor != null) {
+                blobMetaCursor.close();
+            }
         }
         
+       
         //Get the cursor to our object
         try {
             cursor = resolver.query(tupleUri, null, null, null, null);
@@ -116,6 +181,15 @@ public class ContentProviderContentItem implements IContentItem {
         }
     }
     
+    @Override
+    /**
+     * Gets the list of keys, in serialization order.
+     * 
+     * Note:  For JSON in fallback mode (no json-specific data type list exists), this list
+     * WILL NOT include BLOB-typed fields (since they're accessed through a separate cursor).
+     * Therefore, the JSON encoder should use the keyset() method instead, to get keys from
+     * the unordered set of all keys.
+     */
     public String[] getOrderedKeys() {
         return serialOrder;
     }

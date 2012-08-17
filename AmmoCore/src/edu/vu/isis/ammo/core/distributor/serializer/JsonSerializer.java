@@ -49,7 +49,7 @@ public class JsonSerializer implements ISerializer {
 
         final JSONObject json = new JSONObject();
         int countBinaryFields = 0;
-        for (final String field : item.getOrderedKeys()) {
+        for (final String field : item.keySet()) {
             final FieldType type = item.getTypeForKey(field);
             switch (type) {
                 case BLOB:
@@ -91,7 +91,7 @@ public class JsonSerializer implements ISerializer {
 
             logger.trace("Serialize the blob data (if any)");
             final byte[] buffer = new byte[1024];
-            for (final String field : item.getOrderedKeys()) {
+            for (final String field : item.keySet()) {
                 final FieldType type = item.getTypeForKey(field);
                 switch (type) {
                     case BLOB:
