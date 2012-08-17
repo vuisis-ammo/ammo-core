@@ -16,10 +16,16 @@
     
     <string name="status_connected">Connected</string>
     <color name="status_connected">#FF008000</color>
-    
-    <!-- <string name="status_disconnected">Disconnected</string>  
+
+    <string name="status_busy">Busy</string>
+    <color name="status_busy">#FF0000FF</color>
+
+    <string name="status_ready">Ready</string>
+    <color name="status_ready">#FF008000</color>
+
+    <!-- <string name="status_disconnected">Disconnected</string>
     <color name="status_disconnected">#FFFFBF00</color> -->
-    
+
     <string name="status_stale">Stale</string>
     <color name="status_stale">#FFFFBF00</color>
     

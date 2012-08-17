@@ -200,6 +200,10 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
                     setColor( icon, text_one, R.color.status_transmitting );
                     setColor( icon, text_two, R.color.status_transmitting );
                     break;
+                case INetChannel.BUSY:
+                    setColor( icon, text_one, R.color.status_busy );
+                    setColor( icon, text_two, R.color.status_busy );
+                    break;
                 default:
                     setColor( icon, text_one, R.color.status_unknown );
                     setColor( icon, text_two, R.color.status_unknown );
@@ -241,6 +245,7 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
                     setColor(icon, text, R.color.status_connecting);
                     text.setText(R.string.status_connecting);
                     break;
+                case INetChannel.BUSY:
                 case INetChannel.CONNECTED:
                     //START INetChannel.CONNECTED
                     if (status.length < 1) break;
@@ -407,6 +412,7 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
                 text.setText(R.string.status_checking);
                 break;
 
+            case INetChannel.BUSY:
             case INetChannel.CONNECTED:
                 //START INetChannel.CONNECTED
                 if (status.length < 1) break;
