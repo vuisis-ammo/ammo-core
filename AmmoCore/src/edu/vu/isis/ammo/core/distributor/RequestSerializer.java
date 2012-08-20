@@ -530,7 +530,7 @@ public class RequestSerializer {
                 return null;
         }
         
-        final ContentProviderContentItem item = new ContentProviderContentItem(tupleUri, resolver);
+        final ContentProviderContentItem item = new ContentProviderContentItem(tupleUri, resolver, encoding);
         byte[] result = serializer.serialize(item);
         
         item.close();
