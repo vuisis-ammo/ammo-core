@@ -154,7 +154,8 @@ public class AmmoGatewayMessageTest extends TestCase
         agmb3.payload(ba1);
 	agmb3.size(2 * ba1.length); // intentionally wrong array size
 	try {
-	    AmmoGatewayMessage agm3 = agmb3.build();
+	    @SuppressWarnings("unused")
+        final AmmoGatewayMessage agm3 = agmb3.build();
 	    fail("Expected an IllegalArgumentException");
 	} catch (IllegalArgumentException e) {
 	    // expected behavior

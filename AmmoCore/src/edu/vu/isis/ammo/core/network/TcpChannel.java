@@ -218,10 +218,12 @@ public class TcpChannel extends NetChannel {
         .append("port[").append(this.gatewayPort).append("]").toString();
   }
 
-  public void linkUp() {
+  @Override
+  public void linkUp(String name) {
     this.connectorThread.state.linkUp();
   }
-  public void linkDown() {
+  @Override
+  public void linkDown(String name) {
     this.connectorThread.state.linkDown();
   }
   /**
