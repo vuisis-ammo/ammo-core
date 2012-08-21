@@ -3,6 +3,7 @@ package edu.vu.isis.ammo.core.distributor;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
@@ -213,17 +214,20 @@ public class ContractStore {
 		final private RMode mode;
 		final private List<Field> fields;
 		final private List<FieldRef> keycols;
+		final private List<Message> messages;
 
 		public Name getName() { return name; }
 		public RMode getMode() { return mode; }
 		public List<Field> getFields() { return fields; }
 		public List<FieldRef> getKeycols() { return keycols; }
+		public List<Message> getMessages() { return Collections.unmodifiableList(messages); }
 
-		private Relation(Name name, RMode mode, List<Field> fields, List<FieldRef> keycols) {
+		private Relation(Name name, RMode mode, List<Field> fields, List<FieldRef> keycols, List<Message> messages) {
 			this.name = name;
 			this.mode = mode;
 			this.fields = fields;
 			this.keycols = keycols;
+			this.messages = messages;
 		}
 
 		static public Relation newInstance(Element xml) {
@@ -251,8 +255,14 @@ public class ContractStore {
 				mode = RMode.newInstance((Element) ml.item(ix));
 				break;
 			}
+			
+			List<Message> message_set = new ArrayList<Message>();
+            NodeList msgl = xml.getElementsByTagName("message");
+            for (int ix = 0; ix < msgl.getLength(); ++ix) {
+                message_set.add(Message.newInstance((Element) msgl.item(ix)));
+            }
 
-			return new Relation(extract_name(xml,"name"), mode, field_set, keycol_set);
+			return new Relation(extract_name(xml,"name"), mode, field_set, keycol_set, message_set);
 		}
 
 		@Override
@@ -264,6 +274,9 @@ public class ContractStore {
 			}
 			for (FieldRef ref : this.keycols) {
 				sb.append(ref.toString());
+			}
+			for (Message msg : this.messages) {
+			    sb.append(msg.toString());
 			}
 			sb.append("\n</relation>");
 			return sb.toString();
@@ -412,6 +425,78 @@ public class ContractStore {
 					.append("' />")
 					.toString();
 		}
+	}
+	
+	public static class Message {
+	    private final String encoding;
+	    private final List<MessageFieldRef> fields;
+	    
+	    public String getEncoding() {
+	        return encoding;
+	    }
+	    
+	    private Message(String encoding, List<MessageFieldRef> fields) {
+	        this.encoding = encoding;
+	        this.fields = fields;
+	    }
+	    
+	    public List<MessageFieldRef> getFields() {
+	        return Collections.unmodifiableList(fields);
+	    }
+	    
+	    static public Message newInstance(Element xml) {
+	        List<MessageFieldRef> field_set = new ArrayList<MessageFieldRef>();
+            NodeList nl = xml.getElementsByTagName("message");
+            for (int ix = 0; ix < nl.getLength(); ++ix) {
+                field_set.add(MessageFieldRef.newInstance((Element) nl.item(ix)));
+            }
+	        
+	        return new Message(xml.getAttribute("encoding"), field_set);
+	    }
+	    
+	    @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("<message name='").append(encoding).append("'>");
+            
+            for(MessageFieldRef field : fields) {
+                sb.append(field.toString());
+            }
+            
+            return sb.append("</message>").toString();
+        }
+	}
+	
+	public static class MessageFieldRef {
+	    private final Name name;
+	    private final String type;
+	    
+	    public Name getName() {
+	        return name;
+	    }
+	    
+	    public String getType() {
+	        return type;
+	    }
+	    
+	    private MessageFieldRef(Name name, String type) {
+	        this.name = name;
+	        this.type = type;
+	    }
+	    
+	    static public MessageFieldRef newInstance(Element xml) {
+	        String type = xml.getAttribute("type");
+            return new MessageFieldRef(extract_name(xml, "ref"), type);
+        }
+        
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            return sb
+                    .append("<field ref='").append(name.norm)
+                    .append("' />")
+                    .toString();
+        }
 	}
 
 

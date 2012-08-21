@@ -316,7 +316,7 @@ public class RequestSerializer {
         
         ContractStore.Relation relation = contractStore.getRelationForType(mimeType);
         
-        ContentValuesContentItem item = new ContentValuesContentItem(cv, relation);
+        ContentValuesContentItem item = new ContentValuesContentItem(cv, relation, encoding);
         
         byte[] result = null;
         

@@ -12,6 +12,7 @@ import android.content.ContentValues;
 import android.content.res.AssetFileDescriptor;
 
 import edu.vu.isis.ammo.core.distributor.ContractStore;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
 
 public class ContentValuesContentItem implements IContentItem {
@@ -20,18 +21,46 @@ public class ContentValuesContentItem implements IContentItem {
     private final ContentValues cv;
     private final Map<String, FieldType> fieldTypes;
     private String[] serialOrder;
+    private Set<String> serialSet;
     
-    public ContentValuesContentItem(ContentValues cv, ContractStore.Relation relation) {
+    public ContentValuesContentItem(ContentValues cv, ContractStore.Relation relation, Encoding encoding) {
         this.cv = cv;
         
         fieldTypes = new HashMap<String, FieldType>(cv.size());
-        serialOrder = new String[cv.size()];
         
         int i = 0;
         
         for (ContractStore.Field f : relation.getFields()) {
             fieldTypes.put(f.getName().getSnake(), FieldType.fromContractString(f.getDtype()));
-            serialOrder[i] = f.getName().getSnake();
+        }
+        
+        //Get the message object for this encoding, if it exists
+        boolean foundEncoding = false;
+        for(ContractStore.Message m : relation.getMessages()) {
+            if(m.getEncoding() == encoding.name()) {
+                foundEncoding = true;
+                serialOrder = new String[m.getFields().size()];
+                
+                for(ContractStore.MessageFieldRef f : m.getFields()) {
+                    serialOrder[i] = f.getName().getSnake();
+                    serialSet.add(f.getName().getSnake());
+                    
+                    //Serialized types can be overriden on a per-encoding basis
+                    if(f.getType() != "") {
+                        fieldTypes.put(f.getName().getSnake(), FieldType.fromContractString(f.getType()));
+                    }
+                }
+            }
+        }
+        
+        if(!foundEncoding) {
+            //if we didn't find an encoding-specific message, we fall back to serializing all fields,
+            //in the order they appear in the contract
+            for (ContractStore.Field f : relation.getFields()) {
+                serialOrder = new String[relation.getFields().size()];
+                serialOrder[i] = f.getName().getSnake();
+                serialSet.add(f.getName().getSnake());
+            }
         }
     }
 
@@ -42,7 +71,7 @@ public class ContentValuesContentItem implements IContentItem {
 
     @Override
     public Set<String> keySet() {
-        return fieldTypes.keySet();
+        return serialSet;
     }
     
     public String[] getOrderedKeys() {

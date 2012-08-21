@@ -27,7 +27,6 @@ public class ContentProviderContentItem implements IContentItem {
     private final ContentResolver resolver;
     private final Uri tupleUri;
     private Map<String, FieldType> fieldMap;
-    private Map<String, Integer> columnIndexMap;
     private String[] serialOrder;
     
     public ContentProviderContentItem(Uri tupleUri, ContentResolver res, Encoding encoding) throws NonConformingAmmoContentProvider, TupleNotFoundException {
