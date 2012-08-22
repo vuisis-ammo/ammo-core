@@ -2091,6 +2091,10 @@ public class DistributorThread extends Thread {
                 channel.sendRequest(oagmb.build());
             }
         }
+        
+        DistributorPolicy policy = this.ammoService.policy();
+        
+        
 
         final Encoding encoding = Encoding.getInstanceByName(encode);
         this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,

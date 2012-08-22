@@ -292,6 +292,7 @@ public class DistributorPolicy implements ContentHandler {
         public Topic(TopicBuilder builder) {
             this.type = builder.type;
             this.routing = builder.routing();
+            this.routed = builder.routed();
         }
 
         @Override
@@ -319,6 +320,16 @@ public class DistributorPolicy implements ContentHandler {
 
         public String getType() {
             return this.type;
+        }
+        
+        private boolean routed;
+        
+        public boolean setRouted(boolean routed) {
+            this.routed = routed;
+        }
+        
+        public boolean getRouted() {
+            return this.routed;
         }
 
         @Override
@@ -765,6 +776,17 @@ public class DistributorPolicy implements ContentHandler {
         public String type() {
             return this.type;
         }
+        
+        private boolean routed;
+        
+        public TopicBuilder routed(boolean val) {
+            this.routed = val;
+            return this;
+        }
+        
+        public boolean routed() {
+            return this.routed;
+        }
 
         public TopicBuilder addClause() {
             this.routing.addClause();
@@ -817,6 +839,13 @@ public class DistributorPolicy implements ContentHandler {
                 if (type == null)
                     return;
                 this.builder.type(type);
+                
+                String routedString = atts.getValue(uri, "routed");
+                if (routedString.equalsIgnoreCase("true")) {
+                    this.builder.routed(true);
+                } else {
+                    this.builder.routed(false);
+                }
                 return;
             }
             if (localName.equals("test")) {
