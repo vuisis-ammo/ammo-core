@@ -360,6 +360,10 @@ public class AmmoService extends Service implements INetworkService,
     private Settings globalSettings; // from tasettings
     private SharedPreferences localSettings; // local copy
 
+    // moving the variable to be a class variable instead 
+    // of being a local variable within the oncreate method
+    private WifiManager.MulticastLock multicastLock = null; 
+
     public Handler notifyMsg = null;
 
     /**
@@ -462,8 +466,8 @@ public class AmmoService extends Service implements INetworkService,
         // FIXME: find the appropriate time to release() the multicast lock.
         logger.trace("Acquiring multicast lock()");
         WifiManager wm = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        WifiManager.MulticastLock multicastLock =
-                wm.createMulticastLock("mydebuginfo");
+        multicastLock = wm.createMulticastLock("mydebuginfo");
+
         multicastLock.acquire();
         logger.trace("...acquired multicast lock()");
 

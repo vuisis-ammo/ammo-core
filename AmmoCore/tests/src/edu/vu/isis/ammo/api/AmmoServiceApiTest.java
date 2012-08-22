@@ -80,7 +80,6 @@ public class AmmoServiceApiTest extends android.test.ServiceTestCase<AmmoService
     @Override
     protected void tearDown() throws Exception {
         logger.info("Tear Down");
-        super.tearDown();
     }
 
     @MediumTest
