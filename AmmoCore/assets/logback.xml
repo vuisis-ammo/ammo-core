@@ -27,7 +27,7 @@
        <pattern>[%method] %msg%n</pattern>
     </encoder>
   </appender>
-  
+
   <appender name="STATS" class="ch.qos.logback.core.FileAppender">
     <file>${LOG_DIR}/ammo-perf.log</file>
     <append>true</append>
@@ -38,7 +38,7 @@
       <outputPatternAsHeader>true</outputPatternAsHeader>
     </encoder>
   </appender>
-  
+
   <!--
   <logger name="queue.request.out" level="TRACE">
        <appender-ref ref="STATS" />

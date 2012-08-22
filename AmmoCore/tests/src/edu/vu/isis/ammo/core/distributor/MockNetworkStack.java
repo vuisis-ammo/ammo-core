@@ -11,6 +11,7 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -21,7 +22,8 @@ import org.slf4j.LoggerFactory;
  * generally. The network is emulated by queues of ByteBuffer objects.
  */
 public class MockNetworkStack extends Socket {
-    private static final Logger logger = LoggerFactory.getLogger("trial.net.mock");
+    public static final Logger logger = LoggerFactory.getLogger("trial.net.mock");
+    
     /**
      * Use these queues to imitate the network stack
      */
@@ -70,7 +72,7 @@ public class MockNetworkStack extends Socket {
         if (this.throwException.get()) {
             throw new Exception("mock socket exception");
         }
-        return this.output.take();
+        return this.output.poll(5, TimeUnit.SECONDS);
     }
 
     /**
@@ -78,7 +80,7 @@ public class MockNetworkStack extends Socket {
      */
     public ByteBuffer getSent() {
         try {
-            return this.input.take();
+            return this.input.poll(5, TimeUnit.SECONDS);
         } catch (InterruptedException ex) {
             logger.error("unsendable ", ex);
             return null;
@@ -108,6 +110,7 @@ public class MockNetworkStack extends Socket {
      * @return
      */
     public static String asString(ByteBuffer buf) {
+        if (buf == null) return "<null>";
         final int pos = buf.position();
         decoder.reset();
         final CharBuffer cbuf = CharBuffer.allocate(buf.remaining());

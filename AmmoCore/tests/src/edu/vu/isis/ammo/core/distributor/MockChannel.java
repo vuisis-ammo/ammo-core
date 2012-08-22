@@ -54,12 +54,10 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * messages.
  * <p>
  */
-public class MockChannel extends NetChannel 
+public class MockChannel extends NetChannel
 {
-    private static final Logger logger = LoggerFactory.getLogger("trial.net.mock");
+    static public final Logger logger = LoggerFactory.getLogger("trial.net.mock");
 
-
-    
     /** 5 seconds expressed in milliseconds */
     private static final int BURP_TIME = 5 * 1000;
 
@@ -96,6 +94,7 @@ public class MockChannel extends NetChannel
         this.mSenderQueue = new SenderQueue(this);
 
         this.connectorThread = new ConnectorThread(this);
+        this.mockNetworkStack = new MockNetworkStack();
     }
 
     public static MockChannel getInstance(String name, IChannelManager iChannelManager)
@@ -296,7 +295,7 @@ public class MockChannel extends NetChannel
     private final long mHeartbeatInterval = 10 * 1000; // ms
     private final AtomicLong mNextHeartbeatTime = new AtomicLong(0);
 
-    public MockNetworkStack mockNetworkStack;
+    public final MockNetworkStack mockNetworkStack;
 
     /**
      * Send a heartbeat packet to the gateway if enough time has elapsed.
@@ -857,7 +856,6 @@ public class MockChannel extends NetChannel
         private LinkedList<AmmoGatewayMessage> mAuthQueue;
         private MockChannel mChannel;
     }
-
 
     // /////////////////////////////////////////////////////////////////////////
     //

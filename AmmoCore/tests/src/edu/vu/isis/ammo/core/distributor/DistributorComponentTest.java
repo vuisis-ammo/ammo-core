@@ -30,11 +30,11 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.test.suitebuilder.annotation.MediumTest;
+import ch.qos.logback.classic.Level;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.TimeInterval;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.DistributorServiceAidl;
-import edu.vu.isis.ammo.core.network.NetChannel;
 
 /**
  * This is a simple framework for a test of a Service.  
@@ -79,7 +79,7 @@ public class DistributorComponentTest extends android.test.ServiceTestCase<AmmoS
 
     public DistributorComponentTest() {
         super(AmmoService.class);
-        logger = LoggerFactory.getLogger("test.service.request");
+        logger = LoggerFactory.getLogger("test.request.distribute");
     }
 
     /**
@@ -141,9 +141,9 @@ public class DistributorComponentTest extends android.test.ServiceTestCase<AmmoS
             final InputSource is = new InputSource(new InputStreamReader(inputStream));
             final DistributorPolicy policy = new DistributorPolicy(is);
             this.service.policy(policy);
-            
+
         } catch (IOException ex) {
-            logger.warn("invalid path or file name",ex);
+            logger.warn("invalid path or file name", ex);
             return;
         } finally {
             if (inputStream != null) {
@@ -156,52 +156,74 @@ public class DistributorComponentTest extends android.test.ServiceTestCase<AmmoS
             }
         }
     }
-    
+
+    private static final ch.qos.logback.classic.Logger API_LOGGER =
+            (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("api");
+    private static final ch.qos.logback.classic.Logger AMMO_SERVICE_LOGGER =
+            (ch.qos.logback.classic.Logger) AmmoService.logger;
+    private static final ch.qos.logback.classic.Logger MOCK_CHANNEL_LOGGER =
+            (ch.qos.logback.classic.Logger) MockChannel.logger;
+    private static final ch.qos.logback.classic.Logger MOCK_NETWORK =
+            (ch.qos.logback.classic.Logger) MockNetworkStack.logger;
 
     /**
      * Post messages and verify that they meet their appropriate fates.
      */
     @MediumTest
     public void testPostal() {
-        this.startUp("dist-policy-single-rule.xml");
-        final MockChannel mockChannel = MockChannel.getInstance("mock", this.service);
-        this.service.registerChannel(mockChannel);
-        logger.info("postal : exercise the distributor");
-
-        final Uri provider = Uri.parse("content://edu.vu.isis.ammo.core/distributor");
-
-        final ContentValues cv = new ContentValues();
-        {
-            cv.put("greeting", "Hello");
-            cv.put("recipient", "World");
-            cv.put("emphasis", "!");
-        }
-
-        logger.info(
-                "args provider [{}] content [{}] topic [{}] now [{}] expire [{}] worth [{}] filter [{}]",
-                new Object[] {
-                        provider, cv, topic, now, expiration, worth, filter
-                });
+        final ch.qos.logback.classic.Logger my_logger =
+                ((ch.qos.logback.classic.Logger) this.logger);
 
         try {
-            logger.info("subscribe : provider, topic");
-            builder
-                    .provider(provider)
-                    .topic(topic)
-                    .post();
+            AMMO_SERVICE_LOGGER.setLevel(Level.TRACE);
+            MOCK_CHANNEL_LOGGER.setLevel(Level.TRACE);
+            MOCK_NETWORK.setLevel(Level.TRACE);
+            API_LOGGER.setLevel(Level.TRACE);
+            my_logger.setLevel(Level.TRACE);
 
-        } catch (RemoteException ex) {
-            logger.error("could not post", ex);
-        } finally {
+            this.startUp("dist-policy-single-rule.xml");
+            final MockChannel mockChannel = MockChannel.getInstance("mock", this.service);
+            this.service.registerChannel(mockChannel);
+            logger.info("postal : exercise the distributor");
 
-        }
-        final MockNetworkStack network = mockChannel.mockNetworkStack;
-        try {
+            final Uri provider = Uri.parse("content://edu.vu.isis.ammo.core/distributor");
+
+            final ContentValues cv = new ContentValues();
+            {
+                cv.put("greeting", "Hello");
+                cv.put("recipient", "World");
+                cv.put("emphasis", "!");
+            }
+
+            logger.info(
+                    "args provider [{}] content [{}] topic [{}] now [{}] expire [{}] worth [{}] filter [{}]",
+                    new Object[] {
+                            provider, cv, topic, now, expiration, worth, filter
+                    });
+
+            try {
+                logger.info("subscribe : provider, topic");
+                builder
+                        .provider(provider)
+                        .topic(topic)
+                        .post();
+
+            } catch (RemoteException ex) {
+                logger.error("could not post", ex);
+            } finally {
+
+            }
+            final MockNetworkStack network = mockChannel.mockNetworkStack;
             final ByteBuffer sentBuf = network.getSent();
             logger.debug("delivered message {}", sentBuf);
             logger.debug("delivered message {}", MockNetworkStack.asString(sentBuf));
-        } catch (InterruptedException ex) {
-            logger.error("could not get posted message", ex);
+
+        } finally {
+            AMMO_SERVICE_LOGGER.setLevel(Level.WARN);
+            MOCK_CHANNEL_LOGGER.setLevel(Level.OFF);
+            MOCK_NETWORK.setLevel(Level.OFF);
+            API_LOGGER.setLevel(Level.WARN);
+            my_logger.setLevel(Level.WARN);
         }
     }
 

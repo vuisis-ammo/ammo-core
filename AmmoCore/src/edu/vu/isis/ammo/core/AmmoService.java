@@ -108,7 +108,7 @@ public class AmmoService extends Service implements INetworkService,
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger("service");
+    public static final Logger logger = LoggerFactory.getLogger("service");
 
     public static final Intent LAUNCH = new Intent(
             "edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
