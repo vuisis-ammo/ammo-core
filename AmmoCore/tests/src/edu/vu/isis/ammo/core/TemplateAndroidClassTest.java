@@ -14,9 +14,10 @@ import junit.framework.TestSuite;
  * for classes which use Android-specific components.
  * 
  * To run this test, you can type:
- * adb shell am instrument -w \
- * -e class edu.vu.isis.ammo.core.TemplateAndroidClassTest \
- * edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
+ * <code>
+  adb shell am instrument \
+  -w edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner \
+  -e class edu.vu.isis.ammo.core.TemplateAndroidClassTest 
  */
 
 // [IMPORT AMMO CLASS(ES) TO BE TESTED HERE]

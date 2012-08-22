@@ -62,6 +62,7 @@ public class LogbackReconfigureActivity extends Activity {
 	public void onStart() {
 		super.onStart();
 		force(null);
+		finish();
 	}
 
 	public void force(View v) {
