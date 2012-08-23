@@ -698,20 +698,20 @@ public class RequestSerializerTest extends AndroidTestCase {
                 JSONArray values = json.toJSONArray(names);
                 for(int i = 0 ; i < values.length(); i++) {
                     if(names.getString(i).equals(schemaForeignKey)) {
-                        int actual = values.getInt(i);
+                        int actual = Integer.decode(values.getString(i)).intValue(); //values.getInt(i)
                         int expected = cv.getAsInteger(schemaForeignKey).intValue();
                         Log.d(TAG, "   json value='" + String.valueOf(actual)
                               + "'     cv value='"+ String.valueOf(expected)  + "'");
                         assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaExEnum)) {
-                        long actual = values.getLong(i);
+                        long actual = Long.decode(values.getString(i)).longValue();
                         long expected = cv.getAsLong(schemaExEnum).longValue();
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaInEnum)) {
-                        long actual = values.getLong(i);
+                        long actual = Long.decode(values.getString(i)).longValue();
                         long expected = cv.getAsLong(schemaInEnum).longValue();
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         assertEquals(actual, expected);
@@ -857,26 +857,26 @@ public class RequestSerializerTest extends AndroidTestCase {
                 JSONArray values = json.toJSONArray(names);
                 for(int i = 0 ; i < values.length(); i++) {
                     if(names.getString(i).equals(schemaShortInt)) {
-                        int actual = values.getInt(i);
+                        int actual =  Short.decode(values.getString(i)).shortValue();
                         int expected = cv.getAsInteger(schemaShortInt).intValue();
                         Log.d(TAG, "   json value='" + String.valueOf(actual)
                               + "'     cv value='"+ String.valueOf(expected)  + "'");
                         assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaLongInt)) {
-                        long actual = values.getLong(i);
+                        long actual = Long.decode(values.getString(i)).longValue(); 
                         long expected = cv.getAsLong(schemaLongInt).longValue();
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaInt)) {
-                        int actual = values.getInt(i);
+                        int actual = Integer.decode(values.getString(i)).intValue();
                         int expected = cv.getAsInteger(schemaInt).intValue();
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaBool)) {
-                        boolean actual = (values.getInt(i) == 1);  //values.getBoolean(i);
+                        boolean actual = (values.getInt(i) == 1); //Boolean.parseBoolean(values.getString(i))
                         boolean expected = cv.getAsBoolean(schemaBool).booleanValue();
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         assertEquals(actual, expected);
@@ -1038,7 +1038,7 @@ public class RequestSerializerTest extends AndroidTestCase {
                 JSONArray values = json.toJSONArray(names);
                 for(int i = 0 ; i < values.length(); i++) {
                     if(names.getString(i).equals(schemaReal)) {
-                        double actual = values.getDouble(i);
+                        double actual = Double.parseDouble(values.getString(i)); //values.getDouble(i);
                         double expected = cv.getAsDouble(schemaReal).doubleValue();
                         Log.d(TAG, "   json value='" + String.valueOf(actual)
                               + "'     cv value='"+ String.valueOf(expected)  + "'");
