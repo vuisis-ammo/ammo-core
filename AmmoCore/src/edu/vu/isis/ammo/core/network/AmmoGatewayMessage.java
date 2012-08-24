@@ -79,10 +79,12 @@ public class AmmoGatewayMessage implements Comparable<Object> {
       + 4; // header checksum
 
     public static final int HEADER_DATA_LENGTH_TERSE =
-          4 // magic
-        + 2 // message size
-        + 2 // payload checksum
-        + 8; // We added a timestamp for testing and debugging.
+          4  // magic (3.5 bytes) and slot number (4 bits)
+        + 2  // payload size
+        + 2  // payload checksum
+        + 4  // timestamp
+        + 2  // <reserved>
+        + 2; // header checksum
 
 
     // These are equal because the terse form doesn't use a header checksum.
