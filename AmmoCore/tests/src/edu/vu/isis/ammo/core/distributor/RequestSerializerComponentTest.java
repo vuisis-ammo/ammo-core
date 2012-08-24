@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.io.UnsupportedEncodingException;
+import java.util.Map;
 
 import junit.framework.Assert;
 import junit.framework.Test;
@@ -94,8 +96,6 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
         mBaseUri = null;
         //cr = null;
     }
-
-
 
     private MockContentResolver utilGetContentResolver()
     {
@@ -1121,6 +1121,5 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
         }
 
     }
-
 
 }
