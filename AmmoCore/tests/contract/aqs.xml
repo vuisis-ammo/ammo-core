@@ -1,58 +1,60 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <content-provider name="aqs">
-  <description>
-  This is a template project.
-  Change this template to suit your needs.
-  </description>
-  <sponsor name="edu.vu.isis"/>
+    <description>
+        This is a template project.
+        Change this template to suit your needs.
+    </description>
+    <sponsor name="edu.vu.isis"/>
 
-  <relation name="ammo">
-    <!-- <field type="SERIAL" name="a serial" default=""/> -->
-    <field type="FK" name="a foreign key ref" default="-1"/>
-    <field type="EXCLUSIVE" name="an exclusive enumeration" default="MEDIUM">
-      <description>
-        an exclusive enumeration list signifies that 
-        only one value is allowed
-      </description>
-      <enum key="HIGH" value="1"/>
-      <enum key="MEDIUM" value="2"/>
-      <enum key="LOW" value="3"/>
-    </field>
-    <field type="INCLUSIVE" name="an inclusive enumeration" default="APPLE">
-      <description>
-        an inclusive enumeration list signifies that 
-        any number of the values is allowed in a list.
-      </description>
-      <enum key="APPLE" value="1"/>
-      <enum key="ORANGE" value="2"/>
-      <enum key="PEAR" value="3"/>
-    </field>
-  </relation>
+    <relation name="ammo">
+        <!-- <field type="SERIAL" name="a serial" default=""/> -->
+        <field type="FK" name="a foreign key ref" default="-1"/>
+        <field type="EXCLUSIVE" name="an exclusive enumeration" default="MEDIUM">
+            <description>
+                an exclusive enumeration list signifies that
+                only one value is allowed
+            </description>
+            <enum key="HIGH" value="1"/>
+            <enum key="MEDIUM" value="2"/>
+            <enum key="LOW" value="3"/>
+        </field>
+        <field type="INCLUSIVE" name="an inclusive enumeration" default="APPLE">
+            <description>
+                an inclusive enumeration list signifies that
+                any number of the values is allowed in a list.
+            </description>
+            <enum key="APPLE" value="1"/>
+            <enum key="ORANGE" value="2"/>
+            <enum key="PEAR" value="3"/>
+        </field>
+    </relation>
 
-  <relation name="quick">
-    <field type="SHORT" name="a short integer" default="0"/>
-    <field type="INTEGER" name="an integer" default="0"/>
-    <field type="BOOL" name="a boolean" default="false"/>
-    <field type="LONG" name="a long integer" default="0.0">
-      <description>
-      </description>
-    </field>
-    <field type="TIMESTAMP" name="a absolute time" default="now">
-      <description>
-      </description>
-    </field>
-  </relation>
+    <relation name="quick">
+        <field type="SHORT" name="a short integer" default="0"/>
+        <field type="INTEGER" name="an integer" default="0"/>
+        <field type="BOOL" name="a boolean" default="false"/>
+        <field type="LONG" name="a long integer" default="0.0">
+            <description>
+                possible desc. for this field
+            </description>
+        </field>
+        <field type="TIMESTAMP" name="a absolute time" default="now">
+            <description>
+                possible desc. for this field
+            </description>
+        </field>
+    </relation>
 
-  <relation name="start">
-    <field type="REAL" name="a real" default="0.0"/>
-    <field type="GUID" name="a globally unique identifier" default=""/>
-    <field type="TEXT" name="some arbitrary text" default=""/>
-    <field type="BLOB" name="a blob" default=""/>
-    <!-- <field type="TYPE" name="a type" default=""/> -->
-    <field type="FILE" name="a file" default=""/>
-    <key name="update">
-       <ref field="a globally unique identifier"/>
-    </key>
-  </relation>
- 
+    <relation name="start">
+        <field type="REAL" name="a real" default="0.0"/>
+        <field type="GUID" name="a globally unique identifier" default=""/>
+        <field type="TEXT" name="some arbitrary text" default=""/>
+        <field type="BLOB" name="a blob" default=""/>
+        <!-- <field type="TYPE" name="a type" default=""/> -->
+        <field type="FILE" name="a file" default=""/>
+        <key name="update">
+            <ref field="a globally unique identifier"/>
+        </key>
+    </relation>
+
 </content-provider>
