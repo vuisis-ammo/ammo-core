@@ -14,7 +14,6 @@
     <edu.vu.isis.ammo.core.MyEditTextPreference
         android:name="IP Address"
         android:defaultValue="228.8.8.8"
-        android:enabled="false"
         android:inputType="phone"
         android:key="@string/network_rmc_host"
         android:title="IP Address" />
@@ -22,7 +21,6 @@
     <edu.vu.isis.ammo.core.MyEditIntegerPreference
         android:name="Port"
         android:defaultValue="45588"
-        android:enabled="false"
         android:inputType="number"
         android:key="@string/network_rmc_port"
         android:title="Port" />
