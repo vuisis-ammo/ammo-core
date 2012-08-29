@@ -3,7 +3,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="edu.vu.isis.ammo.core"
     android:sharedUserId="edu.vu.isis.ammo"
-    android:versionCode="1610"
+    android:versionCode="1611"
     android:versionName="@string/ammo_version_name" > <!-- end -->
     <!-- template end -->
 
