@@ -2,7 +2,15 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+//import java.io.ByteArrayInputStream;
+//import java.io.ObjectInputStream;
+
 import java.util.Map;
+import java.util.Arrays;
+
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.BufferOverflowException;
 
 import java.lang.Double;
 import java.lang.Float;
@@ -92,19 +100,44 @@ public class RequestSerializerTest extends AndroidTestCase {
         mContext = null;
     }
 
+    // =========================================================
+    // utility: given a URI, serialize what it contains into terse
+    // encoding and return
+    // =========================================================
+    private byte[] utilSerializeTerseFromProvider(MockContentResolver cr, Uri uri)
+    {
+        final Encoding enc = Encoding.newInstance(Encoding.Type.TERSE);
+
+        // Serialize the provider content into JSON bytes
+        final byte[] terseEncoded;
+        try {
+            terseEncoded = RequestSerializer.serializeFromProvider(cr, uri, enc);
+        } catch (NonConformingAmmoContentProvider ex) {
+            fail("Should not have thrown NonConformingAmmoContentProvider in this case");
+            return null;
+        } catch (TupleNotFoundException ex) {
+            fail("Should not have thrown TupleNotFoundException in this case");
+            return null;
+        } catch (IOException ex) {
+            fail("failure of the test itself");
+            return null;
+        }
+	return terseEncoded;
+    }
+
 
     // =========================================================
     // utility: given a URI, serialize what it contains into JSON
-    // and return a JSONObject
+    // (plus attached binary data, if any) and return a byte array
     // =========================================================
-    private JSONObject utilSerializeJsonFromProvider(MockContentResolver cr, Uri uri)
+    private byte[] utilSerializeJsonFromProvider_withBlob(MockContentResolver cr, Uri uri)
     {
         final Encoding enc = Encoding.newInstance(Encoding.Type.JSON);
 
-        // Serialize the provider content into JSON bytes
-        final byte[] jsonBlob;
+        // Serialize the provider content into bytes (JSON + blob data)
+        final byte[] serialized;
         try {
-            jsonBlob = RequestSerializer.serializeFromProvider(cr, uri, enc);
+            serialized = RequestSerializer.serializeFromProvider(cr, uri, enc);
         } catch (NonConformingAmmoContentProvider ex) {
             fail("Should not have thrown NonConformingAmmoContentProvider in this case");
             return null;
@@ -116,10 +149,45 @@ public class RequestSerializerTest extends AndroidTestCase {
             return null;
         }
 
+	if (serialized != null) {
+	    Log.d(TAG, "serialized data size = [" + serialized.length + "]");
+	} else {
+	    Log.d(TAG, "serialized data is NULL");
+	}
+        return serialized;
+    }
+
+    // =========================================================
+    // utility: given a URI, serialize what it contains into JSON
+    // and return a JSONObject
+    // =========================================================
+    private JSONObject utilSerializeJsonFromProvider(MockContentResolver cr, Uri uri)
+    {
+        final Encoding enc = Encoding.newInstance(Encoding.Type.JSON);
+
+        // Serialize the provider content into JSON bytes
+        final byte[] jsonBytes = utilSerializeJsonFromProvider_withBlob(cr, uri);
+	/*
+        try {
+            jsonBytes = RequestSerializer.serializeFromProvider(cr, uri, enc);
+        } catch (NonConformingAmmoContentProvider ex) {
+            fail("Should not have thrown NonConformingAmmoContentProvider in this case");
+            return null;
+        } catch (TupleNotFoundException ex) {
+            fail("Should not have thrown TupleNotFoundException in this case");
+            return null;
+        } catch (IOException ex) {
+            fail("failure of the test itself");
+            return null;
+        }
+	*/
+
+	return jsonObjectFromBytes(jsonBytes);
+	/*
         // Create a string from the JSON bytes
         final String jsonString;
         try {
-            jsonString = new String(jsonBlob, "US-ASCII");
+            jsonString = new String(jsonBytes, "US-ASCII");
         } catch (UnsupportedEncodingException ex) {
             fail("Unexpected error -- could not convert json blob to string");
             return null;
@@ -133,8 +201,33 @@ public class RequestSerializerTest extends AndroidTestCase {
         } catch (JSONException ex) {
             fail("Unexpected JSONException -- JSON string =   " + jsonString);
         }
-	//Log.d(TAG, "jsonobject as string = [" + json.toString() + "]");
-	
+        //Log.d(TAG, "jsonobject as string = [" + json.toString() + "]");
+
+        return json;
+	*/
+    }
+
+    private JSONObject jsonObjectFromBytes(byte[] jsonBytes)
+    {
+	// Create a string from the JSON bytes
+        final String jsonString;
+        try {
+            jsonString = new String(jsonBytes, "US-ASCII");
+        } catch (UnsupportedEncodingException ex) {
+            fail("Unexpected error -- could not convert json blob to string");
+            return null;
+        }
+
+        // Create a JSONObject to return
+        Log.d(TAG, "encoded json=[ " + jsonString + " ]");
+        JSONObject json = null;
+        try {
+            json = new JSONObject(jsonString);
+        } catch (JSONException ex) {
+            fail("Unexpected JSONException -- JSON string =   " + jsonString);
+        }
+        //Log.d(TAG, "jsonobject as string = [" + json.toString() + "]");
+
         return json;
     }
 
@@ -616,6 +709,144 @@ public class RequestSerializerTest extends AndroidTestCase {
     }
 
 
+    /**
+     * Serialize from ContentProvider (JSON encoding) :
+     * Simple case of known constant values on Table 1 ("Ammo") in schema.
+     * WITH BLOB DATA
+     *
+     */
+    public void testSerializeFromProviderJson_withBlob_basic_smallBlob() {
+        AmmoMockProvider01 provider = null;
+        try {
+            provider = utilMakeTestProvider01(mContext);
+            assertNotNull(provider);
+            final MockContentResolver cr = new MockContentResolver();
+            cr.addProvider(AmmoMockSchema01.AUTHORITY, provider);
+
+            SchemaTable3Data d = new SchemaTable3Data();
+
+            // Serialize values from the db
+            ContentValues cv = d.createContentValuesWithBlobSmall();
+            Uri uri = d.populateProviderWithData(provider, cv);
+            byte[] serialized = utilSerializeJsonFromProvider_withBlob(cr, uri);
+            if (serialized == null) {
+		fail("unexpected serialization error");
+            }
+            d.compareBytesToCv(serialized, cv);
+        } finally {
+            if (provider != null) provider.release();
+        }
+    }
+    
+    /**
+     * Serialize from ContentProvider (JSON encoding) :
+     * Case of random values on Table 1 ("Ammo") in schema.
+     * WITH BLOB DATA
+     *
+     */
+    public void testSerializeFromProviderJson_withBlob_random_smallBlob() {
+	final int NUM_ITERATIONS = 100;
+
+	AmmoMockProvider01 provider = null;
+        try {
+            provider = utilMakeTestProvider01(mContext);
+            assertNotNull(provider);
+            final MockContentResolver cr = new MockContentResolver();
+            cr.addProvider(AmmoMockSchema01.AUTHORITY, provider);
+
+            SchemaTable3Data d = new SchemaTable3Data();
+
+	    for (int i=0; i < NUM_ITERATIONS; i++) {
+		ContentValues cv = d.createContentValuesWithBlobRandomSmall();
+		Uri uri = d.populateProviderWithData(provider, cv);
+		byte[] serialized = utilSerializeJsonFromProvider_withBlob(cr, uri);
+		if (serialized == null) {
+		    fail("unexpected serialization error");
+		}
+		d.compareBytesToCv(serialized, cv);
+	    }
+        } finally {
+            if (provider != null) provider.release();
+        }
+    }
+
+    // TODO: more test cases
+    /*
+    public void testSerializeFromProviderJson_withBlob_basic_largeBlob() {
+	// TODO
+    }
+
+    public void testSerializeFromProviderJson_withBlob_random_largeBlob() {
+	// TODO
+    }
+
+    public void testSerializeFromProviderJson_withBlob_errors_smallBlob() {
+	// TODO
+    }
+
+    public void testSerializeFromProviderJson_withBlob_errors_largeBlob() {
+	// TODO
+    }
+
+    public void testDeserializeToProviderJson_withBlob_basic_smallBlob() {
+	// TODO
+    }
+    
+    public void testDeserializeToProviderJson_withBlob_basic_largeBlob() {
+	// TODO
+    }
+
+    public void testDeserializeToProviderJson_withBlob_random_smallBlob() {
+	// TODO
+    }
+
+    public void testDeserializeToProviderJson_withBlob_random_largeBlob() {
+	// TODO
+    }
+    
+    public void testSerializeFromProviderJson_basic_withFile() {
+	// TODO
+    }
+    */
+
+
+
+    /**
+     * Serialize from ContentProvider (Terse encoding) :
+     * Simple case of known constant values on Table 1 ("Ammo") in schema.
+     *
+     * This test
+     * <ol>
+     * <li>constructs a mock content provider,
+     * <li>loads some data into the content provider,(imitating the application)
+     * <li>serializes that data into a terse-encoding object
+     * <li>checks the serialization to verify it's correct
+     */
+    public void testSerializeFromProviderTerse_table1_basic() {
+        AmmoMockProvider01 provider = null;
+        try {
+            provider = utilMakeTestProvider01(mContext);
+            assertNotNull(provider);
+            final MockContentResolver cr = new MockContentResolver();
+            cr.addProvider(AmmoMockSchema01.AUTHORITY, provider);
+
+            SchemaTable1Data d = new SchemaTable1Data();
+
+            // Serialize values from the db
+            ContentValues cv = d.createContentValues();
+            Uri uri = d.populateProviderWithData(provider, cv);
+            byte[] terse = utilSerializeTerseFromProvider(cr, uri);
+            
+	    assertNotNull(terse);
+	    
+	    // TODO: compare terse message to original content
+            //d.compareTerseToCv(terse, cv);
+        } finally {
+            if (provider != null) provider.release();
+        }
+    }
+
+
     // -- below this line --
     // Private classes for containing knowledge about schema. These are intended
     // to keep the schema-specific knowledge localized so that if the schema
@@ -657,13 +888,13 @@ public class RequestSerializerTest extends AndroidTestCase {
         public ContentValues createContentValuesRandom()
         {
             final ContentValues cv = new ContentValues();
-	    final int keyUpperBound = 100;
-	    int[] ExEnum = new int[] {AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH, 
-				      AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_LOW,
-				      AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_MEDIUM};
-	    int[] InEnum = new int[] {AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE, 
-				      AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_ORANGE,
-				      AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_PEAR};
+            final int keyUpperBound = 100;
+            int[] ExEnum = new int[] {AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH,
+                                      AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_LOW,
+                                      AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_MEDIUM};
+            int[] InEnum = new int[] {AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE,
+                                      AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_ORANGE,
+                                      AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_PEAR};
             cv.put(schemaForeignKey, TestUtils.randomInt(keyUpperBound));
             cv.put(schemaExEnum, ExEnum[TestUtils.randomInt(ExEnum.length)]);
             cv.put(schemaInEnum, InEnum[TestUtils.randomInt(InEnum.length)]);
@@ -864,7 +1095,7 @@ public class RequestSerializerTest extends AndroidTestCase {
                         assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaLongInt)) {
-                        long actual = Long.decode(values.getString(i)).longValue(); 
+                        long actual = Long.decode(values.getString(i)).longValue();
                         long expected = cv.getAsLong(schemaLongInt).longValue();
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         assertEquals(actual, expected);
@@ -904,7 +1135,7 @@ public class RequestSerializerTest extends AndroidTestCase {
 
                 // Now query the provider and examine its contents, checking that they're
                 // the same as the original JSON.
-		final String[] projection = null;
+                final String[] projection = null;
                 final String selection = null;
                 final String[] selectArgs = null;
                 final String orderBy = null;
@@ -943,7 +1174,7 @@ public class RequestSerializerTest extends AndroidTestCase {
                         assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaBool)) {
-                        boolean actual = values.getBoolean(i); //(values.getInt(i) == 1); 
+                        boolean actual = values.getBoolean(i); //(values.getInt(i) == 1);
                         boolean expected = (cursor.getInt(cursor.getColumnIndex(schemaBool)) == 1);
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         assertEquals(actual, expected);
@@ -992,6 +1223,60 @@ public class RequestSerializerTest extends AndroidTestCase {
             return cv;
         }
 
+	public ContentValues createContentValuesWithFile()
+        {
+            ContentValues cv = createContentValues();
+            cv.put(StartTableSchema.A_FILE, "/tmp/foo.jpg");
+
+            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
+            return cv;
+        }
+	
+	public ContentValues createContentValuesWithBlobSmall()
+        {
+            ContentValues cv = createContentValues();
+            cv.put(StartTableSchema.A_BLOB, TestUtils.TEST_SMALL_BLOB);
+            //cv.put(StartTableSchema.A_BLOB, TestUtils.TEST_TINY_BLOB);
+
+            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
+            return cv;
+        }
+	
+	public ContentValues createContentValuesWithBlobLarge()
+        {
+            ContentValues cv = createContentValues();
+	    cv.put(StartTableSchema.A_BLOB, TestUtils.TEST_LARGE_BLOB);
+
+            Log.d(TAG, "generated ContentValues with large blob (do not print)");
+            return cv;
+        }
+
+	public ContentValues createContentValuesWithBlobRandomSmall()
+        {
+            ContentValues cv = createContentValuesRandom();
+	    
+	    // Attach blob of 'small' size
+	    cv.put(StartTableSchema.A_BLOB, 
+		   TestUtils.randomBytes(TestUtils.randomInt(TestUtils.SMALL_BLOB_SIZE)));
+
+            Log.d(TAG, "generated ContentValues with blob (small)");
+
+            return cv;
+        }
+
+	public ContentValues createContentValuesWithBlobRandomLarge()
+        {
+            ContentValues cv = createContentValues();
+	    
+	    // Attach blob of 'large' size
+	    cv.put(StartTableSchema.A_BLOB, 
+		   TestUtils.randomBytes(TestUtils.randomInt(TestUtils.LARGE_BLOB_SIZE)));
+
+            Log.d(TAG, "generated ContentValues with blob (large)");
+
+            return cv;
+        }
+
         public ContentValues createContentValuesRandom()
         {
             final ContentValues cv = new ContentValues();
@@ -1021,6 +1306,152 @@ public class RequestSerializerTest extends AndroidTestCase {
             Log.d(TAG, "inserted uri = " + tupleUri.toString());
             return tupleUri;
         }
+
+	// Convert 4-byte bytearray to integer
+	private int bytesToInt( byte[] b)
+	{
+	    ByteBuffer bb = ByteBuffer.wrap(b);
+	    IntBuffer ib = bb.asIntBuffer();
+	    int i0 = ib.get(0);
+	    return i0;
+	}
+
+	// Compare serialized bytes to the cv which was written to the db originally
+	/*
+	  Notes on order of bytes:
+	  - json
+	  - 0x0
+	  - field name (e.g.  "a_blob", "a_file")
+	  - 0x0
+	  - 4-byte size (of blob/file)
+	  - blob/file data
+	  - 4-byte size (again)
+	*/
+        public void compareBytesToCv(byte[] serialized, ContentValues cv)
+        {
+	    //Log.d(TAG, "  compareBytesToCv: serialized=[" + new String(serialized) + "]");
+	    //Log.d(TAG, "  compareBytesToCv: cv=[" + cv.toString() + "]");
+
+	    if (serialized == null) {
+		fail("unexpected null serialization");
+	    }
+
+	    // Step 1 - strip off the JSON header, make JSONObject json
+	    // 
+	    // find first occurrence of '}', which ends JSON header.
+	    // When we find it, break, and keep the array index.
+	    int i=0;
+	    ByteBuffer jsonBuf = null;
+	    for ( i=0; i < serialized.length; i++) {
+		if (serialized[i] == '}') {
+		    break;
+		}
+	    }
+	    int endOfJsonIndex = i;
+	    if (endOfJsonIndex > 0) {
+		jsonBuf = ByteBuffer.allocate(endOfJsonIndex+1);
+		for (int j=0; j < endOfJsonIndex + 1; j++) {
+		    jsonBuf.put(serialized[j]);
+		}
+	    } else {
+		// ???
+	    }
+	    JSONObject json = jsonObjectFromBytes(jsonBuf.array());
+	    Log.d(TAG, "  compareBytesToCv: json string=[" + json.toString() + "]");
+
+	    // Compare the JSON header to corresponding values in the CV
+	    ContentValues cvNoBlob = new ContentValues(cv);
+	    cvNoBlob.remove(schemaBlob);
+	    compareJsonToCv(json, cvNoBlob);
+
+
+	    // Step 2 - get the data blob following the json header
+	    // 
+	    // after the JSON header, next byte should be a null
+	    int pos = endOfJsonIndex;
+	    //Log.d(TAG, "  pos=" + pos);
+	    pos++;
+	    //Log.d(TAG, "  pos=" + pos);
+	    assertEquals(0x0, serialized[pos]);
+
+	    // Next is the field name (e.g. schemaBlob)
+	    pos++;
+	    //Log.d(TAG, "  pos=" + pos );
+	    String fieldName = new String(serialized, pos, schemaBlob.length() );
+	    Log.d(TAG, "  compareBytesToCv: fieldname=[" + fieldName + "]");
+	    assertEquals(fieldName, schemaBlob);
+
+	    // Next is another null character
+	    pos = pos + schemaBlob.length() ;
+	    assertEquals(0x0, serialized[pos]);
+	    //Log.d(TAG, "  pos=" + pos);
+	    
+	    // Next is a 4-byte size (i.e. size of the blob data)
+	    pos++;
+	    //Log.d(TAG, "  pos=" + pos);
+	    ByteBuffer sizeBuf1 = ByteBuffer.allocate(4);
+	    for (int j=0; j < 4; j++) {
+		sizeBuf1.put(serialized[pos]);
+		pos++;
+	    }
+	    int blobSize1 = bytesToInt(sizeBuf1.array());
+	    Log.d(TAG, "  size1=[" + blobSize1 + "]");
+	    
+
+	    // Next is the blob data itself
+	    /*
+	    ByteBuffer bw = ByteBuffer.wrap(serialized, pos, serialized.length-pos);
+	    byte[] blobArray = new byte[blobSize1];
+	    Log.d(TAG, " blob = [" + Arrays.toString(bw.get(blobArray, 0, blobSize1).array())  + "]");
+	    */
+	    Log.d(TAG, "  pos=" + pos);
+	    ByteBuffer blobBuf = ByteBuffer.allocate(blobSize1);
+	    try {
+		int count=0;
+		for (int j=0; j < blobSize1; j++) {
+		    //blobBuf.put(serialized[pos + j]);
+		    blobBuf.put(serialized[pos]);
+		    pos++;
+		    count++;
+		}
+		Log.d(TAG, "  read count = " + count);
+		//Log.d(TAG, "  pos=" + pos);
+	    } catch (BufferOverflowException e) {
+		e.printStackTrace();
+		fail("unexpected buffer overflow (blob data)");
+	    }
+
+	    byte[] cvBytes = cv.getAsByteArray(schemaBlob);
+	    assertTrue(Arrays.equals(cvBytes, blobBuf.array()));
+
+
+	    // Finally the 4-byte size is repeated, WITH a possible
+	    // flag in the first byte, for which we must check.
+	    ByteBuffer sizeBuf2 = ByteBuffer.allocate(4);
+
+	    int howMany = 4;
+	    if (serialized[pos] == RequestSerializer.BLOB_MARKER_FIELD) {
+		Log.d(TAG, "  found blob marker field (" + RequestSerializer.BLOB_MARKER_FIELD + ")");
+		sizeBuf2.put((byte)0x0);
+		pos++;
+		howMany = 3;
+	    } 
+	    for (int j=0; j < howMany; j++) {
+		sizeBuf2.put(serialized[pos]);
+		pos++;
+	    }
+	    //Log.d(TAG, "  pos=" + pos);
+	    int blobSize2 = bytesToInt(sizeBuf2.array());
+	    Log.d(TAG, "  size2=[" + blobSize2 + "]");
+	    
+	    assertEquals(blobSize1, blobSize2);
+
+
+
+	    
+
+	}
+
 
         // Compare json serialization to the cv which was written to the db originally
         public void compareJsonToCv(JSONObject json, ContentValues cv)
@@ -1084,7 +1515,7 @@ public class RequestSerializerTest extends AndroidTestCase {
 
                 // Now query the provider and examine its contents, checking that they're
                 // the same as the original JSON.
-		final String[] projection = null;
+                final String[] projection = null;
                 final String selection = null;
                 final String[] selectArgs = null;
                 final String orderBy = null;

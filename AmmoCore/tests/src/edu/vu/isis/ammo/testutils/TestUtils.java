@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Arrays;
 
 import java.lang.Double;
 import java.lang.Float;
@@ -40,6 +41,28 @@ public class TestUtils
     public static final double TEST_DOUBLE = new Double("3.141500001").doubleValue();
     public static final String TEST_GUID_STR = "6676f490-49a0-41cd-adf1-a4ddbc3f870d";
     public static final String TEST_FIXED_STRING = "this is some text";
+
+    // fixed-value tiny blob 
+    private static final String TEST_TINYBLOB_CONTENT = new String("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789)!@#$%^&*(");
+    public static final byte[] TEST_TINY_BLOB = TEST_TINYBLOB_CONTENT.getBytes();
+
+    // fixed-value small blob 
+    public static final int SMALL_BLOB_SIZE = 1000;
+    public static final byte[] TEST_SMALL_BLOB = new byte[SMALL_BLOB_SIZE];
+    static 
+    {
+	byte value = new Byte("99").byteValue();
+	Arrays.fill(TEST_SMALL_BLOB, 0, SMALL_BLOB_SIZE-1, value);
+    }
+
+    // fixed-value large blob
+    public static final int LARGE_BLOB_SIZE = 1000000;
+    public static final byte[] TEST_LARGE_BLOB = new byte[LARGE_BLOB_SIZE];
+    static 
+    {
+	byte value = new Byte("83").byteValue();
+	Arrays.fill(TEST_LARGE_BLOB, 0, LARGE_BLOB_SIZE-1, value);
+    }
 
     // Acceptable error for floating-point comparisons
     public static final double DBL_DELTA = Double.MIN_VALUE;
