@@ -230,19 +230,19 @@ public class RequestSerializerHelper {
                 JSONArray values = json.toJSONArray(names);
                 for(int i = 0 ; i < values.length(); i++) {
                     if(names.getString(i).equals(schemaForeignKey)) {
-                        int expected = values.getInt(i);
+                        int expected = Integer.decode(values.getString(i)).intValue(); //values.getInt(i);
                         int actual = cursor.getInt(cursor.getColumnIndex(schemaForeignKey));
                         Log.d(TAG, "   json value='" + expected + "'     db value='" + actual + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaExEnum)) {
-                        int expected = values.getInt(i);
+                        int expected = Integer.decode(values.getString(i)).intValue();  //values.getInt(i);
                         int actual = cursor.getInt(cursor.getColumnIndex(schemaExEnum));
                         Log.d(TAG, "   json value='" + expected + "'     db value='" + actual + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaInEnum)) {
-                        int expected = values.getInt(i);
+                        int expected = Integer.decode(values.getString(i)).intValue();  //values.getInt(i);
                         int actual = cursor.getInt(cursor.getColumnIndex(schemaInEnum));
                         Log.d(TAG, "   json value='" + expected + "'     db value='" + actual + "'");
                         Assert.assertEquals(actual, expected);
@@ -400,25 +400,25 @@ public class RequestSerializerHelper {
                 JSONArray values = json.toJSONArray(names);
                 for(int i = 0 ; i < values.length(); i++) {
                     if(names.getString(i).equals(schemaShortInt)) {
-                        int actual = values.getInt(i);
+                        int actual = Short.decode(values.getString(i)).shortValue(); //values.getInt(i);
                         int expected = cursor.getInt(cursor.getColumnIndex(schemaShortInt));
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaLongInt)) {
-                        long actual = values.getLong(i);
+                        long actual = Long.decode(values.getString(i)).longValue(); //values.getLong(i);
                         long expected = cursor.getLong(cursor.getColumnIndex(schemaLongInt));
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaInt)) {
-                        int actual = values.getInt(i);
+                        int actual = Integer.decode(values.getString(i)).intValue(); //values.getInt(i);
                         int expected = cursor.getInt(cursor.getColumnIndex(schemaInt));
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaBool)) {
-                        boolean actual = values.getBoolean(i); //(values.getInt(i) == 1);
+                        boolean actual = (values.getInt(i) == 1);
                         boolean expected = (cursor.getInt(cursor.getColumnIndex(schemaBool)) == 1);
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
@@ -692,13 +692,7 @@ public class RequestSerializerHelper {
 	    Log.d(TAG, "  size2=[" + blobSize2 + "]");
 	    
 	    Assert.assertEquals(blobSize1, blobSize2);
-
-
-
-	    
-
 	}
-
 
         // Compare json serialization to the cv which was written to the db originally
         public void compareJsonToCv(JSONObject json, ContentValues cv)
@@ -784,7 +778,7 @@ public class RequestSerializerHelper {
                 JSONArray values = json.toJSONArray(names);
                 for(int i = 0 ; i < values.length(); i++) {
                     if(names.getString(i).equals(schemaReal)) {
-                        double actual = values.getDouble(i);
+                        double actual = Double.parseDouble(values.getString(i)); //values.getDouble(i);
                         double expected = cursor.getDouble(cursor.getColumnIndex(schemaReal));
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected + "'");
                         Assert.assertEquals(actual, expected, error_bar);
