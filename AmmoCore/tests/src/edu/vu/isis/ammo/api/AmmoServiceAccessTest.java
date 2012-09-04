@@ -24,11 +24,13 @@ import edu.vu.isis.ammo.core.model.Netlink;
  * This is a simple framework for a test of a Service.  
  * See {@link android.test.ServiceTestCase ServiceTestCase} 
  * for more information on how to write and extend service tests.
- * 
+ * <p>
  * To run this test, you can type:
+ * <code>
  * adb shell am instrument -w \
  *   -e class edu.vu.isis.ammo.core.test.AmmoServiceTestDeprecated \
  *   edu.vu.isis.ammo.core.test/android.test.InstrumentationTestRunner
+ *   </code>
  */
 /**
  * Test for AmmoCore::AmmoActivity
@@ -57,13 +59,14 @@ public class AmmoServiceAccessTest  extends android.test.ServiceTestCase<AmmoSer
     @Override
     protected void tearDown () throws Exception {
         logger.info("Tear Down" );
+        super.tearDown();
     }
 
     /**
-     * The name 'test preconditions' is a convention to signal that if this
-     * test doesn't pass, the test case was not set up properly and it might
-     * explain any and all failures in other tests.  This is not guaranteed
-     * to run before other tests, as junit uses reflection to find the tests.
+     * The name 'test preconditions' is a convention to signal that if this test
+     * doesn't pass, the test case was not set up properly and it might explain
+     * any and all failures in other tests. This is not guaranteed to run before
+     * other tests, as junit uses reflection to find the tests.
      */
     @SmallTest
     public void testPreconditions() {
@@ -93,12 +96,11 @@ public class AmmoServiceAccessTest  extends android.test.ServiceTestCase<AmmoSer
     
     /**
      * FIXME
+     * <p>
      * I believe this test is currently broken.
      * The returned value should be an integer (qua Enum) not a boolean.
-     */
-    
-    // If the test is broken we don't need to be running it until it's fixed/
-    // TODO: fix test
+     * <p>
+     * If the test is broken we don't need to be running it until it's fixed/
     /*
     public void testWiredState() {
         logger.info("status : wired network connection");
@@ -119,6 +121,7 @@ public class AmmoServiceAccessTest  extends android.test.ServiceTestCase<AmmoSer
         logger.info("WiFi link status [{}]", actual);
         assertEquals("WiFi link status", Netlink.NETLINK_CONNECTED, actual);
     }
+    
     */
 
 }

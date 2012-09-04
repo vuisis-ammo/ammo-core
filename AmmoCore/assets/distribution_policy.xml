@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<!-- 
+<!--
      Put the file in /data/data/edu.vu.isis.ammo.core/app_policy 
      adb push distribution_policy.xml
    /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml 
@@ -18,145 +18,291 @@
    inheritable and must be provided explicitly.
    
    On literals the "condition" must be "success" or "failure".
-
 -->
 <policy>
-	<topic type="">
-		<description>
-			Generally requests should be sent over the gateway, unless it isn't
-			available then local multicast delivery should be used.
-		</description>
-		<routing priority="normal" category="postal" lifespan="30">
-			<clause>
-				<literal term="gateway" condition="success" encoding="json" />
-				<literal term="reliablemulticast" condition="success" encoding="json" />
-				<literal term="multicast" condition="success" encoding="json" />
-			</clause>
-		</routing>
-		<routing priority="high" category="subscribe" lifespan="500000"> <!-- about a year -->
-			<clause>
-				<literal term="gateway" condition="success" encoding="json"/>
-				<literal term="reliablemulticast" condition="success" encoding="json" />
-			</clause>
-		</routing>
-		<routing priority="normal" category="retrieval" lifespan="10">
-			<clause>
-				<literal term="gateway" condition="success" encoding="json"/>
-				<literal term="reliablemulticast" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
-	
-	<topic type="ammo/edu.vu.isis.ammo.dash">
-		<description>
+
+    <topic type="" >
+
+        <description>
+Generally requests should be sent over the gateway, unless it isn't
+available then local multicast delivery should be used.
+        </description>
+
+        <routing
+            category="postal"
+            lifespan="30"
+            priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="multicast" />
+            </clause>
+        </routing>
+
+        <routing
+            category="subscribe"
+            lifespan="500000"
+            priority="high" > <!-- about a year -->
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+            </clause>
+        </routing>
+
+        <routing
+            category="retrieval"
+            lifespan="10"
+            priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+            </clause>
+        </routing>
+    </topic>
+
+    <topic type="ammo/edu.vu.isis.ammo.dash" >
+
+        <description>
 Dash to:
--  Reliable multicast channel next,
--  Gateway channel last
+- Reliable multicast channel next,
+- Gateway channel last
 Such that if the prior channel succeeds the next channel is not attempted.
-		</description>
-		<routing priority="normal" category="postal" lifespan="30">
-			<clause>
-				<literal term="reliablemulticast" condition="success" encoding="json" />
-				<literal term="gateway" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
-	
-	<topic type="ammo/edu.vu.isis.ammo.dash.event">
-		<description>
+        </description>
+
+        <routing
+            category="postal"
+            lifespan="30"
+            priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+            </clause>
+        </routing>
+    </topic>
+
+    <topic type="ammo/edu.vu.isis.ammo.dash.event" >
+
+        <description>
 Dash event to:
--  Serial channel first (terse encoding),
--  Reliable multicast channel next,
--  Gateway channel last
+- Serial channel first (terse encoding),
+- Reliable multicast channel next,
+- Gateway channel last
 Such that if the prior channel succeeds the next channel is not attempted.
-		</description>
-		<routing priority="normal" category="postal" lifespan="30">
-			<clause>
-				<literal term="serial" condition="success" encoding="terse" />
-				<literal term="reliablemulticast" condition="success" encoding="json" />
-				<literal term="gateway" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
+        </description>
 
-	<topic type="ammo/transapps.chat.message_groupAll">
-		<description>
+        <routing
+            category="postal"
+            lifespan="30"
+            priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+            </clause>
+        </routing>
+    </topic>
+
+    <topic type="ammo/transapps.chat.message_groupAll" >
+
+        <description>
 Group chat to:
--  Serial channel first (terse encoding),
--  Reliable multicast channel next,
--  Gateway channel last
+- Serial channel first (terse encoding),
+- Reliable multicast channel next,
+- Gateway channel last
 Such that if the prior channel succeeds the next channel is not attempted.
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="serial" condition="success" encoding="terse" />
-				<literal term="gateway" condition="success" encoding="json" />
-				<literal term="reliablemulticast" condition="success" encoding="json" />
-				<literal term="multicast" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
+        </description>
 
+        <routing priority="normal" >
 
-	<topic type="ammo/edu.vu.isis.ammo.sms">
-		<description>
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="multicast" />
+            </clause>
+        </routing>
+    </topic>
+
+    <topic type="ammo/edu.vu.isis.ammo.sms" >
+
+        <description>
 SMS to:
--  Serial channel first (terse encoding),
--  Unreliable multicast channel next,
--  Gateway channel last
+- Serial channel first (terse encoding),
+- Unreliable multicast channel next,
+- Gateway channel last
 Such that if the prior channel succeeds the next channel is not attempted.
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="serial" condition="success" encoding="terse" />
-				<literal term="reliablemulticast" condition="success" encoding="json" />
-				<literal term="gateway" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
+        </description>
 
-	
-	<topic type="ammo/com.aterrasys.">
-		<description>
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="gateway" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
+        <routing priority="normal" >
 
-	<topic type="ammo/com.aterrasys.nevada.locations">
-		<description>
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+            </clause>
+        </routing>
+    </topic>
+
+    <topic type="ammo/com.aterrasys." >
+
+        <description>
+        </description>
+
+        <routing priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+            </clause>
+        </routing>
+    </topic>
+
+    <topic type="ammo/com.aterrasys.nevada.locations" >
+
+        <description>
 PLI to:
--          Serial channel first (terse encoding),
--          Multicast channel next,
--          Gateway channel last
+- Serial channel first (terse encoding),
+- Multicast channel next,
+- Gateway channel last
 Such that if the prior channel succeeds the next channel is not attempted.
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="serial" condition="success" encoding="terse" />
-				<literal term="multicast" condition="success" encoding="json" />
-				<literal term="gateway" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
+        </description>
 
-	<topic type="ammo/transapps.pli.locations">
-		<description>
+        <routing priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="multicast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+            </clause>
+        </routing>
+    </topic>
+
+    <topic type="ammo/transapps.pli.locations" >
+
+        <description>
 PLI to:
--          Serial channel first (terse encoding),
--          Multicast channel next,
--          Gateway channel last
+- Serial channel first (terse encoding),
+- Multicast channel next,
+- Gateway channel last
 Such that if the prior channel succeeds the next channel is not attempted.
-		</description>
-		<routing priority="normal">
-			<clause>
-				<literal term="serial" condition="success" encoding="terse" />
-				<literal term="multicast" condition="success" encoding="json" />
-				<literal term="gateway" condition="success" encoding="json" />
-			</clause>
-		</routing>
-	</topic>
+        </description>
+
+        <routing priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="multicast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+            </clause>
+        </routing>
+    </topic>
+
 </policy>

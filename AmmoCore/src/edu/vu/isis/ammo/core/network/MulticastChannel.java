@@ -51,36 +51,44 @@ public class MulticastChannel extends NetChannel
                                                    // milliseconds
 
     /**
-     * $ sysctl net.ipv4.tcp_rmem or $ cat /proc/sys/net/ipv4/tcp_rmem 4096
-     * 87380 4194304 0x1000 0x15554 0x400000 The first value tells the kernel
-     * the minimum receive buffer for each TCP connection, and this buffer is
-     * always allocated to a TCP socket, even under high pressure on the system.
-     * The second value specified tells the kernel the default receive buffer
-     * allocated for each TCP socket. This value overrides the
-     * /proc/sys/net/core/rmem_default value used by other protocols. The third
-     * and last value specified in this variable specifies the maximum receive
-     * buffer that can be allocated for a TCP socket.
+     * <code>
+     * $ sysctl net.ipv4.tcp_rmem 
+     * or 
+     * $ cat /proc/sys/net/ipv4/tcp_rmem 
+     * 409687380 4194304 0x1000 0x15554 0x400000 
+     * </code>
+     * <p>
+     * The first value tells the kernel the minimum receive buffer for each TCP
+     * connection, and this buffer is always allocated to a TCP socket, even
+     * under high pressure on the system. The second value specified tells the
+     * kernel the default receive buffer allocated for each TCP socket. This
+     * value overrides the <code>
+     * /proc/sys/net/core/rmem_default 
+     * </code> value used by other protocols. The third and last value specified
+     * in this variable specifies the maximum receive buffer that can be
+     * allocated for a TCP socket.
      */
     @SuppressWarnings("unused")
-    private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum
-                                                           // receive buffer
-                                                           // size
+    /** the maximum receive buffer size */
+    private static final int TCP_RECV_BUFF_SIZE = 0x15554;
     @SuppressWarnings("unused")
-    private static final int MAX_MESSAGE_SIZE = 0x100000; // arbitrary max size
+    /** arbitrary max size */
+    private static final int MAX_MESSAGE_SIZE = 0x100000;
     private boolean isEnabled = true;
 
     private final Socket socket = null;
     private ConnectorThread connectorThread;
 
-    // New threads
+    /** New threads */
     private SenderThread mSender;
     private ReceiverThread mReceiver;
 
     @SuppressWarnings("unused")
-    private int connectTimeout = 5 * 1000; // this should come from network
-                                           // preferences
+    /** this should come from network preferences */
+    private int connectTimeout = 5 * 1000;
     @SuppressWarnings("unused")
-    private int socketTimeout = 5 * 1000; // milliseconds.
+    /** milliseconds. */
+    private int socketTimeout = 5 * 1000;
 
     /*
      * private String gatewayHost = null; private int gatewayPort = -1;
@@ -238,11 +246,13 @@ public class MulticastChannel extends NetChannel
         return "socket: host[" + this.mMulticastAddress + "] port[" + this.mMulticastPort + "]";
     }
 
-    public void linkUp() {
+    @Override
+    public void linkUp(String name) {
         this.connectorThread.state.linkUp();
     }
 
-    public void linkDown() {
+    @Override
+    public void linkDown(String name) {
         this.connectorThread.state.linkDown();
     }
 
@@ -322,8 +332,13 @@ public class MulticastChannel extends NetChannel
         reset();
     }
 
-    // Called by ReceiverThread to send an incoming message to the
-    // appropriate destination.
+    /**
+     * Called by ReceiverThread to send an incoming message to the appropriate
+     * destination.
+     * 
+     * @param agm
+     * @return
+     */
     private boolean deliverMessage(AmmoGatewayMessage agm)
     {
         logger.debug("deliverMessage() {} ", agm);
@@ -352,7 +367,7 @@ public class MulticastChannel extends NetChannel
         return handler.ack(this.name, status);
     }
 
-    // Called by the ConnectorThread.
+    /** Called by the ConnectorThread. */
     private boolean isAnyLinkUp()
     {
         return mChannelManager.isAnyLinkUp();
@@ -361,14 +376,17 @@ public class MulticastChannel extends NetChannel
     @SuppressWarnings("unused")
     private final AtomicLong mTimeOfLastGoodRead = new AtomicLong(0);
 
-    // Heartbeat-related members.
+    /** Heartbeat-related members. */
     private final long mHeartbeatInterval = 10 * 1000; // ms
     private final AtomicLong mNextHeartbeatTime = new AtomicLong(0);
 
-    // Send a heartbeat packet to the gateway if enough time has elapsed.
-    // Note: the way this currently works, the heartbeat can only be sent
-    // in intervals that are multiples of the burp time. This may change
-    // later if I can eliminate some of the wait()s.
+    /**
+     * Send a heartbeat packet to the gateway if enough time has elapsed.
+     * <p>
+     * Note: the way this currently works, the heartbeat can only be sent in
+     * intervals that are multiples of the burp time. This may change later if I
+     * can eliminate some of the wait()s.
+     */
     @SuppressWarnings("unused")
     private void sendHeartbeatIfNeeded()
     {
@@ -420,9 +438,11 @@ public class MulticastChannel extends NetChannel
             parent.statusChange();
         }
 
-        // Called by the sender and receiver when they have an exception on the
-        // socket. We only want to call reset() once, so we use an
-        // AtomicBoolean to keep track of whether we need to call it.
+        /**
+         * Called by the sender and receiver when they have an exception on the
+         * socket. We only want to call reset() once, so we use an AtomicBoolean
+         * to keep track of whether we need to call it.
+         */
         public void socketOperationFailed()
         {
             if (mIsConnected.compareAndSet(true, false))
@@ -556,9 +576,13 @@ public class MulticastChannel extends NetChannel
          * CONNECTED value. In that CONNECTED value the machine wait for the
          * connection value to change or for an interrupt indicating that the
          * thread is being shut down. The value machine takes care of the
-         * following constraints: We don't need to reconnect unless. 1) the
-         * connection has been lost 2) the connection has been marked stale 3)
-         * the connection is enabled. 4) an explicit reconnection was requested
+         * following constraints: We don't need to reconnect unless.
+         * <ol>
+         * <li>the connection has been lost
+         * <li>the connection has been marked stale
+         * <li>the connection is enabled.
+         * <li>an explicit reconnection was requested
+         * </ol>
          * 
          * @return
          */
@@ -780,8 +804,7 @@ public class MulticastChannel extends NetChannel
             parent.mReceiver.start();
 
             // FIXME: don't pass in the result of buildAuthenticationRequest().
-            // This is
-            // just a temporary hack.
+            // This is just a temporary hack.
             // parent.getSecurityObject().authorize(
             // mChannelManager.buildAuthenticationRequest());
             setIsAuthorized(true);
@@ -899,8 +922,10 @@ public class MulticastChannel extends NetChannel
             mAuthQueue = new LinkedList<AmmoGatewayMessage>();
         }
 
-        // In the new design, aren't we supposed to let the
-        // AmmoService know if the outgoing queue is full or not?
+        /**
+         * In the new design, aren't we supposed to let the AmmoService know if
+         * the outgoing queue is full or not?
+         */
         public DisposalState putFromDistributor(AmmoGatewayMessage iMessage)
         {
             logger.info("putFromDistributor() in ChannelQueue size={}", mDistQueue.size());
@@ -928,8 +953,10 @@ public class MulticastChannel extends NetChannel
             notifyAll();
         }
 
-        // This is called when the SecurityObject has successfully
-        // authorized the channel.
+        /**
+         * This is called when the SecurityObject has successfully authorized
+         * the channel.
+         */
         public synchronized void markAsAuthorized()
         {
             logger.trace("Marking channel as authorized");
@@ -1177,7 +1204,9 @@ public class MulticastChannel extends NetChannel
                     byte[] payload = new byte[agmb.size()];
                     buf.get(payload, 0, buf.remaining());
 
-                    AmmoGatewayMessage agm = agmb.payload(payload).channel(this.mDestination)
+                    AmmoGatewayMessage agm = agmb
+                            .payload(payload)
+                            .channel(this.mDestination)
                             .build();
                     setReceiverState(INetChannel.DELIVER);
                     mDestination.deliverMessage(agm);

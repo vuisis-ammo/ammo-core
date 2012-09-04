@@ -210,32 +210,6 @@ public class DistributorPolicy implements ContentHandler {
     }
 
     /**
-     * The following constructor is for testing only.
-     * 
-     * @param context
-     * @param dummy
-     */
-    public DistributorPolicy(Context context, int testSetId) {
-        this.publishPolicy = new PrefixList<Topic>();
-        this.postalPolicy = new PrefixList<Topic>();
-        this.subscribePolicy = new PrefixList<Topic>();
-        this.retrievalPolicy = new PrefixList<Topic>();
-
-        this.builder = new TopicBuilder();
-
-        switch (testSetId) {
-            default:
-                this.setDefaultRule();
-
-                this.builder.type("urn:test:domain/trial/both")
-                        .addClause()
-                        .addLiteral("gateway", true, Encoding.DEFAULT)
-                        .addLiteral("multicast", true, Encoding.DEFAULT)
-                        .build();
-        }
-    }
-
-    /**
      * A rule to catch all patterns which don't match anything else.
      */
     public void setDefaultRule() {

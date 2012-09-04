@@ -113,8 +113,9 @@ public class SerialChannel extends NetChannel
 
     /**
      * Should only be called from main thread in response to any intent (so no
-     * need for synchonized.
+     * need for synchronized.
      */
+    @Override
     public void linkUp( String devname )
     {
         logger.debug( "SerialChannel::linkUp() old: {}, new: {}", mDevice, devname );
@@ -130,8 +131,9 @@ public class SerialChannel extends NetChannel
 
     /**
      * Should only be called from main thread in response to any intent (so no
-     * need for synchonized.
+     * need for synchronized.
      */
+    @Override
     public void linkDown( String devname )
     {
         logger.debug( "SerialChannel::linkDown() old: {}, new: {}", mDevice, devname );
