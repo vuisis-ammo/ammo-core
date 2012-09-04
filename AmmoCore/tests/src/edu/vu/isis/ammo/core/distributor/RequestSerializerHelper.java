@@ -2,8 +2,6 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-//import java.io.ByteArrayInputStream;
-//import java.io.ObjectInputStream;
 
 import java.util.Map;
 import java.util.Arrays;
@@ -27,8 +25,6 @@ import junit.framework.TestSuite;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONArray;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
 
 import android.util.Log;
 import android.content.ContentResolver;
@@ -40,7 +36,6 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 
 import android.test.mock.MockContentResolver;
-//import ch.qos.logback.classic.Level;
 
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.provider.AmmoMockProvider01;
@@ -95,11 +90,13 @@ public class RequestSerializerHelper {
     // the tests themselves (or only minimally).
 
     public interface SchemaTable {
+	public Uri getBaseUri();
+	public String getTable();
         public ContentValues createContentValues();
         public ContentValues createContentValuesRandom();
         public Uri populateProviderWithData(AmmoMockProvider01 provider, ContentValues cv);
         public void compareJsonToCv(JSONObject json, ContentValues cv);
-        public void compareJsonToUri(String jsonStr, AmmoMockProvider01 provider, Uri uri);
+        public void compareJsonToUri(byte[] jsonBytes, AmmoMockProvider01 provider, Uri uri);
     }
 
     // =========================================================
@@ -108,12 +105,15 @@ public class RequestSerializerHelper {
     public static class SchemaTable1Data implements SchemaTable {
         public SchemaTable1Data() {}
 
-        public Uri mBaseUri = AmmoTableSchema.CONTENT_URI;
-        public String mTable =  Tables.AMMO_TBL;
+        private final Uri mBaseUri = AmmoTableSchema.CONTENT_URI;
+        private final String mTable =  Tables.AMMO_TBL;
 
         private final String schemaForeignKey = AmmoTableSchema.A_FOREIGN_KEY_REF;
         private final String schemaExEnum = AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION;
         private final String schemaInEnum = AmmoTableSchema.AN_INCLUSIVE_ENUMERATION;
+
+	public Uri getBaseUri() { return mBaseUri; }
+	public String getTable() { return mTable; }
 
         public ContentValues createContentValues()
         {
@@ -198,10 +198,10 @@ public class RequestSerializerHelper {
         }
 
         // Compare json serialization to the provider content written from it
-        public void compareJsonToUri(String jsonStr, AmmoMockProvider01 provider, Uri uri)
+        public void compareJsonToUri(byte[] jsonBytes, AmmoMockProvider01 provider, Uri uri)
         {
             try {
-                JSONObject json = new JSONObject(jsonStr);
+		JSONObject json = RequestSerializerHelper.jsonObjectFromBytes(jsonBytes);
 
                 Assert.assertTrue(json.has(schemaForeignKey));
                 Assert.assertTrue(json.has(schemaExEnum));
@@ -266,14 +266,17 @@ public class RequestSerializerHelper {
     public static class SchemaTable2Data implements SchemaTable {
         public SchemaTable2Data() {}
 
-        public Uri mBaseUri = QuickTableSchema.CONTENT_URI;
-        public String mTable =  Tables.QUICK_TBL;
+        private final Uri mBaseUri = QuickTableSchema.CONTENT_URI;
+        private final String mTable =  Tables.QUICK_TBL;
 
         private final String schemaShortInt = QuickTableSchema.A_SHORT_INTEGER;
         private final String schemaLongInt = QuickTableSchema.A_LONG_INTEGER;
         private final String schemaInt = QuickTableSchema.AN_INTEGER;
         private final String schemaBool = QuickTableSchema.A_BOOLEAN;
         private final String schemaTime = QuickTableSchema.A_ABSOLUTE_TIME;
+
+	public Uri getBaseUri() { return mBaseUri; }
+	public String getTable() { return mTable; }
 
         public ContentValues createContentValues()
         {
@@ -364,10 +367,10 @@ public class RequestSerializerHelper {
         }
 
         // Compare json serialization to the provider content written from it
-        public void compareJsonToUri(String jsonStr, AmmoMockProvider01 provider, Uri uri)
+        public void compareJsonToUri(byte[] jsonBytes, AmmoMockProvider01 provider, Uri uri)
         {
             try {
-                JSONObject json = new JSONObject(jsonStr);
+		JSONObject json = RequestSerializerHelper.jsonObjectFromBytes(jsonBytes);
 
                 Assert.assertTrue(json.has(schemaShortInt));
                 Assert.assertTrue(json.has(schemaInt));
@@ -442,14 +445,17 @@ public class RequestSerializerHelper {
     public static class SchemaTable3Data implements SchemaTable {
         public SchemaTable3Data() {}
 
-        public Uri mBaseUri = StartTableSchema.CONTENT_URI;
-        public String mTable =  Tables.START_TBL;
+        private final Uri mBaseUri = StartTableSchema.CONTENT_URI;
+        private final String mTable =  Tables.START_TBL;
 
         private final String schemaReal = StartTableSchema.A_REAL;
         private final String schemaGuid = StartTableSchema.A_GLOBALLY_UNIQUE_IDENTIFIER;
         private final String schemaText = StartTableSchema.SOME_ARBITRARY_TEXT;
         private final String schemaFile = StartTableSchema.A_FILE;
         private final String schemaBlob = StartTableSchema.A_BLOB;
+
+	public Uri getBaseUri() { return mBaseUri; }
+	public String getTable() { return mTable; }
 
         public ContentValues createContentValues()
         {
@@ -742,11 +748,11 @@ public class RequestSerializerHelper {
         }
 
         // Compare json serialization to the provider content written from it
-        public void compareJsonToUri(String jsonStr, AmmoMockProvider01 provider, Uri uri)
+        public void compareJsonToUri(byte[] jsonBytes, AmmoMockProvider01 provider, Uri uri)
         {
             final double error_bar = 0.00001;
             try {
-                JSONObject json = new JSONObject(jsonStr);
+		JSONObject json = RequestSerializerHelper.jsonObjectFromBytes(jsonBytes);
 
                 Assert.assertTrue(json.has(schemaReal));
                 Assert.assertTrue(json.has(schemaGuid));

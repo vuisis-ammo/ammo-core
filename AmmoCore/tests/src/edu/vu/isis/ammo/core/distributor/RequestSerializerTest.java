@@ -441,15 +441,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             SchemaTable1Data d = new SchemaTable1Data();
 
             ContentValues cv = d.createContentValues();
-            String jsonStr = TestUtils.createJsonAsString(cv);
-            byte[] jsonBytes = jsonStr.getBytes();
+	    byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
             Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                 cr,
                                                                 "dummy",
-                                                                d.mBaseUri,
+                                                                d.getBaseUri(),
                                                                 enc,
                                                                 jsonBytes);
-            d.compareJsonToUri(jsonStr, provider, uriIn);
+            d.compareJsonToUri(jsonBytes, provider, uriIn);
         } finally {
             if (provider != null) provider.release();
         }
@@ -477,15 +476,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             SchemaTable2Data d = new SchemaTable2Data();
 
             ContentValues cv = d.createContentValues();
-            String jsonStr = TestUtils.createJsonAsString(cv);
-            byte[] jsonBytes = jsonStr.getBytes();
+	    byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
             Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                 cr,
                                                                 "dummy",
-                                                                d.mBaseUri,
+                                                                d.getBaseUri(),
                                                                 enc,
                                                                 jsonBytes);
-            d.compareJsonToUri(jsonStr, provider, uriIn);
+            d.compareJsonToUri(jsonBytes, provider, uriIn);
         } finally {
             if (provider != null) provider.release();
         }
@@ -513,15 +511,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             SchemaTable3Data d = new SchemaTable3Data();
 
             ContentValues cv = d.createContentValues();
-            String jsonStr = TestUtils.createJsonAsString(cv);
-            byte[] jsonBytes = jsonStr.getBytes();
+	    byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
             Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                 cr,
                                                                 "dummy",
-                                                                d.mBaseUri,
+                                                                d.getBaseUri(),
                                                                 enc,
                                                                 jsonBytes);
-            d.compareJsonToUri(jsonStr, provider, uriIn);
+            d.compareJsonToUri(jsonBytes, provider, uriIn);
         } finally {
             if (provider != null) provider.release();
         }
@@ -554,15 +551,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             // Repeatedly deserialize random values to the db
             for (int i=0; i < NUM_ITERATIONS; i++) {
                 ContentValues cv = d.createContentValuesRandom();
-                String jsonStr = TestUtils.createJsonAsString(cv);
-                byte[] jsonBytes = jsonStr.getBytes();
+		byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
                 Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                     cr,
                                                                     "dummy",
-                                                                    d.mBaseUri,
+                                                                    d.getBaseUri(),
                                                                     enc,
                                                                     jsonBytes);
-                d.compareJsonToUri(jsonStr, provider, uriIn);
+                d.compareJsonToUri(jsonBytes, provider, uriIn);
             }
         } finally {
             if (provider != null) provider.release();
@@ -596,15 +592,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             // Repeatedly deserialize random values to the db
             for (int i=0; i < NUM_ITERATIONS; i++) {
                 ContentValues cv = d.createContentValuesRandom();
-                String jsonStr = TestUtils.createJsonAsString(cv);
-                byte[] jsonBytes = jsonStr.getBytes();
+		byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
                 Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                     cr,
                                                                     "dummy",
-                                                                    d.mBaseUri,
+                                                                    d.getBaseUri(),
                                                                     enc,
                                                                     jsonBytes);
-                d.compareJsonToUri(jsonStr, provider, uriIn);
+                d.compareJsonToUri(jsonBytes, provider, uriIn);
             }
         } finally {
             if (provider != null) provider.release();
@@ -637,15 +632,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             // Repeatedly deserialize random values to the db
             for (int i=0; i < NUM_ITERATIONS; i++) {
                 ContentValues cv = d.createContentValuesRandom();
-                String jsonStr = TestUtils.createJsonAsString(cv);
-                byte[] jsonBytes = jsonStr.getBytes();
+		byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
                 Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                     cr,
                                                                     "dummy",
-                                                                    d.mBaseUri,
+                                                                    d.getBaseUri(),
                                                                     enc,
                                                                     jsonBytes);
-                d.compareJsonToUri(jsonStr, provider, uriIn);
+                d.compareJsonToUri(jsonBytes, provider, uriIn);
             }
         } finally {
             if (provider != null) provider.release();
