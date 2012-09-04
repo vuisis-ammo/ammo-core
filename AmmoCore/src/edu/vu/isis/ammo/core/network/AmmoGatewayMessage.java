@@ -83,12 +83,17 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         + 2  // payload size
         + 2  // payload checksum
         + 4  // timestamp
-        + 2  // <reserved>
+        + 1  //   index in slot: 4 bits
+             //   <reserved>:    2 bits
+             //   packet type:   2 bits
+        + 1  // <reserved>
         + 2; // header checksum
-
+    // ------
+    //   16 bytes
 
     // These are equal because the terse form doesn't use a header checksum.
     public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH;
+
 
     public final int size;
     public final byte priority;
@@ -104,6 +109,30 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
     public final long buildTime;
     public long gpsOffset;
+
+    // These values denote the packet type with respect to the resend
+    // functionality.  Note: used only in terse encoding
+    public static final int PACKETTYPE_STANDARD = 0x01;
+    public static final int PACKETTYPE_RESENT   = 0x10;
+    public static final int PACKETTYPE_ACK      = 0x11;
+
+    //
+    // The following two members must not be made final, because they need to
+    // be set in the SerialChannel after the Builder has run.  The Builder
+    // pattern is probably a bad idea in this class.
+    // Note: We might want to make both of these shorts.
+    //
+
+    public int mPacketType;
+
+    // This denoted the index in the sequence of packets within
+    // the current slot.  Note: used only in terse encoding.
+    public int mIndexInSlot;
+
+    // For received packets, this member records the slot in which the sender
+    // thought he was sending.
+    public int mSlotID;
+
 
     /**
      * This is used by PriorityBlockingQueue() to prioritize it contents.
@@ -146,6 +175,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         if (this.payload_checksum > that.payload_checksum) return -1;
         return 0;
     }
+
     /**
      * The recommendation is that equals conforms to compareTo.
      */
@@ -189,6 +219,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         return sb.toString();
     }
 
+
     static public class Builder {
         // the size is the intended size, the actual size is that of the payload
         private int size;
@@ -213,6 +244,18 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         private long checksum;
         public long checksum() { return this.checksum; }
         public Builder checksum(long val) { this.checksum = val; return this; }
+
+        private int mPacketType;
+        public int packetType() { return mPacketType; }
+        public Builder packetType( int type ) { mPacketType = type; return this; }
+
+        private int mIndexInSlot;
+        public int indexInSlot() { return mIndexInSlot; }
+        public Builder indexInSlot( int index ) { mIndexInSlot = index; return this; }
+
+        private int mSlotID;
+        public int slotID() { return mSlotID; }
+        public Builder slotID( int index ) { mSlotID = index; return this; }
 
         private INetworkService.OnSendMessageHandler handler;
         public INetworkService.OnSendMessageHandler handler() { return this.handler; }
@@ -277,6 +320,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.priority = PriorityLevel.NORMAL.b();
             this.version = VERSION_1_FULL;
             this.checksum = 0;
+            mPacketType = PACKETTYPE_STANDARD;
+            mIndexInSlot = -1;  // default to an invalid index
+            mSlotID = -1;       // default to an invalid slot
             this.handler = null;
         }
     }
@@ -288,16 +334,19 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.priority = builder.priority;
         this.version = builder.version;
         this.payload_checksum = builder.checksum;
+        mPacketType = builder.mPacketType;
+        mIndexInSlot = builder.mIndexInSlot;
+        mSlotID = builder.mSlotID;
         this.payload = payload;
         this.handler = builder.handler;
 
         this.isMulticast = builder.isMulticast;
         this.isSerialChannel = builder.isSerialChannel;
         this.isGateway = builder.isGateway;
-	this.channel = builder.channel;
-	// record the time when the message is built so we can sort it by time
-	// if the priority is same
-	this.buildTime = System.currentTimeMillis();
+        this.channel = builder.channel;
+        // record the time when the message is built so we can sort it by time
+        // if the priority is same
+        this.buildTime = System.currentTimeMillis();
     }
 
     public static AmmoGatewayMessage.Builder newBuilder( AmmoMessages.MessageWrapper.Builder mwb,
@@ -330,19 +379,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     }
 
 
-    //public int totalLength( byte version )
-    //{
-    //    if ( version == VERSION_1_FULL ) {
-    //        return HEADER_LENGTH + payload.length;
-    //    } else if ( version == VERSION_1_TERSE ) {
-    //        return HEADER_LENGTH_TERSE + payload.length;
-    //    } else {
-    //        logger.error("invalid version supplied {}", version);
-    //        return -1;
-    //    }    	
-    //}
-    
-    
     /**
      * Serialize the AmmoMessage for transmission to the gateway.
      * @return
@@ -378,10 +414,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             // payload
             buf.put( this.payload );
             if (logger.isDebugEnabled()) {
-                
+
                 if (payload.length > 450) {
                     //ByteBuffer tmp = ByteBuffer.wrap(payload, 0, 450);
-                    logger.debug( "  payload length={} ", payload.length);                    
+                    logger.debug( "  payload length={} ", payload.length);
                 }
                 else
                     logger.debug( "   payload={}", this.payload );
@@ -394,6 +430,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             ByteBuffer buf = ByteBuffer.allocate( total_length );
             buf.order( endian );
 
+            // Magic and slot number (4 bytes)
             buf.put(MAGIC[2]);
             buf.put(MAGIC[1]);
             buf.put(MAGIC[0]);
@@ -403,10 +440,12 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             byte terse_version = (byte) (0x00000040 | phone_id);
             buf.put( terse_version );
 
+            // Payload size (2 bytes)
             short sizeAsShort = (short) this.size;
             buf.putShort( sizeAsShort );
             logger.debug( "   size={}", sizeAsShort );
 
+            // Payload checksum (2 bytes)
             // Only output [0] and [1] of the four byte checksum.
             byte[] payloadCheckSum = convertChecksum( this.payload_checksum );
             logger.debug( "   payload_checksum as bytes={}", payloadCheckSum );
@@ -414,13 +453,24 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             buf.put( payloadCheckSum[1] );
             //buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
+            // Timestamp (4 bytes)
             long nowInMillis = System.currentTimeMillis() - gpsOffset;
             int nowInMillisInt =  (int)(nowInMillis % 1000000000);
-
             //buf.putLong( nowInMillis );
-            //buf.putInt( 0 );  // time will go here.
             buf.putInt( nowInMillisInt );
-	    buf.putShort( (short)(gpsOffset) );
+
+            // The next byte contains: iiii00tt
+            // where iiii is the index in slot
+            // and tt is the packet type.
+            int next = 0;
+            next |= (mIndexInSlot << 4);
+            next |= mPacketType;
+            buf.put( (byte) next );
+
+            // <reserved> (1 byte)
+            buf.put( (byte) 0 );
+
+            // Header checksum (2 bytes)
             // Put two-byte header checksum here.  The checksum covers the
             // magic sequence and everything up to and including the six
             // zero bytes just written.
@@ -499,10 +549,12 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                              .error(error);
                 } else if ( (version & 0xC0) == 0x40 ) {
                     @SuppressWarnings("unused")
-					byte phone_id = (byte) (version & 0x3F);
+					byte phoneID = (byte) (version & 0x3F);
 
+                    // Payload size (2 bytes)
                     int size = drain.getShort();
 
+                    // Payload checksum (2 bytes)
                     byte[] checkPayloadBytes = new byte[ 4 ];
                     checkPayloadBytes[0] = drain.get();
                     checkPayloadBytes[1] = drain.get();
@@ -512,14 +564,20 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     logger.debug( "   payload check={}", checkPayloadBytes );
                     long payload_checksum = convertChecksum(checkPayloadBytes);
 
-                    // Discard six bytes of zero
+                    // Discard timestamp (4 bytes)
                     drain.getInt();
-                    drain.getShort();
 
-                    // Hack for CACI test.  It's inefficient to have this happen
-                    // here, since it will happen for verbose, too.  Get the magic
-                    // sequence out of this function, since it should be channel-
-                    // specific.
+                    // The next byte contains: iiii00tt (1 byte)
+                    // where iiii is the index in slot
+                    // and tt is the packet type.
+                    byte next = drain.get();
+                    int indexInSlot = (next >>> 4); // unsigned right shift
+                    int packetType = next & 0x00000003;
+
+                    // <reserved> (1 byte)
+                    drain.get();
+
+                    // Header checksum (2 bytes)
                     CRC32 terseHeaderCrc32 = new CRC32();
                     terseHeaderCrc32.update( drain.array(), start, HEADER_DATA_LENGTH_TERSE - 2 );
                     byte[] computedChecksum = convertChecksum( terseHeaderCrc32.getValue() );
@@ -531,9 +589,12 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     }
 
                     return AmmoGatewayMessage.newBuilder()
-                            .size(size)
-                            .version(version)
-                            .checksum(payload_checksum);
+                        .size(size)
+                        .version(version)
+                        .checksum(payload_checksum)
+                        .packetType( packetType )
+                        .indexInSlot( indexInSlot )
+                        .slotID( phoneID );
                 } else {
                     logger.error("apparent magic number but version invalid");
                 }

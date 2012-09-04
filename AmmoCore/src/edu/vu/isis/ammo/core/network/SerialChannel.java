@@ -1006,7 +1006,7 @@ public class SerialChannel extends NetChannel
                                     logger.debug( "Time remaining in slot={}, but no messages in queue",
                                                   thisSlotEnd - currentGpsTime  );
                                     if ( getRetransmitter() != null )
-                                        sendRetransmitIfPossible( thisSlotEnd, thisSlotConsumed, bytesPerMs );
+                                        resendAndAck( thisSlotEnd, thisSlotConsumed, bytesPerMs );
                                     // nothing in queue, wait till next slot
                                     goalTakeTime = thisSlotBegin + cycleDuration;
                                     break waitSlot;
@@ -1044,14 +1044,19 @@ public class SerialChannel extends NetChannel
                                 final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed;
                                 final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
 
-                                if ( peekedMsgLength > bytesThatWillFit ) {
+                                // HACK-FIXME: I'm subtracting out 50 here, since we need to have
+                                // room to append the ack packet.  Redo all this later, since the
+                                // logic for how to put packets in the slot will have to change.
+                                // Right now, during development, I just want to make sure that
+                                // the ack packets go out.
+                                if ( peekedMsgLength > (bytesThatWillFit - RESERVE_FOR_ACK) ) {
                                     logger.debug( "Holding: messageLength={}, bytesThatWillFit={}",
                                                   peekedMsgLength,
                                                   bytesThatWillFit );
                                     // since we process queue in order and next message is bigger
                                     // than our available time, goto sleep till next slot
                                     if ( getRetransmitter() != null )
-                                        sendRetransmitIfPossible( thisSlotEnd, thisSlotConsumed, bytesPerMs );
+                                        resendAndAck( thisSlotEnd, thisSlotConsumed, bytesPerMs );
                                     goalTakeTime = thisSlotBegin + cycleDuration;
                                     break waitSlot;
                                 }
@@ -1069,6 +1074,12 @@ public class SerialChannel extends NetChannel
                                 }
 
                                 logger.debug("Took a message from the send queue");
+
+                                // Before sending, set the values that DO NOT
+                                // come from the distributor.
+                                msg.mPacketType = AmmoGatewayMessage.PACKETTYPE_STANDARD;
+                                msg.mIndexInSlot = 0; // FIXME
+
                                 sendMessage(msg);
                                 mMessagesSent.getAndIncrement();
                                 // we keep track of how much time we consumed in data transmit,
@@ -1139,16 +1150,28 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        private void sendRetransmitIfPossible( long thisSlotEnd,
-                                               long thisSlotConsumed,
-                                               double bytesPerMs ) throws IOException
+        private void resendAndAck( long thisSlotEnd,
+                                   long thisSlotConsumed,
+                                   double bytesPerMs ) throws IOException
         {
             // update our time (could potentially change from last read because of context switch etc..)
             final long currentGpsTime = System.currentTimeMillis() - mDelta;
             final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
             final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
 
-            AmmoGatewayMessage agm = getRetransmitter().createRetransmitPacket( bytesThatWillFit );
+            // Loop as long as resend packets will fit.
+            // Subtract out 50 to leave room to append the ack packet.
+            while ( bytesThatWillFit - RESERVE_FOR_ACK > 0 ) {
+                AmmoGatewayMessage agm = getRetransmitter().createResendPacket( bytesThatWillFit - RESERVE_FOR_ACK );
+                if ( agm != null ) {
+                    sendMessage( agm );
+                }
+            }
+
+            // Once we've sent all the resend packets we have room for,
+            // tack on the ack packet, which will be the last packet in
+            // the slot.
+            AmmoGatewayMessage agm = getRetransmitter().createAckPacket();
             if ( agm != null ) {
                 sendMessage( agm );
             }
@@ -1168,6 +1191,8 @@ public class SerialChannel extends NetChannel
          *
          */
         public int getSenderState() { return mSenderState.get(); }
+
+        private static final int RESERVE_FOR_ACK = 50;
 
         private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
         private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
@@ -1342,7 +1367,10 @@ public class SerialChannel extends NetChannel
 
                         if ( getRetransmitter() != null ) {
                             setReceiverState( INetChannel.DELIVER );
-                            getRetransmitter().processReceivedMessage( agm, mReceiverEnabled.get() );
+                            getRetransmitter().processReceivedMessage( agm,
+                                                                       mReceiverEnabled.get(),
+                                                                       0,
+                                                                       0 );
                         } else {
                             setReceiverState( INetChannel.DELIVER );
                             if ( mReceiverEnabled.get() ) {
@@ -1558,7 +1586,7 @@ public class SerialChannel extends NetChannel
     private Context mContext;
 
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
-    private final AtomicReference<SerialRetransmitter> mRetransmitter = new AtomicReference<SerialRetransmitter>();
+    private final AtomicReference<SerialRetransmitter> mRetransmitter = null; //new AtomicReference<SerialRetransmitter>();
 
     private static final int WAIT_TIME = 5 * 1000; // 5 s
     private static final int MAX_RECEIVE_PAYLOAD_SIZE = 2000; // Should this be set based on baud and slot duration?
