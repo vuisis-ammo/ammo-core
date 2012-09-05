@@ -72,7 +72,7 @@ public class LoggerEditor extends ListActivity {
 	private Tree<Logger> loggerTree;
 
 	// We use this logger to log for this Activity
-	private final Logger personalLogger = Loggers
+	private static final Logger personalLogger = Loggers
 			.getLoggerByName("ui.logger.editor");
 
 	private TextView selectionText;
@@ -80,9 +80,20 @@ public class LoggerEditor extends ListActivity {
 	private LoggerIconAdapter mAdapter;
 
 	@SuppressWarnings("unchecked")
-	private static final Map<String, Appender<ILoggingEvent>> AVAILABLE_APPENDERS = AppenderStore
-			.getAppenderMap();
-	private List<CheckBox> appenderCheckboxes = new ArrayList<CheckBox>();
+	private static final Map<String, Appender<ILoggingEvent>> AVAILABLE_APPENDERS;	
+
+    static {
+        Map<String, Appender<ILoggingEvent>> appenderMap;
+        try {
+            appenderMap = AppenderStore.getAppenderMap(); 
+        } catch (IllegalStateException e) {
+            appenderMap = null;
+            personalLogger.warn("Could not get a reference to the appender map");
+        }
+        AVAILABLE_APPENDERS = appenderMap;
+    }
+
+    private List<CheckBox> appenderCheckboxes = new ArrayList<CheckBox>();
 	private OnCheckedChangeListener myOnCheckedChangeListener = new OnCheckedChangeListener() {
 
 		@SuppressWarnings("unchecked")
@@ -529,31 +540,33 @@ public class LoggerEditor extends ListActivity {
 
 		LinearLayout ll = (LinearLayout) dialog
 				.findViewById(R.id.log_viewer_dialog_file_appender_ll);
-		for (final Appender<ILoggingEvent> a : AVAILABLE_APPENDERS.values()) {
-			if (!(a instanceof FileAppender))
-				continue;
-			Button button = new Button(this);
-			button.setWidth(ViewGroup.LayoutParams.MATCH_PARENT);
-			button.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
-			button.setText(a.getName());
-			button.setOnClickListener(new View.OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					
-					//TODO: Remove this toast once file reading works
-					Toast.makeText(LoggerEditor.this, "File reading is not yet available", Toast.LENGTH_LONG).show();
-					return;
-					
-//					Intent intent = new Intent().setClass(LoggerEditor.this,
-//							FileLogViewer.class);
-//					intent.putExtra(LogViewerBase.EXTRA_NAME,
-//							((FileAppender<ILoggingEvent>) a).getFile());
-//					startActivity(intent);
-//					dialog.dismiss();
-				}
-			});
-			ll.addView(button);
-		}
+        if(AVAILABLE_APPENDERS != null) {
+            for (final Appender<ILoggingEvent> a : AVAILABLE_APPENDERS.values()) {
+                if (!(a instanceof FileAppender))
+                    continue;
+                Button button = new Button(this);
+                button.setWidth(ViewGroup.LayoutParams.MATCH_PARENT);
+                button.setHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
+                button.setText(a.getName());
+                button.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        
+                        //TODO: Remove this toast once file reading works
+                        Toast.makeText(LoggerEditor.this, "File reading is not yet available", Toast.LENGTH_LONG).show();
+                        return;
+                        
+    //					Intent intent = new Intent().setClass(LoggerEditor.this,
+    //							FileLogViewer.class);
+    //					intent.putExtra(LogViewerBase.EXTRA_NAME,
+    //							((FileAppender<ILoggingEvent>) a).getFile());
+    //					startActivity(intent);
+    //					dialog.dismiss();
+                    }
+                });
+                ll.addView(button);
+            }
+        }
 
 		dialog.show();
 
