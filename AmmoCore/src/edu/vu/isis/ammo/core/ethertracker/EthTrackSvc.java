@@ -124,16 +124,24 @@ public class EthTrackSvc extends ServiceEx {
         String ns = Context.NOTIFICATION_SERVICE;
         NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
 
-        int icon = R.drawable.icon;
-        CharSequence tickerText = "Ethernet Status";
+        int icon = 0;
+        CharSequence tickerText = "Network Status";
         long when = System.currentTimeMillis();
+
+        CharSequence contentTitle = "Network Status";
+        CharSequence contentText = "";
+        
+        if (msg.indexOf("Up") > 0) {
+    	    icon = R.drawable.netstatus_up;
+    	    contentText = "Network Up";
+            } else if (msg.indexOf("Down") > 0) {
+    	    icon = R.drawable.netstatus_down;
+    	    contentText = "Network Down";
+        }        
 
         Notification notification = new Notification(icon, tickerText, when);
 
         Context context = getApplicationContext();
-
-        CharSequence contentTitle = "Network Interface";
-        CharSequence contentText = msg;
 
         Intent notificationIntent = new Intent(this, EthTrackSvc.class);
 
