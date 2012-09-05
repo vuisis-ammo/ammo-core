@@ -418,7 +418,13 @@ public class RequestSerializerHelper {
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaBool)) {
-                        boolean actual = (values.getInt(i) == 1);
+			// Handle confusion of boolean value being "1"/"true, "0"/"false"
+			boolean actual;
+			try {
+			    actual = (values.getInt(i) == 1);
+			} catch (JSONException e) {
+			    actual = Boolean.parseBoolean(values.getString(i));
+			}
                         boolean expected = (cursor.getInt(cursor.getColumnIndex(schemaBool)) == 1);
                         Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
