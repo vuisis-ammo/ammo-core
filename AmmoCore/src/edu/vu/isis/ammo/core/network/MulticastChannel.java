@@ -450,6 +450,7 @@ public class MulticastChannel extends NetChannel
         }
 
         private ConnectorThread(MulticastChannel parent) {
+            super(new StringBuilder("Mcast-Connect-").append(Thread.activeCount()).toString());
             logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread()
                     .getId());
             this.parent = parent;
@@ -1018,6 +1019,7 @@ public class MulticastChannel extends NetChannel
                 SenderQueue iQueue,
                 MulticastSocket iSocket)
         {
+            super(new StringBuilder("Mcast-Sender-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
@@ -1142,6 +1144,7 @@ public class MulticastChannel extends NetChannel
                 MulticastChannel iDestination,
                 MulticastSocket iSocket)
         {
+            super(new StringBuilder("Mcast-Receiver-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mDestination = iDestination;
             mSocket = iSocket;

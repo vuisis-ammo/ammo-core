@@ -45,6 +45,7 @@ public class RequestDeserializerThread extends Thread {
     }
 
     public RequestDeserializerThread() {
+        super(new StringBuilder("Serializer-").append(Thread.activeCount()).toString());
         this.masterSequence = new AtomicInteger(0);
         this.queue = new PriorityBlockingQueue<Item>(200, new PriorityOrder());
     }

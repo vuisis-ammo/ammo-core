@@ -92,7 +92,7 @@ public class DistributorThread extends Thread {
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger("dist.thread");
+    public static final Logger logger = LoggerFactory.getLogger("dist.thread");
     private static final Logger resLogger = LoggerFactory.getLogger("test.queue.response");
     private static final Logger reqLogger = LoggerFactory.getLogger("test.queue.request");
     private static final boolean RUN_TRACE = false;
@@ -128,9 +128,11 @@ public class DistributorThread extends Thread {
     private AtomicInteger total_recv = new AtomicInteger(0);
 
     private NotifyMsgNumber notify = null;
+    static private final AtomicInteger gThreadOrdinal = new AtomicInteger(1);
 
     public DistributorThread(final Context context, AmmoService parent) {
-        super();
+        super(new StringBuilder("Distribute-").
+                append(DistributorThread.gThreadOrdinal.getAndIncrement()).toString());
         this.context = context;
         this.ammoService = parent;
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
@@ -144,7 +146,7 @@ public class DistributorThread extends Thread {
         this.channelDelta = new AtomicBoolean(true);
 
         this.channelAck = new LinkedBlockingQueue<ChannelAck>(200);
-        logger.debug("constructed");
+        logger.debug("thread constructed");
     }
 
     private class NotifyMsgNumber implements Runnable {
@@ -957,7 +959,8 @@ public class DistributorThread extends Thread {
             final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
             final String channel = (ar.channelFilter == null) ? null : ar.channelFilter.cv();
 
-            logger.trace("process request topic {}, uuid {}", ar.topic, uuid);
+            logger.debug("process request topic {}, uuid {}", ar.topic, uuid);
+            logger.trace(" channel {}, policy {}", channel, policy);
 
             final ContentValues values = new ContentValues();
             values.put(PostalTableSchema.UUID.cv(), uuid.toString());
@@ -981,7 +984,7 @@ public class DistributorThread extends Thread {
             if (!that.isConnected()) {
                 values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
                 long key = this.store.upsertPostal(values, policy.makeRouteMap(channel));
-                logger.debug("no network connection, added {}", key);
+                logger.debug("no channel available, added postal [{}] [{}]", key, values);
                 return;
             }
 
@@ -1072,7 +1075,7 @@ public class DistributorThread extends Thread {
             }
 
         } catch (NullPointerException ex) {
-            logger.warn("sending to gateway failed", ex);
+            logger.warn("sending postal request failed", ex);
         }
     }
 
@@ -1109,9 +1112,12 @@ public class DistributorThread extends Thread {
             return;
 
         final Cursor pending = this.store.queryPostalReady();
-        if (pending == null)
+        if (pending == null) {
+            logger.warn("no requests pending");
             return;
+        }
 
+        logger.info("[{}] pending postal requests", pending.getCount());
         // Iterate over each row serializing its data and sending it.
         for (boolean moreItems = pending.moveToFirst(); moreItems; moreItems = pending.moveToNext())
         {
@@ -1132,7 +1138,8 @@ public class DistributorThread extends Thread {
 
             // read notice stuck in as a blob in the db
             final byte[] nb = pending.getBlob(pending.getColumnIndex(PostalTableSchema.NOTICE.n));
-            Parcel np = Parcel.obtain();
+            logger.trace("notice bytes=[{}]", nb);
+            final Parcel np = Parcel.obtain();
             np.unmarshall(nb, 0, nb.length);
             np.setDataPosition(0);
             final Notice notice = Notice.CREATOR.createFromParcel(np);
@@ -1170,7 +1177,7 @@ public class DistributorThread extends Thread {
                             } catch (IOException e1) {
                                 logger.error("invalid row for serialization");
                             } catch (TupleNotFoundException ex) {
-                                logger.error("tuple not found when processing postal table");
+                                logger.error("no tuple for postal request serializer [{}]", serializer_);
                                 parent.store().deletePostal(
                                         new StringBuilder()
                                                 .append(PostalTableSchema.PROVIDER.q())
@@ -1209,7 +1216,7 @@ public class DistributorThread extends Thread {
             // Dispatch the request.
             try {
                 if (!that.isConnected()) {
-                    logger.debug("no network connection while processing table");
+                    logger.debug("no channel on postal");
                     continue;
                 }
                 synchronized (this.store) {
@@ -1485,8 +1492,8 @@ public class DistributorThread extends Thread {
             final Dispersal dispersal = policy.makeRouteMap(null);
             if (!that.isConnected()) {
                 values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-                this.store.upsertRetrieval(values, dispersal);
-                logger.debug("no network connection");
+                final long key = this.store.upsertRetrieval(values, dispersal);
+                logger.debug("no channel available, added retrieval [{}] [{}]", key, values);
                 return;
             }
 
@@ -1595,7 +1602,7 @@ public class DistributorThread extends Thread {
 
             try {
                 if (!that.isConnected()) {
-                    logger.debug("no network connection");
+                    logger.debug("no channel on retrieval");
                     continue;
                 }
                 synchronized (this.store) {
@@ -1782,7 +1789,7 @@ public class DistributorThread extends Thread {
             if (!that.isConnected()) {
                 values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
                 long key = this.store.upsertSubscribe(values, dispersal);
-                logger.debug("no network connection, added {}", key);
+                logger.debug("no channel available, added subscribe [{}] [{}]", key, values);
                 return;
             }
 
@@ -1897,7 +1904,7 @@ public class DistributorThread extends Thread {
 
             try {
                 if (!that.isConnected()) {
-                    logger.debug("no network connection");
+                    logger.debug("no channel on subscribe");
                     continue;
                 }
                 synchronized (this.store) {

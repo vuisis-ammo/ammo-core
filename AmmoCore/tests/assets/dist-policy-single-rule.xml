@@ -1,15 +1,15 @@
 <?xml version="1.0"?>
 <policy>
 
-    <topic type="ammo" >
+    <topic type="" >
 
         <description>
-THis is specifically for testing the distributor.
+This is specifically for testing the distributor.
         </description>
 
         <routing
             category="postal"
-            lifespan="30"
+            lifespan="3"
             priority="normal" >
 
             <clause>
@@ -22,7 +22,7 @@ THis is specifically for testing the distributor.
 
         <routing
             category="subscribe"
-            lifespan="30"
+            lifespan="3"
             priority="normal" >
 
             <clause>

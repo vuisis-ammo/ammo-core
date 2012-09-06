@@ -496,6 +496,7 @@ public class ReliableMulticastChannel extends NetChannel {
         }
 
         private ConnectorThread(ReliableMulticastChannel parent) {
+            super(new StringBuilder("RMcast-Connect-").append(Thread.activeCount()).toString());
             logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread
                     .currentThread().getId());
             this.parent = parent;
@@ -1047,6 +1048,7 @@ public class ReliableMulticastChannel extends NetChannel {
         public SenderThread(ConnectorThread iParent,
                 ReliableMulticastChannel iChannel, SenderQueue iQueue,
                 JChannel iJChannel) {
+            super(new StringBuilder("RMcast-Sender-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;

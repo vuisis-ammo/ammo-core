@@ -330,6 +330,7 @@ public class JournalChannel extends NetChannel {
         private final BlockingQueue<AmmoGatewayMessage> queue;
 
         private SenderThread(JournalChannel parent) {
+            super(new StringBuilder("Journal-Sender-").append(Thread.activeCount()).toString());
             logger.trace("::<constructor>");
             this.parent = parent;
             this.queue = parent.sendQueue;

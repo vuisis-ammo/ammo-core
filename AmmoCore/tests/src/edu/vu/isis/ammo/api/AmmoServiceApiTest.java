@@ -68,9 +68,8 @@ public class AmmoServiceApiTest extends android.test.ServiceTestCase<AmmoService
 
         Intent startIntent = new Intent();
         startIntent.setClass(getContext(), AmmoService.class);
-        @SuppressWarnings("unused")
-        final IBinder service = bindService(startIntent);
-        this.builder = AmmoRequest.newBuilder(getContext());
+        final IBinder serviceBinder = bindService(startIntent);
+        this.builder = AmmoRequest.newBuilder(getContext(), serviceBinder);
 
     }
 
