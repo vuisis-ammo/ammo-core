@@ -54,6 +54,11 @@ import edu.vu.isis.ammo.provider.AmmoMockSchema01.StartTableSchema;
 import edu.vu.isis.ammo.provider.AmmoMockSchemaBase.AmmoTableSchemaBase;
 import edu.vu.isis.ammo.testutils.TestUtils;
 
+import edu.vu.isis.ammo.core.distributor.RequestSerializerHelper;
+import edu.vu.isis.ammo.core.distributor.RequestSerializerHelper.SchemaTable1Data;
+import edu.vu.isis.ammo.core.distributor.RequestSerializerHelper.SchemaTable2Data;
+import edu.vu.isis.ammo.core.distributor.RequestSerializerHelper.SchemaTable3Data;
+
 /**
  * This is a simple framework for a test of an Application.  See
  * {@link android.test.ApplicationTestCase ApplicationTestCase} for more information on
@@ -167,68 +172,7 @@ public class RequestSerializerTest extends AndroidTestCase {
 
         // Serialize the provider content into JSON bytes
         final byte[] jsonBytes = utilSerializeJsonFromProvider_withBlob(cr, uri);
-	/*
-        try {
-            jsonBytes = RequestSerializer.serializeFromProvider(cr, uri, enc);
-        } catch (NonConformingAmmoContentProvider ex) {
-            fail("Should not have thrown NonConformingAmmoContentProvider in this case");
-            return null;
-        } catch (TupleNotFoundException ex) {
-            fail("Should not have thrown TupleNotFoundException in this case");
-            return null;
-        } catch (IOException ex) {
-            fail("failure of the test itself");
-            return null;
-        }
-	*/
-
-	return jsonObjectFromBytes(jsonBytes);
-	/*
-        // Create a string from the JSON bytes
-        final String jsonString;
-        try {
-            jsonString = new String(jsonBytes, "US-ASCII");
-        } catch (UnsupportedEncodingException ex) {
-            fail("Unexpected error -- could not convert json blob to string");
-            return null;
-        }
-
-        // Create a JSONObject to return
-        Log.d(TAG, "encoded json=[ " + jsonString + " ]");
-        JSONObject json = null;
-        try {
-            json = new JSONObject(jsonString);
-        } catch (JSONException ex) {
-            fail("Unexpected JSONException -- JSON string =   " + jsonString);
-        }
-        //Log.d(TAG, "jsonobject as string = [" + json.toString() + "]");
-
-        return json;
-	*/
-    }
-
-    private JSONObject jsonObjectFromBytes(byte[] jsonBytes)
-    {
-	// Create a string from the JSON bytes
-        final String jsonString;
-        try {
-            jsonString = new String(jsonBytes, "US-ASCII");
-        } catch (UnsupportedEncodingException ex) {
-            fail("Unexpected error -- could not convert json blob to string");
-            return null;
-        }
-
-        // Create a JSONObject to return
-        Log.d(TAG, "encoded json=[ " + jsonString + " ]");
-        JSONObject json = null;
-        try {
-            json = new JSONObject(jsonString);
-        } catch (JSONException ex) {
-            fail("Unexpected JSONException -- JSON string =   " + jsonString);
-        }
-        //Log.d(TAG, "jsonobject as string = [" + json.toString() + "]");
-
-        return json;
+	return RequestSerializerHelper.jsonObjectFromBytes(jsonBytes);	
     }
 
     private MockContentResolver utilGetContentResolver()
@@ -497,15 +441,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             SchemaTable1Data d = new SchemaTable1Data();
 
             ContentValues cv = d.createContentValues();
-            String jsonStr = TestUtils.createJsonAsString(cv);
-            byte[] jsonBytes = jsonStr.getBytes();
+	    byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
             Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                 cr,
                                                                 "dummy",
-                                                                d.mBaseUri,
+                                                                d.getBaseUri(),
                                                                 enc,
                                                                 jsonBytes);
-            d.compareJsonToUri(jsonStr, provider, uriIn);
+            d.compareJsonToUri(jsonBytes, provider, uriIn);
         } finally {
             if (provider != null) provider.release();
         }
@@ -533,15 +476,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             SchemaTable2Data d = new SchemaTable2Data();
 
             ContentValues cv = d.createContentValues();
-            String jsonStr = TestUtils.createJsonAsString(cv);
-            byte[] jsonBytes = jsonStr.getBytes();
+	    byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
             Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                 cr,
                                                                 "dummy",
-                                                                d.mBaseUri,
+                                                                d.getBaseUri(),
                                                                 enc,
                                                                 jsonBytes);
-            d.compareJsonToUri(jsonStr, provider, uriIn);
+            d.compareJsonToUri(jsonBytes, provider, uriIn);
         } finally {
             if (provider != null) provider.release();
         }
@@ -569,15 +511,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             SchemaTable3Data d = new SchemaTable3Data();
 
             ContentValues cv = d.createContentValues();
-            String jsonStr = TestUtils.createJsonAsString(cv);
-            byte[] jsonBytes = jsonStr.getBytes();
+	    byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
             Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                 cr,
                                                                 "dummy",
-                                                                d.mBaseUri,
+                                                                d.getBaseUri(),
                                                                 enc,
                                                                 jsonBytes);
-            d.compareJsonToUri(jsonStr, provider, uriIn);
+            d.compareJsonToUri(jsonBytes, provider, uriIn);
         } finally {
             if (provider != null) provider.release();
         }
@@ -610,15 +551,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             // Repeatedly deserialize random values to the db
             for (int i=0; i < NUM_ITERATIONS; i++) {
                 ContentValues cv = d.createContentValuesRandom();
-                String jsonStr = TestUtils.createJsonAsString(cv);
-                byte[] jsonBytes = jsonStr.getBytes();
+		byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
                 Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                     cr,
                                                                     "dummy",
-                                                                    d.mBaseUri,
+                                                                    d.getBaseUri(),
                                                                     enc,
                                                                     jsonBytes);
-                d.compareJsonToUri(jsonStr, provider, uriIn);
+                d.compareJsonToUri(jsonBytes, provider, uriIn);
             }
         } finally {
             if (provider != null) provider.release();
@@ -652,15 +592,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             // Repeatedly deserialize random values to the db
             for (int i=0; i < NUM_ITERATIONS; i++) {
                 ContentValues cv = d.createContentValuesRandom();
-                String jsonStr = TestUtils.createJsonAsString(cv);
-                byte[] jsonBytes = jsonStr.getBytes();
+		byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
                 Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                     cr,
                                                                     "dummy",
-                                                                    d.mBaseUri,
+                                                                    d.getBaseUri(),
                                                                     enc,
                                                                     jsonBytes);
-                d.compareJsonToUri(jsonStr, provider, uriIn);
+                d.compareJsonToUri(jsonBytes, provider, uriIn);
             }
         } finally {
             if (provider != null) provider.release();
@@ -693,15 +632,14 @@ public class RequestSerializerTest extends AndroidTestCase {
             // Repeatedly deserialize random values to the db
             for (int i=0; i < NUM_ITERATIONS; i++) {
                 ContentValues cv = d.createContentValuesRandom();
-                String jsonStr = TestUtils.createJsonAsString(cv);
-                byte[] jsonBytes = jsonStr.getBytes();
+		byte[] jsonBytes = TestUtils.createJsonAsBytes(cv);
                 Uri uriIn = RequestSerializer.deserializeToProvider(mContext,
                                                                     cr,
                                                                     "dummy",
-                                                                    d.mBaseUri,
+                                                                    d.getBaseUri(),
                                                                     enc,
                                                                     jsonBytes);
-                d.compareJsonToUri(jsonStr, provider, uriIn);
+                d.compareJsonToUri(jsonBytes, provider, uriIn);
             }
         } finally {
             if (provider != null) provider.release();
@@ -711,7 +649,7 @@ public class RequestSerializerTest extends AndroidTestCase {
 
     /**
      * Serialize from ContentProvider (JSON encoding) :
-     * Simple case of known constant values on Table 1 ("Ammo") in schema.
+     * Simple case of known constant values on Table 3 ("Start") in schema.
      * WITH BLOB DATA
      *
      */
@@ -740,7 +678,7 @@ public class RequestSerializerTest extends AndroidTestCase {
     
     /**
      * Serialize from ContentProvider (JSON encoding) :
-     * Case of random values on Table 1 ("Ammo") in schema.
+     * Repeatedly serialize random values on Table 3 ("Start") in schema.
      * WITH BLOB DATA
      *
      */
@@ -765,6 +703,17 @@ public class RequestSerializerTest extends AndroidTestCase {
 		}
 		d.compareBytesToCv(serialized, cv);
 	    }
+
+	    /*
+	      catch (OutOfMemoryError e) {
+	      // This won't happen most of the time, but catch if it does.
+	      // Don't call it a test failure, just log and return.
+	      Log.e(TAG, "*** out of memory error ***");
+	      e.printStackTrace();
+	      return;
+	      }
+	    */
+
         } finally {
             if (provider != null) provider.release();
         }
@@ -843,732 +792,6 @@ public class RequestSerializerTest extends AndroidTestCase {
             //d.compareTerseToCv(terse, cv);
         } finally {
             if (provider != null) provider.release();
-        }
-    }
-
-
-    // -- below this line --
-    // Private classes for containing knowledge about schema. These are intended
-    // to keep the schema-specific knowledge localized so that if the schema
-    // changes, we can change only these classes and shouldn't need to re-write
-    // the tests themselves (or only minimally).
-
-    private interface SchemaTable {
-        public ContentValues createContentValues();
-        public ContentValues createContentValuesRandom();
-        public Uri populateProviderWithData(AmmoMockProvider01 provider, ContentValues cv);
-        public void compareJsonToCv(JSONObject json, ContentValues cv);
-        public void compareJsonToUri(String jsonStr, AmmoMockProvider01 provider, Uri uri);
-    }
-
-    // =========================================================
-    // Encapsulate knowledge of Table 1 ("Ammo") in the schema
-    // =========================================================
-    private class SchemaTable1Data implements SchemaTable {
-        public SchemaTable1Data() {}
-
-        public Uri mBaseUri = AmmoTableSchema.CONTENT_URI;
-        public String mTable =  Tables.AMMO_TBL;
-
-        private final String schemaForeignKey = AmmoTableSchema.A_FOREIGN_KEY_REF;
-        private final String schemaExEnum = AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION;
-        private final String schemaInEnum = AmmoTableSchema.AN_INCLUSIVE_ENUMERATION;
-
-        public ContentValues createContentValues()
-        {
-            final ContentValues cv = new ContentValues();
-            final int sampleForeignKey = 1;
-            cv.put(schemaForeignKey, sampleForeignKey);
-            cv.put(schemaExEnum, AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH);
-            cv.put(schemaInEnum, AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE);
-            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
-            return cv;
-        }
-
-        public ContentValues createContentValuesRandom()
-        {
-            final ContentValues cv = new ContentValues();
-            final int keyUpperBound = 100;
-            int[] ExEnum = new int[] {AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH,
-                                      AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_LOW,
-                                      AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_MEDIUM};
-            int[] InEnum = new int[] {AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE,
-                                      AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_ORANGE,
-                                      AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_PEAR};
-            cv.put(schemaForeignKey, TestUtils.randomInt(keyUpperBound));
-            cv.put(schemaExEnum, ExEnum[TestUtils.randomInt(ExEnum.length)]);
-            cv.put(schemaInEnum, InEnum[TestUtils.randomInt(InEnum.length)]);
-            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
-            return cv;
-        }
-
-        public Uri populateProviderWithData(AmmoMockProvider01 provider, ContentValues cv)
-        {
-            SQLiteDatabase db = provider.getDatabase();
-            long rowid = -1;
-            Uri tupleUri = null;
-
-            rowid = db.insert(Tables.AMMO_TBL, AmmoTableSchemaBase.A_FOREIGN_KEY_REF, cv);
-            tupleUri = ContentUris.withAppendedId(AmmoTableSchema.CONTENT_URI, rowid);
-
-            //Log.d(TAG, "rowId = " + String.valueOf(rowid));
-            Log.d(TAG, "inserted uri = " + tupleUri.toString());
-            return tupleUri;
-        }
-
-        // Compare json serialization to the cv which was written to the db originally
-        public void compareJsonToCv(JSONObject json, ContentValues cv)
-        {
-            try {
-
-                assertTrue(json.has(schemaForeignKey));
-                assertTrue(json.has(schemaExEnum));
-                assertTrue(json.has(schemaInEnum));
-
-                JSONArray names = json.names();
-                JSONArray values = json.toJSONArray(names);
-                for(int i = 0 ; i < values.length(); i++) {
-                    if(names.getString(i).equals(schemaForeignKey)) {
-                        int actual = Integer.decode(values.getString(i)).intValue(); //values.getInt(i)
-                        int expected = cv.getAsInteger(schemaForeignKey).intValue();
-                        Log.d(TAG, "   json value='" + String.valueOf(actual)
-                              + "'     cv value='"+ String.valueOf(expected)  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaExEnum)) {
-                        long actual = Long.decode(values.getString(i)).longValue();
-                        long expected = cv.getAsLong(schemaExEnum).longValue();
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaInEnum)) {
-                        long actual = Long.decode(values.getString(i)).longValue();
-                        long expected = cv.getAsLong(schemaInEnum).longValue();
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                }
-
-            } catch (JSONException ex) {
-                fail("unexpected JSONException");
-                return;
-            }
-
-        }
-
-        // Compare json serialization to the provider content written from it
-        public void compareJsonToUri(String jsonStr, AmmoMockProvider01 provider, Uri uri)
-        {
-            try {
-                JSONObject json = new JSONObject(jsonStr);
-
-                assertTrue(json.has(schemaForeignKey));
-                assertTrue(json.has(schemaExEnum));
-                assertTrue(json.has(schemaInEnum));
-
-                // Now query the provider and examine its contents, checking that they're
-                // the same as the original JSON.
-                final String[] projection = null;
-                final String selection = null;
-                final String[] selectArgs = null;
-                final String orderBy = null;
-                final Cursor cursor = provider.query(uri, projection, selection, selectArgs, orderBy);
-
-                // The query should have succeeded
-                assertNotNull("Query into provider failed", cursor);
-
-                // There should be only one entry
-                assertEquals("Unexpected number of rows in cursor", 1, cursor.getCount());
-
-                // Row should be accessible with a cursor
-                assertTrue("Row not accessible with cursor", (cursor.moveToFirst()));
-
-                // Examine the provider content in detail, making sure it contains what we expect
-                // (i.e. the contents of the original JSON)
-                JSONArray names = json.names();
-                JSONArray values = json.toJSONArray(names);
-                for(int i = 0 ; i < values.length(); i++) {
-                    if(names.getString(i).equals(schemaForeignKey)) {
-                        int expected = values.getInt(i);
-                        int actual = cursor.getInt(cursor.getColumnIndex(schemaForeignKey));
-                        Log.d(TAG, "   json value='" + expected + "'     db value='" + actual + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaExEnum)) {
-                        int expected = values.getInt(i);
-                        int actual = cursor.getInt(cursor.getColumnIndex(schemaExEnum));
-                        Log.d(TAG, "   json value='" + expected + "'     db value='" + actual + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaInEnum)) {
-                        int expected = values.getInt(i);
-                        int actual = cursor.getInt(cursor.getColumnIndex(schemaInEnum));
-                        Log.d(TAG, "   json value='" + expected + "'     db value='" + actual + "'");
-                        assertEquals(actual, expected);
-                    }
-
-                }
-
-                // Close cursor when finished
-                cursor.close();
-            } catch (JSONException e) {
-                e.printStackTrace();
-                fail("unexpected JSONException");
-                return;
-            }
-        }
-    }
-
-    // =========================================================
-    // Encapsulate knowledge of Table 2 ("Quick") in the schema
-    // =========================================================
-    private class SchemaTable2Data implements SchemaTable {
-        public SchemaTable2Data() {}
-
-        public Uri mBaseUri = QuickTableSchema.CONTENT_URI;
-        public String mTable =  Tables.QUICK_TBL;
-
-        private final String schemaShortInt = QuickTableSchema.A_SHORT_INTEGER;
-        private final String schemaLongInt = QuickTableSchema.A_LONG_INTEGER;
-        private final String schemaInt = QuickTableSchema.AN_INTEGER;
-        private final String schemaBool = QuickTableSchema.A_BOOLEAN;
-        private final String schemaTime = QuickTableSchema.A_ABSOLUTE_TIME;
-
-        public ContentValues createContentValues()
-        {
-            final ContentValues cv = new ContentValues();
-            cv.put(schemaShortInt, TestUtils.TEST_SHORT_INTEGER);
-            cv.put(schemaInt, TestUtils.TEST_INTEGER);
-            cv.put(schemaLongInt, TestUtils.TEST_LONG_INTEGER);
-            cv.put(schemaBool, TestUtils.TEST_BOOLEAN);
-            //cv.put(schemaTime, ???);
-            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
-            return cv;
-        }
-
-        public ContentValues createContentValuesRandom()
-        {
-            final ContentValues cv = new ContentValues();
-            cv.put(schemaShortInt, TestUtils.randomShort());
-            cv.put(schemaInt, TestUtils.randomInt());
-            cv.put(schemaLongInt, TestUtils.randomLong());
-            cv.put(schemaBool, TestUtils.randomBoolean());
-            //cv.put(schemaTime, ???);
-            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
-            return cv;
-        }
-
-        public Uri populateProviderWithData(AmmoMockProvider01 provider, ContentValues cv)
-        {
-            SQLiteDatabase db = provider.getDatabase();
-            long rowid = -1;
-            Uri tupleUri = null;
-
-            rowid = db.insert(Tables.QUICK_TBL, null, cv);
-            tupleUri = ContentUris.withAppendedId(QuickTableSchema.CONTENT_URI, rowid);
-
-            //Log.d(TAG, "rowId = " + String.valueOf(rowid));
-            Log.d(TAG, "inserted uri = " + tupleUri.toString());
-            return tupleUri;
-        }
-
-
-
-        // Compare json serialization to the cv which was written to the db originally
-        public void compareJsonToCv(JSONObject json, ContentValues cv)
-        {
-            try {
-                assertTrue(json.has(schemaShortInt));
-                assertTrue(json.has(schemaInt));
-                assertTrue(json.has(schemaLongInt));
-                // assertTrue(json.has(schemaBool));
-                // assertTrue(json.has(schemaTime));
-
-                JSONArray names = json.names();
-                JSONArray values = json.toJSONArray(names);
-                for(int i = 0 ; i < values.length(); i++) {
-                    if(names.getString(i).equals(schemaShortInt)) {
-                        int actual =  Short.decode(values.getString(i)).shortValue();
-                        int expected = cv.getAsInteger(schemaShortInt).intValue();
-                        Log.d(TAG, "   json value='" + String.valueOf(actual)
-                              + "'     cv value='"+ String.valueOf(expected)  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaLongInt)) {
-                        long actual = Long.decode(values.getString(i)).longValue();
-                        long expected = cv.getAsLong(schemaLongInt).longValue();
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaInt)) {
-                        int actual = Integer.decode(values.getString(i)).intValue();
-                        int expected = cv.getAsInteger(schemaInt).intValue();
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaBool)) {
-                        boolean actual = (values.getInt(i) == 1); //Boolean.parseBoolean(values.getString(i))
-                        boolean expected = cv.getAsBoolean(schemaBool).booleanValue();
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaTime)) {
-                        // TODO
-                    }
-                }
-            } catch (JSONException ex) {
-                fail("unexpected JSONException");
-                return;
-            }
-        }
-
-        // Compare json serialization to the provider content written from it
-        public void compareJsonToUri(String jsonStr, AmmoMockProvider01 provider, Uri uri)
-        {
-            try {
-                JSONObject json = new JSONObject(jsonStr);
-
-                assertTrue(json.has(schemaShortInt));
-                assertTrue(json.has(schemaInt));
-                assertTrue(json.has(schemaLongInt));
-                assertTrue(json.has(schemaBool));
-
-                // Now query the provider and examine its contents, checking that they're
-                // the same as the original JSON.
-                final String[] projection = null;
-                final String selection = null;
-                final String[] selectArgs = null;
-                final String orderBy = null;
-                final Cursor cursor = provider.query(uri, projection, selection, selectArgs, orderBy);
-
-                // The query should have succeeded
-                assertNotNull("Query into provider failed", cursor);
-
-                // There should be only one entry
-                assertEquals("Unexpected number of rows in cursor", 1, cursor.getCount());
-
-                // Row should be accessible with a cursor
-                assertTrue("Row not accessible with cursor", (cursor.moveToFirst()));
-
-                // Examine the provider content in detail, making sure it contains what we expect
-                // (i.e. the contents of the original JSON)
-                JSONArray names = json.names();
-                JSONArray values = json.toJSONArray(names);
-                for(int i = 0 ; i < values.length(); i++) {
-                    if(names.getString(i).equals(schemaShortInt)) {
-                        int actual = values.getInt(i);
-                        int expected = cursor.getInt(cursor.getColumnIndex(schemaShortInt));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaLongInt)) {
-                        long actual = values.getLong(i);
-                        long expected = cursor.getLong(cursor.getColumnIndex(schemaLongInt));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaInt)) {
-                        int actual = values.getInt(i);
-                        int expected = cursor.getInt(cursor.getColumnIndex(schemaInt));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaBool)) {
-                        boolean actual = values.getBoolean(i); //(values.getInt(i) == 1);
-                        boolean expected = (cursor.getInt(cursor.getColumnIndex(schemaBool)) == 1);
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaTime)) {
-                        // TODO
-                    }
-                }
-
-                // Close cursor when finished
-                cursor.close();
-            } catch (JSONException e) {
-                e.printStackTrace();
-                fail("unexpected JSONException");
-                return;
-            }
-        }
-
-    }
-
-    // =========================================================
-    // Encapsulate knowledge of Table 3 ("Start") in the schema
-    // =========================================================
-    private class SchemaTable3Data implements SchemaTable {
-        public SchemaTable3Data() {}
-
-        public Uri mBaseUri = StartTableSchema.CONTENT_URI;
-        public String mTable =  Tables.START_TBL;
-
-        private final String schemaReal = StartTableSchema.A_REAL;
-        private final String schemaGuid = StartTableSchema.A_GLOBALLY_UNIQUE_IDENTIFIER;
-        private final String schemaText = StartTableSchema.SOME_ARBITRARY_TEXT;
-        private final String schemaFile = StartTableSchema.A_FILE;
-        private final String schemaBlob = StartTableSchema.A_BLOB;
-
-        public ContentValues createContentValues()
-        {
-            final ContentValues cv = new ContentValues();
-            cv.put(schemaReal, TestUtils.TEST_DOUBLE);
-            cv.put(schemaGuid, TestUtils.TEST_GUID_STR);
-            cv.put(schemaText, TestUtils.TEST_FIXED_STRING);
-            //cv.put(StartTableSchema.A_BLOB, ???);
-            //cv.put(StartTableSchema.A_FILE, ???);
-
-            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
-            return cv;
-        }
-
-	public ContentValues createContentValuesWithFile()
-        {
-            ContentValues cv = createContentValues();
-            cv.put(StartTableSchema.A_FILE, "/tmp/foo.jpg");
-
-            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
-            return cv;
-        }
-	
-	public ContentValues createContentValuesWithBlobSmall()
-        {
-            ContentValues cv = createContentValues();
-            cv.put(StartTableSchema.A_BLOB, TestUtils.TEST_SMALL_BLOB);
-            //cv.put(StartTableSchema.A_BLOB, TestUtils.TEST_TINY_BLOB);
-
-            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
-            return cv;
-        }
-	
-	public ContentValues createContentValuesWithBlobLarge()
-        {
-            ContentValues cv = createContentValues();
-	    cv.put(StartTableSchema.A_BLOB, TestUtils.TEST_LARGE_BLOB);
-
-            Log.d(TAG, "generated ContentValues with large blob (do not print)");
-            return cv;
-        }
-
-	public ContentValues createContentValuesWithBlobRandomSmall()
-        {
-            ContentValues cv = createContentValuesRandom();
-	    
-	    // Attach blob of 'small' size
-	    cv.put(StartTableSchema.A_BLOB, 
-		   TestUtils.randomBytes(TestUtils.randomInt(TestUtils.SMALL_BLOB_SIZE)));
-
-            Log.d(TAG, "generated ContentValues with blob (small)");
-
-            return cv;
-        }
-
-	public ContentValues createContentValuesWithBlobRandomLarge()
-        {
-            ContentValues cv = createContentValues();
-	    
-	    // Attach blob of 'large' size
-	    cv.put(StartTableSchema.A_BLOB, 
-		   TestUtils.randomBytes(TestUtils.randomInt(TestUtils.LARGE_BLOB_SIZE)));
-
-            Log.d(TAG, "generated ContentValues with blob (large)");
-
-            return cv;
-        }
-
-        public ContentValues createContentValuesRandom()
-        {
-            final ContentValues cv = new ContentValues();
-            cv.put(schemaReal, TestUtils.randomDouble());
-            cv.put(schemaGuid, TestUtils.randomGuidAsString());
-            final int max_text_size = 50;
-            int text_size = TestUtils.randomInt(max_text_size);
-            if (text_size == 0) { text_size = 1; }
-            cv.put(schemaText, TestUtils.randomText(text_size));
-            //cv.put(StartTableSchema.A_BLOB, ???);
-            //cv.put(StartTableSchema.A_FILE, ???);
-
-            Log.d(TAG, "generated ContentValues: cv=[" + cv.toString() + "]");
-            return cv;
-        }
-
-        public Uri populateProviderWithData(AmmoMockProvider01 provider, ContentValues cv)
-        {
-            SQLiteDatabase db = provider.getDatabase();
-            long rowid = -1;
-            Uri tupleUri = null;
-
-            rowid = db.insert(Tables.START_TBL, null, cv);
-            tupleUri = ContentUris.withAppendedId(StartTableSchema.CONTENT_URI, rowid);
-
-            //Log.d(TAG, "rowId = " + String.valueOf(rowid));
-            Log.d(TAG, "inserted uri = " + tupleUri.toString());
-            return tupleUri;
-        }
-
-	// Convert 4-byte bytearray to integer
-	private int bytesToInt( byte[] b)
-	{
-	    ByteBuffer bb = ByteBuffer.wrap(b);
-	    IntBuffer ib = bb.asIntBuffer();
-	    int i0 = ib.get(0);
-	    return i0;
-	}
-
-	// Compare serialized bytes to the cv which was written to the db originally
-	/*
-	  Notes on order of bytes:
-	  - json
-	  - 0x0
-	  - field name (e.g.  "a_blob", "a_file")
-	  - 0x0
-	  - 4-byte size (of blob/file)
-	  - blob/file data
-	  - 4-byte size (again)
-	*/
-        public void compareBytesToCv(byte[] serialized, ContentValues cv)
-        {
-	    //Log.d(TAG, "  compareBytesToCv: serialized=[" + new String(serialized) + "]");
-	    //Log.d(TAG, "  compareBytesToCv: cv=[" + cv.toString() + "]");
-
-	    if (serialized == null) {
-		fail("unexpected null serialization");
-	    }
-
-	    // Step 1 - strip off the JSON header, make JSONObject json
-	    // 
-	    // find first occurrence of '}', which ends JSON header.
-	    // When we find it, break, and keep the array index.
-	    int i=0;
-	    ByteBuffer jsonBuf = null;
-	    for ( i=0; i < serialized.length; i++) {
-		if (serialized[i] == '}') {
-		    break;
-		}
-	    }
-	    int endOfJsonIndex = i;
-	    if (endOfJsonIndex > 0) {
-		jsonBuf = ByteBuffer.allocate(endOfJsonIndex+1);
-		for (int j=0; j < endOfJsonIndex + 1; j++) {
-		    jsonBuf.put(serialized[j]);
-		}
-	    } else {
-		// ???
-	    }
-	    JSONObject json = jsonObjectFromBytes(jsonBuf.array());
-	    Log.d(TAG, "  compareBytesToCv: json string=[" + json.toString() + "]");
-
-	    // Compare the JSON header to corresponding values in the CV
-	    ContentValues cvNoBlob = new ContentValues(cv);
-	    cvNoBlob.remove(schemaBlob);
-	    compareJsonToCv(json, cvNoBlob);
-
-
-	    // Step 2 - get the data blob following the json header
-	    // 
-	    // after the JSON header, next byte should be a null
-	    int pos = endOfJsonIndex;
-	    //Log.d(TAG, "  pos=" + pos);
-	    pos++;
-	    //Log.d(TAG, "  pos=" + pos);
-	    assertEquals(0x0, serialized[pos]);
-
-	    // Next is the field name (e.g. schemaBlob)
-	    pos++;
-	    //Log.d(TAG, "  pos=" + pos );
-	    String fieldName = new String(serialized, pos, schemaBlob.length() );
-	    Log.d(TAG, "  compareBytesToCv: fieldname=[" + fieldName + "]");
-	    assertEquals(fieldName, schemaBlob);
-
-	    // Next is another null character
-	    pos = pos + schemaBlob.length() ;
-	    assertEquals(0x0, serialized[pos]);
-	    //Log.d(TAG, "  pos=" + pos);
-	    
-	    // Next is a 4-byte size (i.e. size of the blob data)
-	    pos++;
-	    //Log.d(TAG, "  pos=" + pos);
-	    ByteBuffer sizeBuf1 = ByteBuffer.allocate(4);
-	    for (int j=0; j < 4; j++) {
-		sizeBuf1.put(serialized[pos]);
-		pos++;
-	    }
-	    int blobSize1 = bytesToInt(sizeBuf1.array());
-	    Log.d(TAG, "  size1=[" + blobSize1 + "]");
-	    
-
-	    // Next is the blob data itself
-	    /*
-	    ByteBuffer bw = ByteBuffer.wrap(serialized, pos, serialized.length-pos);
-	    byte[] blobArray = new byte[blobSize1];
-	    Log.d(TAG, " blob = [" + Arrays.toString(bw.get(blobArray, 0, blobSize1).array())  + "]");
-	    */
-	    Log.d(TAG, "  pos=" + pos);
-	    ByteBuffer blobBuf = ByteBuffer.allocate(blobSize1);
-	    try {
-		int count=0;
-		for (int j=0; j < blobSize1; j++) {
-		    //blobBuf.put(serialized[pos + j]);
-		    blobBuf.put(serialized[pos]);
-		    pos++;
-		    count++;
-		}
-		Log.d(TAG, "  read count = " + count);
-		//Log.d(TAG, "  pos=" + pos);
-	    } catch (BufferOverflowException e) {
-		e.printStackTrace();
-		fail("unexpected buffer overflow (blob data)");
-	    }
-
-	    byte[] cvBytes = cv.getAsByteArray(schemaBlob);
-	    assertTrue(Arrays.equals(cvBytes, blobBuf.array()));
-
-
-	    // Finally the 4-byte size is repeated, WITH a possible
-	    // flag in the first byte, for which we must check.
-	    ByteBuffer sizeBuf2 = ByteBuffer.allocate(4);
-
-	    int howMany = 4;
-	    if (serialized[pos] == RequestSerializer.BLOB_MARKER_FIELD) {
-		Log.d(TAG, "  found blob marker field (" + RequestSerializer.BLOB_MARKER_FIELD + ")");
-		sizeBuf2.put((byte)0x0);
-		pos++;
-		howMany = 3;
-	    } 
-	    for (int j=0; j < howMany; j++) {
-		sizeBuf2.put(serialized[pos]);
-		pos++;
-	    }
-	    //Log.d(TAG, "  pos=" + pos);
-	    int blobSize2 = bytesToInt(sizeBuf2.array());
-	    Log.d(TAG, "  size2=[" + blobSize2 + "]");
-	    
-	    assertEquals(blobSize1, blobSize2);
-
-
-
-	    
-
-	}
-
-
-        // Compare json serialization to the cv which was written to the db originally
-        public void compareJsonToCv(JSONObject json, ContentValues cv)
-        {
-            final double error_bar = 0.00001;
-            try {
-
-                assertTrue(json.has(schemaReal));
-                assertTrue(json.has(schemaGuid));
-                assertTrue(json.has(schemaText));
-                //assertTrue(json.has(schemaBlob));
-                //assertTrue(json.has(schemaFile));
-
-                JSONArray names = json.names();
-                JSONArray values = json.toJSONArray(names);
-                for(int i = 0 ; i < values.length(); i++) {
-                    if(names.getString(i).equals(schemaReal)) {
-                        double actual = Double.parseDouble(values.getString(i)); //values.getDouble(i);
-                        double expected = cv.getAsDouble(schemaReal).doubleValue();
-                        Log.d(TAG, "   json value='" + String.valueOf(actual)
-                              + "'     cv value='"+ String.valueOf(expected)  + "'");
-                        assertEquals(actual, expected, error_bar);
-                    }
-                    if(names.getString(i).equals(schemaText)) {
-                        String actual = values.getString(i);
-                        String expected = cv.getAsString(schemaText);
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaGuid)) {
-                        String actual = values.getString(i);
-                        String expected = cv.getAsString(schemaGuid);
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaFile)) {
-                        // TODO
-                    }
-                    if(names.getString(i).equals(schemaBlob)) {
-                        // TODO
-                    }
-                }
-            } catch (JSONException ex) {
-                fail("unexpected JSONException");
-                return;
-            }
-        }
-
-        // Compare json serialization to the provider content written from it
-        public void compareJsonToUri(String jsonStr, AmmoMockProvider01 provider, Uri uri)
-        {
-            final double error_bar = 0.00001;
-            try {
-                JSONObject json = new JSONObject(jsonStr);
-
-                assertTrue(json.has(schemaReal));
-                assertTrue(json.has(schemaGuid));
-                assertTrue(json.has(schemaText));
-                //assertTrue(json.has(schemaBlob));
-                //assertTrue(json.has(schemaFile));
-
-                // Now query the provider and examine its contents, checking that they're
-                // the same as the original JSON.
-                final String[] projection = null;
-                final String selection = null;
-                final String[] selectArgs = null;
-                final String orderBy = null;
-                final Cursor cursor = provider.query(uri, projection, selection, selectArgs, orderBy);
-
-
-                // The query should have succeeded
-                assertNotNull("Query into provider failed", cursor);
-
-                // There should be only one entry
-                assertEquals("Unexpected number of rows in cursor", 1, cursor.getCount());
-
-                // Row should be accessible with a cursor
-                assertTrue("Row not accessible with cursor", (cursor.moveToFirst()));
-
-                // Examine the provider content in detail, making sure it contains what we expect
-                // (i.e. the contents of the original JSON)
-                JSONArray names = json.names();
-                JSONArray values = json.toJSONArray(names);
-                for(int i = 0 ; i < values.length(); i++) {
-                    if(names.getString(i).equals(schemaReal)) {
-                        double actual = values.getDouble(i);
-                        double expected = cursor.getDouble(cursor.getColumnIndex(schemaReal));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected + "'");
-                        assertEquals(actual, expected, error_bar);
-                    }
-                    if(names.getString(i).equals(schemaText)) {
-                        String actual = values.getString(i);
-                        String expected = cursor.getString(cursor.getColumnIndex(schemaText));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaGuid)) {
-                        String actual = values.getString(i);
-                        String expected = cursor.getString(cursor.getColumnIndex(schemaGuid));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
-                        assertEquals(actual, expected);
-                    }
-                    if(names.getString(i).equals(schemaFile)) {
-                        // TODO
-                    }
-                    if(names.getString(i).equals(schemaBlob)) {
-                        // TODO
-                    }
-                }
-
-                // Close cursor when finished
-                cursor.close();
-            } catch (JSONException e) {
-                e.printStackTrace();
-                fail("unexpected JSONException");
-                return;
-            }
         }
     }
 
