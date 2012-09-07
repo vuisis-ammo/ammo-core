@@ -518,6 +518,7 @@ public class RequestSerializerTest extends AndroidTestCase {
                                                                 d.getBaseUri(),
                                                                 enc,
                                                                 jsonBytes);
+	    assertNotNull(uriIn);
             d.compareJsonToUri(jsonBytes, provider, uriIn);
         } finally {
             if (provider != null) provider.release();
