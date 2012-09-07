@@ -196,7 +196,7 @@ public abstract class AmmoMockProviderBase extends MockContentProvider {
     // ===========================================================
     // Constants
     // ===========================================================
-    private final static Logger logger = LoggerFactory.getLogger(AmmoMockProviderBase.class);
+    public final static Logger logger = LoggerFactory.getLogger("AmmoMockProviderBase");
 
     // ===========================================================
     // Fields
@@ -736,6 +736,10 @@ public abstract class AmmoMockProviderBase extends MockContentProvider {
     @Override
     public synchronized Uri insert(Uri uri, ContentValues assignedValues) {
 
+	logger.trace("insert: uri=[{}]  cv=[{}]", uri, assignedValues);
+
+	logger.trace("   uri match = {}", uriMatcher.match(uri));
+
         /** Validate the requested uri and do default initialization. */
         switch (uriMatcher.match(uri)) {
             case AMMO_SET:
@@ -945,6 +949,7 @@ public abstract class AmmoMockProviderBase extends MockContentProvider {
                 return null;
 
             case START_SET:
+		logger.trace(" start_set");
                 try {
                     final ContentValues values = this.initializeStartWithDefaults(assignedValues);
                     if ( AmmoMockSchemaBase.START_KEY_COLUMNS.length < 1 ) {
@@ -970,6 +975,7 @@ public abstract class AmmoMockProviderBase extends MockContentProvider {
                             AmmoMockProviderBase.START_KEY_CLAUSE, selectArgs);
                     if ( count < 1 ) {
                         rowID = db.insert(Tables.START_TBL, StartTableSchemaBase.A_REAL, values);
+			logger.trace(" start_set (count < 1):  rowId = {}", rowID);
                         if (rowID < 1) {
                             throw new SQLiteException("Failed to insert row into " + uri);
                         }
@@ -981,13 +987,16 @@ public abstract class AmmoMockProviderBase extends MockContentProvider {
                         cursor.moveToFirst();
                         rowID = cursor.getInt(cursor.getColumnIndex(BaseColumns._ID));
                         cursor.close();
+			logger.trace(" start_set (else):  rowId = {}", rowID);
                     }
                     final Uri playerURI = ContentUris.withAppendedId(StartTableSchemaBase.CONTENT_URI, rowID);
+		    logger.trace(" start_set : playerURI = [{}]", playerURI);
                     getContext().getContentResolver().notifyChange(uri, null);
                     return playerURI;
                 } catch (SQLiteException ex) {
                     logger.warn("bad column set {}", ex.getLocalizedMessage());
                 }
+		logger.trace(" start_set end");
                 return null;
 
                 /**
