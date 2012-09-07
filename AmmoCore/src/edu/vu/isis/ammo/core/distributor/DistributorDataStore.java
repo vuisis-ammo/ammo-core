@@ -458,12 +458,12 @@ public class DistributorDataStore {
 
     /**
      * Description: Indicates if the uri indicates a table or whether the data
-     * has been preserialized.
+     * has been pre-serialized.
      * <P>
      * Type: EXCLUSIVE
      * </P>
      */
-    public enum SeriaizeType {
+    public enum SerializeMode {
         /** The serialized data is found in the data field (or a suitable file). */
         DIRECT(1, "DIRECT"),
         /** The serialized data is obtained from the named uri. */
@@ -477,7 +477,7 @@ public class DistributorDataStore {
         final public int o;
         final public String t;
 
-        private SeriaizeType(int ordinal, String title) {
+        private SerializeMode(int ordinal, String title) {
             this.o = ordinal;
             this.t = title;
         }
@@ -493,8 +493,8 @@ public class DistributorDataStore {
             return String.valueOf(this.o);
         }
 
-        static public SeriaizeType getInstance(String ordinal) {
-            return SeriaizeType.values()[Integer.parseInt(ordinal)];
+        static public SerializeMode getInstance(String ordinal) {
+            return SerializeMode.values()[Integer.parseInt(ordinal)];
         }
     };
 
@@ -556,8 +556,18 @@ public class DistributorDataStore {
         /** The uri of the content provider */
         PROVIDER("provider", "TEXT"),
 
-        /** The payload instead of content provider */
+        /** 
+         * The payload instead of content provider 
+         * Very similar to DATA maybe these should be combined.
+         */
         PAYLOAD("payload", "TEXT"),
+
+        /**
+         * If null then the data file corresponding to the column name
+         * and record id should be used. This is done when the data size is
+         * larger than that allowed for a field contents.
+         */
+        DATA("data", "TEXT"),
 
         /** The current best guess of the status of the request. */
         DISPOSITION("disposition", "INTEGER"),
@@ -590,14 +600,8 @@ public class DistributorDataStore {
          * Arbitrary value linked to importance that entry is transmitted and
          * battery drain.
          */
-        VALUE("value", "INTEGER"),
+        WORTH("value", "INTEGER");
 
-        /**
-         * If the If null then the data file corresponding to the column name
-         * and record id should be used. This is done when the data size is
-         * larger than that allowed for a field contents.
-         */
-        DATA("data", "TEXT");
 
         /** the well known name */
         final public String n;
@@ -1418,6 +1422,7 @@ public class DistributorDataStore {
      */
     public synchronized long upsertPostal(ContentValues cv, Dispersal status) {
         try {
+            logger.trace("upsert postal status=[{}] cv=[{}]", status, cv);
             final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
             final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
 
@@ -1825,8 +1830,8 @@ public class DistributorDataStore {
         if (!values.containsKey(PostalTableSchema.UNIT.n)) {
             values.put(PostalTableSchema.UNIT.n, "unknown");
         }
-        if (!values.containsKey(PostalTableSchema.VALUE.n)) {
-            values.put(PostalTableSchema.VALUE.n, -1);
+        if (!values.containsKey(PostalTableSchema.WORTH.n)) {
+            values.put(PostalTableSchema.WORTH.n, -1);
         }
         if (!values.containsKey(PostalTableSchema.DATA.n)) {
             values.put(PostalTableSchema.DATA.n, "");

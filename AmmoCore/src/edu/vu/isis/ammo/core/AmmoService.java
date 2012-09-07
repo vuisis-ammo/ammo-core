@@ -199,11 +199,13 @@ public class AmmoService extends Service implements INetworkService,
     private boolean isMulticastSuppressed = INetPrefKeys.DEFAULT_MULTICAST_DISABLED;
     private boolean isReliableMulticastSuppressed = INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED;
     private boolean isSerialSuppressed = INetPrefKeys.DEFAULT_SERIAL_DISABLED;
-    
+
     static final private AtomicBoolean isStartCommandSuppressed = new AtomicBoolean(false);
+
     static public void suppressStartCommand() {
         AmmoService.isStartCommandSuppressed.set(true);
     }
+
     static public void activateStartCommand() {
         AmmoService.isStartCommandSuppressed.set(false);
     }
@@ -360,20 +362,6 @@ public class AmmoService extends Service implements INetworkService,
                     this.stopSelf();
                     return Service.START_NOT_STICKY;
                 }
-                if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {
-                    try {
-                        final AmmoRequest request = intent.getParcelableExtra("request");
-                        if (request == null) {
-                            logger.error("bad request intent {}", intent);
-                            return Service.START_NOT_STICKY;
-                        }
-                        final String result = this.distThread.distributeRequest(request);
-                        logger.trace("request result {}", result);
-                    } catch (ArrayIndexOutOfBoundsException ex) {
-                        logger.error("could not unmarshall the ammo request parcel");
-                    }
-                    return Service.START_NOT_STICKY;
-                }
                 if (action.equals("edu.vu.isis.ammo.AMMO_HARD_RESET")) {
                     this.acquirePreferences();
                     this.refresh();
@@ -415,8 +403,7 @@ public class AmmoService extends Service implements INetworkService,
     public void onCreate() {
         super.onCreate();
         logger.info("ammo service on create {}",
-                Integer.toHexString(System.identityHashCode(this)),
-                new Throwable());
+                Integer.toHexString(System.identityHashCode(this)));
         final Context context = this;
 
         this.journalChannel.init(context);

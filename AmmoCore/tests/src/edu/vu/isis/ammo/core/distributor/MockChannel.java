@@ -365,6 +365,7 @@ public class MockChannel extends NetChannel
         }
 
         private ConnectorThread(MockChannel parent) {
+            super(new StringBuilder("Mock-Connect-").append(Thread.activeCount()).toString());
             logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread()
                     .getId());
             this.parent = parent;
@@ -877,6 +878,7 @@ public class MockChannel extends NetChannel
                 SenderQueue iQueue,
                 MockNetworkStack iSocket)
         {
+            super(new StringBuilder("Mock-Sender-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
@@ -979,6 +981,7 @@ public class MockChannel extends NetChannel
                 MockChannel iDestination,
                 MockNetworkStack iSocket)
         {
+            super(new StringBuilder("Mock-Receiver-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mDestination = iDestination;
             mSocket = iSocket;

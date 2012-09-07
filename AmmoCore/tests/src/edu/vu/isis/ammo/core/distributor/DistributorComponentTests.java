@@ -59,7 +59,7 @@ import edu.vu.isis.ammo.testutils.RenamingMockContext;
  * <li>the channels which MockProvider is used by the test.
  * </ul>
  */
-public class DistributorComponentTests extends android.test.ServiceTestCase<AmmoService> {
+public class DistributorComponentTests extends AmmoServiceTestLogger {
     private Logger logger;
 
     private AmmoRequest.Builder builder;
@@ -112,7 +112,7 @@ public class DistributorComponentTests extends android.test.ServiceTestCase<Ammo
                     "  <logger name='link.mock' level='TRACE'/>" +
                     "  <logger name='test.context.mock' level='TRACE'/>" +
                     "  <logger name='test.request.distribute' level='TRACE'/>" +
-                    "  <logger name='ui.subscribe' level='TRACE'/>" +
+                    "  <logger name='test.service.lifecycle' level='TRACE'/>" +
                     "  <root level='OFF'>" +
                     "    <appender-ref ref='FILE' />" +
                     "  </root>" +
@@ -269,8 +269,9 @@ public class DistributorComponentTests extends android.test.ServiceTestCase<Ammo
                             now, expiration, worth, filter
                     });
             try {
+               
                 final IAmmoRequest request = builder
- //                       .provider(provider)
+                        .provider(provider)
                         .topic(topic)
                         .payload(cv)
                         .post();
@@ -289,24 +290,6 @@ public class DistributorComponentTests extends android.test.ServiceTestCase<Ammo
         } catch (Exception ex) {
             logger.error("some generic exception ", ex);
         }
-    }
-
-
-    @Override
-    protected IBinder bindService(Intent intent) {
-        logger.info("bind service {}", intent);
-        return super.bindService(intent);
-    }
-
-    @Override
-    protected void startService(Intent intent) {
-        logger.info("start service {}", intent);
-        super.startService(intent);
-    }
-
-    protected void setupService() {
-        logger.info("setup service ");
-        super.setupService();
     }
 
 }

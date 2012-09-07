@@ -53,6 +53,7 @@ import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Via;
+import edu.vu.isis.ammo.api.type.Order;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
@@ -66,7 +67,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchem
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeMode;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
@@ -968,6 +969,7 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.TOPIC.cv(), topic);
             values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
             values.put(PostalTableSchema.CHANNEL.cv(), channel);
+            values.put(PostalTableSchema.PAYLOAD.cv(), ar.payload.cv());
 
             values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
             values.put(PostalTableSchema.EXPIRATION.cv(),
@@ -984,7 +986,7 @@ public class DistributorThread extends Thread {
             if (!that.isConnected()) {
                 values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
                 long key = this.store.upsertPostal(values, policy.makeRouteMap(channel));
-                logger.debug("no channel available, added postal [{}] [{}]", key, values);
+                logger.debug("no channel connected, added postal [{}] [{}]", key, values);
                 return;
             }
 
@@ -1117,7 +1119,7 @@ public class DistributorThread extends Thread {
             return;
         }
 
-        logger.info("[{}] pending postal requests", pending.getCount());
+        logger.info("pending postal requests=[{}]", pending.getCount());
         // Iterate over each row serializing its data and sending it.
         for (boolean moreItems = pending.moveToFirst(); moreItems; moreItems = pending.moveToNext())
         {
@@ -1147,23 +1149,36 @@ public class DistributorThread extends Thread {
             logger.debug("serializing: {} as {}", provider, topic);
 
             final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
-            final int serialType = pending
-                    .getInt(pending.getColumnIndex(PostalTableSchema.ORDER.n));
+            final String orderingMethodId = pending
+                    .getString(pending.getColumnIndex(PostalTableSchema.ORDER.n));
+            @SuppressWarnings("unused")
+            final Order orderMethod = new Order(orderingMethodId);
+            
+            final SerializeMode serialType;
             int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
 
-            final String data = (pending.isNull(dataColumnIndex)) ? null : pending
-                    .getString(dataColumnIndex);
+            final String data;
+            {
+                if (pending.isNull(dataColumnIndex)) {
+                    data = null;
+                    serialType = SerializeMode.DEFERRED;
+                    
+                } else {
+                    data = pending.getString(dataColumnIndex);
+                    serialType = SerializeMode.DIRECT;
+                }
+            }
 
             serializer.setSerializer(new RequestSerializer.OnSerialize() {
                 final DistributorThread parent = DistributorThread.this;
                 final RequestSerializer serializer_ = serializer;
                 final AmmoService that_ = that;
-                final int serialType_ = serialType;
+                final SerializeMode serialType_ = serialType;
                 final String data_ = data;
 
                 @Override
                 public byte[] run(Encoding encode) {
-                    switch (SerializeType.getInstance(serialType_)) {
+                    switch (serialType_) {
                         case DIRECT:
                             return (data_.length() > 0) ? data_.getBytes() : null;
 
@@ -1171,9 +1186,14 @@ public class DistributorThread extends Thread {
                         case DEFERRED:
                         default:
                             try {
+                                if (payload != null && payload.isSet()) {
+                                    return RequestSerializer.serializeFromContentValues(payload.getCV(), encode);
+                                } else {
+                                
                                 return RequestSerializer.serializeFromProvider(
                                         that_.getContentResolver(),
                                         serializer_.provider.asUri(), encode);
+                                }
                             } catch (IOException e1) {
                                 logger.error("invalid row for serialization");
                             } catch (TupleNotFoundException ex) {
