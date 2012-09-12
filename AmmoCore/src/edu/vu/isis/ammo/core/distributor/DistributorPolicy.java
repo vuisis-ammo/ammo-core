@@ -298,7 +298,7 @@ public class DistributorPolicy implements ContentHandler {
         
         private boolean routed;
         
-        public boolean setRouted(boolean routed) {
+        public void setRouted(boolean routed) {
             this.routed = routed;
         }
         
