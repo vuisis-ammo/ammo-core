@@ -969,8 +969,12 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.TOPIC.cv(), topic);
             values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
             values.put(PostalTableSchema.CHANNEL.cv(), channel);
-            values.put(PostalTableSchema.PAYLOAD.cv(), ar.payload.cv());
-
+            if (ar.payload != null) {
+                final byte[] payloadBytes = ar.payload.pickle();
+                values.put(PostalTableSchema.PAYLOAD.cv(), payloadBytes);
+                logger.trace("payload string=[{}] bytes=[{}]", new String(payloadBytes),
+                        payloadBytes);
+            }
             values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
             values.put(PostalTableSchema.EXPIRATION.cv(),
                     policy.routing.getExpiration(ar.expire.cv()));
@@ -978,9 +982,8 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
             values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-            Parcel np = Parcel.obtain();
-            np.writeParcelable(ar.notice, 0);
-            values.put(PostalTableSchema.NOTICE.cv(), np.marshall());
+            if (ar.notice != null)
+                values.put(PostalTableSchema.NOTICE.cv(), ar.notice.pickle());
 
             final Dispersal dispersal = policy.makeRouteMap(channel);
             if (!that.isConnected()) {
@@ -1131,20 +1134,28 @@ public class DistributorThread extends Thread {
 
             final Provider provider = new Provider(pending.getString(pending
                     .getColumnIndex(PostalTableSchema.PROVIDER.n)));
-            final Payload payload = new Payload(pending.getString(pending
-                    .getColumnIndex(PostalTableSchema.PAYLOAD.n)));
+            final int payloadIx = pending.getColumnIndex(PostalTableSchema.PAYLOAD.n);
+            final Payload payload;
+            if (!pending.isNull(payloadIx)) {
+                final byte[] payloadBytes = pending.getBlob(payloadIx);
+                logger.trace("get payload bytes=[{}]", payloadBytes);
+                payload = Payload.unpickle(payloadBytes);
+            } else {
+                payload = null;
+            }
+            logger.trace("payload=[{}]", payload);
             final String topic = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.TOPIC.n));
             final String channelFilter = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.CHANNEL.n));
 
-            // read notice stuck in as a blob in the db
-            final byte[] nb = pending.getBlob(pending.getColumnIndex(PostalTableSchema.NOTICE.n));
-            logger.trace("notice bytes=[{}]", nb);
-            final Parcel np = Parcel.obtain();
-            np.unmarshall(nb, 0, nb.length);
-            np.setDataPosition(0);
-            final Notice notice = Notice.CREATOR.createFromParcel(np);
+            final int noticeIx = pending.getColumnIndex(PostalTableSchema.NOTICE.n);
+            final Notice notice;
+            if (!pending.isNull(noticeIx)) {
+                notice = Notice.fromParcelBytes(pending.getBlob(noticeIx));
+            } else {
+                notice = Notice.RESET;
+            }
 
             logger.debug("serializing: {} as {}", provider, topic);
 
@@ -1153,7 +1164,7 @@ public class DistributorThread extends Thread {
                     .getString(pending.getColumnIndex(PostalTableSchema.ORDER.n));
             @SuppressWarnings("unused")
             final Order orderMethod = new Order(orderingMethodId);
-            
+
             final SerializeMode serialType;
             int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
 
@@ -1162,7 +1173,7 @@ public class DistributorThread extends Thread {
                 if (pending.isNull(dataColumnIndex)) {
                     data = null;
                     serialType = SerializeMode.DEFERRED;
-                    
+
                 } else {
                     data = pending.getString(dataColumnIndex);
                     serialType = SerializeMode.DIRECT;
@@ -1187,17 +1198,19 @@ public class DistributorThread extends Thread {
                         default:
                             try {
                                 if (payload != null && payload.isSet()) {
-                                    return RequestSerializer.serializeFromContentValues(payload.getCV(), encode);
+                                    return RequestSerializer.serializeFromContentValues(
+                                            payload.getCV(), encode);
                                 } else {
-                                
-                                return RequestSerializer.serializeFromProvider(
-                                        that_.getContentResolver(),
-                                        serializer_.provider.asUri(), encode);
+
+                                    return RequestSerializer.serializeFromProvider(
+                                            that_.getContentResolver(),
+                                            serializer_.provider.asUri(), encode);
                                 }
                             } catch (IOException e1) {
                                 logger.error("invalid row for serialization");
                             } catch (TupleNotFoundException ex) {
-                                logger.error("no tuple for postal request serializer [{}]", serializer_);
+                                logger.error("no tuple for postal request serializer [{}]",
+                                        serializer_);
                                 parent.store().deletePostal(
                                         new StringBuilder()
                                                 .append(PostalTableSchema.PROVIDER.q())
@@ -1320,13 +1333,16 @@ public class DistributorThread extends Thread {
                             .setOriginDevice(ammoService.getDeviceId())
                             .setData(ByteString.copyFrom(serialized));
 
-                    final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds
-                            .newBuilder()
-                            .setDeviceDelivered(notice.atDeviceDelivered.getVia().isActive())
-                            .setAndroidPluginReceived(notice.atGatewayDelivered.getVia().isActive())
-                            .setPluginDelivered(notice.atPluginDelivered.getVia().isActive());
+                    if (notice != null) {
+                        final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds
+                                .newBuilder()
+                                .setDeviceDelivered(notice.atDeviceDelivered.getVia().isActive())
+                                .setAndroidPluginReceived(
+                                        notice.atGatewayDelivered.getVia().isActive())
+                                .setPluginDelivered(notice.atPluginDelivered.getVia().isActive());
 
-                    pushReq.setThresholds(noticeBuilder);
+                        pushReq.setThresholds(noticeBuilder);
+                    }
 
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
                     mw.setDataMessage(pushReq);

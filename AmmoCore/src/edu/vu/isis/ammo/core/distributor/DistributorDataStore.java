@@ -54,7 +54,7 @@ public class DistributorDataStore {
     // Constants
     // ===========================================================
     private final static Logger logger = LoggerFactory.getLogger("dist.store");
-    public static final int VERSION = 40;
+    public static final int VERSION = 41;
     public static final String SQLITE_NAME = "distributor.db";
 
     public static final long CONVERT_MINUTES_TO_MILLISEC = 60L * 1000L;
@@ -560,14 +560,14 @@ public class DistributorDataStore {
          * The payload instead of content provider 
          * Very similar to DATA maybe these should be combined.
          */
-        PAYLOAD("payload", "TEXT"),
+        PAYLOAD("payload", "BLOB"),
 
         /**
          * If null then the data file corresponding to the column name
          * and record id should be used. This is done when the data size is
          * larger than that allowed for a field contents.
          */
-        DATA("data", "TEXT"),
+        DATA("data", "BLOB"),
 
         /** The current best guess of the status of the request. */
         DISPOSITION("disposition", "INTEGER"),

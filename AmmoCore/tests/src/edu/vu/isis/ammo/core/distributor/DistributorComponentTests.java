@@ -33,6 +33,7 @@ import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
+import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.TimeInterval;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.DistributorServiceAidl;
@@ -258,6 +259,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
                 cv.put("greeting", "Hello");
                 cv.put("recipient", "World");
                 cv.put("emphasis", "!");
+                cv.put("source", "me");
             }
 
             logger.info("post: provider [{}] payload [{}] topic [{}]",
@@ -274,6 +276,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
                         .provider(provider)
                         .topic(topic)
                         .payload(cv)
+                        .notice(Notice.RESET)
                         .post();
                 logger.info("posted request [{}]", request);
 

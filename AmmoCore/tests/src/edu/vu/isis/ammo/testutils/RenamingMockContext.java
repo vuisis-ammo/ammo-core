@@ -333,7 +333,7 @@ public class RenamingMockContext extends MockContext {
 
     @Override
     public void unbindService(ServiceConnection conn) {
-        this.targetContext.unbindService(conn);
+        //this.targetContext.unbindService(conn);
     }
 
 //    @Override
