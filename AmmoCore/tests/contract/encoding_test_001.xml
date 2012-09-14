@@ -7,18 +7,15 @@
         <!-- Fields as they will appear in the generated content provider. This
             also specifies the default message encoding order, if there isn't a
             <message> element for that encoding below. -->
-        <field type="TEXT" name="sms_uri" default="unknown"/>
+        <field type="TEXT" name="topic" default="unknown"/>
         <field type="TEXT" name="sender" default="" null="no"/>
         <field type="TEXT" name="recipient" default="" null="no"/>
         <field type="LONG" name="thread" default="0" null="no"/>
         <field type="TEXT" name="payload" default="" null="no"/>
-        <field type="TIMESTAMP" name="created date" default="now"/>
-        <field type="TIMESTAMP" name="modified date" default="now" sort="1"/>
-        <field name="msg type" default="normal" null="no" type="TEXT"/>
+        <field type="TEXT" name="msg type" default="normal" null="no"/>
         <key>
             <ref field="sender"/>
             <ref field="recipient"/>
-            <ref field="created date"/>
         </key>
         <!-- Specifies the fields which will be sent for terse encoding, in the
             order in which they will be sent. This can include a subset of fields
@@ -29,7 +26,7 @@
         <message encoding="terse">
             <field ref="sender"/>
             <field ref="recipient"/>
-            <field ref="created date"/>
+  
             <field ref="msg type"/>
             <field ref="thread"/>
             <field ref="payload"/>

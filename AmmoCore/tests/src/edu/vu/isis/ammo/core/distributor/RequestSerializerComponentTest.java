@@ -425,6 +425,85 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
     }
 
     /**
+     * test round trip for a ContentValue for JSON encoding with all the test
+     * cases. serializes the CV to byte[] then de-serializes encoded byte[] to a
+     * 2nd CV compares the input CV and output CV for sameness
+     */
+    public void testSerializeFromCvNonSymmetricRoundTripJSON() {
+
+        Encoding jsonEncoding = Encoding.newInstance(Encoding.Type.JSON);
+
+        ContractStore contractStore = ContractStore.newInstance(mContext);
+
+        boolean testSetsEqual = false;
+        if ((CVs.size() == mimeTypes.size())
+                && (CVs.size() == description.size())
+                && (description.size() == mimeTypes.size())) {
+            testSetsEqual = true;
+        }
+
+        assertNotNull("CV test 0 was null", CVs.get(0));
+        assertNotNull("mimeTypes test 0 was null", mimeTypes.get(0));
+        assertNotNull("description test 0 was null", description.get(0));
+
+        // check that all 3 have the same input sizes
+        assertEquals("all 3 test sets are not the same size", true,
+                testSetsEqual);
+
+        String jsonStr = null;
+        int i = 0;
+        try {
+
+            // check all CVs loaded into 'CVs' for proper serial/de-serial
+            // with appropriate mimetypes and encoding
+            for (i = 0; i < CVs.size(); ++i) {
+                // setup shortTestVariables
+                ContentValues testCV = CVs.get(i);
+                String mimeType = mimeTypes.get(i);
+                String desc = description.get(i);
+
+                // test JSON Encoding
+                byte[] encodedBytes = RequestSerializer
+                        .serializeFromContentValues(testCV, jsonEncoding,
+                                mimeType, contractStore);
+
+                ContentValues resultCV = RequestSerializer
+                        .deserializeToContentValues(encodedBytes, jsonEncoding,
+                                mimeType, contractStore);
+
+                assertEquals("Serialize/Deserialze to/from CV of type "
+                        + mimeType + " do not match for JSON for " + desc,
+                        true, compareCVs(testCV, resultCV));
+
+                // see if encoded bytes can properly be made into JSON object
+                jsonStr = new String(encodedBytes, "UTF-8");
+                final JSONObject jsonObj = new JSONObject(jsonStr);
+
+                assertEquals("Encoded JSON object for '" + mimeType
+                        + "' doesn't contain as many objects as input CV for "
+                        + desc, true, (testCV.size() == jsonObj.length()));
+            }
+
+        } catch (UnsupportedEncodingException ex) {
+            Assert.fail("unsupported encoding " + i + " " + ex.getStackTrace());
+        } catch (JSONException ex) {
+            Assert.fail("invalid json " + i + " " + ex.getStackTrace());
+        } catch (Exception ex) {
+            // not sure 'i' will have right value, not sure when stack unrolling
+            // happens, before or after catch, this handles either
+            if (i == -1) {
+                Assert.fail("\n\nException Caught: " + ex.getStackTrace()
+                        + "\n\n");
+            } else {
+                Assert.fail("\n\nException Caught: test case # " + i + " "
+                        + ex.getStackTrace() + "\n\n");
+            }
+        }
+
+    }
+    
+    
+    /**
      * tests if all the test cases will properly encode from CV to TERSE
      * encoding and back. TODO doesn't handle the variations on data values
      * based on terse possibly encoding a subset of the data. TODO doesn't
