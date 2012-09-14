@@ -7,9 +7,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Process;
+import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 
@@ -19,34 +21,49 @@ public class RequestDeserializerThread extends Thread {
 
     private final PriorityBlockingQueue<Item> queue;
     private AtomicInteger masterSequence;
+    
+    private final DistributorThread distributor;
+    
+    public enum DeserializerOperation {
+        TO_PROVIDER,
+        TO_REROUTE
+    }
 
     public class Item {
         final public int priority;
         final public int sequence;
+        
+        final public DeserializerOperation operation;
 
         final public Context context;
         final public String channelName;
         final public Uri provider;
         final public Encoding encoding;
+        final public String mimeType;
         final public byte[] data;
 
-        public Item(final int priority, final Context context, final String channelName, 
-                final Uri provider, final Encoding encoding, final byte[] data) 
+        public Item(final int priority, final DeserializerOperation operation,
+                final Context context, final String channelName,
+                final Uri provider, final Encoding encoding, final String mimeType, final byte[] data)
         {
             this.priority = priority;
             this.sequence = masterSequence.getAndIncrement();
+            
+            this.operation = operation;
 
             this.context = context;
             this.channelName = channelName;
             this.provider = provider;
             this.encoding = encoding;
+            this.mimeType = mimeType;
             this.data = data;
         }
     }
 
-    public RequestDeserializerThread() {
+    public RequestDeserializerThread(DistributorThread distributor) {
         this.masterSequence = new AtomicInteger(0);
         this.queue = new PriorityBlockingQueue<Item>(200, new PriorityOrder());
+        this.distributor = distributor;
     }
 
     /**
@@ -86,7 +103,14 @@ public class RequestDeserializerThread extends Thread {
     public boolean toProvider(int priority, Context context, final String channelName,
             Uri provider, Encoding encoding, byte[] data) 
     {
-        this.queue.offer(new Item(priority, context, channelName, provider, encoding, data));
+        this.queue.offer(new Item(priority, DeserializerOperation.TO_PROVIDER, context, channelName, provider, encoding, "", data));
+        return true;
+    }
+    
+    public boolean toReroute(int priority, Context context, final String channelName,
+            Encoding encoding, String mimeType, byte[] data) 
+    {
+        this.queue.offer(new Item(priority, DeserializerOperation.TO_REROUTE, context, channelName, null, encoding, mimeType, data));
         return true;
     }
 
@@ -101,19 +125,30 @@ public class RequestDeserializerThread extends Thread {
 
                 final Item item = this.queue.take();
 
-                try {
-                    final Uri tuple = RequestSerializer.deserializeToProvider(
-                            item.context, item.context.getContentResolver(),
-                            item.channelName, item.provider, item.encoding, item.data);
-                    logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
-                            new Object[]{item.provider, tuple, queue.size()} );
-                    tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[]{System.currentTimeMillis(), "insert_queue", this.queue.size()});
-
-                } catch (Exception ex) {
-                    logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
-                            new Object []{item.provider, queue.size()}, ex);
+                if(item.operation == DeserializerOperation.TO_PROVIDER) {
+                    try {
+                        final Uri tuple = RequestSerializer.deserializeToProvider(
+                                item.context, item.context.getContentResolver(),
+                                item.channelName, item.provider, item.encoding, item.data);
+                        logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
+                                new Object[]{item.provider, tuple, queue.size()} );
+                        tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[]{System.currentTimeMillis(), "insert_queue", this.queue.size()});
+    
+                    } catch (Exception ex) {
+                        logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
+                                new Object []{item.provider, queue.size()}, ex);
+                    }
+                } else if(item.operation == DeserializerOperation.TO_REROUTE) {
+                    final ContentValues cv = RequestSerializer.deserializeToContentValues(item.data, item.encoding, item.mimeType, this.distributor.contractStore);
+                    //Create a new request to forward this on to the distributor
+                    InternalRequestBuilder builder = new InternalRequestBuilder();
+                    builder.payload(cv);
+                    builder.topic(item.mimeType);
+                    builder.priority(item.priority);
+                    builder.useChannel(item.channelName); //should be the channel that we don't want to use
+                    AmmoRequest postRequest = (AmmoRequest) builder.post();
+                    this.distributor.distributeRequest(postRequest);
                 }
-
             }
 
         } catch (Exception ex) {

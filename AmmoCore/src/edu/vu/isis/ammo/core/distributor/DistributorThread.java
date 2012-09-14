@@ -119,7 +119,7 @@ public class DistributorThread extends Thread {
      */
     final private DistributorDataStore store;
     
-    final private ContractStore contractStore;
+    final public ContractStore contractStore;
 
     private static final int SERIAL_NOTIFY_ID = 1;
     private static final int IP_NOTIFY_ID = 2;
@@ -138,7 +138,7 @@ public class DistributorThread extends Thread {
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
         this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200,
                 new AmmoGatewayMessage.PriorityOrder());
-        this.deserialThread = new RequestDeserializerThread();
+        this.deserialThread = new RequestDeserializerThread(this);
         this.deserialThread.start();
         this.store = new DistributorDataStore(context);
         this.contractStore = ContractStore.newInstance(context);
@@ -2094,11 +2094,17 @@ public class DistributorThread extends Thread {
         
         DistributorPolicy policy = this.ammoService.policy();
         
+        DistributorPolicy.Topic topicPolicy = policy.matchPostal(topic);
+        
         
 
         final Encoding encoding = Encoding.getInstanceByName(encode);
         this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
                 data.toByteArray());
+        
+        if(topicPolicy.getRouted() == true) {
+            this.deserialThread.toReroute(priority, context, channel.name, encoding, topic, data.toByteArray());
+        }
 
         logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
 
