@@ -362,6 +362,24 @@ public class AmmoService extends Service implements INetworkService,
                     this.stopSelf();
                     return Service.START_NOT_STICKY;
                 }
+                /**
+                 * The following block is deprecated. All requests should be
+                 * made via the AIDL binding.
+                 */
+                if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {
+                    try {
+                        final AmmoRequest request = intent.getParcelableExtra("request");
+                        if (request == null) {
+                            logger.error("bad request intent {}", intent);
+                            return Service.START_NOT_STICKY;
+                        }
+                        final String result = this.distThread.distributeRequest(request);
+                        logger.trace("request result {}", result);
+                    } catch (ArrayIndexOutOfBoundsException ex) {
+                        logger.error("could not unmarshall the ammo request parcel");
+                    }
+                    return Service.START_NOT_STICKY;
+                }
                 if (action.equals("edu.vu.isis.ammo.AMMO_HARD_RESET")) {
                     this.acquirePreferences();
                     this.refresh();
@@ -389,8 +407,10 @@ public class AmmoService extends Service implements INetworkService,
     private Settings globalSettings; // from tasettings
     private SharedPreferences localSettings; // local copy
 
-    // moving the variable to be a class variable instead
-    // of being a local variable within the onCreate method
+    /**
+     * moving the variable to be a class variable instead of being a local
+     * variable within the onCreate method
+     */
     private WifiManager.MulticastLock multicastLock = null;
 
     public Handler notifyMsg = null;
@@ -1561,7 +1581,8 @@ public class AmmoService extends Service implements INetworkService,
     public void statusChange(NetChannel channel, int connStatus,
             int sendStatus, int recvStatus) {
         if (logger.isDebugEnabled()) {
-            logger.debug("change channel=[{}] status=[{}]", channel.name, NetChannel.showState(connStatus));
+            logger.debug("change channel=[{}] status=[{}]", channel.name,
+                    NetChannel.showState(connStatus));
         }
 
         final ModelChannel modelChannel = modelChannelMap.get(channel.name);
@@ -1635,10 +1656,12 @@ public class AmmoService extends Service implements INetworkService,
 
     /**
      * No channels can be registered until after onCreate() The channel must be
-     * created in a disabled state. Properly the channel should be enabled only
-     * after any relevant preferences have been read. That being the case
-     * registration should be after any relevant preferences are loaded. The
-     * channel is suppressed by simply not registering.
+     * created in a disabled state.
+     * <p>
+     * Properly the channel should be enabled only after any relevant
+     * preferences have been read. That being the case registration should be
+     * after any relevant preferences are loaded. The channel is suppressed by
+     * simply not registering.
      * 
      * @param channel
      */

@@ -80,7 +80,7 @@ public class MockNetworkStack extends Socket {
         if (this.throwException.get()) {
             throw new Exception("mock socket exception");
         }
-        final ByteBuffer result = this.output.poll(5, TimeUnit.SECONDS);
+        final ByteBuffer result = this.output.poll(50, TimeUnit.SECONDS);
         logger.error("receive [{}]", result);
         return result;
     }

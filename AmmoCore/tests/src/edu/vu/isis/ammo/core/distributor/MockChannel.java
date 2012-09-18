@@ -462,9 +462,9 @@ public class MockChannel extends NetChannel
 
             public String showState() {
                 if (this.value == this.actual)
-                    return parent.showState(this.value);
+                    return NetChannel.showState(this.value);
                 else
-                    return parent.showState(this.actual) + "->" + parent.showState(this.value);
+                    return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.value);
             }
         }
 
@@ -871,18 +871,18 @@ public class MockChannel extends NetChannel
         private ConnectorThread mParent;
         private MockChannel mChannel;
         private SenderQueue mQueue;
-        private MockNetworkStack mSocket;
+        private MockNetworkStack mNetworkStack;
 
         public SenderThread(ConnectorThread iParent,
                 MockChannel iChannel,
                 SenderQueue iQueue,
-                MockNetworkStack iSocket)
+                MockNetworkStack iNetworkStack)
         {
             super(new StringBuilder("Mock-Sender-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
-            mSocket = iSocket;
+            mNetworkStack = iNetworkStack;
         }
 
         /**
@@ -923,7 +923,7 @@ public class MockChannel extends NetChannel
                             (byte) 0);
                     setSenderState(INetChannel.SENDING);
 
-                    mSocket.send(buf);
+                    mNetworkStack.send(buf);
 
                     // update send messages ...
                     mMessagesSent.incrementAndGet();
@@ -975,20 +975,20 @@ public class MockChannel extends NetChannel
         private int mState = INetChannel.TAKING;
         private ConnectorThread mParent;
         private MockChannel mDestination;
-        private MockNetworkStack mSocket;
+        private MockNetworkStack mNetworkStack;
 
         public ReceiverThread(ConnectorThread iParent,
                 MockChannel iDestination,
-                MockNetworkStack iSocket)
+                MockNetworkStack iNetworkStack)
         {
             super(new StringBuilder("Mock-Receiver-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mDestination = iDestination;
-            mSocket = iSocket;
+            mNetworkStack = iNetworkStack;
         }
 
         /**
-         * Block on reading from the MockSocket until we get some data. If we
+         * Block on reading from the MockNetworkStack until we get some data. If we
          * get an error, notify our parent and go into an error state.
          * <p>
          */
@@ -1002,7 +1002,7 @@ public class MockChannel extends NetChannel
                 try {
                     setReceiverState(INetChannel.START);
 
-                    final ByteBuffer buf = mSocket.receive();
+                    final ByteBuffer buf = mNetworkStack.receive();
 
                     // update received count ....
                     mMessagesReceived.incrementAndGet();

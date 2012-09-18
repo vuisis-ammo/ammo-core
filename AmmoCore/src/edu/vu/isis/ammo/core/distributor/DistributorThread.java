@@ -1150,7 +1150,9 @@ public class DistributorThread extends Thread {
             final int noticeIx = pending.getColumnIndex(PostalTableSchema.NOTICE.n);
             final Notice notice;
             if (!pending.isNull(noticeIx)) {
-                notice = Notice.fromParcelBytes(pending.getBlob(noticeIx));
+                final byte[] noticeBytes = pending.getBlob(noticeIx);
+                logger.trace("get notice bytes=[{}]", noticeBytes);
+                notice = Notice.unpickle(noticeBytes);
             } else {
                 notice = Notice.RESET;
             }
