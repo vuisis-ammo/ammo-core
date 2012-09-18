@@ -27,6 +27,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -266,7 +267,10 @@ public class SerialChannel extends NetChannel
     public void setSlotNumber( int slotNumber )
     {
         logger.info( "Slot set to {}", slotNumber );
-        mSlotNumber.set( slotNumber );
+
+        // The UI shows slot numbers 1-based to be user friendly.  Internally,
+        // all slot numbers are 0-based.
+        mSlotNumber.set( slotNumber - 1 );
     }
 
     /**
@@ -707,9 +711,12 @@ public class SerialChannel extends NetChannel
                             // mDelta = (mCount*mDelta + delta)/(mCount+1);
 
                             // FIR Filter
-                            mDelta = 0;
-                            for (long d : mDeltaSamples) mDelta += d;
-                            mDelta = mDelta / Math.min( mCount + 1, numSamples );
+                            mDelta.set( 0 );
+                            long accumulator = 0;
+                            for (long d : mDeltaSamples)
+                                accumulator += d;
+                            accumulator = accumulator / Math.min( mCount + 1, numSamples );
+                            mDelta.set( accumulator );
 
                             // Store samples
                             mDeltaSamples[ mCount % numSamples ] = delta;
@@ -945,7 +952,7 @@ public class SerialChannel extends NetChannel
 
             // CONSTANTS
             final int slotDuration = mSlotDuration.get();
-            final int offset = ((mSlotNumber.get() - 1) % mRadiosInGroup.get()) * slotDuration;
+            final int offset = (mSlotNumber.get() % mRadiosInGroup.get()) * slotDuration;
             final int cycleDuration = slotDuration * mRadiosInGroup.get();
             final double bytesPerMs = mBaudRate / (10*1000.0); // baudrate == symbols/sec,
                                                                // 1 byte == 10 symbols,
@@ -961,20 +968,28 @@ public class SerialChannel extends NetChannel
             final long tweakedTransmitDuration = transmitDuration + (long) Math.min( 50, 0.1 * transmitDuration );
             final long MAX_SEND_PAYLOAD_SIZE = ((long) (transmitDuration * bytesPerMs));
 
-            long currentGpsTime = System.currentTimeMillis() - mDelta;
+            long currentGpsTime = System.currentTimeMillis() - mDelta.get();
             long goalTakeTime = currentGpsTime; // initialize to now, will get recomputed
 
             while ( mSenderState.get() != INetChannel.INTERRUPTED ) {
                 AmmoGatewayMessage msg = null;
                 try {
                     waitSlot: {
-                        currentGpsTime = System.currentTimeMillis() - mDelta;
-                        // which cycle are we in
+                        currentGpsTime = System.currentTimeMillis() - mDelta.get();
+
+                        // which cycle are we in (start time)
                         final long thisCycleStartTime = (long) (currentGpsTime / cycleDuration) * cycleDuration;
+
+                        // our hyperperiod is the low order short of (currentGpsTime / cycleDuration).
+                        // We use this so the retransmitter can tell which slot it's in.
+                        final int hyperperiod = ((int) (currentGpsTime / cycleDuration)) & 0x0000FFFF;
+
                         // for this cycle when does our slot begin
                         final long thisSlotBegin = thisCycleStartTime + offset;
+
                         // for this cycle when does our slot end (begin + xmit-window)
                         final long thisSlotEnd = thisSlotBegin + tweakedTransmitDuration;
+
                         // how much data (in time units) have we sent so far in this slot
                         long thisSlotConsumed = 0;
 
@@ -1039,7 +1054,7 @@ public class SerialChannel extends NetChannel
 
                                 // update our time (could potentially change from last read
                                 // because of context switch etc..)
-                                currentGpsTime = System.currentTimeMillis() - mDelta;
+                                currentGpsTime = System.currentTimeMillis() - mDelta.get();
                                 // how much time do we have left in slot
                                 final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed;
                                 final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
@@ -1101,7 +1116,7 @@ public class SerialChannel extends NetChannel
                             }
                         }
                     }
-                    currentGpsTime = System.currentTimeMillis() - mDelta;
+                    currentGpsTime = System.currentTimeMillis() - mDelta.get();
                     if ( goalTakeTime > currentGpsTime )
                         Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
@@ -1120,7 +1135,7 @@ public class SerialChannel extends NetChannel
          */
         private void sendMessage( AmmoGatewayMessage msg ) throws IOException
         {
-            msg.gpsOffset = mDelta;
+            msg.gpsOffset = mDelta.get();
             ByteBuffer buf = msg.serialize( endian,
                                             AmmoGatewayMessage.VERSION_1_TERSE,
                                             (byte) mSlotNumber.get());
@@ -1155,7 +1170,7 @@ public class SerialChannel extends NetChannel
                                    double bytesPerMs ) throws IOException
         {
             // update our time (could potentially change from last read because of context switch etc..)
-            final long currentGpsTime = System.currentTimeMillis() - mDelta;
+            final long currentGpsTime = System.currentTimeMillis() - mDelta.get();
             final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
             final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
 
@@ -1165,6 +1180,8 @@ public class SerialChannel extends NetChannel
                 AmmoGatewayMessage agm = getRetransmitter().createResendPacket( bytesThatWillFit - RESERVE_FOR_ACK );
                 if ( agm != null ) {
                     sendMessage( agm );
+                } else {
+                    break;
                 }
             }
 
@@ -1236,6 +1253,8 @@ public class SerialChannel extends NetChannel
                 final byte second = (byte) 0xbe;
                 final byte third = (byte) 0xed;
 
+                int hyperperiod = 0;
+
                 // See note about length=16 below.
                 byte[] buf_header = new byte[ 32 ];// AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE ];
                 ByteBuffer header = ByteBuffer.wrap( buf_header );
@@ -1288,10 +1307,14 @@ public class SerialChannel extends NetChannel
 
                     case 1:
                     {
-                        long currentTime = System.currentTimeMillis();
+                        long currentTime = System.currentTimeMillis() - mDelta.get();
                         int slotDuration = mSlotDuration.get();
                         int cycleDuration = slotDuration * mRadiosInGroup.get();
                         long thisCycleStartTime = (long) (currentTime / cycleDuration) * cycleDuration;
+
+                        // our hyperperiod is the low order short of (currentGpsTime / cycleDuration).
+                        // We use this so the retransmitter can tell which slot it's in.
+                        hyperperiod = ((int) (currentTime / cycleDuration)) & 0x0000FFFF;
 
                         long currentSlot = (currentTime - thisCycleStartTime) / slotDuration;
                         logger.debug( "Read magic sequence in slot {} at {}",
@@ -1348,7 +1371,8 @@ public class SerialChannel extends NetChannel
                         agmb.isSerialChannel( true );
                         AmmoGatewayMessage agm = agmb.payload( buf_payload ).channel(SerialChannel.this).build();
 
-                        long currentTime = System.currentTimeMillis();
+                        // Begin logging stuff
+                        long currentTime = System.currentTimeMillis() - mDelta.get();
                         int slotDuration = mSlotDuration.get();
                         int cycleDuration = slotDuration * mRadiosInGroup.get();
 
@@ -1358,6 +1382,8 @@ public class SerialChannel extends NetChannel
                         logger.debug( "Finished reading payload in slot {} at {}",
                                       currentSlot,
                                       currentTime );
+                        // End logging stuff
+
                         mMessagesReceived.getAndIncrement();
                         logger.debug( "received message size={}, checksum={}, data:{}",
                                       new Object[] {
@@ -1369,8 +1395,8 @@ public class SerialChannel extends NetChannel
                             setReceiverState( INetChannel.DELIVER );
                             getRetransmitter().processReceivedMessage( agm,
                                                                        mReceiverEnabled.get(),
-                                                                       0,
-                                                                       0 );
+                                                                       hyperperiod,
+                                                                       mSlotNumber.get() );
                         } else {
                             setReceiverState( INetChannel.DELIVER );
                             if ( mReceiverEnabled.get() ) {
@@ -1586,7 +1612,7 @@ public class SerialChannel extends NetChannel
     private Context mContext;
 
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
-    private final AtomicReference<SerialRetransmitter> mRetransmitter = null; //new AtomicReference<SerialRetransmitter>();
+    private final AtomicReference<SerialRetransmitter> mRetransmitter = new AtomicReference<SerialRetransmitter>();
 
     private static final int WAIT_TIME = 5 * 1000; // 5 s
     private static final int MAX_RECEIVE_PAYLOAD_SIZE = 2000; // Should this be set based on baud and slot duration?
@@ -1640,7 +1666,7 @@ public class SerialChannel extends NetChannel
 
     private int mCount = 0;
     private final int numSamples = 20;
-    private long mDelta = 0;
+    private AtomicLong mDelta = new AtomicLong( 0 );
     private long mDeltaSamples[] = new long[numSamples];
 
     private final AtomicInteger mReceiverSubstate = new AtomicInteger( 0 );

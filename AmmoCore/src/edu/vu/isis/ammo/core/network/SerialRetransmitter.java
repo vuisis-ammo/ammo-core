@@ -38,6 +38,15 @@ public class SerialRetransmitter
     Map<Short, PacketStats> mTable = new HashMap<Short, PacketStats>();
 
 
+    // The following members are for keeping track of packets we have received
+    // so that we can construct the ack packet.
+    private byte [] currentHyperperiod = new byte[16];
+    private byte [] previousHyperperiod = new byte[16];
+
+    private int numberOfCurrentHyperperiod;
+    private int numberOfPreviousHyperperiod;
+
+
     /**
      *
      */
@@ -57,12 +66,24 @@ public class SerialRetransmitter
      */
     public void processReceivedMessage( AmmoGatewayMessage agm,
                                         boolean receiverEnabled,
-                                        int hyperPeriod,
+                                        int hyperperiod,
                                         int mySlotID )
     {
-        logger.trace( "SerialRetransmitter::processReceivedMessage()" );
+        logger.trace( "SerialRetransmitter::processReceivedMessage(). hyperperiod={}, mySlotID={}",
+                      hyperperiod, mySlotID );
 
-        // FIXME: Here is where the main receiving functionality will go.
+        logger.trace( "...received messsage from slotID={}", agm.mSlotID );
+
+        // Collect the ack statistics.
+        // First, figure out if they are sending in what the retransmitter
+        // thinks is the current slot, or if a new slot has started.
+
+
+
+
+
+
+
 
         // First, if it's an ack packet and any bit is set for the byte
         // corresponding to my slot, mark that this slot ID is actively
@@ -87,7 +108,7 @@ public class SerialRetransmitter
                     // They received a packet in the position in the slot
                     // with index "index".  Record this in the map.
 
-                    short uid = createUID( hyperPeriod, mySlotID, index );
+                    short uid = createUID( hyperperiod, mySlotID, index );
                     PacketStats stats = mTable.get( uid );
                     if ( stats != null ) {
                         stats.mHeardFrom |= (0x1 << agm.mSlotID);
@@ -106,6 +127,7 @@ public class SerialRetransmitter
                 theirAckBitsForMe = theirAckBitsForMe >>> 1;
                 ++index;
             }
+
         }
 
 
@@ -129,10 +151,10 @@ public class SerialRetransmitter
     /**
      * Construct UID for message.
      */
-    private short createUID( int hyperPeriod, int slotIndex, int indexInSlot )
+    private short createUID( int hyperperiod, int slotIndex, int indexInSlot )
     {
         short uid = 0;
-        uid |= hyperPeriod << 8;
+        uid |= hyperperiod << 8;
         uid |= slotIndex << 4;
         uid |= indexInSlot;
 
@@ -149,7 +171,7 @@ public class SerialRetransmitter
      */
     public AmmoGatewayMessage createResendPacket( long bytesThatWillFit )
     {
-        logger.trace( "SerialRetransmitter::createRetransmitPacket()" );
+        logger.trace( "SerialRetransmitter::createResendPacket()" );
 
         AmmoGatewayMessage agm = null;
 
