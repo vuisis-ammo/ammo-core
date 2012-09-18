@@ -529,9 +529,9 @@ public class TcpChannel extends NetChannel {
 
       public String showState () {
         if (this.value == this.actual)
-          return parent.showState(this.value);
+          return NetChannel.showState(this.value);
         else
-          return parent.showState(this.actual) + "->" + parent.showState(this.value);
+          return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.value);
       }
     }
 

@@ -287,7 +287,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
             }
             final MockNetworkStack network = mockChannel.mockNetworkStack;
             final ByteBuffer sentBuf = network.getSent();
-            logger.debug("delivered message {}", sentBuf);
+            logger.debug("delivered message {}", sentBuf.array());
             logger.debug("delivered message {}", MockNetworkStack.asString(sentBuf));
 
         } catch (Exception ex) {

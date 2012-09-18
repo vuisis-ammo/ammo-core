@@ -345,6 +345,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     
     /**
      * Serialize the AmmoMessage for transmission to the gateway.
+     * The byte buffer returned is already flip()ped.
      * @return
      */
     public ByteBuffer serialize(ByteOrder endian, byte version, byte phone_id) {

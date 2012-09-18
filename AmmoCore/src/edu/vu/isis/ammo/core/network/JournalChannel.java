@@ -380,14 +380,6 @@ public class JournalChannel extends NetChannel {
         }
     }
 
-    // The following methods are stubbed out to get things to compile.
-    // JournalChannel is not currently used, but if we ever need to
-    // get it working again, we will need to implement all of the
-    // methods in the INetChannel interface.
-    public String showState(int state) {
-        return "";
-    }
-
     public boolean isConnected() {
         return false;
     }

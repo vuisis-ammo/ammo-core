@@ -106,9 +106,10 @@ public class MockNetworkStack extends Socket {
         if (this.throwException.get()) {
             throw new Exception("mock socket exception");
         }
-        buf.flip();
+
+        logger.info("send size [{}] [{}]",buf.position(), buf.array());
         this.input.offer(buf);
-        logger.info("send size [{}] [{}]", this.input.size(), buf);
+        logger.info("queue size [{}]", this.input.size());
     }
 
     private final static Charset charset = Charset.forName("UTF-8");

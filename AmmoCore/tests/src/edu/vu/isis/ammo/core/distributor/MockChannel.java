@@ -95,7 +95,7 @@ public class MockChannel extends NetChannel
 
         this.connectorThread = new ConnectorThread(this);
         this.mockNetworkStack = new MockNetworkStack();
-        
+
         this.mockLinkSwitch = true;
     }
 
@@ -285,7 +285,7 @@ public class MockChannel extends NetChannel
     }
 
     public boolean mockLinkSwitch;
-    
+
     // Called by the ConnectorThread.
     public boolean isAnyLinkUp()
     {

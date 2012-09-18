@@ -972,8 +972,6 @@ public class DistributorThread extends Thread {
             if (ar.payload != null) {
                 final byte[] payloadBytes = ar.payload.pickle();
                 values.put(PostalTableSchema.PAYLOAD.cv(), payloadBytes);
-                logger.trace("payload string=[{}] bytes=[{}]", new String(payloadBytes),
-                        payloadBytes);
             }
             values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
             values.put(PostalTableSchema.EXPIRATION.cv(),

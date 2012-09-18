@@ -1560,7 +1560,9 @@ public class AmmoService extends Service implements INetworkService,
     @Override
     public void statusChange(NetChannel channel, int connStatus,
             int sendStatus, int recvStatus) {
-        logger.debug("status change. channel={}", channel.name);
+        if (logger.isDebugEnabled()) {
+            logger.debug("change channel=[{}] status=[{}]", channel.name, NetChannel.showState(connStatus));
+        }
 
         final ModelChannel modelChannel = modelChannelMap.get(channel.name);
         if (modelChannel == null) {

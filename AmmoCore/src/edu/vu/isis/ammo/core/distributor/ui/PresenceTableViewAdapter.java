@@ -7,7 +7,8 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
+
 package edu.vu.isis.ammo.core.distributor.ui;
 
 import org.slf4j.Logger;
@@ -21,49 +22,49 @@ import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.PresenceSchema;
 
 /**
- * CursorAdapter used by AmmoCore to display its tables in a human-readable format.
- * Each row of the table view is formatted a certain way based on the disposition 
- * of the corresponding row in the content provider's table.
+ * CursorAdapter used by AmmoCore to display its tables in a human-readable
+ * format. Each row of the table view is formatted a certain way based on the
+ * disposition of the corresponding row in the content provider's table.
  */
 public class PresenceTableViewAdapter extends DistributorTableViewAdapter
 {
-	public static final Logger logger = LoggerFactory.getLogger("ui.dist.presence");
+    public static final Logger logger = LoggerFactory.getLogger("ui.dist.presence");
 
-	public PresenceTableViewAdapter(Context context, int layout, Cursor cursor) 
-	{
-		super(context, layout, cursor);
-	}
+    public PresenceTableViewAdapter(Context context, int layout, Cursor cursor)
+    {
+        super(context, layout, cursor);
+    }
 
-	// ===========================================================
-	// UI Management
-	// ===========================================================
-	// Override this to set disposition field.
+    // ===========================================================
+    // UI Management
+    // ===========================================================
+    // Override this to set disposition field.
 
-	@Override
-	public void bindView(View view, Context context, Cursor cursor) {
-		// super.bindView(view, context, cursor);
-		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_first);
-			int first = cursor.getInt(cursor.getColumnIndex(PresenceSchema.FIRST.field));
-			tv.setText(SDF.format(first));
-		}
-		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_latest);
-			final long latest = cursor.getLong(cursor.getColumnIndex(PresenceSchema.LATEST.field));
-			tv.setText(SDF.format(latest));
-		}
-		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_device);
-			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.ORIGIN.field)));
-		}
-		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_operator);
-			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.OPERATOR.field)));
-		}
-		{
-			final TextView tv = (TextView)view.findViewById(R.id.dist_presence_view_item_state);
-			tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.STATE.field)));
-		}
-	}
+    @Override
+    public void bindView(View view, Context context, Cursor cursor) {
+        // super.bindView(view, context, cursor);
+        {
+            final TextView tv = (TextView) view.findViewById(R.id.dist_presence_view_item_first);
+            int first = cursor.getInt(cursor.getColumnIndex(PresenceSchema.FIRST.field));
+            tv.setText(SDF.format(first));
+        }
+        {
+            final TextView tv = (TextView) view.findViewById(R.id.dist_presence_view_item_latest);
+            final long latest = cursor.getLong(cursor.getColumnIndex(PresenceSchema.LATEST.field));
+            tv.setText(SDF.format(latest));
+        }
+        {
+            final TextView tv = (TextView) view.findViewById(R.id.dist_presence_view_item_device);
+            tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.ORIGIN.field)));
+        }
+        {
+            final TextView tv = (TextView) view.findViewById(R.id.dist_presence_view_item_operator);
+            tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.OPERATOR.field)));
+        }
+        {
+            final TextView tv = (TextView) view.findViewById(R.id.dist_presence_view_item_state);
+            tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.STATE.field)));
+        }
+    }
 
 }
