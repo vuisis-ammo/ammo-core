@@ -13,6 +13,7 @@ package edu.vu.isis.ammo.core.network;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +92,10 @@ public class SerialRetransmitter
 
         logger.trace( "...received messsage from slotID={}", agm.mSlotID );
 
+        //
         // Collect the ack statistics.
+        //
+
         // First, figure out if they are sending in what the retransmitter
         // thinks is the current slot, or if a new slot has started.  If so,
         // save off the current slot stats as previous and start collecting
@@ -213,13 +217,31 @@ public class SerialRetransmitter
     /**
      *
      */
-    public AmmoGatewayMessage createAckPacket()
+    public AmmoGatewayMessage createAckPacket( int hyperperiod )
     {
         logger.trace( "SerialRetransmitter::createAckPacket()" );
 
-        AmmoGatewayMessage agm = null;
+        return null; // Haven't debugged the following code yet.
 
-        return agm;
+
+        // // We only send an ack if the previous hyperperiod was the preceding
+        // // one.  If the previous hyperperiod was an older one, just don't
+        // // send anything.
+        // if ( hyperperiod - 1 != previousHyperperiodID )
+        //     return null;
+
+        // AmmoGatewayMessage.Builder b = AmmoGatewayMessage.newBuilder();
+
+        // b.size( previousHyperperiod.length );
+        // b.payload( previousHyperperiod );
+
+        // CRC32 crc32 = new CRC32();
+        // crc32.update( previousHyperperiod );
+        // b.checksum( crc32.getValue() );
+
+        // AmmoGatewayMessage agm = b.build();
+
+        // return agm;
     }
 
 
