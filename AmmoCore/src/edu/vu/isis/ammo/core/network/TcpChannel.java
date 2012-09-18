@@ -443,6 +443,7 @@ public class TcpChannel extends NetChannel {
 
 
     private ConnectorThread(TcpChannel parent) {
+            super(new StringBuilder("Tcp-Connect-").append(Thread.activeCount()).toString());
       logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
       this.parent = parent;
       this.state = new State();
@@ -528,9 +529,9 @@ public class TcpChannel extends NetChannel {
 
       public String showState () {
         if (this.value == this.actual)
-          return parent.showState(this.value);
+          return NetChannel.showState(this.value);
         else
-          return parent.showState(this.actual) + "->" + parent.showState(this.value);
+          return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.value);
       }
     }
 
@@ -992,6 +993,7 @@ public class TcpChannel extends NetChannel {
         SenderQueue iQueue,
         SocketChannel iSocketChannel )
     {
+            super(new StringBuilder("Tcp-Sender-").append(Thread.activeCount()).toString());
       mParent = iParent;
       mChannel = iChannel;
       mQueue = iQueue;
@@ -1083,6 +1085,7 @@ public class TcpChannel extends NetChannel {
         TcpChannel iDestination,
         SocketChannel iSocketChannel )
     {
+            super(new StringBuilder("Tcp-Receiver-").append(Thread.activeCount()).toString());
       mParent = iParent;
       mDestination = iDestination;
       mSocketChannel = iSocketChannel;

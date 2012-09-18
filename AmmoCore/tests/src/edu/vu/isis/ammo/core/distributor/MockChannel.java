@@ -56,7 +56,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  */
 public class MockChannel extends NetChannel
 {
-    static public final Logger logger = LoggerFactory.getLogger("trial.net.mock");
+    static public final Logger logger = LoggerFactory.getLogger("net.mock");
 
     /** 5 seconds expressed in milliseconds */
     private static final int BURP_TIME = 5 * 1000;
@@ -95,6 +95,8 @@ public class MockChannel extends NetChannel
 
         this.connectorThread = new ConnectorThread(this);
         this.mockNetworkStack = new MockNetworkStack();
+
+        this.mockLinkSwitch = true;
     }
 
     public static MockChannel getInstance(String name, IChannelManager iChannelManager)
@@ -282,10 +284,12 @@ public class MockChannel extends NetChannel
         return handler.ack(this.name, status);
     }
 
+    public boolean mockLinkSwitch;
+
     // Called by the ConnectorThread.
     public boolean isAnyLinkUp()
     {
-        return mChannelManager.isAnyLinkUp();
+        return mockLinkSwitch;
     }
 
     @SuppressWarnings("unused")
@@ -337,7 +341,7 @@ public class MockChannel extends NetChannel
      * of the properties of the channel
      */
     private class ConnectorThread extends Thread {
-        private final Logger logger = LoggerFactory.getLogger("net.mcast.connector");
+        private final Logger logger = LoggerFactory.getLogger("net.mock.connector");
 
         private MockChannel parent;
         private final State state;
@@ -361,6 +365,7 @@ public class MockChannel extends NetChannel
         }
 
         private ConnectorThread(MockChannel parent) {
+            super(new StringBuilder("Mock-Connect-").append(Thread.activeCount()).toString());
             logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread()
                     .getId());
             this.parent = parent;
@@ -457,9 +462,9 @@ public class MockChannel extends NetChannel
 
             public String showState() {
                 if (this.value == this.actual)
-                    return parent.showState(this.value);
+                    return NetChannel.showState(this.value);
                 else
-                    return parent.showState(this.actual) + "->" + parent.showState(this.value);
+                    return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.value);
             }
         }
 
@@ -533,9 +538,8 @@ public class MockChannel extends NetChannel
                             try {
                                 synchronized (this.state) {
                                     while (!parent.isAnyLinkUp() && !this.state.isDisabled()) {
-                                        this.state.wait(BURP_TIME); // wait for
-                                                                    // a link
-                                                                    // interface
+                                        // wait for a link interface
+                                        this.state.wait(BURP_TIME);
                                     }
                                     this.state.setUnlessDisabled(NetChannel.DISCONNECTED);
                                 }
@@ -829,7 +833,7 @@ public class MockChannel extends NetChannel
                 wait();
             }
             if (mChannel.getIsAuthorized()) {
-                return mDistQueue.take();
+                return mDistQueue.poll(5, TimeUnit.SECONDS);
             }
             // must be the mAuthQueue.size() > 0
             return mAuthQueue.remove();
@@ -867,17 +871,18 @@ public class MockChannel extends NetChannel
         private ConnectorThread mParent;
         private MockChannel mChannel;
         private SenderQueue mQueue;
-        private MockNetworkStack mSocket;
+        private MockNetworkStack mNetworkStack;
 
         public SenderThread(ConnectorThread iParent,
                 MockChannel iChannel,
                 SenderQueue iQueue,
-                MockNetworkStack iSocket)
+                MockNetworkStack iNetworkStack)
         {
+            super(new StringBuilder("Mock-Sender-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
-            mSocket = iSocket;
+            mNetworkStack = iNetworkStack;
         }
 
         /**
@@ -892,7 +897,7 @@ public class MockChannel extends NetChannel
 
             while (mState != INetChannel.INTERRUPTED)
             {
-                AmmoGatewayMessage msg = null;
+                final AmmoGatewayMessage msg;
                 try
                 {
                     setSenderState(INetChannel.TAKING);
@@ -903,13 +908,13 @@ public class MockChannel extends NetChannel
                     logger.error("interrupted taking messages from send queue", ex);
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
-                    break;
+                    continue;
                 } catch (Exception ex)
                 {
                     logger.error("sender threw exception while take()ing", ex);
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
-                    break;
+                    continue;
                 }
 
                 try
@@ -918,7 +923,7 @@ public class MockChannel extends NetChannel
                             (byte) 0);
                     setSenderState(INetChannel.SENDING);
 
-                    mSocket.send(buf);
+                    mNetworkStack.send(buf);
 
                     // update send messages ...
                     mMessagesSent.incrementAndGet();
@@ -933,7 +938,7 @@ public class MockChannel extends NetChannel
                         mChannel.ackToHandler(msg.handler, DisposalState.REJECTED);
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
-                    break;
+                    continue;
                 } catch (Exception ex)
                 {
                     logger.warn("sender threw exception", ex);
@@ -941,7 +946,7 @@ public class MockChannel extends NetChannel
                         mChannel.ackToHandler(msg.handler, DisposalState.BAD);
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
-                    break;
+                    continue;
                 }
             }
         }
@@ -965,24 +970,25 @@ public class MockChannel extends NetChannel
     //
     class ReceiverThread extends Thread
     {
-        private final Logger logger = LoggerFactory.getLogger("net.mcast.receiver");
+        private final Logger logger = LoggerFactory.getLogger("net.mock.receiver");
 
         private int mState = INetChannel.TAKING;
         private ConnectorThread mParent;
         private MockChannel mDestination;
-        private MockNetworkStack mSocket;
+        private MockNetworkStack mNetworkStack;
 
         public ReceiverThread(ConnectorThread iParent,
                 MockChannel iDestination,
-                MockNetworkStack iSocket)
+                MockNetworkStack iNetworkStack)
         {
+            super(new StringBuilder("Mock-Receiver-").append(Thread.activeCount()).toString());
             mParent = iParent;
             mDestination = iDestination;
-            mSocket = iSocket;
+            mNetworkStack = iNetworkStack;
         }
 
         /**
-         * Block on reading from the MockSocket until we get some data. If we
+         * Block on reading from the MockNetworkStack until we get some data. If we
          * get an error, notify our parent and go into an error state.
          * <p>
          */
@@ -996,7 +1002,7 @@ public class MockChannel extends NetChannel
                 try {
                     setReceiverState(INetChannel.START);
 
-                    final ByteBuffer buf = mSocket.receive();
+                    final ByteBuffer buf = mNetworkStack.receive();
 
                     // update received count ....
                     mMessagesReceived.incrementAndGet();

@@ -60,7 +60,8 @@ import edu.vu.isis.ammo.util.PrefixList;
  * </ul>
  */
 public class DistributorPolicy implements ContentHandler {
-    private static final Logger logger = LoggerFactory.getLogger("dist.policy");
+    private static final Logger logger = LoggerFactory.getLogger("dist.policy.class");
+    private static final Logger saxlogger = LoggerFactory.getLogger("dist.policy.sax");
 
     public static final String DEFAULT = "_default_";
 
@@ -86,9 +87,11 @@ public class DistributorPolicy implements ContentHandler {
      * 
      * @param context
      */
-    public static DistributorPolicy newInstance(Context context) {
+    public static DistributorPolicy newInstance(Context context, String customPolicy) {
         final File dir = context.getDir(policy_dir, Context.MODE_WORLD_READABLE);
-        final File file = new File(dir, policy_file);
+        final String fileName = (customPolicy == null) ? policy_file : customPolicy;
+        final File file = new File(dir, fileName);
+        logger.info("acquire policy file [{}]", file);
 
         InputStream inputStream = null;
         try {
@@ -101,14 +104,13 @@ public class DistributorPolicy implements ContentHandler {
                 }
             }
             else {
-                logger.warn("no policy file {}, using and writing default", file);
+                logger.warn("no custom policy file {}, using the default", file);
                 try {
                     final AssetManager am = context.getAssets();
-                    final InputStream copiable = am.open(policy_file);
+                    final InputStream copiable = am.open(fileName);
 
-                    // final InputStream copiable =
-                    // context.getResources().openRawResource(R.raw.distribution_policy);
-                    final OutputStream out = new FileOutputStream(file);
+                    final File sample = new File(dir, fileName+".sample");
+                    final OutputStream out = new FileOutputStream(sample);
                     final byte[] buf = new byte[1024];
                     int len;
                     while ((len = copiable.read(buf)) > 0) {
@@ -117,7 +119,7 @@ public class DistributorPolicy implements ContentHandler {
                     copiable.close();
                     out.close();
 
-                    inputStream = am.open(policy_file);
+                    inputStream = am.open(fileName);
 
                 } catch (NotFoundException ex) {
                     logger.error("asset not available", ex);
@@ -142,7 +144,14 @@ public class DistributorPolicy implements ContentHandler {
                     logger.error("could not close distributor configuration file", ex);
                 }
             }
+            logger.info("new policy from current context");
         }
+    }
+    
+    public static DistributorPolicy newInstance(InputSource custom) {
+        final DistributorPolicy policy = new DistributorPolicy(custom);
+        logger.info("loaded policy [{}]", policy);
+        return policy;
     }
 
     /**
@@ -150,7 +159,7 @@ public class DistributorPolicy implements ContentHandler {
      * 
      * @param file
      */
-    public DistributorPolicy(InputSource is) {
+    private DistributorPolicy(InputSource is) {
         this.publishPolicy = new PrefixList<Topic>();
         this.postalPolicy = new PrefixList<Topic>();
         this.subscribePolicy = new PrefixList<Topic>();
@@ -797,17 +806,17 @@ public class DistributorPolicy implements ContentHandler {
             Attributes atts) throws SAXException {
         if (!this.inPolicy) {
             if (localName.equals("policy")) {
-                logger.debug("begin 'policy'");
+                saxlogger.trace("begin 'policy'");
                 this.inPolicy = true;
                 return;
             }
-            logger.warn("expecting begin 'policy': got {}", localName);
+            saxlogger.warn("expecting begin 'policy': got {}", localName);
             return;
         }
         // in policy
         if (!this.inTopic && !this.inTest) {
             if (localName.equals("topic")) {
-                logger.debug("begin 'topic'");
+                saxlogger.trace("begin 'topic'");
                 this.inTopic = true;
                 String type = atts.getValue(uri, "type");
                 if (type == null)
@@ -823,7 +832,7 @@ public class DistributorPolicy implements ContentHandler {
                 return;
             }
             if (localName.equals("test")) {
-                logger.debug("begin 'test'");
+                saxlogger.trace("begin 'test'");
                 this.inTest = true;
                 final String type = atts.getValue(uri, "type");
                 if (type == null)
@@ -835,7 +844,7 @@ public class DistributorPolicy implements ContentHandler {
                 if (postalMatch != null) {
                     final Topic topic = this.matchPostal(type);
                     if (!topic.type.equals(postalMatch)) {
-                        logger.error("postal test {} failed {} != {}",
+                        saxlogger.error("postal test {} failed {} != {}",
                                 new String[] {
                                         title, topic.type, postalMatch
                                 });
@@ -846,7 +855,7 @@ public class DistributorPolicy implements ContentHandler {
                 if (subscribeMatch != null) {
                     final Topic topic = this.matchSubscribe(type);
                     if (!topic.type.equals(subscribeMatch)) {
-                        logger.error("subscribe test {} failed {} != {}",
+                        saxlogger.error("subscribe test {} failed {} != {}",
                                 new String[] {
                                         title, topic.type, subscribeMatch
                                 });
@@ -857,7 +866,7 @@ public class DistributorPolicy implements ContentHandler {
                 if (retrievalMatch != null) {
                     final Topic topic = this.matchRetrieval(type);
                     if (!topic.type.equals(retrievalMatch)) {
-                        logger.error("retrieval test {} failed {} != {}",
+                        saxlogger.error("retrieval test {} failed {} != {}",
                                 new String[] {
                                         title, topic.type, retrievalMatch
                                 });
@@ -866,13 +875,13 @@ public class DistributorPolicy implements ContentHandler {
 
                 return;
             }
-            logger.warn("expecting begin 'topic' or 'test': got {}", localName);
+            saxlogger.warn("expecting begin 'topic' or 'test': got {}", localName);
             return;
         }
         // in policy/topic
         if (!this.inDescription && !this.inRouting) {
             if (localName.equals("routing")) {
-                logger.debug("begin 'routing'");
+                saxlogger.trace("begin 'routing'");
                 this.inRouting = true;
                 final Category category = extractCategory(uri, "category", Category.POSTAL, atts);
                 final int priority = extractPriority(uri, "priority", IAmmoRequest.PRIORITY_NORMAL,
@@ -898,34 +907,34 @@ public class DistributorPolicy implements ContentHandler {
                 return;
             }
             if (localName.equals("description")) {
-                logger.debug("begin topic 'description'");
+                saxlogger.trace("begin topic 'description'");
                 this.inDescription = true;
                 return;
             }
-            logger.warn("expecting begin 'routing' or 'description': got {}", localName);
+            saxlogger.warn("expecting begin 'routing' or 'description': got {}", localName);
             return;
         }
         // in policy/topic/routing
         if (!this.inDescription && !this.inClause) {
             if (localName.equals("clause")) {
-                logger.debug("begin 'clause'");
+                saxlogger.trace("begin 'clause'");
                 this.inClause = true;
                 this.builder.addClause();
                 return;
             }
             if (localName.equals("description")) {
-                logger.debug("begin routing 'description'");
+                saxlogger.trace("begin routing 'description'");
                 this.inDescription = true;
-                logger.debug("processing route description");
+                saxlogger.trace("processing route description");
                 return;
             }
-            logger.warn("expecting begin 'clause' or 'description': got {}", localName);
+            saxlogger.warn("expecting begin 'clause' or 'description': got {}", localName);
             return;
         }
         // in policy/topic/routing/clause
         if (!this.inLiteral) {
             if (localName.equals("literal")) {
-                logger.debug("begin 'literal'");
+                saxlogger.trace("begin 'literal'");
                 this.inLiteral = true;
                 final String term = extractTerm(uri, "term", "gateway", atts);
                 final Boolean condition = extractCondition(uri, "condition", true, atts);
@@ -934,37 +943,37 @@ public class DistributorPolicy implements ContentHandler {
                 this.builder.addLiteral(term, condition, encoding);
                 return;
             }
-            logger.warn("expecting begin 'literal': got {}", localName);
+            saxlogger.warn("expecting begin 'literal': got {}", localName);
         }
         // in policy/topic/routing/clause/literal
-        logger.warn("expecting <nothing>: got {}", localName);
+        saxlogger.warn("expecting <nothing>: got {}", localName);
     }
 
     @Override
     public void endElement(String uri, String localName, String qName) throws SAXException {
         if (!this.inPolicy) {
-            logger.error("excess elements {}", localName);
+            saxlogger.error("excess elements {}", localName);
             return;
         }
         // in policy
 
         if (this.inTest) {
             if (localName.equals("test")) {
-                logger.debug("end 'test'");
+                saxlogger.trace("end 'test'");
                 this.inTest = false;
                 return;
             }
-            logger.error("processing test and found {}", localName);
+            saxlogger.error("processing test and found {}", localName);
             return;
         }
 
         if (!this.inTopic) {
             if (localName.equals("policy")) {
-                logger.debug("end 'policy'");
+                saxlogger.trace("end 'policy'");
                 this.inPolicy = false;
                 return;
             }
-            logger.error("topic ended prematurely expecting policy got {}", localName);
+            saxlogger.error("topic ended prematurely expecting policy got {}", localName);
             return;
         }
 
@@ -972,16 +981,16 @@ public class DistributorPolicy implements ContentHandler {
         if (!this.inRouting) {
             if (localName.equals("topic")) {
 
-                logger.debug("end 'topic'");
+                saxlogger.trace("end 'topic'");
                 this.inTopic = false;
                 return;
             }
             if (localName.equals("description")) {
-                logger.debug("end 'topic/description'");
+                saxlogger.trace("end 'topic/description'");
                 this.inDescription = false;
                 return;
             }
-            logger.error("expecting end 'topic' or 'description' got {}", localName);
+            saxlogger.error("expecting end 'topic' or 'description' got {}", localName);
             return;
         }
         // in policy/topic/routing
@@ -1003,35 +1012,35 @@ public class DistributorPolicy implements ContentHandler {
                     default:
                         break;
                 }
-                logger.debug("end 'routing'");
+                saxlogger.trace("end 'routing'");
                 this.inRouting = false;
                 return;
             }
             if (localName.equals("description")) {
-                logger.debug("end 'routing/description'");
+                saxlogger.trace("end 'routing/description'");
                 this.inDescription = false;
                 return;
             }
-            logger.error("expecting end 'routing' or 'description' got {}", localName);
+            saxlogger.error("expecting end 'routing' or 'description' got {}", localName);
             return;
         }
         if (!this.inLiteral) {
             // in policy/topic/routing/clause
             if (localName.equals("clause")) {
-                logger.debug("end 'clause'");
+                saxlogger.trace("end 'clause'");
                 this.inClause = false;
                 return;
             }
-            logger.error("expecting end 'clause' got {}", localName);
+            saxlogger.error("expecting end 'clause' got {}", localName);
             return;
         }
         // in policy/topic/routing/clause/literal
         if (localName.equals("literal")) {
-            logger.debug("end 'literal'");
+            saxlogger.trace("end 'literal'");
             this.inLiteral = false;
             return;
         }
-        logger.error("expecting end 'literal' got {}", localName);
+        saxlogger.error("expecting end 'literal' got {}", localName);
         return;
     }
 

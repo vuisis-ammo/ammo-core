@@ -60,7 +60,14 @@ public class RequestDeserializerThread extends Thread {
         }
     }
 
+    /**
+    * Creates a new RequestDeserializerThread.
+    *
+    * @param distributor The distributor thread to be used for re-posting
+    *                    messages to be forwarded.
+    */
     public RequestDeserializerThread(DistributorThread distributor) {
+        super(new StringBuilder("Serializer-").append(Thread.activeCount()).toString());
         this.masterSequence = new AtomicInteger(0);
         this.queue = new PriorityBlockingQueue<Item>(200, new PriorityOrder());
         this.distributor = distributor;

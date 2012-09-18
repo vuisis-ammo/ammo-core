@@ -14,9 +14,13 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Topic;
 
 /**
- * Unit test for DistributorPolicy To run this test, you can type: adb shell am
- * instrument -w \ -e class edu.vu.isis.ammo.core.DistributorPolicyTest \
- * edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
+ * Unit test for DistributorPolicy To run this test, you can type:
+ * <p>
+ * <code> 
+ adb shell am instrument -w \
+  -e class edu.vu.isis.ammo.core.DistributorPolicyTest#testDefaultMatchExactInterstitial \
+  edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner
+ * </code>
  */
 
 public class DistributorPolicyTest extends AndroidTestCase
@@ -46,7 +50,7 @@ public class DistributorPolicyTest extends AndroidTestCase
      */
     protected void setUp() throws Exception
     {
-        this.policy = DistributorPolicy.newInstance(getContext());
+        this.policy = DistributorPolicy.newInstance(getContext(), null);
     }
 
     /**
