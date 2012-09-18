@@ -993,6 +993,9 @@ public class SerialChannel extends NetChannel
                         // how much data (in time units) have we sent so far in this slot
                         long thisSlotConsumed = 0;
 
+                        // How many packets we have sent in this slot
+                        int indexInSlot = 0;
+
                         if ( currentGpsTime < thisSlotBegin ) {
                             // too early - goto sleep till current slot begins
                             goalTakeTime = thisSlotBegin;
@@ -1093,9 +1096,10 @@ public class SerialChannel extends NetChannel
                                 // Before sending, set the values that DO NOT
                                 // come from the distributor.
                                 msg.mPacketType = AmmoGatewayMessage.PACKETTYPE_STANDARD;
-                                msg.mIndexInSlot = 0; // FIXME
+                                msg.mIndexInSlot = indexInSlot;
 
                                 sendMessage(msg);
+                                ++indexInSlot;
                                 mMessagesSent.getAndIncrement();
                                 // we keep track of how much time we consumed in data transmit,
                                 // since the send call is not true synchronous
@@ -1623,7 +1627,7 @@ public class SerialChannel extends NetChannel
     private String mDevice = "/dev/ttyUSB0";
     private int mBaudRate;
 
-    private AtomicInteger mSlotNumber = new AtomicInteger();
+    private AtomicInteger mSlotNumber  = new AtomicInteger();
     private AtomicInteger mRadiosInGroup = new AtomicInteger();
 
     private AtomicInteger mSlotDuration = new AtomicInteger();

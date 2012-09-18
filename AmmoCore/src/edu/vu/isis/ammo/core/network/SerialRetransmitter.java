@@ -43,8 +43,8 @@ public class SerialRetransmitter
     private byte [] currentHyperperiod = new byte[16];
     private byte [] previousHyperperiod = new byte[16];
 
-    private int numberOfCurrentHyperperiod;
-    private int numberOfPreviousHyperperiod;
+    private int currentHyperperiodID;
+    private int previousHyperperiodID;
 
 
     /**
@@ -55,6 +55,23 @@ public class SerialRetransmitter
         logger.trace( "SerialRetransmitter::SerialRetransmitter()" );
         mChannel = channel;
         mChannelManager = channelManager;
+    }
+
+
+    private void swapHyperperiods( int hyperperiod )
+    {
+        // We've entered a new hyperperiod, so make current point to the
+        // new one, and discard the previous one.
+        final byte [] temp = previousHyperperiod;
+        previousHyperperiod = currentHyperperiod;
+        currentHyperperiod = temp;
+
+        // Reset the new current to all zeros.
+        for ( int i = 0; i < currentHyperperiod.length; ++i )
+            currentHyperperiod[ i ] = 0;
+
+        previousHyperperiodID = currentHyperperiodID;
+        currentHyperperiodID = hyperperiod;
     }
 
 
@@ -76,11 +93,17 @@ public class SerialRetransmitter
 
         // Collect the ack statistics.
         // First, figure out if they are sending in what the retransmitter
-        // thinks is the current slot, or if a new slot has started.
+        // thinks is the current slot, or if a new slot has started.  If so,
+        // save off the current slot stats as previous and start collecting
+        // new stats.
+        if ( hyperperiod != currentHyperperiodID )
+            swapHyperperiods( hyperperiod );
 
-
-
-
+        byte bits = currentHyperperiod[ agm.mSlotID ];
+        logger.trace( "...before: bits={}, indexInSlot={}", bits, agm.mIndexInSlot );
+        bits |= (0x1 << agm.mIndexInSlot);
+        logger.trace( "...after: bits={}", bits );
+        currentHyperperiod[ agm.mSlotID ] = bits;
 
 
 
