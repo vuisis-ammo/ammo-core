@@ -1202,7 +1202,7 @@ public class DistributorThread extends Thread {
                             try {
                                 if (payload != null && payload.isSet()) {
                                     return RequestSerializer.serializeFromContentValues(
-                                            payload.getCV(), encode);
+                                            payload.getCV(), encode, topic, contractStore);
                                 } else {
 
                                     return RequestSerializer.serializeFromProvider(
