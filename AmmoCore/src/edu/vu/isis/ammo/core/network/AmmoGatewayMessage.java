@@ -327,7 +327,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         }
     }
 
-    private AmmoGatewayMessage(Builder builder, byte[] payload) {
+    private AmmoGatewayMessage( Builder builder,
+                                byte[] payload )
+    {
         this.size = builder.size;
         if (this.size != payload.length)
             throw new IllegalArgumentException("payload size incorrect");
@@ -349,8 +351,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.buildTime = System.currentTimeMillis();
     }
 
-    public static AmmoGatewayMessage.Builder newBuilder( AmmoMessages.MessageWrapper.Builder mwb,
-            INetworkService.OnSendMessageHandler handler) {
+    public static AmmoGatewayMessage.Builder newBuilder(
+                                 AmmoMessages.MessageWrapper.Builder mwb,
+                                 INetworkService.OnSendMessageHandler handler )
+    {
         byte[] payload = mwb.build().toByteArray();
 
         CRC32 crc32 = new CRC32();
@@ -358,18 +362,25 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
         return AmmoGatewayMessage.newBuilder()
             .size(payload.length)
-            .payload(payload)        
+            .payload(payload)
             .checksum(crc32.getValue())
             .priority(PriorityLevel.NORMAL.v)
             .version(VERSION_1_FULL)
             .handler(handler);
     }
 
-    public static AmmoGatewayMessage.Builder newBuilder() {
+    public static AmmoGatewayMessage.Builder newBuilder()
+    {
         return new AmmoGatewayMessage.Builder();
     }
-    public static AmmoGatewayMessage.Builder newBuilder(int size, long checksum, byte priority,
-            byte version, INetworkService.OnSendMessageHandler handler) {
+
+    public static AmmoGatewayMessage.Builder newBuilder(
+                                 int size,
+                                 long checksum,
+                                 byte priority,
+                                 byte version,
+                                 INetworkService.OnSendMessageHandler handler )
+    {
         return new AmmoGatewayMessage.Builder()
              .size(size)
              .checksum(checksum)
