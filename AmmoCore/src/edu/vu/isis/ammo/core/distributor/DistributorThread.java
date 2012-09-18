@@ -428,46 +428,48 @@ public class DistributorThread extends Thread {
                 return;
         }
         // generate broadcast intent for everyone who cares about this
-        final Notice.Item note = ack.notice.atSend;
-        final Notice.Via via = note.getVia();
-        if (via.isActive()) {
+        if (ack.notice != null) {
+            final Notice.Item note = ack.notice.atSend;
+            final Notice.Via via = note.getVia();
+            if (via.isActive()) {
 
-            final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
-                    .topic(ack.topic)
-                    .auid(ack.auid)
-                    .channel(ack.channel);
+                final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
+                        .topic(ack.topic)
+                        .auid(ack.auid)
+                        .channel(ack.channel);
 
-            if (ack.status != null)
-                noteBuilder.status(ack.status.toString());
+                if (ack.status != null)
+                    noteBuilder.status(ack.status.toString());
 
-            final Intent noticed = noteBuilder.buildSent(context);
-            final int aggregate = via.v;
+                final Intent noticed = noteBuilder.buildSent(context);
+                final int aggregate = via.v;
 
-            PLogger.API_INTENT.debug(
-                    "ack note=[{}] intent=[{}]",
-                    note, noticed);
+                PLogger.API_INTENT.debug(
+                        "ack note=[{}] intent=[{}]",
+                        note, noticed);
 
-            if (0 < (aggregate & Via.Type.ACTIVITY.v)) {
-                try {
-                    noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(noticed);
-                } catch (ActivityNotFoundException ex) {
-                    logger.warn("no activity for intent=[{}]", noticed);
+                if (0 < (aggregate & Via.Type.ACTIVITY.v)) {
+                    try {
+                        noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(noticed);
+                    } catch (ActivityNotFoundException ex) {
+                        logger.warn("no activity for intent=[{}]", noticed);
+                    }
                 }
-            }
-            if (0 < (aggregate & Via.Type.BROADCAST.v)) {
-                context.sendBroadcast(noticed);
-            }
-            if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) {
-                context.sendStickyBroadcast(noticed);
-            }
-            if (0 < (aggregate & Via.Type.SERVICE.v)) {
-                context.startService(noticed);
-            }
+                if (0 < (aggregate & Via.Type.BROADCAST.v)) {
+                    context.sendBroadcast(noticed);
+                }
+                if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) {
+                    context.sendStickyBroadcast(noticed);
+                }
+                if (0 < (aggregate & Via.Type.SERVICE.v)) {
+                    context.startService(noticed);
+                }
 
-            if (PLogger.API_INTENT.isTraceEnabled()) {
-                PLogger.API_INTENT.trace("extras=[{}]",
-                        PLogger.expandBundle(noticed.getExtras(), '\n'));
+                if (PLogger.API_INTENT.isTraceEnabled()) {
+                    PLogger.API_INTENT.trace("extras=[{}]",
+                            PLogger.expandBundle(noticed.getExtras(), '\n'));
+                }
             }
         }
 

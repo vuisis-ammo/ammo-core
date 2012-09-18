@@ -464,7 +464,8 @@ public class MockChannel extends NetChannel
                 if (this.value == this.actual)
                     return NetChannel.showState(this.value);
                 else
-                    return NetChannel.showState(this.actual) + "->" + NetChannel.showState(this.value);
+                    return NetChannel.showState(this.actual) + "->"
+                            + NetChannel.showState(this.value);
             }
         }
 
@@ -942,6 +943,10 @@ public class MockChannel extends NetChannel
                 } catch (Exception ex)
                 {
                     logger.warn("sender threw exception", ex);
+                    if (msg == null) {
+                        logger.error("message is null");
+                        return;
+                    }
                     if (msg.handler != null)
                         mChannel.ackToHandler(msg.handler, DisposalState.BAD);
                     setSenderState(INetChannel.INTERRUPTED);
@@ -988,8 +993,8 @@ public class MockChannel extends NetChannel
         }
 
         /**
-         * Block on reading from the MockNetworkStack until we get some data. If we
-         * get an error, notify our parent and go into an error state.
+         * Block on reading from the MockNetworkStack until we get some data. If
+         * we get an error, notify our parent and go into an error state.
          * <p>
          */
         @Override
