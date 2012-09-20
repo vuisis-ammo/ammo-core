@@ -20,6 +20,7 @@ import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.provider.CapabilitySchema;
+import edu.vu.isis.ammo.core.provider.TemporalState;
 
 /**
  * CursorAdapter used by AmmoCore to display its tables in a human-readable
@@ -77,7 +78,8 @@ public class CapabilityTableViewAdapter extends DistributorTableViewAdapter
         }
         {
             final TextView tv = (TextView) view.findViewById(R.id.dist_capability_view_item_state);
-            tv.setText(cursor.getString(cursor.getColumnIndex(CapabilitySchema.STATE.field)));
+            final int state = cursor.getInt(cursor.getColumnIndex(CapabilitySchema.STATE.field));
+            tv.setText(TemporalState.lookup(state).toString());
         }
 
     }

@@ -19,7 +19,9 @@ import android.database.Cursor;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.provider.CapabilitySchema;
 import edu.vu.isis.ammo.core.provider.PresenceSchema;
+import edu.vu.isis.ammo.core.provider.TemporalState;
 
 /**
  * CursorAdapter used by AmmoCore to display its tables in a human-readable
@@ -63,7 +65,8 @@ public class PresenceTableViewAdapter extends DistributorTableViewAdapter
         }
         {
             final TextView tv = (TextView) view.findViewById(R.id.dist_presence_view_item_state);
-            tv.setText(cursor.getString(cursor.getColumnIndex(PresenceSchema.STATE.field)));
+            final int state = cursor.getInt(cursor.getColumnIndex(PresenceSchema.STATE.field));
+            tv.setText(TemporalState.lookup(state).toString());
         }
     }
 

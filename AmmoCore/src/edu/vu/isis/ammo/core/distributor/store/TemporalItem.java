@@ -41,6 +41,12 @@ abstract public class TemporalItem {
         return 0;
     }
 
+    /**
+     * The total state may consist of several minor states.
+     * This method extracts a single dominant state.
+     * 
+     * @return dominant state.
+     */
     public TemporalState getDominantState() {
         final long now = System.currentTimeMillis();
         final long elapsedTime = now - this.latest;
