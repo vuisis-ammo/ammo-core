@@ -1,3 +1,4 @@
+
 package edu.vu.isis.ammo.core.ui;
 
 import org.slf4j.Logger;
@@ -11,19 +12,19 @@ import edu.vu.isis.ammo.core.ui.util.PreferenceActivityEx;
 
 public abstract class AbstractAmmoPreference extends PreferenceActivityEx {
 
-	protected static final String TRUE_TITLE_SUFFIX = "is enabled.";
-	protected static final String FALSE_TITLE_SUFFIX = "is disabled.";
-	
-	protected static final Logger logger = LoggerFactory.getLogger("ui.ammoPref");
-	
-	protected final OnPreferenceClickListener sendToPantherPrefsListener = new OnPreferenceClickListener() {
-		@Override
-		public boolean onPreferenceClick(Preference preference) {
-			startActivity(new Intent()
-					.setComponent(new ComponentName("transapps.settings",
-							"transapps.settings.SettingsActivity")));
-			return true;
-		}
-	};
+    protected static final String TRUE_TITLE_SUFFIX = "is enabled.";
+    protected static final String FALSE_TITLE_SUFFIX = "is disabled.";
+
+    protected static final Logger logger = LoggerFactory.getLogger("ui.ammoPref");
+
+    protected final OnPreferenceClickListener sendToPantherPrefsListener = new OnPreferenceClickListener() {
+        @Override
+        public boolean onPreferenceClick(Preference preference) {
+            startActivity(new Intent()
+                    .setComponent(new ComponentName("transapps.settings",
+                            "transapps.settings.SettingsActivity")));
+            return true;
+        }
+    };
 
 }

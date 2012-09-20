@@ -372,7 +372,7 @@ public enum Presence {
             getters.put(PresenceSchema.STATE, new Getter() {
                 @Override
                 public Object getValue(final Item item) {
-                    return item.getState();
+                    return item.getDominantState();
                 }
             });
         }

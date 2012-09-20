@@ -380,7 +380,7 @@ public enum Capability {
 			});
 			getters.put(CapabilitySchema.STATE, new Getter() {
 				@Override
-				public Object getValue(final Item item) { return item.getState();  }
+				public Object getValue(final Item item) { return item.getDominantState();  }
 			});
 		}
 

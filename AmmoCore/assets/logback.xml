@@ -43,6 +43,10 @@
   <logger name="api" level="TRACE">
        <appender-ref ref="STATS" />
   </logger>
+  
+  <logger name="class.temporal" level="TRACE">
+       <appender-ref ref="STATS" />
+  </logger>
  
   <root level="WARN">
     <appender-ref ref="LOGCAT" />

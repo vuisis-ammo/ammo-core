@@ -45,7 +45,7 @@ public class PresenceTableViewAdapter extends DistributorTableViewAdapter
         // super.bindView(view, context, cursor);
         {
             final TextView tv = (TextView) view.findViewById(R.id.dist_presence_view_item_first);
-            int first = cursor.getInt(cursor.getColumnIndex(PresenceSchema.FIRST.field));
+            final long first = cursor.getLong(cursor.getColumnIndex(PresenceSchema.FIRST.field));
             tv.setText(SDF.format(first));
         }
         {
