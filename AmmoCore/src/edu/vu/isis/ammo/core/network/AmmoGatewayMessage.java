@@ -113,8 +113,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     // These values denote the packet type with respect to the resend
     // functionality.  Note: used only in terse encoding
     public static final int PACKETTYPE_STANDARD = 0x01;
-    public static final int PACKETTYPE_RESENT   = 0x10;
-    public static final int PACKETTYPE_ACK      = 0x11;
+    public static final int PACKETTYPE_RESENT   = 0x02;
+    public static final int PACKETTYPE_ACK      = 0x03;
 
     //
     // The following two members must not be made final, because they need to
@@ -475,7 +475,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             // and tt is the packet type.
             int next = 0;
             next |= (mIndexInSlot << 4);
+            logger.error( "before packetType={}", mPacketType );
             next |= mPacketType;
+            logger.error( "indexInSlot={}, packetType={}, next={}",
+                          new Object[]{ mIndexInSlot, mPacketType, next } );
             buf.put( (byte) next );
 
             // <reserved> (1 byte)
@@ -582,6 +585,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     // where iiii is the index in slot
                     // and tt is the packet type.
                     byte next = drain.get();
+                    logger.error( "next={}", next );
                     int indexInSlot = (next >>> 4); // unsigned right shift
                     int packetType = next & 0x00000003;
 

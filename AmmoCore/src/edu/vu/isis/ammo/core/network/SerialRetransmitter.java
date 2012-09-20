@@ -59,20 +59,25 @@ public class SerialRetransmitter
     }
 
 
-    private void swapHyperperiods( int hyperperiod )
+    synchronized public void swapHyperperiodsIfNeeded( int hyperperiod )
     {
-        // We've entered a new hyperperiod, so make current point to the
-        // new one, and discard the previous one.
-        final byte [] temp = previousHyperperiod;
-        previousHyperperiod = currentHyperperiod;
-        currentHyperperiod = temp;
+        logger.trace( "...swapHyperperiods(). new hyperperiod={}", hyperperiod );
 
-        // Reset the new current to all zeros.
-        for ( int i = 0; i < currentHyperperiod.length; ++i )
-            currentHyperperiod[ i ] = 0;
+        if ( hyperperiod != currentHyperperiodID ) {
+            logger.trace( "...swapping" );
+            // We've entered a new hyperperiod, so make current point to the
+            // new one, and discard the previous one.
+            final byte [] temp = previousHyperperiod;
+            previousHyperperiod = currentHyperperiod;
+            currentHyperperiod = temp;
 
-        previousHyperperiodID = currentHyperperiodID;
-        currentHyperperiodID = hyperperiod;
+            // Reset the new current to all zeros.
+            for ( int i = 0; i < currentHyperperiod.length; ++i )
+                currentHyperperiod[ i ] = 0;
+
+            previousHyperperiodID = currentHyperperiodID;
+            currentHyperperiodID = hyperperiod;
+        }
     }
 
 
@@ -82,15 +87,16 @@ public class SerialRetransmitter
      * the current most recent message of this terse topic for the given slot.
      * It also caches it as appropriate.
      */
-    public void processReceivedMessage( AmmoGatewayMessage agm,
-                                        boolean receiverEnabled,
-                                        int hyperperiod,
-                                        int mySlotID )
+    synchronized public void processReceivedMessage( AmmoGatewayMessage agm,
+                                                     boolean receiverEnabled,
+                                                     int hyperperiod,
+                                                     int mySlotID )
     {
         logger.trace( "SerialRetransmitter::processReceivedMessage(). hyperperiod={}, mySlotID={}",
                       hyperperiod, mySlotID );
 
-        logger.trace( "...received messsage from slotID={}", agm.mSlotID );
+        logger.trace( "...received messsage from slotID={}, type={}",
+                      agm.mSlotID, agm.mPacketType );
 
         //
         // Collect the ack statistics.
@@ -100,8 +106,7 @@ public class SerialRetransmitter
         // thinks is the current slot, or if a new slot has started.  If so,
         // save off the current slot stats as previous and start collecting
         // new stats.
-        if ( hyperperiod != currentHyperperiodID )
-            swapHyperperiods( hyperperiod );
+        swapHyperperiodsIfNeeded( hyperperiod );
 
         byte bits = currentHyperperiod[ agm.mSlotID ];
         logger.trace( "...before: bits={}, indexInSlot={}", bits, agm.mIndexInSlot );
@@ -116,6 +121,8 @@ public class SerialRetransmitter
         // corresponding to my slot, mark that this slot ID is actively
         // receiving from me.
         if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+            logger.trace( "Received ack packet. payload={}", agm.payload );
+
             int theirAckBitsForMe = agm.payload[ mySlotID ];
             if ( theirAckBitsForMe != 0 ) {
                 // They are receiving my directly.
@@ -163,7 +170,10 @@ public class SerialRetransmitter
         // We have to do the delivery inside of this method, since if
         // we receive a resent packet that we've already delivered to
         // the distributor, we should discard it.
-        if ( receiverEnabled ) {
+
+        // HACK: We need to do something different about knowing when to pass
+        // the packet up, but for now just discard the ack packets.
+        if ( receiverEnabled && agm.mPacketType != AmmoGatewayMessage.PACKETTYPE_ACK ) {
             mChannel.deliverMessage( agm );
         } else {
             logger.trace( "Receiving disabled, discarding message." );
@@ -196,7 +206,7 @@ public class SerialRetransmitter
      * will be sent.  This function will be called repeatedly until it returns
      * null.
      */
-    public AmmoGatewayMessage createResendPacket( long bytesThatWillFit )
+    synchronized public AmmoGatewayMessage createResendPacket( long bytesThatWillFit )
     {
         logger.trace( "SerialRetransmitter::createResendPacket()" );
 
@@ -217,38 +227,47 @@ public class SerialRetransmitter
     /**
      *
      */
-    public AmmoGatewayMessage createAckPacket( int hyperperiod )
+    synchronized public AmmoGatewayMessage createAckPacket( int hyperperiod )
     {
-        logger.trace( "SerialRetransmitter::createAckPacket()" );
+        logger.trace( "SerialRetransmitter::createAckPacket(). hyperperiod={}",
+                      hyperperiod );
 
-        return null; // Haven't debugged the following code yet.
+        try {
 
+            // We only send an ack if the previous hyperperiod was the preceding
+            // one.  If the previous hyperperiod was an older one, just don't
+            // send anything.
+            if ( hyperperiod - 1 != previousHyperperiodID ) {
+                logger.trace( "wrong hyperperiod: current={}, previous={}",
+                              hyperperiod, previousHyperperiodID );
+                return null;
+            }
 
-        // // We only send an ack if the previous hyperperiod was the preceding
-        // // one.  If the previous hyperperiod was an older one, just don't
-        // // send anything.
-        // if ( hyperperiod - 1 != previousHyperperiodID )
-        //     return null;
+            AmmoGatewayMessage.Builder b = AmmoGatewayMessage.newBuilder();
 
-        // AmmoGatewayMessage.Builder b = AmmoGatewayMessage.newBuilder();
+            b.size( previousHyperperiod.length );
+            b.payload( previousHyperperiod );
 
-        // b.size( previousHyperperiod.length );
-        // b.payload( previousHyperperiod );
+            CRC32 crc32 = new CRC32();
+            crc32.update( previousHyperperiod );
+            b.checksum( crc32.getValue() );
 
-        // CRC32 crc32 = new CRC32();
-        // crc32.update( previousHyperperiod );
-        // b.checksum( crc32.getValue() );
+            AmmoGatewayMessage agm = b.build();
+            logger.trace( "returning ack packet" );
+            return agm;
 
-        // AmmoGatewayMessage agm = b.build();
+        } catch ( Exception ex ) {
+            logger.warn("createAckPacket() threw exception {}", ex.getStackTrace() );
+        }
 
-        // return agm;
+        return null;
     }
 
 
     /**
      * I'm not sure when to call this.  Decide later.
      */
-    public void resetReceivingMeDirectly() { mReceivingMeDirectly = 0; }
+    synchronized public void resetReceivingMeDirectly() { mReceivingMeDirectly = 0; }
 
 
     private SerialChannel mChannel;

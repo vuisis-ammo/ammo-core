@@ -1009,12 +1009,15 @@ public class SerialChannel extends NetChannel
                         // else we are in slot, and should send
                         setSenderState( INetChannel.TAKING );
 
-                        logger.debug( "In Slot: slotNumber={}, (time, ms)={}, jitter={}",
+                        logger.debug( "Waking: hyperperiod={}, slotNumber={}, (time, ms)={}, jitter={}",
                                       new Object[] {
+                                          hyperperiod,
                                           mSlotNumber.get(),
                                           currentGpsTime,
                                           currentGpsTime - thisSlotBegin } );
 
+                        if ( getRetransmitter() != null )
+                            getRetransmitter().swapHyperperiodsIfNeeded( hyperperiod );
 
                         while (true) {
                             try {
@@ -1024,7 +1027,11 @@ public class SerialChannel extends NetChannel
                                     logger.debug( "Time remaining in slot={}, but no messages in queue",
                                                   thisSlotEnd - currentGpsTime  );
                                     if ( getRetransmitter() != null )
-                                        resendAndAck( thisSlotEnd, thisSlotConsumed, bytesPerMs );
+                                        resendAndAck( thisSlotEnd,
+                                                      thisSlotConsumed,
+                                                      bytesPerMs,
+                                                      hyperperiod,
+                                                      indexInSlot );
                                     // nothing in queue, wait till next slot
                                     goalTakeTime = thisSlotBegin + cycleDuration;
                                     break waitSlot;
@@ -1074,7 +1081,11 @@ public class SerialChannel extends NetChannel
                                     // since we process queue in order and next message is bigger
                                     // than our available time, goto sleep till next slot
                                     if ( getRetransmitter() != null )
-                                        resendAndAck( thisSlotEnd, thisSlotConsumed, bytesPerMs );
+                                        resendAndAck( thisSlotEnd,
+                                                      thisSlotConsumed,
+                                                      bytesPerMs,
+                                                      hyperperiod,
+                                                      indexInSlot );
                                     goalTakeTime = thisSlotBegin + cycleDuration;
                                     break waitSlot;
                                 }
@@ -1096,6 +1107,7 @@ public class SerialChannel extends NetChannel
                                 // Before sending, set the values that DO NOT
                                 // come from the distributor.
                                 msg.mPacketType = AmmoGatewayMessage.PACKETTYPE_STANDARD;
+                                logger.error( "setting packetType={}", msg.mPacketType );
                                 msg.mIndexInSlot = indexInSlot;
 
                                 sendMessage(msg);
@@ -1171,11 +1183,15 @@ public class SerialChannel extends NetChannel
          */
         private void resendAndAck( long thisSlotEnd,
                                    long thisSlotConsumed,
-                                   double bytesPerMs ) throws IOException
+                                   double bytesPerMs,
+                                   int hyperperiod,
+                                   int indexInSlot ) throws IOException
         {
             // update our time (could potentially change from last read because of context switch etc..)
             final long currentGpsTime = System.currentTimeMillis() - mDelta.get();
-            final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed; // how much time do we have left in slot
+
+            // how much time do we have left in slot
+            final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed;
             final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
 
             // Loop as long as resend packets will fit.
@@ -1192,8 +1208,11 @@ public class SerialChannel extends NetChannel
             // Once we've sent all the resend packets we have room for,
             // tack on the ack packet, which will be the last packet in
             // the slot.
-            AmmoGatewayMessage agm = getRetransmitter().createAckPacket();
+            AmmoGatewayMessage agm = getRetransmitter().createAckPacket( hyperperiod );
             if ( agm != null ) {
+                agm.mPacketType = AmmoGatewayMessage.PACKETTYPE_ACK;
+                logger.error( "before ack packetType={}", agm.mPacketType );
+                agm.mIndexInSlot = indexInSlot;
                 sendMessage( agm );
             }
         }
@@ -1373,7 +1392,12 @@ public class SerialChannel extends NetChannel
                         }
 
                         agmb.isSerialChannel( true );
-                        AmmoGatewayMessage agm = agmb.payload( buf_payload ).channel(SerialChannel.this).build();
+                        AmmoGatewayMessage agm = agmb
+                            .payload( buf_payload )
+                            .channel(SerialChannel.this)
+                            .build();
+
+                        logger.error( "received packettype={}", agm.mPacketType );
 
                         // Begin logging stuff
                         long currentTime = System.currentTimeMillis() - mDelta.get();
