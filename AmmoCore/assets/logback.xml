@@ -41,8 +41,10 @@
 
 
   <logger name="api" level="TRACE"/>
+  <!-- 
   <logger name="class.temporal" level="TRACE"/>
   <logger name="class.store.presence" level="TRACE"/>
+   -->
  
   <root level="WARN">
     <appender-ref ref="LOGCAT" />

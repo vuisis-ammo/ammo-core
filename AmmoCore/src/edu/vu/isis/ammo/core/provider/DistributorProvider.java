@@ -126,6 +126,13 @@ public class DistributorProvider extends ContentProvider {
                 return this.dds.deletePresence();
             case CAPABILITY:
                 return this.dds.deleteCapability();
+            case POSTAL_DISPOSAL:
+            case RECIPIENT:
+            case REQUEST:
+            case RETRIEVAL_DISPOSAL:
+            case SUBSCRIBE_DISPOSAL:
+            default:
+                break;
         }
 
         switch (RelationsHelper.getValue(garbageMatcher.match(uri))) {
@@ -138,6 +145,15 @@ public class DistributorProvider extends ContentProvider {
             case DISPOSAL:
             case CHANNEL:
                 return -1;
+            case CAPABILITY:
+            case POSTAL_DISPOSAL:
+            case PRESENCE:
+            case RECIPIENT:
+            case REQUEST:
+            case RETRIEVAL_DISPOSAL:
+            case SUBSCRIBE_DISPOSAL:
+            default:
+                break;
         }
         return -1;
     }
