@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import android.text.TextUtils;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.store.Presence.Item.Key;
 import edu.vu.isis.ammo.core.provider.PresenceSchema;
 
 /**
@@ -384,6 +386,22 @@ public enum Presence {
     public static Collection<Item> query() {
         final Collection<Item> values = Presence.INSTANCE.relMap.values();
         return values;
+    }
+    
+
+    /**
+     * Corresponds to the PresenceSchema.WHERE_OPERATOR_IS selection predicate.
+     * @param operator
+     * @return
+     */
+    public static Collection<Item> queryByOperator(String operator) {
+        final Map<Item.Key, Item> entries = Presence.INSTANCE.relMap;
+        final Collection<Item> result = new ArrayList<Item>();
+        for (Entry<Key, Item> entry : entries.entrySet()) {
+            if (! entry.getKey().operator.equals(operator)) continue;
+            result.add(entry.getValue());
+        }
+        return result;
     }
 
 }

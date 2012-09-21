@@ -195,7 +195,15 @@ public class DistributorProvider extends ContentProvider {
                 cursor = dds.queryChannel(projection, selection, selectionArgs, sortOrder);
                 break;
             case PRESENCE:
+                if (selection == null) {
                 return this.dds.queryPresence();
+                }
+                if (PresenceSchema.WHERE_ALL.equals(selection)) {
+                    return this.dds.queryPresence();
+                }
+                if (PresenceSchema.WHERE_OPERATOR_IS.equals(selection)) {
+                    return this.dds.queryPresenceByOperator(selectionArgs[0]);
+                }
             case CAPABILITY:
                 return this.dds.queryCapability();
             default:

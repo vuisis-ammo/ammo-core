@@ -2453,11 +2453,32 @@ public class DistributorDataStore {
         }
     }
 
+    /**
+     * Build a cursor to present the presence.
+     * 
+     * @return
+     */
     public Cursor queryPresence() {
         final Presence collection = Presence.INSTANCE;
         final MatrixCursor cursor = new MatrixCursor(PresenceSchema.FIELD_NAMES, collection.size());
         final EnumSet<PresenceSchema> set = EnumSet.allOf(PresenceSchema.class);
         for (final Presence.Item item : Presence.query()) {
+            cursor.addRow(item.getValues(set));
+        }
+        return cursor;
+    }
+    
+    /** 
+     * Same as queryPresence() but with a filter.
+     * 
+     * @param operator
+     * @return
+     */
+    public Cursor queryPresenceByOperator(String operator) {
+        final Presence collection = Presence.INSTANCE;
+        final MatrixCursor cursor = new MatrixCursor(PresenceSchema.FIELD_NAMES, collection.size());
+        final EnumSet<PresenceSchema> set = EnumSet.allOf(PresenceSchema.class);
+        for (final Presence.Item item : Presence.queryByOperator(operator)) {
             cursor.addRow(item.getValues(set));
         }
         return cursor;
