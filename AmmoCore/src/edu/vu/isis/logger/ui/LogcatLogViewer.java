@@ -1,6 +1,6 @@
+
 package edu.vu.isis.logger.ui;
 
-import java.io.IOException;
 import java.util.List;
 
 import android.content.Intent;
@@ -15,128 +15,135 @@ import android.widget.Toast;
 
 public class LogcatLogViewer extends LogViewerBase {
 
-	public static final int CONCAT_DATA_MSG = 0;
-	public static final int NOTIFY_INVALID_REGEX_MSG = 1;
+    public static final int CONCAT_DATA_MSG = 0;
+    public static final int NOTIFY_INVALID_REGEX_MSG = 1;
 
-	private static final int OPEN_PREFS_MENU = Menu.NONE + 3;
+    private static final int OPEN_PREFS_MENU = Menu.NONE + 3;
 
-	private SharedPreferences prefs;
+    private SharedPreferences mPrefs;
+    private String mRegex;
+    private boolean mShowTimestamps;
 
-	public Handler mHandler = new Handler() {
+    public Handler mHandler = new Handler() {
 
-		LogcatLogViewer parent = LogcatLogViewer.this;
+        LogcatLogViewer parent = LogcatLogViewer.this;
 
-		@Override
-		public void handleMessage(Message msg) {
+        @Override
+        public void handleMessage(Message msg) {
 
-			switch (msg.what) {
-			case CONCAT_DATA_MSG:
-				if (msg.obj != null) {
-					@SuppressWarnings("unchecked")
-					final List<LogElement> elemList = (List<LogElement>) msg.obj;
-					refreshList(elemList);
-				}
-				break;
-			case NOTIFY_INVALID_REGEX_MSG:
-				Toast.makeText(parent, "Syntax of regex is invalid",
-						Toast.LENGTH_LONG).show();
-				break;
-			default:
-				parent.logger.error("Handler received malformed message");
-			}
+            switch (msg.what) {
+                case CONCAT_DATA_MSG:
+                    if (msg.obj != null) {
+                        @SuppressWarnings("unchecked")
+                        final List<LogElement> elemList = (List<LogElement>) msg.obj;
+                        refreshList(elemList);
+                    }
+                    break;
+                case NOTIFY_INVALID_REGEX_MSG:
+                    Toast.makeText(parent, "Syntax of regex is invalid",
+                            Toast.LENGTH_LONG).show();
+                    break;
+                default:
+                    parent.logger.error("Handler received malformed message");
+            }
 
-		}
+        }
 
-	};
+    };
 
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		
-		prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String regex = prefs.getString("regular_expression", "");
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-		try {
-			mLogReader = new LogcatLogReader(this, mHandler, regex);
-		} catch (IOException e) {
-			final String errorMsg = "Could not read from Logcat";
-			logger.error(errorMsg);
-			e.printStackTrace();
-			Toast.makeText(this, errorMsg, Toast.LENGTH_LONG);
-			return;
-		}
+        mPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+        mRegex = mPrefs.getString("regular_expression", "");
+        mShowTimestamps = mPrefs.getBoolean("show_logcat_timestamps", false);
 
-		mLogReader.start();
+        mLogReader = new LogcatLogReader(this, mHandler, mRegex, mShowTimestamps);
 
-	}
-	
-	@Override
-	public void onResume() {
-		super.onResume();
-		// This code reconfigures things according to the set preferences
-		configureMaxLinesFromPrefs();
-		String regex = prefs.getString("regular_expression", "");
+        mLogReader.start();
 
-		// Our superclass will take care of retrieving the log reader
-		// if we left this activity to change the preferences
-		if (mLogReader != null) {
-			((LogcatLogReader) mLogReader).setRegex(regex);
-			return;
-		}
-	}
+    }
 
-	@Override
-	public boolean onPrepareOptionsMenu(Menu menu) {
+    @Override
+    public void onResume() {
+        super.onResume();
+        // This code reconfigures things according to the set preferences
+        configureMaxLinesFromPrefs();
+        String regex = mPrefs.getString("regular_expression", "");
 
-		final boolean returnValue = true && super.onPrepareOptionsMenu(menu);
+        // Our superclass will take care of retrieving the log reader
+        // if we left this activity to change the preferences
+        if (mLogReader != null) {
+            ((LogcatLogReader) mLogReader).setRegex(regex);
+            return;
+        }
+    }
 
-		menu.add(Menu.NONE, OPEN_PREFS_MENU, Menu.NONE, "Open preferences");
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
 
-		return returnValue;
+        final boolean returnValue = true && super.onPrepareOptionsMenu(menu);
 
-	}
+        menu.add(Menu.NONE, OPEN_PREFS_MENU, Menu.NONE, "Open preferences");
 
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		if (item.getItemId() == OPEN_PREFS_MENU) {
-			final Intent intent = new Intent().setClass(this,
-					LogViewerPreferences.class);
-			startActivityForResult(intent, 0);
-			return true;
-		}
-		return super.onOptionsItemSelected(item);
-	}
+        return returnValue;
 
-	@Override
-	public void onActivityResult(int requestCode, int resultCode, Intent data) {
+    }
 
-		// Pause reading until we're done resetting the max lines
-		mLogReader.pause();
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == OPEN_PREFS_MENU) {
+            final Intent intent = new Intent().setClass(this,
+                    LogViewerPreferences.class);
+            startActivityForResult(intent, 0);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 
-		configureMaxLinesFromPrefs();
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
 
-		if (!isPaused.get())
-			mLogReader.resume();
+        // Pause reading until we're done resetting the preferences
+        mLogReader.pause();
+        configureMaxLinesFromPrefs();
 
-	}
+        String newRegex = mPrefs.getString("regular_expression", "");
+        boolean newTimestamps = mPrefs.getBoolean("show_logcat_timestamps", false);
 
-	private void configureMaxLinesFromPrefs() {
-		mAdapter.setMaxLines(Math.abs(Integer.parseInt(prefs.getString(
-				"logcat_max_lines", "1000"))));
-	}
+        if (!newRegex.equals(mRegex) || newTimestamps != mShowTimestamps) {
+            mRegex = newRegex;
+            mShowTimestamps = newTimestamps;
+            mLogReader.terminate();
+            mAdapter.clear();
+            mLogReader = new LogcatLogReader(this, mHandler, mRegex, mShowTimestamps);
+            mLogReader.pause();
+            mLogReader.start();
+        }
 
-	private void refreshList(List<LogElement> elemList) {
+        if (!isPaused.get())
+            mLogReader.resume();
 
-		updateAdapter(elemList);
-		if (isAutoJump.get()) {
-			setScrollToBottom();
-		}
+    }
 
-	}
+    private void configureMaxLinesFromPrefs() {
+        mAdapter.setMaxLines(Math.abs(Integer.parseInt(mPrefs.getString(
+                "logcat_max_lines", "1000"))));
+    }
 
-	private void updateAdapter(List<LogElement> elemList) {
-		mAdapter.addAll(elemList);
-		mAdapter.notifyDataSetChanged();
-	}
+    private void refreshList(List<LogElement> elemList) {
+
+        updateAdapter(elemList);
+        if (isAutoJump.get()) {
+            setScrollToBottom();
+        }
+
+    }
+
+    private void updateAdapter(List<LogElement> elemList) {
+        mAdapter.addAll(elemList);
+        mAdapter.notifyDataSetChanged();
+    }
 
 }

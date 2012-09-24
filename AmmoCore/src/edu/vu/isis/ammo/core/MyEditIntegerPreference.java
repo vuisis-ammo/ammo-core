@@ -302,6 +302,11 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	public String getText() {
 		// We should do some bounds checking here based on type of ETP.
 		final String value = super.getText();
+		
+		if(mType == null) {
+		    return value;
+		}
+		
 		switch (mType)
 		{
 		case TIMEOUT:
