@@ -78,14 +78,28 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         HEADER_DATA_LENGTH
       + 4; // header checksum
 
+    // public static final int HEADER_DATA_LENGTH_TERSE =
+    //       4  // magic (3.5 bytes) and slot number (4 bits)
+    //     + 2  // payload size
+    //     + 2  // payload checksum
+    //     + 4  // timestamp
+    //     + 1  //   index in slot: 4 bits
+    //          //   <reserved>:    2 bits
+    //          //   packet type:   2 bits
+    //     + 1  // <reserved>
+    //     + 2; // header checksum
+    // // ------
+    // //   16 bytes
+
     public static final int HEADER_DATA_LENGTH_TERSE =
           4  // magic (3.5 bytes) and slot number (4 bits)
         + 2  // payload size
         + 2  // payload checksum
-        + 4  // timestamp
-        + 1  //   index in slot: 4 bits
-             //   <reserved>:    2 bits
-             //   packet type:   2 bits
+        + 4  // UID (info about what we think that we're sending in)
+             //   hyperperiod:   2 bytes
+             //   slot number:   1 byte
+             //   index in slot: 1 byte
+        + 1  // packet type (low-order 2 bits)
         + 1  // <reserved>
         + 2; // header checksum
     // ------
@@ -125,13 +139,17 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
     public int mPacketType;
 
-    // This denoted the index in the sequence of packets within
-    // the current slot.  Note: used only in terse encoding.
-    public int mIndexInSlot;
+    // For received packets, this member records the hyperperiod in which the
+    // sender thought he was sending.
+    public int mHyperperiod;
 
     // For received packets, this member records the slot in which the sender
     // thought he was sending.
     public int mSlotID;
+
+    // This denoted the index in the sequence of packets within
+    // the current slot.  Note: used only in terse encoding.
+    public int mIndexInSlot;
 
 
     /**
@@ -249,13 +267,17 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public int packetType() { return mPacketType; }
         public Builder packetType( int type ) { mPacketType = type; return this; }
 
-        private int mIndexInSlot;
-        public int indexInSlot() { return mIndexInSlot; }
-        public Builder indexInSlot( int index ) { mIndexInSlot = index; return this; }
+        private int mHyperperiod;
+        public int hyperperiod() { return mHyperperiod; }
+        public Builder hyperperiod( int hyperperiod ) { mHyperperiod = hyperperiod; return this; }
 
         private int mSlotID;
         public int slotID() { return mSlotID; }
         public Builder slotID( int index ) { mSlotID = index; return this; }
+
+        private int mIndexInSlot;
+        public int indexInSlot() { return mIndexInSlot; }
+        public Builder indexInSlot( int index ) { mIndexInSlot = index; return this; }
 
         private INetworkService.OnSendMessageHandler handler;
         public INetworkService.OnSendMessageHandler handler() { return this.handler; }
@@ -321,8 +343,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.version = VERSION_1_FULL;
             this.checksum = 0;
             mPacketType = PACKETTYPE_STANDARD;
-            mIndexInSlot = -1;  // default to an invalid index
+            mHyperperiod = -1;  // default to an invalid hyperperiod
             mSlotID = -1;       // default to an invalid slot
+            mIndexInSlot = -1;  // default to an invalid index
             this.handler = null;
         }
     }
@@ -337,8 +360,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.version = builder.version;
         this.payload_checksum = builder.checksum;
         mPacketType = builder.mPacketType;
-        mIndexInSlot = builder.mIndexInSlot;
+        mHyperperiod = builder.mHyperperiod;
         mSlotID = builder.mSlotID;
+        mIndexInSlot = builder.mIndexInSlot;
         this.payload = payload;
         this.handler = builder.handler;
 
@@ -464,22 +488,28 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             buf.put( payloadCheckSum[1] );
             //buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
-            // Timestamp (4 bytes)
-            long nowInMillis = System.currentTimeMillis() - gpsOffset;
-            int nowInMillisInt =  (int)(nowInMillis % 1000000000);
-            //buf.putLong( nowInMillis );
-            buf.putInt( nowInMillisInt );
+            // // Timestamp (4 bytes)
+            // long nowInMillis = System.currentTimeMillis() - gpsOffset;
+            // int nowInMillisInt =  (int)(nowInMillis % 1000000000);
+            // //buf.putLong( nowInMillis );
+            // buf.putInt( nowInMillisInt );
+
+            int uid = 0;
+            uid |= (mHyperperiod << 16);
+            uid |= (phone_id << 8);
+            uid |= mIndexInSlot;
+            buf.putInt( uid );
 
             // The next byte contains: iiii00tt
             // where iiii is the index in slot
             // and tt is the packet type.
-            int next = 0;
-            next |= (mIndexInSlot << 4);
-            logger.error( "before packetType={}", mPacketType );
-            next |= mPacketType;
-            logger.error( "indexInSlot={}, packetType={}, next={}",
-                          new Object[]{ mIndexInSlot, mPacketType, next } );
-            buf.put( (byte) next );
+            // int next = 
+            // next |= (mIndexInSlot << 4);
+            // logger.error( "before packetType={}", mPacketType );
+            // next |= mPacketType;
+            // logger.error( "indexInSlot={}, packetType={}, next={}",
+            //               new Object[]{ mIndexInSlot, mPacketType, next } );
+            buf.put( (byte) mPacketType );
 
             // <reserved> (1 byte)
             buf.put( (byte) 0 );
@@ -563,7 +593,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                              .error(error);
                 } else if ( (version & 0xC0) == 0x40 ) {
                     @SuppressWarnings("unused")
-					byte phoneID = (byte) (version & 0x3F);
+                    byte phoneID = (byte) (version & 0x3F); // This is the slotID
 
                     // Payload size (2 bytes)
                     int size = drain.getShort();
@@ -578,16 +608,16 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     logger.debug( "   payload check={}", checkPayloadBytes );
                     long payload_checksum = convertChecksum(checkPayloadBytes);
 
-                    // Discard timestamp (4 bytes)
-                    drain.getInt();
+                    // UID
+                    int uid = drain.getInt();
+                    int hyperperiod = (uid >>> 16);
+                    int slotID = (uid >>> 8) & 0xFF;
+                    int indexInSlot = uid  & 0xFF;
 
-                    // The next byte contains: iiii00tt (1 byte)
-                    // where iiii is the index in slot
-                    // and tt is the packet type.
+                    // Packed type
                     byte next = drain.get();
-                    logger.error( "next={}", next );
-                    int indexInSlot = (next >>> 4); // unsigned right shift
-                    int packetType = next & 0x00000003;
+                    int packetType = next & 0x03;
+                    logger.error( "packetType={}", packetType );
 
                     // <reserved> (1 byte)
                     drain.get();
@@ -608,8 +638,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                         .version(version)
                         .checksum(payload_checksum)
                         .packetType( packetType )
-                        .indexInSlot( indexInSlot )
-                        .slotID( phoneID );
+                        .hyperperiod( hyperperiod )
+                        .slotID( phoneID )
+                        .indexInSlot( indexInSlot );
                 } else {
                     logger.error("apparent magic number but version invalid");
                 }

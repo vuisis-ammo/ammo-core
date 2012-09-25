@@ -11,6 +11,7 @@
 
 package edu.vu.isis.ammo.core.network;
 
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.zip.CRC32;
@@ -28,7 +29,7 @@ public class SerialRetransmitter
 {
     // There are lots of shorts in this code that will need to be made larger
     // if we need to be able to have more than 16 slots.
-    private class PacketStats {
+    private class PacketRecord {
         short mExpectToHearFrom;
         short mHeardFrom;
         int mRemainingTimesToSend;
@@ -36,7 +37,21 @@ public class SerialRetransmitter
         AmmoGatewayMessage mPacket;
     };
 
-    Map<Short, PacketStats> mTable = new HashMap<Short, PacketStats>();
+    Map<Integer, PacketRecord> mTable = new HashMap<Integer, PacketRecord>();
+
+    // This class records information about packets sent in a slot and acks
+    // received in a slot.  It is retained so that, once we receive acks for
+    // our sent packets during the next slot, we can figure out if all
+    // intended receivers have received each packet.
+    private class SlotRecord {
+        public int mHyperperiodId;
+        public ArrayList<PacketRecord> mSent;
+    };
+
+
+
+
+
 
 
     // The following members are for keeping track of packets we have received
@@ -108,6 +123,7 @@ public class SerialRetransmitter
         // new stats.
         swapHyperperiodsIfNeeded( hyperperiod );
 
+        // Set the bit in the current hyperperiod
         byte bits = currentHyperperiod[ agm.mSlotID ];
         logger.trace( "...before: bits={}, indexInSlot={}", bits, agm.mIndexInSlot );
         bits |= (0x1 << agm.mIndexInSlot);
@@ -142,8 +158,8 @@ public class SerialRetransmitter
                     // They received a packet in the position in the slot
                     // with index "index".  Record this in the map.
 
-                    short uid = createUID( hyperperiod, mySlotID, index );
-                    PacketStats stats = mTable.get( uid );
+                    int uid = createUID( hyperperiod, mySlotID, index );
+                    PacketRecord stats = mTable.get( uid );
                     if ( stats != null ) {
                         stats.mHeardFrom |= (0x1 << agm.mSlotID);
 
@@ -188,11 +204,11 @@ public class SerialRetransmitter
     /**
      * Construct UID for message.
      */
-    private short createUID( int hyperperiod, int slotIndex, int indexInSlot )
+    private int createUID( int hyperperiod, int slotIndex, int indexInSlot )
     {
-        short uid = 0;
-        uid |= hyperperiod << 8;
-        uid |= slotIndex << 4;
+        int uid = 0;
+        uid |= hyperperiod << 16;
+        uid |= slotIndex << 8;
         uid |= indexInSlot;
 
         return uid;
