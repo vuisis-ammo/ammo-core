@@ -33,7 +33,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Routing;
  * satisfied the total is true, otherwise it is false.
  */
 public class Dispersal {
-    private static final Logger logger = LoggerFactory.getLogger("dist.state");
+    public static final Logger logger = LoggerFactory.getLogger("dist.state");
 
     private final Map<String, DisposalState> stateMap;
     private boolean total;
@@ -176,7 +176,7 @@ public class Dispersal {
                 final DisposalState priorCondition = (this.containsKey(term)) ? this.get(term)
                         : DisposalState.PENDING;
 
-                DisposalState actualCondition;
+                final DisposalState actualCondition;
                 switch (priorCondition) {
                     case PENDING:
                         final ChannelStatus channelStatus = that.checkChannel(term);
@@ -184,16 +184,23 @@ public class Dispersal {
                             case READY:
                                 actualCondition = serializer.act(that, literal.encoding, term);
                                 break;
+                            case EMPTY:
+                            case DOWN:
+                            case FULL:
                             default:
                                 actualCondition = channelStatus.inferDisposal();
+                                break;
                         }
                         this.put(term, actualCondition);
-                        logger.trace("attempting message over {}", term);
+                        logger.trace("attempting message over [{}] condition [{}]", 
+                                term, actualCondition);
                         break;
                     default:
                         actualCondition = priorCondition;
                 }
-                if (actualCondition.goalReached(goalCondition)) {
+                if (actualCondition == null) {
+                    logger.error("actual condition indeterminate, term={}", term);
+                } else if (actualCondition.goalReached(goalCondition)) {
                     clauseSuccess = true;
                     logger.trace("clause satisfied {} {}", this, clause);
                     break;

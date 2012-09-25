@@ -410,6 +410,7 @@ public class SerialChannel extends NetChannel
          */
         public Connector()
         {
+            super(new StringBuilder("Serial-Connector-").append(Thread.activeCount()).toString());
             logger.debug( "SerialChannel.Connector::Connector()" );
         }
 
@@ -922,6 +923,7 @@ public class SerialChannel extends NetChannel
          */
         public SenderThread()
         {
+            super(new StringBuilder("Serial-Sender-").append(Thread.activeCount()).toString());
             logger.debug( "SenderThread::SenderThread", Thread.currentThread().getId() );
         }
 
@@ -1186,6 +1188,7 @@ public class SerialChannel extends NetChannel
          */
         public ReceiverThread()
         {
+            super(new StringBuilder("Serial-Receiver-").append(Thread.activeCount()).toString());
             logger.debug( "ReceiverThread::ReceiverThread()", Thread.currentThread().getId() );
             mInputStream = mPort.getInputStream();
         }

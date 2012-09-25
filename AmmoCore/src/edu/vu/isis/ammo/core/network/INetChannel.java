@@ -48,8 +48,6 @@ public interface INetChannel {
     int CHECKED = 57; // indicating the bytes are being read
     int DELIVER = 58; // indicating the message has been read
 
-    String showState(int state);
-
     void reset();
 
     boolean isConnected();

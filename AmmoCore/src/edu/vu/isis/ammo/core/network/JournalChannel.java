@@ -330,6 +330,7 @@ public class JournalChannel extends NetChannel {
         private final BlockingQueue<AmmoGatewayMessage> queue;
 
         private SenderThread(JournalChannel parent) {
+            super(new StringBuilder("Journal-Sender-").append(Thread.activeCount()).toString());
             logger.trace("::<constructor>");
             this.parent = parent;
             this.queue = parent.sendQueue;
@@ -377,14 +378,6 @@ public class JournalChannel extends NetChannel {
                 logger.warn("interupted writing messages");
             }
         }
-    }
-
-    // The following methods are stubbed out to get things to compile.
-    // JournalChannel is not currently used, but if we ever need to
-    // get it working again, we will need to implement all of the
-    // methods in the INetChannel interface.
-    public String showState(int state) {
-        return "";
     }
 
     public boolean isConnected() {
