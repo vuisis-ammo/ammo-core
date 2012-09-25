@@ -13,6 +13,8 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,6 +39,8 @@ import android.text.TextUtils;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
 import edu.vu.isis.ammo.core.distributor.store.Presence;
 import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
+import edu.vu.isis.ammo.core.distributor.store.Presence.Item;
+import edu.vu.isis.ammo.core.distributor.store.Presence.Item.Key;
 import edu.vu.isis.ammo.core.provider.CapabilitySchema;
 import edu.vu.isis.ammo.core.provider.PresenceSchema;
 import edu.vu.isis.ammo.core.provider.Relations;
@@ -2458,11 +2462,11 @@ public class DistributorDataStore {
      * 
      * @return
      */
-    public Cursor queryPresence() {
+    public Cursor queryPresenceAll() {
         final Presence collection = Presence.INSTANCE;
         final MatrixCursor cursor = new MatrixCursor(PresenceSchema.FIELD_NAMES, collection.size());
         final EnumSet<PresenceSchema> set = EnumSet.allOf(PresenceSchema.class);
-        for (final Presence.Item item : Presence.query()) {
+        for (final Presence.Item item : Presence.queryAll()) {
             cursor.addRow(item.getValues(set));
         }
         return cursor;
@@ -2478,18 +2482,24 @@ public class DistributorDataStore {
         final Presence collection = Presence.INSTANCE;
         final MatrixCursor cursor = new MatrixCursor(PresenceSchema.FIELD_NAMES, collection.size());
         final EnumSet<PresenceSchema> set = EnumSet.allOf(PresenceSchema.class);
-        for (final Presence.Item item : Presence.queryByOperator(operator)) {
+        for (final Presence.Item item : Presence.queryAll()) {
+            if (! item.key.operator.equals(operator)) continue;
             cursor.addRow(item.getValues(set));
         }
         return cursor;
     }
 
-    public Cursor queryCapability() {
+    /**
+     * Build a cursor to present the capability.
+     * 
+     * @return
+     */
+    public Cursor queryCapabilityAll() {
         final Capability collection = Capability.INSTANCE;
         final MatrixCursor cursor = new MatrixCursor(CapabilitySchema.FIELD_NAMES,
                 collection.size());
         final EnumSet<CapabilitySchema> set = EnumSet.allOf(CapabilitySchema.class);
-        for (final Capability.Item item : Capability.query()) {
+        for (final Capability.Item item : Capability.queryAll()) {
             cursor.addRow(item.getValues(set));
         }
         return cursor;

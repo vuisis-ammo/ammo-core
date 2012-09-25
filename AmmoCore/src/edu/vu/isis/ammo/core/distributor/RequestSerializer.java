@@ -261,8 +261,11 @@ public class RequestSerializer {
 
     private static byte[] encodeAsJson(ContentValues cv) {
         // encoding in json for now ...
-        Set<Map.Entry<String, Object>> data = cv.valueSet();
-        Iterator<Map.Entry<String, Object>> iter = data.iterator();
+        if (cv == null) {
+            return null;
+        }
+        final Set<Map.Entry<String, Object>> data = cv.valueSet();
+        final Iterator<Map.Entry<String, Object>> iter = data.iterator();
         final JSONObject json = new JSONObject();
 
         while (iter.hasNext())
@@ -273,9 +276,8 @@ public class RequestSerializer {
                     json.put(entry.getKey(), cv.getAsString(entry.getKey()));
                 else if (entry.getValue() instanceof Integer)
                     json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
-            } catch (JSONException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            } catch (JSONException ex) {
+                logger.warn("cannot encode content values as json", ex);
                 return null;
             }
         }

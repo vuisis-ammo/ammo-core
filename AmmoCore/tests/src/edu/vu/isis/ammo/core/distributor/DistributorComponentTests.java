@@ -15,6 +15,8 @@ import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.util.Calendar;
 
+import junit.framework.Assert;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -285,10 +287,24 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
             } finally {
 
             }
+            Assert.assertNotNull("mock channel not available", mockChannel);
             final MockNetworkStack network = mockChannel.mockNetworkStack;
             final ByteBuffer sentBuf = network.getSent();
-            logger.debug("delivered message {}", sentBuf.array());
-            logger.debug("delivered message {}", MockNetworkStack.asString(sentBuf));
+            Assert.assertNotNull("not received into send buffer", sentBuf);
+            final byte[] expected = new byte[]{-17, -66, -19, -2, -66, 0, 0, 0, 0, 0, 0, 0, 
+                    -94, 118, 50, 21, -68, -65, -2, -102, 8, 0, 26, -71, 1, 10, 36, 54, 101, 56, 
+                    99, 49, 55, 52, 50, 45, 51, 53, 54, 53, 45, 52, 102, 99, 56, 45, 57, 49, 53, 
+                    49, 45, 100, 97, 57, 98, 98, 49, 49, 56, 52, 98, 102, 56, 18, 69, 123, 34, 
+                    115, 111, 117, 114, 99, 101, 34, 58, 34, 109, 101, 34, 44, 34, 101, 109, 
+                    112, 104, 97, 115, 105, 115, 34, 58, 34, 33, 34, 44, 34, 103, 114, 101, 101, 
+                    116, 105, 110, 103, 34, 58, 34, 72, 101, 108, 108, 111, 34, 44, 34, 114, 101,
+                    99, 105, 112, 105, 101, 110, 116, 34, 58, 34, 87, 111, 114, 108, 100, 34, 125,
+                    26, 20, 97, 109, 109, 111, 47, 97, 114, 98, 105, 116, 114, 97, 114, 121, 45, 116,
+                    111, 112, 105, 99, 42, 4, 74, 83, 79, 78, 50, 3, 48, 48, 52, 58, 41, 97, 109, 109,
+                    111, 58, 53, 54, 102, 48, 53, 53, 101, 48, 45, 50, 50, 48, 56, 45, 48, 48, 101, 53,
+                    45, 102, 102, 102, 102, 45, 102, 102, 102, 102, 56, 101, 52, 100, 100, 98, 57, 49};
+            final byte[] actual = sentBuf.array();
+            assertArrayEquals("unexpected bytes", expected, actual);
 
         } catch (Exception ex) {
             logger.error("some generic exception ", ex);
