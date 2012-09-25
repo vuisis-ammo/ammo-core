@@ -383,7 +383,7 @@ public class DistributorThread extends Thread {
      * @return
      */
     private boolean announceChannelAck(ChannelAck ack) {
-        logger.trace("RECV ACK {}", ack);
+        logger.trace("send ACK {}", ack);
         try {
             PLogger.QUEUE_ACK_ENTER.trace("offer ack: {}", ack);
             if (!this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
