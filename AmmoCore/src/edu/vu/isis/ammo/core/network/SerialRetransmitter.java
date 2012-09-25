@@ -14,6 +14,7 @@ package edu.vu.isis.ammo.core.network;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.UUID;
 import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
@@ -35,32 +36,56 @@ public class SerialRetransmitter
         int mRemainingTimesToSend;
 
         AmmoGatewayMessage mPacket;
+
+        PacketRecord( AmmoGatewayMessage agm ) {
+            mPacket = agm;
+        }
     };
 
-    Map<Integer, PacketRecord> mTable = new HashMap<Integer, PacketRecord>();
+    Map<Integer, PacketRecord> mPool = new HashMap<Integer, PacketRecord>();
 
     // This class records information about packets sent in a slot and acks
     // received in a slot.  It is retained so that, once we receive acks for
     // our sent packets during the next slot, we can figure out if all
     // intended receivers have received each packet.
     private class SlotRecord {
-        public int mHyperperiodId;
+        public int mHyperperiodID;
         public ArrayList<PacketRecord> mSent;
+
+        public byte[] mAcks = new byte[16]; // FIXME: magic number
+
+        public void reset( int newHyperperiod ) {
+            mHyperperiodID = newHyperperiod;
+            mSent.clear();
+
+            for ( int i = 0; i < mAcks.length; ++i )
+                mAcks[ i ] = 0;
+        }
+
+        public void setAckBit( int slotID, int indexInSlot ) {
+            byte bits = mAcks[ slotID ];
+            logger.trace( "...before: bits={}, indexInSlot={}", bits, indexInSlot );
+            bits |= (0x1 << indexInSlot);
+            logger.trace( "...after: bits={}", bits );
+            mAcks[ slotID ] = bits;
+        }
     };
 
 
+    Map<Integer, UUID> mUUIDMap = new HashMap<Integer, UUID>();
 
-
+    private SlotRecord mCurrent = new SlotRecord();
+    private SlotRecord mPrevious = new SlotRecord();
 
 
 
     // The following members are for keeping track of packets we have received
     // so that we can construct the ack packet.
-    private byte [] currentHyperperiod = new byte[16];
-    private byte [] previousHyperperiod = new byte[16];
+    // private byte [] currentHyperperiod = new byte[16];
+    // private byte [] previousHyperperiod = new byte[16];
 
-    private int currentHyperperiodID;
-    private int previousHyperperiodID;
+    // private int currentHyperperiodID;
+    // private int previousHyperperiodID;
 
 
     /**
@@ -78,20 +103,15 @@ public class SerialRetransmitter
     {
         logger.trace( "...swapHyperperiods(). new hyperperiod={}", hyperperiod );
 
-        if ( hyperperiod != currentHyperperiodID ) {
+        if ( hyperperiod != mCurrent.mHyperperiodID ) {
             logger.trace( "...swapping" );
             // We've entered a new hyperperiod, so make current point to the
             // new one, and discard the previous one.
-            final byte [] temp = previousHyperperiod;
-            previousHyperperiod = currentHyperperiod;
-            currentHyperperiod = temp;
+            final SlotRecord temp = mPrevious;
+            mPrevious = mCurrent;
+            mCurrent = temp;
 
-            // Reset the new current to all zeros.
-            for ( int i = 0; i < currentHyperperiod.length; ++i )
-                currentHyperperiod[ i ] = 0;
-
-            previousHyperperiodID = currentHyperperiodID;
-            currentHyperperiodID = hyperperiod;
+            mCurrent.reset( hyperperiod );
         }
     }
 
@@ -124,13 +144,7 @@ public class SerialRetransmitter
         swapHyperperiodsIfNeeded( hyperperiod );
 
         // Set the bit in the current hyperperiod
-        byte bits = currentHyperperiod[ agm.mSlotID ];
-        logger.trace( "...before: bits={}, indexInSlot={}", bits, agm.mIndexInSlot );
-        bits |= (0x1 << agm.mIndexInSlot);
-        logger.trace( "...after: bits={}", bits );
-        currentHyperperiod[ agm.mSlotID ] = bits;
-
-
+        mCurrent.setAckBit( agm.mSlotID, agm.mIndexInSlot );
 
 
         // First, if it's an ack packet and any bit is set for the byte
@@ -159,15 +173,15 @@ public class SerialRetransmitter
                     // with index "index".  Record this in the map.
 
                     int uid = createUID( hyperperiod, mySlotID, index );
-                    PacketRecord stats = mTable.get( uid );
+                    PacketRecord stats = mPool.get( uid );
                     if ( stats != null ) {
                         stats.mHeardFrom |= (0x1 << agm.mSlotID);
 
                         if ( stats.mExpectToHearFrom == stats.mHeardFrom ) {
                             // We have received acks from all of the people
                             // that we thought we were sending to, so we can
-                            // now remove the packet from the table.
-                            mTable.remove( uid );
+                            // now remove the packet from the pool.
+                            mPool.remove( uid );
                         }
                     } else {
                         logger.info( "Received an ack for a packet that is not in the table!" );
@@ -197,21 +211,38 @@ public class SerialRetransmitter
     }
 
 
-    /**
-     * Called at the end of the 
-
 
     /**
-     * Construct UID for message.
+     * Each packet that we send out is passed to this method.
+     *
+     * This method needs to do several things:
+     * --Create a PacketRecord and put the AGM in it, setting the appropriate
+     *   members in it.
+     * --Put the PacketRecord in the SendRecord.
+     * --Add the UID and UUID to the map.
      */
-    private int createUID( int hyperperiod, int slotIndex, int indexInSlot )
+    synchronized public void sendingAPacket( AmmoGatewayMessage agm,
+                                             int hyperperiod,
+                                             int slotIndex,
+                                             int indexInSlot )
     {
-        int uid = 0;
-        uid |= hyperperiod << 16;
-        uid |= slotIndex << 8;
-        uid |= indexInSlot;
+        logger.trace( "SerialRetransmitter::sendingAPacket()" );
 
-        return uid;
+        logger.trace( "...needAck={}", agm.mNeedAck );
+        logger.trace( "...UUID={}", agm.mUUID );
+
+        // The retransmitter functionality is only required for packet types
+        // that require acks.
+        if ( !agm.mNeedAck )
+            return;
+
+        int uid = createUID( hyperperiod, slotIndex, indexInSlot );
+        PacketRecord pr = new PacketRecord( agm );
+
+        mPool.put( uid, pr );
+        mCurrent.mSent.add( pr );
+
+        mUUIDMap.put( uid, agm.mUUID );
     }
 
 
@@ -253,19 +284,19 @@ public class SerialRetransmitter
             // We only send an ack if the previous hyperperiod was the preceding
             // one.  If the previous hyperperiod was an older one, just don't
             // send anything.
-            if ( hyperperiod - 1 != previousHyperperiodID ) {
+            if ( hyperperiod - 1 != mPrevious.mHyperperiodID ) {
                 logger.trace( "wrong hyperperiod: current={}, previous={}",
-                              hyperperiod, previousHyperperiodID );
+                              hyperperiod, mPrevious.mHyperperiodID );
                 return null;
             }
 
             AmmoGatewayMessage.Builder b = AmmoGatewayMessage.newBuilder();
 
-            b.size( previousHyperperiod.length );
-            b.payload( previousHyperperiod );
+            b.size( mPrevious.mAcks.length );
+            b.payload( mPrevious.mAcks );
 
             CRC32 crc32 = new CRC32();
-            crc32.update( previousHyperperiod );
+            crc32.update( mPrevious.mAcks );
             b.checksum( crc32.getValue() );
 
             AmmoGatewayMessage agm = b.build();
@@ -277,6 +308,20 @@ public class SerialRetransmitter
         }
 
         return null;
+    }
+
+
+    /**
+     * Construct UID for message.
+     */
+    private int createUID( int hyperperiod, int slotIndex, int indexInSlot )
+    {
+        int uid = 0;
+        uid |= hyperperiod << 16;
+        uid |= slotIndex << 8;
+        uid |= indexInSlot;
+
+        return uid;
     }
 
 

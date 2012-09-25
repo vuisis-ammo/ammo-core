@@ -15,6 +15,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Comparator;
+import java.util.UUID;
 import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
@@ -151,6 +152,14 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     // the current slot.  Note: used only in terse encoding.
     public int mIndexInSlot;
 
+    // Whether this message needs to be acked.  E.g., PLI packets do not need
+    // acks, but chat messages do.
+    public boolean mNeedAck;
+
+    // The UUID of the message.  This will uniquely identify it to the
+    // distributor when we acknowledge it.
+    public UUID mUUID;
+
 
     /**
      * This is used by PriorityBlockingQueue() to prioritize it contents.
@@ -279,6 +288,14 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public int indexInSlot() { return mIndexInSlot; }
         public Builder indexInSlot( int index ) { mIndexInSlot = index; return this; }
 
+        private boolean mNeedAck;
+        public boolean needAck() { return mNeedAck; }
+        public Builder needAck( boolean needAck ) { mNeedAck = needAck; return this; }
+
+        private UUID mUUID;
+        public UUID uuid() { return mUUID; }
+        public Builder uuid( UUID uuid ) { mUUID = uuid; return this; }
+
         private INetworkService.OnSendMessageHandler handler;
         public INetworkService.OnSendMessageHandler handler() { return this.handler; }
         public Builder handler(INetworkService.OnSendMessageHandler val) { this.handler = val; return this; }
@@ -346,6 +363,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             mHyperperiod = -1;  // default to an invalid hyperperiod
             mSlotID = -1;       // default to an invalid slot
             mIndexInSlot = -1;  // default to an invalid index
+            mNeedAck = false;   // default to an invalid index
             this.handler = null;
         }
     }
@@ -357,14 +375,16 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         if (this.size != payload.length)
             throw new IllegalArgumentException("payload size incorrect");
         this.priority = builder.priority;
-        this.version = builder.version;
+        this.version =  builder.version;
         this.payload_checksum = builder.checksum;
-        mPacketType = builder.mPacketType;
-        mHyperperiod = builder.mHyperperiod;
-        mSlotID = builder.mSlotID;
-        mIndexInSlot = builder.mIndexInSlot;
-        this.payload = payload;
-        this.handler = builder.handler;
+        mPacketType =   builder.mPacketType;
+        mHyperperiod =  builder.mHyperperiod;
+        mSlotID =       builder.mSlotID;
+        mIndexInSlot =  builder.mIndexInSlot;
+        mNeedAck =      builder.mNeedAck;
+        mUUID =         builder.mUUID;
+        this.payload =  payload;
+        this.handler =  builder.handler;
 
         this.isMulticast = builder.isMulticast;
         this.isSerialChannel = builder.isSerialChannel;

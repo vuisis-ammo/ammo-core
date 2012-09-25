@@ -1321,6 +1321,8 @@ public class DistributorThread extends Thread {
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
                         System.currentTimeMillis() - now, serialized.length);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                agmb.needAck( true )
+                    .uuid( uuid );
                 return agmb.build();
             }
         });

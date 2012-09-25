@@ -1170,6 +1170,8 @@ public class SerialChannel extends NetChannel
                              new Object[] { msg.size,
                                             Long.toHexString(msg.payload_checksum),
                                             msg.payload });
+                if ( getRetransmitter() != null )
+                    getRetransmitter().sendingAPacket( msg );
             }
 
             // legitimately sent to gateway.
