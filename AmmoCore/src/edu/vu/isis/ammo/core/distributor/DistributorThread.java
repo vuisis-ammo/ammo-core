@@ -383,7 +383,7 @@ public class DistributorThread extends Thread {
      * @return
      */
     private boolean announceChannelAck(ChannelAck ack) {
-        logger.trace("RECV ACK {}", ack);
+        logger.trace("send ACK {}", ack);
         try {
             PLogger.QUEUE_ACK_ENTER.trace("offer ack: {}", ack);
             if (!this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
@@ -1415,14 +1415,11 @@ public class DistributorThread extends Thread {
         if (pushResp.hasThreshold()) {
             final AcknowledgementThresholds thresholds = pushResp.getThreshold();
 
-            Parcel np = Parcel.obtain();
-            byte[] nb = postalReq.getBlob(postalReq
+            byte[] noticeBytes = postalReq.getBlob(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv()));
-            np.unmarshall(nb, 0, nb.length);
-            np.setDataPosition(0);
-            logger.debug("notice bytes {}", nb);
-
-            final Notice notice = Notice.CREATOR.createFromParcel(np);
+            logger.debug("notice bytes {}", noticeBytes);
+            final Notice notice = Notice.unpickle(noticeBytes);
+            
             final String topic = postalReq.getString(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv()));
             final String auid = postalReq.getString(postalReq
