@@ -17,9 +17,8 @@ import android.os.Parcelable;
 import android.test.AndroidTestCase;
 
 /**
- * This is the cannonical example of a test for Ammo Types.
- * 
- * Unit test for Template API class
+ * This is the cannonical example of a test for Ammo Types. Unit test for
+ * Template API class
  * <p>
  * Use this class as a template to create new Ammo unit tests for classes which
  * use Android-specific components.
@@ -31,15 +30,15 @@ import android.test.AndroidTestCase;
  * </code>
  */
 
-
-public class TemplateAmmoTypeTest extends AndroidTestCase 
+public class TemplateAmmoTypeTest extends AndroidTestCase
 {
     final static private Logger logger = LoggerFactory.getLogger("trial.api.type.template");
-    public TemplateAmmoTypeTest() 
+
+    public TemplateAmmoTypeTest()
     {
     }
 
-    public TemplateAmmoTypeTest( String testName )
+    public TemplateAmmoTypeTest(String testName)
     {
     }
 
@@ -48,7 +47,7 @@ public class TemplateAmmoTypeTest extends AndroidTestCase
      */
     public static Test suite()
     {
-        return new TestSuite( TemplateAmmoTypeTest.class );
+        return new TestSuite(TemplateAmmoTypeTest.class);
     }
 
     /**
@@ -72,13 +71,12 @@ public class TemplateAmmoTypeTest extends AndroidTestCase
      */
 
     /**
-     * All the tests expect equivalence to work correctly.
-     * So we best verify that equivalence works.
+     * All the tests expect equivalence to work correctly. So we best verify
+     * that equivalence works.
      */
     public void testEquivalence() {
         Assert.assertEquals("a none is equal to itself", Template.NONE, Template.NONE);
     }
-
 
     public void testConstructorWithString()
     {
@@ -107,13 +105,13 @@ public class TemplateAmmoTypeTest extends AndroidTestCase
     }
 
     /**
-     * Test case of passing in a null Parcel 
-     * - should throw a null pointer exception
+     * Test case of passing in a null Parcel - should throw a null pointer
+     * exception
      */
     public void testNullParcel() {
         /**
-         * Test case of passing in a null Parcel 
-         * - should throw a null pointer exception
+         * Test case of passing in a null Parcel - should throw a null pointer
+         * exception
          */
         boolean success = false;
         try {
@@ -127,9 +125,8 @@ public class TemplateAmmoTypeTest extends AndroidTestCase
     }
 
     /**
-     * Generate a non-null Parcel containing a null template
-     * When unmarshalled this produces a NONE template.
-     * - should return non-null
+     * Generate a non-null Parcel containing a null template When unmarshalled
+     * this produces a NONE template. - should return non-null
      */
     public void testNullContentParcel() {
         {
@@ -139,15 +136,17 @@ public class TemplateAmmoTypeTest extends AndroidTestCase
             parcel.setDataPosition(0);
             final Template actual = Template.CREATOR.createFromParcel(parcel);
             Assert.assertEquals("wrote a null but got something else", actual, Template.NONE);
+            parcel.recycle();
         }
     }
+
     /**
-     * Generate a non-null Parcel containing a simple string template
-     * - should return non-null
+     * Generate a non-null Parcel containing a simple string template - should
+     * return non-null
      */
     public void testParcel() {
         ((ch.qos.logback.classic.Logger) logger).setLevel(Level.TRACE);
-        
+
         final Parcel parcel1 = Parcel.obtain();
         final Parcel parcel2 = Parcel.obtain();
         try {
@@ -190,7 +189,9 @@ public class TemplateAmmoTypeTest extends AndroidTestCase
     public void testAsBytes()
     {
         // Construct a template from byte array
-        final byte[] ba = new byte[] {0, 1, 2, 3, 4, 5, 7, 10, 20, 50, 100};
+        final byte[] ba = new byte[] {
+                0, 1, 2, 3, 4, 5, 7, 10, 20, 50, 100
+        };
         Template p = new Template(ba);
         assertNotNull(p);
         assertTrue(p.whatContent() == Template.Type.BYTE);

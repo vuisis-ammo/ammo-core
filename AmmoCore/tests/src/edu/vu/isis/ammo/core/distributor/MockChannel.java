@@ -56,7 +56,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  */
 public class MockChannel extends NetChannel
 {
-    static public final Logger logger = LoggerFactory.getLogger("net.mock");
+    static public final Logger logger = LoggerFactory.getLogger("mock.channel");
 
     /** 5 seconds expressed in milliseconds */
     private static final int BURP_TIME = 5 * 1000;
@@ -281,6 +281,7 @@ public class MockChannel extends NetChannel
     private boolean ackToHandler(INetworkService.OnSendMessageHandler handler,
             DisposalState status)
     {
+        logger.trace("ack to handler {}", status, new Exception("BAD CHECK"));
         return handler.ack(this.name, status);
     }
 
@@ -341,7 +342,7 @@ public class MockChannel extends NetChannel
      * of the properties of the channel
      */
     private class ConnectorThread extends Thread {
-        private final Logger logger = LoggerFactory.getLogger("net.mock.connector");
+        private final Logger logger = LoggerFactory.getLogger("mock.channel.connector");
 
         private MockChannel parent;
         private final State state;
@@ -840,18 +841,19 @@ public class MockChannel extends NetChannel
             return mAuthQueue.remove();
         }
 
-        // Somehow synchronize this here.
+        /**
+         * Clear out the distribution/send queue. Tell the distributor that we
+         * couldn't send these packets.
+         */
         public synchronized void reset()
         {
-            logger.warn("reset()ing the SenderQueue");
-            // Tell the distributor that we couldn't send these
-            // packets.
-            AmmoGatewayMessage msg = mDistQueue.poll();
-            while (msg != null)
-            {
-                if (msg.handler != null)
-                    mChannel.ackToHandler(msg.handler, DisposalState.REJECTED);
-                msg = mDistQueue.poll();
+            logger.info("reseting the SenderQueue");
+            while (! mDistQueue.isEmpty()) {
+                final AmmoGatewayMessage msg = mDistQueue.poll();
+                logger.info("rejecting msg=[{}]", msg.toString());
+                if (msg.handler == null)
+                    continue;
+                mChannel.ackToHandler(msg.handler, DisposalState.REJECTED);
             }
 
             setIsAuthorized(false);
@@ -862,11 +864,13 @@ public class MockChannel extends NetChannel
         private MockChannel mChannel;
     }
 
-    // /////////////////////////////////////////////////////////////////////////
-    //
+    /**
+     * Extracts things from the send queue, processes them
+     * putting the output into the mock link queue.
+     */
     class SenderThread extends Thread
     {
-        private final Logger logger = LoggerFactory.getLogger("test.sender.mock");
+        private final Logger logger = LoggerFactory.getLogger("mock.channel.sender");
 
         private int mState = INetChannel.TAKING;
         private ConnectorThread mParent;
@@ -935,20 +939,26 @@ public class MockChannel extends NetChannel
                 } catch (SocketException ex)
                 {
                     logger.debug("sender caught SocketException");
-                    if (msg.handler != null)
+                    if (msg.handler != null) {
                         mChannel.ackToHandler(msg.handler, DisposalState.REJECTED);
+                    }
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     continue;
-                } catch (Exception ex)
+                } catch (InterruptedException ex)
                 {
+                    logger.warn("sender interrupted (test probably finished)");
+                    break;
+                } catch (Exception ex) {
+                    logger.trace("sender threw exception");
                     logger.warn("sender threw exception", ex);
                     if (msg == null) {
                         logger.error("message is null");
                         return;
                     }
-                    if (msg.handler != null)
+                    if (msg.handler != null) {
                         mChannel.ackToHandler(msg.handler, DisposalState.BAD);
+                    }
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     continue;
@@ -975,7 +985,7 @@ public class MockChannel extends NetChannel
     //
     class ReceiverThread extends Thread
     {
-        private final Logger logger = LoggerFactory.getLogger("net.mock.receiver");
+        private final Logger logger = LoggerFactory.getLogger("mock.channel.receiver");
 
         private int mState = INetChannel.TAKING;
         private ConnectorThread mParent;

@@ -111,8 +111,9 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
                     "  <logger name='dist.serializer' level='TRACE'/>" +
                     "  <logger name='dist.policy.class' level='TRACE'/>" +
                     "  <logger name='service' level='TRACE'/>" +
-                    "  <logger name='net.mock' level='TRACE'/>" +
-                    "  <logger name='link.mock' level='TRACE'/>" +
+                    "  <logger name='mock.channel' level='TRACE'/>" +
+                    "  <logger name='mock.net' level='TRACE'/>" +
+                    "  <logger name='queue' level='TRACE'/>" +
                     "  <logger name='test.context.mock' level='TRACE'/>" +
                     "  <logger name='test.request.distribute' level='TRACE'/>" +
                     "  <logger name='test.service.lifecycle' level='TRACE'/>" +
@@ -157,8 +158,8 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
      * </ul>
      * see http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.
      * android/android-apps/4.1
-     * .1_r1/com/android/calendar/AsyncQueryServiceTest.java#AsyncQueryServiceTest.se
-     * t U p % 2 8 % 2 9
+     * .1_r1/com/android/calendar/AsyncQueryServiceTest.java#AsyncQueryServiceTest.
+     * s e t U p % 2 8 % 2 9
      */
     @Override
     protected void setUp() throws Exception {
@@ -212,10 +213,10 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
             assertNotNull("could not bind", serviceBinder);
 
             this.service = ((DistributorServiceAidl) serviceBinder).getService();
-            logger.info("test service {}", 
+            logger.info("test service {}",
                     Integer.toHexString(System.identityHashCode(this.service)));
             // this.service = this.getService();
-            logger.info("test service {}", 
+            logger.info("test service {}",
                     Integer.toHexString(System.identityHashCode(this.getService())));
 
             this.service.getAssets();
@@ -273,7 +274,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
                             now, expiration, worth, filter
                     });
             try {
-               
+
                 final IAmmoRequest request = builder
                         .provider(provider)
                         .topic(topic)
@@ -284,27 +285,103 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
 
             } catch (RemoteException ex) {
                 logger.error("could not post", ex);
-            } finally {
-
             }
+
             Assert.assertNotNull("mock channel not available", mockChannel);
             final MockNetworkStack network = mockChannel.mockNetworkStack;
             final ByteBuffer sentBuf = network.getSent();
             Assert.assertNotNull("not received into send buffer", sentBuf);
-            final byte[] expected = new byte[]{-17, -66, -19, -2, -66, 0, 0, 0, 0, 0, 0, 0, 
-                    -94, 118, 50, 21, -68, -65, -2, -102, 8, 0, 26, -71, 1, 10, 36, 54, 101, 56, 
-                    99, 49, 55, 52, 50, 45, 51, 53, 54, 53, 45, 52, 102, 99, 56, 45, 57, 49, 53, 
-                    49, 45, 100, 97, 57, 98, 98, 49, 49, 56, 52, 98, 102, 56, 18, 69, 123, 34, 
-                    115, 111, 117, 114, 99, 101, 34, 58, 34, 109, 101, 34, 44, 34, 101, 109, 
-                    112, 104, 97, 115, 105, 115, 34, 58, 34, 33, 34, 44, 34, 103, 114, 101, 101, 
-                    116, 105, 110, 103, 34, 58, 34, 72, 101, 108, 108, 111, 34, 44, 34, 114, 101,
-                    99, 105, 112, 105, 101, 110, 116, 34, 58, 34, 87, 111, 114, 108, 100, 34, 125,
-                    26, 20, 97, 109, 109, 111, 47, 97, 114, 98, 105, 116, 114, 97, 114, 121, 45, 116,
-                    111, 112, 105, 99, 42, 4, 74, 83, 79, 78, 50, 3, 48, 48, 52, 58, 41, 97, 109, 109,
-                    111, 58, 53, 54, 102, 48, 53, 53, 101, 48, 45, 50, 50, 48, 56, 45, 48, 48, 101, 53,
-                    45, 102, 102, 102, 102, 45, 102, 102, 102, 102, 56, 101, 52, 100, 100, 98, 57, 49};
-            final byte[] actual = sentBuf.array();
-            assertArrayEquals("unexpected bytes", expected, actual);
+
+            // See AmmoGatewayMessage for details
+            final byte[] magic = new byte[4];
+            sentBuf.get(magic);
+            assertArrayEquals("magic error",
+                    new byte[] {
+                            -17, -66, -19, -2
+                    }, magic);
+
+            final int msgSize = sentBuf.getInt();
+            Assert.assertEquals("payload size", 190, msgSize);
+
+            final byte priority = sentBuf.get();
+            Assert.assertEquals("msg priority", (byte) 0, priority);
+
+            final byte[] reserved = new byte[3];
+            sentBuf.get(reserved);
+            assertArrayEquals("reserved", new byte[] {
+                    0, 0, 0
+            }, reserved);
+
+            final byte[] pcheck = new byte[4];
+            sentBuf.get(pcheck);
+            // assertArrayEquals("payload checksum", new byte[]{-94, 118, 50,
+            // 21}, pcheck);
+
+            final byte[] hcheck = new byte[4];
+            sentBuf.get(hcheck);
+            // assertArrayEquals("header checksum", new byte[]{-68, -65, -2,
+            // -102}, hcheck);
+
+            final byte[] protobuf = new byte[sentBuf.remaining()];
+            final int pbPosition = sentBuf.position();
+            sentBuf.get(protobuf);
+            logger.info("protobuf=[{}]", new String(protobuf, "US-ASCII"));
+            sentBuf.position(pbPosition);
+            
+            final byte[] pbHdr = new byte[5];
+            sentBuf.get(pbHdr);
+            logger.info("protobuf hdr [{}]", pbHdr);
+
+            final byte[] pbUuidKey = new byte[2];
+            sentBuf.get(pbUuidKey);
+            logger.info("protobuf uuid key [{}]", pbUuidKey);
+
+            final String sampleUuid = "9f95aa76-9904-4130-821f-155d5b3de296";
+            final byte[] pbUuid = new byte[sampleUuid.length()];
+            sentBuf.get(pbUuid);
+            logger.info("protobuf uuid[{}] <{}>", pbUuid.length, new String(pbUuid, "US-ASCII"));
+            // Assert.assertEquals("9f95aa76-9904-4130-821f-155d5b3de296", new
+            // String(pUuid, "US-ASCII"));
+
+            final byte[] pbPayloadKey = new byte[2];
+            sentBuf.get(pbPayloadKey);
+            logger.info("protobuf payload key [{}]", pbPayloadKey);
+            final String expectedPayload = "{\"source\":\"me\",\"emphasis\":\"!\",\"greeting\":\"Hello\",\"recipient\":\"World\"}";
+            final byte[] pbPayload = new byte[expectedPayload.length()];
+            sentBuf.get(pbPayload);
+            Assert.assertEquals(expectedPayload, new String(pbPayload, "US-ASCII"));
+
+            final byte[] pbTopicKey = new byte[2];
+            sentBuf.get(pbTopicKey);
+            logger.info("protobuf topic key [{}]", pbTopicKey);
+            final String expectedTopic = "ammo/arbitrary-topic";
+            final byte[] pbTopic = new byte[expectedTopic.length()];
+            sentBuf.get(pbTopic);
+            Assert.assertEquals(expectedTopic, new String(pbTopic, "US-ASCII"));
+
+            final byte[] pbEncodingKey = new byte[2];
+            sentBuf.get(pbEncodingKey);
+            logger.info("protobuf encoding key [{}]", pbEncodingKey);
+            final String expectedEncoding = "JSON";
+            final byte[] pbEncoding = new byte[expectedEncoding.length()];
+            sentBuf.get(pbEncoding);
+            Assert.assertEquals(expectedEncoding, new String(pbEncoding, "US-ASCII"));
+
+            final byte[] pbWhatKey = new byte[2];
+            sentBuf.get(pbWhatKey);
+            logger.info("protobuf what key [{}]", pbWhatKey);
+            final String expectedWhat = "004";
+            final byte[] pbWhat = new byte[expectedWhat.length()];
+            sentBuf.get(pbWhat);
+            Assert.assertEquals(expectedWhat, new String(pbWhat, "US-ASCII"));
+
+            final byte[] pbDeviceKey = new byte[2];
+            sentBuf.get(pbDeviceKey);
+            logger.info("protobuf device key [{}]", pbDeviceKey);
+            final String expectedDevice = "ammo:56f055e0-2208-00e5-ffff-ffff8e4ddb91";
+            final byte[] pbDevice = new byte[expectedDevice.length()];
+            sentBuf.get(pbDevice);
+            Assert.assertEquals(expectedDevice, new String(pbDevice, "US-ASCII"));
 
         } catch (Exception ex) {
             logger.error("some generic exception ", ex);

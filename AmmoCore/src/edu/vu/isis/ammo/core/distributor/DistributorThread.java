@@ -42,7 +42,6 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Debug;
-import android.os.Parcel;
 import android.os.Process;
 import android.preference.PreferenceManager;
 
@@ -364,13 +363,13 @@ public class DistributorThread extends Thread {
         @Override
         public String toString() {
             return new StringBuilder()
-                    .append(" type ").append(type)
-                    .append(" id ").append(id)
-                    .append(" uuid ").append(uuid)
-                    .append(" topic ").append(topic)
-                    .append(" aid ").append(auid)
-                    .append(" channel ").append(channel)
-                    .append(" status ").append(status)
+                    .append(" type=[").append(type).append("]")
+                    .append(" id=[").append(id).append("]")
+                    .append(" uuid=[").append(uuid).append("]")
+                    .append(" topic=[").append(topic).append("]")
+                    .append(" aid=[").append(auid).append("]")
+                    .append(" channel=[").append(channel).append("]")
+                    .append(" status=[").append(status).append("]")
                     .toString();
         }
     }

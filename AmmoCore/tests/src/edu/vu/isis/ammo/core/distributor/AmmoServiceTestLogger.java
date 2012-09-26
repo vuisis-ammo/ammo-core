@@ -57,8 +57,8 @@ abstract public class AmmoServiceTestLogger extends android.test.ServiceTestCase
             return;
         }
         final StringBuilder sb = new StringBuilder(message);
-        sb.append(" expected=[").append(expected).append("]");
-        sb.append(" actuals=[").append(actuals).append("]");
+        sb.append('\n').append(" expected=[").append(Arrays.toString(expected)).append("]");
+        sb.append('\n').append(" actuals=[").append(Arrays.toString(actuals)).append("]");
         throw new AssertionError(sb.toString());
     }
 
