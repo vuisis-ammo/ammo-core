@@ -28,6 +28,8 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialRetransmitter
 {
+    private static final int TIMES_TO_RESEND = 3;
+
     // There are lots of shorts in this code that will need to be made larger
     // if we need to be able to have more than 16 slots.
     private class PacketRecord {
@@ -39,6 +41,17 @@ public class SerialRetransmitter
 
         PacketRecord( AmmoGatewayMessage agm ) {
             mPacket = agm;
+            mExpectToHearFrom = mReceivingMeDirectly;
+            mHeardFrom = 0;
+            mRemainingTimesToSend = TIMES_TO_RESEND;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder result = new StringBuilder();
+            result.append( mPacket + ", " + Integer.toHexString(mExpectToHearFrom) + ", " );
+            result.append( Integer.toHexString(mHeardFrom) + ", " + mRemainingTimesToSend );
+            return result.toString();
         }
     };
 
@@ -76,16 +89,6 @@ public class SerialRetransmitter
 
     private SlotRecord mCurrent = new SlotRecord();
     private SlotRecord mPrevious = new SlotRecord();
-
-
-
-    // The following members are for keeping track of packets we have received
-    // so that we can construct the ack packet.
-    // private byte [] currentHyperperiod = new byte[16];
-    // private byte [] previousHyperperiod = new byte[16];
-
-    // private int currentHyperperiodID;
-    // private int previousHyperperiodID;
 
 
     /**
@@ -220,6 +223,10 @@ public class SerialRetransmitter
      *   members in it.
      * --Put the PacketRecord in the SendRecord.
      * --Add the UID and UUID to the map.
+     *
+     * Note: I haven't decided yet whether resend and ack packets should be
+     * passed to this method.  I'm leaning toward thinking that they should,
+     * but their mNeedAck will be false.
      */
     synchronized public void sendingAPacket( AmmoGatewayMessage agm,
                                              int hyperperiod,
@@ -237,12 +244,17 @@ public class SerialRetransmitter
             return;
 
         int uid = createUID( hyperperiod, slotIndex, indexInSlot );
+        logger.trace( "...uid={}", uid );
         PacketRecord pr = new PacketRecord( agm );
+        logger.trace( "...PacketRecord={}", pr );
 
         mPool.put( uid, pr );
+        logger.trace( "...pool size={}", mPool.size() );
         mCurrent.mSent.add( pr );
+        logger.trace( "...current packets sent size={}", mPool.size() );
 
         mUUIDMap.put( uid, agm.mUUID );
+        logger.trace( "...UID/UUID map size={}", mUUIDMap.size() );
     }
 
 

@@ -951,8 +951,9 @@ public class SerialChannel extends NetChannel
             // notify our parent and go into an error state.
 
             // CONSTANTS
+            final int slotIndex = mSlotNumber.get();
             final int slotDuration = mSlotDuration.get();
-            final int offset = (mSlotNumber.get() % mRadiosInGroup.get()) * slotDuration;
+            final int offset = (slotIndex % mRadiosInGroup.get()) * slotDuration;
             final int cycleDuration = slotDuration * mRadiosInGroup.get();
             final double bytesPerMs = mBaudRate / (10*1000.0); // baudrate == symbols/sec,
                                                                // 1 byte == 10 symbols,
@@ -1012,7 +1013,7 @@ public class SerialChannel extends NetChannel
                         logger.debug( "Waking: hyperperiod={}, slotNumber={}, (time, ms)={}, jitter={}",
                                       new Object[] {
                                           hyperperiod,
-                                          mSlotNumber.get(),
+                                          slotIndex,
                                           currentGpsTime,
                                           currentGpsTime - thisSlotBegin } );
 
@@ -1031,6 +1032,7 @@ public class SerialChannel extends NetChannel
                                                       thisSlotConsumed,
                                                       bytesPerMs,
                                                       hyperperiod,
+                                                      slotIndex,
                                                       indexInSlot );
                                     // nothing in queue, wait till next slot
                                     goalTakeTime = thisSlotBegin + cycleDuration;
@@ -1085,6 +1087,7 @@ public class SerialChannel extends NetChannel
                                                       thisSlotConsumed,
                                                       bytesPerMs,
                                                       hyperperiod,
+                                                      slotIndex,
                                                       indexInSlot );
                                     goalTakeTime = thisSlotBegin + cycleDuration;
                                     break waitSlot;
@@ -1110,7 +1113,7 @@ public class SerialChannel extends NetChannel
                                 logger.error( "setting packetType={}", msg.mPacketType );
                                 msg.mIndexInSlot = indexInSlot;
 
-                                sendMessage(msg);
+                                sendMessage( msg, hyperperiod, slotIndex, indexInSlot );
                                 ++indexInSlot;
                                 mMessagesSent.getAndIncrement();
                                 // we keep track of how much time we consumed in data transmit,
@@ -1149,12 +1152,15 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        private void sendMessage( AmmoGatewayMessage msg ) throws IOException
+        private void sendMessage( AmmoGatewayMessage msg,
+                                  int hyperperiod,
+                                  int slotIndex,
+                                  int indexInSlot ) throws IOException
         {
             msg.gpsOffset = mDelta.get();
             ByteBuffer buf = msg.serialize( endian,
                                             AmmoGatewayMessage.VERSION_1_TERSE,
-                                            (byte) mSlotNumber.get());
+                                            (byte) slotIndex );
 
             setSenderState(INetChannel.SENDING);
 
@@ -1171,7 +1177,10 @@ public class SerialChannel extends NetChannel
                                             Long.toHexString(msg.payload_checksum),
                                             msg.payload });
                 if ( getRetransmitter() != null )
-                    getRetransmitter().sendingAPacket( msg );
+                    getRetransmitter().sendingAPacket( msg,
+                                                       hyperperiod,
+                                                       slotIndex,
+                                                       indexInSlot );
             }
 
             // legitimately sent to gateway.
@@ -1187,6 +1196,7 @@ public class SerialChannel extends NetChannel
                                    long thisSlotConsumed,
                                    double bytesPerMs,
                                    int hyperperiod,
+                                   int slotIndex,
                                    int indexInSlot ) throws IOException
         {
             // update our time (could potentially change from last read because of context switch etc..)
@@ -1201,7 +1211,7 @@ public class SerialChannel extends NetChannel
             while ( bytesThatWillFit - RESERVE_FOR_ACK > 0 ) {
                 AmmoGatewayMessage agm = getRetransmitter().createResendPacket( bytesThatWillFit - RESERVE_FOR_ACK );
                 if ( agm != null ) {
-                    sendMessage( agm );
+                    sendMessage( agm, hyperperiod, slotIndex, indexInSlot );
                 } else {
                     break;
                 }
@@ -1215,7 +1225,7 @@ public class SerialChannel extends NetChannel
                 agm.mPacketType = AmmoGatewayMessage.PACKETTYPE_ACK;
                 logger.error( "before ack packetType={}", agm.mPacketType );
                 agm.mIndexInSlot = indexInSlot;
-                sendMessage( agm );
+                sendMessage( agm, hyperperiod, slotIndex, indexInSlot );
             }
         }
 
