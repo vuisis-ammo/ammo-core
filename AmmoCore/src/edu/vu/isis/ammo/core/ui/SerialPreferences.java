@@ -56,7 +56,7 @@ public class SerialPreferences extends AbstractAmmoPreference {
         this.serialSlotPref = (MyEditIntegerPreference) this
                 .findPreference(INetPrefKeys.SERIAL_SLOT_NUMBER);
         this.serialSlotPref.setType(Type.SLOT_NUMBER);
-        this.serialSlotPref.setSummarySuffix(" (Set in Panther Prefs)");
+        this.serialSlotPref.setSummarySuffix(" (Set in Panthr Prefs)");
         this.serialSlotPref
                 .setOnPreferenceClickListener(sendToPantherPrefsListener);
 
@@ -64,7 +64,7 @@ public class SerialPreferences extends AbstractAmmoPreference {
                 .findPreference(INetPrefKeys.SERIAL_RADIOS_IN_GROUP);
         this.serialRadiosInGroupPref.setType(Type.RADIOS_IN_GROUP);
         this.serialRadiosInGroupPref
-                .setSummarySuffix(" (Set in Panther Prefs)");
+                .setSummarySuffix(" (Set in Panthr Prefs)");
         this.serialRadiosInGroupPref
                 .setOnPreferenceClickListener(sendToPantherPrefsListener);
 
