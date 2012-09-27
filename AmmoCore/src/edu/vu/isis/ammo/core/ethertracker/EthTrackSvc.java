@@ -151,7 +151,9 @@ public class EthTrackSvc extends ServiceEx {
         notification.setLatestEventInfo(context, contentTitle, contentText,
                 contentIntent);
 
-        mNotificationManager.notify(HELLO_ID, notification);
+	// Commenting it out so that the network status icon does not
+	// come out ...
+	//        mNotificationManager.notify(HELLO_ID, notification);
 
         // Let applications respond immediately by receiving a broadcast intent.
 
