@@ -14,9 +14,13 @@ package edu.vu.isis.ammo.core.distributor;
 import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.util.Calendar;
+import java.util.Map;
 
 import junit.framework.Assert;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,12 +37,17 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
+
+import com.google.protobuf.ByteString;
+
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.TimeInterval;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.AmmoService.DistributorServiceAidl;
+import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.testutils.RenamingMockContext;
 
 /**
@@ -77,7 +86,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
     @SuppressWarnings("unused")
     private final Uri provider = Uri.parse("content://edu.vu.isis.ammo.core/distributor");
 
-    private final String topic = "ammo/arbitrary-topic";
+    private final String expectedTopic = "ammo/arbitrary-topic";
     private final Calendar now = Calendar.getInstance();
     final TimeInterval expiration = new TimeInterval(TimeInterval.Unit.HOUR, 1);
     private final int worth = 5;
@@ -85,8 +94,6 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
     /** time in seconds */
     @SuppressWarnings("unused")
     private final int lifetime = 10;
-
-    final String serializedString = "{\"greeting\":\"Hello World!\"}";
 
     // final Notice notice = new Notice(new PendingIntent());
 
@@ -158,8 +165,8 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
      * </ul>
      * see http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.
      * android/android-apps/4.1
-     * .1_r1/com/android/calendar/AsyncQueryServiceTest.java#AsyncQueryServiceTest.
-     * s e t U p % 2 8 % 2 9
+     * .1_r1/com/android/calendar/AsyncQueryServiceTest.java#AsyncQueryServiceTe
+     * s t . s e t U p % 2 8 % 2 9
      */
     @Override
     protected void setUp() throws Exception {
@@ -267,7 +274,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
 
             logger.info("post: provider [{}] payload [{}] topic [{}]",
                     new Object[] {
-                            provider, cv, topic
+                            provider, cv, expectedTopic
                     });
             logger.info("args now [{}] expire [{}] worth [{}] filter [{}]",
                     new Object[] {
@@ -277,7 +284,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
 
                 final IAmmoRequest request = builder
                         .provider(provider)
-                        .topic(topic)
+                        .topic(expectedTopic)
                         .payload(cv)
                         .notice(Notice.RESET)
                         .post();
@@ -323,65 +330,46 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
             // -102}, hcheck);
 
             final byte[] protobuf = new byte[sentBuf.remaining()];
-            final int pbPosition = sentBuf.position();
             sentBuf.get(protobuf);
             logger.info("protobuf=[{}]", new String(protobuf, "US-ASCII"));
-            sentBuf.position(pbPosition);
-            
-            final byte[] pbHdr = new byte[5];
-            sentBuf.get(pbHdr);
-            logger.info("protobuf hdr [{}]", pbHdr);
 
-            final byte[] pbUuidKey = new byte[2];
-            sentBuf.get(pbUuidKey);
-            logger.info("protobuf uuid key [{}]", pbUuidKey);
+            final AmmoMessages.MessageWrapper mw = AmmoMessages.MessageWrapper.parseFrom(protobuf);
+            logger.info("protobuf unwrapped=<{}>", mw);
 
-            final String sampleUuid = "9f95aa76-9904-4130-821f-155d5b3de296";
-            final byte[] pbUuid = new byte[sampleUuid.length()];
-            sentBuf.get(pbUuid);
-            logger.info("protobuf uuid[{}] <{}>", pbUuid.length, new String(pbUuid, "US-ASCII"));
-            // Assert.assertEquals("9f95aa76-9904-4130-821f-155d5b3de296", new
-            // String(pUuid, "US-ASCII"));
+            Assert.assertTrue("no type", mw.hasType());
+            Assert.assertEquals("type", MessageType.DATA_MESSAGE, mw.getType());
 
-            final byte[] pbPayloadKey = new byte[2];
-            sentBuf.get(pbPayloadKey);
-            logger.info("protobuf payload key [{}]", pbPayloadKey);
-            final String expectedPayload = "{\"source\":\"me\",\"emphasis\":\"!\",\"greeting\":\"Hello\",\"recipient\":\"World\"}";
-            final byte[] pbPayload = new byte[expectedPayload.length()];
-            sentBuf.get(pbPayload);
-            Assert.assertEquals(expectedPayload, new String(pbPayload, "US-ASCII"));
+            Assert.assertTrue("no data message", mw.hasDataMessage());
+            final AmmoMessages.DataMessage dm = mw.getDataMessage();
 
-            final byte[] pbTopicKey = new byte[2];
-            sentBuf.get(pbTopicKey);
-            logger.info("protobuf topic key [{}]", pbTopicKey);
-            final String expectedTopic = "ammo/arbitrary-topic";
-            final byte[] pbTopic = new byte[expectedTopic.length()];
-            sentBuf.get(pbTopic);
-            Assert.assertEquals(expectedTopic, new String(pbTopic, "US-ASCII"));
+            Assert.assertTrue("no uuid", dm.hasUri());
 
-            final byte[] pbEncodingKey = new byte[2];
-            sentBuf.get(pbEncodingKey);
-            logger.info("protobuf encoding key [{}]", pbEncodingKey);
+            Assert.assertTrue("no data", dm.hasData());
+            final ByteString payload = dm.getData();
+            try {
+                final JSONObject jayload = (JSONObject) new JSONTokener(payload.toStringUtf8())
+                        .nextValue();
+
+                for (Map.Entry<String, Object> entry : cv.valueSet()) {
+                    final String key = entry.getKey();
+                    Assert.assertTrue("no payload "+key, jayload.has(key));
+                    Assert.assertEquals("payload "+key, entry.getValue(), jayload.getString(key));
+                }
+            } catch (JSONException ex) {
+                Assert.fail("not json");
+            }
+
             final String expectedEncoding = "JSON";
-            final byte[] pbEncoding = new byte[expectedEncoding.length()];
-            sentBuf.get(pbEncoding);
-            Assert.assertEquals(expectedEncoding, new String(pbEncoding, "US-ASCII"));
+            
+            Assert.assertTrue("no encoding", dm.hasEncoding());
+            Assert.assertEquals("encoding", expectedEncoding, dm.getEncoding());
+            
+            Assert.assertTrue("no topic", dm.hasMimeType());
+            Assert.assertEquals("topic", expectedTopic, dm.getMimeType());
 
-            final byte[] pbWhatKey = new byte[2];
-            sentBuf.get(pbWhatKey);
-            logger.info("protobuf what key [{}]", pbWhatKey);
-            final String expectedWhat = "004";
-            final byte[] pbWhat = new byte[expectedWhat.length()];
-            sentBuf.get(pbWhat);
-            Assert.assertEquals(expectedWhat, new String(pbWhat, "US-ASCII"));
+            Assert.assertTrue("no operator", dm.hasUserId());
 
-            final byte[] pbDeviceKey = new byte[2];
-            sentBuf.get(pbDeviceKey);
-            logger.info("protobuf device key [{}]", pbDeviceKey);
-            final String expectedDevice = "ammo:56f055e0-2208-00e5-ffff-ffff8e4ddb91";
-            final byte[] pbDevice = new byte[expectedDevice.length()];
-            sentBuf.get(pbDevice);
-            Assert.assertEquals(expectedDevice, new String(pbDevice, "US-ASCII"));
+            Assert.assertTrue("no device", dm.hasOriginDevice());
 
         } catch (Exception ex) {
             logger.error("some generic exception ", ex);

@@ -47,8 +47,8 @@ public class MulticastChannel extends NetChannel
 {
     private static final Logger logger = LoggerFactory.getLogger("net.mcast");
 
-    private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in
-                                                   // milliseconds
+    /** 5 seconds expressed in milliseconds */
+    private static final int BURP_TIME = 5 * 1000; 
 
     /**
      * <code>
