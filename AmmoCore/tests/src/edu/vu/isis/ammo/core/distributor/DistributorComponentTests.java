@@ -12,6 +12,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.ByteArrayInputStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.Calendar;
 import java.util.Map;
@@ -39,16 +40,18 @@ import ch.qos.logback.core.joran.spi.JoranException;
 import ch.qos.logback.core.util.StatusPrinter;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 
+import edu.vu.isis.ammo.annotation.TestPreamble;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.TimeInterval;
 import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.MockContextRenaming;
 import edu.vu.isis.ammo.core.AmmoService.DistributorServiceAidl;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
-import edu.vu.isis.ammo.testutils.RenamingMockContext;
 
 /**
  * This is a simple framework for a test of a Service.  
@@ -174,8 +177,8 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
         this.application = new MockApplication();
         this.setApplication(this.application);
 
-        final RenamingMockContext mockContext =
-                new RenamingMockContext(this.getContext());
+        final MockContextRenaming mockContext =
+                new MockContextRenaming(this.getContext());
         this.setContext(mockContext);
         logInit();
         AmmoService.suppressStartCommand();
@@ -203,7 +206,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
      */
     private void startUp(final String policyFileName) throws Exception {
         try {
-            if (!(getContext() instanceof RenamingMockContext)) {
+            if (!(getContext() instanceof MockContextRenaming)) {
                 fail("not proper context class");
             }
 
@@ -253,127 +256,250 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
      * Post messages and verify that they meet their appropriate fates.
      */
     @MediumTest
-    public void testPostal() {
+    public void testPostalWithContentValues() {
         logger.info("test postal : start");
         try {
-
             this.startUp("dist-policy-single-rule.xml");
-            final MockChannel mockChannel = MockChannel.getInstance("mock", this.service);
-            this.service.registerChannel(mockChannel);
-            logger.info("postal : exercise the distributor");
-
-            final Uri provider = Uri.parse("content://edu.vu.isis.ammo.core/distributor");
-
-            final ContentValues cv = new ContentValues();
-            {
-                cv.put("greeting", "Hello");
-                cv.put("recipient", "World");
-                cv.put("emphasis", "!");
-                cv.put("source", "me");
-            }
-
-            logger.info("post: provider [{}] payload [{}] topic [{}]",
-                    new Object[] {
-                            provider, cv, expectedTopic
-                    });
-            logger.info("args now [{}] expire [{}] worth [{}] filter [{}]",
-                    new Object[] {
-                            now, expiration, worth, filter
-                    });
-            try {
-
-                final IAmmoRequest request = builder
-                        .provider(provider)
-                        .topic(expectedTopic)
-                        .payload(cv)
-                        .notice(Notice.RESET)
-                        .post();
-                logger.info("posted request [{}]", request);
-
-            } catch (RemoteException ex) {
-                logger.error("could not post", ex);
-            }
-
-            Assert.assertNotNull("mock channel not available", mockChannel);
-            final MockNetworkStack network = mockChannel.mockNetworkStack;
-            final ByteBuffer sentBuf = network.getSent();
-            Assert.assertNotNull("not received into send buffer", sentBuf);
-
-            // See AmmoGatewayMessage for details
-            final byte[] magic = new byte[4];
-            sentBuf.get(magic);
-            assertArrayEquals("magic error",
-                    new byte[] {
-                            -17, -66, -19, -2
-                    }, magic);
-
-            final int msgSize = sentBuf.getInt();
-            logger.info("payload size=<{}>", msgSize);
-
-            final byte priority = sentBuf.get();
-            Assert.assertEquals("msg priority", (byte) 0, priority);
-
-            final byte[] reserved = new byte[3];
-            sentBuf.get(reserved);
-            assertArrayEquals("reserved", new byte[] {
-                    0, 0, 0
-            }, reserved);
-
-            final byte[] pcheck = new byte[4];
-            sentBuf.get(pcheck);
-            // assertArrayEquals("payload checksum", new byte[]{-94, 118, 50,
-            // 21}, pcheck);
-
-            final byte[] hcheck = new byte[4];
-            sentBuf.get(hcheck);
-            // assertArrayEquals("header checksum", new byte[]{-68, -65, -2,
-            // -102}, hcheck);
-
-            final byte[] protobuf = new byte[sentBuf.remaining()];
-            sentBuf.get(protobuf);
-            logger.info("protobuf=[{}]", new String(protobuf, "US-ASCII"));
-
-            final AmmoMessages.MessageWrapper mw = AmmoMessages.MessageWrapper.parseFrom(protobuf);
-            logger.info("protobuf unwrapped=<{}>", mw);
-
-            Assert.assertTrue("no type", mw.hasType());
-            Assert.assertEquals("type", MessageType.DATA_MESSAGE, mw.getType());
-
-            Assert.assertTrue("no data message", mw.hasDataMessage());
-            final AmmoMessages.DataMessage dm = mw.getDataMessage();
-
-            Assert.assertTrue("no uuid", dm.hasUri());
-
-            Assert.assertTrue("no data", dm.hasData());
-            final ByteString payload = dm.getData();
-            try {
-                final JSONObject jayload = (JSONObject) new JSONTokener(payload.toStringUtf8())
-                        .nextValue();
-
-                for (Map.Entry<String, Object> entry : cv.valueSet()) {
-                    final String key = entry.getKey();
-                    Assert.assertTrue("no payload "+key, jayload.has(key));
-                    Assert.assertEquals("payload "+key, entry.getValue(), jayload.getString(key));
-                }
-            } catch (JSONException ex) {
-                Assert.fail("not json");
-            }
-
-            final String expectedEncoding = "JSON";
-            
-            Assert.assertTrue("no encoding", dm.hasEncoding());
-            Assert.assertEquals("encoding", expectedEncoding, dm.getEncoding());
-            
-            Assert.assertTrue("no topic", dm.hasMimeType());
-            Assert.assertEquals("topic", expectedTopic, dm.getMimeType());
-
-            Assert.assertTrue("no operator", dm.hasUserId());
-
-            Assert.assertTrue("no device", dm.hasOriginDevice());
-
         } catch (Exception ex) {
-            logger.error("some generic exception ", ex);
+            Assert.fail("test failed, could not start environment " + ex.getLocalizedMessage());
         }
+        final MockChannel mockChannel = MockChannel.getInstance("mock", this.service);
+        this.service.registerChannel(mockChannel);
+        logger.info("postal : exercise the distributor");
+
+        final Uri provider = Uri.parse("content://edu.vu.isis.ammo.core/distributor");
+
+        final ContentValues cv = new ContentValues();
+        {
+            cv.put("greeting", "Hello");
+            cv.put("recipient", "World");
+            cv.put("emphasis", "!");
+            cv.put("source", "me");
+        }
+
+        logger.info("post: provider [{}] payload [{}] topic [{}]",
+                new Object[] {
+                        provider, cv, expectedTopic
+                });
+        logger.info("args now [{}] expire [{}] worth [{}] filter [{}]",
+                new Object[] {
+                        now, expiration, worth, filter
+                });
+        try {
+
+            final IAmmoRequest request = builder
+                    .provider(provider)
+                    .topic(expectedTopic)
+                    .payload(cv)
+                    .notice(Notice.RESET)
+                    .post();
+            logger.info("posted request [{}]", request);
+
+        } catch (RemoteException ex) {
+            logger.error("could not post", ex);
+            Assert.fail("could not post");
+        }
+
+        Assert.assertNotNull("mock channel not available", mockChannel);
+        final MockNetworkStack network = mockChannel.mockNetworkStack;
+        final ByteBuffer sentBuf = network.getSent();
+        Assert.assertNotNull("not received into send buffer", sentBuf);
+
+        // See AmmoGatewayMessage for details
+        final byte[] magic = new byte[4];
+        sentBuf.get(magic);
+        assertArrayEquals("magic error",
+                new byte[] {
+                        -17, -66, -19, -2
+                }, magic);
+
+        final int msgSize = sentBuf.getInt();
+        logger.info("payload size=<{}>", msgSize);
+
+        final byte priority = sentBuf.get();
+        Assert.assertEquals("msg priority", (byte) 0, priority);
+
+        final byte[] reserved = new byte[3];
+        sentBuf.get(reserved);
+        assertArrayEquals("reserved", new byte[] {
+                0, 0, 0
+        }, reserved);
+
+        final byte[] pcheck = new byte[4];
+        sentBuf.get(pcheck);
+        // assertArrayEquals("payload checksum", new byte[]{-94, 118, 50,
+        // 21}, pcheck);
+
+        final byte[] hcheck = new byte[4];
+        sentBuf.get(hcheck);
+        // assertArrayEquals("header checksum", new byte[]{-68, -65, -2,
+        // -102}, hcheck);
+
+        final byte[] protobuf = new byte[sentBuf.remaining()];
+        sentBuf.get(protobuf);
+       
+        try {
+            logger.info("protobuf=[{}]", new String(protobuf, "US-ASCII"));
+        } catch (UnsupportedEncodingException e) {
+            logger.warn("could not convert protobuf to US-ASCII");
+        }
+
+        final AmmoMessages.MessageWrapper mw;
+        try {
+            mw = AmmoMessages.MessageWrapper.parseFrom(protobuf);
+        } catch (InvalidProtocolBufferException e) {
+            logger.error("could not parse protocol buffer");
+            Assert.fail("could not parse protocol buffer");
+            return;
+        }
+        logger.info("protobuf unwrapped=<{}>", mw);
+
+        Assert.assertTrue("no type", mw.hasType());
+        Assert.assertEquals("type", MessageType.DATA_MESSAGE, mw.getType());
+
+        Assert.assertTrue("no data message", mw.hasDataMessage());
+        final AmmoMessages.DataMessage dm = mw.getDataMessage();
+
+        Assert.assertTrue("no uuid", dm.hasUri());
+
+        Assert.assertTrue("no data", dm.hasData());
+        final ByteString payload = dm.getData();
+        try {
+            final JSONObject jayload = (JSONObject) new JSONTokener(payload.toStringUtf8())
+                    .nextValue();
+
+            for (Map.Entry<String, Object> entry : cv.valueSet()) {
+                final String key = entry.getKey();
+                Assert.assertTrue("no payload " + key, jayload.has(key));
+                Assert.assertEquals("payload " + key, entry.getValue(), jayload.getString(key));
+            }
+        } catch (JSONException ex) {
+            Assert.fail("not json");
+        }
+
+        final String expectedEncoding = "JSON";
+
+        Assert.assertTrue("no encoding", dm.hasEncoding());
+        Assert.assertEquals("encoding", expectedEncoding, dm.getEncoding());
+
+        Assert.assertTrue("no topic", dm.hasMimeType());
+        Assert.assertEquals("topic", expectedTopic, dm.getMimeType());
+
+        Assert.assertTrue("no operator", dm.hasUserId());
+
+        Assert.assertTrue("no device", dm.hasOriginDevice());
+    }
+
+    /**
+     * Post messages and verify that they meet their appropriate fates.
+     */
+    @TestPreamble (
+            when = {"smoke","full"},
+            activate = "1.6.3",
+            expire = "unlimited",
+            units = {""}
+            
+    )
+    public void testSubscribeWithIntent() {
+        logger.info("test subscribe with intent : start");
+       
+        try {
+            this.startUp("dist-policy-single-rule.xml");
+        } catch (Exception ex) {
+            Assert.fail("test failed, could not start environment " + ex.getLocalizedMessage());
+        }
+        final MockChannel mockChannel = MockChannel.getInstance("mock", this.service);
+        this.service.registerChannel(mockChannel);
+        logger.info("postal : exercise the distributor");
+
+        final Intent expectedIntent = new Intent("Frou-frou");
+
+        try {
+            final IAmmoRequest request = builder
+                    .intent(expectedIntent)
+                    .topic(expectedTopic)
+                    .subscribe();
+            logger.info("subscribe request [{}]", request);
+
+        } catch (RemoteException ex) {
+            logger.error("could not subscribe", ex);
+            Assert.fail("could not subscribe");
+        }
+
+        Assert.assertNotNull("mock channel not available", mockChannel);
+        final MockNetworkStack network = mockChannel.mockNetworkStack;
+
+        final ByteBuffer sentBuf = network.getSent();
+        Assert.assertNotNull("not received into send buffer", sentBuf);
+
+        // See AmmoGatewayMessage for details
+        final byte[] magic = new byte[4];
+        sentBuf.get(magic);
+        assertArrayEquals("magic error",
+                new byte[] {
+                        -17, -66, -19, -2
+                }, magic);
+
+        final int msgSize = sentBuf.getInt();
+        logger.info("payload size=<{}>", msgSize);
+
+        final byte priority = sentBuf.get();
+        Assert.assertEquals("msg priority", (byte) 0, priority);
+
+        final byte[] reserved = new byte[3];
+        sentBuf.get(reserved);
+        assertArrayEquals("reserved", new byte[] {
+                0, 0, 0
+        }, reserved);
+
+        final byte[] pcheck = new byte[4];
+        sentBuf.get(pcheck);
+        // assertArrayEquals("payload checksum", new byte[]{-94, 118, 50,
+        // 21}, pcheck);
+
+        final byte[] hcheck = new byte[4];
+        sentBuf.get(hcheck);
+        // assertArrayEquals("header checksum", new byte[]{-68, -65, -2,
+        // -102}, hcheck);
+
+        final byte[] protobuf = new byte[sentBuf.remaining()];
+        sentBuf.get(protobuf);
+        try {
+            logger.info("protobuf=[{}]", new String(protobuf, "US-ASCII"));
+        } catch (UnsupportedEncodingException e) {
+            logger.warn("could not convert protobuf to US-ASCII");
+        }
+
+        final AmmoMessages.MessageWrapper mw;
+        try {
+            mw = AmmoMessages.MessageWrapper.parseFrom(protobuf);
+        } catch (InvalidProtocolBufferException e) {
+            logger.error("could not parse protocol buffer");
+            Assert.fail("could not parse protocol buffer");
+            return;
+        }
+        logger.info("protobuf unwrapped=<{}>", mw);
+
+        Assert.assertTrue("no type", mw.hasType());
+        Assert.assertEquals("type", MessageType.DATA_MESSAGE, mw.getType());
+
+        Assert.assertTrue("no data message", mw.hasDataMessage());
+        final AmmoMessages.DataMessage dm = mw.getDataMessage();
+
+        Assert.assertTrue("no uuid", dm.hasUri());
+
+        final String expectedEncoding = "JSON";
+
+        Assert.assertTrue("no encoding", dm.hasEncoding());
+        Assert.assertEquals("encoding", expectedEncoding, dm.getEncoding());
+
+        Assert.assertTrue("no topic", dm.hasMimeType());
+        Assert.assertEquals("topic", expectedTopic, dm.getMimeType());
+
+        Assert.assertTrue("no operator", dm.hasUserId());
+
+        Assert.assertTrue("no device", dm.hasOriginDevice());
+
     }
 
 }

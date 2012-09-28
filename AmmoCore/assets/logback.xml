@@ -40,7 +40,7 @@
   </appender>
 
 
-  <logger name="api" level="TRACE"/>
+  <logger name="api" level="INFO"/>
   <!-- 
   <logger name="class.temporal" level="TRACE"/>
   <logger name="class.store.presence" level="TRACE"/>
