@@ -394,10 +394,11 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
      * Post messages and verify that they meet their appropriate fates.
      */
     @TestPreamble (
-            when = {"smoke","full"},
             activate = "1.6.3",
             expire = "unlimited",
-            units = {""}
+            onSmoke = true,
+            onComponent = {},
+            onUnit = {}
             
     )
     public void testSubscribeWithIntent() {
@@ -416,7 +417,7 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
 
         try {
             final IAmmoRequest request = builder
-                    .intent(expectedIntent)
+     //FIXME               .intent(expectedIntent)
                     .topic(expectedTopic)
                     .subscribe();
             logger.info("subscribe request [{}]", request);
