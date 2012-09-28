@@ -73,6 +73,9 @@ public class TcpChannel extends NetChannel {
   private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
   private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
   private boolean isEnabled = true;
+  
+  /** default timeout is 45 seconds */
+  private int DEFAULT_WATCHDOG_TIMOUT = 45;
 
   private Socket socket = null;
   private ConnectorThread connectorThread;
@@ -120,7 +123,7 @@ public class TcpChannel extends NetChannel {
     mChannelManager = iChannelManager;
     this.connectorThread = new ConnectorThread(this);
 
-    this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
+    this.flatLineTime = DEFAULT_WATCHDOG_TIMOUT * 1000; // seconds into milliseconds
 
     mSenderQueue = new SenderQueue( this );
   }

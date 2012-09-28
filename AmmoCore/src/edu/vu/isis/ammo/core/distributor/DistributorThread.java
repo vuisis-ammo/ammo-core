@@ -500,7 +500,7 @@ public class DistributorThread extends Thread {
 
             PLogger.QUEUE_REQ_ENTER.trace("\"action\":\"offer\" \"request\":\"{}\"", request);
             if (!this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
-                logger.error("could not process request {}", request);
+                logger.error("could not process request={} size={}", request, this.requestQueue.size());
                 this.signal();
                 return null;
             }

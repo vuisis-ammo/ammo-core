@@ -1,11 +1,14 @@
 package edu.vu.isis.ammo.core;
 
+import java.util.HashSet;
+
 import junit.framework.Test;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
-
-import java.util.HashSet;
-
+import edu.vu.isis.ammo.core.distributor.store.Presence;
+import edu.vu.isis.ammo.core.distributor.store.Presence.Builder;
+import edu.vu.isis.ammo.core.distributor.store.Presence.Item;
+import edu.vu.isis.ammo.core.provider.TemporalState;
 /**
  * Unit test for TemporalState
  * 
@@ -14,12 +17,6 @@ import java.util.HashSet;
  * -e class edu.vu.isis.ammo.core.provider.TemporalStateTest \
  * edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
  */
-
-import edu.vu.isis.ammo.core.distributor.store.Presence.Item;
-import edu.vu.isis.ammo.core.distributor.store.Presence.Builder;
-import edu.vu.isis.ammo.core.distributor.store.Presence;
-
-import edu.vu.isis.ammo.core.provider.TemporalState;
 
 public class TemporalStateTest extends TestCase
 {
