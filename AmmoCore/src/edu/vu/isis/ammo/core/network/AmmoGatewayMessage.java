@@ -127,9 +127,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
     // These values denote the packet type with respect to the resend
     // functionality.  Note: used only in terse encoding
-    public static final int PACKETTYPE_STANDARD = 0x01;
-    public static final int PACKETTYPE_RESENT   = 0x02;
-    public static final int PACKETTYPE_ACK      = 0x03;
+    public static final int PACKETTYPE_NORMAL = 0x01;
+    public static final int PACKETTYPE_RESEND = 0x02;
+    public static final int PACKETTYPE_ACK    = 0x03;
 
     //
     // The following two members must not be made final, because they need to
@@ -359,7 +359,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.priority = PriorityLevel.NORMAL.b();
             this.version = VERSION_1_FULL;
             this.checksum = 0;
-            mPacketType = PACKETTYPE_STANDARD;
+            mPacketType = PACKETTYPE_NORMAL;
             mHyperperiod = -1;  // default to an invalid hyperperiod
             mSlotID = -1;       // default to an invalid slot
             mIndexInSlot = -1;  // default to an invalid index
