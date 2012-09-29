@@ -110,11 +110,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH;
 
 
-    public final int size;
+    public int size;
     public final byte priority;
     public final byte version;
-    public final long payload_checksum;
-    public final byte[] payload;
+    public long payload_checksum;
+    public byte[] payload;
     public final INetworkService.OnSendMessageHandler handler;
 
     public final boolean isMulticast;

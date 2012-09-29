@@ -11,6 +11,8 @@
 
 package edu.vu.isis.ammo.core.network;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
@@ -160,7 +162,9 @@ public class SerialRetransmitter
         // requeued for resending in the resend queue.
 
         for ( PacketRecord pr : mPrevious.mSent ) {
-            if ( pr.mExpectToHearFrom == pr.mHeardFrom ) {
+            if ( pr.mExpectToHearFrom == 0 ) {
+                logger.trace( "Ack packet or no one listening. deleting PacketRecord:{}", pr );
+            } else if ( (pr.mExpectToHearFrom & pr.mHeardFrom) == pr.mExpectToHearFrom ) {
                 // We have received acks from all of the people
                 // that we thought we were sending to, so we can
                 // now remove the packet from the pool.
@@ -175,7 +179,9 @@ public class SerialRetransmitter
                                              pr.mHeardFrom,
                                              pr } );
                 // Puts this in the resend queue to be resent later when possible.
-                mResendQueue.offer( pr );
+                if ( pr.mResends > 0 ) {
+                    mResendQueue.offer( pr );
+                }
             }
         }
     }
@@ -267,8 +273,27 @@ public class SerialRetransmitter
             // deliver it to the distributor.
             // NOTE: For Ft. Drum, we will ignore this and send it up multiple times.
 
-            
-            mChannel.deliverMessage( agm );
+            // We have to rejigger the payload and checksum, since the resent
+            // packet has a four-byte UID prepended to the payload, and we want
+            // to deliver a packet with the original payload.
+
+            // Tweak the agm here.  Everything in the agm should just stay the
+            // except payload and checksum.
+            int newSize = agm.size - 4;
+            byte[] newPayload = new byte[ newSize ];
+
+            ByteBuffer b = ByteBuffer.wrap( agm.payload );
+            b.order( ByteOrder.LITTLE_ENDIAN );
+            b.get( newPayload, 4, newSize );
+
+            agm.payload = newPayload;
+            agm.size = newSize;
+
+            CRC32 crc32 = new CRC32();
+            crc32.update( newPayload );
+            agm.payload_checksum = crc32.getValue();
+
+            //mChannel.deliverMessage( agm );
         }
 
 
@@ -310,17 +335,45 @@ public class SerialRetransmitter
         //if ( !agm.mNeedAck )
         //    return;
 
-        int uid = createUID( hyperperiod, slotIndex, indexInSlot );
-        logger.trace( "...uid={}", uid );
-        PacketRecord pr = new PacketRecord( uid, agm );
-        logger.trace( "...PacketRecord={}", pr );
+        // Everything that goes out has to be put into the mSent array and has
+        // to have a PacketRecord (even resends and ack packets). When swap
+        // happens:
+        // Normal packets: if not all acked, get put in resend queue
+        // Ack packet: mExpectedToHearFrom is 0, so gets GCed.
+        // Resend packet: 
 
-        mCurrent.mSent.add( pr );
-        mCurrent.mSendCount++;
-        logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
 
-        //mUUIDMap.put( uid, agm.mUUID );
-        logger.trace( "...UID/UUID map size={}", mUUIDMap.size() );
+
+        if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+            // ack packets have a placeholder PacketRecord, but we don't
+            // put them in the resend queue.  Set their mExpectToHearFrom
+            // to zero so they are thrown out when we swap.
+            int uid = createUID( hyperperiod, slotIndex, indexInSlot );
+            logger.trace( "...uid={}", uid );
+            PacketRecord pr = new PacketRecord( uid, agm );
+            logger.trace( "...PacketRecord={}", pr );
+            pr.mExpectToHearFrom = 0;
+
+            mCurrent.mSent.add( pr );
+            mCurrent.mSendCount++;
+            logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
+        } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
+            // Resend packets have an existing PacketRecord, which we reuse.
+            logger.trace( "...resending a packet" );
+        } else {
+            // agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL
+            int uid = createUID( hyperperiod, slotIndex, indexInSlot );
+            logger.trace( "...uid={}", uid );
+            PacketRecord pr = new PacketRecord( uid, agm );
+            logger.trace( "...PacketRecord={}", pr );
+
+            mCurrent.mSent.add( pr );
+            mCurrent.mSendCount++;
+            logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
+
+            //mUUIDMap.put( uid, agm.mUUID );
+            logger.trace( "...UID/UUID map size={}", mUUIDMap.size() );
+        }
     }
 
 
@@ -350,6 +403,12 @@ public class SerialRetransmitter
                 pr = mResendQueue.remove();
 
                 try {
+                    // Keep the pr and put it in the mSent.array, while decrementing
+                    // mResends.
+                    mCurrent.mSent.add( pr );
+                    mCurrent.mSendCount++;
+                    pr.mResends--;
+
                     int size = pr.mPacket.payload.length + 4;
                     ByteBuffer b = ByteBuffer.allocate( size );
                     b.order( ByteOrder.LITTLE_ENDIAN );
@@ -367,6 +426,8 @@ public class SerialRetransmitter
                     CRC32 crc32 = new CRC32();
                     crc32.update( payload );
                     agmb.checksum( crc32.getValue() );
+
+                    agmb.packetType( AmmoGatewayMessage.PACKETTYPE_RESEND );
 
                     AmmoGatewayMessage agm = agmb.build();
                     logger.trace( "returning resend packet" );
