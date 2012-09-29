@@ -14,6 +14,8 @@ package edu.vu.isis.ammo.core.network;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.UUID;
 import java.util.zip.CRC32;
 
@@ -28,34 +30,35 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialRetransmitter
 {
-    private static final int TIMES_TO_RESEND = 3;
+    private static final int DEFAULT_RESENDS = 3;
 
     // There are lots of shorts in this code that will need to be made larger
     // if we need to be able to have more than 16 slots.
     private class PacketRecord {
-        short mExpectToHearFrom;
-        short mHeardFrom;
-        int mResend;
+        public int mExpectToHearFrom;
+        public int mHeardFrom;
+        public int mResends;
 
-        AmmoGatewayMessage mPacket;
+        public int mUID;
+        public AmmoGatewayMessage mPacket;
 
-        PacketRecord( AmmoGatewayMessage agm ) {
+        PacketRecord( int uid, AmmoGatewayMessage agm ) {
+            mUID = uid;
             mPacket = agm;
             mExpectToHearFrom = mReceivingMeDirectly;
             mHeardFrom = 0;
-            mResend = TIMES_TO_RESEND;
+            mResends = DEFAULT_RESENDS;
         }
 
         @Override
         public String toString() {
             StringBuilder result = new StringBuilder();
             result.append( mPacket + ", " + Integer.toHexString(mExpectToHearFrom) + ", " );
-            result.append( Integer.toHexString(mHeardFrom) + ", " + mResend );
+            result.append( Integer.toHexString(mHeardFrom) + ", " + mResends );
             return result.toString();
         }
     };
 
-    //Map<Integer, PacketRecord> mPool = new HashMap<Integer, PacketRecord>();
 
     // This class records information about packets sent in a slot and acks
     // received in a slot.  It is retained so that, once we receive acks for
@@ -109,6 +112,9 @@ public class SerialRetransmitter
     private SlotRecord mCurrent = new SlotRecord();
     private SlotRecord mPrevious = new SlotRecord();
 
+    private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>();
+
+
 
     /**
      *
@@ -127,12 +133,15 @@ public class SerialRetransmitter
 
         if ( hyperperiod != mCurrent.mHyperperiodID ) {
             logger.trace( "...swapping" );
+
             logger.trace( "before:" );
             logger.trace( "  current: {}", mCurrent );
             logger.trace( "  previous: {}", mPrevious );
 
             // We've entered a new hyperperiod, so make current point to the
             // new one, and discard the previous one.
+            processPreviousBeforeSwap();
+
             final SlotRecord temp = mPrevious;
             mPrevious = mCurrent;
             mCurrent = temp;
@@ -145,6 +154,33 @@ public class SerialRetransmitter
     }
 
 
+    private void processPreviousBeforeSwap()
+    {
+        // Any packet in mPrevious that has not been acknowledged should be
+        // requeued for resending in the resend queue.
+
+        for ( PacketRecord pr : mPrevious.mSent ) {
+            if ( pr.mExpectToHearFrom == pr.mHeardFrom ) {
+                // We have received acks from all of the people
+                // that we thought we were sending to, so we can
+                // now remove the packet from the pool.
+                logger.trace( "Heard from all and deleting PacketRecord:" );
+                logger.trace( "...expected={}, heardFrom={}, requeueing PacketRecord: {}",
+                              new Object[] { pr.mExpectToHearFrom,
+                                             pr.mHeardFrom,
+                                             pr } );
+            } else {
+                logger.trace( "expected={}, heardFrom={}, requeueing PacketRecord: {}",
+                              new Object[] { pr.mExpectToHearFrom,
+                                             pr.mHeardFrom,
+                                             pr } );
+                // Puts this in the resend queue to be resent later when possible.
+                mResendQueue.offer( pr );
+            }
+        }
+    }
+
+
     /**
      * All messages received are passed to this method. It delivers the message
      * to the channel manager if it is a new message (rather than one older than
@@ -152,7 +188,6 @@ public class SerialRetransmitter
      * It also caches it as appropriate.
      */
     synchronized public void processReceivedMessage( AmmoGatewayMessage agm,
-                                                     boolean receiverEnabled,
                                                      int hyperperiod,
                                                      int mySlotID )
     {
@@ -161,9 +196,6 @@ public class SerialRetransmitter
 
         logger.trace( "...received messsage from slotID={}, type={}",
                       agm.mSlotID, agm.mPacketType );
-
-        if ( hyperperiod != agm.mHyperperiod 
-
 
         //
         // Collect the ack statistics.
@@ -181,72 +213,62 @@ public class SerialRetransmitter
 
         // First, if it's an ack packet and any bit is set for the byte
         // corresponding to my slot, mark that this slot ID is actively
-        // receiving from me.
+        // receiving from me.  Only accept ack packets from others sending
+        // in the appropriate hyperperiod.
         if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
             logger.trace( "Received ack packet. payload={}", agm.payload );
+            if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
 
-            int theirAckBitsForMe = agm.payload[ mySlotID ];
-            if ( theirAckBitsForMe != 0 ) {
-                // They are receiving my directly.
-                mReceivingMeDirectly |= (0x1 << agm.mSlotID);
-            }
-
-            // We also use their ack information to tell which of the
-            // packets that we sent in the last hyperperiod were actually
-            // received by them.
-            //
-            // For each 1 bit in their ack byte, construct the UID for that
-            // packet and look up the element in the map for that UID.
-            // Mark that packet as received by their slotID.
-            int index = 0;
-            while ( theirAckBitsForMe != 0 ) {
-                if ( (theirAckBitsForMe & 0x1) != 0 ) {
-                    // They received a packet in the position in the slot
-                    // with index "index".  Record this in the map.
-
-                    int uid = createUID( hyperperiod, mySlotID, index );
-                    logger.trace( "doing mSent with index={}, mPrevious.mSendCount={}",
-                                  index, mPrevious.mSendCount );
-                    logger.trace( "mSent.size()={}", mPrevious.mSent.size() );
-                    PacketRecord stats = mPrevious.mSent.get( index );
-                    if ( stats != null ) {
-                        stats.mHeardFrom |= (0x1 << agm.mSlotID);
-
-                        // SKN: do this checking when you are done with all the previous
-                        // and are about to discard mPrevious
-                        // SKN: any packet not fully acknowledged at that mpoint should be
-                        // queed up for resend
-
-                        // if ( stats.mExpectToHearFrom == stats.mHeardFrom ) {
-                        // We have received acks from all of the people
-                        // that we thought we were sending to, so we can
-                        // now remove the packet from the pool.
-                        // mPool.remove( uid );
-                        // }
-                    } else {
-                        logger.info( "Received an ack for a packet that is not in the table!" );
-                    }
+                int theirAckBitsForMe = agm.payload[ mySlotID ];
+                if ( theirAckBitsForMe != 0 ) {
+                    // They are receiving my directly.
+                    mReceivingMeDirectly |= (0x1 << agm.mSlotID);
                 }
 
-                theirAckBitsForMe = theirAckBitsForMe >>> 1;
-                ++index;
+                // We also use their ack information to tell which of the
+                // packets that we sent in the last hyperperiod were actually
+                // received by them.
+                //
+                // For each 1 bit in their ack byte, find the PacketRecord
+                // for that index in mPrevious.mSent and set the ack bit
+                // in mHeardFrom.
+                int index = 0;
+                while ( theirAckBitsForMe != 0 ) {
+                    if ( (theirAckBitsForMe & 0x1) != 0 ) {
+                        // They received a packet in the position in the slot
+                        // with index "index".  Record this in the map.
+                        logger.trace( "doing mSent with index={}, mPrevious.mSendCount={}",
+                                      index, mPrevious.mSendCount );
+                        logger.trace( "mSent.size()={}", mPrevious.mSent.size() );
+                        PacketRecord stats = mPrevious.mSent.get( index );
+                        stats.mHeardFrom |= (0x1 << agm.mSlotID);
+                    }
 
-                // SKN: should generate an Ack message for up stack to tell them
-                // that a packet from them was ack'd
+                    theirAckBitsForMe = theirAckBitsForMe >>> 1;
+                    ++index;
 
+                    // TODO: generate an ack message to send to the distributor to
+                    // let them know that a packet we sent out was ack'd.
+
+                }
+            } else {
+                logger.trace( "Ignoring received ack in hyperperiod={}, sent in hyperperiod={}",
+                              hyperperiod, agm.mHyperperiod );
             }
-
         }
         else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
-            
             // propagate up
-             mChannel.deliverMessage( agm );
+            // We will need to put these in the retranmit mechanism once that is
+            // implemented.
+            mChannel.deliverMessage( agm );
         }
         else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
-            // if already seen then discard
+            // If we have already seen the packet before, discard it and don't
+            // deliver it to the distributor.
+            // NOTE: For Ft. Drum, we will ignore this and send it up multiple times.
 
-            // else propagate up
-             mChannel.deliverMessage( agm );
+            
+            mChannel.deliverMessage( agm );
         }
 
 
@@ -273,10 +295,10 @@ public class SerialRetransmitter
      * passed to this method.  I'm leaning toward thinking that they should,
      * but their mNeedAck will be false.
      */
-    synchronized public void sendingAPacket( AmmoGatewayMessage agm,
-                                             int hyperperiod,
-                                             int slotIndex,
-                                             int indexInSlot )
+    synchronized public void sendingPacket( AmmoGatewayMessage agm,
+                                            int hyperperiod,
+                                            int slotIndex,
+                                            int indexInSlot )
     {
         logger.trace( "SerialRetransmitter::sendingAPacket()" );
 
@@ -290,16 +312,14 @@ public class SerialRetransmitter
 
         int uid = createUID( hyperperiod, slotIndex, indexInSlot );
         logger.trace( "...uid={}", uid );
-        PacketRecord pr = new PacketRecord( agm );
+        PacketRecord pr = new PacketRecord( uid, agm );
         logger.trace( "...PacketRecord={}", pr );
 
-        // mPool.put( uid, pr );
-        //logger.trace( "...pool size={}", mPool.size() );
         mCurrent.mSent.add( pr );
         mCurrent.mSendCount++;
         logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
 
-        mUUIDMap.put( uid, agm.mUUID );
+        //mUUIDMap.put( uid, agm.mUUID );
         logger.trace( "...UID/UUID map size={}", mUUIDMap.size() );
     }
 
@@ -311,21 +331,56 @@ public class SerialRetransmitter
      * will be sent.  This function will be called repeatedly until it returns
      * null.
      */
-    synchronized public AmmoGatewayMessage createResendPacket( long bytesThatWillFit )
+    synchronized public AmmoGatewayMessage createResendPacket( long bytesAvailable )
     {
-        logger.trace( "SerialRetransmitter::createResendPacket()" );
+        logger.trace( "SerialRetransmitter::createResendPacket(). bytesAvailable={}",
+                      bytesAvailable );
 
-        AmmoGatewayMessage agm = null;
+        PacketRecord pr = mResendQueue.peek();
+        while ( pr != null ) {
+            if ( pr.mPacket.payload.length + 20 > bytesAvailable ) {
+                break;
+            } else {
+                // Here is where the resend packet containing the retransmitted
+                // packet will be constructed.
+                // For all packets that are retransmitted, create a normal header but
+                // set the packet type to 01, append the four byte unique identifier,
+                // and then the original payload.
 
-        // FIXME: Here is where the packet containing the retransmitted
-        // packets will be constructed.
+                pr = mResendQueue.remove();
 
-        // For all packets that are retransmitted, create a normal header but
-        // set the packet type to 01, append the two byte unique identifier,
-        // and then the original payload.
+                try {
+                    int size = pr.mPacket.payload.length + 4;
+                    ByteBuffer b = ByteBuffer.allocate( size );
+                    b.order( ByteOrder.LITTLE_ENDIAN );
 
+                    b.putInt( pr.mUID );
+                    b.put( pr.mPacket.payload );
 
-        return agm;
+                    byte[] payload = b.array();
+
+                    // Make a godforsaken Builder here.
+                    AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder();
+                    agmb.size( size );
+                    agmb.payload( payload );
+
+                    CRC32 crc32 = new CRC32();
+                    crc32.update( payload );
+                    agmb.checksum( crc32.getValue() );
+
+                    AmmoGatewayMessage agm = agmb.build();
+                    logger.trace( "returning resend packet" );
+                    return agm;
+
+                } catch ( Exception ex ) {
+                    logger.warn("createAckPacket() threw exception {}", ex.getStackTrace() );
+                }
+            }
+
+            pr = mResendQueue.peek();
+        }
+
+        return null;
     }
 
 

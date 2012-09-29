@@ -315,16 +315,6 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
-    public void setReceiverEnabled( boolean enabled )
-    {
-        logger.info( "Receiver enabled set to {}", enabled );
-        mReceiverEnabled.set( enabled );
-    }
-
-
-    /**
-     *
-     */
     public int getMessagesSent() { return mMessagesSent.get(); }
 
 
@@ -1106,12 +1096,14 @@ public class SerialChannel extends NetChannel
                                 }
 
                                 logger.debug("Took a message from the send queue");
+                                logger.trace( "...hyperperiod={}", hyperperiod );
+                                logger.trace( "...slot={}", slotIndex );
+                                logger.trace( "...indexInSlot={}", indexInSlot );
 
                                 // Before sending, set the values that DO NOT
                                 // come from the distributor.
-                                msg.mPacketType = AmmoGatewayMessage.PACKETTYPE_STANDARD;
+                                msg.mPacketType = AmmoGatewayMessage.PACKETTYPE_NORMAL;
                                 logger.error( "setting packetType={}", msg.mPacketType );
-                                msg.mIndexInSlot = indexInSlot;
 
                                 sendMessage( msg, hyperperiod, slotIndex, indexInSlot );
                                 ++indexInSlot;
@@ -1158,6 +1150,10 @@ public class SerialChannel extends NetChannel
                                   int indexInSlot ) throws IOException
         {
             msg.gpsOffset = mDelta.get();
+            msg.mHyperperiod = hyperperiod;
+            logger.trace( "hyperperiod={}, msg.mHyperperiod={}", hyperperiod, msg.mHyperperiod );
+            msg.mSlotID = slotIndex;
+            msg.mIndexInSlot = indexInSlot;
             ByteBuffer buf = msg.serialize( endian,
                                             AmmoGatewayMessage.VERSION_1_TERSE,
                                             (byte) slotIndex );
@@ -1177,10 +1173,10 @@ public class SerialChannel extends NetChannel
                                             Long.toHexString(msg.payload_checksum),
                                             msg.payload });
                 if ( getRetransmitter() != null )
-                    getRetransmitter().sendingAPacket( msg,
-                                                       hyperperiod,
-                                                       slotIndex,
-                                                       indexInSlot );
+                    getRetransmitter().sendingPacket( msg,
+                                                      hyperperiod,
+                                                      slotIndex,
+                                                      indexInSlot );
             }
 
             // legitimately sent to gateway.
@@ -1434,16 +1430,11 @@ public class SerialChannel extends NetChannel
                         if ( getRetransmitter() != null ) {
                             setReceiverState( INetChannel.DELIVER );
                             getRetransmitter().processReceivedMessage( agm,
-                                                                       mReceiverEnabled.get(),
                                                                        hyperperiod,
                                                                        mSlotNumber.get() );
                         } else {
                             setReceiverState( INetChannel.DELIVER );
-                            if ( mReceiverEnabled.get() ) {
-                                deliverMessage( agm );
-                            } else {
-                                logger.debug( "Receiving disabled, discarding message." );
-                            }
+                            deliverMessage( agm );
                         }
 
                         header.clear();
@@ -1670,8 +1661,6 @@ public class SerialChannel extends NetChannel
     private AtomicInteger mTransmitDuration = new AtomicInteger();
 
     private AtomicBoolean mSenderEnabled = new AtomicBoolean();
-    private AtomicBoolean mReceiverEnabled = new AtomicBoolean();
-
 
     private AtomicInteger mState = new AtomicInteger( SERIAL_DISABLED );
     private int getState() { return mState.get(); }

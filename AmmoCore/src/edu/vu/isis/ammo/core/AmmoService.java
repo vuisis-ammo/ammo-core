@@ -871,9 +871,6 @@ public class AmmoService extends Service implements INetworkService,
                 .getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED,
                         INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED));
 
-        serialChannel.setReceiverEnabled(this.localSettings
-                .getBoolean(INetPrefKeys.SERIAL_RECEIVE_ENABLED,
-                        INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED));
         this.serialChannel.toLog("acquire ");
 
         for (NetChannel channel : this.registeredChannels) {
@@ -1247,10 +1244,6 @@ public class AmmoService extends Service implements INetworkService,
                 else if (key.equals(INetPrefKeys.SERIAL_SEND_ENABLED)) {
                     serialChannel.setSenderEnabled(prefs.getBoolean(key,
                             !INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED)) {
-                    serialChannel.setReceiverEnabled(prefs.getBoolean(key,
-                            !INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED));
                 }
                 else if (key.equals(INetPrefKeys.SERIAL_DISABLED)) {
                     if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_DISABLED))

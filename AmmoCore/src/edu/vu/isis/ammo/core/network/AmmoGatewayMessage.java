@@ -515,6 +515,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             // buf.putInt( nowInMillisInt );
 
             int uid = 0;
+            logger.trace( "serializing hyperperiod={}", mHyperperiod );
             uid |= (mHyperperiod << 16);
             uid |= (phone_id << 8);
             uid |= mIndexInSlot;
@@ -631,6 +632,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     // UID
                     int uid = drain.getInt();
                     int hyperperiod = (uid >>> 16);
+                    logger.trace( "deserialized hyperperiod={}", hyperperiod );
                     int slotID = (uid >>> 8) & 0xFF;
                     int indexInSlot = uid  & 0xFF;
 
