@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialRetransmitter
 {
-    private static final int DEFAULT_RESENDS = 3;
+    private static final int DEFAULT_RESENDS = 2;
 
     // There are lots of shorts in this code that will need to be made larger
     // if we need to be able to have more than 16 slots.
@@ -164,15 +164,15 @@ public class SerialRetransmitter
         for ( PacketRecord pr : mPrevious.mSent ) {
             if ( pr.mExpectToHearFrom == 0 ) {
                 logger.trace( "Ack packet or no one listening. deleting PacketRecord:{}", pr );
-            } else if ( (pr.mExpectToHearFrom & pr.mHeardFrom) == pr.mExpectToHearFrom ) {
-                // We have received acks from all of the people
-                // that we thought we were sending to, so we can
-                // now remove the packet from the pool.
-                logger.trace( "Heard from all and deleting PacketRecord:" );
-                logger.trace( "...expected={}, heardFrom={}, requeueing PacketRecord: {}",
-                              new Object[] { pr.mExpectToHearFrom,
-                                             pr.mHeardFrom,
-                                             pr } );
+            // } else if ( (pr.mExpectToHearFrom & pr.mHeardFrom) == pr.mExpectToHearFrom ) {
+            //     // We have received acks from all of the people
+            //     // that we thought we were sending to, so we can
+            //     // now remove the packet from the pool.
+            //     logger.trace( "Heard from all and deleting PacketRecord:" );
+            //     logger.trace( "...expected={}, heardFrom={}, requeueing PacketRecord: {}",
+            //                   new Object[] { pr.mExpectToHearFrom,
+            //                                  pr.mHeardFrom,
+            //                                  pr } );
             } else {
                 logger.trace( "expected={}, heardFrom={}, requeueing PacketRecord: {}",
                               new Object[] { pr.mExpectToHearFrom,
@@ -263,6 +263,7 @@ public class SerialRetransmitter
             }
         }
         else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
+            logger.trace( "Received normal packet. payload={}", agm.payload );
             // propagate up
             // We will need to put these in the retranmit mechanism once that is
             // implemented.
@@ -279,21 +280,30 @@ public class SerialRetransmitter
 
             // Tweak the agm here.  Everything in the agm should just stay the
             // except payload and checksum.
-            int newSize = agm.size - 4;
-            byte[] newPayload = new byte[ newSize ];
+            logger.trace( "Received resend packet. payload={}", agm.payload );
+            try {
+                logger.trace( "agm.size={}", agm.size );
+                int newSize = agm.size - 4;
+                logger.trace( "newSize={}", newSize );
+                byte[] newPayload = new byte[ newSize ];
 
-            ByteBuffer b = ByteBuffer.wrap( agm.payload );
-            b.order( ByteOrder.LITTLE_ENDIAN );
-            b.get( newPayload, 4, newSize );
+                logger.trace( "agm.payload.length={}", agm.payload.length );
 
-            agm.payload = newPayload;
-            agm.size = newSize;
+                for ( int i = 0; i < newSize; ++i ) {
+                    newPayload[i] = agm.payload[i+4];
+                }
 
-            CRC32 crc32 = new CRC32();
-            crc32.update( newPayload );
-            agm.payload_checksum = crc32.getValue();
+                agm.payload = newPayload;
+                agm.size = newSize;
 
-            //mChannel.deliverMessage( agm );
+                CRC32 crc32 = new CRC32();
+                crc32.update( newPayload );
+                agm.payload_checksum = crc32.getValue();
+
+                mChannel.deliverMessage( agm );
+            } catch ( Exception ex ) {
+                logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
+            }
         }
 
 
@@ -430,7 +440,7 @@ public class SerialRetransmitter
                     agmb.packetType( AmmoGatewayMessage.PACKETTYPE_RESEND );
 
                     AmmoGatewayMessage agm = agmb.build();
-                    logger.trace( "returning resend packet" );
+                    logger.trace( "returning resend packet. payload length={}", payload.length );
                     return agm;
 
                 } catch ( Exception ex ) {
