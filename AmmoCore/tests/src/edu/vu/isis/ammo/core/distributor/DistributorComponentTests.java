@@ -255,6 +255,13 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
     /**
      * Post messages and verify that they meet their appropriate fates.
      */
+    @TestPreamble (
+            activate = "1.6.3",
+            expire = "unlimited",
+            onSmoke = true,
+            onComponent = {},
+            onUnit = {}
+    )
     @MediumTest
     public void testPostalWithContentValues() {
         logger.info("test postal : start");
@@ -388,119 +395,6 @@ public class DistributorComponentTests extends AmmoServiceTestLogger {
         Assert.assertTrue("no operator", dm.hasUserId());
 
         Assert.assertTrue("no device", dm.hasOriginDevice());
-    }
-
-    /**
-     * Post messages and verify that they meet their appropriate fates.
-     */
-    @TestPreamble (
-            activate = "1.6.3",
-            expire = "unlimited",
-            onSmoke = true,
-            onComponent = {},
-            onUnit = {}
-            
-    )
-    public void testSubscribeWithIntent() {
-        logger.info("test subscribe with intent : start");
-       
-        try {
-            this.startUp("dist-policy-single-rule.xml");
-        } catch (Exception ex) {
-            Assert.fail("test failed, could not start environment " + ex.getLocalizedMessage());
-        }
-        final MockChannel mockChannel = MockChannel.getInstance("mock", this.service);
-        this.service.registerChannel(mockChannel);
-        logger.info("postal : exercise the distributor");
-
-        final Intent expectedIntent = new Intent("Frou-frou");
-
-        try {
-            final IAmmoRequest request = builder
-     //FIXME               .intent(expectedIntent)
-                    .topic(expectedTopic)
-                    .subscribe();
-            logger.info("subscribe request [{}]", request);
-
-        } catch (RemoteException ex) {
-            logger.error("could not subscribe", ex);
-            Assert.fail("could not subscribe");
-        }
-
-        Assert.assertNotNull("mock channel not available", mockChannel);
-        final MockNetworkStack network = mockChannel.mockNetworkStack;
-
-        final ByteBuffer sentBuf = network.getSent();
-        Assert.assertNotNull("not received into send buffer", sentBuf);
-
-        // See AmmoGatewayMessage for details
-        final byte[] magic = new byte[4];
-        sentBuf.get(magic);
-        assertArrayEquals("magic error",
-                new byte[] {
-                        -17, -66, -19, -2
-                }, magic);
-
-        final int msgSize = sentBuf.getInt();
-        logger.info("payload size=<{}>", msgSize);
-
-        final byte priority = sentBuf.get();
-        Assert.assertEquals("msg priority", (byte) 0, priority);
-
-        final byte[] reserved = new byte[3];
-        sentBuf.get(reserved);
-        assertArrayEquals("reserved", new byte[] {
-                0, 0, 0
-        }, reserved);
-
-        final byte[] pcheck = new byte[4];
-        sentBuf.get(pcheck);
-        // assertArrayEquals("payload checksum", new byte[]{-94, 118, 50,
-        // 21}, pcheck);
-
-        final byte[] hcheck = new byte[4];
-        sentBuf.get(hcheck);
-        // assertArrayEquals("header checksum", new byte[]{-68, -65, -2,
-        // -102}, hcheck);
-
-        final byte[] protobuf = new byte[sentBuf.remaining()];
-        sentBuf.get(protobuf);
-        try {
-            logger.info("protobuf=[{}]", new String(protobuf, "US-ASCII"));
-        } catch (UnsupportedEncodingException e) {
-            logger.warn("could not convert protobuf to US-ASCII");
-        }
-
-        final AmmoMessages.MessageWrapper mw;
-        try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(protobuf);
-        } catch (InvalidProtocolBufferException e) {
-            logger.error("could not parse protocol buffer");
-            Assert.fail("could not parse protocol buffer");
-            return;
-        }
-        logger.info("protobuf unwrapped=<{}>", mw);
-
-        Assert.assertTrue("no type", mw.hasType());
-        Assert.assertEquals("type", MessageType.DATA_MESSAGE, mw.getType());
-
-        Assert.assertTrue("no data message", mw.hasDataMessage());
-        final AmmoMessages.DataMessage dm = mw.getDataMessage();
-
-        Assert.assertTrue("no uuid", dm.hasUri());
-
-        final String expectedEncoding = "JSON";
-
-        Assert.assertTrue("no encoding", dm.hasEncoding());
-        Assert.assertEquals("encoding", expectedEncoding, dm.getEncoding());
-
-        Assert.assertTrue("no topic", dm.hasMimeType());
-        Assert.assertEquals("topic", expectedTopic, dm.getMimeType());
-
-        Assert.assertTrue("no operator", dm.hasUserId());
-
-        Assert.assertTrue("no device", dm.hasOriginDevice());
-
     }
 
 }
