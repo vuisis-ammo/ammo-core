@@ -73,7 +73,7 @@ public class TcpChannel extends NetChannel {
   private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
   private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
   private boolean isEnabled = true;
-
+  
   /** default timeout is 45 seconds */
   private int DEFAULT_WATCHDOG_TIMOUT = 45;
 
