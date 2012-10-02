@@ -261,8 +261,11 @@ public class RequestSerializer {
 
     private static byte[] encodeAsJson(ContentValues cv) {
         // encoding in json for now ...
-        Set<Map.Entry<String, Object>> data = cv.valueSet();
-        Iterator<Map.Entry<String, Object>> iter = data.iterator();
+        if (cv == null) {
+            return null;
+        }
+        final Set<Map.Entry<String, Object>> data = cv.valueSet();
+        final Iterator<Map.Entry<String, Object>> iter = data.iterator();
         final JSONObject json = new JSONObject();
 
         while (iter.hasNext())
@@ -273,9 +276,8 @@ public class RequestSerializer {
                     json.put(entry.getKey(), cv.getAsString(entry.getKey()));
                 else if (entry.getValue() instanceof Integer)
                     json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
-            } catch (JSONException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            } catch (JSONException ex) {
+                logger.warn("cannot encode content values as json", ex);
                 return null;
             }
         }
@@ -542,18 +544,34 @@ public class RequestSerializer {
     }
 
     /**
-     * The JSON serialization is of the following form... serialized tuple : A
-     * list of non-null bytes which serialize the tuple, this is
+     * The JSON serialization is of the following form...
+     * <dl>
+     * <dt>serialized tuple
+     * <dt>
+     * <dd>A list of non-null bytes which serialize the tuple, this is
      * provided/supplied to the ammo enabled content provider via insert/query.
      * The serialized tuple may be null terminated or the byte array may simply
-     * end. field blobs : A list of name:value pairs where name is the field
-     * name and value is the field's data blob associated with that field. There
-     * may be multiple field blobs. field name : A null terminated name, field
-     * data length : A 4 byte big-endian length, indicating the number of bytes
-     * in the data blob. field data blob : A set of bytes whose quantity is that
-     * of the field data length Note the serializeFromProvider and
-     * serializeFromProvider are symmetric, any change to one will necessitate a
-     * corresponding change to the other.
+     * end.</dd>
+     * <dt>field blobs</dt>
+     * <dd>A list of name:value pairs where name is the field name and value is
+     * the field's data blob associated with that field. There may be multiple
+     * field blobs.
+     * <dl>
+     * <dt>field name</dt>
+     * <dd>A null terminated name,</dd>
+     * <dt>field data length</dt>
+     * <dd>A 4 byte big-endian integer length, indicating the number of bytes in the
+     * data blob.</dd>
+     * <dt>field data blob</dt>
+     * <dd>A set of bytes whose quantity is that of the field data length</dd>
+     * <dt>field data validation and metadata</dt>
+     * <dd>A 4 byte field, the validation quality is achieved by replicating the field data length.
+     * The metadata indicates the qualitative size of the blob.</dd>
+     * </dl>
+     * </dd>
+     * </dl>
+     * Note the serializeFromProvider and serializeFromProvider are symmetric,
+     * any change to one will necessitate a corresponding change to the other.
      */
     public static ByteBufferFuture serializeJsonFromProvider(final ContentResolver resolver,
             final Uri tupleUri, final DistributorPolicy.Encoding encoding)
@@ -561,8 +579,9 @@ public class RequestSerializer {
 
         logger.trace("Serialize the non-blob data");
 
-	// Asserted maximum useful size of trace logging message (e.g. size of PLI msg)
-	final int TRACE_CUTOFF_SIZE = 512;
+        // Asserted maximum useful size of trace logging message (e.g. size of
+        // PLI msg)
+        final int TRACE_CUTOFF_SIZE = 512;
 
         final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
         Cursor tupleCursor = null;
@@ -769,17 +788,17 @@ public class RequestSerializer {
         bigTuple.close();
         PLogger.API_STORE.debug("json tuple=[{}] size=[{}]",
                 tuple, finalTuple.length);
-	if (finalTuple.length <= TRACE_CUTOFF_SIZE) {
-	    PLogger.API_STORE.trace("json finalTuple=[{}]", finalTuple);
-	} else { 
-	    PLogger.API_STORE.trace("json tuple=[{}] size=[{}]", tuple, finalTuple.length);
-	}
+        if (finalTuple.length <= TRACE_CUTOFF_SIZE) {
+            PLogger.API_STORE.trace("json finalTuple=[{}]", finalTuple);
+        } else {
+            PLogger.API_STORE.trace("json tuple=[{}] size=[{}]", tuple, finalTuple.length);
+        }
         return ByteBufferFuture.wrap(finalTuple);
     }
 
     /**
      * This is the improved version of JSON encoding. It requests the meta data
-     * about the relation explicityl rather than trying to infer it from the
+     * about the relation explicitly rather than trying to infer it from the
      * returned data.
      */
     public static ByteBufferFuture serializeJsonFromProvider2(final ContentResolver resolver,
@@ -1018,7 +1037,8 @@ public class RequestSerializer {
     }
 
     /**
-     * JSON encoding (deprecated) This method interacts directly with the
+     * JSON encoding 
+     * <p> This method interacts directly with the
      * content provider. It should only be used with content providers which are
      * known to be responsive.
      * 

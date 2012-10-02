@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -81,10 +82,6 @@ import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
- * Network Service is responsible for all networking between the core
- * application and the server. Currently, this service implements a UDP
- * connection for periodic data updates and a long-polling TCP connection for
- * event driven notifications.
  * <p>
  * The AmmoService is responsible for prioritizing and serializing requests for
  * data communications between distributed application databases. The
@@ -122,7 +119,12 @@ public class AmmoService extends Service implements INetworkService,
      * It should not be changed by the main thread.
      */
     public enum ChannelChange {
-        ACTIVATE(1), DEACTIVATE(2), REPAIR(3);
+        /** When the channel is ready for active use */
+        ACTIVATE(1),
+        /** When the channel is definitely not ready for active use */
+        DEACTIVATE(2),
+        /** When the channel may be usable */
+        REPAIR(3);
 
         final public int o; // ordinal
 
@@ -143,21 +145,31 @@ public class AmmoService extends Service implements INetworkService,
         }
     }
 
-    public static enum NPSReturnCode {
-        NO_CONNECTION, SOCKET_EXCEPTION, UNKNOWN, BAD_MESSAGE, OK
-    };
-
+    /**
+     * Various link types:
+     * <p>
+     * [0-2] available for immediate use
+     * <p>
+     * [3-7] added in anticipation
+     * <p>
+     */
     public static enum linkTypes {
-        // existed already, added as enum
-        WIRED(0), // any wired connection
-        WIFI(1), // 802.11 (a/b/g/n)
-        MOBILE_3G(2), // phone 3G
-        // added in for future expandability
-        MOBILE_2G(3), // phone 2G
-        MOBILE_4G(4), // phone 4G
-        BLUETOOTH(5), // bluetooth(R)
-        NFC(6), // near field communication
-        IR(7); // infrared
+        /** any wired connection */
+        WIRED(0),
+        /** 802.11 (a/b/g/n) */
+        WIFI(1),
+        /** phone 3G */
+        MOBILE_3G(2),
+        /** phone 2G */
+        MOBILE_2G(3),
+        /** phone 4G */
+        MOBILE_4G(4),
+        /** bluetooth(R) */
+        BLUETOOTH(5),
+        /** near field communication */
+        NFC(6),
+        /** infrared */
+        IR(7);
         final public int value;
 
         private linkTypes(int num) {
@@ -167,10 +179,6 @@ public class AmmoService extends Service implements INetworkService,
 
     public static final String SIZE_KEY = "sizeByteArrayKey";
     public static final String CHECKSUM_KEY = "checksumByteArrayKey";
-
-    public enum Carrier {
-        UDP, TCP
-    }
 
     // Interfaces
 
@@ -191,6 +199,16 @@ public class AmmoService extends Service implements INetworkService,
     private boolean isMulticastSuppressed = INetPrefKeys.DEFAULT_MULTICAST_DISABLED;
     private boolean isReliableMulticastSuppressed = INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED;
     private boolean isSerialSuppressed = INetPrefKeys.DEFAULT_SERIAL_DISABLED;
+
+    static final private AtomicBoolean isStartCommandSuppressed = new AtomicBoolean(false);
+
+    static public void suppressStartCommand() {
+        AmmoService.isStartCommandSuppressed.set(true);
+    }
+
+    static public void activateStartCommand() {
+        AmmoService.isStartCommandSuppressed.set(false);
+    }
 
     // for providing networking support
     // should this be using IPv6?
@@ -237,6 +255,12 @@ public class AmmoService extends Service implements INetworkService,
     private boolean mNetworkConnected = false;
     private boolean mSdCardAvailable = false;
 
+    static private AtomicReference<String> distributionPolicyFileName = new AtomicReference<String>();
+
+    static public void distributionPolicyFileName(String name) {
+        AmmoService.distributionPolicyFileName.set(name);
+    }
+
     // ===========================================================
     // AIDL Implementation
     // ===========================================================
@@ -261,14 +285,18 @@ public class AmmoService extends Service implements INetworkService,
         }
 
         public AmmoService getService() {
-            logger.trace("MyBinder::getService");
+            logger.trace("DistributorServiceAidl::getService");
             return AmmoService.this;
         }
     }
 
+    /**
+     * The onBind() is called after construction and onCreate().
+     */
     @Override
     public IBinder onBind(Intent intent) {
-        logger.trace("client binding...");
+        logger.trace("client binding {} {}",
+                Integer.toHexString(System.identityHashCode(this)), intent);
         return new DistributorServiceAidl();
     }
 
@@ -283,11 +311,22 @@ public class AmmoService extends Service implements INetworkService,
     final private AtomicReference<DistributorPolicy> policy =
             new AtomicReference<DistributorPolicy>();
 
+    /**
+     * The loading of the policy is lazy; the first time it is requested it is
+     * loaded.
+     * 
+     * @return the loaded policy.
+     */
     public DistributorPolicy policy() {
+        if (this.policy.get() == null) {
+            this.policy(DistributorPolicy.newInstance(this,
+                    AmmoService.distributionPolicyFileName.get()));
+        }
         return this.policy.get();
     }
 
     public DistributorPolicy policy(DistributorPolicy policy) {
+        logger.info("setting new policy: \n{}", policy);
         return this.policy.getAndSet(policy);
     }
 
@@ -308,6 +347,10 @@ public class AmmoService extends Service implements INetworkService,
      */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (AmmoService.isStartCommandSuppressed.get()) {
+            logger.trace("Start Command is suppressed intent=[{}] not processed", intent);
+            return Service.START_NOT_STICKY;
+        }
         logger.trace("::onStartCommand {}", intent);
         // If we get this intent, unbind from all services
         // so the service can be stopped.
@@ -317,36 +360,40 @@ public class AmmoService extends Service implements INetworkService,
                 if (action.equals(AmmoService.PREPARE_FOR_STOP)) {
                     this.teardown();
                     this.stopSelf();
-                    return START_NOT_STICKY;
+                    return Service.START_NOT_STICKY;
                 }
+                /**
+                 * The following block is deprecated. All requests should be
+                 * made via the AIDL binding.
+                 */
                 if (action.equals("edu.vu.isis.ammo.api.MAKE_REQUEST")) {
                     try {
                         final AmmoRequest request = intent.getParcelableExtra("request");
                         if (request == null) {
                             logger.error("bad request intent {}", intent);
-                            return START_NOT_STICKY;
+                            return Service.START_NOT_STICKY;
                         }
                         final String result = this.distThread.distributeRequest(request);
                         logger.trace("request result {}", result);
                     } catch (ArrayIndexOutOfBoundsException ex) {
                         logger.error("could not unmarshall the ammo request parcel");
                     }
-                    return START_NOT_STICKY;
+                    return Service.START_NOT_STICKY;
                 }
                 if (action.equals("edu.vu.isis.ammo.AMMO_HARD_RESET")) {
                     this.acquirePreferences();
                     this.refresh();
-                    return START_NOT_STICKY;
+                    return Service.START_NOT_STICKY;
                 }
                 if (action.equals(AmmoSettingsAvailabiltyReceiver.ACTION_AVAILABLE)) {
                     this.globalSettings.reload();
                     this.acquirePreferences();
-                    return START_NOT_STICKY;
+                    return Service.START_NOT_STICKY;
                 }
                 if (action.equals(AmmoSettingsAvailabiltyReceiver.ACTION_UNAVAILABLE)) {
                     this.globalSettings.reload();
                     this.acquirePreferences();
-                    return START_NOT_STICKY;
+                    return Service.START_NOT_STICKY;
                 }
             }
         }
@@ -360,9 +407,11 @@ public class AmmoService extends Service implements INetworkService,
     private Settings globalSettings; // from tasettings
     private SharedPreferences localSettings; // local copy
 
-    // moving the variable to be a class variable instead 
-    // of being a local variable within the oncreate method
-    private WifiManager.MulticastLock multicastLock = null; 
+    /**
+     * moving the variable to be a class variable instead of being a local
+     * variable within the onCreate method
+     */
+    private WifiManager.MulticastLock multicastLock = null;
 
     public Handler notifyMsg = null;
 
@@ -373,7 +422,9 @@ public class AmmoService extends Service implements INetworkService,
     @Override
     public void onCreate() {
         super.onCreate();
-        final Context context = this.getBaseContext();
+        logger.info("ammo service on create {}",
+                Integer.toHexString(System.identityHashCode(this)));
+        final Context context = this;
 
         this.journalChannel.init(context);
         this.tcpChannel.init(context);
@@ -425,7 +476,7 @@ public class AmmoService extends Service implements INetworkService,
 
         mReadyResourceReceiver.checkResourceStatus(this);
 
-        this.policy.set(DistributorPolicy.newInstance(context));
+        this.policy();
 
         this.globalSettings = new Settings(context);
         this.globalSettings
@@ -538,11 +589,14 @@ public class AmmoService extends Service implements INetworkService,
         this.refresh(); // refresh subscribe and retrieval tables
     }
 
-    /*
-     * FIXME: this probably needs to happen differently. Fred and Demetri
-     * discussed it and we need to add a flag to the intent sent below so that
-     * the receiver knows done initializing mcast channel - now fire up the
-     * AMMO_LOGIN intent to force apps to register their subscriptions
+    /**
+     * FIXME: this probably needs to happen differently.
+     * <p>
+     * Do we need to add a flag to the intent sent below so that the receiver
+     * knows when it is done initializing mcast channel?
+     * <p>
+     * We broadcast the AMMO_LOGIN intent to force ammo applications to register
+     * their subscriptions.
      */
     private void refresh() {
         logger.trace("Forcing applications to register their subscriptions");
@@ -890,386 +944,405 @@ public class AmmoService extends Service implements INetworkService,
      *            preference data
      * @param key a string to signal which preference to access
      */
-    final OnSharedPreferenceChangeListener pantherPreferenceChangeListener = new OnSharedPreferenceChangeListener()
-    {
-        final private AmmoService parent = AmmoService.this;
+    final OnSharedPreferenceChangeListener pantherPreferenceChangeListener =
+            new OnSharedPreferenceChangeListener()
+            {
+                final private AmmoService parent = AmmoService.this;
 
-        @Override
-        public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-            logger.trace("::onSharedPreferenceChanged panthr {}", key);
-            //
-            // handle network authentication group
-            //
-            if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
-                final String id = parent.updatePref(key, parent.deviceId);
-                PLogger.SET_PANTHR.debug("device[{} -> {}]", parent.deviceId, id);
-            }
-            else if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
-                final String id = parent.updatePref(key, parent.operatorId);
-                PLogger.SET_PANTHR.debug("operator[{} -> {}]", parent.operatorId, id);
-            }
-            else if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
-                final String prev = (parent.operatorKey == null)
-                        ? INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY : parent.operatorKey;
-                final String pass = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR.debug("pass[{} -> {}]", prev, pass);
-            }
-
-            //
-            // Journal
-            //
-            else if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
-                final boolean active = parent.updatePref(key, parent.isJournalUserDisabled);
-                PLogger.SET_PANTHR_JOURNAL.debug("suppress[{} -> {}]",
-                        parent.isJournalUserDisabled, active);
-            }
-
-            //
-            // Gateway
-            //
-            else if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
-                final boolean active = parent.updatePref(key, parent.isGatewaySuppressed);
-                PLogger.SET_PANTHR_GW.debug("suppress[{} -> {}]", parent.isGatewaySuppressed,
-                        active);
-            }
-            else if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
-                final String prev = (parent.tcpChannel == null) ? INetPrefKeys.DEFAULT_GATEWAY_HOST
-                        : parent.tcpChannel.getLocalIpAddress();
-                final String host = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_GW.debug("host[{} -> {}]", prev, host);
-            }
-            else if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
-                final int port = parent.updatePref(key, INetPrefKeys.DEFAULT_GATEWAY_PORT);
-                PLogger.SET_PANTHR_GW.debug("port[{} -> {}]", INetPrefKeys.DEFAULT_GATEWAY_PORT,
-                        port);
-            }
-            else if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
-                final int to = parent.updatePref(key, INetPrefKeys.DEFAULT_GW_TIMEOUT);
-                PLogger.SET_PANTHR_GW.debug("timeout[{} -> {}]", INetPrefKeys.DEFAULT_GW_TIMEOUT,
-                        to);
-            }
-            else if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
-                final int to = parent.updatePref(key, INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME);
-                PLogger.SET_PANTHR_GW.debug("flatline[{} -> {}]",
-                        INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME, to);
-            }
-
-            //
-            // Multicast
-            //
-            else if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
-                final boolean active = parent.updatePref(key, parent.isMulticastSuppressed);
-                PLogger.SET_PANTHR_MC.debug("suppress[{} -> {}]",
-                        parent.isMulticastSuppressed, active);
-            }
-            else if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
-                parent.updatePref(key, INetPrefKeys.DEFAULT_MULTICAST_HOST);
-                final String prev = (parent.multicastChannel == null) ? INetPrefKeys.DEFAULT_MULTICAST_HOST
-                        : parent.multicastChannel.getLocalIpAddresses().get(0).toString();
-                final String host = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_MC.debug("host[{} -> {}]", prev, host);
-            }
-            else if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
-                final int port = parent.updatePref(key, INetPrefKeys.DEFAULT_MULTICAST_PORT);
-                PLogger.SET_PANTHR_MC.debug("port[{} -> {}]", INetPrefKeys.DEFAULT_MULTICAST_PORT,
-                        port);
-            }
-            else if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
-                final int ttl = parent.updatePref(key, INetPrefKeys.DEFAULT_MULTICAST_TTL);
-                PLogger.SET_PANTHR_MC.debug("ttl[{} -> {}]", INetPrefKeys.DEFAULT_MULTICAST_TTL,
-                        ttl);
-            }
-
-            //
-            // Reliable Multicast
-            //
-            else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
-                final boolean active = parent.updatePref(key, parent.isReliableMulticastSuppressed);
-                PLogger.SET_PANTHR_RMC.debug("suppress[{} -> {}]",
-                        parent.isReliableMulticastSuppressed, active);
-            }
-            else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
-                parent.updatePref(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
-                final String prev = (parent.reliableMulticastChannel == null)
-                        ? INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST
-                        : parent.reliableMulticastChannel.getLocalIpAddresses().get(0).toString();
-                final String host = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_RMC.debug("host[{} -> {}]", prev, host);
-            }
-            else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
-                final int port = parent.updatePref(key,
-                        INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
-                PLogger.SET_PANTHR_RMC.debug("port[{} -> {}]",
-                        INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT, port);
-            }
-            else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
-                final int ttl = parent.updatePref(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL);
-                PLogger.SET_PANTHR_MC.debug("ttl[{} -> {}]",
-                        INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL, ttl);
-            }
-
-            //
-            // Serial port
-            //
-            else if (key.equals(INetPrefKeys.SERIAL_DISABLED)) {
-                final boolean active = parent.updatePref(key, parent.isSerialSuppressed);
-                PLogger.SET_PANTHR_SERIAL.debug("suppress[{} -> {}]",
-                        parent.isSerialSuppressed, active);
-            }
-            else if (key.equals(INetPrefKeys.SERIAL_DEVICE)) {
-                final String prev = parent.deviceId;
-                final String device = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_SERIAL.debug("device[{} -> {}]", prev, device);
-            }
-            else if (key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
-                final int prev = INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE;
-                final int baud = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_SERIAL.debug("baud[{} -> {}]", prev, baud);
-            }
-            else if (key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
-                final int prev = INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER;
-                final int slot = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_SERIAL.debug("slot[{} -> {}]", prev, slot);
-            }
-            else if (key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP)) {
-                final int prev = INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP;
-                final int count = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_SERIAL.debug("slot$[{} -> {}]", prev, count);
-            }
-            else if (key.equals(INetPrefKeys.SERIAL_SLOT_DURATION)) {
-                final int prev = INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION;
-                final int duration = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_SERIAL.debug("slot@[{} -> {}]", prev, duration);
-            }
-            else if (key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION)) {
-                final int prev = INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION;
-                final int xmit = parent.updatePref(key, prev);
-                PLogger.SET_PANTHR_SERIAL.debug("slots%[{} -> {}]", prev, xmit);
-            }
-            else if (key.equals(Keys.UserKeys.UNIT)) {
-                logger.trace("global preference {} is not used", key);
-            }
-            else if (key.equals(Keys.UserKeys.CALLSIGN)) {
-                logger.trace("global preference {} is not used", key);
-            }
-            else if (key.equals(Keys.UserKeys.NAME)) {
-                logger.trace("global preference {} is not used", key);
-            }
-            else if (key.equals(Keys.MapKeys.TILE_DB_DIR)) {
-                logger.trace("global preference {} is not used", key);
-            }
-            else if (key.startsWith("transapps_settings_network_")) {
-                logger.trace("global preference {} is not used", key);
-            }
-            else {
-                logger.error("global preference {} is unknown", key);
-            }
-            return;
-        }
-    };
-
-    final OnSharedPreferenceChangeListener ammoPreferenceChangeListener = new OnSharedPreferenceChangeListener()
-    {
-        final private AmmoService parent = AmmoService.this;
-
-        @Override
-        public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-            logger.trace("::onSharedPreferenceChanged ammo {}", key);
-
-            try {
-
-                if (key.equals(INetDerivedKeys.WIFI_PREF_IS_ACTIVE)) {
-                    logger.trace("unprocessed key {}", key);
-                }
-                else if (key.equals(INetDerivedKeys.PHYSICAL_LINK_PREF_IS_ACTIVE)) {
-                    logger.trace("unprocessed key {}", key);
-                }
-                else if (key.equals(INetDerivedKeys.PHONE_PREF_IS_ACTIVE)) {
-                    logger.trace("unprocessed key {}", key);
-                }
-                else if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
-                    parent.isJournalUserDisabled = prefs.getBoolean(key,
-                            parent.isJournalUserDisabled);
-                    if (parent.isJournalUserDisabled)
-                        parent.journalChannel.disable();
-                    else
-                        parent.journalChannel.enable();
-                }
-                else if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
+                @Override
+                public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+                    logger.trace("::onSharedPreferenceChanged panthr {}", key);
+                    //
                     // handle network authentication group
-                    parent.deviceId = prefs.getString(key, parent.deviceId);
-                    parent.auth();
-                }
-                else if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
-                    final String prev = (parent.operatorId == null)
-                            ? INetPrefKeys.DEFAULT_CORE_OPERATOR_ID : parent.operatorId;
-                    final String id = parent.operatorId = prefs.getString(key, prev);
-                    PLogger.SET_PANTHR.debug("operator[{} -> {}]", prev, id);
-
-                    parent.refresh();
-                    parent.auth();
-                }
-                else if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
-                    final String prev = (parent.operatorKey == null)
-                            ? INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY : parent.operatorKey;
-                    final String pass = parent.operatorKey = prefs.getString(key, prev);
-                    PLogger.SET_PANTHR.debug("pass[{} -> {}]", prev, pass);
-
-                    parent.auth();
-                }
-                else if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
-                    /*
-                     * GATEWAY
-                     */
-                    if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_DISABLED)) {
-                        parent.tcpChannel.disable();
-                    } else {
-                        parent.tcpChannel.enable();
+                    //
+                    if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
+                        final String id = parent.updatePref(key, parent.deviceId);
+                        PLogger.SET_PANTHR.debug("device[{} -> {}]", parent.deviceId, id);
                     }
-                }
-                else if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
-                    String gatewayHostname = prefs
-                            .getString(key, INetPrefKeys.DEFAULT_GATEWAY_HOST);
-                    parent.tcpChannel.setHost(gatewayHostname);
-                }
-                else if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
-                    int gatewayPort = Integer.valueOf(prefs.getString(
-                            key, String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
-                    parent.tcpChannel.setPort(gatewayPort);
-                }
-                else if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
-                    final Integer timeout = Integer.valueOf(prefs.getString(
-                            key, String.valueOf(INetPrefKeys.DEFAULT_GW_TIMEOUT)));
-                    parent.tcpChannel.setSocketTimeout(timeout.intValue() * 1000);
-                    // convert seconds into milliseconds
-                }
-                else if (key.equals(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE)) {
-                    // handle network connectivity group
-                    // if (key.equals(INetPrefKeys.WIRED_PREF_DISABLED)) {
-                    // shouldUse(prefs);
-                    // }
-                    // if (key.equals(INetPrefKeys.WIFI_PREF_DISABLED)) {
-                    // shouldUse(prefs);
-                    // }
-                    logger.trace("explicit opererator reset on channel");
-                    parent.networkingSwitch = true;
+                    else if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
+                        final String id = parent.updatePref(key, parent.operatorId);
+                        PLogger.SET_PANTHR.debug("operator[{} -> {}]", parent.operatorId, id);
+                    }
+                    else if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
+                        final String prev = (parent.operatorKey == null)
+                                ? INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY : parent.operatorKey;
+                        final String pass = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR.debug("pass[{} -> {}]", prev, pass);
+                    }
 
-                    parent.tcpChannel.reset();
-                    parent.multicastChannel.reset();
-                    parent.reliableMulticastChannel.reset();
-                    parent.serialChannel.reset();
-                }
-                else if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
-                    long flatLineTime = Integer.valueOf(prefs.getString(
-                            key, String.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME)));
-                    parent.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000);
-                    // convert from minutes to milliseconds
-                }
-                else if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
+                    //
+                    // Journal
+                    //
+                    else if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
+                        final boolean active = parent.updatePref(key, parent.isJournalUserDisabled);
+                        PLogger.SET_PANTHR_JOURNAL.debug("suppress[{} -> {}]",
+                                parent.isJournalUserDisabled, active);
+                    }
+
+                    //
+                    // Gateway
+                    //
+                    else if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
+                        final boolean active = parent.updatePref(key, parent.isGatewaySuppressed);
+                        PLogger.SET_PANTHR_GW.debug("suppress[{} -> {}]",
+                                parent.isGatewaySuppressed,
+                                active);
+                    }
+                    else if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
+                        final String prev = (parent.tcpChannel == null) ? INetPrefKeys.DEFAULT_GATEWAY_HOST
+                                : parent.tcpChannel.getLocalIpAddress();
+                        final String host = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_GW.debug("host[{} -> {}]", prev, host);
+                    }
+                    else if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
+                        final int port = parent.updatePref(key, INetPrefKeys.DEFAULT_GATEWAY_PORT);
+                        PLogger.SET_PANTHR_GW.debug("port[{} -> {}]",
+                                INetPrefKeys.DEFAULT_GATEWAY_PORT,
+                                port);
+                    }
+                    else if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
+                        final int to = parent.updatePref(key, INetPrefKeys.DEFAULT_GW_TIMEOUT);
+                        PLogger.SET_PANTHR_GW.debug("timeout[{} -> {}]",
+                                INetPrefKeys.DEFAULT_GW_TIMEOUT,
+                                to);
+                    }
+                    else if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
+                        final int to = parent.updatePref(key,
+                                INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME);
+                        PLogger.SET_PANTHR_GW.debug("flatline[{} -> {}]",
+                                INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME, to);
+                    }
+
                     //
                     // Multicast
                     //
-                    if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_DISABLED)) {
-                        parent.multicastChannel.disable();
-                    } else {
-                        parent.multicastChannel.enable();
+                    else if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
+                        final boolean active = parent.updatePref(key, parent.isMulticastSuppressed);
+                        PLogger.SET_PANTHR_MC.debug("suppress[{} -> {}]",
+                                parent.isMulticastSuppressed, active);
                     }
-                }
-                else if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
-                    String ipAddress = prefs.getString(
-                            key, INetPrefKeys.DEFAULT_MULTICAST_HOST);
-                    parent.multicastChannel.setHost(ipAddress);
-                }
-                else if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
-                    int port = Integer.parseInt(prefs.getString(
-                            key, String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT)));
-                    parent.multicastChannel.setPort(port);
-                }
-                else if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
-                    int ttl = Integer.parseInt(prefs.getString(
-                            key, String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_TTL)));
-                    parent.multicastChannel.setTTL(ttl);
-                }
-
-                //
-                // Reliable Multicast
-                //
-                else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
-                    if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED)) {
-                        parent.reliableMulticastChannel.disable();
-                    } else {
-                        parent.reliableMulticastChannel.enable();
+                    else if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
+                        parent.updatePref(key, INetPrefKeys.DEFAULT_MULTICAST_HOST);
+                        final String prev = (parent.multicastChannel == null) ? INetPrefKeys.DEFAULT_MULTICAST_HOST
+                                : parent.multicastChannel.getLocalIpAddresses().get(0).toString();
+                        final String host = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_MC.debug("host[{} -> {}]", prev, host);
                     }
-                }
-                else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
-                    String ipAddress = prefs.getString(
-                            key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
-                    parent.reliableMulticastChannel.setHost(ipAddress);
-                }
-                else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
-                    int port = Integer.parseInt(prefs.getString(
-                            key, String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT)));
-                    parent.reliableMulticastChannel.setPort(port);
-                }
-                else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
-                    int ttl = Integer.parseInt(prefs.getString(
-                            key, String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL)));
-                    parent.reliableMulticastChannel.setTTL(ttl);
-                }
+                    else if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
+                        final int port = parent
+                                .updatePref(key, INetPrefKeys.DEFAULT_MULTICAST_PORT);
+                        PLogger.SET_PANTHR_MC.debug("port[{} -> {}]",
+                                INetPrefKeys.DEFAULT_MULTICAST_PORT,
+                                port);
+                    }
+                    else if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
+                        final int ttl = parent.updatePref(key, INetPrefKeys.DEFAULT_MULTICAST_TTL);
+                        PLogger.SET_PANTHR_MC.debug("ttl[{} -> {}]",
+                                INetPrefKeys.DEFAULT_MULTICAST_TTL,
+                                ttl);
+                    }
 
-                //
-                // Serial port
-                //
-                else if (key.equals(INetPrefKeys.SERIAL_DEVICE)) {
-                    serialChannel.setDevice(prefs.getString(key,
-                            INetPrefKeys.DEFAULT_SERIAL_DEVICE));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
-                    serialChannel.setBaudRate(Integer.parseInt(prefs.getString(key,
-                            String.valueOf(INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE))));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
-                    serialChannel.setSlotNumber(Integer.parseInt(prefs.getString(key,
-                            String.valueOf(INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER))));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP)) {
-                    serialChannel.setRadiosInGroup(Integer.parseInt(prefs.getString(key,
-                            String.valueOf(INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP))));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_SLOT_DURATION)) {
-                    serialChannel.setSlotDuration(Integer.parseInt(prefs.getString(key,
-                            String.valueOf(INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION))));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION)) {
-                    serialChannel.setTransmitDuration(Integer.parseInt(prefs.getString(key,
-                            String.valueOf(INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION))));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_SEND_ENABLED)) {
-                    serialChannel.setSenderEnabled(prefs.getBoolean(key,
-                            !INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED)) {
-                    serialChannel.setReceiverEnabled(prefs.getBoolean(key,
-                            !INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED));
-                }
-                else if (key.equals(INetPrefKeys.SERIAL_DISABLED)) {
-                    if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_DISABLED))
-                        parent.serialChannel.disable();
-                    else
-                        parent.serialChannel.enable();
-                }
-                else {
-                    logger.warn("shared preference key {} is unknown", key);
-                }
-            } catch (NumberFormatException ex) {
-                logger.error("invalid number value for {}", key);
-            } catch (ClassCastException ex) {
-                logger.error("invalid cast for {}", key);
-            }
+                    //
+                    // Reliable Multicast
+                    //
+                    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
+                        final boolean active = parent.updatePref(key,
+                                parent.isReliableMulticastSuppressed);
+                        PLogger.SET_PANTHR_RMC.debug("suppress[{} -> {}]",
+                                parent.isReliableMulticastSuppressed, active);
+                    }
+                    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
+                        parent.updatePref(key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
+                        final String prev = (parent.reliableMulticastChannel == null)
+                                ? INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST
+                                : parent.reliableMulticastChannel.getLocalIpAddresses().get(0)
+                                        .toString();
+                        final String host = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_RMC.debug("host[{} -> {}]", prev, host);
+                    }
+                    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
+                        final int port = parent.updatePref(key,
+                                INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
+                        PLogger.SET_PANTHR_RMC.debug("port[{} -> {}]",
+                                INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT, port);
+                    }
+                    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
+                        final int ttl = parent.updatePref(key,
+                                INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL);
+                        PLogger.SET_PANTHR_MC.debug("ttl[{} -> {}]",
+                                INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL, ttl);
+                    }
 
-            return;
-        }
-    };
+                    //
+                    // Serial port
+                    //
+                    else if (key.equals(INetPrefKeys.SERIAL_DISABLED)) {
+                        final boolean active = parent.updatePref(key, parent.isSerialSuppressed);
+                        PLogger.SET_PANTHR_SERIAL.debug("suppress[{} -> {}]",
+                                parent.isSerialSuppressed, active);
+                    }
+                    else if (key.equals(INetPrefKeys.SERIAL_DEVICE)) {
+                        final String prev = parent.deviceId;
+                        final String device = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_SERIAL.debug("device[{} -> {}]", prev, device);
+                    }
+                    else if (key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
+                        final int prev = INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE;
+                        final int baud = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_SERIAL.debug("baud[{} -> {}]", prev, baud);
+                    }
+                    else if (key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
+                        final int prev = INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER;
+                        final int slot = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_SERIAL.debug("slot[{} -> {}]", prev, slot);
+                    }
+                    else if (key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP)) {
+                        final int prev = INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP;
+                        final int count = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_SERIAL.debug("slot$[{} -> {}]", prev, count);
+                    }
+                    else if (key.equals(INetPrefKeys.SERIAL_SLOT_DURATION)) {
+                        final int prev = INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION;
+                        final int duration = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_SERIAL.debug("slot@[{} -> {}]", prev, duration);
+                    }
+                    else if (key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION)) {
+                        final int prev = INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION;
+                        final int xmit = parent.updatePref(key, prev);
+                        PLogger.SET_PANTHR_SERIAL.debug("slots%[{} -> {}]", prev, xmit);
+                    }
+                    else if (key.equals(Keys.UserKeys.UNIT)) {
+                        logger.trace("global preference {} is not used", key);
+                    }
+                    else if (key.equals(Keys.UserKeys.CALLSIGN)) {
+                        logger.trace("global preference {} is not used", key);
+                    }
+                    else if (key.equals(Keys.UserKeys.NAME)) {
+                        logger.trace("global preference {} is not used", key);
+                    }
+                    else if (key.equals(Keys.MapKeys.TILE_DB_DIR)) {
+                        logger.trace("global preference {} is not used", key);
+                    }
+                    else if (key.startsWith("transapps_settings_network_")) {
+                        logger.trace("global preference {} is not used", key);
+                    }
+                    else {
+                        logger.error("global preference {} is unknown", key);
+                    }
+                    return;
+                }
+            };
+
+    final OnSharedPreferenceChangeListener ammoPreferenceChangeListener =
+            new OnSharedPreferenceChangeListener()
+            {
+                final private AmmoService parent = AmmoService.this;
+
+                @Override
+                public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+                    logger.trace("::onSharedPreferenceChanged ammo {}", key);
+
+                    try {
+
+                        if (key.equals(INetDerivedKeys.WIFI_PREF_IS_ACTIVE)) {
+                            logger.trace("unprocessed key {}", key);
+                        }
+                        else if (key.equals(INetDerivedKeys.PHYSICAL_LINK_PREF_IS_ACTIVE)) {
+                            logger.trace("unprocessed key {}", key);
+                        }
+                        else if (key.equals(INetDerivedKeys.PHONE_PREF_IS_ACTIVE)) {
+                            logger.trace("unprocessed key {}", key);
+                        }
+                        else if (key.equals(INetPrefKeys.JOURNAL_DISABLED)) {
+                            parent.isJournalUserDisabled = prefs.getBoolean(key,
+                                    parent.isJournalUserDisabled);
+                            if (parent.isJournalUserDisabled)
+                                parent.journalChannel.disable();
+                            else
+                                parent.journalChannel.enable();
+                        }
+                        else if (key.equals(INetPrefKeys.CORE_DEVICE_ID)) {
+                            // handle network authentication group
+                            parent.deviceId = prefs.getString(key, parent.deviceId);
+                            parent.auth();
+                        }
+                        else if (key.equals(INetPrefKeys.CORE_OPERATOR_ID)) {
+                            final String prev = (parent.operatorId == null)
+                                    ? INetPrefKeys.DEFAULT_CORE_OPERATOR_ID : parent.operatorId;
+                            final String id = parent.operatorId = prefs.getString(key, prev);
+                            PLogger.SET_PANTHR.debug("operator[{} -> {}]", prev, id);
+
+                            parent.refresh();
+                            parent.auth();
+                        }
+                        else if (key.equals(INetPrefKeys.CORE_OPERATOR_KEY)) {
+                            final String prev = (parent.operatorKey == null)
+                                    ? INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY : parent.operatorKey;
+                            final String pass = parent.operatorKey = prefs.getString(key, prev);
+                            PLogger.SET_PANTHR.debug("pass[{} -> {}]", prev, pass);
+
+                            parent.auth();
+                        }
+                        else if (key.equals(INetPrefKeys.GATEWAY_DISABLED)) {
+                            /*
+                             * GATEWAY
+                             */
+                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_DISABLED)) {
+                                parent.tcpChannel.disable();
+                            } else {
+                                parent.tcpChannel.enable();
+                            }
+                        }
+                        else if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
+                            String gatewayHostname = prefs
+                                    .getString(key, INetPrefKeys.DEFAULT_GATEWAY_HOST);
+                            parent.tcpChannel.setHost(gatewayHostname);
+                        }
+                        else if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
+                            int gatewayPort = Integer.valueOf(prefs.getString(
+                                    key, String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
+                            parent.tcpChannel.setPort(gatewayPort);
+                        }
+                        else if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
+                            final Integer timeout = Integer.valueOf(prefs.getString(
+                                    key, String.valueOf(INetPrefKeys.DEFAULT_GW_TIMEOUT)));
+                            parent.tcpChannel.setSocketTimeout(timeout.intValue() * 1000);
+                            // convert seconds into milliseconds
+                        }
+                        else if (key.equals(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE)) {
+                            // handle network connectivity group
+                            // if (key.equals(INetPrefKeys.WIRED_PREF_DISABLED))
+                            // {
+                            // shouldUse(prefs);
+                            // }
+                            // if (key.equals(INetPrefKeys.WIFI_PREF_DISABLED))
+                            // {
+                            // shouldUse(prefs);
+                            // }
+                            logger.trace("explicit opererator reset on channel");
+                            parent.networkingSwitch = true;
+
+                            parent.tcpChannel.reset();
+                            parent.multicastChannel.reset();
+                            parent.reliableMulticastChannel.reset();
+                            parent.serialChannel.reset();
+                        }
+                        else if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
+                            long flatLineTime = Integer.valueOf(prefs.getString(
+                                    key, String.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME)));
+                            parent.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000);
+                            // convert from minutes to milliseconds
+                        }
+                        else if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
+                            //
+                            // Multicast
+                            //
+                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_DISABLED)) {
+                                parent.multicastChannel.disable();
+                            } else {
+                                parent.multicastChannel.enable();
+                            }
+                        }
+                        else if (key.equals(INetPrefKeys.MULTICAST_HOST)) {
+                            String ipAddress = prefs.getString(
+                                    key, INetPrefKeys.DEFAULT_MULTICAST_HOST);
+                            parent.multicastChannel.setHost(ipAddress);
+                        }
+                        else if (key.equals(INetPrefKeys.MULTICAST_PORT)) {
+                            int port = Integer.parseInt(prefs.getString(
+                                    key, String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT)));
+                            parent.multicastChannel.setPort(port);
+                        }
+                        else if (key.equals(INetPrefKeys.MULTICAST_TTL)) {
+                            int ttl = Integer.parseInt(prefs.getString(
+                                    key, String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_TTL)));
+                            parent.multicastChannel.setTTL(ttl);
+                        }
+
+                        //
+                        // Reliable Multicast
+                        //
+                        else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
+                            if (prefs.getBoolean(key,
+                                    INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED)) {
+                                parent.reliableMulticastChannel.disable();
+                            } else {
+                                parent.reliableMulticastChannel.enable();
+                            }
+                        }
+                        else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
+                            String ipAddress = prefs.getString(
+                                    key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
+                            parent.reliableMulticastChannel.setHost(ipAddress);
+                        }
+                        else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
+                            int port = Integer.parseInt(prefs.getString(
+                                    key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT)));
+                            parent.reliableMulticastChannel.setPort(port);
+                        }
+                        else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
+                            int ttl = Integer.parseInt(prefs.getString(
+                                    key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL)));
+                            parent.reliableMulticastChannel.setTTL(ttl);
+                        }
+
+                        //
+                        // Serial port
+                        //
+                        else if (key.equals(INetPrefKeys.SERIAL_DEVICE)) {
+                            serialChannel.setDevice(prefs.getString(key,
+                                    INetPrefKeys.DEFAULT_SERIAL_DEVICE));
+                        }
+                        else if (key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
+                            serialChannel.setBaudRate(Integer.parseInt(prefs.getString(key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE))));
+                        }
+                        else if (key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
+                            serialChannel.setSlotNumber(Integer.parseInt(prefs.getString(key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER))));
+                        }
+                        else if (key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP)) {
+                            serialChannel.setRadiosInGroup(Integer.parseInt(prefs.getString(key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP))));
+                        }
+                        else if (key.equals(INetPrefKeys.SERIAL_SLOT_DURATION)) {
+                            serialChannel.setSlotDuration(Integer.parseInt(prefs.getString(key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION))));
+                        }
+                        else if (key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION)) {
+                            serialChannel
+                                    .setTransmitDuration(Integer.parseInt(prefs.getString(
+                                            key,
+                                            String.valueOf(INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION))));
+                        }
+                        else if (key.equals(INetPrefKeys.SERIAL_SEND_ENABLED)) {
+                            serialChannel.setSenderEnabled(prefs.getBoolean(key,
+                                    !INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED));
+                        }
+                        else if (key.equals(INetPrefKeys.SERIAL_RECEIVE_ENABLED)) {
+                            serialChannel.setReceiverEnabled(prefs.getBoolean(key,
+                                    !INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED));
+                        }
+                        else if (key.equals(INetPrefKeys.SERIAL_DISABLED)) {
+                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_DISABLED))
+                                parent.serialChannel.disable();
+                            else
+                                parent.serialChannel.enable();
+                        }
+                        else {
+                            logger.warn("shared preference key {} is unknown", key);
+                        }
+                    } catch (NumberFormatException ex) {
+                        logger.error("invalid number value for {}", key);
+                    } catch (ClassCastException ex) {
+                        logger.error("invalid cast for {}", key);
+                    }
+
+                    return;
+                }
+            };
 
     // ===========================================================
     // Protocol Buffers Methods
@@ -1377,7 +1450,6 @@ public class AmmoService extends Service implements INetworkService,
         for (NetChannel channel : this.registeredChannels) {
             channel.disable();
         }
-        
 
         Timer t = new Timer();
         t.schedule(new TimerTask() {
@@ -1400,7 +1472,7 @@ public class AmmoService extends Service implements INetworkService,
                 || multicastChannel.isConnected()
                 || reliableMulticastChannel.isConnected()
                 || ((serialChannel != null) && serialChannel.isConnected()));
-        
+
         for (NetChannel channel : this.registeredChannels) {
             any = any || channel.isConnected();
         }
@@ -1508,12 +1580,19 @@ public class AmmoService extends Service implements INetworkService,
     @Override
     public void statusChange(NetChannel channel, int connStatus,
             int sendStatus, int recvStatus) {
-        logger.debug("status change. channel={}", channel.name);
+        if (logger.isDebugEnabled()) {
+            logger.debug("change channel=[{}] status=[{}]", channel.name,
+                    NetChannel.showState(connStatus));
+        }
 
-        modelChannelMap.get(channel.name)
-                .setStatus(new int[] {
-                        connStatus, sendStatus, recvStatus
-                });
+        final ModelChannel modelChannel = modelChannelMap.get(channel.name);
+        if (modelChannel == null) {
+            logger.debug("no model for channel=[{}]", channel.name);
+        } else {
+            modelChannel.setStatus(new int[] {
+                    connStatus, sendStatus, recvStatus
+            });
+        }
 
         switch (connStatus) {
             case NetChannel.CONNECTED:
@@ -1576,23 +1655,23 @@ public class AmmoService extends Service implements INetworkService,
             new ArrayList<NetChannel>();
 
     /**
-     * No channels can be registered until after onCreate()
-     * The channel must be created in a disabled state.
-     * 
-     * Properly the channel should be enabled only after any
-     * relevant preferences have been read.
-     * That being the case registration should be after
-     * any relevant preferences are loaded.
-     * 
-     * The channel is suppressed by simply not registering.
+     * No channels can be registered until after onCreate() The channel must be
+     * created in a disabled state.
+     * <p>
+     * Properly the channel should be enabled only after any relevant
+     * preferences have been read. That being the case registration should be
+     * after any relevant preferences are loaded. The channel is suppressed by
+     * simply not registering.
      * 
      * @param channel
      */
     public void registerChannel(NetChannel channel) {
         this.registeredChannels.add(channel);
         AmmoService.netChannelMap.put(channel.name, channel);
-        
+
         // TODO load any preferences here.
+
+        channel.reset();
         channel.enable();
     }
 
@@ -1647,7 +1726,7 @@ public class AmmoService extends Service implements INetworkService,
                             for (NetChannel channel : AmmoService.this.registeredChannels) {
                                 channel.linkUp(null);
                             }
-                            
+
                             break;
                         case AmmoIntents.LINK_DOWN:
                             logger.trace("onReceive: Link DOWN {}", action);

@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
 <!--
-     Put the file in /data/data/edu.vu.isis.ammo.core/app_policy 
-     adb push distribution_policy.xml
-   /data/data/edu.vu.isis.ammo.core/app_policy/distribution_policy.xml 
+   This copy of the default distribution policy is provided 
+   as a convenience.  If you wish to customize these settings
+   simply make your changes and save the file back in the 
+   /data/data/edu.vu.isis.ammo.core/app_policy/
+   directory removing the "sample" suffix.
 
    DATE: 2012-03-05
    

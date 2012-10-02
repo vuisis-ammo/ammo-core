@@ -22,10 +22,14 @@ import org.slf4j.LoggerFactory;
  * generally. The network is emulated by queues of ByteBuffer objects.
  */
 public class MockNetworkStack extends Socket {
-    public static final Logger logger = LoggerFactory.getLogger("trial.net.mock");
+    public static final Logger logger = LoggerFactory.getLogger("link.mock");
     
     /**
      * Use these queues to imitate the network stack
+     * <dl>
+     * <dt>input</dt><dd>going onto the network</dd>
+     * <dt>output</dt><dd>coming from the network</dd>
+     * </dl>
      */
     final private BlockingQueue<ByteBuffer> input;
     final private BlockingQueue<ByteBuffer> output;
@@ -43,6 +47,8 @@ public class MockNetworkStack extends Socket {
         this.throwClosedChannelException = new AtomicBoolean(false);
         this.throwSocketException = new AtomicBoolean(false);
         this.throwException = new AtomicBoolean(false);
+        
+        logger.error("mock network stack created ");
     }
 
     /**
@@ -50,7 +56,8 @@ public class MockNetworkStack extends Socket {
      */
     public void putReceivable(ByteBuffer buf) {
         buf.flip();
-        this.input.offer(buf);
+        this.output.offer(buf);
+        logger.info("put of [{}] receivable [{}]", this.output.size(), buf);
     }
 
     /**
@@ -63,6 +70,7 @@ public class MockNetworkStack extends Socket {
      * @throws Exception
      */
     public ByteBuffer receive() throws InterruptedException, ClosedChannelException, Exception {
+        logger.info("receive queue size {}", this.output.size());
         if (this.throwInterruptedException.get()) {
             throw new InterruptedException();
         }
@@ -72,7 +80,9 @@ public class MockNetworkStack extends Socket {
         if (this.throwException.get()) {
             throw new Exception("mock socket exception");
         }
-        return this.output.poll(5, TimeUnit.SECONDS);
+        final ByteBuffer result = this.output.poll(50, TimeUnit.SECONDS);
+        logger.error("receive [{}]", result);
+        return result;
     }
 
     /**
@@ -80,7 +90,9 @@ public class MockNetworkStack extends Socket {
      */
     public ByteBuffer getSent() {
         try {
-            return this.input.poll(5, TimeUnit.SECONDS);
+            final ByteBuffer result = this.input.poll(5, TimeUnit.SECONDS);
+            logger.info("send queue size {}", this.input.size());
+            return result;
         } catch (InterruptedException ex) {
             logger.error("unsendable ", ex);
             return null;
@@ -94,8 +106,10 @@ public class MockNetworkStack extends Socket {
         if (this.throwException.get()) {
             throw new Exception("mock socket exception");
         }
-        buf.flip();
+
+        logger.info("send size [{}] [{}]",buf.position(), buf.array());
         this.input.offer(buf);
+        logger.info("queue size [{}]", this.input.size());
     }
 
     private final static Charset charset = Charset.forName("UTF-8");

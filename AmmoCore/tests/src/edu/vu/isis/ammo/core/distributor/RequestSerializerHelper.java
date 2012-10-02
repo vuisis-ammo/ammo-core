@@ -402,19 +402,19 @@ public class RequestSerializerHelper {
                     if(names.getString(i).equals(schemaShortInt)) {
                         int actual = Short.decode(values.getString(i)).shortValue(); //values.getInt(i);
                         int expected = cursor.getInt(cursor.getColumnIndex(schemaShortInt));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected + "'");
+                        Log.d(TAG, "   json value='" + actual + "'     db value='"+ expected + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaLongInt)) {
                         long actual = Long.decode(values.getString(i)).longValue(); //values.getLong(i);
                         long expected = cursor.getLong(cursor.getColumnIndex(schemaLongInt));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
+                        Log.d(TAG, "   json value='" + actual + "'     db value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaInt)) {
                         int actual = Integer.decode(values.getString(i)).intValue(); //values.getInt(i);
                         int expected = cursor.getInt(cursor.getColumnIndex(schemaInt));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
+                        Log.d(TAG, "   json value='" + actual + "'     db value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaBool)) {
@@ -426,7 +426,7 @@ public class RequestSerializerHelper {
 			    actual = Boolean.parseBoolean(values.getString(i));
 			}
                         boolean expected = (cursor.getInt(cursor.getColumnIndex(schemaBool)) == 1);
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
+                        Log.d(TAG, "   json value='" + actual + "'     db value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaTime)) {
@@ -786,19 +786,19 @@ public class RequestSerializerHelper {
                     if(names.getString(i).equals(schemaReal)) {
                         double actual = Double.parseDouble(values.getString(i)); //values.getDouble(i);
                         double expected = cursor.getDouble(cursor.getColumnIndex(schemaReal));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected + "'");
+                        Log.d(TAG, "   json value='" + actual + "'     db value='"+ expected + "'");
                         Assert.assertEquals(actual, expected, error_bar);
                     }
                     if(names.getString(i).equals(schemaText)) {
                         String actual = values.getString(i);
                         String expected = cursor.getString(cursor.getColumnIndex(schemaText));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
+                        Log.d(TAG, "   json value='" + actual + "'     db value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaGuid)) {
                         String actual = values.getString(i);
                         String expected = cursor.getString(cursor.getColumnIndex(schemaGuid));
-                        Log.d(TAG, "   json value='" + actual + "'     cv value='"+ expected  + "'");
+                        Log.d(TAG, "   json value='" + actual + "'     db value='"+ expected  + "'");
                         Assert.assertEquals(actual, expected);
                     }
                     if(names.getString(i).equals(schemaFile)) {

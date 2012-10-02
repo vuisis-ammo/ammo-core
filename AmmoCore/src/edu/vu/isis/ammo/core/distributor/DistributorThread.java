@@ -53,6 +53,7 @@ import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Via;
+import edu.vu.isis.ammo.api.type.Order;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
@@ -66,7 +67,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchem
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeType;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeMode;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
@@ -92,7 +93,7 @@ public class DistributorThread extends Thread {
     // ===========================================================
     // Constants
     // ===========================================================
-    private static final Logger logger = LoggerFactory.getLogger("dist.thread");
+    public static final Logger logger = LoggerFactory.getLogger("dist.thread");
     private static final Logger resLogger = LoggerFactory.getLogger("test.queue.response");
     private static final Logger reqLogger = LoggerFactory.getLogger("test.queue.request");
     private static final boolean RUN_TRACE = false;
@@ -128,9 +129,11 @@ public class DistributorThread extends Thread {
     private AtomicInteger total_recv = new AtomicInteger(0);
 
     private NotifyMsgNumber notify = null;
+    static private final AtomicInteger gThreadOrdinal = new AtomicInteger(1);
 
     public DistributorThread(final Context context, AmmoService parent) {
-        super();
+        super(new StringBuilder("Distribute-").
+                append(DistributorThread.gThreadOrdinal.getAndIncrement()).toString());
         this.context = context;
         this.ammoService = parent;
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
@@ -144,7 +147,7 @@ public class DistributorThread extends Thread {
         this.channelDelta = new AtomicBoolean(true);
 
         this.channelAck = new LinkedBlockingQueue<ChannelAck>(200);
-        logger.debug("constructed");
+        logger.debug("thread constructed");
     }
 
     private class NotifyMsgNumber implements Runnable {
@@ -380,7 +383,7 @@ public class DistributorThread extends Thread {
      * @return
      */
     private boolean announceChannelAck(ChannelAck ack) {
-        logger.trace("RECV ACK {}", ack);
+        logger.trace("send ACK {}", ack);
         try {
             PLogger.QUEUE_ACK_ENTER.trace("offer ack: {}", ack);
             if (!this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
@@ -425,46 +428,48 @@ public class DistributorThread extends Thread {
                 return;
         }
         // generate broadcast intent for everyone who cares about this
-        final Notice.Item note = ack.notice.atSend;
-        final Notice.Via via = note.getVia();
-        if (via.isActive()) {
+        if (ack.notice != null) {
+            final Notice.Item note = ack.notice.atSend;
+            final Notice.Via via = note.getVia();
+            if (via.isActive()) {
 
-            final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
-                    .topic(ack.topic)
-                    .auid(ack.auid)
-                    .channel(ack.channel);
+                final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
+                        .topic(ack.topic)
+                        .auid(ack.auid)
+                        .channel(ack.channel);
 
-            if (ack.status != null)
-                noteBuilder.status(ack.status.toString());
+                if (ack.status != null)
+                    noteBuilder.status(ack.status.toString());
 
-            final Intent noticed = noteBuilder.buildSent(context);
-            final int aggregate = via.v;
+                final Intent noticed = noteBuilder.buildSent(context);
+                final int aggregate = via.v;
 
-            PLogger.API_INTENT.debug(
-                    "ack note=[{}] intent=[{}]",
-                    note, noticed);
+                PLogger.API_INTENT.debug(
+                        "ack note=[{}] intent=[{}]",
+                        note, noticed);
 
-            if (0 < (aggregate & Via.Type.ACTIVITY.v)) {
-                try {
-                    noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(noticed);
-                } catch (ActivityNotFoundException ex) {
-                    logger.warn("no activity for intent=[{}]", noticed);
+                if (0 < (aggregate & Via.Type.ACTIVITY.v)) {
+                    try {
+                        noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(noticed);
+                    } catch (ActivityNotFoundException ex) {
+                        logger.warn("no activity for intent=[{}]", noticed);
+                    }
                 }
-            }
-            if (0 < (aggregate & Via.Type.BROADCAST.v)) {
-                context.sendBroadcast(noticed);
-            }
-            if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) {
-                context.sendStickyBroadcast(noticed);
-            }
-            if (0 < (aggregate & Via.Type.SERVICE.v)) {
-                context.startService(noticed);
-            }
+                if (0 < (aggregate & Via.Type.BROADCAST.v)) {
+                    context.sendBroadcast(noticed);
+                }
+                if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) {
+                    context.sendStickyBroadcast(noticed);
+                }
+                if (0 < (aggregate & Via.Type.SERVICE.v)) {
+                    context.startService(noticed);
+                }
 
-            if (PLogger.API_INTENT.isTraceEnabled()) {
-                PLogger.API_INTENT.trace("extras=[{}]",
-                        PLogger.expandBundle(noticed.getExtras(), '\n'));
+                if (PLogger.API_INTENT.isTraceEnabled()) {
+                    PLogger.API_INTENT.trace("extras=[{}]",
+                            PLogger.expandBundle(noticed.getExtras(), '\n'));
+                }
             }
         }
 
@@ -495,7 +500,7 @@ public class DistributorThread extends Thread {
 
             PLogger.QUEUE_REQ_ENTER.trace("\"action\":\"offer\" \"request\":\"{}\"", request);
             if (!this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
-                logger.error("could not process request {}", request);
+                logger.error("could not process request={} size={}", request, this.requestQueue.size());
                 this.signal();
                 return null;
             }
@@ -957,7 +962,8 @@ public class DistributorThread extends Thread {
             final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
             final String channel = (ar.channelFilter == null) ? null : ar.channelFilter.cv();
 
-            logger.trace("process request topic {}, uuid {}", ar.topic, uuid);
+            logger.debug("process request topic {}, uuid {}", ar.topic, uuid);
+            logger.trace(" channel {}, policy {}", channel, policy);
 
             final ContentValues values = new ContentValues();
             values.put(PostalTableSchema.UUID.cv(), uuid.toString());
@@ -965,7 +971,10 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.TOPIC.cv(), topic);
             values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
             values.put(PostalTableSchema.CHANNEL.cv(), channel);
-
+            if (ar.payload != null) {
+                final byte[] payloadBytes = ar.payload.pickle();
+                values.put(PostalTableSchema.PAYLOAD.cv(), payloadBytes);
+            }
             values.put(PostalTableSchema.PRIORITY.cv(), policy.routing.getPriority(ar.priority));
             values.put(PostalTableSchema.EXPIRATION.cv(),
                     policy.routing.getExpiration(ar.expire.cv()));
@@ -973,15 +982,14 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.CREATED.cv(), System.currentTimeMillis());
 
             values.put(PostalTableSchema.ORDER.cv(), ar.order.cv());
-            Parcel np = Parcel.obtain();
-            np.writeParcelable(ar.notice, 0);
-            values.put(PostalTableSchema.NOTICE.cv(), np.marshall());
+            if (ar.notice != null)
+                values.put(PostalTableSchema.NOTICE.cv(), ar.notice.pickle());
 
             final Dispersal dispersal = policy.makeRouteMap(channel);
             if (!that.isConnected()) {
                 values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
                 long key = this.store.upsertPostal(values, policy.makeRouteMap(channel));
-                logger.debug("no network connection, added {}", key);
+                logger.debug("no channel connected, added postal [{}] [{}]", key, values);
                 return;
             }
 
@@ -1072,7 +1080,7 @@ public class DistributorThread extends Thread {
             }
 
         } catch (NullPointerException ex) {
-            logger.warn("sending to gateway failed", ex);
+            logger.warn("sending postal request failed", ex);
         }
     }
 
@@ -1109,9 +1117,12 @@ public class DistributorThread extends Thread {
             return;
 
         final Cursor pending = this.store.queryPostalReady();
-        if (pending == null)
+        if (pending == null) {
+            logger.warn("no requests pending");
             return;
+        }
 
+        logger.info("pending postal requests=[{}]", pending.getCount());
         // Iterate over each row serializing its data and sending it.
         for (boolean moreItems = pending.moveToFirst(); moreItems; moreItems = pending.moveToNext())
         {
@@ -1123,40 +1134,64 @@ public class DistributorThread extends Thread {
 
             final Provider provider = new Provider(pending.getString(pending
                     .getColumnIndex(PostalTableSchema.PROVIDER.n)));
-            final Payload payload = new Payload(pending.getString(pending
-                    .getColumnIndex(PostalTableSchema.PAYLOAD.n)));
+            final int payloadIx = pending.getColumnIndex(PostalTableSchema.PAYLOAD.n);
+            final Payload payload;
+            if (!pending.isNull(payloadIx)) {
+                final byte[] payloadBytes = pending.getBlob(payloadIx);
+                logger.trace("get payload bytes=[{}]", payloadBytes);
+                payload = Payload.unpickle(payloadBytes);
+            } else {
+                payload = null;
+            }
+            logger.trace("payload=[{}]", payload);
             final String topic = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.TOPIC.n));
             final String channelFilter = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.CHANNEL.n));
 
-            // read notice stuck in as a blob in the db
-            final byte[] nb = pending.getBlob(pending.getColumnIndex(PostalTableSchema.NOTICE.n));
-            Parcel np = Parcel.obtain();
-            np.unmarshall(nb, 0, nb.length);
-            np.setDataPosition(0);
-            final Notice notice = Notice.CREATOR.createFromParcel(np);
+            final int noticeIx = pending.getColumnIndex(PostalTableSchema.NOTICE.n);
+            final Notice notice;
+            if (!pending.isNull(noticeIx)) {
+                final byte[] noticeBytes = pending.getBlob(noticeIx);
+                logger.trace("get notice bytes=[{}]", noticeBytes);
+                notice = Notice.unpickle(noticeBytes);
+            } else {
+                notice = Notice.RESET;
+            }
 
             logger.debug("serializing: {} as {}", provider, topic);
 
             final RequestSerializer serializer = RequestSerializer.newInstance(provider, payload);
-            final int serialType = pending
-                    .getInt(pending.getColumnIndex(PostalTableSchema.ORDER.n));
+            final String orderingMethodId = pending
+                    .getString(pending.getColumnIndex(PostalTableSchema.ORDER.n));
+            @SuppressWarnings("unused")
+            final Order orderMethod = new Order(orderingMethodId);
+
+            final SerializeMode serialType;
             int dataColumnIndex = pending.getColumnIndex(PostalTableSchema.DATA.n);
 
-            final String data = (pending.isNull(dataColumnIndex)) ? null : pending
-                    .getString(dataColumnIndex);
+            final String data;
+            {
+                if (pending.isNull(dataColumnIndex)) {
+                    data = null;
+                    serialType = SerializeMode.DEFERRED;
+
+                } else {
+                    data = pending.getString(dataColumnIndex);
+                    serialType = SerializeMode.DIRECT;
+                }
+            }
 
             serializer.setSerializer(new RequestSerializer.OnSerialize() {
                 final DistributorThread parent = DistributorThread.this;
                 final RequestSerializer serializer_ = serializer;
                 final AmmoService that_ = that;
-                final int serialType_ = serialType;
+                final SerializeMode serialType_ = serialType;
                 final String data_ = data;
 
                 @Override
                 public byte[] run(Encoding encode) {
-                    switch (SerializeType.getInstance(serialType_)) {
+                    switch (serialType_) {
                         case DIRECT:
                             return (data_.length() > 0) ? data_.getBytes() : null;
 
@@ -1164,13 +1199,20 @@ public class DistributorThread extends Thread {
                         case DEFERRED:
                         default:
                             try {
-                                return RequestSerializer.serializeFromProvider(
-                                        that_.getContentResolver(),
-                                        serializer_.provider.asUri(), encode);
+                                if (payload != null && payload.isSet()) {
+                                    return RequestSerializer.serializeFromContentValues(
+                                            payload.getCV(), encode);
+                                } else {
+
+                                    return RequestSerializer.serializeFromProvider(
+                                            that_.getContentResolver(),
+                                            serializer_.provider.asUri(), encode);
+                                }
                             } catch (IOException e1) {
                                 logger.error("invalid row for serialization");
                             } catch (TupleNotFoundException ex) {
-                                logger.error("tuple not found when processing postal table");
+                                logger.error("no tuple for postal request serializer [{}]",
+                                        serializer_);
                                 parent.store().deletePostal(
                                         new StringBuilder()
                                                 .append(PostalTableSchema.PROVIDER.q())
@@ -1209,7 +1251,7 @@ public class DistributorThread extends Thread {
             // Dispatch the request.
             try {
                 if (!that.isConnected()) {
-                    logger.debug("no network connection while processing table");
+                    logger.debug("no channel on postal");
                     continue;
                 }
                 synchronized (this.store) {
@@ -1293,13 +1335,16 @@ public class DistributorThread extends Thread {
                             .setOriginDevice(ammoService.getDeviceId())
                             .setData(ByteString.copyFrom(serialized));
 
-                    final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds
-                            .newBuilder()
-                            .setDeviceDelivered(notice.atDeviceDelivered.getVia().isActive())
-                            .setAndroidPluginReceived(notice.atGatewayDelivered.getVia().isActive())
-                            .setPluginDelivered(notice.atPluginDelivered.getVia().isActive());
+                    if (notice != null) {
+                        final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds
+                                .newBuilder()
+                                .setDeviceDelivered(notice.atDeviceDelivered.getVia().isActive())
+                                .setAndroidPluginReceived(
+                                        notice.atGatewayDelivered.getVia().isActive())
+                                .setPluginDelivered(notice.atPluginDelivered.getVia().isActive());
 
-                    pushReq.setThresholds(noticeBuilder);
+                        pushReq.setThresholds(noticeBuilder);
+                    }
 
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
                     mw.setDataMessage(pushReq);
@@ -1370,14 +1415,11 @@ public class DistributorThread extends Thread {
         if (pushResp.hasThreshold()) {
             final AcknowledgementThresholds thresholds = pushResp.getThreshold();
 
-            Parcel np = Parcel.obtain();
-            byte[] nb = postalReq.getBlob(postalReq
+            byte[] noticeBytes = postalReq.getBlob(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv()));
-            np.unmarshall(nb, 0, nb.length);
-            np.setDataPosition(0);
-            logger.debug("notice bytes {}", nb);
-
-            final Notice notice = Notice.CREATOR.createFromParcel(np);
+            logger.debug("notice bytes {}", noticeBytes);
+            final Notice notice = Notice.unpickle(noticeBytes);
+            
             final String topic = postalReq.getString(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv()));
             final String auid = postalReq.getString(postalReq
@@ -1485,8 +1527,8 @@ public class DistributorThread extends Thread {
             final Dispersal dispersal = policy.makeRouteMap(null);
             if (!that.isConnected()) {
                 values.put(RetrievalTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
-                this.store.upsertRetrieval(values, dispersal);
-                logger.debug("no network connection");
+                final long key = this.store.upsertRetrieval(values, dispersal);
+                logger.debug("no channel available, added retrieval [{}] [{}]", key, values);
                 return;
             }
 
@@ -1595,7 +1637,7 @@ public class DistributorThread extends Thread {
 
             try {
                 if (!that.isConnected()) {
-                    logger.debug("no network connection");
+                    logger.debug("no channel on retrieval");
                     continue;
                 }
                 synchronized (this.store) {
@@ -1782,7 +1824,7 @@ public class DistributorThread extends Thread {
             if (!that.isConnected()) {
                 values.put(SubscribeTableSchema.DISPOSITION.cv(), DisposalTotalState.NEW.cv());
                 long key = this.store.upsertSubscribe(values, dispersal);
-                logger.debug("no network connection, added {}", key);
+                logger.debug("no channel available, added subscribe [{}] [{}]", key, values);
                 return;
             }
 
@@ -1897,7 +1939,7 @@ public class DistributorThread extends Thread {
 
             try {
                 if (!that.isConnected()) {
-                    logger.debug("no network connection");
+                    logger.debug("no channel on subscribe");
                     continue;
                 }
                 synchronized (this.store) {
