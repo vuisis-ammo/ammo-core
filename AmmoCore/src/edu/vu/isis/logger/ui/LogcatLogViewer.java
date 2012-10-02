@@ -59,9 +59,10 @@ public class LogcatLogViewer extends LogViewerBase {
         mRegex = mPrefs.getString("regular_expression", "");
         mShowTimestamps = mPrefs.getBoolean("show_logcat_timestamps", false);
 
-        mLogReader = new LogcatLogReader(this, mHandler, mRegex, mShowTimestamps);
-
-        mLogReader.start();
+        if(mLogReader == null) {
+            mLogReader = new LogcatLogReader(this, mHandler, mRegex, mShowTimestamps);
+            mLogReader.start();
+        }
 
     }
 
@@ -72,8 +73,6 @@ public class LogcatLogViewer extends LogViewerBase {
         configureMaxLinesFromPrefs();
         String regex = mPrefs.getString("regular_expression", "");
 
-        // Our superclass will take care of retrieving the log reader
-        // if we left this activity to change the preferences
         if (mLogReader != null) {
             ((LogcatLogReader) mLogReader).setRegex(regex);
             return;
