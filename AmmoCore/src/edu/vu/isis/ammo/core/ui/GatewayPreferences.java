@@ -31,7 +31,7 @@ public class GatewayPreferences extends AbstractAmmoPreference {
 		this.gwIpPref = (MyEditTextPreference) this
 				.findPreference(INetPrefKeys.GATEWAY_HOST);
 		this.gwIpPref.setType(MyEditTextPreference.Type.IP);
-		this.gwIpPref.setSummarySuffix(" (Set in Panther Prefs)");
+		this.gwIpPref.setSummarySuffix(" (Set in Panthr Prefs)");
 		this.gwIpPref.setOnPreferenceClickListener(sendToPantherPrefsListener);
 
 		// Port Preference Setup

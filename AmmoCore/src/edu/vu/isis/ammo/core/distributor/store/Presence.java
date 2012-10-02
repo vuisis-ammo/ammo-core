@@ -295,8 +295,8 @@ public enum Presence {
         }
 
         /**
-         * Rather than using a big switch, this makes use of an EnumMap
-         * to return a row in the same order as the presence fields.
+         * Rather than using a big switch, this makes use of an EnumMap to
+         * return a row in the same order as the presence fields.
          */
         public Object[] getValues(final EnumSet<PresenceSchema> set) {
             final ArrayList<Object> row = new ArrayList<Object>(set.size());
@@ -383,25 +383,13 @@ public enum Presence {
         }
     }
 
-    public static Collection<Item> query() {
-        final Collection<Item> values = Presence.INSTANCE.relMap.values();
-        return values;
-    }
-    
-
     /**
-     * Corresponds to the PresenceSchema.WHERE_OPERATOR_IS selection predicate.
-     * @param operator
+     * used by query methods in DistributorDataStore
+     * 
      * @return
      */
-    public static Collection<Item> queryByOperator(String operator) {
-        final Map<Item.Key, Item> entries = Presence.INSTANCE.relMap;
-        final Collection<Item> result = new ArrayList<Item>();
-        for (Entry<Key, Item> entry : entries.entrySet()) {
-            if (! entry.getKey().operator.equals(operator)) continue;
-            result.add(entry.getValue());
-        }
-        return result;
+    public static Collection<Item> queryAll() {
+        return Presence.INSTANCE.relMap.values();
     }
 
 }

@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
  * generally. The network is emulated by queues of ByteBuffer objects.
  */
 public class MockNetworkStack extends Socket {
-    public static final Logger logger = LoggerFactory.getLogger("link.mock");
+    public static final Logger logger = LoggerFactory.getLogger("mock.net");
     
     /**
      * Use these queues to imitate the network stack
@@ -48,7 +48,7 @@ public class MockNetworkStack extends Socket {
         this.throwSocketException = new AtomicBoolean(false);
         this.throwException = new AtomicBoolean(false);
         
-        logger.error("mock network stack created ");
+        logger.info("mock network stack created ");
     }
 
     /**

@@ -106,6 +106,7 @@ public class TopicTest extends AndroidTestCase
         final Topic actual = Topic.CREATOR.createFromParcel(parcel);
         Assert.assertEquals("wrote a null expecting a NONE but got something else back", actual,
                 Topic.NONE);
+        parcel.recycle();
     }
 
     /**
@@ -165,32 +166,36 @@ public class TopicTest extends AndroidTestCase
     public void testConstructorWithParcel()
     {
 
-	// Initialize topic with empty parcel
-	try {
-	    final Parcel in = Parcel.obtain();
-	    Topic t = new Topic(in);
-	    assertNotNull(t);
-	} catch (IncompleteRequest e) {
-	    fail("Unexpected IncompleteRequest exception");
-	} catch (Exception e) {
-	    fail("Unexpected exception");
-	}
+        // Initialize topic with empty parcel
+        Parcel in = null;
+        try {
+            in = Parcel.obtain();
+            Topic t = new Topic(in);
+            assertNotNull(t);
+        } catch (IncompleteRequest e) {
+            fail("Unexpected IncompleteRequest exception");
+        } catch (Exception e) {
+            fail("Unexpected exception");
+        } finally {
+            if (in != null)
+                in.recycle();
+        }
 
-	// Initialize topic with null parcel - should throw NullPointerException
-	try {
-	    final Parcel in = null;
-	    Topic t = new Topic(in);
-	    assertNotNull(t);
-	} catch (NullPointerException e) {
-	    // Expected behavior
-	    assertTrue(true);
-	} catch (IncompleteRequest e) {
-	    fail("Unexpected IncompleteRequest exception");
-	} catch (Exception e) {
-	    fail("Unexpected exception");
-	}
+        // Initialize topic with null parcel - should throw NullPointerException
+        try {
+            in = null;
+            Topic t = new Topic(in);
+            assertNotNull(t);
+        } catch (NullPointerException e) {
+            // Expected behavior
+            assertTrue(true);
+        } catch (IncompleteRequest e) {
+            fail("Unexpected IncompleteRequest exception");
+        } catch (Exception e) {
+            fail("Unexpected exception");
+        }
 
-	// TODO:  Try a malformed parcel -- should throw IncompleteRequest
-	
+        // TODO: Try a malformed parcel -- should throw IncompleteRequest
+
     }
 }

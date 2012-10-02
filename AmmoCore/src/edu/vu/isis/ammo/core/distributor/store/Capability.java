@@ -423,7 +423,7 @@ public enum Capability {
         // what about message rates?
     }
 
-    public static Collection<Item> query() {
+    public static Collection<Item> queryAll() {
         return Capability.INSTANCE.relMap.values();
     }
 

@@ -17,6 +17,7 @@ import android.util.Log;
  */
 
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage; 
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage.CheckSum; 
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 import edu.vu.isis.ammo.testutils.TestUtils;
@@ -184,5 +185,66 @@ public class AmmoGatewayMessageTest extends TestCase
 	
     }
     */
+
+    /**
+     * Test checksum functionality
+     */
+    public void testChecksum()
+    {
+	byte[] data = TestUtils.TEST_TINY_BLOB;
+	CheckSum cs1 = CheckSum.newInstance(data);
+	CheckSum cs2 = CheckSum.newInstance(data);
+	
+	// Two CheckSum objects make from the same data should be
+	// equivalent.
+	assertTrue(cs1.equals(cs2));
+	assertEquals(cs1, cs2);
+
+	// Instantiating a CheckSum with long version of itself should
+	// give an equivalent object.
+	long cs1Long = cs1.asLong();
+	CheckSum cs1FromLong = new CheckSum(cs1Long);
+	assertEquals(cs1, cs1FromLong);
+	
+	// Instantiating a CheckSum with byte[] version of itself should
+	// give an equivalent object.
+	byte[] cs1Bytes = cs1.asByteArray();
+	CheckSum cs1FromBytes = new CheckSum(cs1Bytes);
+	assertEquals(cs1, cs1FromBytes);
+    }
+
+    /**
+     * Test checksum functionality with random data
+     */
+    public void testChecksumRandomData()
+    {
+	final int bufSize = 180;
+	final int NUM_ITERATIONS = 10;
+
+	for (int i=0; i < NUM_ITERATIONS; i++) {
+	    final byte[] data = TestUtils.randomBytes(bufSize);
+
+	    CheckSum cs1 = CheckSum.newInstance(data);
+	    CheckSum cs2 = CheckSum.newInstance(data);
+	
+	    // Two CheckSum objects make from the same data should be
+	    // equivalent.
+	    assertTrue(cs1.equals(cs2));
+	    assertEquals(cs1, cs2);
+	    
+	    // Instantiating a CheckSum with long version of itself should
+	    // give an equivalent object.
+	    long cs1Long = cs1.asLong();
+	    CheckSum cs1FromLong = new CheckSum(cs1Long);
+	    assertEquals(cs1, cs1FromLong);
+	    
+	    // Instantiating a CheckSum with byte[] version of itself should
+	    // give an equivalent object.
+	    byte[] cs1Bytes = cs1.asByteArray();
+	    CheckSum cs1FromBytes = new CheckSum(cs1Bytes);
+	    assertEquals(cs1, cs1FromBytes);
+	}
+    }
+
 }
 

@@ -196,16 +196,21 @@ public class DistributorProvider extends ContentProvider {
                 break;
             case PRESENCE:
                 if (selection == null) {
-                return this.dds.queryPresence();
-                }
+                    cursor = this.dds.queryPresenceAll();
+                } else
                 if (PresenceSchema.WHERE_ALL.equals(selection)) {
-                    return this.dds.queryPresence();
-                }
+                    cursor = this.dds.queryPresenceAll();
+                } else
                 if (PresenceSchema.WHERE_OPERATOR_IS.equals(selection)) {
-                    return this.dds.queryPresenceByOperator(selectionArgs[0]);
+                    cursor = this.dds.queryPresenceByOperator(selectionArgs[0]);
+                } else {
+                    logger.warn("unknown selection=[{}]", selection);
+                    cursor = null;
                 }
+                break;
             case CAPABILITY:
-                return this.dds.queryCapability();
+                cursor = this.dds.queryCapabilityAll();
+                break;
             default:
                 // If we get here, it's a special uri and should be matched
                 // differently.
