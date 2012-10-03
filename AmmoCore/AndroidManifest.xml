@@ -1,11 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- version code template -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="edu.vu.isis.ammo.core"
     android:sharedUserId="edu.vu.isis.ammo"
-    android:versionCode="1610"
-    android:versionName="@string/ammo_version_name" > <!-- end -->
-    <!-- template end -->
+    android:versionName="@string/ammo_version_name" >
 
     <permission
         android:name="edu.vu.isis.ammo.permission.MAKE_REQUEST"

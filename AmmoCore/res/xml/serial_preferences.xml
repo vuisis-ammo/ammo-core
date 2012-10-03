@@ -17,17 +17,12 @@
         android:key="@string/network_serial_device"
         android:title="Device" />
 
-    <!--
-          Baud rate pref removed 
-          
-          <edu.vu.isis.ammo.core.MyEditIntegerPreference
-              android:key="@string/network_serial_rate"
-              android:title="Baud Rate"
-              android:name="Baud Rate"
-              android:defaultValue="9600"
-              android:inputType="number"/> 
-    -->
-
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Baud Rate"
+        android:defaultValue="9600"
+        android:inputType="number"
+        android:key="@string/network_serial_rate"
+        android:title="Baud Rate" />
     <edu.vu.isis.ammo.core.MyEditIntegerPreference
         android:name="Slot Number"
         android:defaultValue="8"
