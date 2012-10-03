@@ -83,7 +83,7 @@ public class DistributorProvider extends ContentProvider {
      */
     @Override
     public boolean onCreate() {
-        if (!this.conn.equals(null))
+        if (this.conn.get() != null)
             return true;
 
         this.dds = null;
