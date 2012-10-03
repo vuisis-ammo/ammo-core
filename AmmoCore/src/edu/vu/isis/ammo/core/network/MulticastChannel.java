@@ -1051,14 +1051,13 @@ public class MulticastChannel extends NetChannel
                     // mQueue.size(), msg.size );
                 } catch (InterruptedException ex)
                 {
-                    logger.error("interrupted taking messages from send queue", ex);
+                    logger.info("interrupted taking messages from send queue");
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
-                } catch (Exception e)
+                } catch (Exception ex)
                 {
-                    e.printStackTrace();
-                    logger.error("sender threw exception while take()ing", e);
+                    logger.error("sender threw exception while take()ing", ex);
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
@@ -1216,7 +1215,12 @@ public class MulticastChannel extends NetChannel
                     logger.trace("received a message {}", payload.length);
                 } catch (ClosedChannelException ex)
                 {
-                    logger.warn("receiver threw ClosedChannelException", ex);
+                    logger.info("receiver threw ClosedChannelException");
+                    setReceiverState(INetChannel.INTERRUPTED);
+                    mParent.socketOperationFailed();
+                } catch (SocketException ex)
+                {
+                    logger.info("receiver threw exception");
                     setReceiverState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                 } catch (Exception ex)
