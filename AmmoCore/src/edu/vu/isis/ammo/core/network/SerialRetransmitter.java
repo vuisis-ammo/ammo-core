@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialRetransmitter
 {
-    private static final int DEFAULT_RESENDS = 2;
+    private static final int DEFAULT_RESENDS = 3; // original send + N-retries
 
     // There are lots of shorts in this code that will need to be made larger
     // if we need to be able to have more than 16 slots.
@@ -68,24 +68,24 @@ public class SerialRetransmitter
     // intended receivers have received each packet.
     private class SlotRecord {
         public int mHyperperiodID;
-        public ArrayList<PacketRecord> mSent = new ArrayList<PacketRecord>(16);
-
+        public PacketRecord[] mSent = new PacketRecord[8]; // we can only sent and ack atmost 8 packets
         public int mSendCount;
+
+        public byte[] mAcks = new byte[16];
 
         // FIXME: magic number - limits max radios in hyperperiod to 16
         // Should we optimize for smaller nets?
-        public byte[] mAcks = new byte[16];
-
         public void SlotRecord() {
-            for ( int i = 0; i < 10; ++i )
-                mSent.add( null );
+            for ( int i = 0; i < mSent.length; ++i )
+                mSent[i] = null; 
         }
 
         public void reset( int newHyperperiod ) {
             mHyperperiodID = newHyperperiod;
-            mSent.clear();
             mSendCount = 0;
 
+            for ( int i = 0; i < mSent.length; ++i )
+                mSent[ i ] = null;
             for ( int i = 0; i < mAcks.length; ++i )
                 mAcks[ i ] = 0;
         }
@@ -101,9 +101,9 @@ public class SerialRetransmitter
         @Override
         public String toString() {
             StringBuilder result = new StringBuilder();
-            result.append( mHyperperiodID + ", " );
-            result.append( mSendCount + ", " );
-            result.append( mSent.size() );
+            result.append( mHyperperiodID ).append( ", " );
+            result.append( mSendCount ).append( ", " );
+            result.append( mSent.length );
             return result.toString();
         }
     };
@@ -115,7 +115,6 @@ public class SerialRetransmitter
     private SlotRecord mPrevious = new SlotRecord();
 
     private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>();
-
 
 
     /**
@@ -161,25 +160,26 @@ public class SerialRetransmitter
         // Any packet in mPrevious that has not been acknowledged should be
         // requeued for resending in the resend queue.
 
-        for ( PacketRecord pr : mPrevious.mSent ) {
+        for ( int i=0; i<mPrevious.mSendCount; i++ ) {
+	    PacketRecord pr = mPrevious.mSent[i];
             if ( pr.mExpectToHearFrom == 0 ) {
-                logger.trace( "Ack packet or no one listening. deleting PacketRecord:{}", pr );
-            // } else if ( (pr.mExpectToHearFrom & pr.mHeardFrom) == pr.mExpectToHearFrom ) {
-            //     // We have received acks from all of the people
-            //     // that we thought we were sending to, so we can
-            //     // now remove the packet from the pool.
-            //     logger.trace( "Heard from all and deleting PacketRecord:" );
-            //     logger.trace( "...expected={}, heardFrom={}, requeueing PacketRecord: {}",
-            //                   new Object[] { pr.mExpectToHearFrom,
-            //                                  pr.mHeardFrom,
-            //                                  pr } );
+                logger.trace( "Ack packet or a Normal Packet not requiring ack. deleting PacketRecord:{}", pr );
+            } else if ( (pr.mExpectToHearFrom & pr.mHeardFrom) == pr.mExpectToHearFrom ) {
+		// We have received acks from all of the people
+		// that we thought we were sending to, so we can
+		// now remove the packet from the pool.
+		logger.debug( "Acked Packet: expected={}, heardFrom={}, deleting PacketRecord: {}",
+			new Object[] { pr.mExpectToHearFrom,
+				       pr.mHeardFrom,
+				       pr } );
             } else {
                 logger.trace( "expected={}, heardFrom={}, requeueing PacketRecord: {}",
-                              new Object[] { pr.mExpectToHearFrom,
-                                             pr.mHeardFrom,
-                                             pr } );
+			new Object[] { pr.mExpectToHearFrom,
+				       pr.mHeardFrom,
+				       pr } );
                 // Puts this in the resend queue to be resent later when possible.
                 if ( pr.mResends > 0 ) {
+		    logger.debug( "Resending Scheduled for PacketRecord: {}, with remaining tries {}", pr, pr.mResends);
                     mResendQueue.offer( pr );
                 }
             }
@@ -213,7 +213,7 @@ public class SerialRetransmitter
         // new stats.
         swapHyperperiodsIfNeeded( hyperperiod );
 
-        // Set the bit in the current hyperperiod
+        // Set the bit in the current hyperperiod for providing an ack back to sender
         mCurrent.setAckBit( agm.mSlotID, agm.mIndexInSlot );
 
 
@@ -223,13 +223,14 @@ public class SerialRetransmitter
         // in the appropriate hyperperiod.
         if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
             logger.trace( "Received ack packet. payload={}", agm.payload );
+	    int theirAckBitsForMe = agm.payload[ mySlotID ];
+	    if ( theirAckBitsForMe != 0 ) {
+		// They are receiving my directly.
+		mReceivingMeDirectly |= (0x1 << agm.mSlotID);
+	    }
+
             if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
 
-                int theirAckBitsForMe = agm.payload[ mySlotID ];
-                if ( theirAckBitsForMe != 0 ) {
-                    // They are receiving my directly.
-                    mReceivingMeDirectly |= (0x1 << agm.mSlotID);
-                }
 
                 // We also use their ack information to tell which of the
                 // packets that we sent in the last hyperperiod were actually
@@ -244,10 +245,11 @@ public class SerialRetransmitter
                         // They received a packet in the position in the slot
                         // with index "index".  Record this in the map.
                         logger.trace( "doing mSent with index={}, mPrevious.mSendCount={}",
-                                      index, mPrevious.mSendCount );
-                        logger.trace( "mSent.size()={}", mPrevious.mSent.size() );
-                        PacketRecord stats = mPrevious.mSent.get( index );
-                        stats.mHeardFrom |= (0x1 << agm.mSlotID);
+				index, mPrevious.mSendCount );
+			if (mPrevious.mSendCount > index) {
+			    PacketRecord stats = mPrevious.mSent[index];
+			    stats.mHeardFrom |= (0x1 << agm.mSlotID);
+			}
                     }
 
                     theirAckBitsForMe = theirAckBitsForMe >>> 1;
@@ -255,11 +257,10 @@ public class SerialRetransmitter
 
                     // TODO: generate an ack message to send to the distributor to
                     // let them know that a packet we sent out was ack'd.
-
                 }
             } else {
-                logger.trace( "Ignoring received ack in hyperperiod={}, sent in hyperperiod={}",
-                              hyperperiod, agm.mHyperperiod );
+                logger.debug( "Spurious Ack received in hyperperiod={}, sent in hyperperiod={}, Ignoring ...",
+			hyperperiod, agm.mHyperperiod );
             }
         }
         else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
@@ -280,8 +281,10 @@ public class SerialRetransmitter
 
             // Tweak the agm here.  Everything in the agm should just stay the
             // except payload and checksum.
-            logger.trace( "Received resend packet. payload={}", agm.payload );
+            logger.debug( "Received resend packet. payload={}", agm.payload );
             try {
+		// TODO: check if we have not already received a packet with this uid
+		// otherwise do this work ...
                 logger.trace( "agm.size={}", agm.size );
                 int newSize = agm.size - 4;
                 logger.trace( "newSize={}", newSize );
@@ -289,6 +292,7 @@ public class SerialRetransmitter
 
                 logger.trace( "agm.payload.length={}", agm.payload.length );
 
+		// TODO: use arraycopy operations here 
                 for ( int i = 0; i < newSize; ++i ) {
                     newPayload[i] = agm.payload[i+4];
                 }
@@ -335,15 +339,7 @@ public class SerialRetransmitter
                                             int slotIndex,
                                             int indexInSlot )
     {
-        logger.trace( "SerialRetransmitter::sendingAPacket()" );
-
-        logger.trace( "...needAck={}", agm.mNeedAck );
-        logger.trace( "...UUID={}", agm.mUUID );
-
-        // The retransmitter functionality is only required for packet types
-        // that require acks.
-        //if ( !agm.mNeedAck )
-        //    return;
+        logger.trace( "SerialRetransmitter::sendingAPacket(), needAck={}, UUID={} ", agm.mNeedAck, agm.mUUID );
 
         // Everything that goes out has to be put into the mSent array and has
         // to have a PacketRecord (even resends and ack packets). When swap
@@ -353,37 +349,27 @@ public class SerialRetransmitter
         // Resend packet: 
 
 
-
-        if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
-            // ack packets have a placeholder PacketRecord, but we don't
-            // put them in the resend queue.  Set their mExpectToHearFrom
-            // to zero so they are thrown out when we swap.
+        if ( agm.mPacketType != AmmoGatewayMessage.PACKETTYPE_RESEND ) {
             int uid = createUID( hyperperiod, slotIndex, indexInSlot );
-            logger.trace( "...uid={}", uid );
             PacketRecord pr = new PacketRecord( uid, agm );
-            logger.trace( "...PacketRecord={}", pr );
-            pr.mExpectToHearFrom = 0;
+            logger.trace( "uid = {}, ...PacketRecord={}", new Object[] {uid, pr, indexInSlot} );
 
-            mCurrent.mSent.add( pr );
+	    // The retransmitter functionality is only required for packet types
+	    // that require acks.
+	    if ( !agm.mNeedAck || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+		pr.mExpectToHearFrom = 0;
+		pr.mResends = 0;
+	    }
+
+            mCurrent.mSent[mCurrent.mSendCount] = pr;
             mCurrent.mSendCount++;
             logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
-        } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
-            // Resend packets have an existing PacketRecord, which we reuse.
-            logger.trace( "...resending a packet" );
         } else {
-            // agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL
-            int uid = createUID( hyperperiod, slotIndex, indexInSlot );
-            logger.trace( "...uid={}", uid );
-            PacketRecord pr = new PacketRecord( uid, agm );
-            logger.trace( "...PacketRecord={}", pr );
-
-            mCurrent.mSent.add( pr );
-            mCurrent.mSendCount++;
-            logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
-
-            //mUUIDMap.put( uid, agm.mUUID );
-            logger.trace( "...UID/UUID map size={}", mUUIDMap.size() );
-        }
+            // Resend packets have an existing PacketRecord, which we reuse.
+	    // this is already inserted in the mSent when we create a resend packet
+	    // see @createResendPacket
+            logger.trace( "...resending a packet" );
+	}
     }
 
 
@@ -415,7 +401,7 @@ public class SerialRetransmitter
                 try {
                     // Keep the pr and put it in the mSent.array, while decrementing
                     // mResends.
-                    mCurrent.mSent.add( pr );
+                    mCurrent.mSent[mCurrent.mSendCount] = pr;
                     mCurrent.mSendCount++;
                     pr.mResends--;
 
@@ -440,11 +426,11 @@ public class SerialRetransmitter
                     agmb.packetType( AmmoGatewayMessage.PACKETTYPE_RESEND );
 
                     AmmoGatewayMessage agm = agmb.build();
-                    logger.trace( "returning resend packet. payload length={}", payload.length );
+                    logger.trace( "returning resend packet uid: {}. payload length={}", pr.mUID, payload.length );
                     return agm;
 
                 } catch ( Exception ex ) {
-                    logger.warn("createAckPacket() threw exception {}", ex.getStackTrace() );
+                    logger.warn("createResendPacket() threw exception {}", ex.getStackTrace() );
                 }
             }
 
@@ -518,7 +504,7 @@ public class SerialRetransmitter
     private SerialChannel mChannel;
     private IChannelManager mChannelManager;
 
-    private short mReceivingMeDirectly = 0;
+    private short mReceivingMeDirectly = (short)0x0;
 
     private static final Logger logger = LoggerFactory.getLogger( "net.serial.retrans" );
 }
