@@ -41,6 +41,7 @@
 
 
   <logger name="api" level="INFO"/>
+  <logger name="provider.dist" level="TRACE"/>
   <!-- 
   <logger name="class.temporal" level="TRACE"/>
   <logger name="class.store.presence" level="TRACE"/>
