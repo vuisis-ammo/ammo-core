@@ -36,7 +36,7 @@ public class ReliableMulticast extends ModelChannel {
         this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
         this.election = !this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED,
-                INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED);
+                INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_ENABLED);
 
         mNetChannel = channel;
     }

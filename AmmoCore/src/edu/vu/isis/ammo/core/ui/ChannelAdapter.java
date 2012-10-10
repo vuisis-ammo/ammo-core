@@ -68,25 +68,25 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
         for ( ModelChannel c : model ) {
             if ( Gateway.class.isInstance( c )) {
                 if ( prefs.getBoolean( INetPrefKeys.GATEWAY_DISABLED, 
-                                       INetPrefKeys.DEFAULT_GATEWAY_DISABLED ))
+                                       INetPrefKeys.DEFAULT_GATEWAY_ENABLED ))
                     c.disable();
                 else
                     c.enable();
             } else if ( Multicast.class.isInstance( c )) {
                 if ( prefs.getBoolean( INetPrefKeys.MULTICAST_DISABLED,
-                                       INetPrefKeys.DEFAULT_MULTICAST_DISABLED ))
+                                       INetPrefKeys.DEFAULT_MULTICAST_ENABLED ))
                     c.disable();
                 else
                     c.enable();
             } else if ( ReliableMulticast.class.isInstance( c )) {
                 if ( prefs.getBoolean( INetPrefKeys.RELIABLE_MULTICAST_DISABLED, 
-                                       INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED ))
+                                       INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_ENABLED ))
                     c.disable();
                 else
                     c.enable();
             } else if ( Serial.class.isInstance( c ) ) {
                 if ( prefs.getBoolean(INetPrefKeys.SERIAL_DISABLED,
-                                      INetPrefKeys.DEFAULT_SERIAL_DISABLED ))
+                                      INetPrefKeys.DEFAULT_SERIAL_ENABLED ))
                     c.disable();
                 else
                     c.enable();

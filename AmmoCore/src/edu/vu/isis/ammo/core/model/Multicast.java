@@ -36,7 +36,7 @@ public class Multicast extends ModelChannel {
         this.port = this.prefs.getString(INetPrefKeys.MULTICAST_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_MULTICAST_PORT));
         this.election = !this.prefs.getBoolean(INetPrefKeys.MULTICAST_DISABLED,
-                INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
+                INetPrefKeys.DEFAULT_MULTICAST_ENABLED);
 
         mNetChannel = channel;
     }

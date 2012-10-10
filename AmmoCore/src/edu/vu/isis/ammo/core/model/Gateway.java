@@ -106,7 +106,7 @@ public class Gateway extends ModelChannel {
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.GATEWAY_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
         this.election = !this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED,
-                INetPrefKeys.DEFAULT_GATEWAY_DISABLED);
+                INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
         logger.trace("Gateway constructed with following from prefs: host={} port={} election={}",
                 new Object[] {
                         host, port, election
