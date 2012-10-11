@@ -1,3 +1,4 @@
+
 package edu.vu.isis.ammo.core.distributor;
 
 import java.util.Comparator;
@@ -30,8 +31,8 @@ public class ResponseDistributor implements Runnable {
         final public Encoding encoding;
         final public byte[] data;
 
-        public Item(final int priority, final Context context, final String channelName, 
-                final Uri provider, final Encoding encoding, final byte[] data) 
+        public Item(final int priority, final Context context, final String channelName,
+                final Uri provider, final Encoding encoding, final byte[] data)
         {
             this.priority = priority;
             this.sequence = masterSequence.getAndIncrement();
@@ -50,26 +51,29 @@ public class ResponseDistributor implements Runnable {
     }
 
     /**
-     * A functor to be used in cases such as PriorityQueue.
-     * This gives a partial ordering, rather than total ordering of the natural order.
-     * This overrides the default comparison of the AmmoGatewayMessage.
-     *
-     * The ordering is as follows:
-     * priority : larger
-     * sequence : smaller
+     * A functor to be used in cases such as PriorityQueue. This gives a partial
+     * ordering, rather than total ordering of the natural order. This overrides
+     * the default comparison of the AmmoGatewayMessage. The ordering is as
+     * follows: priority : larger sequence : smaller
      */
     public static class PriorityOrder implements Comparator<Item> {
         @Override
         public int compare(Item o1, Item o2) {
-            logger.debug("compare msgs: priority=[{}:{}] sequence=[{}:{}]", 
-                    new Object[]{o1.priority, o2.priority, 
-                    o1.sequence, o2.sequence} );
-            if (o1.priority > o2.priority) return -1;
-            if (o1.priority < o2.priority) return 1;
+            logger.debug("compare msgs: priority=[{}:{}] sequence=[{}:{}]",
+                    new Object[] {
+                            o1.priority, o2.priority,
+                            o1.sequence, o2.sequence
+                    });
+            if (o1.priority > o2.priority)
+                return -1;
+            if (o1.priority < o2.priority)
+                return 1;
 
             // if priority is same then process in the insertion order
-            if (o1.sequence > o2.sequence) return 1;
-            if (o1.sequence < o2.sequence) return -1;
+            if (o1.sequence > o2.sequence)
+                return 1;
+            if (o1.sequence < o2.sequence)
+                return -1;
             return 0;
         }
     }
@@ -84,7 +88,7 @@ public class ResponseDistributor implements Runnable {
      * @return
      */
     public boolean toProvider(int priority, Context context, final String channelName,
-            Uri provider, Encoding encoding, byte[] data) 
+            Uri provider, Encoding encoding, byte[] data)
     {
         this.queue.offer(new Item(priority, context, channelName, provider, encoding, data));
         return true;
@@ -93,8 +97,12 @@ public class ResponseDistributor implements Runnable {
     @Override
     public void run()
     {
-        Process.setThreadPriority( -7 ); // Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0) 
-        logger.info("deserializer thread start @prio: {}", Process.getThreadPriority( Process.myTid() ) );
+        /**
+         * Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0)
+         */
+        Process.setThreadPriority(-7);
+        logger.info("deserializer thread start @prio: {}",
+                Process.getThreadPriority(Process.myTid()));
 
         try {
             while (true) {
@@ -103,15 +111,31 @@ public class ResponseDistributor implements Runnable {
 
                 try {
                     final Uri tuple = RequestSerializer.deserializeToProvider(
+                            new Runnable() {
+
+                                @Override
+                                public void run() {
+                                    // TODO Auto-generated method stub
+                                    
+                                }
+                                
+                            },
                             item.context, item.context.getContentResolver(),
                             item.channelName, item.provider, item.encoding, item.data);
-                    logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
-                            new Object[]{item.provider, tuple, queue.size()} );
-                    tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[]{System.currentTimeMillis(), "insert_queue", this.queue.size()});
+                    logger.info(
+                            "Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]",
+                            new Object[] {
+                                    item.provider, tuple, queue.size()
+                            });
+                    tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[] {
+                            System.currentTimeMillis(), "insert_queue", this.queue.size()
+                    });
 
                 } catch (Exception ex) {
-                    logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
-                            new Object []{item.provider, queue.size()}, ex);
+                    logger.error("insert failed provider: [{}], remaining in insert queue [{}]",
+                            new Object[] {
+                                    item.provider, queue.size()
+                            }, ex);
                 }
 
             }

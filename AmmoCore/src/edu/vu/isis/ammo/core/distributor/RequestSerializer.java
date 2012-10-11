@@ -11,6 +11,38 @@ purpose whatsoever, and to have or authorize others to do so.
 
 package edu.vu.isis.ammo.core.distributor;
 
+import edu.vu.isis.ammo.api.type.Payload;
+import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.util.ArrayUtils;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import android.content.AsyncQueryHandler;
+import android.content.ComponentName;
+import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.res.AssetFileDescriptor;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteException;
+import android.net.Uri;
+import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
+import android.os.RemoteException;
+
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -28,37 +60,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONTokener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import android.content.ComponentName;
-import android.content.ContentResolver;
-import android.content.ContentUris;
-import android.content.ContentValues;
-import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.content.res.AssetFileDescriptor;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteException;
-import android.net.Uri;
-import android.os.IBinder;
-import android.os.ParcelFileDescriptor;
-import android.os.RemoteException;
-import edu.vu.isis.ammo.api.IDistributorAdaptor;
-import edu.vu.isis.ammo.api.type.Payload;
-import edu.vu.isis.ammo.api.type.Provider;
-import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 
 /**
  * The purpose of these objects is lazily serialize an object. Once it has been
@@ -236,6 +239,17 @@ public class RequestSerializer {
     public void setSerializer(OnSerialize onSerialize) {
         this.serializeActor = onSerialize;
     }
+
+    /**
+     * used to make the AsyncQueryHandler calls uniquely identifiable.
+     */
+    static final private AtomicInteger token = new AtomicInteger(Integer.MIN_VALUE);
+
+    /**
+     * @param cv
+     * @param encoding
+     * @return
+     */
 
     public static byte[] serializeFromContentValues(ContentValues cv,
             final DistributorPolicy.Encoding encoding) {
@@ -415,28 +429,30 @@ public class RequestSerializer {
     /**
      * @see serializeFromProvider with which this method is symmetric.
      */
-    public static Uri deserializeToProvider(final Context context, final ContentResolver resolver,
+    public static Uri deserializeToProvider(final Runnable postProcessor, final Context context, final ContentResolver resolver,
             final String channelName,
             final Uri provider, final Encoding encoding, final byte[] data) {
 
         logger.debug("deserialize message");
 
         final UriFuture uri;
+        // post processor sets the uri ?
+        
         switch (encoding.getType()) {
             case CUSTOM:
-                uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
+                RequestSerializer.deserializeCustomToProvider(postProcessor, context, resolver, channelName,
                         provider, encoding, data);
                 break;
             case JSON:
-                uri = RequestSerializer.deserializeJsonToProvider(context, resolver, channelName,
+                RequestSerializer.deserializeJsonToProvider(postProcessor, context, resolver, channelName,
                         provider, encoding, data);
                 break;
             case TERSE:
-                uri = RequestSerializer.deserializeTerseToProvider(context, resolver, channelName,
+                RequestSerializer.deserializeTerseToProvider(postProcessor, context, resolver, channelName,
                         provider, encoding, data);
                 break;
             default:
-                uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
+                RequestSerializer.deserializeCustomToProvider(postProcessor, context, resolver, channelName,
                         provider, encoding, data);
         }
         if (uri == null)
@@ -498,7 +514,8 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    public static UriFuture deserializeCustomToProvider(final Context context,
+    public static void deserializeCustomToProvider(final Runnable postProcessor,
+            final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
@@ -512,7 +529,7 @@ public class RequestSerializer {
             } catch (RemoteException ex) {
                 ex.printStackTrace();
             }
-            return null;
+            return;
         }
         final ServiceConnection connection = new ServiceConnection() {
             @Override
@@ -540,7 +557,7 @@ public class RequestSerializer {
         };
         final Intent intent = new Intent();
         context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
-        return null;
+        return;
     }
 
     /**
@@ -560,13 +577,14 @@ public class RequestSerializer {
      * <dt>field name</dt>
      * <dd>A null terminated name,</dd>
      * <dt>field data length</dt>
-     * <dd>A 4 byte big-endian integer length, indicating the number of bytes in the
-     * data blob.</dd>
+     * <dd>A 4 byte big-endian integer length, indicating the number of bytes in
+     * the data blob.</dd>
      * <dt>field data blob</dt>
      * <dd>A set of bytes whose quantity is that of the field data length</dd>
      * <dt>field data validation and metadata</dt>
-     * <dd>A 4 byte field, the validation quality is achieved by replicating the field data length.
-     * The metadata indicates the qualitative size of the blob.</dd>
+     * <dd>A 4 byte field, the validation quality is achieved by replicating the
+     * field data length. The metadata indicates the qualitative size of the
+     * blob.</dd>
      * </dl>
      * </dd>
      * </dl>
@@ -1037,10 +1055,10 @@ public class RequestSerializer {
     }
 
     /**
-     * JSON encoding 
-     * <p> This method interacts directly with the
-     * content provider. It should only be used with content providers which are
-     * known to be responsive.
+     * JSON encoding
+     * <p>
+     * This method interacts directly with the content provider. It should only
+     * be used with content providers which are known to be responsive.
      * 
      * @param context
      * @param provider
@@ -1048,16 +1066,14 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    public static UriFuture deserializeJsonToProvider(final Context context,
+    public static void deserializeJsonToProvider(final Runnable postProcessor,
+            final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
         final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
         // find the end of the json portion of the data
-        int position = 0;
-        for (; position < data.length && data[position] != (byte) 0x0; position++) {
-        }
-
+        final int position = ArrayUtils.indexOf(data, (byte)0x0);
         final int length = position;
         final byte[] payload = new byte[length];
         System.arraycopy(data, 0, payload, 0, length);
@@ -1070,21 +1086,21 @@ public class RequestSerializer {
                 PLogger.API_STORE.trace("JSON payload=[{}]", value);
             } else if (value instanceof JSONArray) {
                 PLogger.API_STORE.warn("invalid JSON payload=[{}]", parsePayload);
-                return null;
+                return;
             } else if (value == JSONObject.NULL) {
                 PLogger.API_STORE.warn("null JSON payload=[{}]", parsePayload);
-                return null;
+                return;
             } else {
                 PLogger.API_STORE.warn("{} JSON payload=[{}]", value.getClass().getName(),
                         parsePayload);
-                return null;
+                return;
             }
         } catch (ClassCastException ex) {
             PLogger.API_STORE.warn("invalid JSON content", ex);
-            return null;
+            return;
         } catch (JSONException ex) {
             PLogger.API_STORE.warn("invalid JSON content", ex);
-            return null;
+            return;
         }
         final ContentValues cv = new ContentValues();
         cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
@@ -1141,126 +1157,145 @@ public class RequestSerializer {
 
         final Uri tupleUri;
         try {
-            tupleUri = resolver.insert(provider, cv); // TBD SKN --- THIS IS A
-                                                      // SYNCHRONOUS IPC? we
-                                                      // will block here for a
-                                                      // while ...
-            if (tupleUri == null) {
-                logger.warn("could not insert {} into {}", cv, provider);
-                return null;
-            }
-            logger.info("Deserialized Received message, content {}", cv);
-            PLogger.TEST_FUNCTIONAL.info("cv: {}, provider:{}", cv, provider);
+            final AsyncQueryHandler aqh = new AsyncQueryHandler(resolver) {
+                private int position_ = position;
+                @Override
+                protected void onInsertComplete(int token, Object cookie, Uri tupleUri) {
+                    if (tupleUri == null) {
+                        logger.warn("could not insert {} into {}", cv, provider);
+                        return;
+                    }
+                    logger.info("Deserialized Received message, content {}", cv);
+                    PLogger.TEST_FUNCTIONAL.info("cv: {}, provider:{}", cv, provider);
+                    if (position_ == data.length)
+                        return;
+
+                    // process the blobs
+                    final long tupleId = ContentUris.parseId(tupleUri);
+                    final Uri.Builder uriBuilder = provider.buildUpon();
+                    final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
+
+                    int position = position_;
+                    position++; // move past the null terminator
+                    dataBuff.position(position);
+                    int blobCount = 0;
+                    while (dataBuff.position() < data.length) {
+                        // get the field name
+                        final int nameStart = dataBuff.position();
+                        int nameLength;
+                        for (nameLength = 0; position < data.length; nameLength++, position++) {
+                            if (data[position] == 0x0)
+                                break;
+                        }
+                        final String fieldName = new String(data, nameStart, nameLength);
+                        position++; // move past the null
+
+                        // get the last three bytes of the length, to be used as a simple
+                        // checksum
+                        dataBuff.position(position);
+                        dataBuff.get();
+                        final byte[] beginningPsuedoChecksum = new byte[3];
+                        dataBuff.get(beginningPsuedoChecksum);
+
+                        // get the blob length for real
+                        dataBuff.position(position);
+                        final int dataLength = dataBuff.getInt();
+
+                        if (dataLength > dataBuff.remaining()) {
+                            logger.error("payload size is wrong {} {}",
+                                    dataLength, data.length);
+                            return;
+                        }
+                        // get the blob data
+                        final byte[] blob = new byte[dataLength];
+                        final int blobStart = dataBuff.position();
+                        System.arraycopy(data, blobStart, blob, 0, dataLength);
+                        dataBuff.position(blobStart + dataLength);
+
+                        // check for storage type
+                        final byte storageMarker = dataBuff.get();
+
+                        // get and compare the beginning and ending checksum
+                        final byte[] endingPsuedoChecksum = new byte[3];
+                        dataBuff.get(endingPsuedoChecksum);
+                        if (!Arrays.equals(endingPsuedoChecksum, beginningPsuedoChecksum)) {
+                            logger.error("blob checksum mismatch {} {}", endingPsuedoChecksum,
+                                    beginningPsuedoChecksum);
+                            break;
+                        }
+
+                        // write the blob to the appropriate place
+                        switch (storageMarker) {
+                            case BLOB_MARKER_FIELD:
+                                blobCount++;
+                                cv.put(fieldName, blob);
+                                break;
+                            default:
+                                final Uri fieldUri = updateTuple.appendPath(fieldName).build();
+                                try {
+                                    PLogger.API_STORE.debug("write blob uri=[{}]", fieldUri);
+                                    final OutputStream outstream = resolver.openOutputStream(fieldUri);
+                                    if (outstream == null) {
+                                        logger.error("failed to open output stream to content provider: {} ",
+                                                fieldUri);
+                                        return;
+                                    }
+                                    outstream.write(blob);
+                                    outstream.close();
+                                } catch (SQLiteException ex) {
+                                    logger.error("in provider {} could not open output stream {}",
+                                            fieldUri, ex.getLocalizedMessage());
+                                } catch (FileNotFoundException ex) {
+                                    logger.error("blob file not found: {}", fieldUri, ex);
+                                } catch (IOException ex) {
+                                    logger.error("error writing blob file: {}", fieldUri, ex);
+                                }
+                        }
+                    }
+                    if (blobCount > 0) {
+                        try {
+                            PLogger.API_STORE.debug("insert blob uri=[{}]", provider);
+                            final Uri blobUri = resolver.insert(provider, cv);
+                            if (blobUri == null) {
+                                logger.warn("could not insert {} into {}", cv, provider);
+                                return;
+                            }
+                            logger.trace("Deserialized Received message blobs, content {}", cv);
+
+                        } catch (SQLiteException ex) {
+                            logger.warn("invalid sql blob insert", ex);
+                            return;
+                        } catch (IllegalArgumentException ex) {
+                            logger.warn("bad provider or blob values", ex);
+                            return;
+                        }
+                    }
+                    // return new UriFuture(tupleUri);
+                    if (!(cookie instanceof Runnable)) {
+                        return;
+                    }
+                    final Runnable postProcessor = (Runnable) cookie;
+                    postProcessor.run();
+                }
+
+                @Override
+                protected void onQueryComplete(int token, Object cookie, Cursor serialMetaCursor) {
+                    if (serialMetaCursor == null)
+                        return;
+                }
+            };
+
+            aqh.startInsert(RequestSerializer.token.getAndIncrement(),
+                    postProcessor, provider, cv); 
+           
         } catch (SQLiteException ex) {
             logger.warn("invalid sql insert", ex);
-            return null;
+            return;
         } catch (IllegalArgumentException ex) {
             logger.warn("bad provider or values", ex);
-            return null;
+            return;
         }
-        if (position == data.length)
-            return new UriFuture(tupleUri);
 
-        // process the blobs
-        final long tupleId = ContentUris.parseId(tupleUri);
-        final Uri.Builder uriBuilder = provider.buildUpon();
-        final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
-
-        position++; // move past the null terminator
-        dataBuff.position(position);
-        int blobCount = 0;
-        while (dataBuff.position() < data.length) {
-            // get the field name
-            final int nameStart = dataBuff.position();
-            int nameLength;
-            for (nameLength = 0; position < data.length; nameLength++, position++) {
-                if (data[position] == 0x0)
-                    break;
-            }
-            final String fieldName = new String(data, nameStart, nameLength);
-            position++; // move past the null
-
-            // get the last three bytes of the length, to be used as a simple
-            // checksum
-            dataBuff.position(position);
-            dataBuff.get();
-            final byte[] beginningPsuedoChecksum = new byte[3];
-            dataBuff.get(beginningPsuedoChecksum);
-
-            // get the blob length for real
-            dataBuff.position(position);
-            final int dataLength = dataBuff.getInt();
-
-            if (dataLength > dataBuff.remaining()) {
-                logger.error("payload size is wrong {} {}",
-                        dataLength, data.length);
-                return null;
-            }
-            // get the blob data
-            final byte[] blob = new byte[dataLength];
-            final int blobStart = dataBuff.position();
-            System.arraycopy(data, blobStart, blob, 0, dataLength);
-            dataBuff.position(blobStart + dataLength);
-
-            // check for storage type
-            final byte storageMarker = dataBuff.get();
-
-            // get and compare the beginning and ending checksum
-            final byte[] endingPsuedoChecksum = new byte[3];
-            dataBuff.get(endingPsuedoChecksum);
-            if (!Arrays.equals(endingPsuedoChecksum, beginningPsuedoChecksum)) {
-                logger.error("blob checksum mismatch {} {}", endingPsuedoChecksum,
-                        beginningPsuedoChecksum);
-                break;
-            }
-
-            // write the blob to the appropriate place
-            switch (storageMarker) {
-                case BLOB_MARKER_FIELD:
-                    blobCount++;
-                    cv.put(fieldName, blob);
-                    break;
-                default:
-                    final Uri fieldUri = updateTuple.appendPath(fieldName).build();
-                    try {
-                        PLogger.API_STORE.debug("write blob uri=[{}]", fieldUri);
-                        final OutputStream outstream = resolver.openOutputStream(fieldUri);
-                        if (outstream == null) {
-                            logger.error("failed to open output stream to content provider: {} ",
-                                    fieldUri);
-                            return null;
-                        }
-                        outstream.write(blob);
-                        outstream.close();
-                    } catch (SQLiteException ex) {
-                        logger.error("in provider {} could not open output stream {}",
-                                fieldUri, ex.getLocalizedMessage());
-                    } catch (FileNotFoundException ex) {
-                        logger.error("blob file not found: {}", fieldUri, ex);
-                    } catch (IOException ex) {
-                        logger.error("error writing blob file: {}", fieldUri, ex);
-                    }
-            }
-        }
-        if (blobCount > 0) {
-            try {
-                PLogger.API_STORE.debug("insert blob uri=[{}]", provider);
-                final Uri blobUri = resolver.insert(provider, cv);
-                if (blobUri == null) {
-                    logger.warn("could not insert {} into {}", cv, provider);
-                    return null;
-                }
-                logger.trace("Deserialized Received message blobs, content {}", cv);
-
-            } catch (SQLiteException ex) {
-                logger.warn("invalid sql blob insert", ex);
-                return null;
-            } catch (IllegalArgumentException ex) {
-                logger.warn("bad provider or blob values", ex);
-                return null;
-            }
-        }
-        return new UriFuture(tupleUri);
     }
 
     /**
@@ -1426,7 +1461,8 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    private static UriFuture deserializeTerseToProvider(final Context context,
+    private static void deserializeTerseToProvider(final Runnable postProcessor,
+            final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
         {
@@ -1437,116 +1473,133 @@ public class RequestSerializer {
              */
             logger.debug("Using terse deserialization");
 
-            final Cursor serialMetaCursor;
+            final UriFuture result = new UriFuture();
             try {
-                serialMetaCursor = resolver.query(Uri.withAppendedPath(provider, "_data_type"),
+                final AsyncQueryHandler aqh = new AsyncQueryHandler(resolver) {
+                    @Override
+                    protected void onInsertComplete(int token, Object cookie, Uri tupleUri) {
+                        if (!(cookie instanceof Runnable)) {
+                            return;
+                        }
+                        final Runnable postProcessor = (Runnable) cookie;
+                        postProcessor.run();
+                    }
+
+                    @Override
+                    protected void onQueryComplete(int token, Object cookie, Cursor serialMetaCursor) {
+                        if (serialMetaCursor == null)
+                            return;
+
+                        if (!serialMetaCursor.moveToFirst()) {
+                            serialMetaCursor.close();
+                            return;
+                        }
+                        int columnCount = serialMetaCursor.getColumnCount();
+                        if (columnCount < 1) {
+                            serialMetaCursor.close();
+                            return;
+                        }
+
+                        final ByteBuffer tuple = ByteBuffer.wrap(data);
+                        final ContentValues wrap = new ContentValues();
+
+                        for (final String key : serialMetaCursor.getColumnNames()) {
+                            final int type = serialMetaCursor.getInt(serialMetaCursor
+                                    .getColumnIndex(key));
+                            switch (FieldType.fromCode(type)) {
+                                case NULL:
+                                    // wrap.put(key, null);
+                                    break;
+                                case SHORT: {
+                                    final short shortValue = tuple.getShort();
+                                    wrap.put(key, shortValue);
+                                    break;
+                                }
+                                case LONG:
+                                case FK: {
+                                    final long longValue = tuple.getLong();
+                                    wrap.put(key, longValue);
+                                    break;
+                                }
+                                case TIMESTAMP: {
+                                    final int intValue = tuple.getInt();
+                                    final long longValue = 1000l * (long) intValue; // seconds
+                                                                                    // -->
+                                                                                    // milliseconds
+                                    wrap.put(key, longValue);
+                                    break;
+                                }
+                                case TEXT:
+                                case GUID: {
+                                    final short textLength = tuple.getShort();
+                                    if (textLength > 0) {
+                                        try {
+                                            byte[] textBytes = new byte[textLength];
+                                            tuple.get(textBytes, 0, textLength);
+                                            String textValue = new String(textBytes, "UTF8");
+                                            wrap.put(key, textValue);
+                                        } catch (java.io.UnsupportedEncodingException ex) {
+                                            logger.error("Error in string encoding{}",
+                                                    new Object[] {
+                                                        ex.getStackTrace()
+                                                    });
+                                        }
+                                    }
+                                    // final char[] textValue = new
+                                    // char[textLength];
+                                    // for (int ix=0; ix < textLength; ++ix) {
+                                    // textValue[ix] = tuple.getChar();
+                                    // }
+                                    break;
+                                }
+                                case BOOL:
+                                case INTEGER:
+                                case EXCLUSIVE:
+                                case INCLUSIVE: {
+                                    final int intValue = tuple.getInt();
+                                    wrap.put(key, intValue);
+                                    break;
+                                }
+                                case REAL:
+                                case FLOAT: {
+                                    final double doubleValue = tuple.getDouble();
+                                    wrap.put(key, doubleValue);
+                                    break;
+                                }
+                                case BLOB: {
+                                    final short bytesLength = tuple.getShort();
+                                    if (bytesLength > 0) {
+                                        final byte[] bytesValue = new byte[bytesLength];
+                                        tuple.get(bytesValue, 0, bytesLength);
+                                        wrap.put(key, bytesValue);
+                                    }
+                                    break;
+                                }
+                                default:
+                                    logger.warn("unhandled data type {}", type);
+                            }
+                        }
+                        serialMetaCursor.close();
+
+                        wrap.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+                        final StringBuilder sb = new StringBuilder()
+                                .append(AmmoProviderSchema.Disposition.REMOTE.name())
+                                .append('.')
+                                .append(channelName);
+                        wrap.put(AmmoProviderSchema._DISPOSITION, sb.toString());
+
+                        this.startInsert(RequestSerializer.token.getAndIncrement(),
+                                postProcessor, provider, wrap);
+
+                    }
+                };
+                aqh.startQuery(RequestSerializer.token.incrementAndGet(), postProcessor,
+                        Uri.withAppendedPath(provider, "_data_type"),
                         null, null, null, null);
             } catch (IllegalArgumentException ex) {
                 logger.warn("unknown content provider ", ex);
-                return null;
+                return;
             }
-            if (serialMetaCursor == null)
-                return null;
-
-            if (!serialMetaCursor.moveToFirst()) {
-                serialMetaCursor.close();
-                return null;
-            }
-            int columnCount = serialMetaCursor.getColumnCount();
-            if (columnCount < 1) {
-                serialMetaCursor.close();
-                return null;
-            }
-
-            final ByteBuffer tuple = ByteBuffer.wrap(data);
-            final ContentValues wrap = new ContentValues();
-
-            for (final String key : serialMetaCursor.getColumnNames()) {
-                final int type = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
-                switch (FieldType.fromCode(type)) {
-                    case NULL:
-                        // wrap.put(key, null);
-                        break;
-                    case SHORT: {
-                        final short shortValue = tuple.getShort();
-                        wrap.put(key, shortValue);
-                        break;
-                    }
-                    case LONG:
-                    case FK: {
-                        final long longValue = tuple.getLong();
-                        wrap.put(key, longValue);
-                        break;
-                    }
-                    case TIMESTAMP: {
-                        final int intValue = tuple.getInt();
-                        final long longValue = 1000l * (long) intValue; // seconds
-                                                                        // -->
-                                                                        // milliseconds
-                        wrap.put(key, longValue);
-                        break;
-                    }
-                    case TEXT:
-                    case GUID: {
-                        final short textLength = tuple.getShort();
-                        if (textLength > 0) {
-                            try {
-                                byte[] textBytes = new byte[textLength];
-                                tuple.get(textBytes, 0, textLength);
-                                String textValue = new String(textBytes, "UTF8");
-                                wrap.put(key, textValue);
-                            } catch (java.io.UnsupportedEncodingException ex) {
-                                logger.error("Error in string encoding{}",
-                                        new Object[] {
-                                            ex.getStackTrace()
-                                        });
-                            }
-                        }
-                        // final char[] textValue = new char[textLength];
-                        // for (int ix=0; ix < textLength; ++ix) {
-                        // textValue[ix] = tuple.getChar();
-                        // }
-                        break;
-                    }
-                    case BOOL:
-                    case INTEGER:
-                    case EXCLUSIVE:
-                    case INCLUSIVE: {
-                        final int intValue = tuple.getInt();
-                        wrap.put(key, intValue);
-                        break;
-                    }
-                    case REAL:
-                    case FLOAT: {
-                        final double doubleValue = tuple.getDouble();
-                        wrap.put(key, doubleValue);
-                        break;
-                    }
-                    case BLOB: {
-                        final short bytesLength = tuple.getShort();
-                        if (bytesLength > 0) {
-                            final byte[] bytesValue = new byte[bytesLength];
-                            tuple.get(bytesValue, 0, bytesLength);
-                            wrap.put(key, bytesValue);
-                        }
-                        break;
-                    }
-                    default:
-                        logger.warn("unhandled data type {}", type);
-                }
-            }
-            serialMetaCursor.close();
-
-            wrap.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
-            final StringBuilder sb = new StringBuilder()
-                    .append(AmmoProviderSchema.Disposition.REMOTE.name())
-                    .append('.')
-                    .append(channelName);
-            wrap.put(AmmoProviderSchema._DISPOSITION, sb.toString());
-
-            final Uri tupleUri = resolver.insert(provider, wrap);
-            return new UriFuture(tupleUri);
         }
-
     }
 }
