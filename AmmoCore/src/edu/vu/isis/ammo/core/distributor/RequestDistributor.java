@@ -42,7 +42,6 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Debug;
-import android.os.Parcel;
 import android.os.Process;
 import android.preference.PreferenceManager;
 
@@ -89,7 +88,7 @@ import edu.vu.isis.ammo.util.FullTopic;
  * for distributing the requests.
  */
 @ThreadSafe
-public class DistributorThread extends Thread {
+public class RequestDistributor implements Runnable {
     // ===========================================================
     // Constants
     // ===========================================================
@@ -129,18 +128,22 @@ public class DistributorThread extends Thread {
     private AtomicInteger total_recv = new AtomicInteger(0);
 
     private NotifyMsgNumber notify = null;
-    static private final AtomicInteger gThreadOrdinal = new AtomicInteger(1);
+    private static final AtomicInteger gThreadOrdinal = new AtomicInteger(1);
 
-    public DistributorThread(final Context context, AmmoService parent) {
-        super(new StringBuilder("Distribute-").
-                append(DistributorThread.gThreadOrdinal.getAndIncrement()).toString());
+    public String generateThreadName() {
+        return  new StringBuilder("ReqDist-").
+                append(RequestDistributor.gThreadOrdinal.getAndIncrement()).toString();
+    }
+
+    public RequestDistributor(final Context context, AmmoService parent) {
         this.context = context;
         this.ammoService = parent;
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
         this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200,
                 new AmmoGatewayMessage.PriorityOrder());
-        this.deserialThread = new RequestDeserializerThread();
-        this.deserialThread.start();
+        this.responseDistributor = new ResponseDistributor();
+        this.responderThread = new Thread(this.responseDistributor);
+        this.responderThread.start();
         this.store = new DistributorDataStore(context);
 
         this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
@@ -152,12 +155,12 @@ public class DistributorThread extends Thread {
 
     private class NotifyMsgNumber implements Runnable {
 
-        private DistributorThread parent = null;
+        private RequestDistributor parent = null;
 
         private int last_sent_count = 0;
         private int last_recv_count = 0;
 
-        public NotifyMsgNumber(DistributorThread parent) {
+        public NotifyMsgNumber(RequestDistributor parent) {
             this.parent = parent;
         }
 
@@ -517,8 +520,8 @@ public class DistributorThread extends Thread {
      * Contains gateway responses
      */
     private final PriorityBlockingQueue<AmmoGatewayMessage> responseQueue;
-
-    private RequestDeserializerThread deserialThread;
+    private final ResponseDistributor responseDistributor;
+    private final Thread responderThread;
 
     public boolean distributeResponse(AmmoGatewayMessage agm) {
         PLogger.QUEUE_RESP_ENTER.trace("\"action\":\"offer\" \"response\":\"{}\"", agm);
@@ -999,7 +1002,7 @@ public class DistributorThread extends Thread {
 
                 final RequestSerializer serializer_ = serializer;
                 final AmmoService that_ = that;
-                final DistributorThread parent = DistributorThread.this;
+                final RequestDistributor parent = RequestDistributor.this;
 
                 @Override
                 public byte[] run(Encoding encode) {
@@ -1059,7 +1062,7 @@ public class DistributorThread extends Thread {
                 final Dispersal dispatchResult = this.dispatchPostalRequest(that, ar.notice,
                         uuid, topic, dispersal, serializer,
                         new INetworkService.OnSendMessageHandler() {
-                            final DistributorThread parent = DistributorThread.this;
+                            final RequestDistributor parent = RequestDistributor.this;
                             final long id_ = id;
                             final UUID uuid_ = uuid;
                             final String topic_ = topic;
@@ -1183,7 +1186,7 @@ public class DistributorThread extends Thread {
             }
 
             serializer.setSerializer(new RequestSerializer.OnSerialize() {
-                final DistributorThread parent = DistributorThread.this;
+                final RequestDistributor parent = RequestDistributor.this;
                 final RequestSerializer serializer_ = serializer;
                 final AmmoService that_ = that;
                 final SerializeMode serialType_ = serialType;
@@ -1267,7 +1270,7 @@ public class DistributorThread extends Thread {
                                     uuid, topic,
                                     dispersal, serializer,
                                     new INetworkService.OnSendMessageHandler() {
-                                        final DistributorThread parent = DistributorThread.this;
+                                        final RequestDistributor parent = RequestDistributor.this;
                                         final int id_ = id;
                                         final UUID uuid_ = uuid;
                                         final String auid_ = auid;
@@ -1441,15 +1444,15 @@ public class DistributorThread extends Thread {
             if (thresholds.getDeviceDelivered()) {
                 note = notice.atDeviceDelivered;
                 noticed = noteBuilder.buildDeviceDelivered(context);
-                DistributorThread.sendIntent(note.getVia().v, noticed, context);
+                RequestDistributor.sendIntent(note.getVia().v, noticed, context);
             } else if (thresholds.getAndroidPluginReceived()) {
                 note = notice.atGatewayDelivered;
                 noticed = noteBuilder.buildGatewayDelivered(context);
-                DistributorThread.sendIntent(note.getVia().v, noticed, context);
+                RequestDistributor.sendIntent(note.getVia().v, noticed, context);
             } else if (thresholds.getPluginDelivered()) {
                 note = notice.atPluginDelivered;
                 noticed = noteBuilder.buildPluginDelivered(context);
-                DistributorThread.sendIntent(note.getVia().v, noticed, context);
+                RequestDistributor.sendIntent(note.getVia().v, noticed, context);
             } else {
                 note = null;
                 noticed = null;
@@ -1541,7 +1544,7 @@ public class DistributorThread extends Thread {
                 final Dispersal dispatchResult = this.dispatchRetrievalRequest(that,
                         uuid, topic, select, limit, dispersal,
                         new INetworkService.OnSendMessageHandler() {
-                            final DistributorThread parent = DistributorThread.this;
+                            final RequestDistributor parent = RequestDistributor.this;
                             final long id_ = id;
                             final UUID uuid_ = uuid;
                             final String auid_ = auid;
@@ -1651,7 +1654,7 @@ public class DistributorThread extends Thread {
                     final Dispersal dispatchResult = this.dispatchRetrievalRequest(that,
                             uuid, topic, selection, limit, dispersal,
                             new INetworkService.OnSendMessageHandler() {
-                                final DistributorThread parent = DistributorThread.this;
+                                final RequestDistributor parent = RequestDistributor.this;
                                 final String auid_ = auid;
                                 final UUID uuid_ = uuid;
                                 final String topic_ = topic;
@@ -1774,7 +1777,7 @@ public class DistributorThread extends Thread {
         // update the actual provider
 
         final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-        final boolean queued = this.deserialThread.toProvider(priority, context, channel.name,
+        final boolean queued = this.responseDistributor.toProvider(priority, context, channel.name,
                 provider, encoding, resp.getData().toByteArray());
         logger.debug("tuple upserted {}", queued);
 
@@ -1836,7 +1839,7 @@ public class DistributorThread extends Thread {
                 final Dispersal dispatchResult = this.dispatchSubscribeRequest(that,
                         topic, ar.select.toString(), dispersal,
                         new INetworkService.OnSendMessageHandler() {
-                            final DistributorThread parent = DistributorThread.this;
+                            final RequestDistributor parent = RequestDistributor.this;
                             final long id_ = id;
                             final UUID uuid_ = uuid;
                             final String auid_ = auid;
@@ -1953,7 +1956,7 @@ public class DistributorThread extends Thread {
                     final Dispersal dispatchResult = this.dispatchSubscribeRequest(that,
                             topic, selection, dispersal,
                             new INetworkService.OnSendMessageHandler() {
-                                final DistributorThread parent = DistributorThread.this;
+                                final RequestDistributor parent = RequestDistributor.this;
                                 final int id_ = id;
                                 final UUID uuid_ = uuid;
                                 final String auid_ = auid;
@@ -2132,7 +2135,7 @@ public class DistributorThread extends Thread {
         }
 
         final Encoding encoding = Encoding.getInstanceByName(encode);
-        this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
+        this.responseDistributor.toProvider(priority, context, channel.name, provider, encoding,
                 data.toByteArray());
 
         logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);

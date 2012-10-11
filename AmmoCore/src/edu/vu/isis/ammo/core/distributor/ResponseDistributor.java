@@ -13,7 +13,7 @@ import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 
-public class RequestDeserializerThread extends Thread {
+public class ResponseDistributor implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger("dist.deserializer");
     private static final Logger tlogger = LoggerFactory.getLogger("test.queue.insert");
 
@@ -44,8 +44,7 @@ public class RequestDeserializerThread extends Thread {
         }
     }
 
-    public RequestDeserializerThread() {
-        super(new StringBuilder("Serializer-").append(Thread.activeCount()).toString());
+    public ResponseDistributor() {
         this.masterSequence = new AtomicInteger(0);
         this.queue = new PriorityBlockingQueue<Item>(200, new PriorityOrder());
     }

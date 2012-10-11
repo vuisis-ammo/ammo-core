@@ -55,7 +55,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
-import edu.vu.isis.ammo.core.distributor.DistributorThread;
+import edu.vu.isis.ammo.core.distributor.RequestDistributor;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.model.Multicast;
@@ -245,7 +245,8 @@ public class AmmoService extends Service implements INetworkService,
 
     private NetworkBroadcastReceiver myNetworkReceiver = null;
 
-    private DistributorThread distThread;
+    private RequestDistributor requestDistributor;
+    private Thread requestDistributorThread;
 
     private TelephonyManager tm;
     private CellPhoneListener cellPhoneListener;
@@ -274,7 +275,7 @@ public class AmmoService extends Service implements INetworkService,
                 return null;
             }
             logger.trace("make request {}", request.action.toString());
-            return AmmoService.this.distThread.distributeRequest(request);
+            return AmmoService.this.requestDistributor.distributeRequest(request);
         }
 
         @Override
@@ -373,7 +374,7 @@ public class AmmoService extends Service implements INetworkService,
                             logger.error("bad request intent {}", intent);
                             return Service.START_NOT_STICKY;
                         }
-                        final String result = this.distThread.distributeRequest(request);
+                        final String result = this.requestDistributor.distributeRequest(request);
                         logger.trace("request result {}", result);
                     } catch (ArrayIndexOutOfBoundsException ex) {
                         logger.error("could not unmarshall the ammo request parcel");
@@ -436,8 +437,11 @@ public class AmmoService extends Service implements INetworkService,
 
         notifyMsg = new Handler();
         // set up the worker thread
-        this.distThread = new DistributorThread(this.getApplicationContext(), this);
-        this.distThread.start();
+        this.requestDistributor = new RequestDistributor(this.getApplicationContext(), this);
+        this.requestDistributorThread = new Thread(this.requestDistributor, 
+                this.requestDistributor.generateThreadName());
+               
+        this.requestDistributorThread.start();
         // Initialize our receivers/listeners.
         /*
          * wifiReceiver = new WifiReceiver(); cellPhoneListener = new
@@ -589,6 +593,7 @@ public class AmmoService extends Service implements INetworkService,
         this.refresh(); // refresh subscribe and retrieval tables
     }
 
+
     /**
      * FIXME: this probably needs to happen differently.
      * <p>
@@ -601,7 +606,7 @@ public class AmmoService extends Service implements INetworkService,
     private void refresh() {
         logger.trace("Forcing applications to register their subscriptions");
 
-        this.distThread.clearTables();
+        this.requestDistributor.clearTables();
 
         // broadcast login event to apps ...
         final Intent loginIntent = new Intent(IntentNames.AMMO_READY);
@@ -1426,7 +1431,7 @@ public class AmmoService extends Service implements INetworkService,
      * @return was the message clean (true) or garbled (false).
      */
     public boolean deliver(AmmoGatewayMessage agm) {
-        return distThread.distributeResponse(agm);
+        return requestDistributor.distributeResponse(agm);
     }
 
     // ===============================================================
@@ -1551,7 +1556,7 @@ public class AmmoService extends Service implements INetworkService,
         sessionId = mw.getSessionUuid();
 
         logger.trace("authentication complete, repost subscriptions and pending data {}", channel);
-        this.distThread
+        this.requestDistributor
                 .onChannelChange(this.getBaseContext(), channel.name, ChannelChange.ACTIVATE);
 
         logger.trace("authentication complete inform applications : ");
@@ -1601,7 +1606,7 @@ public class AmmoService extends Service implements INetworkService,
             case NetChannel.READY:
             case NetChannel.SENDING:
             case NetChannel.TAKING:
-                this.distThread.onChannelChange(this.getBaseContext(), channel.name,
+                this.requestDistributor.onChannelChange(this.getBaseContext(), channel.name,
                         ChannelChange.ACTIVATE);
                 break;
 
@@ -1609,7 +1614,7 @@ public class AmmoService extends Service implements INetworkService,
             case NetChannel.DISCONNECTED:
             case NetChannel.DISABLED:
             default:
-                this.distThread.onChannelChange(this.getBaseContext(), channel.name,
+                this.requestDistributor.onChannelChange(this.getBaseContext(), channel.name,
                         ChannelChange.DEACTIVATE);
         }
 
@@ -1697,7 +1702,7 @@ public class AmmoService extends Service implements INetworkService,
     }
 
     public DistributorDataStore store() {
-        return this.distThread.store();
+        return this.requestDistributor.store();
     }
 
     /**
