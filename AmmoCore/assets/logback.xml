@@ -40,8 +40,12 @@
   </appender>
 
 
-  <logger name="api" level="INFO"/>
+  <logger name="net.gateway.connector" level="INFO"/> <!-- set the connector to INFO to show connect, disconnect info in nominal logs -->
+
+  <logger name="test" level="ERROR"/> <!-- FRED, we don't need test loggers leaking in release -->
+
   <!-- 
+  <logger name="net.gateway.receiver" level="TRACE"/>
   <logger name="class.temporal" level="TRACE"/>
   <logger name="class.store.presence" level="TRACE"/>
    -->
