@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.util.AsyncQueryHelper;
 
 public class ResponseDistributor implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger("dist.deserializer");
@@ -110,23 +111,21 @@ public class ResponseDistributor implements Runnable {
                 final Item item = this.queue.take();
 
                 try {
-                    final Uri tuple = RequestSerializer.deserializeToProvider(
-                            new Runnable() {
-
+                    RequestSerializer.deserializeToProvider(
+                            new AsyncQueryHelper.InsertResultHandler() {
+                                
                                 @Override
                                 public void run() {
-                                    // TODO Auto-generated method stub
-                                    
+                                    logger.info(
+                                            "Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]",
+                                            new Object[] {
+                                                    item.provider, this.resultTuple, queue.size()
+                                            });
                                 }
-                                
                             },
                             item.context, item.context.getContentResolver(),
                             item.channelName, item.provider, item.encoding, item.data);
-                    logger.info(
-                            "Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]",
-                            new Object[] {
-                                    item.provider, tuple, queue.size()
-                            });
+                   
                     tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[] {
                             System.currentTimeMillis(), "insert_queue", this.queue.size()
                     });

@@ -11,14 +11,25 @@ purpose whatsoever, and to have or authorize others to do so.
 
 package edu.vu.isis.ammo.core.distributor;
 
-import edu.vu.isis.ammo.api.type.Payload;
-import edu.vu.isis.ammo.api.type.Provider;
-import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
-import edu.vu.isis.ammo.util.ArrayUtils;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -42,26 +53,16 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
-
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import edu.vu.isis.ammo.api.IDistributorAdaptor;
+import edu.vu.isis.ammo.api.type.Payload;
+import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.util.ArrayUtils;
+import edu.vu.isis.ammo.util.AsyncQueryHelper.InsertResultHandler;
 
 /**
  * The purpose of these objects is lazily serialize an object. Once it has been
@@ -429,42 +430,28 @@ public class RequestSerializer {
     /**
      * @see serializeFromProvider with which this method is symmetric.
      */
-    public static Uri deserializeToProvider(final Runnable postProcessor, final Context context, final ContentResolver resolver,
+    public static void deserializeToProvider(final InsertResultHandler insertResultHandler, final Context context, final ContentResolver resolver,
             final String channelName,
             final Uri provider, final Encoding encoding, final byte[] data) {
 
         logger.debug("deserialize message");
-
-        final UriFuture uri;
-        // post processor sets the uri ?
         
         switch (encoding.getType()) {
             case CUSTOM:
-                RequestSerializer.deserializeCustomToProvider(postProcessor, context, resolver, channelName,
+                RequestSerializer.deserializeCustomToProvider(insertResultHandler, context, resolver, channelName,
                         provider, encoding, data);
                 break;
             case JSON:
-                RequestSerializer.deserializeJsonToProvider(postProcessor, context, resolver, channelName,
+                RequestSerializer.deserializeJsonToProvider(insertResultHandler, context, resolver, channelName,
                         provider, encoding, data);
                 break;
             case TERSE:
-                RequestSerializer.deserializeTerseToProvider(postProcessor, context, resolver, channelName,
+                RequestSerializer.deserializeTerseToProvider(insertResultHandler, context, resolver, channelName,
                         provider, encoding, data);
                 break;
             default:
-                RequestSerializer.deserializeCustomToProvider(postProcessor, context, resolver, channelName,
+                RequestSerializer.deserializeCustomToProvider(insertResultHandler, context, resolver, channelName,
                         provider, encoding, data);
-        }
-        if (uri == null)
-            return null;
-        try {
-            return uri.get();
-        } catch (InterruptedException ex) {
-            logger.error("interrupted thread ", ex);
-            return null;
-        } catch (ExecutionException ex) {
-            logger.error("execution error thread ", ex);
-            return null;
         }
     }
 
@@ -514,7 +501,7 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    public static void deserializeCustomToProvider(final Runnable postProcessor,
+    public static void deserializeCustomToProvider(final InsertResultHandler insertResultHandler,
             final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
@@ -1066,14 +1053,14 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    public static void deserializeJsonToProvider(final Runnable postProcessor,
+    public static void deserializeJsonToProvider(final InsertResultHandler insertResultHandler,
             final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
         final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
         // find the end of the json portion of the data
-        final int position = ArrayUtils.indexOf(data, (byte)0x0);
+        final int position = ArrayUtils.indexOfDelimiter(data, (byte)0x0);
         final int length = position;
         final byte[] payload = new byte[length];
         System.arraycopy(data, 0, payload, 0, length);
@@ -1155,7 +1142,6 @@ public class RequestSerializer {
             }
         }
 
-        final Uri tupleUri;
         try {
             final AsyncQueryHandler aqh = new AsyncQueryHandler(resolver) {
                 private int position_ = position;
@@ -1286,7 +1272,7 @@ public class RequestSerializer {
             };
 
             aqh.startInsert(RequestSerializer.token.getAndIncrement(),
-                    postProcessor, provider, cv); 
+                    insertResultHandler, provider, cv); 
            
         } catch (SQLiteException ex) {
             logger.warn("invalid sql insert", ex);
@@ -1461,7 +1447,7 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    private static void deserializeTerseToProvider(final Runnable postProcessor,
+    private static void deserializeTerseToProvider(final InsertResultHandler insertResultHandler,
             final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
@@ -1473,7 +1459,6 @@ public class RequestSerializer {
              */
             logger.debug("Using terse deserialization");
 
-            final UriFuture result = new UriFuture();
             try {
                 final AsyncQueryHandler aqh = new AsyncQueryHandler(resolver) {
                     @Override
@@ -1589,11 +1574,11 @@ public class RequestSerializer {
                         wrap.put(AmmoProviderSchema._DISPOSITION, sb.toString());
 
                         this.startInsert(RequestSerializer.token.getAndIncrement(),
-                                postProcessor, provider, wrap);
+                                insertResultHandler, provider, wrap);
 
                     }
                 };
-                aqh.startQuery(RequestSerializer.token.incrementAndGet(), postProcessor,
+                aqh.startQuery(RequestSerializer.token.incrementAndGet(), insertResultHandler,
                         Uri.withAppendedPath(provider, "_data_type"),
                         null, null, null, null);
             } catch (IllegalArgumentException ex) {
