@@ -430,27 +430,32 @@ public class RequestSerializer {
     /**
      * @see serializeFromProvider with which this method is symmetric.
      */
-    public static void deserializeToProvider(final InsertResultHandler insertResultHandler, final Context context, final ContentResolver resolver,
+    public static void deserializeToProvider(final InsertResultHandler insertResultHandler,
+            final Context context, final ContentResolver resolver,
             final String channelName,
             final Uri provider, final Encoding encoding, final byte[] data) {
 
         logger.debug("deserialize message");
-        
+
         switch (encoding.getType()) {
             case CUSTOM:
-                RequestSerializer.deserializeCustomToProvider(insertResultHandler, context, resolver, channelName,
+                RequestSerializer.deserializeCustomToProvider(insertResultHandler, context,
+                        resolver, channelName,
                         provider, encoding, data);
                 break;
             case JSON:
-                RequestSerializer.deserializeJsonToProvider(insertResultHandler, context, resolver, channelName,
+                RequestSerializer.deserializeJsonToProvider(insertResultHandler, context, resolver,
+                        channelName,
                         provider, encoding, data);
                 break;
             case TERSE:
-                RequestSerializer.deserializeTerseToProvider(insertResultHandler, context, resolver, channelName,
+                RequestSerializer.deserializeTerseToProvider(insertResultHandler, context,
+                        resolver, channelName,
                         provider, encoding, data);
                 break;
             default:
-                RequestSerializer.deserializeCustomToProvider(insertResultHandler, context, resolver, channelName,
+                RequestSerializer.deserializeCustomToProvider(insertResultHandler, context,
+                        resolver, channelName,
                         provider, encoding, data);
         }
     }
@@ -1058,9 +1063,10 @@ public class RequestSerializer {
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
+        logger.trace("deserial json [{}] to provider [{}]", data, provider);
         final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
         // find the end of the json portion of the data
-        final int position = ArrayUtils.indexOfDelimiter(data, (byte)0x0);
+        final int position = ArrayUtils.indexOfDelimiter(data, (byte) 0x0);
         final int length = position;
         final byte[] payload = new byte[length];
         System.arraycopy(data, 0, payload, 0, length);
@@ -1145,8 +1151,10 @@ public class RequestSerializer {
         try {
             final AsyncQueryHandler aqh = new AsyncQueryHandler(resolver) {
                 private int position_ = position;
+
                 @Override
                 protected void onInsertComplete(int token, Object cookie, Uri tupleUri) {
+                    logger.debug("insert complete {}:{}", token, tupleUri);
                     if (tupleUri == null) {
                         logger.warn("could not insert {} into {}", cv, provider);
                         return;
@@ -1176,7 +1184,8 @@ public class RequestSerializer {
                         final String fieldName = new String(data, nameStart, nameLength);
                         position++; // move past the null
 
-                        // get the last three bytes of the length, to be used as a simple
+                        // get the last three bytes of the length, to be used as
+                        // a simple
                         // checksum
                         dataBuff.position(position);
                         dataBuff.get();
@@ -1220,9 +1229,11 @@ public class RequestSerializer {
                                 final Uri fieldUri = updateTuple.appendPath(fieldName).build();
                                 try {
                                     PLogger.API_STORE.debug("write blob uri=[{}]", fieldUri);
-                                    final OutputStream outstream = resolver.openOutputStream(fieldUri);
+                                    final OutputStream outstream = resolver
+                                            .openOutputStream(fieldUri);
                                     if (outstream == null) {
-                                        logger.error("failed to open output stream to content provider: {} ",
+                                        logger.error(
+                                                "failed to open output stream to content provider: {} ",
                                                 fieldUri);
                                         return;
                                     }
@@ -1256,12 +1267,11 @@ public class RequestSerializer {
                             return;
                         }
                     }
-                    // return new UriFuture(tupleUri);
-                    if (!(cookie instanceof Runnable)) {
+                    if (!(cookie instanceof InsertResultHandler)) {
                         return;
                     }
-                    final Runnable postProcessor = (Runnable) cookie;
-                    postProcessor.run();
+                    final InsertResultHandler postProcessor = (InsertResultHandler) cookie;
+                    postProcessor.run(tupleUri);
                 }
 
                 @Override
@@ -1270,10 +1280,10 @@ public class RequestSerializer {
                         return;
                 }
             };
-
+            logger.debug("insert beginning {}:{}", token, cv);
             aqh.startInsert(RequestSerializer.token.getAndIncrement(),
-                    insertResultHandler, provider, cv); 
-           
+                    insertResultHandler, provider, cv);
+
         } catch (SQLiteException ex) {
             logger.warn("invalid sql insert", ex);
             return;
@@ -1463,15 +1473,17 @@ public class RequestSerializer {
                 final AsyncQueryHandler aqh = new AsyncQueryHandler(resolver) {
                     @Override
                     protected void onInsertComplete(int token, Object cookie, Uri tupleUri) {
-                        if (!(cookie instanceof Runnable)) {
+                        logger.debug("insert complete {}:{}", token, tupleUri);
+                        if (!(cookie instanceof InsertResultHandler)) {
                             return;
                         }
-                        final Runnable postProcessor = (Runnable) cookie;
-                        postProcessor.run();
+                        final InsertResultHandler postProcessor = (InsertResultHandler) cookie;
+                        postProcessor.run(tupleUri);
                     }
 
                     @Override
                     protected void onQueryComplete(int token, Object cookie, Cursor serialMetaCursor) {
+                        logger.debug("meta-data query complete {}", token);
                         if (serialMetaCursor == null)
                             return;
 

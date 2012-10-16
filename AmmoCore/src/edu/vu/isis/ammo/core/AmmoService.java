@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
@@ -56,6 +57,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.RequestDistributor;
+import edu.vu.isis.ammo.core.distributor.ResponseDistributor;
 import edu.vu.isis.ammo.core.model.Gateway;
 import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.model.Multicast;
@@ -248,6 +250,9 @@ public class AmmoService extends Service implements INetworkService,
     private RequestDistributor requestDistributor;
     private Thread requestDistributorThread;
 
+    private ResponseDistributor responseDistributor;
+    private Thread responseDistributorThread;
+
     private TelephonyManager tm;
     private CellPhoneListener cellPhoneListener;
     private WifiReceiver wifiReceiver;
@@ -415,6 +420,7 @@ public class AmmoService extends Service implements INetworkService,
     private WifiManager.MulticastLock multicastLock = null;
 
     public Handler notifyMsg = null;
+    private AtomicInteger total_recv = new AtomicInteger(0);
 
     /**
      * When the service is first created, we should grab the IP and Port values
@@ -437,11 +443,17 @@ public class AmmoService extends Service implements INetworkService,
 
         notifyMsg = new Handler();
         // set up the worker thread
-        this.requestDistributor = new RequestDistributor(this.getApplicationContext(), this);
+        final DistributorDataStore store = new DistributorDataStore(context);
+
+        this.requestDistributor = new RequestDistributor(context, this, store);
         this.requestDistributorThread = new Thread(this.requestDistributor,
                 this.requestDistributor.generateThreadName());
-
         this.requestDistributorThread.start();
+
+        this.responseDistributor = new ResponseDistributor(context, this, store, this.total_recv);
+        this.responseDistributorThread = new Thread(this.responseDistributor);
+        this.responseDistributorThread.start();
+
         // Initialize our receivers/listeners.
         /*
          * wifiReceiver = new WifiReceiver(); cellPhoneListener = new
@@ -1430,7 +1442,7 @@ public class AmmoService extends Service implements INetworkService,
      * @return was the message clean (true) or garbled (false).
      */
     public boolean deliver(AmmoGatewayMessage agm) {
-        return requestDistributor.distributeResponse(agm);
+        return responseDistributor.distributeResponse(agm);
     }
 
     // ===============================================================
@@ -1557,6 +1569,8 @@ public class AmmoService extends Service implements INetworkService,
         logger.trace("authentication complete, repost subscriptions and pending data {}", channel);
         this.requestDistributor
                 .onChannelChange(this.getBaseContext(), channel.name, ChannelChange.ACTIVATE);
+        this.responseDistributor.onChannelChange(this.getBaseContext(), channel.name,
+                ChannelChange.ACTIVATE);
 
         logger.trace("authentication complete inform applications : ");
         // TBD SKN - this should not be sent now ...
@@ -1607,6 +1621,8 @@ public class AmmoService extends Service implements INetworkService,
             case NetChannel.TAKING:
                 this.requestDistributor.onChannelChange(this.getBaseContext(), channel.name,
                         ChannelChange.ACTIVATE);
+                this.responseDistributor.onChannelChange(this.getBaseContext(), channel.name,
+                        ChannelChange.ACTIVATE);
                 break;
 
             case NetChannel.BUSY:
@@ -1614,6 +1630,8 @@ public class AmmoService extends Service implements INetworkService,
             case NetChannel.DISABLED:
             default:
                 this.requestDistributor.onChannelChange(this.getBaseContext(), channel.name,
+                        ChannelChange.DEACTIVATE);
+                this.responseDistributor.onChannelChange(this.getBaseContext(), channel.name,
                         ChannelChange.DEACTIVATE);
         }
 
@@ -1702,6 +1720,10 @@ public class AmmoService extends Service implements INetworkService,
 
     public DistributorDataStore store() {
         return this.requestDistributor.store();
+    }
+
+    public int getTotalRecv() {
+        return total_recv.get();
     }
 
     /**

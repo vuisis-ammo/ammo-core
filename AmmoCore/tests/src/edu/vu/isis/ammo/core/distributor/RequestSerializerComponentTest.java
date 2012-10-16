@@ -234,7 +234,7 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
 
         final AsyncQueryHelper.InsertResultHandler aqh = new AsyncQueryHelper.InsertResultHandler() {
             @Override
-            public void run() {
+            public void run(Uri resultTuple) {
                 Assert.assertNotNull(resultTuple);
                 Log.d(TAG, "deserialized uri = " + resultTuple.toString());
 

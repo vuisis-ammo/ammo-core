@@ -397,7 +397,7 @@ public class RequestSerializerTest extends AndroidTestCase {
             final AmmoMockProvider01 provider_ = provider;
             final AsyncQueryHelper.InsertResultHandler aqh = new AsyncQueryHelper.InsertResultHandler() {
                 @Override
-                public void run() {
+                public void run(Uri resultTuple) {
                     d.compareJsonToUri(jsonBytes, provider_, resultTuple);
                 }
 
@@ -442,7 +442,7 @@ public class RequestSerializerTest extends AndroidTestCase {
             final AmmoMockProvider01 provider_ = provider;
             final AsyncQueryHelper.InsertResultHandler aqh = new AsyncQueryHelper.InsertResultHandler() {
                 @Override
-                public void run() {
+                public void run(Uri resultTuple) {
                     d.compareJsonToUri(jsonBytes, provider_, resultTuple);
                 }
 
@@ -486,7 +486,7 @@ public class RequestSerializerTest extends AndroidTestCase {
             final AmmoMockProvider01 provider_ = provider;
             final AsyncQueryHelper.InsertResultHandler aqh = new AsyncQueryHelper.InsertResultHandler() {
                 @Override
-                public void run() {
+                public void run(Uri resultTuple) {
                     assertNotNull(resultTuple);
                     d.compareJsonToUri(jsonBytes, provider_, resultTuple);
                 }
@@ -535,7 +535,7 @@ public class RequestSerializerTest extends AndroidTestCase {
                 final AmmoMockProvider01 provider_ = provider;
                 final AsyncQueryHelper.InsertResultHandler aqh = new AsyncQueryHelper.InsertResultHandler() {
                     @Override
-                    public void run() {
+                    public void run(Uri resultTuple) {
                         assertNotNull(resultTuple);
                         d.compareJsonToUri(jsonBytes, provider_, resultTuple);
                     }
@@ -585,7 +585,7 @@ public class RequestSerializerTest extends AndroidTestCase {
                 final AmmoMockProvider01 provider_ = provider;
                 final AsyncQueryHelper.InsertResultHandler aqh = new AsyncQueryHelper.InsertResultHandler() {
                     @Override
-                    public void run() {
+                    public void run(Uri resultTuple) {
                         assertNotNull(resultTuple);
                         d.compareJsonToUri(jsonBytes, provider_, resultTuple);
                     }
@@ -635,7 +635,7 @@ public class RequestSerializerTest extends AndroidTestCase {
                 final AmmoMockProvider01 provider_ = provider;
                 final AsyncQueryHelper.InsertResultHandler aqh = new AsyncQueryHelper.InsertResultHandler() {
                     @Override
-                    public void run() {
+                    public void run(Uri resultTuple) {
                         assertNotNull(resultTuple);
                         d.compareJsonToUri(jsonBytes, provider_, resultTuple);
                     }

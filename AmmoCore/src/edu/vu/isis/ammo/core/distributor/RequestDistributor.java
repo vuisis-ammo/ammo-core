@@ -19,7 +19,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,15 +39,11 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
-import android.net.Uri;
 import android.os.Debug;
 import android.os.Process;
-import android.preference.PreferenceManager;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 
-import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Via;
@@ -69,19 +64,12 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSche
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeMode;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.distributor.store.Capability;
-import edu.vu.isis.ammo.core.distributor.store.Presence;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
-import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
-import edu.vu.isis.ammo.util.FullTopic;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -93,7 +81,6 @@ public class RequestDistributor implements Runnable {
     // Constants
     // ===========================================================
     public static final Logger logger = LoggerFactory.getLogger("dist.thread");
-    private static final Logger resLogger = LoggerFactory.getLogger("test.queue.response");
     private static final Logger reqLogger = LoggerFactory.getLogger("test.queue.request");
     private static final boolean RUN_TRACE = false;
 
@@ -125,7 +112,6 @@ public class RequestDistributor implements Runnable {
     private int current_icon_id = 1;
 
     private AtomicInteger total_sent = new AtomicInteger(0);
-    private AtomicInteger total_recv = new AtomicInteger(0);
 
     private NotifyMsgNumber notify = null;
     private static final AtomicInteger gThreadOrdinal = new AtomicInteger(1);
@@ -135,16 +121,12 @@ public class RequestDistributor implements Runnable {
                 append(RequestDistributor.gThreadOrdinal.getAndIncrement()).toString();
     }
 
-    public RequestDistributor(final Context context, AmmoService parent) {
+    public RequestDistributor(final Context context, AmmoService parent, DistributorDataStore store) {
         this.context = context;
         this.ammoService = parent;
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
-        this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200,
-                new AmmoGatewayMessage.PriorityOrder());
-        this.responseDistributor = new ResponseDistributor();
-        this.responderThread = new Thread(this.responseDistributor);
-        this.responderThread.start();
-        this.store = new DistributorDataStore(context);
+
+        this.store = store;
 
         this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
         this.channelDelta = new AtomicBoolean(true);
@@ -153,6 +135,10 @@ public class RequestDistributor implements Runnable {
         logger.debug("thread constructed");
     }
 
+    /** 
+     * This should be moved to some where more UI related.
+     *
+     */
     private class NotifyMsgNumber implements Runnable {
 
         private RequestDistributor parent = null;
@@ -179,7 +165,7 @@ public class RequestDistributor implements Runnable {
 
             // check for variable update ...
             int total_sent = parent.total_sent.get();
-            int total_recv = parent.total_recv.get();
+            int total_recv = parent.ammoService.getTotalRecv();
 
             int sent = total_sent - last_sent_count;
             int recv = total_recv - last_recv_count;
@@ -516,24 +502,6 @@ public class RequestDistributor implements Runnable {
         return null;
     }
 
-    /**
-     * Contains gateway responses
-     */
-    private final PriorityBlockingQueue<AmmoGatewayMessage> responseQueue;
-    private final ResponseDistributor responseDistributor;
-    private final Thread responderThread;
-
-    public boolean distributeResponse(AmmoGatewayMessage agm) {
-        PLogger.QUEUE_RESP_ENTER.trace("\"action\":\"offer\" \"response\":\"{}\"", agm);
-        if (!this.responseQueue.offer(agm, 1, TimeUnit.SECONDS)) {
-            logger.error("could not process response {}", agm);
-            this.signal();
-            return false;
-        }
-        this.signal();
-        return true;
-    }
-
     private void signal() {
         synchronized (this) {
             this.notifyAll();
@@ -550,8 +518,6 @@ public class RequestDistributor implements Runnable {
             return true;
 
         if (!this.channelAck.isEmpty())
-            return true;
-        if (!this.responseQueue.isEmpty())
             return true;
         if (!this.requestQueue.isEmpty())
             return true;
@@ -622,31 +588,6 @@ public class RequestDistributor implements Runnable {
                             this.doChannelAck(this.context, ack);
                         } catch (ClassCastException ex) {
                             logger.error("channel ack queue contains illegal item of class", ex);
-                        }
-                    }
-
-                    if (!this.responseQueue.isEmpty()) {
-                        try {
-                            final AmmoGatewayMessage agm = this.responseQueue.take();
-                            PLogger.QUEUE_RESP_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                    new Object[] {
-                                            this.responseQueue.size(), agm.payload_checksum,
-                                            agm.size, agm
-                                    });
-
-                            logger.info(
-                                    "processing response {}, recvd @{}, remaining {}",
-                                    new Object[] {
-                                            agm.payload_checksum, agm.buildTime,
-                                            this.responseQueue.size()
-                                    });
-                            resLogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[] {
-                                    System.currentTimeMillis(), "response_queue",
-                                    this.responseQueue.size()
-                            });
-                            this.doResponse(ammoService, agm);
-                        } catch (ClassCastException ex) {
-                            logger.error("response queue contains illegal item of class", ex);
                         }
                     }
 
@@ -797,147 +738,6 @@ public class RequestDistributor implements Runnable {
         this.store.deleteSubscribeGarbage();
     }
 
-    /**
-     * Processes and delivers messages received from a channel.
-     * <ol>
-     * <li>Verify the check sum for the payload is correct String
-     * <li>Parse the payload into a message
-     * <li>Receive the message
-     * </ol>
-     * 
-     * @param instream
-     * @return was the message clean (true) or garbled (false).
-     */
-    private boolean doResponse(Context context, AmmoGatewayMessage agm) {
-        logger.trace("process response");
-
-        if (!agm.hasValidChecksum()) {
-            // If this message came from the serial channel, let it know that
-            // a corrupt message occurred, so it can update its statistics.
-            // Make this a more general mechanism later on.
-            if (agm.isSerialChannel)
-                ammoService.receivedCorruptPacketOnSerialChannel();
-
-            return false;
-        }
-
-        total_recv.incrementAndGet();
-
-        final AmmoMessages.MessageWrapper mw;
-        try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
-        } catch (InvalidProtocolBufferException ex) {
-            logger.error("parsing gateway message", ex);
-            return false;
-        }
-        if (mw == null) {
-            logger.error("mw was null!");
-            return false; // TBD SKN: this was true, why? if we can't parse it
-            // then its bad
-        }
-        final MessageType mtype = mw.getType();
-        if (mtype == MessageType.HEARTBEAT) {
-            logger.trace("heartbeat");
-            return true;
-        }
-
-        switch (mw.getType()) {
-            case DATA_MESSAGE:
-            case TERSE_MESSAGE:
-                final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel,
-                        agm.priority);
-                logger.debug("subscribe reply {}", subscribeResult);
-                if (mw.hasDataMessage()) {
-                    final AmmoMessages.DataMessage dm = mw.getDataMessage();
-                    if (dm.hasOriginDevice()) {
-                        Presence.getWorker()
-                                .device(dm.getOriginDevice())
-                                .operator(dm.getUserId())
-                                .upsert();
-                    }
-                }
-                break;
-
-            case AUTHENTICATION_RESULT:
-                final boolean result = receiveAuthenticateResponse(context, mw);
-                logger.debug("authentication result={}", result);
-                break;
-
-            case PUSH_ACKNOWLEDGEMENT:
-                final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
-                logger.debug("post acknowledgement {}", postalResult);
-                break;
-
-            case PULL_RESPONSE:
-                final boolean retrieveResult = receiveRetrievalResponse(context, mw, agm.channel,
-                        agm.priority);
-                logger.debug("retrieve response {}", retrieveResult);
-                break;
-
-            case SUBSCRIBE_MESSAGE:
-                if (mw.hasSubscribeMessage()) {
-                    final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
-                    final FullTopic fulltopic = FullTopic.fromType(sm.getMimeType());
-
-                    if (sm.hasOriginDevice()) {
-                        final String deviceId = sm.getOriginDevice();
-                        final String operator = sm.getOriginUser();
-
-                        Capability.getWorker()
-                                .origin(deviceId)
-                                .operator(operator)
-                                .topic(fulltopic.topic)
-                                .subtopic(fulltopic.subtopic)
-                                .upsert();
-
-                        Presence.getWorker()
-                                .device(deviceId)
-                                .operator(operator)
-                                .upsert();
-                    }
-                }
-                break;
-
-            case AUTHENTICATION_MESSAGE:
-            case PULL_REQUEST:
-            case UNSUBSCRIBE_MESSAGE:
-                logger.debug("{} message, no processing", mw.getType());
-                break;
-            default:
-                logger.error("unexpected reply type. {}", mw.getType());
-        }
-
-        return true;
-    }
-
-    /**
-     * Give to the network service for verification. Get the session id set by
-     * the gateway.
-     * 
-     * @param mw
-     * @return
-     */
-    private boolean receiveAuthenticateResponse(Context context, AmmoMessages.MessageWrapper mw) {
-        logger.trace("::receiveAuthenticateResponse");
-
-        if (mw == null)
-            return false;
-        if (!mw.hasAuthenticationResult())
-            return false;
-        if (mw.getAuthenticationResult().getResult() != AmmoMessages.AuthenticationResult.Status.SUCCESS) {
-            return false;
-        }
-        PreferenceManager
-                .getDefaultSharedPreferences(context)
-                .edit()
-                .putBoolean(INetDerivedKeys.NET_CONN_PREF_IS_ACTIVE, true)
-                .commit();
-        // sessionId = mw.getSessionUuid();
-
-        // the distributor doesn't need to know about authentication results.
-        return true;
-    }
-
     @SuppressWarnings("unused")
     private boolean collectGarbage = true;
 
@@ -952,7 +752,7 @@ public class RequestDistributor implements Runnable {
      * @param uri
      * @param mimeType
      * @param data
-     * @param handler
+     * @param responseHandler
      * @return
      */
     private void doPostalRequest(final AmmoService that, final AmmoRequest ar) {
@@ -1375,115 +1175,6 @@ public class RequestDistributor implements Runnable {
         return dispersal.multiplexRequest(that, serializer);
     }
 
-    /**
-     * Get response to PushRequest from the gateway. This should be seen in
-     * response to a post passing through transition for which a notice has been
-     * requested.
-     * 
-     * @param mw
-     * @return
-     */
-    private boolean receivePostalResponse(Context context, AmmoMessages.MessageWrapper mw,
-            NetChannel channel) {
-        logger.trace("receive response POSTAL");
-
-        if (mw == null)
-            return false;
-        if (!mw.hasPushAcknowledgement())
-            return false;
-        final PushAcknowledgement pushResp = mw.getPushAcknowledgement();
-        // generate an intent if it was requested
-
-        final Cursor postalReq = this.store.queryPostal(null, new StringBuilder().
-                append(DistributorDataStore.PostalTableSchema.UUID.cv()).append("=?").toString(),
-                new String[] {
-                    pushResp.getUri()
-                }, null);
-
-        if (postalReq == null) {
-            logger.error(
-                    "Got an ack for which not able to find the orignal request, dropping ack {}",
-                    pushResp.getUri());
-            return false;
-        }
-        boolean hasMore = postalReq.moveToFirst();
-        if (!hasMore) {
-            logger.error(
-                    "Got an ack for which not able to find the orignal request, dropping ack {}",
-                    pushResp.getUri());
-            postalReq.close();
-            return false;
-        }
-
-        if (pushResp.hasThreshold()) {
-            final AcknowledgementThresholds thresholds = pushResp.getThreshold();
-
-            byte[] noticeBytes = postalReq.getBlob(postalReq
-                    .getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv()));
-            logger.debug("notice bytes {}", noticeBytes);
-            final Notice notice = Notice.unpickle(noticeBytes);
-            
-            final String topic = postalReq.getString(postalReq
-                    .getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv()));
-            final String auid = postalReq.getString(postalReq
-                    .getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv()));
-
-            postalReq.close();
-
-            // check if it is for us , and how we should notify
-            final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(notice)
-                    .topic(topic)
-                    .auid(auid)
-                    .channel(channel.name)
-                    .device(pushResp.getAcknowledgingDevice())
-                    .operator(pushResp.getAcknowledgingUser());
-
-            final Notice.Item note;
-            final Intent noticed;
-
-            if (thresholds.getDeviceDelivered()) {
-                note = notice.atDeviceDelivered;
-                noticed = noteBuilder.buildDeviceDelivered(context);
-                RequestDistributor.sendIntent(note.getVia().v, noticed, context);
-            } else if (thresholds.getAndroidPluginReceived()) {
-                note = notice.atGatewayDelivered;
-                noticed = noteBuilder.buildGatewayDelivered(context);
-                RequestDistributor.sendIntent(note.getVia().v, noticed, context);
-            } else if (thresholds.getPluginDelivered()) {
-                note = notice.atPluginDelivered;
-                noticed = noteBuilder.buildPluginDelivered(context);
-                RequestDistributor.sendIntent(note.getVia().v, noticed, context);
-            } else {
-                note = null;
-                noticed = null;
-            }
-            PLogger.API_INTENT.debug(
-                    "ack note=[{}] intent=[{}]",
-                    note, noticed);
-            if (PLogger.API_INTENT.isTraceEnabled()) {
-                PLogger.API_INTENT.trace("extras=[{}]",
-                        PLogger.expandBundle(noticed.getExtras(), '\n'));
-            }
-        }
-        return true;
-    }
-
-    static private void sendIntent(int aggregate, Intent noticed, Context context) {
-        if (0 < (aggregate & Via.Type.ACTIVITY.v)) {
-            noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(noticed);
-        }
-        if (0 < (aggregate & Via.Type.BROADCAST.v)) {
-            context.sendBroadcast(noticed);
-        }
-        if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) {
-            context.sendStickyBroadcast(noticed);
-        }
-        if (0 < (aggregate & Via.Type.SERVICE.v)) {
-            context.startService(noticed);
-        }
-    }
-
     // =========== RETRIEVAL ====================
 
     /**
@@ -1739,50 +1430,6 @@ public class RequestDistributor implements Runnable {
 
     }
 
-    /**
-     * Get response to RetrievalRequest, PullResponse, from the gateway.
-     * 
-     * @param mw
-     * @return
-     */
-    private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw,
-            NetChannel channel, int priority) {
-        if (mw == null)
-            return false;
-        if (!mw.hasPullResponse())
-            return false;
-        logger.trace("receive response RETRIEVAL");
-
-        final AmmoMessages.PullResponse resp = mw.getPullResponse();
-
-        // find the provider to use
-        final String uuidString = resp.getRequestUid();
-        final String topic = resp.getMimeType();
-        final Cursor cursor = this.store
-                .queryRetrievalByKey(new String[] {
-                        RetrievalTableSchema.PROVIDER.n
-                }, uuidString, topic, null);
-        if (cursor.getCount() < 1) {
-            logger.error("received a message for which there is no retrieval {} {}", topic,
-                    uuidString);
-            cursor.close();
-            return false;
-        }
-        cursor.moveToFirst();
-        final String uriString = cursor.getString(0); // only asked for one so
-        // it better be it.
-        cursor.close();
-        final Uri provider = Uri.parse(uriString);
-
-        // update the actual provider
-
-        final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-        final boolean queued = this.responseDistributor.toProvider(priority, context, channel.name,
-                provider, encoding, resp.getData().toByteArray());
-        logger.debug("tuple upserted {}", queued);
-
-        return true;
-    }
 
     // =========== SUBSCRIBE ====================
 
@@ -2018,129 +1665,6 @@ public class RequestDistributor implements Runnable {
             }
         });
         return dispersal.multiplexRequest(that, serializer);
-    }
-
-    /**
-     * Update the content providers as appropriate. These are typically received
-     * in response to subscriptions. In other words these replies are postal
-     * messages which have been redirected. The subscribing uri isn't sent with
-     * the subscription to the gateway therefore it needs to be recovered from
-     * the subscription table.
-     */
-    private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw,
-            NetChannel channel, int priority) {
-        if (mw == null) {
-            logger.warn("no message");
-            return false;
-        }
-        if (!mw.hasDataMessage() && !mw.hasTerseMessage()) {
-            logger.warn("no data in message");
-            return false;
-        }
-
-        String mime = null;
-        String encode = null;
-        String originUser = null;
-        String originDevice = null;
-        String originUid = null;
-        com.google.protobuf.ByteString data = null;
-        AmmoMessages.AcknowledgementThresholds at = null;
-
-        final String selfDevice = ammoService.getDeviceId();
-        if (mw.hasDataMessage()) {
-            final AmmoMessages.DataMessage resp = mw.getDataMessage();
-            mime = resp.getMimeType();
-            data = resp.getData();
-            encode = resp.getEncoding();
-            at = resp.getThresholds();
-            originUser = resp.getUserId();
-            originDevice = resp.getOriginDevice();
-            originUid = resp.getUri(); // SKN: URI is really UID
-
-            if (originDevice.equals(selfDevice)) {
-                logger.error("received own device message [{}:{}]",
-                        originDevice, selfDevice);
-                // FIXME return false;
-                // Apparently the unique device identifies are not unique.
-            }
-        } else {
-            final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
-            mime = AmmoMimeTypes.mimeTypes.get(resp.getMimeType());
-            data = resp.getData();
-            originUser = resp.getUserId(); // SERIAL does not have this -- do we
-                                           // have a use for it?
-            encode = "TERSE";
-        }
-
-        final String selfOperator = ammoService.getOperatorId();
-        if (originUser.equals(selfOperator)) {
-            logger.error("received own user message [{}:{}]",
-                    originUser, selfOperator);
-        }
-
-        // final ContentResolver resolver = context.getContentResolver();
-
-        final String topic = mime;
-        final Cursor cursor = this.store.querySubscribeByKey(new String[] {
-                SubscribeTableSchema.PROVIDER.n
-        }, topic, null);
-        if (cursor.getCount() < 1) {
-            logger.warn("received a message for which there is no subscription {}", topic);
-            cursor.close();
-            return false;
-        }
-        cursor.moveToFirst();
-        final String uriString = cursor.getString(0); // only asked for one so
-        // it better be it.
-        cursor.close();
-        final Uri provider = Uri.parse(uriString);
-
-        // we were subscribed to this - does the sender need an ack (let's be
-        // careful...), do this before deserializing
-        logger.debug("data message notice=[{}]", at);
-        if (at != null && at.getDeviceDelivered()) {
-            final AcknowledgementThresholds bt = AcknowledgementThresholds.newBuilder()
-                    .setDeviceDelivered(true)
-                    .build();
-
-            final AmmoMessages.PushAcknowledgement.Builder pushAck =
-                    AmmoMessages.PushAcknowledgement.newBuilder()
-                            .setUri(originUid)
-                            .setThreshold(bt)
-                            .setDestinationDevice(originDevice)
-                            .setDestinationUser(originUser)
-                            .setAcknowledgingDevice(ammoService.getDeviceId())
-                            .setAcknowledgingUser(ammoService.getOperatorId())
-                            .setStatus(PushStatus.RECEIVED);
-
-            final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper
-                    .newBuilder()
-                    .setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
-                    .setPushAcknowledgement(pushAck);
-
-            final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb,
-                    new INetworkService.OnSendMessageHandler() {
-                        // final AmmoMessages.PushAcknowledgement.Builder ack_ =
-                        // pushAck;
-                        @Override
-                        public boolean ack(String channel, DisposalState status) {
-                            return true;
-                        }
-                    });
-
-            logger.debug("sending ack=[{}]", pushAck);
-            if (channel != null) {
-                channel.sendRequest(oagmb.build());
-            }
-        }
-
-        final Encoding encoding = Encoding.getInstanceByName(encode);
-        this.responseDistributor.toProvider(priority, context, channel.name, provider, encoding,
-                data.toByteArray());
-
-        logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
-
-        return true;
     }
 
     /**
