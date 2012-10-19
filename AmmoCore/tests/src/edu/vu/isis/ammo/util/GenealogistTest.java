@@ -1,8 +1,6 @@
 
 package edu.vu.isis.ammo.util;
 
-import java.util.List;
-
 import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -57,29 +55,7 @@ public class GenealogistTest extends TestCase
         final TreeNode<Class<?>> ancestry = Genealogist.getAncestry(new Integer(7));
         Assert.assertEquals("ancestor count @", 5, ancestry.size());
 
-        final TreeNode.Vistor<Class<?>> visitor = new TreeNode.Vistor<Class<?>>() {
-
-            private int level = 0;
-            
-            @Override
-            public StringBuilder up(StringBuilder builder) {
-                level++;
-                return builder.append("UP-").append(level);
-            }
-
-            @Override
-            public StringBuilder down(StringBuilder builder) {
-                level--;
-                return builder.append("DOWN-").append(level);
-            }
-
-            @Override
-            public StringBuilder reform(StringBuilder builder, Class<?> data) {
-                return builder.append("<").append(data).append(">");
-            }
-
-        };
-        final String full = ancestry.toString(visitor);
+        final String full = ancestry.toString();
         Assert.assertEquals("ancestry tree",
                 "<class java.lang.Integer>UP-1"
                         + "<class java.lang.Number>UP-2"

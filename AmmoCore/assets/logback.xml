@@ -21,10 +21,11 @@
   <appender name="LOGCAT" class="ch.qos.logback.classic.android.LogcatAppender">
     <checkLoggable>false</checkLoggable>
     <tagEncoder>
-       <pattern>ammo.%logger{22}</pattern>
+       <pattern>&lt;ammo.%logger{22}&gt;</pattern>
     </tagEncoder>
     <encoder>
-       <pattern>[%method] %msg%n</pattern>
+      <!--  <pattern>[%method:%thread] %msg%n</pattern>  -->
+        <pattern>[%thread]%.-1level %10relative %-20logger{35} - %msg%n</pattern>
     </encoder>
   </appender>
 
@@ -34,14 +35,16 @@
     <encoder>
       <!-- <pattern>%-4relative [%thread] %-5level %logger{35} - %msg%n</pattern>   -->
       <!--  output: elapsed time , logger name  and message -->
-      <pattern>%.-1level %10relative %-20logger{35} - %msg%n</pattern>
+      <pattern>[%thread]%.-1level %10relative %-20logger{35} - %msg%n</pattern>
       <outputPatternAsHeader>true</outputPatternAsHeader>
     </encoder>
   </appender>
 
 
   <logger name="api" level="INFO"/>
-  <logger name="provider.dist" level="TRACE"/>
+  <logger name="dist.resp" level="TRACE"/>
+  <logger name="dist.serializer" level="TRACE"/>
+  <logger name="dist.upsert" level="TRACE"/>
   <!-- 
   <logger name="class.temporal" level="TRACE"/>
   <logger name="class.store.presence" level="TRACE"/>

@@ -17,6 +17,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Modifier;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
@@ -50,9 +51,12 @@ import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
+import android.util.Log;
 import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
@@ -63,6 +67,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.util.ArrayUtils;
 import edu.vu.isis.ammo.util.AsyncQueryHelper.InsertResultHandler;
+import edu.vu.isis.ammo.util.Genealogist;
 
 /**
  * The purpose of these objects is lazily serialize an object. Once it has been
@@ -245,6 +250,7 @@ public class RequestSerializer {
      * used to make the AsyncQueryHandler calls uniquely identifiable.
      */
     static final private AtomicInteger token = new AtomicInteger(Integer.MIN_VALUE);
+    private static final String TAG = "foot";
 
     /**
      * @param cv
@@ -425,39 +431,6 @@ public class RequestSerializer {
             super(tupleUri);
         }
 
-    }
-
-    /**
-     * @see serializeFromProvider with which this method is symmetric.
-     */
-    public static void deserializeToProvider(final InsertResultHandler insertResultHandler,
-            final Context context, final ContentResolver resolver,
-            final String channelName,
-            final Uri provider, final Encoding encoding, final byte[] data) {
-
-        logger.debug("deserialize message");
-
-        switch (encoding.getType()) {
-            case CUSTOM:
-                RequestSerializer.deserializeCustomToProvider(insertResultHandler, context,
-                        resolver, channelName,
-                        provider, encoding, data);
-                break;
-            case JSON:
-                RequestSerializer.deserializeJsonToProvider(insertResultHandler, context, resolver,
-                        channelName,
-                        provider, encoding, data);
-                break;
-            case TERSE:
-                RequestSerializer.deserializeTerseToProvider(insertResultHandler, context,
-                        resolver, channelName,
-                        provider, encoding, data);
-                break;
-            default:
-                RequestSerializer.deserializeCustomToProvider(insertResultHandler, context,
-                        resolver, channelName,
-                        provider, encoding, data);
-        }
     }
 
     /**
@@ -1058,13 +1031,13 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    public static void deserializeJsonToProvider(final InsertResultHandler insertResultHandler,
+    public static void deserializeJsonToProvider(
+            final InsertResultHandler insertResultHandler,
             final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
 
-        logger.trace("deserial json [{}] to provider [{}]", data, provider);
-        final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
+        logger.trace("deserial to provider=[{}] json=[{}] ", provider, data);
         // find the end of the json portion of the data
         final int position = ArrayUtils.indexOfDelimiter(data, (byte) 0x0);
         final int length = position;
@@ -1149,138 +1122,12 @@ public class RequestSerializer {
         }
 
         try {
-            final AsyncQueryHandler aqh = new AsyncQueryHandler(resolver) {
-                private int position_ = position;
+            logger.trace("preparing asynchronous application insert handler A");
+            logger.trace("thread parents {}", Genealogist.getAncestry(Thread.currentThread()));
+            
+            final UpsertHandler aqh = new UpsertHandler(resolver, position, cv, provider, data);
 
-                @Override
-                protected void onInsertComplete(int token, Object cookie, Uri tupleUri) {
-                    logger.debug("insert complete {}:{}", token, tupleUri);
-                    if (tupleUri == null) {
-                        logger.warn("could not insert {} into {}", cv, provider);
-                        return;
-                    }
-                    logger.info("Deserialized Received message, content {}", cv);
-                    PLogger.TEST_FUNCTIONAL.info("cv: {}, provider:{}", cv, provider);
-                    if (position_ == data.length)
-                        return;
-
-                    // process the blobs
-                    final long tupleId = ContentUris.parseId(tupleUri);
-                    final Uri.Builder uriBuilder = provider.buildUpon();
-                    final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
-
-                    int position = position_;
-                    position++; // move past the null terminator
-                    dataBuff.position(position);
-                    int blobCount = 0;
-                    while (dataBuff.position() < data.length) {
-                        // get the field name
-                        final int nameStart = dataBuff.position();
-                        int nameLength;
-                        for (nameLength = 0; position < data.length; nameLength++, position++) {
-                            if (data[position] == 0x0)
-                                break;
-                        }
-                        final String fieldName = new String(data, nameStart, nameLength);
-                        position++; // move past the null
-
-                        // get the last three bytes of the length, to be used as
-                        // a simple
-                        // checksum
-                        dataBuff.position(position);
-                        dataBuff.get();
-                        final byte[] beginningPsuedoChecksum = new byte[3];
-                        dataBuff.get(beginningPsuedoChecksum);
-
-                        // get the blob length for real
-                        dataBuff.position(position);
-                        final int dataLength = dataBuff.getInt();
-
-                        if (dataLength > dataBuff.remaining()) {
-                            logger.error("payload size is wrong {} {}",
-                                    dataLength, data.length);
-                            return;
-                        }
-                        // get the blob data
-                        final byte[] blob = new byte[dataLength];
-                        final int blobStart = dataBuff.position();
-                        System.arraycopy(data, blobStart, blob, 0, dataLength);
-                        dataBuff.position(blobStart + dataLength);
-
-                        // check for storage type
-                        final byte storageMarker = dataBuff.get();
-
-                        // get and compare the beginning and ending checksum
-                        final byte[] endingPsuedoChecksum = new byte[3];
-                        dataBuff.get(endingPsuedoChecksum);
-                        if (!Arrays.equals(endingPsuedoChecksum, beginningPsuedoChecksum)) {
-                            logger.error("blob checksum mismatch {} {}", endingPsuedoChecksum,
-                                    beginningPsuedoChecksum);
-                            break;
-                        }
-
-                        // write the blob to the appropriate place
-                        switch (storageMarker) {
-                            case BLOB_MARKER_FIELD:
-                                blobCount++;
-                                cv.put(fieldName, blob);
-                                break;
-                            default:
-                                final Uri fieldUri = updateTuple.appendPath(fieldName).build();
-                                try {
-                                    PLogger.API_STORE.debug("write blob uri=[{}]", fieldUri);
-                                    final OutputStream outstream = resolver
-                                            .openOutputStream(fieldUri);
-                                    if (outstream == null) {
-                                        logger.error(
-                                                "failed to open output stream to content provider: {} ",
-                                                fieldUri);
-                                        return;
-                                    }
-                                    outstream.write(blob);
-                                    outstream.close();
-                                } catch (SQLiteException ex) {
-                                    logger.error("in provider {} could not open output stream {}",
-                                            fieldUri, ex.getLocalizedMessage());
-                                } catch (FileNotFoundException ex) {
-                                    logger.error("blob file not found: {}", fieldUri, ex);
-                                } catch (IOException ex) {
-                                    logger.error("error writing blob file: {}", fieldUri, ex);
-                                }
-                        }
-                    }
-                    if (blobCount > 0) {
-                        try {
-                            PLogger.API_STORE.debug("insert blob uri=[{}]", provider);
-                            final Uri blobUri = resolver.insert(provider, cv);
-                            if (blobUri == null) {
-                                logger.warn("could not insert {} into {}", cv, provider);
-                                return;
-                            }
-                            logger.trace("Deserialized Received message blobs, content {}", cv);
-
-                        } catch (SQLiteException ex) {
-                            logger.warn("invalid sql blob insert", ex);
-                            return;
-                        } catch (IllegalArgumentException ex) {
-                            logger.warn("bad provider or blob values", ex);
-                            return;
-                        }
-                    }
-                    if (!(cookie instanceof InsertResultHandler)) {
-                        return;
-                    }
-                    final InsertResultHandler postProcessor = (InsertResultHandler) cookie;
-                    postProcessor.run(tupleUri);
-                }
-
-                @Override
-                protected void onQueryComplete(int token, Object cookie, Cursor serialMetaCursor) {
-                    if (serialMetaCursor == null)
-                        return;
-                }
-            };
-            logger.debug("insert beginning {}:{}", token, cv);
+            logger.trace("insert token=[{}] content=[{}]", token, cv);
             aqh.startInsert(RequestSerializer.token.getAndIncrement(),
                     insertResultHandler, provider, cv);
 
@@ -1288,10 +1135,17 @@ public class RequestSerializer {
             logger.warn("invalid sql insert", ex);
             return;
         } catch (IllegalArgumentException ex) {
+            Log.e(TAG, "native iae");
             logger.warn("bad provider or values", ex);
             return;
+        } catch (RuntimeException ex) {
+            Log.e(TAG, "native re");
+            logger.error("unexpected ", ex);
+            return;
+        } finally {
+            logger.trace("leaving deserialize json to provider");
         }
-
+        logger.trace("leaving deserialize json to provider not return");
     }
 
     /**
@@ -1457,7 +1311,7 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    private static void deserializeTerseToProvider(final InsertResultHandler insertResultHandler,
+    public static void deserializeTerseToProvider(final InsertResultHandler insertResultHandler,
             final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {

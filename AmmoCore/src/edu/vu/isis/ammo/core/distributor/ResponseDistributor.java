@@ -1,16 +1,14 @@
 
 package edu.vu.isis.ammo.core.distributor;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Comparator;
-import java.util.concurrent.PriorityBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -18,15 +16,17 @@ import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.Process;
 import android.preference.PreferenceManager;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Notice.Via;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
@@ -38,13 +38,14 @@ import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.util.AsyncQueryHelper;
 import edu.vu.isis.ammo.util.FullTopic;
+import edu.vu.isis.ammo.util.Genealogist;
 
-public class ResponseDistributor implements Runnable {
+public class ResponseDistributor {
     private static final Logger resLogger = LoggerFactory.getLogger("test.queue.response");
     private static final Logger logger = LoggerFactory.getLogger("dist.resp");
     private static final Logger tlogger = LoggerFactory.getLogger("test.queue.insert");
@@ -55,6 +56,7 @@ public class ResponseDistributor implements Runnable {
     private final AmmoService parent;
 
     private final AtomicInteger total_recv;
+    private AccountingHandler responseHandler;
 
     /**
      * The backing store for the distributor
@@ -85,14 +87,30 @@ public class ResponseDistributor implements Runnable {
         }
     }
 
-    public ResponseDistributor(final Context context, AmmoService parent,
-            DistributorDataStore store, AtomicInteger total) {
+    public ResponseDistributor(final Looper looper,
+            final Context context, final AmmoService parent,
+            final DistributorDataStore store, final AtomicInteger total) {
         this.context = context;
         this.parent = parent;
         this.store = store;
         this.total_recv = total;
 
         this.masterSequence = new AtomicInteger(0);
+        this.responseHandler = new AccountingHandler(looper) {
+            final ResponseDistributor master = ResponseDistributor.this;
+
+            @Override
+            public void handleMessage(Message msg) {
+                logger.trace("response handler ancestory {}", Genealogist.getAncestry(Thread.currentThread()));
+                super.handleMessage(msg);
+                if (!(msg.obj instanceof AmmoGatewayMessage)) {
+                    logger.error("not the proper message type");
+                    return;
+                }
+                final AmmoGatewayMessage agm = (AmmoGatewayMessage) msg.obj;
+                master.doResponse(master.context, agm);
+            }
+        };
     }
 
     /**
@@ -126,18 +144,62 @@ public class ResponseDistributor implements Runnable {
     /**
      * proxy for the RequestSerializer deserializeToProvider method.
      * 
+     * @see serializeFromProvider with which this method is symmetric.
      * @param context
      * @param provider
      * @param encoding
      * @param data
      * @return
      */
-    public boolean toProvider(int priority, Context context, final String channelName,
-            Uri provider, Encoding encoding, byte[] data)
+    public boolean toProvider(final int priority, final Context context,
+            final String channelName,
+            final Uri provider, final Encoding encoding, final byte[] data)
     {
-        final Message msg = Message.obtain();
-        msg.obj = new Item(priority, context, channelName, provider, encoding, data);
-        this.upsertHandler.dispatchMessage(msg);
+        try {
+            final AsyncQueryHelper.InsertResultHandler insertResultHandler = new
+                    AsyncQueryHelper.InsertResultHandler() {
+
+                        final ResponseDistributor master = ResponseDistributor.this;
+
+                        @Override
+                        public void run(Uri resultTuple) {
+                            // use master to update the database as
+                            // needed
+                            logger.info(
+                                    "Ammo inserted received message in remote content provider=[{}] inserted in [{}]",
+                                    provider, resultTuple);
+                        }
+                    };
+
+            logger.debug("deserialize response");
+            final ContentResolver resolver = context.getContentResolver();
+
+            switch (encoding.getType()) {
+                case CUSTOM:
+                    RequestSerializer.deserializeCustomToProvider(insertResultHandler, context,
+                            resolver, channelName,
+                            provider, encoding, data);
+                    break;
+                case JSON:
+                    RequestSerializer.deserializeJsonToProvider(insertResultHandler, context,
+                            resolver,
+                            channelName,
+                            provider, encoding, data);
+                    break;
+                case TERSE:
+                    RequestSerializer.deserializeTerseToProvider(insertResultHandler, context,
+                            resolver, channelName,
+                            provider, encoding, data);
+                    break;
+                default:
+                    RequestSerializer.deserializeCustomToProvider(insertResultHandler, context,
+                            resolver, channelName,
+                            provider, encoding, data);
+            }
+
+        } catch (Exception ex) {
+            logger.error("difficulty deserializing to provider", ex);
+        }
         return true;
     }
 
@@ -151,7 +213,7 @@ public class ResponseDistributor implements Runnable {
         PLogger.QUEUE_RESP_ENTER.trace("\"action\":\"offer\" \"response\":\"{}\"", agm);
         final Message msg = Message.obtain();
         msg.obj = agm;
-        this.responseHandler.dispatchMessage(msg);
+        this.responseHandler.postMessage(msg);
         return true;
     }
 
@@ -212,8 +274,10 @@ public class ResponseDistributor implements Runnable {
      * the subscription to the gateway therefore it needs to be recovered from
      * the subscription table.
      */
-    private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw,
-            NetChannel channel, int priority) {
+    private boolean receiveSubscribeResponse(final Context context,
+            final AmmoMessages.MessageWrapper mw,
+            final NetChannel channel, final int priority)
+    {
         if (mw == null) {
             logger.warn("no message");
             return false;
@@ -323,7 +387,16 @@ public class ResponseDistributor implements Runnable {
         this.toProvider(priority, context, channel.name, provider, encoding,
                 data.toByteArray());
 
-        logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
+        tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[] {
+                System.currentTimeMillis(), "request_queue", this.responseHandler.count
+        });
+
+        try {
+            logger.info("completed receipt on topic=[{}] content=[{}]",
+                    topic, data.toString("US-ASCII"));
+        } catch (UnsupportedEncodingException ex) {
+            logger.info("completed receipt of message on topic=[{}] ", topic);
+        }
 
         return true;
     }
@@ -339,7 +412,7 @@ public class ResponseDistributor implements Runnable {
      * @param instream
      * @return was the message clean (true) or garbled (false).
      */
-    private boolean doResponse(Context context, AmmoGatewayMessage agm) {
+    private boolean doResponse(final Context context, final AmmoGatewayMessage agm) {
         logger.trace("process response");
 
         if (!agm.hasValidChecksum()) {
@@ -585,75 +658,30 @@ public class ResponseDistributor implements Runnable {
         }
     }
 
-    public Handler responseHandler = null;
-    public Handler upsertHandler = null;
+    /**
+     * This handler accounts for messages (not runnables).
+     */
+    public static abstract class AccountingHandler extends Handler {
+        protected int count = 0;
 
-    @Override
-    public void run()
-    {
-        Looper.prepare();
+        public AccountingHandler(final Looper looper) {
+            super(looper);
+        }
 
-        /**
-         * Process.THREAD_PRIORITY_FOREGROUND(-2) and THREAD_PRIORITY_DEFAULT(0)
-         */
-        Process.setThreadPriority(-7);
-        logger.info("deserializer thread start @prio: {}",
-                Process.getThreadPriority(Process.myTid()));
+        public boolean postal(Runnable runnable) {
+            this.count++;
+            return super.post(runnable);
+        }
 
-        this.responseHandler = new Handler() {
-            final ResponseDistributor master = ResponseDistributor.this;
+        public boolean postMessage(Message msg) {
+            this.count++;
+            return super.sendMessage(msg);
+        }
 
-            @Override
-            public void handleMessage(Message msg) {
-                if (!(msg.obj instanceof AmmoGatewayMessage)) {
-                    logger.error("not the proper message type");
-                    return;
-                }
-                final AmmoGatewayMessage agm = (AmmoGatewayMessage) msg.obj;
-                master.doResponse(master.context, agm);
-            }
-        };
-
-        this.upsertHandler = new Handler() {
-            @Override
-            public void handleMessage(Message msg) {
-                if (!(msg.obj instanceof Item)) {
-                    logger.error("not the proper message type");
-                    return;
-                }
-                final Item item = (Item) msg.obj;
-
-                try {
-                    final AsyncQueryHelper.InsertResultHandler insertHandler = new
-                            AsyncQueryHelper.InsertResultHandler() {
-
-                                final ResponseDistributor master = ResponseDistributor.this;
-
-                                @Override
-                                public void run(Uri resultTuple) {
-                                    // use master to update the database as
-                                    // needed
-                                    logger.info(
-                                            "Ammo inserted received message in remote content provider=[{}] inserted in [{}]",
-                                            item.provider, resultTuple);
-                                }
-                            };
-
-                    RequestSerializer.deserializeToProvider(insertHandler, item.context,
-                            item.context.getContentResolver(),
-                            item.channelName, item.provider, item.encoding, item.data);
-                    /*
-                     * tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[] {
-                     * System.currentTimeMillis(), "insert_queue",
-                     * this.queue.size() });
-                     */
-                } catch (Exception ex) {
-                    /* logger.error( */
-                }
-            }
-
-        };
-        Looper.loop();
+        @Override
+        public void handleMessage(Message msg) {
+            this.count--;
+        }
     }
 
 }

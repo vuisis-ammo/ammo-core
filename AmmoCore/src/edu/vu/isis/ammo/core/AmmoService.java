@@ -37,7 +37,9 @@ import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.IBinder;
+// import android.support.v4.os.StrictMode;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
@@ -80,6 +82,7 @@ import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
+import edu.vu.isis.ammo.util.Genealogist;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
 import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
@@ -251,7 +254,7 @@ public class AmmoService extends Service implements INetworkService,
     private Thread requestDistributorThread;
 
     private ResponseDistributor responseDistributor;
-    private Thread responseDistributorThread;
+    private HandlerThread responseDistributorThread;
 
     private TelephonyManager tm;
     private CellPhoneListener cellPhoneListener;
@@ -429,6 +432,23 @@ public class AmmoService extends Service implements INetworkService,
     @Override
     public void onCreate() {
         super.onCreate();
+        if (logger.isTraceEnabled()) {
+//
+//            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+//                    .detectDiskReads()
+//                    .detectDiskWrites()
+//                    .detectNetwork() // or .detectAll() for all detectable
+//                                     // problems
+//                    .penaltyLog()
+//                    .build());
+//            StrictMode.setVmPolicy(new StrictMode.VmPolicy.Builder()
+//                    .detectLeakedSqlLiteObjects()
+//                    .detectLeakedClosableObjects()
+//                    .penaltyLog()
+//                    .penaltyDeath()
+//                    .build());
+        }
+
         logger.info("ammo service on create {}",
                 Integer.toHexString(System.identityHashCode(this)));
         final Context context = this;
@@ -450,9 +470,14 @@ public class AmmoService extends Service implements INetworkService,
                 this.requestDistributor.generateThreadName());
         this.requestDistributorThread.start();
 
-        this.responseDistributor = new ResponseDistributor(context, this, store, this.total_recv);
-        this.responseDistributorThread = new Thread(this.responseDistributor);
+        this.responseDistributorThread = new HandlerThread("resp-distr-"+Thread.activeCount());
         this.responseDistributorThread.start();
+        logger.trace("response distributor thread ancestory {}", 
+                Genealogist.getAncestry(this.responseDistributorThread));
+        this.responseDistributor = new ResponseDistributor(
+                this.responseDistributorThread.getLooper(),
+                context, this, store, this.total_recv);
+        
 
         // Initialize our receivers/listeners.
         /*
@@ -1355,7 +1380,6 @@ public class AmmoService extends Service implements INetworkService,
                     } catch (ClassCastException ex) {
                         logger.error("invalid cast for {}", key);
                     }
-
                     return;
                 }
             };
@@ -1442,7 +1466,7 @@ public class AmmoService extends Service implements INetworkService,
      * @return was the message clean (true) or garbled (false).
      */
     public boolean deliver(AmmoGatewayMessage agm) {
-        return responseDistributor.distributeResponse(agm);
+        return this.responseDistributor.distributeResponse(agm);
     }
 
     // ===============================================================

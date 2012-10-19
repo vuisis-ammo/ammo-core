@@ -2,9 +2,7 @@
 package edu.vu.isis.ammo.util;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * This tree implementation strives to be immutable.
@@ -119,6 +117,33 @@ public class TreeNode<T> {
             visitor.down(builder);
         }
         return builder;
+    }
+    
+    @Override
+    public String toString() {
+        final TreeNode.Vistor<T> visitor = new TreeNode.Vistor<T>() {
+
+            private int level = 0;
+            
+            @Override
+            public StringBuilder up(StringBuilder builder) {
+                level++;
+                return builder.append("UP-").append(level);
+            }
+
+            @Override
+            public StringBuilder down(StringBuilder builder) {
+                level--;
+                return builder.append("DOWN-").append(level);
+            }
+
+            @Override
+            public StringBuilder reform(StringBuilder builder, T data) {
+                return builder.append("<").append(data).append(">");
+            }
+
+        };
+        return this.toString(visitor).toString();
     }
 
     /**
