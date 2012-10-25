@@ -522,7 +522,7 @@ public class SerialChannel extends NetChannel
             // Create the retransmitter.
             if ( getRetransmitter() != null )
                 logger.warn( "Tried to create SerialRetransmitter when we already had one." );
-            setRetransmitter( new SerialRetransmitter( SerialChannel.this, mChannelManager, mSlotNumber.get() ));
+            setRetransmitter( new SerialRetransmitter( SerialChannel.this, mChannelManager ));
 
             // Create the sending thread.
             if ( mSender != null )
@@ -1430,7 +1430,8 @@ public class SerialChannel extends NetChannel
                         if ( getRetransmitter() != null ) {
                             setReceiverState( INetChannel.DELIVER );
                             getRetransmitter().processReceivedMessage( agm,
-                                                                       hyperperiod );
+                                                                       hyperperiod,
+                                                                       mSlotNumber.get() );
                         } else {
                             setReceiverState( INetChannel.DELIVER );
                             deliverMessage( agm );
