@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialRetransmitter
 {
-    private static final int DEFAULT_RESENDS = 2;
+    private static final int DEFAULT_RESENDS = 3; // original send + N-retries
 
     // There are lots of shorts in this code that will need to be made larger
     // if we need to be able to have more than 16 slots.
@@ -517,7 +517,7 @@ public class SerialRetransmitter
     private SerialChannel mChannel;
     private IChannelManager mChannelManager;
 
-    private short mReceivingMeDirectly = 0;
+    private short mReceivingMeDirectly = (short)0x0;
 
     private static final Logger logger = LoggerFactory.getLogger( "net.serial.retrans" );
 }
