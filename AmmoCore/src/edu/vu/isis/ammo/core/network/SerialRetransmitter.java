@@ -224,13 +224,14 @@ public class SerialRetransmitter
         // in the appropriate hyperperiod.
         if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
             logger.trace( "Received ack packet. payload={}", agm.payload );
+	    int theirAckBitsForMe = agm.payload[ mySlotNumber ];
+	    if ( theirAckBitsForMe != 0 ) {
+		// They are receiving my directly.
+		mReceivingMeDirectly |= (0x1 << agm.mSlotID);
+	    }
+
             if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
 
-                int theirAckBitsForMe = agm.payload[ mySlotNumber ];
-                if ( theirAckBitsForMe != 0 ) {
-                    // They are receiving my directly.
-                    mReceivingMeDirectly |= (0x1 << agm.mSlotID);
-                }
 
                 // We also use their ack information to tell which of the
                 // packets that we sent in the last hyperperiod were actually
