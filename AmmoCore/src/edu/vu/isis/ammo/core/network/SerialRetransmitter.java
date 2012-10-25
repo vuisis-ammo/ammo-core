@@ -68,24 +68,24 @@ public class SerialRetransmitter
     // intended receivers have received each packet.
     private class SlotRecord {
         public int mHyperperiodID;
-        public ArrayList<PacketRecord> mSent = new ArrayList<PacketRecord>(16);
-
+        public PacketRecord[] mSent = new PacketRecord[8]; // we can only sent and ack atmost 8 packets
         public int mSendCount;
+
+        public byte[] mAcks = new byte[16];
 
         // FIXME: magic number - limits max radios in hyperperiod to 16
         // Should we optimize for smaller nets?
-        public byte[] mAcks = new byte[16];
-
         public void SlotRecord() {
-            for ( int i = 0; i < 10; ++i )
-                mSent.add( null );
+            for ( int i = 0; i < mSent.length; ++i )
+                mSent[i] = null; 
         }
 
         public void reset( int newHyperperiod ) {
             mHyperperiodID = newHyperperiod;
-            mSent.clear();
             mSendCount = 0;
 
+            for ( int i = 0; i < mSent.length; ++i )
+                mSent[ i ] = null;
             for ( int i = 0; i < mAcks.length; ++i )
                 mAcks[ i ] = 0;
         }
@@ -101,9 +101,9 @@ public class SerialRetransmitter
         @Override
         public String toString() {
             StringBuilder result = new StringBuilder();
-            result.append( mHyperperiodID + ", " );
-            result.append( mSendCount + ", " );
-            result.append( mSent.size() );
+            result.append( mHyperperiodID ).append( ", " );
+            result.append( mSendCount ).append( ", " );
+            result.append( mSent.length );
             return result.toString();
         }
     };
@@ -162,7 +162,8 @@ public class SerialRetransmitter
         // Any packet in mPrevious that has not been acknowledged should be
         // requeued for resending in the resend queue.
 
-        for ( PacketRecord pr : mPrevious.mSent ) {
+        for ( int i=0; i<mPrevious.mSendCount; i++ ) {
+	    PacketRecord pr = mPrevious.mSent[i];
             if ( pr.mExpectToHearFrom == 0 ) {
                 logger.trace( "Ack packet or no one listening. deleting PacketRecord:{}", pr );
             // } else if ( (pr.mExpectToHearFrom & pr.mHeardFrom) == pr.mExpectToHearFrom ) {
@@ -244,10 +245,11 @@ public class SerialRetransmitter
                         // They received a packet in the position in the slot
                         // with index "index".  Record this in the map.
                         logger.trace( "doing mSent with index={}, mPrevious.mSendCount={}",
-                                      index, mPrevious.mSendCount );
-                        logger.trace( "mSent.size()={}", mPrevious.mSent.size() );
-                        PacketRecord stats = mPrevious.mSent.get( index );
-                        stats.mHeardFrom |= (0x1 << agm.mSlotID);
+				index, mPrevious.mSendCount );
+			if (mPrevious.mSendCount > index) {
+			    PacketRecord stats = mPrevious.mSent[index];
+			    stats.mHeardFrom |= (0x1 << agm.mSlotID);
+			}
                     }
 
                     theirAckBitsForMe = theirAckBitsForMe >>> 1;
@@ -364,7 +366,7 @@ public class SerialRetransmitter
             logger.trace( "...PacketRecord={}", pr );
             pr.mExpectToHearFrom = 0;
 
-            mCurrent.mSent.add( pr );
+            mCurrent.mSent[mCurrent.mSendCount] = pr;
             mCurrent.mSendCount++;
             logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
         } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
@@ -377,7 +379,7 @@ public class SerialRetransmitter
             PacketRecord pr = new PacketRecord( uid, agm );
             logger.trace( "...PacketRecord={}", pr );
 
-            mCurrent.mSent.add( pr );
+            mCurrent.mSent[mCurrent.mSendCount] = pr;
             mCurrent.mSendCount++;
             logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
 
@@ -415,7 +417,7 @@ public class SerialRetransmitter
                 try {
                     // Keep the pr and put it in the mSent.array, while decrementing
                     // mResends.
-                    mCurrent.mSent.add( pr );
+                    mCurrent.mSent[mCurrent.mSendCount] = pr;
                     mCurrent.mSendCount++;
                     pr.mResends--;
 
