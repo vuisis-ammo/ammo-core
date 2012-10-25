@@ -176,7 +176,7 @@ public class Dispersal {
                 final DisposalState priorCondition = (this.containsKey(term)) ? this.get(term)
                         : DisposalState.PENDING;
 
-                DisposalState actualCondition;
+                final DisposalState actualCondition;
                 switch (priorCondition) {
                     case PENDING:
                         final ChannelStatus channelStatus = that.checkChannel(term);
@@ -198,7 +198,9 @@ public class Dispersal {
                     default:
                         actualCondition = priorCondition;
                 }
-                if (actualCondition.goalReached(goalCondition)) {
+                if (actualCondition == null) {
+                    logger.error("actual condition indeterminate, term={}", term);
+                } else if (actualCondition.goalReached(goalCondition)) {
                     clauseSuccess = true;
                     logger.trace("clause satisfied {} {}", this, clause);
                     break;

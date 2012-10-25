@@ -386,7 +386,7 @@ public class DistributorThread extends Thread {
      * @return
      */
     private boolean announceChannelAck(ChannelAck ack) {
-        logger.trace("RECV ACK {}", ack);
+        logger.trace("send ACK {}", ack);
         try {
             PLogger.QUEUE_ACK_ENTER.trace("offer ack: {}", ack);
             if (!this.channelAck.offer(ack, 2, TimeUnit.SECONDS)) {
@@ -431,46 +431,48 @@ public class DistributorThread extends Thread {
                 return;
         }
         // generate broadcast intent for everyone who cares about this
-        final Notice.Item note = ack.notice.atSend;
-        final Notice.Via via = note.getVia();
-        if (via.isActive()) {
+        if (ack.notice != null) {
+            final Notice.Item note = ack.notice.atSend;
+            final Notice.Via via = note.getVia();
+            if (via.isActive()) {
 
-            final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
-                    .topic(ack.topic)
-                    .auid(ack.auid)
-                    .channel(ack.channel);
+                final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
+                        .topic(ack.topic)
+                        .auid(ack.auid)
+                        .channel(ack.channel);
 
-            if (ack.status != null)
-                noteBuilder.status(ack.status.toString());
+                if (ack.status != null)
+                    noteBuilder.status(ack.status.toString());
 
-            final Intent noticed = noteBuilder.buildSent(context);
-            final int aggregate = via.v;
+                final Intent noticed = noteBuilder.buildSent(context);
+                final int aggregate = via.v;
 
-            PLogger.API_INTENT.debug(
-                    "ack note=[{}] intent=[{}]",
-                    note, noticed);
+                PLogger.API_INTENT.debug(
+                        "ack note=[{}] intent=[{}]",
+                        note, noticed);
 
-            if (0 < (aggregate & Via.Type.ACTIVITY.v)) {
-                try {
-                    noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    context.startActivity(noticed);
-                } catch (ActivityNotFoundException ex) {
-                    logger.warn("no activity for intent=[{}]", noticed);
+                if (0 < (aggregate & Via.Type.ACTIVITY.v)) {
+                    try {
+                        noticed.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        context.startActivity(noticed);
+                    } catch (ActivityNotFoundException ex) {
+                        logger.warn("no activity for intent=[{}]", noticed);
+                    }
                 }
-            }
-            if (0 < (aggregate & Via.Type.BROADCAST.v)) {
-                context.sendBroadcast(noticed);
-            }
-            if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) {
-                context.sendStickyBroadcast(noticed);
-            }
-            if (0 < (aggregate & Via.Type.SERVICE.v)) {
-                context.startService(noticed);
-            }
+                if (0 < (aggregate & Via.Type.BROADCAST.v)) {
+                    context.sendBroadcast(noticed);
+                }
+                if (0 < (aggregate & Via.Type.STICKY_BROADCAST.v)) {
+                    context.sendStickyBroadcast(noticed);
+                }
+                if (0 < (aggregate & Via.Type.SERVICE.v)) {
+                    context.startService(noticed);
+                }
 
-            if (PLogger.API_INTENT.isTraceEnabled()) {
-                PLogger.API_INTENT.trace("extras=[{}]",
-                        PLogger.expandBundle(noticed.getExtras(), '\n'));
+                if (PLogger.API_INTENT.isTraceEnabled()) {
+                    PLogger.API_INTENT.trace("extras=[{}]",
+                            PLogger.expandBundle(noticed.getExtras(), '\n'));
+                }
             }
         }
 
@@ -501,7 +503,7 @@ public class DistributorThread extends Thread {
 
             PLogger.QUEUE_REQ_ENTER.trace("\"action\":\"offer\" \"request\":\"{}\"", request);
             if (!this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
-                logger.error("could not process request {}", request);
+                logger.error("could not process request={} size={}", request, this.requestQueue.size());
                 this.signal();
                 return null;
             }
@@ -1416,14 +1418,11 @@ public class DistributorThread extends Thread {
         if (pushResp.hasThreshold()) {
             final AcknowledgementThresholds thresholds = pushResp.getThreshold();
 
-            Parcel np = Parcel.obtain();
-            byte[] nb = postalReq.getBlob(postalReq
+            byte[] noticeBytes = postalReq.getBlob(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv()));
-            np.unmarshall(nb, 0, nb.length);
-            np.setDataPosition(0);
-            logger.debug("notice bytes {}", nb);
-
-            final Notice notice = Notice.CREATOR.createFromParcel(np);
+            logger.debug("notice bytes {}", noticeBytes);
+            final Notice notice = Notice.unpickle(noticeBytes);
+            
             final String topic = postalReq.getString(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv()));
             final String auid = postalReq.getString(postalReq

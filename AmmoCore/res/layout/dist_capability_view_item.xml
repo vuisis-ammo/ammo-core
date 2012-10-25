@@ -6,6 +6,7 @@ an ammo request
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
+    android:baselineAligned="false"
     android:orientation="horizontal"
     android:padding="15dp" >
 
@@ -15,11 +16,31 @@ an ammo request
         android:layout_weight="50" >
 
         <TextView
+            android:id="@+id/first_seen_label"
+            style="@style/blue_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:text="@string/time_first_seen" />
+
+        <TextView
+            android:id="@+id/dist_capability_view_item_first"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentLeft="true"
+            android:layout_below="@id/first_seen_label"
+            android:padding="3dp"
+            android:textColor="#FFF"
+            android:textSize="18dp" />
+
+        <TextView
             android:id="@+id/last_seen_label"
             style="@style/blue_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Time since last seen" />
+            android:layout_alignParentLeft="true"
+            android:layout_below="@id/dist_capability_view_item_first"
+            android:text="@string/time_last_seen" />
 
         <TextView
             android:id="@+id/dist_capability_view_item_latest"
@@ -32,31 +53,13 @@ an ammo request
             android:textSize="18dp" />
 
         <TextView
-            android:id="@+id/first_seen_label"
-            style="@style/blue_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentLeft="true"
-            android:layout_below="@id/dist_capability_view_item_latest"
-            android:text="Time since first seen" />
-
-        <TextView
-            android:id="@+id/dist_capability_view_item_first"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/first_seen_label"
-            android:padding="3dp"
-            android:textColor="#FFF"
-            android:textSize="18dp" />
-
-        <TextView
             android:id="@+id/state_label"
             style="@style/blue_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
-            android:layout_below="@id/dist_capability_view_item_first"
-            android:text="State" />
+            android:layout_below="@id/dist_capability_view_item_latest"
+            android:text="@string/temporal_state_label" />
 
         <TextView
             android:id="@+id/dist_capability_view_item_state"
@@ -118,7 +121,7 @@ an ammo request
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
             android:layout_below="@+id/dist_capability_view_item_operator"
-            android:text="Topic" />
+            android:text="@string/temporal_topic_label" />
 
         <TextView
             android:id="@+id/dist_capability_view_item_topic"
@@ -137,7 +140,7 @@ an ammo request
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
             android:layout_below="@+id/dist_capability_view_item_topic"
-            android:text="Subtopic" />
+            android:text="@string/temporal_subtopic_label" />
 
         <TextView
             android:id="@+id/dist_capability_view_item_subtopic"
@@ -148,7 +151,6 @@ an ammo request
             android:padding="3dp"
             android:textColor="#FFF"
             android:textSize="18dp" />
-
     </RelativeLayout>
 
 </LinearLayout>

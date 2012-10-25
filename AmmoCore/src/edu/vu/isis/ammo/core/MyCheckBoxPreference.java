@@ -30,7 +30,7 @@ public class MyCheckBoxPreference extends CheckBoxPreference {
 	// Constants
 	// ===========================================================
 	public static final Logger logger = LoggerFactory.getLogger("ui.cbprefs");
-	private static final String DEFAULT_SUMMARY = "Tap to change in Pather Prefs";
+	private static final String DEFAULT_SUMMARY = "Tap to change in Panthr Prefs";
 
 	public static enum Type {
 		JOURNAL

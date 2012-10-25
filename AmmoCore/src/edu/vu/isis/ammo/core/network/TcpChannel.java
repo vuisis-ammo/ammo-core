@@ -11,6 +11,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.network;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -73,6 +74,9 @@ public class TcpChannel extends NetChannel {
   private static final int TCP_RECV_BUFF_SIZE = 0x15554; // the maximum receive buffer size
   private static final int MAX_MESSAGE_SIZE = 0x100000;  // arbitrary max size
   private boolean isEnabled = true;
+  
+  /** default timeout is 45 seconds */
+  private int DEFAULT_WATCHDOG_TIMOUT = 45;
 
   private Socket socket = null;
   private ConnectorThread connectorThread;
@@ -120,7 +124,7 @@ public class TcpChannel extends NetChannel {
     mChannelManager = iChannelManager;
     this.connectorThread = new ConnectorThread(this);
 
-    this.flatLineTime = 20 * 1000; // 20 seconds in milliseconds
+    this.flatLineTime = DEFAULT_WATCHDOG_TIMOUT * 1000; // seconds into milliseconds
 
     mSenderQueue = new SenderQueue( this );
   }
@@ -740,13 +744,20 @@ public class TcpChannel extends NetChannel {
         boolean result = parent.mSocketChannel.finishConnect();
       }
       catch ( AsynchronousCloseException ex ) {
-        logger.warn( "connection to {}:{} async close failure",
+        logger.info( "connection to {}:{} async close failure",
             new Object[]{ipaddr, port}, ex);
         parent.mSocketChannel = null;
         return false;
       }
       catch ( ClosedChannelException ex ) {
-        logger.warn( "connection to {}:{} closed channel failure",
+        logger.info( "connection to {}:{} closed channel failure",
+            new Object[]{ipaddr, port}, ex);
+        parent.mSocketChannel = null;
+        return false;
+      }
+      catch ( ConnectException ex )
+      {
+        logger.info( "connection failed to {}:{}",
             new Object[]{ipaddr, port}, ex);
         parent.mSocketChannel = null;
         return false;

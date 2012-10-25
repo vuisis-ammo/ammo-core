@@ -151,7 +151,9 @@ public class EthTrackSvc extends ServiceEx {
         notification.setLatestEventInfo(context, contentTitle, contentText,
                 contentIntent);
 
-        mNotificationManager.notify(HELLO_ID, notification);
+	//Commenting this out for now since it is causing a lot of grief in 
+	// the wifi/3g community ....
+	// mNotificationManager.notify(HELLO_ID, notification);
 
         // Let applications respond immediately by receiving a broadcast intent.
 

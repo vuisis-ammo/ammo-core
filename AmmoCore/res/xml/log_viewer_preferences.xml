@@ -18,6 +18,12 @@
             android:dialogTitle="Regular expression"
             android:dialogMessage="Enter a Java regular expression"
             android:defaultValue="" />
+        <CheckBoxPreference
+            android:key="show_logcat_timestamps"
+            android:title="Logcat timestamps"
+            android:summary="Enable or disable timestamps in Logcat"
+            android:defaultValue="false"
+             />
     </PreferenceCategory>
 
 </PreferenceScreen>

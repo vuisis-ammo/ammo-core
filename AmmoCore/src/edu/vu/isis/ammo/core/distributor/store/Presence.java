@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import android.text.TextUtils;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.store.Presence.Item.Key;
 import edu.vu.isis.ammo.core.provider.PresenceSchema;
 
 /**
@@ -219,10 +221,7 @@ public enum Presence {
 
     public static class Item extends TemporalItem {
         /**
-         * The tuple identifier (required) id The device identifier (required)
-         * identifier This along with the cost is used to decide how to deliver
-         * the specific object. (required) topic (optional) subtopic The name of
-         * the operator using the channel
+         * 
          */
         public static final class Key {
             public final long id;
@@ -296,7 +295,8 @@ public enum Presence {
         }
 
         /**
-         * Rather than using a big switch, this makes use of an EnumMap
+         * Rather than using a big switch, this makes use of an EnumMap to
+         * return a row in the same order as the presence fields.
          */
         public Object[] getValues(final EnumSet<PresenceSchema> set) {
             final ArrayList<Object> row = new ArrayList<Object>(set.size());
@@ -307,7 +307,9 @@ public enum Presence {
                     row.add(null);
                     continue;
                 }
-                row.add(getter.getValue(this));
+                final Object val = getter.getValue(this);
+                logger.trace("get value field={} val={}", field, val);
+                row.add(val);
             }
             return row.toArray();
         }
@@ -316,6 +318,9 @@ public enum Presence {
             public Object getValue(final Item item);
         }
 
+        /**
+         * a set of getters to be used in the populating of a cursor
+         */
         final static private Map<PresenceSchema, Getter> getters;
         static {
             getters = new EnumMap<PresenceSchema, Getter>(PresenceSchema.class);
@@ -372,15 +377,19 @@ public enum Presence {
             getters.put(PresenceSchema.STATE, new Getter() {
                 @Override
                 public Object getValue(final Item item) {
-                    return item.getState();
+                    return item.getDominantState().code;
                 }
             });
         }
     }
 
-    public static Collection<Item> query() {
-        final Collection<Item> values = Presence.INSTANCE.relMap.values();
-        return values;
+    /**
+     * used by query methods in DistributorDataStore
+     * 
+     * @return
+     */
+    public static Collection<Item> queryAll() {
+        return Presence.INSTANCE.relMap.values();
     }
 
 }

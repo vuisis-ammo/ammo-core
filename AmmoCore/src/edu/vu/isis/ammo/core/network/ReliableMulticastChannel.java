@@ -275,6 +275,7 @@ public class ReliableMulticastChannel extends NetChannel {
                 && this.mMulticastAddress.equals(host))
             return false;
         this.mMulticastAddress = host;
+        ReliableMulticastSettings.setIpAddress(host, context);
         this.reset();
         return true;
     }
@@ -285,6 +286,7 @@ public class ReliableMulticastChannel extends NetChannel {
         if (this.mMulticastPort == port)
             return false;
         this.mMulticastPort = port;
+        ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
         this.reset();
         return true;
     }
@@ -1204,7 +1206,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
                     if (msg.getSrc().toString()
                             .equals(mChannelManager.getOperatorId())) {
-                        logger.warn("Got a Message looped back to me : Ignoring");
+                        logger.debug("Got a Message looped back to me : Ignoring");
                         return;
                     }
 

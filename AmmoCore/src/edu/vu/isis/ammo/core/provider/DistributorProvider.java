@@ -12,6 +12,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.provider;
 
 import java.io.FileNotFoundException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,12 +31,14 @@ import android.os.ParcelFileDescriptor;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
+import edu.vu.isis.ammo.util.Genealogist;
 
 public class DistributorProvider extends ContentProvider {
     // =================================
     // Constants
     // =================================
-
+    private static final Logger logger = LoggerFactory.getLogger("provider.dist");
+    
     public static final String DATABASE_NAME = DistributorDataStore.SQLITE_NAME;
 
     private static final UriMatcher uriMatcher;
@@ -55,11 +58,6 @@ public class DistributorProvider extends ContentProvider {
     }
 
     // =================================
-    // Fields
-    // =================================
-    private static final Logger logger = LoggerFactory.getLogger("provider.dist");
-
-    // =================================
     // setup
     // =================================
 
@@ -73,32 +71,57 @@ public class DistributorProvider extends ContentProvider {
         AMMO_SERVICE.setComponent(serviceComponent);
     }
 
+    final AtomicReference<ServiceConnection> conn = new AtomicReference<ServiceConnection>(null);
+    public volatile boolean isBound = false;
+
+    /**
+     * Make a local binding to the AmmoService and get the DDS.
+     */
     @Override
     public boolean onCreate() {
-        this.dds = null;
-        final ServiceConnection conn = new ServiceConnection() {
+        
+        final ServiceConnection newConn = new ServiceConnection() {
             final DistributorProvider parent = DistributorProvider.this;
 
             @Override
             public void onServiceConnected(ComponentName name, IBinder binder) {
-
+                if (!(binder instanceof AmmoService.DistributorServiceAidl)) {
+                    logger.error("service failed connection type=[{}]", Genealogist.getAncestry(binder));
+                    return;
+                }
+                logger.debug("service connected ");
                 final AmmoService.DistributorServiceAidl proxy = (AmmoService.DistributorServiceAidl) binder;
                 final AmmoService service = proxy.getService();
 
                 parent.dds = service.store();
+                parent.isBound = true;
             }
 
             @Override
             public void onServiceDisconnected(ComponentName name) {
+                logger.info("service disconnected {}", name);
+                parent.isBound = false;
                 return;
             }
         };
-        this.getContext().bindService(AMMO_SERVICE, conn, Context.BIND_AUTO_CREATE);
-        return true;
+        
+        if (!(this.conn.compareAndSet(null, newConn))) {
+            logger.info("distributor provider is already connected {}", this.isBound);
+            return true;
+        }
+        logger.info("create distributor provider");
+        this.dds = null;
+        final boolean isBindable = this.getContext().bindService(AMMO_SERVICE, conn.get(),
+                Context.BIND_AUTO_CREATE);
+        return isBindable;
     }
 
     @Override
     public String getType(Uri uri) {
+        if (!this.isBound) {
+            logger.warn("get type called before bound {}",uri);
+            return null;
+        }
         return null;
     }
 
@@ -108,6 +131,11 @@ public class DistributorProvider extends ContentProvider {
 
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
+        logger.warn("delete from distributor provider {} {}", uri, selection);
+        if (!this.isBound){
+            logger.warn("delete called before service bound {}",uri, selection);
+            return -1;
+        }
         if (this.dds == null)
             return -1;
         logger.trace("delete on distributor provider {} {}", uri, selection);
@@ -126,6 +154,13 @@ public class DistributorProvider extends ContentProvider {
                 return this.dds.deletePresence();
             case CAPABILITY:
                 return this.dds.deleteCapability();
+            case POSTAL_DISPOSAL:
+            case RECIPIENT:
+            case REQUEST:
+            case RETRIEVAL_DISPOSAL:
+            case SUBSCRIBE_DISPOSAL:
+            default:
+                break;
         }
 
         switch (RelationsHelper.getValue(garbageMatcher.match(uri))) {
@@ -138,6 +173,15 @@ public class DistributorProvider extends ContentProvider {
             case DISPOSAL:
             case CHANNEL:
                 return -1;
+            case CAPABILITY:
+            case POSTAL_DISPOSAL:
+            case PRESENCE:
+            case RECIPIENT:
+            case REQUEST:
+            case RETRIEVAL_DISPOSAL:
+            case SUBSCRIBE_DISPOSAL:
+            default:
+                break;
         }
         return -1;
     }
@@ -151,6 +195,12 @@ public class DistributorProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
             String sortOrder) {
+
+        if (!this.isBound) {
+            logger.warn("query on unbound distributor {} {}", uri, selection);
+            return null;
+        }
+
         if (this.dds == null)
             return null;
 
@@ -179,9 +229,20 @@ public class DistributorProvider extends ContentProvider {
                 cursor = dds.queryChannel(projection, selection, selectionArgs, sortOrder);
                 break;
             case PRESENCE:
-                return this.dds.queryPresence();
+                if (selection == null) {
+                    cursor = this.dds.queryPresenceAll();
+                } else if (PresenceSchema.WHERE_ALL.equals(selection)) {
+                    cursor = this.dds.queryPresenceAll();
+                } else if (PresenceSchema.WHERE_OPERATOR_IS.equals(selection)) {
+                    cursor = this.dds.queryPresenceByOperator(selectionArgs[0]);
+                } else {
+                    logger.warn("unknown selection=[{}]", selection);
+                    cursor = null;
+                }
+                break;
             case CAPABILITY:
-                return this.dds.queryCapability();
+                cursor = this.dds.queryCapabilityAll();
+                break;
             default:
                 // If we get here, it's a special uri and should be matched
                 // differently.
@@ -201,6 +262,10 @@ public class DistributorProvider extends ContentProvider {
      */
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
+        if (!this.isBound) {
+            logger.warn("unbound openFile from distributor provider {} {}", uri, mode);
+            return null;
+        }
         return super.openFile(uri, mode);
     }
 

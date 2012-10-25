@@ -72,17 +72,22 @@ public class DistributorDataStore {
 
     /**
      * Data Store Table definitions The postal tables record requests that data
-     * be sent out. POSTed data is specifically named and distributed. The
-     * retrieval and subscribe tables record request that data be obtained.
-     * RETRIEVAL data is obtained from a source. SUBSCRIBEd data is obtained by
-     * topic. The disposition table keeps track of the status of the delivery.
-     * It is used in conjunction with the distribution policy. The disposition
-     * table may have several entries for each request. There is one row for
-     * each potential channel over which the request could be sent. There will
-     * be one row for each potential channel from the policy. As the channel is
-     * used it will be marked. Once all clauses which may use a channel become
-     * true the clauses are removed. The rule for disposition rows is cascade
-     * delete.
+     * be sent out.
+     * <p>
+     * POSTed data is specifically named and distributed. The retrieval and
+     * subscribe tables record request that data be obtained.
+     * <p>
+     * RETRIEVAL data is obtained from a source.
+     * <p>
+     * SUBSCRIBEd data is obtained by topic.
+     * <p>
+     * The disposition table keeps track of the status of the delivery. It is
+     * used in conjunction with the distribution policy. The disposition table
+     * may have several entries for each request. There is one row for each
+     * potential channel over which the request could be sent. There will be one
+     * row for each potential channel from the policy. As the channel is used it
+     * will be marked. Once all clauses which may use a channel become true the
+     * clauses are removed. The rule for disposition rows is cascade delete.
      */
 
     // ===========================================================
@@ -556,16 +561,16 @@ public class DistributorDataStore {
         /** The uri of the content provider */
         PROVIDER("provider", "TEXT"),
 
-        /** 
-         * The payload instead of content provider 
-         * Very similar to DATA maybe these should be combined.
+        /**
+         * The payload instead of content provider Very similar to DATA maybe
+         * these should be combined.
          */
         PAYLOAD("payload", "BLOB"),
 
         /**
-         * If null then the data file corresponding to the column name
-         * and record id should be used. This is done when the data size is
-         * larger than that allowed for a field contents.
+         * If null then the data file corresponding to the column name and
+         * record id should be used. This is done when the data size is larger
+         * than that allowed for a field contents.
          */
         DATA("data", "BLOB"),
 
@@ -601,7 +606,6 @@ public class DistributorDataStore {
          * battery drain.
          */
         WORTH("value", "INTEGER");
-
 
         /** the well known name */
         final public String n;
@@ -1024,13 +1028,15 @@ public class DistributorDataStore {
     }
 
     static private String backingName = null;
+
     static public void inMemory() {
         DistributorDataStore.backingName = null;
     }
+
     static public void backingFileName(String name) {
         DistributorDataStore.backingName = name;
     }
-    
+
     // ===========================================================
     // Methods
     // ===========================================================
@@ -1040,7 +1046,8 @@ public class DistributorDataStore {
      */
     public DistributorDataStore(Context context) {
         this.context = context;
-        this.helper = new DataStoreHelper(this.context, DistributorDataStore.backingName, null, VERSION);
+        this.helper = new DataStoreHelper(this.context, DistributorDataStore.backingName, null,
+                VERSION);
 
         // ========= INITIALIZE CONSTANTS ========
         this.applDir = context.getDir("support", Context.MODE_PRIVATE);
@@ -2453,22 +2460,50 @@ public class DistributorDataStore {
         }
     }
 
-    public Cursor queryPresence() {
+    /**
+     * Build a cursor to present the presence.
+     * 
+     * @return
+     */
+    public Cursor queryPresenceAll() {
         final Presence collection = Presence.INSTANCE;
         final MatrixCursor cursor = new MatrixCursor(PresenceSchema.FIELD_NAMES, collection.size());
         final EnumSet<PresenceSchema> set = EnumSet.allOf(PresenceSchema.class);
-        for (final Presence.Item item : Presence.query()) {
+        for (final Presence.Item item : Presence.queryAll()) {
             cursor.addRow(item.getValues(set));
         }
         return cursor;
     }
 
-    public Cursor queryCapability() {
+    /**
+     * Same as queryPresence() but with a filter.
+     * 
+     * @param operator
+     * @return
+     */
+    public Cursor queryPresenceByOperator(String operator) {
+        final Presence collection = Presence.INSTANCE;
+        final MatrixCursor cursor = new MatrixCursor(PresenceSchema.FIELD_NAMES, collection.size());
+        final EnumSet<PresenceSchema> set = EnumSet.allOf(PresenceSchema.class);
+        for (final Presence.Item item : Presence.queryAll()) {
+            if (!item.key.operator.equals(operator))
+                continue;
+            cursor.addRow(item.getValues(set));
+        }
+        return cursor;
+    }
+
+    /**
+     * Build a cursor to present the capability.
+     * 
+     * @return
+     */
+    public Cursor queryCapabilityAll() {
         final Capability collection = Capability.INSTANCE;
         final MatrixCursor cursor = new MatrixCursor(CapabilitySchema.FIELD_NAMES,
                 collection.size());
         final EnumSet<CapabilitySchema> set = EnumSet.allOf(CapabilitySchema.class);
-        for (final Capability.Item item : Capability.query()) {
+        for (final Capability.Item item : Capability.queryAll()) {
             cursor.addRow(item.getValues(set));
         }
         return cursor;
