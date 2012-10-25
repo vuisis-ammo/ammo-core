@@ -121,9 +121,10 @@ public class SerialRetransmitter
     /**
      *
      */
-    public SerialRetransmitter( SerialChannel channel, IChannelManager channelManager )
+    public SerialRetransmitter( SerialChannel channel, IChannelManager channelManager, int mySlot )
     {
         logger.trace( "SerialRetransmitter::SerialRetransmitter()" );
+	mySlotNumber = mySlot;
         mChannel = channel;
         mChannelManager = channelManager;
     }
@@ -194,11 +195,10 @@ public class SerialRetransmitter
      * It also caches it as appropriate.
      */
     synchronized public void processReceivedMessage( AmmoGatewayMessage agm,
-                                                     int hyperperiod,
-                                                     int mySlotID )
+                                                     int hyperperiod )
     {
-        logger.trace( "SerialRetransmitter::processReceivedMessage(). hyperperiod={}, mySlotID={}",
-                      hyperperiod, mySlotID );
+        logger.trace( "SerialRetransmitter::processReceivedMessage(). hyperperiod={}, mySlotNumber={}",
+                      hyperperiod, mySlotNumber );
 
         logger.trace( "...received messsage from slotID={}, type={}",
                       agm.mSlotID, agm.mPacketType );
@@ -225,7 +225,7 @@ public class SerialRetransmitter
             logger.trace( "Received ack packet. payload={}", agm.payload );
             if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
 
-                int theirAckBitsForMe = agm.payload[ mySlotID ];
+                int theirAckBitsForMe = agm.payload[ mySlotNumber ];
                 if ( theirAckBitsForMe != 0 ) {
                     // They are receiving my directly.
                     mReceivingMeDirectly |= (0x1 << agm.mSlotID);
@@ -515,6 +515,7 @@ public class SerialRetransmitter
     synchronized public void resetReceivingMeDirectly() { mReceivingMeDirectly = 0; }
 
 
+    private int mySlotNumber;
     private SerialChannel mChannel;
     private IChannelManager mChannelManager;
 
