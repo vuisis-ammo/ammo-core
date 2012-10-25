@@ -351,37 +351,27 @@ public class SerialRetransmitter
         // Resend packet: 
 
 
-
-        if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
-            // ack packets have a placeholder PacketRecord, but we don't
-            // put them in the resend queue.  Set their mExpectToHearFrom
-            // to zero so they are thrown out when we swap.
+        if ( agm.mPacketType != AmmoGatewayMessage.PACKETTYPE_RESEND ) {
             int uid = createUID( hyperperiod, slotIndex, indexInSlot );
-            logger.trace( "...uid={}", uid );
             PacketRecord pr = new PacketRecord( uid, agm );
-            logger.trace( "...PacketRecord={}", pr );
-            pr.mExpectToHearFrom = 0;
+            logger.trace( "uid = {}, ...PacketRecord={}", new Object[] {uid, pr, indexInSlot} );
+
+	    // The retransmitter functionality is only required for packet types
+	    // that require acks.
+	    if ( !agm.mNeedAck || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+		pr.mExpectToHearFrom = 0;
+		pr.mResends = 0;
+	    }
 
             mCurrent.mSent[mCurrent.mSendCount] = pr;
             mCurrent.mSendCount++;
             logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
-        } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
-            // Resend packets have an existing PacketRecord, which we reuse.
-            logger.trace( "...resending a packet" );
         } else {
-            // agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL
-            int uid = createUID( hyperperiod, slotIndex, indexInSlot );
-            logger.trace( "...uid={}", uid );
-            PacketRecord pr = new PacketRecord( uid, agm );
-            logger.trace( "...PacketRecord={}", pr );
-
-            mCurrent.mSent[mCurrent.mSendCount] = pr;
-            mCurrent.mSendCount++;
-            logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
-
-            //mUUIDMap.put( uid, agm.mUUID );
-            logger.trace( "...UID/UUID map size={}", mUUIDMap.size() );
-        }
+            // Resend packets have an existing PacketRecord, which we reuse.
+	    // this is already inserted in the mSent when we create a resend packet
+	    // see @createResendPacket
+            logger.trace( "...resending a packet" );
+	}
     }
 
 
