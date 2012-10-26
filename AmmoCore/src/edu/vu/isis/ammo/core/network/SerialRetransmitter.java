@@ -33,6 +33,10 @@ import org.slf4j.LoggerFactory;
 public class SerialRetransmitter
 {
     private static final int DEFAULT_RESENDS = 3; // original send + N-retries
+    private static final int MAX_PACKETS_PERSLOT = 7; // this is bound by the ack - we have 1 byte for each slot which limits to 8 messages, we reserve 1 bit
+                                                      // for informing others about receivingDirectlyFromMe
+    private static final int MAX_SLOTS = 16;     // There are lots of shorts in this code that will need to be made larger
+                                                 // so this constant can not be arbitrarily made larger without changing a lot of shorts
 
     // There are lots of shorts in this code that will need to be made larger
     // if we need to be able to have more than 16 slots.
@@ -41,7 +45,7 @@ public class SerialRetransmitter
         public int mHeardFrom;
         public int mResends;
 
-        public int mUID;
+        public int mUID;	// this is the serial uid computed by or'ing of hyperperiod (2bytes), slot (1byte),  index in slot (1byte)
         public AmmoGatewayMessage mPacket;
 
         PacketRecord( int uid, AmmoGatewayMessage agm ) {
@@ -55,8 +59,8 @@ public class SerialRetransmitter
         @Override
         public String toString() {
             StringBuilder result = new StringBuilder();
-            result.append( mPacket + ", " + Integer.toHexString(mExpectToHearFrom) + ", " );
-            result.append( Integer.toHexString(mHeardFrom) + ", " + mResends );
+            result.append( mPacket ).append( ", " ).append( Integer.toHexString(mExpectToHearFrom) ).append( ", " );
+            result.append( Integer.toHexString(mHeardFrom) ).append( ", " ).append( mResends );
             return result.toString();
         }
     };
@@ -68,10 +72,10 @@ public class SerialRetransmitter
     // intended receivers have received each packet.
     private class SlotRecord {
         public int mHyperperiodID;
-        public PacketRecord[] mSent = new PacketRecord[8]; // we can only sent and ack atmost 8 packets
+        public PacketRecord[] mSent = new PacketRecord[MAX_PACKETS_PERSLOT]; // we can only sent and ack atmost 8 packets
         public int mSendCount;
 
-        public byte[] mAcks = new byte[16];
+        public byte[] mAcks = new byte[MAX_SLOTS];
 
         // FIXME: magic number - limits max radios in hyperperiod to 16
         // Should we optimize for smaller nets?
@@ -294,7 +298,6 @@ public class SerialRetransmitter
 
                 logger.trace( "agm.payload.length={}", agm.payload.length );
 
-		// TODO: use arraycopy operations here 
                 for ( int i = 0; i < newSize; ++i ) {
                     newPayload[i] = agm.payload[i+4];
                 }
