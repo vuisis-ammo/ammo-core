@@ -134,6 +134,14 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
           <groupId>com.jayway.maven.plugins.android.generation2</groupId>
           <artifactId>android-maven-plugin</artifactId>
           <version>3.0.0</version>
+          <configuration>
+           <dex>
+              <jvmArguments>
+                <jvmArgument>-Xms256m</jvmArgument>
+                <jvmArgument>-Xmx1024m</jvmArgument>
+              </jvmArguments>
+            </dex>
+          </configuration>
         </plugin> 
 
         <plugin>
