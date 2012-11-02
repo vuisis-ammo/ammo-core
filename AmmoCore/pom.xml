@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
   <modelVersion>4.0.0</modelVersion>
   <properties>
     <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
@@ -69,7 +70,6 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
-        <version>1.7</version>
         <executions>
           <execution>
 <!-- extract the project version items -->
@@ -99,27 +99,19 @@
         <groupId>com.jayway.maven.plugins.android.generation2</groupId>
         <artifactId>android-maven-plugin</artifactId>
         <goals>
+          <goal>apk</goal>
           <goal>ndk-build</goal>
         </goals>
         <configuration>
           <ndk>
             <path>${env.ANDROID_NDK_HOME}</path>
           </ndk>
-        </configuration>
-        <extensions>true</extensions>
-      </plugin>
-
-      <plugin>
-<!-- build the apk -->
-        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
-        <artifactId>android-maven-plugin</artifactId>
-        <extensions>true</extensions>
-        <configuration>
           <sdk>
             <platform>8</platform>
           </sdk>
           <undeployBeforeDeploy>true</undeployBeforeDeploy>
         </configuration>
+        <extensions>true</extensions>
       </plugin>
 
       <plugin>
@@ -158,12 +150,11 @@
     <dependency>
       <groupId>org.jgroups</groupId>
       <artifactId>jgroups-ammo</artifactId>
-      <version>1.5.13</version>
     </dependency>
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammolib</artifactId>
-      <type>apklib</type>
+      <type>jar</type>
     </dependency>
     <dependency>
       <groupId>edu.vu.isis</groupId>
@@ -237,7 +228,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>com.google.protobuf</groupId>
@@ -305,7 +296,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>org.json</groupId>
@@ -364,7 +355,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>org.json</groupId>
@@ -418,7 +409,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>org.json</groupId>
@@ -478,7 +469,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>org.json</groupId>

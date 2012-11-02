@@ -486,8 +486,12 @@ public class AmmoService extends Service implements INetworkService,
         this.localSettings
                 .registerOnSharedPreferenceChangeListener(this.ammoPreferenceChangeListener);
 
-        serialChannel = new SerialChannel(ChannelFilter.SERIAL, this, getBaseContext());
-        // this.serialChannel.init(context);
+        try {
+            this.serialChannel = new SerialChannel(ChannelFilter.SERIAL, this, getBaseContext());
+         // this.serialChannel.init(context);
+        } catch (UnsatisfiedLinkError er) {
+            logger.error("serial channel native not found");
+        }
 
         netChannelMap.put("default", tcpChannel);
         netChannelMap.put(tcpChannel.name, tcpChannel);
@@ -1649,7 +1653,7 @@ public class AmmoService extends Service implements INetworkService,
             ReliableMulticastChannel.getInstance(ChannelFilter.RELIABLE_MULTICAST, this, this);
     final private JournalChannel journalChannel =
             JournalChannel.getInstance(ChannelFilter.JOURNAL, this);
-    private SerialChannel serialChannel;
+    private SerialChannel serialChannel = null;
 
     final public List<NetChannel> registeredChannels =
             new ArrayList<NetChannel>();

@@ -6,7 +6,6 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -14,7 +13,6 @@ import org.slf4j.LoggerFactory;
 
 import android.text.TextUtils;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.store.Presence.Item.Key;
 import edu.vu.isis.ammo.core.provider.PresenceSchema;
 
 /**
