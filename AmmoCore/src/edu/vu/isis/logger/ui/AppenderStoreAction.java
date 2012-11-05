@@ -1,3 +1,4 @@
+
 package edu.vu.isis.logger.ui;
 
 import java.util.HashMap;
@@ -10,20 +11,22 @@ import ch.qos.logback.core.joran.spi.InterpretationContext;
 
 public class AppenderStoreAction extends Action {
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	@Override
-	public void begin(InterpretationContext ec, String name,
-			Attributes attributes) {
-		try {
-			AppenderStore.storeReference(((HashMap) ec.getObjectMap().get(
-					ActionConst.APPENDER_BAG)));
-		} catch (IllegalStateException e) {
-			// Do nothing
-		}
-	}
+    @SuppressWarnings({
+            "rawtypes"
+    })
+    @Override
+    public void begin(InterpretationContext ec, String name,
+            Attributes attributes) {
+        try {
+            AppenderStore.storeReference(((HashMap) ec.getObjectMap().get(
+                    ActionConst.APPENDER_BAG)));
+        } catch (IllegalStateException e) {
+            // Do nothing
+        }
+    }
 
-	@Override
-	public void end(InterpretationContext ic, String name) {
-	}
+    @Override
+    public void end(InterpretationContext ic, String name) {
+    }
 
 }

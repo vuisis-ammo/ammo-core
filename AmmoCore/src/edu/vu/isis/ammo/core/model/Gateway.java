@@ -17,12 +17,10 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.core.OnNameChangeListener;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.network.NetChannel;
 

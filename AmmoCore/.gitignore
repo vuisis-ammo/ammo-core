@@ -3,3 +3,8 @@ gen/
 *.dex
 .settings/
 obj/
+bin/
+local.properties
+proguard-project.txt
+project.properties
+
