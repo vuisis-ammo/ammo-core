@@ -81,7 +81,6 @@
         </executions>
       </plugin>
 
-<!--
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
         <configuration>
@@ -95,7 +94,6 @@
           </filesets>
         </configuration>
       </plugin>
--->
 
       <plugin>
         <groupId>com.jayway.maven.plugins.android.generation2</groupId>
