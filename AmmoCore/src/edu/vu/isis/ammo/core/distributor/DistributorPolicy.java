@@ -824,7 +824,7 @@ public class DistributorPolicy implements ContentHandler {
                 this.builder.type(type);
                 
                 String routedString = atts.getValue(uri, "routed");
-                if (routedString.equalsIgnoreCase("true")) {
+                if (routedString != null && routedString.equalsIgnoreCase("true")) {
                     this.builder.routed(true);
                 } else {
                     this.builder.routed(false);
