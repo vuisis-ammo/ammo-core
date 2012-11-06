@@ -148,7 +148,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
         <plugin>
           <groupId>com.jayway.maven.plugins.android.generation2</groupId>
           <artifactId>android-maven-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.4.0</version>
           <configuration>
            <dex>
               <jvmArguments>
@@ -204,6 +204,10 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
                   </pluginExecutions>
                 </lifecycleMappingMetadata>
               </configuration>
+            </plugin>
+            <plugin>
+              <artifactId>maven-clean-plugin</artifactId>
+              <version>2.5</version>
             </plugin>
       </plugins>
 

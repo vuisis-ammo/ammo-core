@@ -52,7 +52,7 @@ public class SerialChannel extends NetChannel
 {
     static
     {
-        System.loadLibrary( "serialchan" );
+        System.loadLibrary( "ammocore" );
     }
 
 

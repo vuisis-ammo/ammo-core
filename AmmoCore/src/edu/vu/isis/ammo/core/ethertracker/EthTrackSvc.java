@@ -269,6 +269,6 @@ public class EthTrackSvc extends ServiceEx {
     }
 
     static {
-        System.loadLibrary("ethrmon");
+        System.loadLibrary("ammocore");
     }
 }

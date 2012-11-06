@@ -76,6 +76,6 @@ public class SerialPort {
 
 
     //static {
-    //  System.loadLibrary("serial_port");
+    //  System.loadLibrary("ammocore");
     //}
 }
