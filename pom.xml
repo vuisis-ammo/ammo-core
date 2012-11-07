@@ -54,6 +54,12 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       </dependency>
 
       <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>2.4.1</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.jgroups</groupId>
         <artifactId>jgroups-ammo</artifactId>
         <version>1.5.13</version>
@@ -209,6 +215,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
                         <versionRange>[1.0.0,)</versionRange>
                         <goals>
                           <goal>ndk-build</goal>
+                          <goal>manifest-update</goal>
                         </goals>
                       </pluginExecutionFilter>
                       <action>

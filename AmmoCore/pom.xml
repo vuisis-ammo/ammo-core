@@ -47,40 +47,10 @@
   <build>
     <directory>target</directory>
     <sourceDirectory>src</sourceDirectory>
-    <resources>
-      <resource>
-<!-- rewrite the resource file -->
-        <directory>res/values/</directory>
-        <filtering>true</filtering>
-        <includes>
-          <include>**/version.xml</include>
-        </includes>
-      </resource>
-      <resource>
-        <directory>res/values/</directory>
-        <filtering>false</filtering>
-        <excludes>
-          <exclude>**/version.xml</exclude>
-        </excludes>
-      </resource>
-    </resources>
 
     <plugins>
 
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-<!-- extract the project version items -->
-            <id>parse-version</id>
-            <goals>
-              <goal>parse-version</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
+<!-- clean up the ndk artifacts -->
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
         <configuration>
@@ -122,6 +92,18 @@
                </proguard>
             </configuration>
           </execution>
+<!-- update the manifest with version information -->
+          <execution>
+            <id>manifest-version</id>
+            <goals>
+              <goal>manifest-update</goal>
+            </goals>
+            <configuration>
+              <manifest>
+                <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
+              </manifest>
+            </configuration>
+          </execution>
 <!-- build the android package -->
           <execution>
             <id>build-apk</id>
@@ -141,13 +123,13 @@
         <extensions>true</extensions>
       </plugin>
 
-      <plugin>
 <!-- compile the java -->
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <!--<source>1.6</source>
-                    <target>1.6</target>-->
+          <source>1.6</source>
+          <target>1.6</target>
         </configuration>
       </plugin>
     </plugins>
@@ -160,7 +142,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>2.4.1</version>
     </dependency>
     <dependency>
       <groupId>com.github.tony19</groupId>
