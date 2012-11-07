@@ -201,10 +201,26 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
                       </action>
                     </pluginExecution>
 
+                    <pluginExecution>
+                      <pluginExecutionFilter>
+
+                        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                        <artifactId>android-maven-plugin</artifactId>
+                        <versionRange>[1.0.0,)</versionRange>
+                        <goals>
+                          <goal>ndk-build</goal>
+                        </goals>
+                      </pluginExecutionFilter>
+                      <action>
+                        <ignore />
+                      </action>
+                    </pluginExecution>
+
                   </pluginExecutions>
                 </lifecycleMappingMetadata>
               </configuration>
             </plugin>
+
             <plugin>
               <artifactId>maven-clean-plugin</artifactId>
               <version>2.5</version>
