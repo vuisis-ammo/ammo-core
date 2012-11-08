@@ -1,5 +1,5 @@
 
-package edu.vu.isis.ammo.testutils;
+package edu.vu.isis.ammo.core;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,14 +28,14 @@ import android.test.mock.MockContext;
 import edu.vu.isis.ammo.provider.AmmoMockProvider01;
 import edu.vu.isis.ammo.provider.AmmoMockSchema01;
 
-public class RenamingMockContext extends MockContext {
+public class MockContextRenaming extends MockContext {
     static final public Logger logger = LoggerFactory.getLogger("test.context,mock");
 
     static final private String PREFIX = "test.";
     final private Context targetContext;
     final private Context testContext;
 
-    public RenamingMockContext(Context context) throws NameNotFoundException {
+    public MockContextRenaming(Context context) throws NameNotFoundException {
         logger.info("mock context constructor");
         this.targetContext = context;
 

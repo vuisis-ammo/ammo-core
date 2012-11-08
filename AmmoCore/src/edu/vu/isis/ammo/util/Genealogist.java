@@ -1,41 +1,59 @@
+
+
 package edu.vu.isis.ammo.util;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * The Genealogist is a collection of functions which
- * can be used to find the ancestry of a particular object.
- * 
- * In general these functions should only be used 
- * during logging or debugging.
- *
+ * The Genealogist is a collection of functions which can be used to find the
+ * ancestry of a particular object. In general these functions should only be
+ * used during logging or debugging.
  */
 public class Genealogist {
 
-    public static List<String> getAncestry(Object object) {
-        final Set<Class<?>> ancestry = getAncestry(object.getClass());
-        final List<String> ancestorNames = new ArrayList<String>(ancestry.size());
-        for (Class<?> clazz : ancestry) {
-            ancestorNames.add(clazz.getName());
-        }
-        return ancestorNames;
+    static final private Logger logger = LoggerFactory.getLogger("class.genealogist");
+
+    /**
+     * Given an object all of its ancestor classes are identified. At each level
+     * all of the implemented interfaces are also identified.
+     * 
+     * @param object
+     * @return
+     */
+    public static TreeNode<Class<?>> getAncestry(Object object) {
+        logger.trace("get ancestry for object {}", object.getClass().getName());
+        return getAncestry(object.getClass());
     }
-    
-    
-    public static Set<Class<?>> getAncestry(Class<?> classObject) {
-        final Set<Class<?>> ancestry = new HashSet<Class<?>>();
-        ancestry.add(classObject);
+
+    public static TreeNode<Class<?>> getAncestry(Class<?> classObject) {
+        logger.trace("get ancestry for class {}", classObject.getName());
+        final TreeNode<Class<?>> tree = TreeNode.<Class<?>> newTree(classObject);
+        return getAncestryAux(classObject, tree);
+    }
+
+    /**
+     * First add a leaf with the parent class (if any). Then add all the
+     * interfaces implemented by this class.
+     * 
+     * @param classObject
+     * @param target
+     * @return
+     */
+    private static TreeNode<Class<?>> getAncestryAux(Class<?> classObject, TreeNode<Class<?>> target) {
+        logger.trace("get ancestry for class {}", classObject.getName());
         final Class<?> superClass = classObject.getSuperclass();
         if (superClass != null) {
-            ancestry.addAll(getAncestry(superClass));
+            final TreeNode<Class<?>> classBranch = target.addLeaf(superClass);
+            getAncestryAux(superClass, classBranch);
         }
+
         final Class<?>[] superInterfaceArray = classObject.getInterfaces();
         for (Class<?> superInterface : superInterfaceArray) {
-            ancestry.addAll(getAncestry(superInterface));
+            final TreeNode<Class<?>> interfaceBranch = target.addLeaf(superInterface);
+            getAncestryAux(superInterface, interfaceBranch);
         }
-        return ancestry;
+        return target;
     }
+
 }

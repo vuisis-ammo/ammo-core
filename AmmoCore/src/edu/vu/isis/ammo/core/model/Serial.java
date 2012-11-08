@@ -99,7 +99,7 @@ public class Serial extends ModelChannel {
 
         mChannel = channel;
         mElection = !this.prefs.getBoolean(INetPrefKeys.SERIAL_DISABLED,
-                INetPrefKeys.DEFAULT_SERIAL_DISABLED);
+                INetPrefKeys.DEFAULT_SERIAL_ENABLED);
     }
 
     // FIXME : Should this view, which is only user interface, be writing this

@@ -52,7 +52,7 @@ public class SerialChannel extends NetChannel
 {
     static
     {
-        System.loadLibrary( "serialchan" );
+        System.loadLibrary( "ammocore" );
     }
 
 
@@ -1128,7 +1128,7 @@ public class SerialChannel extends NetChannel
                 logger.debug(
                              "sent message size={}, checksum={}, data:{}",
                              new Object[] { msg.size,
-                                            Long.toHexString(msg.payload_checksum),
+                                            msg.payload_checksum.toHexString(),
                                             msg.payload });
             }
 
@@ -1340,7 +1340,7 @@ public class SerialChannel extends NetChannel
                         logger.debug( "received message size={}, checksum={}, data:{}",
                                       new Object[] {
                                           agm.size,
-                                          Long.toHexString(agm.payload_checksum),
+                                          agm.payload_checksum.toHexString(),
                                           agm.payload } );
 
                         if ( getRetransmitter() != null ) {

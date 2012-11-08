@@ -1206,7 +1206,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
                     if (msg.getSrc().toString()
                             .equals(mChannelManager.getOperatorId())) {
-                        logger.warn("Got a Message looped back to me : Ignoring");
+                        logger.debug("Got a Message looped back to me : Ignoring");
                         return;
                     }
 

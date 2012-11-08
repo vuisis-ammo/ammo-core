@@ -5,22 +5,15 @@
     <!-- TEMPLATE2:BEGIN
 -->
     <repo.addr>vanderbilt-snapshot/</repo.addr>
-    <!-- This field should read "Vanderbilt/" for releases -->
-    <!-- else it should read "vanderbilt-snapshot/" for snapshots-->
-    <!-- TEMPLATE2:END -->
     <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
     <vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
     <vandylib.eucleo.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/eucleo/</vandylib.eucleo.url>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <root.basedir>${basedir}/../..</root.basedir>
   </properties>
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammo-parent</artifactId>
-    <!-- TEMPLATE:BEGIN-->
-    <version>1.6.1-SNAPSHOT</version>
-    <!-- TEMPLATE:END -->
-    <relativePath>../../</relativePath>
+    <version>1.7.0-SNAPSHOT</version>
   </parent>
   <artifactId>ammotest</artifactId>
   <packaging>apk</packaging>
@@ -116,12 +109,12 @@
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammolib</artifactId>
-      <version>1.6.0</version>
+      <version>1.7.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammocorelib</artifactId>
-      <version>1.6.0</version>
+      <version>1.7.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.google.android</groupId>

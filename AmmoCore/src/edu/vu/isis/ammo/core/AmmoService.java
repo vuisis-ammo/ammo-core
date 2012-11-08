@@ -192,13 +192,13 @@ public class AmmoService extends Service implements INetworkService,
     private String operatorKey = INetPrefKeys.DEFAULT_CORE_OPERATOR_KEY;
 
     // isJournalUserDisabled
-    private boolean isJournalUserDisabled = INetPrefKeys.DEFAULT_JOURNAL_DISABLED;
+    private boolean isJournalUserDisabled = INetPrefKeys.DEFAULT_JOURNAL_ENABLED;
 
     // Determine if the connection is enabled
-    private boolean isGatewaySuppressed = INetPrefKeys.DEFAULT_GATEWAY_DISABLED;
-    private boolean isMulticastSuppressed = INetPrefKeys.DEFAULT_MULTICAST_DISABLED;
-    private boolean isReliableMulticastSuppressed = INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED;
-    private boolean isSerialSuppressed = INetPrefKeys.DEFAULT_SERIAL_DISABLED;
+    private boolean isGatewaySuppressed = INetPrefKeys.DEFAULT_GATEWAY_ENABLED;
+    private boolean isMulticastSuppressed = INetPrefKeys.DEFAULT_MULTICAST_ENABLED;
+    private boolean isReliableMulticastSuppressed = INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_ENABLED;
+    private boolean isSerialSuppressed = INetPrefKeys.DEFAULT_SERIAL_ENABLED;
 
     static final private AtomicBoolean isStartCommandSuppressed = new AtomicBoolean(false);
 
@@ -486,8 +486,12 @@ public class AmmoService extends Service implements INetworkService,
         this.localSettings
                 .registerOnSharedPreferenceChangeListener(this.ammoPreferenceChangeListener);
 
-        serialChannel = new SerialChannel(ChannelFilter.SERIAL, this, getBaseContext());
-        // this.serialChannel.init(context);
+        try {
+            this.serialChannel = new SerialChannel(ChannelFilter.SERIAL, this, getBaseContext());
+         // this.serialChannel.init(context);
+        } catch (UnsatisfiedLinkError er) {
+            logger.error("serial channel native not found");
+        }
 
         netChannelMap.put("default", tcpChannel);
         netChannelMap.put(tcpChannel.name, tcpChannel);
@@ -799,7 +803,7 @@ public class AmmoService extends Service implements INetworkService,
         // GATEWAY
         this.isGatewaySuppressed = this
                 .aggregatePref(INetPrefKeys.GATEWAY_DISABLED,
-                        INetPrefKeys.DEFAULT_GATEWAY_DISABLED);
+                        INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
 
         final String gatewayHostname = this
                 .aggregatePref(INetPrefKeys.GATEWAY_HOST,
@@ -827,7 +831,7 @@ public class AmmoService extends Service implements INetworkService,
          */
         this.isMulticastSuppressed = this
                 .aggregatePref(INetPrefKeys.MULTICAST_DISABLED,
-                        INetPrefKeys.DEFAULT_MULTICAST_DISABLED);
+                        INetPrefKeys.DEFAULT_MULTICAST_ENABLED);
 
         final String multicastHost = this.localSettings
                 .getString(INetPrefKeys.MULTICAST_HOST,
@@ -861,7 +865,7 @@ public class AmmoService extends Service implements INetworkService,
          */
         this.isReliableMulticastSuppressed = this
                 .aggregatePref(INetPrefKeys.RELIABLE_MULTICAST_DISABLED,
-                        INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED);
+                        INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_ENABLED);
 
         final String reliableMulticastHost = this.localSettings
                 .getString(INetPrefKeys.RELIABLE_MULTICAST_HOST,
@@ -895,7 +899,7 @@ public class AmmoService extends Service implements INetworkService,
          */
         this.isSerialSuppressed = this
                 .aggregatePref(INetPrefKeys.SERIAL_DISABLED,
-                        INetPrefKeys.DEFAULT_SERIAL_DISABLED);
+                        INetPrefKeys.DEFAULT_SERIAL_ENABLED);
 
         this.serialChannel.setDevice(this.localSettings
                 .getString(INetPrefKeys.SERIAL_DEVICE,
@@ -1187,7 +1191,7 @@ public class AmmoService extends Service implements INetworkService,
                             /*
                              * GATEWAY
                              */
-                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_DISABLED)) {
+                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_ENABLED)) {
                                 parent.tcpChannel.disable();
                             } else {
                                 parent.tcpChannel.enable();
@@ -1237,7 +1241,7 @@ public class AmmoService extends Service implements INetworkService,
                             //
                             // Multicast
                             //
-                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_DISABLED)) {
+                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_MULTICAST_ENABLED)) {
                                 parent.multicastChannel.disable();
                             } else {
                                 parent.multicastChannel.enable();
@@ -1264,7 +1268,7 @@ public class AmmoService extends Service implements INetworkService,
                         //
                         else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_DISABLED)) {
                             if (prefs.getBoolean(key,
-                                    INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_DISABLED)) {
+                                    INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_ENABLED)) {
                                 parent.reliableMulticastChannel.disable();
                             } else {
                                 parent.reliableMulticastChannel.enable();
@@ -1326,7 +1330,7 @@ public class AmmoService extends Service implements INetworkService,
                                     !INetPrefKeys.DEFAULT_SERIAL_RECEIVE_ENABLED));
                         }
                         else if (key.equals(INetPrefKeys.SERIAL_DISABLED)) {
-                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_DISABLED))
+                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_ENABLED))
                                 parent.serialChannel.disable();
                             else
                                 parent.serialChannel.enable();
@@ -1649,7 +1653,7 @@ public class AmmoService extends Service implements INetworkService,
             ReliableMulticastChannel.getInstance(ChannelFilter.RELIABLE_MULTICAST, this, this);
     final private JournalChannel journalChannel =
             JournalChannel.getInstance(ChannelFilter.JOURNAL, this);
-    private SerialChannel serialChannel;
+    private SerialChannel serialChannel = null;
 
     final public List<NetChannel> registeredChannels =
             new ArrayList<NetChannel>();

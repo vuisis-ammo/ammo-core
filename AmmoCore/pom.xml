@@ -1,179 +1,109 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
   <modelVersion>4.0.0</modelVersion>
   <properties>
-    <!-- TEMPLATE2:BEGIN
--->
-    <repo.addr>vanderbilt-snapshot/</repo.addr>
-    <!-- This field should read "Vanderbilt/" for releases -->
-    <!-- else it should read "vanderbilt-snapshot/" for snapshots-->
-    <!-- TEMPLATE2:END -->
     <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
     <vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
-    <vandylib.eucleo.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/eucleo/</vandylib.eucleo.url>
+    <transapps.public.url>http://devportal.researchinnovations.com:8081/nexus/content/groups/public/</transapps.public.url>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <root.basedir>${basedir}/../..</root.basedir>
     <android.target>android-8</android.target>
   </properties>
   <parent>
     <groupId>edu.vu.isis</groupId>
-    <artifactId>ammo-parent</artifactId>
-    <!-- TEMPLATE:BEGIN-->
-    <version>1.6.1-SNAPSHOT</version>
-    <!-- TEMPLATE:END -->
+    <artifactId>ammocore-parent</artifactId>
+    <version>1.7.0-SNAPSHOT</version>
   </parent>
   <artifactId>ammocore</artifactId>
   <packaging>apk</packaging>
   <name>Ammo Core Application</name>
 
-  <distributionManagement>
-    <repository>
-      <id>nexus-vanderbilt</id>
-      <url>${vandylib.release.url}</url>
-    </repository>
-    <snapshotRepository>
-      <id>nexus-snapshot</id>
-      <url>${vandylib.snapshot.url}</url>
-    </snapshotRepository>
-  </distributionManagement>
-
-  <repositories>
-    <repository>
-      <id>nexus-snapshot</id>
-      <url>${vandylib.snapshot.url}</url>
-    </repository>
-    <repository>
-      <id>nexus-vanderbilt</id>
-      <url>${vandylib.release.url}</url>
-    </repository>
-    <repository>
-      <id>nexus-eucleo</id>
-      <url>${vandylib.eucleo.url}</url>
-    </repository>
-  </repositories>
-
   <build>
     <directory>target</directory>
     <sourceDirectory>src</sourceDirectory>
+
     <plugins>
+
+<!-- clean up the ndk artifacts -->
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>add-source</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>${root.basedir}/target/generated-sources/pb</source>
-              </sources>
-            </configuration>
-          </execution>
-        </executions>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>libs</directory>
+            </fileset>
+            <fileset>
+              <directory>obj</directory>
+            </fileset>
+          </filesets>
+        </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>version_gen</id>
-            <phase>validate</phase>
-            <configuration>
-              <target>
-                <ant antfile="maven-version-generator.xml" inheritAll="true" inheritRefs="true">
-                  <target name="update-version" />
-                </ant>
-              </target>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>make_tar</id>
-            <phase>install</phase>
-            <configuration>
-              <tasks>
-                <mkdir dir="${root.basedir}/build" />
-                <copy todir="${root.basedir}/build">
-                  <fileset dir="${basedir}/target">
-                    <include name="*-${project.version}.apk" />
-                  </fileset>
-                </copy>
-              </tasks>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
-          <!--execution>
-            <phase>deploy</phase> <!-should only build javadoc when you need to deploy->
-            <configuration>
-              <target>
-                <ant antfile="build-javadoc.xml" inheritAll="true" inheritRefs="true">
-                  <target name="javadoc"/>
-                </ant>
-              </target>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution-->
-          <!--execution>
-                        <id>generate-sources</id>
-                        <phase>generate-sources</phase>
-                        <configuration>
-                            <tasks>
-                                <property name="proto.dir" value="../../Gateway/common/protocol"/>
-                                <echo>Generating protocol buffers</echo>
-                                <exec executable="protoc" taskname="pb">
-                                    <arg value="-proto_path"/>
-                                    <arg value="${proto.dir}"/>
-                                    <arg value="-java_out=target/generated-sources"/>
-                                    <arg value="${proto.dir}/AmmoMessages.proto"/>
-                                </exec>
-                            </tasks>
-                            <sourceRoot>target/generated-sources</sourceRoot>
-                        </configuration>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                    </execution-->
-        </executions>
-        <dependencies>
-          <dependency>
-            <groupId>ant-contrib</groupId>
-            <artifactId>ant-contrib</artifactId>
-            <version>1.0b3</version>
-            <exclusions>
-              <exclusion>
-                <groupId>ant</groupId>
-                <artifactId>ant</artifactId>
-              </exclusion>
-            </exclusions>
-          </dependency>
-        </dependencies>
-      </plugin>
+
       <plugin>
         <groupId>com.jayway.maven.plugins.android.generation2</groupId>
         <artifactId>android-maven-plugin</artifactId>
+        <executions>
+<!-- build the shared libraries -->
+          <execution>
+            <id>build-native-library</id>
+            <goals>
+              <goal>ndk-build</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+               <target>ammocore</target>
+               <ndk>
+                   <path>${env.ANDROID_NDK_HOME}</path>
+               </ndk>
+               <attachNativeArtifacts>true</attachNativeArtifacts>
+               <clearNativeArtifacts>true</clearNativeArtifacts>
+               <deleteConflictingFiles>true</deleteConflictingFiles>
+               <sign>
+                   <debug>false</debug>
+               </sign>
+               <proguard>
+                   <skip>true</skip>
+               </proguard>
+            </configuration>
+          </execution>
+<!-- update the manifest with version information -->
+          <execution>
+            <id>manifest-version</id>
+            <goals>
+              <goal>manifest-update</goal>
+            </goals>
+            <configuration>
+              <manifest>
+                <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
+              </manifest>
+            </configuration>
+          </execution>
+<!-- build the android package -->
+          <execution>
+            <id>build-apk</id>
+            <goals>
+              <goal>apk</goal>
+            </goals>
+            <configuration>
+              <sdk>
+                <platform>8</platform>
+                <path>${env.ANDROID_SDK}</path>
+              </sdk>
+              <nativeLibrariesDirectory>${android.ndk.build.ndk-output-directory}</nativeLibrariesDirectory>
+              <undeployBeforeDeploy>true</undeployBeforeDeploy>
+            </configuration>
+          </execution>
+        </executions>
         <extensions>true</extensions>
-        <configuration>
-          <sdk>
-            <platform>8</platform>
-          </sdk>
-          <undeployBeforeDeploy>true</undeployBeforeDeploy>
-        </configuration>
       </plugin>
+
+<!-- compile the java -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <!--<source>1.6</source>
-                    <target>1.6</target>-->
+          <source>1.6</source>
+          <target>1.6</target>
         </configuration>
       </plugin>
     </plugins>
@@ -183,20 +113,9 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
-    <!--dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency-->
-    <!-- dependency>
-            <groupId>com.google.android</groupId>
-            <artifactId>android</artifactId>
-            <scope>provided</scope>
-        </dependency -->
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>2.3.0</version>
     </dependency>
     <dependency>
       <groupId>com.github.tony19</groupId>
@@ -213,13 +132,17 @@
     <dependency>
       <groupId>org.jgroups</groupId>
       <artifactId>jgroups-ammo</artifactId>
-      <version>1.5.13</version>
     </dependency>
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammolib</artifactId>
-      <version>${project.version}</version>
-      <type>apklib</type>
+      <type>jar</type>
+    </dependency>
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammo-message</artifactId>
+      <classifier>protoc24</classifier>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>transapps</groupId>
@@ -254,58 +177,18 @@
             <artifactId>maven-antrun-plugin</artifactId>
             <executions>
               <execution>
-                <id>generate-sources</id>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <tasks>
-                    <exec executable="echo">
-                      <arg value="${os.arch}" />
-                    </exec>
-                    <mkdir dir="target/generated-sources/pb" />
-                    <property name="proto.dir" value="../../Gateway/common/protocol" />
-                    <exec executable="chmod">
-                      <arg value="555" />
-                      <arg value="${com.google.protobuf:protoc-gateway-x86:exe}" />
-                    </exec>
-                    <echo>Generating protocol buffers</echo>
-                    <exec executable="${com.google.protobuf:protoc-gateway-x86:exe}" taskname="pb">
-                      <arg value="--proto_path" />
-                      <arg value="${proto.dir}" />
-                      <arg value="--java_out=target/generated-sources/pb" />
-                      <arg value="${proto.dir}/AmmoMessages.proto" />
-                    </exec>
-                  </tasks>
-                  <sourceRoot>target/generated-sources</sourceRoot>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>ndk_gen</id>
-                <phase>initialize</phase>
-                <configuration>
-                  <tasks>
-                    <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
-                  </tasks>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
+<!-- update the android project files -->
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -327,7 +210,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>com.google.protobuf</groupId>
@@ -355,14 +238,6 @@
       <properties>
         <protoc.path>x64</protoc.path>
       </properties>
-      <dependencies>
-        <dependency>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protoc-gateway-x64</artifactId>
-          <version>2.3.0</version>
-          <type>exe</type>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
           <plugin>
@@ -370,58 +245,18 @@
             <artifactId>maven-antrun-plugin</artifactId>
             <executions>
               <execution>
-                <id>generate-sources</id>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <tasks>
-                    <exec executable="echo">
-                      <arg value="${os.arch}" />
-                    </exec>
-                    <property name="proto.dir" value="../../Gateway/common/protocol" />
-                    <exec executable="chmod">
-                      <arg value="555" />
-                      <arg value="${com.google.protobuf:protoc-gateway-x64:exe}" />
-                    </exec>
-                    <mkdir dir="target/generated-sources/pb" />
-                    <echo>Generating protocol buffers</echo>
-                    <exec executable="${com.google.protobuf:protoc-gateway-x64:exe}" taskname="pb">
-                      <arg value="--proto_path" />
-                      <arg value="${proto.dir}" />
-                      <arg value="--java_out=target/generated-sources/pb" />
-                      <arg value="${proto.dir}/AmmoMessages.proto" />
-                    </exec>
-                  </tasks>
-                  <sourceRoot>target/generated-sources</sourceRoot>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>ndk_gen</id>
-                <phase>initialize</phase>
-                <configuration>
-                  <tasks>
-                    <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
-                  </tasks>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
+<!-- update the android project files -->
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -443,12 +278,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
-              </dependency>
-              <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java</artifactId>
-                <version>2.3.0</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>org.json</groupId>
@@ -467,17 +297,6 @@
           <family>windows</family>
         </os>
       </activation>
-      <properties>
-        <protoc.path>win32</protoc.path>
-      </properties>
-      <dependencies>
-        <dependency>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protoc-gateway-win32</artifactId>
-          <version>2.3.0</version>
-          <type>exe</type>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
           <plugin>
@@ -485,58 +304,18 @@
             <artifactId>maven-antrun-plugin</artifactId>
             <executions>
               <execution>
-                <id>generate-sources</id>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <tasks>
-                    <exec executable="echo">
-                      <arg value="${os.arch}" />
-                    </exec>
-                    <property name="proto.dir" value="../../Gateway/common/protocol" />
-                    <exec executable="chmod">
-                      <arg value="555" />
-                      <arg value="${com.google.protobuf:protoc-gateway-win32:exe}" />
-                    </exec>
-                    <echo>Generating protocol buffers</echo>
-                    <mkdir dir="target/generated-sources/pb" />
-                    <exec executable="${com.google.protobuf:protoc-gateway-win32:exe}" taskname="pb">
-                      <arg value="--proto_path" />
-                      <arg value="${proto.dir}" />
-                      <arg value="--java_out=target/generated-sources/pb" />
-                      <arg value="${proto.dir}/AmmoMessages.proto" />
-                    </exec>
-                  </tasks>
-                  <sourceRoot>target/generated-sources</sourceRoot>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>ndk_gen</id>
-                <phase>initialize</phase>
-                <configuration>
-                  <tasks>
-                    <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build.cmd" dir="." searchpath="true" failonerror="true" />
-                  </tasks>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
+<!-- update the android project files -->
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android.bat" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -558,12 +337,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
-              </dependency>
-              <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java</artifactId>
-                <version>2.3.0</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>org.json</groupId>
@@ -584,54 +358,18 @@
             <artifactId>maven-antrun-plugin</artifactId>
             <executions>
               <execution>
-                <id>generate-sources</id>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <tasks>
-                    <exec executable="echo">
-                      <arg value="${os.arch}" />
-                    </exec>
-                    <property name="proto.dir" value="../../Gateway/common/protocol" />
-                    <echo>Generating protocol buffers</echo>
-                    <mkdir dir="target/generated-sources/pb" />
-                    <exec executable="protoc" taskname="pb">
-                      <arg value="--proto_path" />
-                      <arg value="${proto.dir}" />
-                      <arg value="--java_out=target/generated-sources/pb" />
-                      <arg value="${proto.dir}/AmmoMessages.proto" />
-                    </exec>
-                  </tasks>
-                  <sourceRoot>target/generated-sources</sourceRoot>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>ndk_gen</id>
-                <phase>initialize</phase>
-                <configuration>
-                  <tasks>
-                    <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
-                  </tasks>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
+<!-- update the android project files -->
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -653,12 +391,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
-              </dependency>
-              <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java</artifactId>
-                <version>2.3.0</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>org.json</groupId>
@@ -678,17 +411,6 @@
           <family>mac</family>
         </os>
       </activation>
-      <properties>
-        <protoc.path>mac</protoc.path>
-      </properties>
-      <dependencies>
-        <dependency>
-          <groupId>com.google.protobuf</groupId>
-          <artifactId>protoc-gateway-mac</artifactId>
-          <version>2.3.0</version>
-          <type>exe</type>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
           <plugin>
@@ -696,59 +418,18 @@
             <artifactId>maven-antrun-plugin</artifactId>
             <executions>
               <execution>
-                <id>generate-sources</id>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <tasks>
-                    <exec executable="echo">
-                      <arg value="${os.arch}" />
-                      <arg value="${os.family}" />
-                    </exec>
-                    <mkdir dir="target/generated-sources/pb" />
-                    <property name="proto.dir" value="../../Gateway/common/protocol" />
-                    <exec executable="chmod">
-                      <arg value="555" />
-                      <arg value="${com.google.protobuf:protoc-gateway-mac:exe}" />
-                    </exec>
-                    <echo>Generating protocol buffers</echo>
-                    <exec executable="${com.google.protobuf:protoc-gateway-mac:exe}" taskname="pb">
-                      <arg value="--proto_path" />
-                      <arg value="${proto.dir}" />
-                      <arg value="--java_out=target/generated-sources/pb" />
-                      <arg value="${proto.dir}/AmmoMessages.proto" />
-                    </exec>
-                  </tasks>
-                  <sourceRoot>target/generated-sources</sourceRoot>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>ndk_gen</id>
-                <phase>initialize</phase>
-                <configuration>
-                  <tasks>
-                    <echo>Building ethertracker library</echo>
-                    <exec executable="ndk-build" dir="." searchpath="true" failonerror="true" />
-                  </tasks>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-              <execution>
+<!-- update the android project files -->
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -770,12 +451,7 @@
               <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.6.4</version>
-              </dependency>
-              <dependency>
-                <groupId>com.google.protobuf</groupId>
-                <artifactId>protobuf-java</artifactId>
-                <version>2.3.0</version>
+                <version>1.7.2</version>
               </dependency>
               <dependency>
                 <groupId>org.json</groupId>

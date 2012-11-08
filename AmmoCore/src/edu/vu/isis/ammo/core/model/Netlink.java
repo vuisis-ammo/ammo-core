@@ -83,7 +83,7 @@ public abstract class Netlink implements OnSharedPreferenceChangeListener
 
         this.prefs = PreferenceManager.getDefaultSharedPreferences(this.context);
         this.election = this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED,
-                                              INetPrefKeys.DEFAULT_GATEWAY_DISABLED);
+                                              INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
 
         prefs.registerOnSharedPreferenceChangeListener(this);
     }

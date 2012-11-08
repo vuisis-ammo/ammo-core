@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <prerequisites>
+      <maven>3.0.4</maven>
+  </prerequisites>
+
+  <modelVersion>4.0.0</modelVersion>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <vandy.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandy.release.url>
+    <vandy.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandy.snapshot.url>
+  </properties>
+
+  <groupId>edu.vu.isis</groupId>
+  <artifactId>ammocore-parent</artifactId>
+  <packaging>pom</packaging>
+  <version>1.7.0-SNAPSHOT</version>
+  <name>ammocore parent project</name>
+
+  <modules>
+    <module>AmmoCore</module>
+  </modules>
+
+  <distributionManagement>
+    <repository>
+      <id>vanderbilt-release-repository</id>
+      <url>${vandy.release.url}</url>
+    </repository>
+    <snapshotRepository>
+      <id>vanderbilt-snapshot-repository</id>
+      <url>${vandy.snapshot.url}</url>
+    </snapshotRepository>
+  </distributionManagement>
+
+  <repositories>
+    <repository>
+      <id>vanderbilt-snapshot-repository</id>
+      <url>${vandylib.snapshot.url}</url>
+    </repository>
+    <repository>
+      <id>vanderbilt-release-repository</id>
+      <url>${vandylib.release.url}</url>
+    </repository>
+    <repository>
+      <id>nexus-transapps</id>
+      <url>${transapps.public.url}</url>
+    </repository>
+  </repositories>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>edu.vu.isis</groupId>
+        <artifactId>ammolib</artifactId>
+        <version>1.7.0-SNAPSHOT</version>
+        <type>jar</type>
+        <scope>compile</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>edu.vu.isis</groupId>
+        <artifactId>ammo-message</artifactId>
+        <version>1.7.0-SNAPSHOT</version>
+        <classifier>protoc24</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>2.4.1</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.jgroups</groupId>
+        <artifactId>jgroups-ammo</artifactId>
+        <version>1.5.13</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>2.2.2</version>
+        <scope>compile</scope>
+        <type>jar</type>
+      </dependency>
+
+      <dependency>
+       <groupId>com.google.android</groupId>
+        <artifactId>android</artifactId>
+        <version>4.1.1.4</version>
+        <scope>provided</scope>
+      </dependency>
+  
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.2</version>
+        <scope>compile</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.tony19</groupId>
+        <artifactId>logback-android-core</artifactId>
+        <version>1.0.7-2-SNAPSHOT</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.tony19</groupId>
+        <artifactId>logback-android-classic</artifactId>
+        <version>1.0.7-2-SNAPSHOT</version>
+      </dependency>
+
+      <dependency>
+        <groupId>edu.vanderbilt.isis</groupId>
+        <artifactId>lauilib</artifactId>
+        <version>1.0.1</version>
+      </dependency>
+
+      <dependency>
+       <groupId>com.google.android</groupId>
+        <artifactId>android-test</artifactId>
+        <version>4.1.1.4</version>
+        <scope>provided</scope>
+      </dependency>
+
+      <dependency>
+       <groupId>transapps</groupId>
+        <artifactId>tasettings-api</artifactId>
+        <version>1.0.18</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>2.3.2</version>
+          <configuration>
+            <source>1.6</source>
+            <target>1.6</target>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>properties-maven-plugin</artifactId>
+          <version>1.0-alpha-2</version>
+        </plugin> 
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>1.7</version>
+        </plugin> 
+
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>build-helper-maven-plugin</artifactId>
+          <version>1.7</version>
+        </plugin>
+        
+        <plugin>
+          <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+          <artifactId>android-maven-plugin</artifactId>
+          <version>3.4.0</version>
+          <configuration>
+           <dex>
+              <jvmArguments>
+                <jvmArgument>-Xms256m</jvmArgument>
+                <jvmArgument>-Xmx1024m</jvmArgument>
+              </jvmArguments>
+            </dex>
+          </configuration>
+        </plugin> 
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>2.4</version>
+        </plugin>
+
+        <plugin>
+              <groupId>org.eclipse.m2e</groupId>
+              <artifactId>lifecycle-mapping</artifactId>
+              <version>1.0.0</version>
+              <configuration>
+                <lifecycleMappingMetadata>
+                  <pluginExecutions>
+
+                    <pluginExecution>
+                      <pluginExecutionFilter>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <versionRange>[1.0.0,)</versionRange>
+                        <goals>
+                          <goal>run</goal>
+                        </goals>
+                      </pluginExecutionFilter>
+                      <action>
+                        <ignore />
+                      </action>
+                    </pluginExecution>
+
+                    <pluginExecution>
+                      <pluginExecutionFilter>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <versionRange>[1.0.0,)</versionRange>
+                        <goals>
+                          <goal>run</goal>
+                        </goals>
+                      </pluginExecutionFilter>
+                      <action>
+                        <ignore />
+                      </action>
+                    </pluginExecution>
+
+                    <pluginExecution>
+                      <pluginExecutionFilter>
+
+                        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                        <artifactId>android-maven-plugin</artifactId>
+                        <versionRange>[1.0.0,)</versionRange>
+                        <goals>
+                          <goal>ndk-build</goal>
+                          <goal>manifest-update</goal>
+                        </goals>
+                      </pluginExecutionFilter>
+                      <action>
+                        <ignore />
+                      </action>
+                    </pluginExecution>
+
+                  </pluginExecutions>
+                </lifecycleMappingMetadata>
+              </configuration>
+            </plugin>
+
+            <plugin>
+              <artifactId>maven-clean-plugin</artifactId>
+              <version>2.5</version>
+            </plugin>
+      </plugins>
+
+    </pluginManagement>
+  </build>
+
+</project>

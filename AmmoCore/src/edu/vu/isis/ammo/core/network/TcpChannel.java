@@ -11,6 +11,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.network;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -743,13 +744,20 @@ public class TcpChannel extends NetChannel {
         boolean result = parent.mSocketChannel.finishConnect();
       }
       catch ( AsynchronousCloseException ex ) {
-        logger.warn( "connection to {}:{} async close failure",
+        logger.info( "connection to {}:{} async close failure",
             new Object[]{ipaddr, port}, ex);
         parent.mSocketChannel = null;
         return false;
       }
       catch ( ClosedChannelException ex ) {
-        logger.warn( "connection to {}:{} closed channel failure",
+        logger.info( "connection to {}:{} closed channel failure",
+            new Object[]{ipaddr, port}, ex);
+        parent.mSocketChannel = null;
+        return false;
+      }
+      catch ( ConnectException ex )
+      {
+        logger.info( "connection failed to {}:{}",
             new Object[]{ipaddr, port}, ex);
         parent.mSocketChannel = null;
         return false;

@@ -20,7 +20,8 @@ public class ScrollingFileReader {
 	private int effectiveSpread;
 	private int numLinesInBuffer = NUM_LINES_NOT_COUNTED;
 
-	public ScrollingFileReader(File file, int spreadLimit)
+	@SuppressWarnings("resource")
+    public ScrollingFileReader(File file, int spreadLimit)
 			throws FileNotFoundException, IOException {
 		mFile = file;
 		mBuffer = new FileInputStream(file).getChannel().map(MapMode.READ_ONLY,
@@ -190,7 +191,8 @@ public class ScrollingFileReader {
 	 * @throws FileNotFoundException
 	 *             thrown if the file cannot be found after modification
 	 */
-	public void notifyFileModified() throws FileNotFoundException, IOException {
+	@SuppressWarnings("resource")
+    public void notifyFileModified() throws FileNotFoundException, IOException {
 
 		mBuffer = new FileInputStream(mFile).getChannel().map(
 				MapMode.READ_ONLY, 0, mFile.length());

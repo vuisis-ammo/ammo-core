@@ -37,6 +37,7 @@ public class DistributorProvider extends ContentProvider {
     // =================================
     // Constants
     // =================================
+    private static final Logger logger = LoggerFactory.getLogger("provider.dist");
 
     public static final String DATABASE_NAME = DistributorDataStore.SQLITE_NAME;
 
@@ -57,11 +58,6 @@ public class DistributorProvider extends ContentProvider {
     }
 
     // =================================
-    // Fields
-    // =================================
-    private static final Logger logger = LoggerFactory.getLogger("provider.dist");
-
-    // =================================
     // setup
     // =================================
 
@@ -75,27 +71,25 @@ public class DistributorProvider extends ContentProvider {
         AMMO_SERVICE.setComponent(serviceComponent);
     }
 
-    final AtomicReference<ServiceConnection> conn = new AtomicReference<ServiceConnection>();
-    public boolean isBound = false;
+    final AtomicReference<ServiceConnection> conn = new AtomicReference<ServiceConnection>(null);
+    public volatile boolean isBound = false;
 
     /**
      * Make a local binding to the AmmoService and get the DDS.
      */
     @Override
     public boolean onCreate() {
-        if (this.conn.get() != null)
-            return true;
-
-        this.dds = null;
-        conn.set(new ServiceConnection() {
+        final ServiceConnection newConn = new ServiceConnection() {
             final DistributorProvider parent = DistributorProvider.this;
 
             @Override
             public void onServiceConnected(ComponentName name, IBinder binder) {
+
                 if (!(binder instanceof AmmoService.DistributorServiceAidl)) {
-                    logger.error("service connected type=[{}]", Genealogist.getAncestry(binder));
+                    logger.error("service failed connection type=[{}]", Genealogist.getAncestry(binder));
                     return;
                 }
+                logger.debug("service connected ");
                 final AmmoService.DistributorServiceAidl proxy = (AmmoService.DistributorServiceAidl) binder;
                 final AmmoService service = proxy.getService();
 
@@ -105,10 +99,18 @@ public class DistributorProvider extends ContentProvider {
 
             @Override
             public void onServiceDisconnected(ComponentName name) {
+                logger.info("service disconnected {}", name);
                 parent.isBound = false;
                 return;
             }
-        });
+        };
+        
+        if (!(this.conn.compareAndSet(null, newConn))) {
+            logger.info("distributor provider is already connected {}", this.isBound);
+            return true;
+        }
+        logger.info("create distributor provider");
+        this.dds = null;
         final boolean isBindable = this.getContext().bindService(AMMO_SERVICE, conn.get(),
                 Context.BIND_AUTO_CREATE);
         return isBindable;
@@ -116,8 +118,10 @@ public class DistributorProvider extends ContentProvider {
 
     @Override
     public String getType(Uri uri) {
-        if (this.isBound)
+        if (!this.isBound) {
+            logger.warn("get type called before bound {}",uri);
             return null;
+        }
         return null;
     }
 
@@ -128,8 +132,10 @@ public class DistributorProvider extends ContentProvider {
     @Override
     public int delete(Uri uri, String selection, String[] selectionArgs) {
         logger.warn("delete from distributor provider {} {}", uri, selection);
-        if (!this.isBound)
+        if (!this.isBound){
+            logger.warn("delete called before service bound {}",uri, selection);
             return -1;
+        }
         if (this.dds == null)
             return -1;
         logger.trace("delete on distributor provider {} {}", uri, selection);
@@ -189,12 +195,10 @@ public class DistributorProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
             String sortOrder) {
-
         if (!this.isBound) {
-            logger.warn("unbound query from distributor provider {} {}", uri, selection);
+            logger.warn("query on unbound distributor {} {}", uri, selection);
             return null;
         }
-
         if (this.dds == null)
             return null;
 

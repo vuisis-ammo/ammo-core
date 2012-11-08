@@ -39,6 +39,7 @@ public class EthTrackSvc extends ServiceEx {
 
     public boolean isLinkUp() { return mIsLinkUp; }
 
+    
     @Override
     public void onCreate() {
         this.application = (AmmoCoreApp)this.getApplication();
@@ -268,6 +269,6 @@ public class EthTrackSvc extends ServiceEx {
     }
 
     static {
-        System.loadLibrary("ethrmon");
+        System.loadLibrary("ammocore");
     }
 }
