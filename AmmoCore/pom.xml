@@ -18,32 +18,6 @@
   <packaging>apk</packaging>
   <name>Ammo Core Application</name>
 
-  <distributionManagement>
-    <repository>
-      <id>vanderbilt-release-repository</id>
-      <url>${vandylib.release.url}</url>
-    </repository>
-    <snapshotRepository>
-      <id>vanderbilt-snapshot-repository</id>
-      <url>${vandylib.snapshot.url}</url>
-    </snapshotRepository>
-  </distributionManagement>
-
-  <repositories>
-    <repository>
-      <id>vanderbilt-snapshot-repository</id>
-      <url>${vandylib.snapshot.url}</url>
-    </repository>
-    <repository>
-      <id>vanderbilt-release-repository</id>
-      <url>${vandylib.release.url}</url>
-    </repository>
-    <repository>
-      <id>nexus-transapps</id>
-      <url>${transapps.public.url}</url>
-    </repository>
-  </repositories>
-
   <build>
     <directory>target</directory>
     <sourceDirectory>src</sourceDirectory>
