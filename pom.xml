@@ -23,6 +23,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
 
   <modules>
     <module>AmmoCore</module>
+    <module>AmmoCoreTest</module>
   </modules>
 
   <distributionManagement>
@@ -132,6 +133,13 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
         <artifactId>tasettings-api</artifactId>
         <version>1.0.19</version>
       </dependency>
+
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version></version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 

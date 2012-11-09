@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
+  <parent>
+    <groupId>edu.vu.isis</groupId>
+    <artifactId>ammocore-parent</artifactId>
+    <version>1.7.1-SNAPSHOT</version>
+  </parent>
+
   <modelVersion>4.0.0</modelVersion>
   <properties>
     <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
@@ -9,11 +15,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <android.target>android-8</android.target>
   </properties>
-  <parent>
-    <groupId>edu.vu.isis</groupId>
-    <artifactId>ammocore-parent</artifactId>
-    <version>1.7.1-SNAPSHOT</version>
-  </parent>
+
   <artifactId>ammocore</artifactId>
   <packaging>apk</packaging>
   <name>Ammo Core Application</name>
