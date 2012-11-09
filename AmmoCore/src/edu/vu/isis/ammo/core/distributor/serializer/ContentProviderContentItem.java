@@ -41,6 +41,8 @@ public class ContentProviderContentItem implements IContentItem {
         this.fieldMap = null;
         serialOrder = null;
         
+        boolean jsonFallbackMode = false;
+        
         try {
             try {
                 final Uri baseDataTypeUri = Uri.withAppendedPath(tupleUri, "_data_type");
@@ -67,13 +69,12 @@ public class ContentProviderContentItem implements IContentItem {
                             final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
                             serialMetaCursor = resolver.query(serialUri, null, null, null, null);
                             
+                            //Note:  blobMetaCursor can be null even in the old-style providers, if the provider
+                            //doesn't have any blobs
                             final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
                             blobMetaCursor = resolver.query(blobUri, null, null, null, null);
                             
-                            if(blobMetaCursor == null) {
-                                throw new NonConformingAmmoContentProvider("while getting metadata from provider",
-                                        tupleUri);
-                            }
+                            jsonFallbackMode = true;
                             break;
                         default:
                             //Custom encoding (for now) falls back to the same way terse does it
@@ -110,7 +111,7 @@ public class ContentProviderContentItem implements IContentItem {
                 }
                 int columnIndex = serialMetaCursor.getColumnIndex(key);
                 final int value = serialMetaCursor.getInt(columnIndex);
-                if(blobMetaCursor == null) {
+                if(jsonFallbackMode == false) {
                     fieldMap.put(key, FieldType.fromCode(value));
                 } else {
                     //If blobMetaCursor is non-null, we're in fallback mode for JSON encoding...
@@ -123,8 +124,8 @@ public class ContentProviderContentItem implements IContentItem {
                 ix++;
             }
             
-            //If blobMetaCursor is non-null, we're in fallback mode for JSON encoding...  look up
-            //blob fields in that cursor
+            //If blobMetaCursor is non-null, we're in fallback mode for JSON encoding 
+            //and the table has blobs...  look up blob fields in that cursor
             if(blobMetaCursor != null) {
                 for(final String key : blobMetaCursor.getColumnNames()) {
                     if(key.startsWith("_")) {
@@ -217,7 +218,13 @@ public class ContentProviderContentItem implements IContentItem {
     @Override
     public Object get(String key) {
         if(cursor != null) {
-            return cursor.getString(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return cursor.getString(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
@@ -229,11 +236,17 @@ public class ContentProviderContentItem implements IContentItem {
             //cursor doesn't have a getBoolean() method, so we get an
             //int and truncate it (boolean values are stored in the DB
             //as integers)
-            int intValue = cursor.getInt(cursor.getColumnIndex(key));
-            if(intValue == 0) {
-                return false;
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                int intValue = cursor.getInt(columnIndex);
+                if(intValue == 0) {
+                    return false;
+                } else {
+                    return true;
+                }
             } else {
-                return true;
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
             }
         } else {
             return null;
@@ -246,7 +259,13 @@ public class ContentProviderContentItem implements IContentItem {
         //int and truncate it (byte values are stored in the DB
         //as integers)
         if(cursor != null) {
-            return (byte) cursor.getInt(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return (byte) cursor.getInt(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
@@ -255,7 +274,13 @@ public class ContentProviderContentItem implements IContentItem {
     @Override
     public byte[] getAsByteArray(String key) {
         if(cursor != null) {
-            return cursor.getBlob(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return cursor.getBlob(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
@@ -264,7 +289,13 @@ public class ContentProviderContentItem implements IContentItem {
     @Override
     public Double getAsDouble(String key) {
         if(cursor != null) {
-            return cursor.getDouble(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return cursor.getDouble(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
@@ -273,7 +304,13 @@ public class ContentProviderContentItem implements IContentItem {
     @Override
     public Float getAsFloat(String key) {
         if(cursor != null) {
-            return cursor.getFloat(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return cursor.getFloat(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
@@ -282,7 +319,13 @@ public class ContentProviderContentItem implements IContentItem {
     @Override
     public Integer getAsInteger(String key) {
         if(cursor != null) {
-            return cursor.getInt(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return cursor.getInt(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
@@ -291,7 +334,13 @@ public class ContentProviderContentItem implements IContentItem {
     @Override
     public Long getAsLong(String key) {
         if(cursor != null) {
-            return cursor.getLong(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return cursor.getLong(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
@@ -300,7 +349,13 @@ public class ContentProviderContentItem implements IContentItem {
     @Override
     public Short getAsShort(String key) {
         if(cursor != null) {
-            return cursor.getShort(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return cursor.getShort(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
@@ -309,7 +364,13 @@ public class ContentProviderContentItem implements IContentItem {
     @Override
     public String getAsString(String key) {
         if(cursor != null) {
-            return cursor.getString(cursor.getColumnIndex(key));
+            int columnIndex = cursor.getColumnIndex(key);
+            if(columnIndex != -1) {
+                return cursor.getString(columnIndex);
+            } else {
+                logger.warn("Column {} doesn't appear to exist.  Skipping.", key);
+                return null;
+            }
         } else {
             return null;
         }
