@@ -12,75 +12,17 @@
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammocore-parent</artifactId>
-    <version>1.7.0-SNAPSHOT</version>
+    <version>1.7.1-SNAPSHOT</version>
   </parent>
   <artifactId>ammocore</artifactId>
   <packaging>apk</packaging>
   <name>Ammo Core Application</name>
 
-  <distributionManagement>
-    <repository>
-      <id>vanderbilt-release-repository</id>
-      <url>${vandylib.release.url}</url>
-    </repository>
-    <snapshotRepository>
-      <id>vanderbilt-snapshot-repository</id>
-      <url>${vandylib.snapshot.url}</url>
-    </snapshotRepository>
-  </distributionManagement>
-
-  <repositories>
-    <repository>
-      <id>vanderbilt-snapshot-repository</id>
-      <url>${vandylib.snapshot.url}</url>
-    </repository>
-    <repository>
-      <id>vanderbilt-release-repository</id>
-      <url>${vandylib.release.url}</url>
-    </repository>
-    <repository>
-      <id>nexus-transapps</id>
-      <url>${transapps.public.url}</url>
-    </repository>
-  </repositories>
-
   <build>
-    <directory>target</directory>
-    <sourceDirectory>src</sourceDirectory>
-    <resources>
-      <resource>
-<!-- rewrite the resource file -->
-        <directory>res/values/</directory>
-        <filtering>true</filtering>
-        <includes>
-          <include>**/version.xml</include>
-        </includes>
-      </resource>
-      <resource>
-        <directory>res/values/</directory>
-        <filtering>false</filtering>
-        <excludes>
-          <exclude>**/version.xml</exclude>
-        </excludes>
-      </resource>
-    </resources>
 
     <plugins>
 
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-<!-- extract the project version items -->
-            <id>parse-version</id>
-            <goals>
-              <goal>parse-version</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
+<!-- clean up the ndk artifacts -->
       <plugin>
         <artifactId>maven-clean-plugin</artifactId>
         <configuration>
@@ -98,29 +40,68 @@
       <plugin>
         <groupId>com.jayway.maven.plugins.android.generation2</groupId>
         <artifactId>android-maven-plugin</artifactId>
-        <goals>
-          <goal>apk</goal>
-          <goal>ndk-build</goal>
-        </goals>
-        <configuration>
-          <ndk>
-            <path>${env.ANDROID_NDK_HOME}</path>
-          </ndk>
-          <sdk>
-            <platform>8</platform>
-          </sdk>
-          <undeployBeforeDeploy>true</undeployBeforeDeploy>
-        </configuration>
+        <executions>
+<!-- build the shared libraries -->
+          <execution>
+            <id>build-native-library</id>
+            <goals>
+              <goal>ndk-build</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+               <target>ammocore</target>
+               <ndk>
+                   <path>${env.ANDROID_NDK_HOME}</path>
+               </ndk>
+               <attachNativeArtifacts>true</attachNativeArtifacts>
+               <clearNativeArtifacts>true</clearNativeArtifacts>
+               <deleteConflictingFiles>true</deleteConflictingFiles>
+               <sign>
+                   <debug>false</debug>
+               </sign>
+               <proguard>
+                   <skip>true</skip>
+               </proguard>
+            </configuration>
+          </execution>
+<!-- update the manifest with version information -->
+          <execution>
+            <id>manifest-version</id>
+            <goals>
+              <goal>manifest-update</goal>
+            </goals>
+            <configuration>
+              <manifest>
+                <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
+              </manifest>
+            </configuration>
+          </execution>
+<!-- build the android package -->
+          <execution>
+            <id>build-apk</id>
+            <goals>
+              <goal>apk</goal>
+            </goals>
+            <configuration>
+              <sdk>
+                <platform>8</platform>
+                <path>${env.ANDROID_SDK}</path>
+              </sdk>
+              <nativeLibrariesDirectory>${android.ndk.build.ndk-output-directory}</nativeLibrariesDirectory>
+              <undeployBeforeDeploy>true</undeployBeforeDeploy>
+            </configuration>
+          </execution>
+        </executions>
         <extensions>true</extensions>
       </plugin>
 
-      <plugin>
 <!-- compile the java -->
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <!--<source>1.6</source>
-                    <target>1.6</target>-->
+          <source>1.6</source>
+          <target>1.6</target>
         </configuration>
       </plugin>
     </plugins>
@@ -133,7 +114,6 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
-      <version>2.4.1</version>
     </dependency>
     <dependency>
       <groupId>com.github.tony19</groupId>
@@ -199,14 +179,14 @@
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -267,14 +247,14 @@
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -326,14 +306,14 @@
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android.bat" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -380,14 +360,14 @@
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>
@@ -440,14 +420,14 @@
                 <id>update_project</id>
                 <phase>validate</phase>
                 <configuration>
-                  <tasks>
+                  <target>
                     <echo message="configure AmmoCore..."/>
                     <exec executable="android" dir="${basedir}" searchpath="true">
                       <arg line="update"/> <arg line="project"/>
                       <arg line="--path"/> <arg line="."/>
                       <arg line="--target"/> <arg line="${android.target}"/>
                     </exec>
-                  </tasks>
+                  </target>
                 </configuration>
                 <goals>
                   <goal>run</goal>

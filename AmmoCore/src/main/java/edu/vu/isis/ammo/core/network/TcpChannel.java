@@ -1151,6 +1151,7 @@ public class TcpChannel extends NetChannel {
                   size -= rem;
                   bbuf.clear();
                   bytesRead =  mSocketChannel.read( bbuf );
+		  mDestination.resetTimeoutWatchdog(); // a successfull read should reset the timer
                   bbuf.flip();
                   continue;
                 }
@@ -1171,6 +1172,7 @@ public class TcpChannel extends NetChannel {
                 size -= rem;
                 bbuf.clear();
                 bytesRead =  mSocketChannel.read( bbuf );
+		mDestination.resetTimeoutWatchdog();  // a successfull read should reset the timer
                 bbuf.flip();
                 continue;
               }

@@ -18,7 +18,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <groupId>edu.vu.isis</groupId>
   <artifactId>ammocore-parent</artifactId>
   <packaging>pom</packaging>
-  <version>1.7.0-SNAPSHOT</version>
+  <version>1.7.1-SNAPSHOT</version>
   <name>ammocore parent project</name>
 
   <modules>
@@ -27,21 +27,36 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
 
   <distributionManagement>
     <repository>
-      <id>vanderbilt-release-repository</id>
+      <id>vanderbilt-release</id>
       <url>${vandy.release.url}</url>
     </repository>
     <snapshotRepository>
-      <id>vanderbilt-snapshot-repository</id>
+      <id>vanderbilt-snapshot</id>
       <url>${vandy.snapshot.url}</url>
     </snapshotRepository>
   </distributionManagement>
+
+  <repositories>
+    <repository>
+      <id>vanderbilt-snapshot</id>
+      <url>${vandylib.snapshot.url}</url>
+    </repository>
+    <repository>
+      <id>vanderbilt-release</id>
+      <url>${vandylib.release.url}</url>
+    </repository>
+    <repository>
+      <id>nexus-transapps</id>
+      <url>${transapps.public.url}</url>
+    </repository>
+  </repositories>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammolib</artifactId>
-        <version>1.7.0-SNAPSHOT</version>
+        <version>1.7.1-SNAPSHOT</version>
         <type>jar</type>
         <scope>compile</scope>
       </dependency>
@@ -49,8 +64,14 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammo-message</artifactId>
-        <version>1.7.0-SNAPSHOT</version>
+        <version>1.7.0</version>
         <classifier>protoc24</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>2.4.1</version>
       </dependency>
 
       <dependency>
@@ -84,13 +105,13 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <dependency>
         <groupId>com.github.tony19</groupId>
         <artifactId>logback-android-core</artifactId>
-        <version>1.0.7-1</version>
+        <version>1.0.7-2-SNAPSHOT</version>
       </dependency>
 
       <dependency>
         <groupId>com.github.tony19</groupId>
         <artifactId>logback-android-classic</artifactId>
-        <version>1.0.7-1</version>
+        <version>1.0.7-2-SNAPSHOT</version>
       </dependency>
 
       <dependency>
@@ -109,7 +130,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <dependency>
        <groupId>transapps</groupId>
         <artifactId>tasettings-api</artifactId>
-        <version>1.0.18</version>
+        <version>1.0.19</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -148,7 +169,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
         <plugin>
           <groupId>com.jayway.maven.plugins.android.generation2</groupId>
           <artifactId>android-maven-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.4.0</version>
           <configuration>
            <dex>
               <jvmArguments>
@@ -201,9 +222,30 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
                       </action>
                     </pluginExecution>
 
+                    <pluginExecution>
+                      <pluginExecutionFilter>
+
+                        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                        <artifactId>android-maven-plugin</artifactId>
+                        <versionRange>[1.0.0,)</versionRange>
+                        <goals>
+                          <goal>ndk-build</goal>
+                          <goal>manifest-update</goal>
+                        </goals>
+                      </pluginExecutionFilter>
+                      <action>
+                        <ignore />
+                      </action>
+                    </pluginExecution>
+
                   </pluginExecutions>
                 </lifecycleMappingMetadata>
               </configuration>
+            </plugin>
+
+            <plugin>
+              <artifactId>maven-clean-plugin</artifactId>
+              <version>2.5</version>
             </plugin>
       </plugins>
 

@@ -194,6 +194,45 @@ Such that if the prior channel succeeds the next channel is not attempted.
         </routing>
     </topic>
 
+
+    <topic type="ammo/transapps.chat.media_groupAll" >
+
+        <description>
+Group chat to:
+- Serial channel first (terse encoding),
+- Reliable multicast channel next,
+- Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
+        </description>
+
+        <routing priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="multicast" />
+            </clause>
+        </routing>
+    </topic>
+
+
     <topic type="ammo/edu.vu.isis.ammo.sms" >
 
         <description>

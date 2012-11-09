@@ -38,7 +38,7 @@ public class DistributorProvider extends ContentProvider {
     // Constants
     // =================================
     private static final Logger logger = LoggerFactory.getLogger("provider.dist");
-    
+
     public static final String DATABASE_NAME = DistributorDataStore.SQLITE_NAME;
 
     private static final UriMatcher uriMatcher;
@@ -79,12 +79,12 @@ public class DistributorProvider extends ContentProvider {
      */
     @Override
     public boolean onCreate() {
-        
         final ServiceConnection newConn = new ServiceConnection() {
             final DistributorProvider parent = DistributorProvider.this;
 
             @Override
             public void onServiceConnected(ComponentName name, IBinder binder) {
+
                 if (!(binder instanceof AmmoService.DistributorServiceAidl)) {
                     logger.error("service failed connection type=[{}]", Genealogist.getAncestry(binder));
                     return;
@@ -195,12 +195,10 @@ public class DistributorProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs,
             String sortOrder) {
-
         if (!this.isBound) {
             logger.warn("query on unbound distributor {} {}", uri, selection);
             return null;
         }
-
         if (this.dds == null)
             return null;
 

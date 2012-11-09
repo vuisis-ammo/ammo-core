@@ -13,7 +13,9 @@ package edu.vu.isis.ammo.core.ui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Bundle;
+import android.widget.TextView;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 
@@ -36,6 +38,14 @@ public class AboutActivity extends ActivityEx
         super.onCreate(savedInstanceState);
         logger.trace("::onCreate");
         this.setContentView(R.layout.about_activity);
+        final TextView aboutVersion = (TextView) this.findViewById(R.id.about_version);
+        try {
+            final String versionName = this.getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            aboutVersion.setText(versionName);
+        } catch (NameNotFoundException ex) {
+            logger.warn("no version name", ex);
+        }
+
     }
 
     @Override

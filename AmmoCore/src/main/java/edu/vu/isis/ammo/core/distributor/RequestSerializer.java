@@ -1924,6 +1924,41 @@ public class RequestSerializer {
                     tuple.put(bytesValue);
                     break;
                 }
+	        case FILE: {
+		    final Uri fieldUri = Uri.withAppendedPath(tupleUri, key);
+		    try {
+			final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
+			if (afd == null) {
+			    logger.warn("could not acquire file descriptor {}", fieldUri);
+			    throw new IOException("could not acquire file descriptor "
+				    + fieldUri);
+			}
+			final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+			final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+			final BufferedInputStream bis = new BufferedInputStream(instream);
+			final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
+			final byte[] buffer = new byte[1024];
+			for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+			    fieldBlob.write(buffer, 0, bytesRead);
+			}
+			bis.close();
+			logger.trace("Writing FILE blob {}, size {}", key, fieldBlob.size());
+			tuple.putShort( (short)fieldBlob.size()); // size of the bytearrayoutputstream 
+			tuple.put(fieldBlob.toByteArray()); // put the bytearray into it
+		    } catch (SQLiteException ex) {
+			logger.error("unable to create stream {}", fieldUri, ex);
+			continue;
+
+		    } catch (IOException ex) {
+			logger.trace("unable to create stream {}", fieldUri, ex);
+			throw new FileNotFoundException("Unable to create stream");
+		    } catch (Exception ex) {
+			logger.error("content provider unable to create stream {}", fieldUri, ex);
+			continue;
+		    }
+
+		    break;
+		}
                 default:
                     logger.warn("unhandled data type {}", type);
             }
@@ -1945,7 +1980,7 @@ public class RequestSerializer {
      * @param data
      * @return
      */
-    private static UriFuture deserializeTerseToProvider(final Context context,
+    /*private static UriFuture deserializeTerseToProvider(final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
         {
@@ -1954,7 +1989,7 @@ public class RequestSerializer {
              * incoming data using the order of the names and their types as a
              * guide.
              */
-            logger.debug("Using terse deserialization");
+            /*logger.debug("Using terse deserialization");
 
             final Cursor serialMetaCursor;
             try {
@@ -1997,10 +2032,41 @@ public class RequestSerializer {
             wrap.put(AmmoProviderSchema._DISPOSITION, sb.toString());
 
             final Uri tupleUri = resolver.insert(provider, wrap);
+
+	    // now iterate over file map to stick files into correct uri
+	    for (Map.Entry<String, byte[]> entry : fileMap.entrySet()) {
+		String key = entry.getKey();
+		byte[] byteValue = entry.getValue();
+
+		final long tupleId = ContentUris.parseId(tupleUri);
+		final Uri.Builder uriBuilder = provider.buildUpon();
+		final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
+		final Uri fieldUri = updateTuple.appendPath(key).build();
+		
+		try {
+		    final OutputStream outstream = resolver.openOutputStream(fieldUri);
+		    if (outstream == null) {
+			logger.error("failed to open output stream to content provider: {} ",
+				fieldUri);
+			return null;
+		    }
+		    outstream.write(byteValue);
+		    outstream.close();
+		    logger.trace("Wrote FILE blob to {}", fieldUri);
+		} catch (SQLiteException ex) {
+		    logger.error("in provider {} could not open output stream {}",
+			    fieldUri, ex.getLocalizedMessage());
+		} catch (FileNotFoundException ex) {
+		    logger.error("blob file not found: {}", fieldUri, ex);
+		} catch (IOException ex) {
+		    logger.error("error writing blob file: {}", fieldUri, ex);
+		}
+	    }
+
             return new UriFuture(tupleUri);
         }
 
-    }
+    }*/
 
     private static ContentValues deserializeTerse(byte[] data, List<String> fieldNames,
             List<FieldType> dataTypes) {
