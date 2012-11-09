@@ -19,8 +19,6 @@
   <name>Ammo Core Application</name>
 
   <build>
-    <directory>target</directory>
-    <sourceDirectory>src</sourceDirectory>
 
     <plugins>
 
