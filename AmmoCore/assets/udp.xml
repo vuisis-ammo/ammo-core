@@ -67,7 +67,7 @@
                    xmit_stagger_timeout="200"
                    use_mcast_xmit="false"
                    discard_delivered_msgs="true"/>
-    <UNICAST />
+    <UNICAST2 />
 
 <!--
     <pbcast.STABLE stability_delay="1000" desired_avg_gossip="50000"

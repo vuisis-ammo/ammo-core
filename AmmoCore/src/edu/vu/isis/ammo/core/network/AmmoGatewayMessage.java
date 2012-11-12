@@ -20,6 +20,7 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.network.AmmoGatewayMessage.Builder;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 /**
@@ -104,6 +105,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
     public final long buildTime;
     public long gpsOffset;
+    
+    // for direct messaging
+    public String mDestination = null; // the id of the person to send direct msg for
 
     /**
      * This is used by PriorityBlockingQueue() to prioritize it contents.
@@ -229,7 +233,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         private boolean isGateway;
         public boolean isGateway() { return this.isGateway; }
         public Builder isGateway(boolean val) { this.isGateway = val; return this; }
-
+        
 		private byte[] payload_serialized;
 		public byte[] payload() { 
 			return this.payload_serialized; 
@@ -260,6 +264,16 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 			this.channel = val;
 			return this;
 		}
+		
+		private String mDestination;
+		public String destination() {
+			return this.mDestination;
+		}
+		public Builder destination(String originUser) {
+        	// adding the destination user name for acknowledgments ...
+			this.mDestination = originUser;
+			return this;
+		}		
 
 
         public AmmoGatewayMessage build() {
@@ -278,7 +292,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.version = VERSION_1_FULL;
             this.checksum = 0;
             this.handler = null;
+            this.mDestination = null;
         }
+		
+        
     }
 
     private AmmoGatewayMessage(Builder builder, byte[] payload) {
@@ -298,6 +315,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 	// record the time when the message is built so we can sort it by time
 	// if the priority is same
 	this.buildTime = System.currentTimeMillis();
+	
+		this.mDestination = builder.mDestination;
     }
 
     public static AmmoGatewayMessage.Builder newBuilder( AmmoMessages.MessageWrapper.Builder mwb,

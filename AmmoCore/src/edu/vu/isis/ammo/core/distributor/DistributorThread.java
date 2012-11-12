@@ -1145,7 +1145,7 @@ public class DistributorThread extends Thread {
             }
             logger.trace("payload=[{}]", payload);
             final String topic = pending.getString(pending
-                    .getColumnIndex(PostalTableSchema.TOPIC.n));
+                    .getColumnIndex(PostalTableSchema.TOPIC.n));           
             final String channelFilter = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.CHANNEL.n));
 
@@ -1306,6 +1306,7 @@ public class DistributorThread extends Thread {
      */
     private Dispersal dispatchPostalRequest(final AmmoService that,
             final Notice notice, final UUID uuid, final String msgType,
+            /*final String dest,*/
             final Dispersal dispersal, final RequestSerializer serializer,
             final INetworkService.OnSendMessageHandler handler)
     {
@@ -2123,7 +2124,7 @@ public class DistributorThread extends Thread {
                         public boolean ack(String channel, DisposalState status) {
                             return true;
                         }
-                    });
+                    }).destination(originUser);
 
             logger.debug("sending ack=[{}]", pushAck);
             if (channel != null) {

@@ -1107,8 +1107,25 @@ public class ReliableMulticastChannel extends NetChannel {
                     logger.debug("...{}", buf.remaining());
                     logger.debug("...{}", mChannel.mMulticastGroup);
                     logger.debug("...{}", mChannel.mMulticastPort);
-
-                    mJChannel.send(null, buf.array());
+                    
+                    if (msg.mDestination != null) {
+                    	
+                    	View v = mJChannel.getView();
+                    	List<Address> adds = v.getMembers();
+                    	
+                    	Address dest = null;
+                        for (Address a: adds) {
+                            if (a.toString().equalsIgnoreCase(msg.mDestination)) {
+                            	logger.info("The user {} is in the View", a.toString());
+                                dest = a;
+                                break;
+                            }
+                        }               	
+                    	logger.info("Sending message on unicast");
+                    	mJChannel.send(dest, buf.array());
+                    }
+                    else
+                    	mJChannel.send(null, buf.array());
 
                     mMessagesSent.incrementAndGet();
 
@@ -1253,12 +1270,12 @@ public class ReliableMulticastChannel extends NetChannel {
         @Override
         public void viewAccepted(View new_view) {
             // I have kept this error, need to change it to info .. NR
-            logger.error("Membership View Changed: {}", new_view);
+            logger.info("Membership View Changed: {}", new_view);
         }
 
         @Override
         public void suspect(Address suspected_mbr) {
-            logger.error("Member Suspected : {}", suspected_mbr.toString());
+            logger.info("Member Suspected : {}", suspected_mbr.toString());
         }
 
         private void setReceiverState(int iState) {
