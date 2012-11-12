@@ -972,7 +972,9 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.UUID.cv(), uuid.toString());
             values.put(PostalTableSchema.AUID.cv(), auid);
             values.put(PostalTableSchema.TOPIC.cv(), topic);
-            values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+            if(ar.provider != null) {
+                values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+            }
             values.put(PostalTableSchema.CHANNEL.cv(), channel);
             if (ar.payload != null) {
                 final byte[] payloadBytes = ar.payload.pickle();

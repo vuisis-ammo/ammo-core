@@ -95,9 +95,13 @@ public class TerseSerializer implements ISerializer {
                 }
                 case BLOB: {
                     final byte[] bytesValue = item.getAsByteArray(key);
+                    if(bytesValue != null) {
                     // check that bytes count does not exceed our buffer size
                     tuple.putShort((short) bytesValue.length);
                     tuple.put(bytesValue);
+                    } else {
+                        tuple.putShort((short) 0);
+                    }
                     break;
                 }
                 default:

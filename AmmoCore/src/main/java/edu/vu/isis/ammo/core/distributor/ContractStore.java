@@ -35,6 +35,7 @@ public class ContractStore {
 	}
 	
 	private ContractStore(Context context) {
+	    typeContracts = new HashMap<String, Relation>();
 		this.loadContracts(context);
 	}
 	
@@ -241,10 +242,10 @@ public class ContractStore {
 			List<FieldRef> keycol_set = new ArrayList<FieldRef>();
 			NodeList kl = xml.getElementsByTagName("key");
 			for (int ix = 0; ix < kl.getLength(); ++ix) {
-				System.out.println("keys: "+ix);
+				//System.out.println("keys: "+ix);
 				NodeList rl = xml.getElementsByTagName("ref");
 				for (int jx = 0; jx < rl.getLength(); ++jx) {
-					System.out.println("ref: "+jx);
+					//System.out.println("ref: "+jx);
 					keycol_set.add(FieldRef.newInstance((Element) rl.item(jx)));
 				}
 			}
@@ -446,7 +447,7 @@ public class ContractStore {
 	    
 	    static public Message newInstance(Element xml) {
 	        List<MessageFieldRef> field_set = new ArrayList<MessageFieldRef>();
-            NodeList nl = xml.getElementsByTagName("message");
+            NodeList nl = xml.getElementsByTagName("fieldref");
             for (int ix = 0; ix < nl.getLength(); ++ix) {
                 field_set.add(MessageFieldRef.newInstance((Element) nl.item(ix)));
             }
@@ -493,7 +494,7 @@ public class ContractStore {
         public String toString() {
             StringBuilder sb = new StringBuilder();
             return sb
-                    .append("<field ref='").append(name.norm)
+                    .append("<fieldref ref='").append(name.norm)
                     .append("' />")
                     .toString();
         }
@@ -585,7 +586,7 @@ public class ContractStore {
 				sb.append("ammo/").append(contract.getSponsor()).append(".").append(rel.getName().getCamel());
 				String mimeType = sb.toString();
 				
-				logger.debug("Adding relation for type {}", mimeType);
+				logger.info("Adding relation for type {}", mimeType);
 				synchronized(typeContracts) {
 					typeContracts.put(mimeType, rel);
 				}

@@ -127,12 +127,41 @@ public class ContentProviderContentItem implements IContentItem {
             //If blobMetaCursor is non-null, we're in fallback mode for JSON encoding 
             //and the table has blobs...  look up blob fields in that cursor
             if(blobMetaCursor != null) {
-                for(final String key : blobMetaCursor.getColumnNames()) {
-                    if(key.startsWith("_")) {
-                        continue; //don't send any local fields
+                
+                if(blobMetaCursor.getCount() > 1) {
+                    logger.warn("Returned blobMetaCursor has {} rows (should be 1)", cursor.getCount());
+                }
+                
+                if (blobMetaCursor.moveToFirst()) {
+                    //TODO: warn on this condition
+                
+                    if (blobMetaCursor.getColumnCount() >= 1) {
+                        for(final String key : blobMetaCursor.getColumnNames()) {
+                            if(key.startsWith("_")) {
+                                continue; //don't send any local fields
+                            }
+                            
+                            
+                           //identify whether this is a blob or a file (using the bad old heuristic)
+                            try {
+                                String tempFileName = blobMetaCursor.getString(blobMetaCursor.getColumnIndex(key));
+                                if (tempFileName == null || tempFileName.length() < 1) {
+                                    logger.warn("Putting key {} of type BLOB", key);
+                                    fieldMap.put(key,  FieldType.BLOB);
+                                } else {
+                                    logger.warn("Putting key {} of type FILE", key);
+                                    fieldMap.put(key,  FieldType.FILE);
+                                }
+                            } catch (Exception ex) {
+                                logger.warn("Putting key {} of type BLOB", key);
+                                fieldMap.put(key,  FieldType.BLOB);
+                            }
+                        }
+                    } else {
+                        logger.warn("blobMetaCursor tuple no longer present {}", tupleUri);
                     }
-                    logger.warn("Putting key {} of type BLOB", key);
-                    fieldMap.put(key,  FieldType.BLOB);
+                } else {
+                    logger.warn("blobMetaCursor couldn't move to first row");
                 }
             }
             

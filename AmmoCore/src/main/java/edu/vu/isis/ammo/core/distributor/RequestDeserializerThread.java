@@ -12,6 +12,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Process;
 import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.type.Order;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 
@@ -153,6 +154,8 @@ public class RequestDeserializerThread extends Thread {
                     builder.topic(item.mimeType);
                     builder.priority(item.priority);
                     builder.useChannel(item.channelName); //should be the channel that we don't want to use
+                    builder.expire(new edu.vu.isis.ammo.api.type.TimeInterval(1000));
+                    builder.order(Order.OLDEST_FIRST); //first come, first serve for now; TODO: configure by policy
                     AmmoRequest postRequest = (AmmoRequest) builder.post();
                     this.distributor.distributeRequest(postRequest);
                 }

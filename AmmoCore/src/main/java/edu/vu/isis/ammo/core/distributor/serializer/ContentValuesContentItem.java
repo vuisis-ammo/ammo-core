@@ -2,6 +2,7 @@ package edu.vu.isis.ammo.core.distributor.serializer;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -37,16 +38,18 @@ public class ContentValuesContentItem implements IContentItem {
         //Get the message object for this encoding, if it exists
         boolean foundEncoding = false;
         for(ContractStore.Message m : relation.getMessages()) {
-            if(m.getEncoding() == encoding.name()) {
+            if(m.getEncoding().equals(encoding.name())) {
                 foundEncoding = true;
                 serialOrder = new String[m.getFields().size()];
+                serialSet = new HashSet<String>();
                 
                 for(ContractStore.MessageFieldRef f : m.getFields()) {
                     serialOrder[i] = f.getName().getSnake();
                     serialSet.add(f.getName().getSnake());
+                    i++;
                     
-                    //Serialized types can be overriden on a per-encoding basis
-                    if(f.getType() != "") {
+                    //Serialized types can be overridden on a per-encoding basis
+                    if(!f.getType().equals("")) {
                         fieldTypes.put(f.getName().getSnake(), FieldType.fromContractString(f.getType()));
                     }
                 }
@@ -56,9 +59,11 @@ public class ContentValuesContentItem implements IContentItem {
         if(!foundEncoding) {
             //if we didn't find an encoding-specific message, we fall back to serializing all fields,
             //in the order they appear in the contract
+            serialSet = new HashSet<String>();
+            serialOrder = new String[relation.getFields().size()];
             for (ContractStore.Field f : relation.getFields()) {
-                serialOrder = new String[relation.getFields().size()];
                 serialOrder[i] = f.getName().getSnake();
+                i++;
                 serialSet.add(f.getName().getSnake());
             }
         }

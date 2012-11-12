@@ -169,7 +169,7 @@ public class Dispersal {
             // evaluate clause based on
             for (DistributorPolicy.Literal literal : clause.literals) {
                 final String term = literal.term;
-                if (this.channelFilter != null && !term.equals(this.channelFilter))
+                if (this.channelFilter != null && term.equals(this.channelFilter))
                     continue;
 
                 final boolean goalCondition = literal.condition;
