@@ -72,22 +72,16 @@
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammocore</artifactId>
-      <version>1.7.0-SNAPSHOT</version>
       <scope>provided</scope>
+      <version>${project.version}</version>
       <type>apk</type>
     </dependency>
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammocore</artifactId>
-      <version>1.7.0-SNAPSHOT</version>
       <scope>provided</scope>
+      <version>${project.version}</version>
       <type>jar</type>
-    </dependency>
-
-    <dependency>
-       <groupId>com.google.android</groupId>
-       <artifactId>android</artifactId>
-       <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -116,34 +110,32 @@
     </dependency>
 
     <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
       <scope>provided</scope>
       <type>jar</type>
     </dependency>
+
     <dependency>
       <groupId>com.github.tony19</groupId>
       <artifactId>logback-android-core</artifactId>
-      <scope>compile</scope>
+      <scope>provided</scope>
       <type>jar</type>
     </dependency>
+
     <dependency>
       <groupId>com.github.tony19</groupId>
       <artifactId>logback-android-classic</artifactId>
-      <scope>compile</scope>
+      <scope>provided</scope>
       <type>jar</type>
     </dependency>
 
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammolib</artifactId>
-      <version>1.7.1-SNAPSHOT</version>
-      <type>jar</type>
+      <scope>provided</scope>
+      <type>apklib</type>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.android</groupId>
-      <artifactId>android-test</artifactId>
-    </dependency>
   </dependencies>
 </project>

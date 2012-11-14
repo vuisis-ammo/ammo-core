@@ -52,6 +52,7 @@
             <phase>compile</phase>
             <configuration>
                <target>ammocore</target>
+               <ndkFinalLibraryName>ammocore</ndkFinalLibraryName>
                <ndk>
                    <path>${env.ANDROID_NDK_HOME}</path>
                </ndk>
@@ -89,8 +90,8 @@
                 <platform>8</platform>
                 <path>${env.ANDROID_SDK}</path>
               </sdk>
-              <nativeLibrariesDirectory>${android.ndk.build.ndk-output-directory}</nativeLibrariesDirectory>
               <undeployBeforeDeploy>true</undeployBeforeDeploy>
+              <attachJar>true</attachJar>
             </configuration>
           </execution>
         </executions>
@@ -131,7 +132,7 @@
     </dependency>
     <dependency>
       <groupId>org.jgroups</groupId>
-      <artifactId>jgroups-ammo</artifactId>
+      <artifactId>jgroups-android</artifactId>
     </dependency>
     <dependency>
       <groupId>edu.vu.isis</groupId>
