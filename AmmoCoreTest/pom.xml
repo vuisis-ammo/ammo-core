@@ -28,38 +28,6 @@
           <undeployBeforeDeploy>true</undeployBeforeDeploy>
         </configuration>
         <extensions>true</extensions>
-        <executions>
-          <execution>
-            <id>run-small-integration-tests</id>
-            <goals>
-              <goal>instrument</goal>
-            </goals>
-            <phase>install</phase>
-            <configuration>
-              <test>
-                <skip>true</skip>
-<!--
-                <instrumentationPackage>packageName</instrumentationPackage>
-                <instrumentationRunner>className</instrumentationRunner>
--->
-                <debug>true</debug>
-                <coverage>false</coverage>
-                <coverageFile>target/coverage.txt</coverageFile>
-                <logOnly>true</logOnly> 
-                <testSize>small</testSize>
-                <createReport>true</createReport>
-<!--
-                <classes>
-                  <class>edu.vu.isis.ammo.core.AmmoCoreTest</class>
-                </classes>
--->
-                <packages>
-                  <package>edu.vu.isis.ammo.core</package>
-                </packages>
-              </test>
-            </configuration>
-          </execution>
-        </executions>
       </plugin>
     </plugins>
   </build>
@@ -136,21 +104,18 @@
     <dependency>
       <groupId>javax.mail</groupId>
       <artifactId>mail-android</artifactId>
-      <scope>compile</scope>
       <version>4.0.0</version>
     </dependency>
 
     <dependency>
       <groupId>javax.activation</groupId>
       <artifactId>activation-android</artifactId>
-      <scope>compile</scope>
       <version>4.0.0</version>
     </dependency>
 
     <dependency>
       <groupId>javax.additional</groupId>
       <artifactId>additional-android</artifactId>
-      <scope>compile</scope>
       <version>4.0.0</version>
     </dependency>
 
