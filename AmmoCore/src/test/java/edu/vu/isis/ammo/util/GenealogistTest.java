@@ -1,8 +1,6 @@
 
 package edu.vu.isis.ammo.util;
 
-import java.util.List;
-
 import junit.framework.Assert;
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -54,7 +52,7 @@ public class GenealogistTest extends TestCase
     {
         logger.info("testGetAncestryObject");
 
-        final TreeNode<Class<?>> ancestry = Genealogist.getAncestry(new Integer(7));
+        final TreeNode<Class<?>> ancestry = Genealogist.getAncestry(Integer.valueOf(7));
         Assert.assertEquals("ancestor count @", 5, ancestry.size());
 
         final TreeNode.Vistor<Class<?>> visitor = new TreeNode.Vistor<Class<?>>() {

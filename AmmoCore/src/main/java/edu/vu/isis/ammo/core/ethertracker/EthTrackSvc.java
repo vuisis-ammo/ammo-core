@@ -123,7 +123,8 @@ public class EthTrackSvc extends ServiceEx {
         // Start specific application respond on selection
 
         String ns = Context.NOTIFICATION_SERVICE;
-        NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
+        @SuppressWarnings("unused")
+		NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
 
         int icon = 0;
         CharSequence tickerText = "Network Status";
