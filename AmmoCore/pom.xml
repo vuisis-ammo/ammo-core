@@ -1,526 +1,518 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+  xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
-<<<<<<< HEAD
-	<parent>
-		<groupId>edu.vu.isis</groupId>
-		<artifactId>ammocore-parent</artifactId>
-		<version>1.0.7-SNAPSHOT</version>
-	</parent>
-=======
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammocore-parent</artifactId>
     <version>1.7.0-SNAPSHOT</version>
   </parent>
->>>>>>> dbfd5f9a5fc5b12cf95cce3b73c1e97fceb1f7d5
 
-	<modelVersion>4.0.0</modelVersion>
-	<properties>
-		<vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
-		<vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
-		<transapps.public.url>http://devportal.researchinnovations.com:8081/nexus/content/groups/public/</transapps.public.url>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<android.target>android-8</android.target>
-	</properties>
+  <modelVersion>4.0.0</modelVersion>
+  <properties>
+    <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
+    <vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
+    <transapps.public.url>http://devportal.researchinnovations.com:8081/nexus/content/groups/public/</transapps.public.url>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <android.target>android-8</android.target>
+  </properties>
 
-	<artifactId>ammocore</artifactId>
-	<packaging>apk</packaging>
-	<name>Ammo Core Application</name>
+  <artifactId>ammocore</artifactId>
+  <packaging>apk</packaging>
+  <name>Ammo Core Application</name>
 
-	<build>
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.eclipse.m2e</groupId>
-					<artifactId>lifecycle-mapping</artifactId>
-					<version>1.0.0</version>
-					<configuration>
-						<lifecycleMappingMetadata>
-							<pluginExecutions>
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.eclipse.m2e</groupId>
+          <artifactId>lifecycle-mapping</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <lifecycleMappingMetadata>
+              <pluginExecutions>
 
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>com.jayway.maven.plugins.android.generation2</groupId>
-										<artifactId>android-maven-plugin</artifactId>
-										<versionRange>[1.0.0,)</versionRange>
-										<goals>
-											<goal>generate-sources</goal>
-											<goal>proguard</goal>
-											<goal>manifest-update</goal>
-											<goal>ndk-build</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore />
-									</action>
-								</pluginExecution>
-							</pluginExecutions>
-						</lifecycleMappingMetadata>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                    <artifactId>android-maven-plugin</artifactId>
+                    <versionRange>[1.0.0,)</versionRange>
+                    <goals>
+                      <goal>generate-sources</goal>
+                      <goal>proguard</goal>
+                      <goal>manifest-update</goal>
+                      <goal>ndk-build</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+              </pluginExecutions>
+            </lifecycleMappingMetadata>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
 
-		<plugins>
+    <plugins>
 
-			<!-- clean up the ndk artifacts -->
-			<plugin>
-				<artifactId>maven-clean-plugin</artifactId>
-				<configuration>
-					<filesets>
-						<fileset>
-							<directory>libs</directory>
-						</fileset>
-						<fileset>
-							<directory>obj</directory>
-						</fileset>
-					</filesets>
-				</configuration>
-			</plugin>
+      <!-- clean up the ndk artifacts -->
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>libs</directory>
+            </fileset>
+            <fileset>
+              <directory>obj</directory>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
 
-			<plugin>
-				<groupId>com.jayway.maven.plugins.android.generation2</groupId>
-				<artifactId>android-maven-plugin</artifactId>
-				<executions>
-					<!-- build the shared libraries -->
-					<execution>
-						<id>build-native-library</id>
-						<goals>
-							<goal>ndk-build</goal>
-						</goals>
-						<phase>compile</phase>
-						<configuration>
-							<target>ammocore</target>
-							<ndkFinalLibraryName>ammocore</ndkFinalLibraryName>
-							<ndk>
-								<path>${env.ANDROID_NDK_HOME}</path>
-							</ndk>
-							<attachNativeArtifacts>true</attachNativeArtifacts>
-							<clearNativeArtifacts>true</clearNativeArtifacts>
-							<deleteConflictingFiles>true</deleteConflictingFiles>
-							<sign>
-								<debug>false</debug>
-							</sign>
-							<proguard>
-								<skip>true</skip>
-							</proguard>
-						</configuration>
-					</execution>
-					<!-- update the manifest with version information -->
-					<execution>
-						<id>manifest-version</id>
-						<goals>
-							<goal>manifest-update</goal>
-						</goals>
-						<configuration>
-							<manifest>
-								<versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
-							</manifest>
-						</configuration>
-					</execution>
-					<!-- build the android package -->
-					<execution>
-						<id>build-apk</id>
-						<goals>
-							<goal>apk</goal>
-						</goals>
-						<configuration>
-							<sdk>
-								<platform>8</platform>
-								<path>${env.ANDROID_SDK}</path>
-							</sdk>
-							<undeployBeforeDeploy>true</undeployBeforeDeploy>
-							<attachJar>true</attachJar>
-						</configuration>
-					</execution>
-				</executions>
-				<extensions>true</extensions>
-			</plugin>
+      <plugin>
+        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+        <artifactId>android-maven-plugin</artifactId>
+        <executions>
+          <!-- build the shared libraries -->
+          <execution>
+            <id>build-native-library</id>
+            <goals>
+              <goal>ndk-build</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+              <target>ammocore</target>
+              <ndkFinalLibraryName>ammocore</ndkFinalLibraryName>
+              <ndk>
+                <path>${env.ANDROID_NDK_HOME}</path>
+              </ndk>
+              <attachNativeArtifacts>true</attachNativeArtifacts>
+              <clearNativeArtifacts>true</clearNativeArtifacts>
+              <deleteConflictingFiles>true</deleteConflictingFiles>
+              <sign>
+                <debug>false</debug>
+              </sign>
+              <proguard>
+                <skip>true</skip>
+              </proguard>
+            </configuration>
+          </execution>
+          <!-- update the manifest with version information -->
+          <execution>
+            <id>manifest-version</id>
+            <goals>
+              <goal>manifest-update</goal>
+            </goals>
+            <configuration>
+              <manifest>
+                <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
+              </manifest>
+            </configuration>
+          </execution>
+          <!-- build the android package -->
+          <execution>
+            <id>build-apk</id>
+            <goals>
+              <goal>apk</goal>
+            </goals>
+            <configuration>
+              <sdk>
+                <platform>8</platform>
+                <path>${env.ANDROID_SDK}</path>
+              </sdk>
+              <undeployBeforeDeploy>true</undeployBeforeDeploy>
+              <attachJar>true</attachJar>
+            </configuration>
+          </execution>
+        </executions>
+        <extensions>true</extensions>
+      </plugin>
 
-			<!-- compile the java -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>1.6</source>
-					<target>1.6</target>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
-	<dependencies>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.google.protobuf</groupId>
-			<artifactId>protobuf-java</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.github.tony19</groupId>
-			<artifactId>logback-android-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.github.tony19</groupId>
-			<artifactId>logback-android-classic</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.google.android</groupId>
-			<artifactId>android-test</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.jgroups</groupId>
-			<artifactId>jgroups-android</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>edu.vu.isis</groupId>
-			<artifactId>ammolib</artifactId>
-			<type>jar</type>
-		</dependency>
-		<dependency>
-			<groupId>edu.vu.isis</groupId>
-			<artifactId>ammo-message</artifactId>
-			<classifier>protoc24</classifier>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
-			<groupId>transapps</groupId>
-			<artifactId>tasettings-api</artifactId>
-		</dependency>
-	</dependencies>
-	<profiles>
-		<profile>
-			<id>x86</id>
-			<activation>
-				<!--activeByDefault>true</activeByDefault -->
-				<os>
-					<family>unix</family>
-					<arch>i386</arch>
-				</os>
-			</activation>
-			<properties>
-				<protoc.path>x86</protoc.path>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>com.google.protobuf</groupId>
-					<artifactId>protoc-gateway-x86</artifactId>
-					<version>2.3.0</version>
-					<type>exe</type>
-				</dependency>
-			</dependencies>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<!-- update the android project files -->
-								<id>update_project</id>
-								<phase>validate</phase>
-								<configuration>
-									<target>
-										<echo message="configure AmmoCore..." />
-										<exec executable="android" dir="${basedir}" searchpath="true">
-											<arg line="update" />
-											<arg line="project" />
-											<arg line="--path" />
-											<arg line="." />
-											<arg line="--target" />
-											<arg line="${android.target}" />
-										</exec>
-									</target>
-								</configuration>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-						<dependencies>
-							<dependency>
-								<groupId>ant-contrib</groupId>
-								<artifactId>ant-contrib</artifactId>
-								<version>1.0b3</version>
-								<exclusions>
-									<exclusion>
-										<groupId>ant</groupId>
-										<artifactId>ant</artifactId>
-									</exclusion>
-								</exclusions>
-							</dependency>
-							<dependency>
-								<groupId>org.slf4j</groupId>
-								<artifactId>slf4j-api</artifactId>
-								<version>1.7.2</version>
-							</dependency>
-							<dependency>
-								<groupId>com.google.protobuf</groupId>
-								<artifactId>protobuf-java</artifactId>
-								<version>2.3.0</version>
-							</dependency>
-							<dependency>
-								<groupId>org.json</groupId>
-								<artifactId>json</artifactId>
-								<version>20090211</version>
-							</dependency>
-						</dependencies>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>x64</id>
-			<activation>
-				<os>
-					<family>unix</family>
-					<arch>amd64</arch>
-				</os>
-			</activation>
-			<properties>
-				<protoc.path>x64</protoc.path>
-			</properties>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<!-- update the android project files -->
-								<id>update_project</id>
-								<phase>validate</phase>
-								<configuration>
-									<target>
-										<echo message="configure AmmoCore..." />
-										<exec executable="android" dir="${basedir}" searchpath="true">
-											<arg line="update" />
-											<arg line="project" />
-											<arg line="--path" />
-											<arg line="." />
-											<arg line="--target" />
-											<arg line="${android.target}" />
-										</exec>
-									</target>
-								</configuration>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-						<dependencies>
-							<dependency>
-								<groupId>ant-contrib</groupId>
-								<artifactId>ant-contrib</artifactId>
-								<version>1.0b3</version>
-								<exclusions>
-									<exclusion>
-										<groupId>ant</groupId>
-										<artifactId>ant</artifactId>
-									</exclusion>
-								</exclusions>
-							</dependency>
-							<dependency>
-								<groupId>org.slf4j</groupId>
-								<artifactId>slf4j-api</artifactId>
-								<version>1.7.2</version>
-							</dependency>
-							<dependency>
-								<groupId>org.json</groupId>
-								<artifactId>json</artifactId>
-								<version>20090211</version>
-							</dependency>
-						</dependencies>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>win32</id>
-			<activation>
-				<os>
-					<family>windows</family>
-				</os>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<!-- update the android project files -->
-								<id>update_project</id>
-								<phase>validate</phase>
-								<configuration>
-									<target>
-										<echo message="configure AmmoCore..." />
-										<exec executable="android.bat" dir="${basedir}"
-											searchpath="true">
-											<arg line="update" />
-											<arg line="project" />
-											<arg line="--path" />
-											<arg line="." />
-											<arg line="--target" />
-											<arg line="${android.target}" />
-										</exec>
-									</target>
-								</configuration>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-						<dependencies>
-							<dependency>
-								<groupId>ant-contrib</groupId>
-								<artifactId>ant-contrib</artifactId>
-								<version>1.0b3</version>
-								<exclusions>
-									<exclusion>
-										<groupId>ant</groupId>
-										<artifactId>ant</artifactId>
-									</exclusion>
-								</exclusions>
-							</dependency>
-							<dependency>
-								<groupId>org.slf4j</groupId>
-								<artifactId>slf4j-api</artifactId>
-								<version>1.7.2</version>
-							</dependency>
-							<dependency>
-								<groupId>org.json</groupId>
-								<artifactId>json</artifactId>
-								<version>20090211</version>
-							</dependency>
-						</dependencies>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>jenkins</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<!-- update the android project files -->
-								<id>update_project</id>
-								<phase>validate</phase>
-								<configuration>
-									<target>
-										<echo message="configure AmmoCore..." />
-										<exec executable="android" dir="${basedir}" searchpath="true">
-											<arg line="update" />
-											<arg line="project" />
-											<arg line="--path" />
-											<arg line="." />
-											<arg line="--target" />
-											<arg line="${android.target}" />
-										</exec>
-									</target>
-								</configuration>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-						<dependencies>
-							<dependency>
-								<groupId>ant-contrib</groupId>
-								<artifactId>ant-contrib</artifactId>
-								<version>1.0b3</version>
-								<exclusions>
-									<exclusion>
-										<groupId>ant</groupId>
-										<artifactId>ant</artifactId>
-									</exclusion>
-								</exclusions>
-							</dependency>
-							<dependency>
-								<groupId>org.slf4j</groupId>
-								<artifactId>slf4j-api</artifactId>
-								<version>1.7.2</version>
-							</dependency>
-							<dependency>
-								<groupId>org.json</groupId>
-								<artifactId>json</artifactId>
-								<version>20090211</version>
-							</dependency>
-						</dependencies>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>mac</id>
-			<activation>
-				<!--activeByDefault>true</activeByDefault -->
-				<os>
-					<family>mac</family>
-				</os>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<!-- update the android project files -->
-								<id>update_project</id>
-								<phase>validate</phase>
-								<configuration>
-									<target>
-										<echo message="configure AmmoCore..." />
-										<exec executable="android" dir="${basedir}" searchpath="true">
-											<arg line="update" />
-											<arg line="project" />
-											<arg line="--path" />
-											<arg line="." />
-											<arg line="--target" />
-											<arg line="${android.target}" />
-										</exec>
-									</target>
-								</configuration>
-								<goals>
-									<goal>run</goal>
-								</goals>
-							</execution>
-						</executions>
-						<dependencies>
-							<dependency>
-								<groupId>ant-contrib</groupId>
-								<artifactId>ant-contrib</artifactId>
-								<version>1.0b3</version>
-								<exclusions>
-									<exclusion>
-										<groupId>ant</groupId>
-										<artifactId>ant</artifactId>
-									</exclusion>
-								</exclusions>
-							</dependency>
-							<dependency>
-								<groupId>org.slf4j</groupId>
-								<artifactId>slf4j-api</artifactId>
-								<version>1.7.2</version>
-							</dependency>
-							<dependency>
-								<groupId>org.json</groupId>
-								<artifactId>json</artifactId>
-								<version>20090211</version>
-							</dependency>
-						</dependencies>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles>
+      <!-- compile the java -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.6</source>
+          <target>1.6</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-classic</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>android-test</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.jgroups</groupId>
+      <artifactId>jgroups-android</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammolib</artifactId>
+      <type>jar</type>
+    </dependency>
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammo-message</artifactId>
+      <classifier>protoc24</classifier>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>transapps</groupId>
+      <artifactId>tasettings-api</artifactId>
+    </dependency>
+  </dependencies>
+  <profiles>
+    <profile>
+      <id>x86</id>
+      <activation>
+        <!--activeByDefault>true</activeByDefault -->
+        <os>
+          <family>unix</family>
+          <arch>i386</arch>
+        </os>
+      </activation>
+      <properties>
+        <protoc.path>x86</protoc.path>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protoc-gateway-x86</artifactId>
+          <version>2.3.0</version>
+          <type>exe</type>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <!-- update the android project files -->
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <target>
+                    <echo message="configure AmmoCore..." />
+                    <exec executable="android" dir="${basedir}" searchpath="true">
+                      <arg line="update" />
+                      <arg line="project" />
+                      <arg line="--path" />
+                      <arg line="." />
+                      <arg line="--target" />
+                      <arg line="${android.target}" />
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <dependencies>
+              <dependency>
+                <groupId>ant-contrib</groupId>
+                <artifactId>ant-contrib</artifactId>
+                <version>1.0b3</version>
+                <exclusions>
+                  <exclusion>
+                    <groupId>ant</groupId>
+                    <artifactId>ant</artifactId>
+                  </exclusion>
+                </exclusions>
+              </dependency>
+              <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.2</version>
+              </dependency>
+              <dependency>
+                <groupId>com.google.protobuf</groupId>
+                <artifactId>protobuf-java</artifactId>
+                <version>2.3.0</version>
+              </dependency>
+              <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20090211</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>x64</id>
+      <activation>
+        <os>
+          <family>unix</family>
+          <arch>amd64</arch>
+        </os>
+      </activation>
+      <properties>
+        <protoc.path>x64</protoc.path>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <!-- update the android project files -->
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <target>
+                    <echo message="configure AmmoCore..." />
+                    <exec executable="android" dir="${basedir}" searchpath="true">
+                      <arg line="update" />
+                      <arg line="project" />
+                      <arg line="--path" />
+                      <arg line="." />
+                      <arg line="--target" />
+                      <arg line="${android.target}" />
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <dependencies>
+              <dependency>
+                <groupId>ant-contrib</groupId>
+                <artifactId>ant-contrib</artifactId>
+                <version>1.0b3</version>
+                <exclusions>
+                  <exclusion>
+                    <groupId>ant</groupId>
+                    <artifactId>ant</artifactId>
+                  </exclusion>
+                </exclusions>
+              </dependency>
+              <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.2</version>
+              </dependency>
+              <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20090211</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>win32</id>
+      <activation>
+        <os>
+          <family>windows</family>
+        </os>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <!-- update the android project files -->
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <target>
+                    <echo message="configure AmmoCore..." />
+                    <exec executable="android.bat" dir="${basedir}"
+                      searchpath="true">
+                      <arg line="update" />
+                      <arg line="project" />
+                      <arg line="--path" />
+                      <arg line="." />
+                      <arg line="--target" />
+                      <arg line="${android.target}" />
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <dependencies>
+              <dependency>
+                <groupId>ant-contrib</groupId>
+                <artifactId>ant-contrib</artifactId>
+                <version>1.0b3</version>
+                <exclusions>
+                  <exclusion>
+                    <groupId>ant</groupId>
+                    <artifactId>ant</artifactId>
+                  </exclusion>
+                </exclusions>
+              </dependency>
+              <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.2</version>
+              </dependency>
+              <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20090211</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>jenkins</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <!-- update the android project files -->
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <target>
+                    <echo message="configure AmmoCore..." />
+                    <exec executable="android" dir="${basedir}" searchpath="true">
+                      <arg line="update" />
+                      <arg line="project" />
+                      <arg line="--path" />
+                      <arg line="." />
+                      <arg line="--target" />
+                      <arg line="${android.target}" />
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <dependencies>
+              <dependency>
+                <groupId>ant-contrib</groupId>
+                <artifactId>ant-contrib</artifactId>
+                <version>1.0b3</version>
+                <exclusions>
+                  <exclusion>
+                    <groupId>ant</groupId>
+                    <artifactId>ant</artifactId>
+                  </exclusion>
+                </exclusions>
+              </dependency>
+              <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.2</version>
+              </dependency>
+              <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20090211</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>mac</id>
+      <activation>
+        <!--activeByDefault>true</activeByDefault -->
+        <os>
+          <family>mac</family>
+        </os>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <!-- update the android project files -->
+                <id>update_project</id>
+                <phase>validate</phase>
+                <configuration>
+                  <target>
+                    <echo message="configure AmmoCore..." />
+                    <exec executable="android" dir="${basedir}" searchpath="true">
+                      <arg line="update" />
+                      <arg line="project" />
+                      <arg line="--path" />
+                      <arg line="." />
+                      <arg line="--target" />
+                      <arg line="${android.target}" />
+                    </exec>
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <dependencies>
+              <dependency>
+                <groupId>ant-contrib</groupId>
+                <artifactId>ant-contrib</artifactId>
+                <version>1.0b3</version>
+                <exclusions>
+                  <exclusion>
+                    <groupId>ant</groupId>
+                    <artifactId>ant</artifactId>
+                  </exclusion>
+                </exclusions>
+              </dependency>
+              <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>1.7.2</version>
+              </dependency>
+              <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>20090211</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
