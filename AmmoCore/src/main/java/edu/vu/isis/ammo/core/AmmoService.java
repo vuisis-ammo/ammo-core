@@ -75,6 +75,7 @@ import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
+import edu.vu.isis.ammo.core.network.TcpChannelMedia;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
@@ -428,6 +429,7 @@ public class AmmoService extends Service implements INetworkService,
 
         this.journalChannel.init(context);
         this.tcpChannel.init(context);
+        this.tcpMediaChannel.init(context);
         this.reliableMulticastChannel.init(context);
         this.multicastChannel.init(context);
         for (NetChannel channel : this.registeredChannels) {
@@ -495,6 +497,7 @@ public class AmmoService extends Service implements INetworkService,
 
         netChannelMap.put("default", tcpChannel);
         netChannelMap.put(tcpChannel.name, tcpChannel);
+        netChannelMap.put(tcpMediaChannel.name, tcpMediaChannel);        
         netChannelMap.put(multicastChannel.name, multicastChannel);
         netChannelMap.put(reliableMulticastChannel.name, reliableMulticastChannel);
         netChannelMap.put(journalChannel.name, journalChannel);
@@ -502,6 +505,8 @@ public class AmmoService extends Service implements INetworkService,
 
         modelChannelMap.put(tcpChannel.name,
                 Gateway.getInstance(getBaseContext(), tcpChannel));
+        modelChannelMap.put(tcpMediaChannel.name,
+                Gateway.getInstance(getBaseContext(), tcpMediaChannel));        
         modelChannelMap.put(multicastChannel.name,
                 Multicast.getInstance(getBaseContext(), multicastChannel));
         modelChannelMap.put(reliableMulticastChannel.name,
@@ -530,6 +535,7 @@ public class AmmoService extends Service implements INetworkService,
         this.tcpChannel.disable();
         this.multicastChannel.disable();
         this.reliableMulticastChannel.disable();
+        this.tcpMediaChannel.disable();
         // The serial channel is created in a disabled state.
 
         this.acquirePreferences();
@@ -537,6 +543,7 @@ public class AmmoService extends Service implements INetworkService,
         if (this.networkingSwitch) {
             if (!this.isGatewaySuppressed) {
                 this.tcpChannel.enable();
+                this.tcpMediaChannel.enable();
             }
             if (!this.isMulticastSuppressed) {
                 this.multicastChannel.enable();
@@ -612,6 +619,7 @@ public class AmmoService extends Service implements INetworkService,
         loginIntent.addCategory(IntentNames.RESET_CATEGORY);
 
         this.tcpChannel.reset();
+        this.tcpMediaChannel.reset();
         this.multicastChannel.reset();
         this.reliableMulticastChannel.reset();
         this.serialChannel.reset();
@@ -628,6 +636,8 @@ public class AmmoService extends Service implements INetworkService,
         logger.warn("::onDestroy - AmmoService");
         if (tcpChannel != null)
             this.tcpChannel.disable();
+        if (tcpMediaChannel != null)
+            this.tcpMediaChannel.disable();
         if (multicastChannel != null)
             this.multicastChannel.disable();
         if (reliableMulticastChannel != null)
@@ -824,6 +834,10 @@ public class AmmoService extends Service implements INetworkService,
         this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000);
         this.tcpChannel.toLog("acquire ");
 
+        this.tcpMediaChannel.setHost(gatewayHostname);
+        this.tcpMediaChannel.setPort(gatewayPort);
+        this.tcpMediaChannel.setFlatLineTime(flatLineTime * 60 * 1000);
+        this.tcpMediaChannel.toLog("acquire ");
         // convert minutes into milliseconds
 
         /*
@@ -994,7 +1008,7 @@ public class AmmoService extends Service implements INetworkService,
                     }
                     else if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
                         final String prev = (parent.tcpChannel == null) ? INetPrefKeys.DEFAULT_GATEWAY_HOST
-                                : parent.tcpChannel.getLocalIpAddress();
+                                : parent.tcpChannel.getLocalIpAddress();              
                         final String host = parent.updatePref(key, prev);
                         PLogger.SET_PANTHR_GW.debug("host[{} -> {}]", prev, host);
                     }
@@ -1193,24 +1207,29 @@ public class AmmoService extends Service implements INetworkService,
                              */
                             if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_ENABLED)) {
                                 parent.tcpChannel.disable();
+                                parent.tcpMediaChannel.disable();
                             } else {
                                 parent.tcpChannel.enable();
+                                parent.tcpMediaChannel.enable();
                             }
                         }
                         else if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
                             String gatewayHostname = prefs
                                     .getString(key, INetPrefKeys.DEFAULT_GATEWAY_HOST);
                             parent.tcpChannel.setHost(gatewayHostname);
+                            parent.tcpMediaChannel.setHost(gatewayHostname);
                         }
                         else if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
                             int gatewayPort = Integer.valueOf(prefs.getString(
                                     key, String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
                             parent.tcpChannel.setPort(gatewayPort);
+                            parent.tcpMediaChannel.setPort(gatewayPort);
                         }
                         else if (key.equals(INetPrefKeys.GATEWAY_TIMEOUT)) {
                             final Integer timeout = Integer.valueOf(prefs.getString(
                                     key, String.valueOf(INetPrefKeys.DEFAULT_GW_TIMEOUT)));
                             parent.tcpChannel.setSocketTimeout(timeout.intValue() * 1000);
+                            parent.tcpMediaChannel.setSocketTimeout(timeout.intValue() * 1000);                            
                             // convert seconds into milliseconds
                         }
                         else if (key.equals(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE)) {
@@ -1227,6 +1246,7 @@ public class AmmoService extends Service implements INetworkService,
                             parent.networkingSwitch = true;
 
                             parent.tcpChannel.reset();
+                            parent.tcpMediaChannel.reset();
                             parent.multicastChannel.reset();
                             parent.reliableMulticastChannel.reset();
                             parent.serialChannel.reset();
@@ -1235,6 +1255,7 @@ public class AmmoService extends Service implements INetworkService,
                             long flatLineTime = Integer.valueOf(prefs.getString(
                                     key, String.valueOf(INetPrefKeys.DEFAULT_GW_FLAT_LINE_TIME)));
                             parent.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000);
+                            parent.tcpMediaChannel.setFlatLineTime(flatLineTime * 60 * 1000);                            
                             // convert from minutes to milliseconds
                         }
                         else if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
@@ -1447,6 +1468,7 @@ public class AmmoService extends Service implements INetworkService,
     public void teardown() {
         logger.trace("Tearing down NPS");
         this.tcpChannel.disable();
+        this.tcpMediaChannel.disable();
         this.multicastChannel.disable();
         this.reliableMulticastChannel.disable();
         this.serialChannel.disable();
@@ -1654,6 +1676,9 @@ public class AmmoService extends Service implements INetworkService,
     final private JournalChannel journalChannel =
             JournalChannel.getInstance(ChannelFilter.JOURNAL, this);
     private SerialChannel serialChannel = null;
+    
+    final private TcpChannelMedia tcpMediaChannel =
+            TcpChannelMedia.getInstance(ChannelFilter.GATEWAYMEDIA, this);
 
     final public List<NetChannel> registeredChannels =
             new ArrayList<NetChannel>();
@@ -1727,6 +1752,7 @@ public class AmmoService extends Service implements INetworkService,
                             tcpChannel.linkUp(null);
                             multicastChannel.linkUp(null);
                             reliableMulticastChannel.linkUp(null);
+                            tcpMediaChannel.linkUp(null);
                             for (NetChannel channel : AmmoService.this.registeredChannels) {
                                 channel.linkUp(null);
                             }
@@ -1735,6 +1761,7 @@ public class AmmoService extends Service implements INetworkService,
                         case AmmoIntents.LINK_DOWN:
                             logger.trace("onReceive: Link DOWN {}", action);
                             tcpChannel.linkDown(null);
+                            tcpMediaChannel.linkDown(null);
                             multicastChannel.linkDown(null);
                             reliableMulticastChannel.linkDown(null);
                             for (NetChannel channel : AmmoService.this.registeredChannels) {
