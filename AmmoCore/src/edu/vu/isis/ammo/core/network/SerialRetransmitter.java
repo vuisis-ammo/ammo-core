@@ -118,14 +118,19 @@ public class SerialRetransmitter
 
     //Map<Integer, UUID> mUUIDMap = new HashMap<Integer, UUID>();
 
-    private SlotRecord[] slotRecords = new SlotRecord[MAX_SLOT_HISTORY]; // this is a ring buffer
-    private int mCurrentIdx = 0;	// index of current in the slot record buffer
+    // This is a ring buffer
+    private SlotRecord[] slotRecords = new SlotRecord[MAX_SLOT_HISTORY];
 
-    private short[] mConnectivityMatrix = new short[MAX_SLOTS]; // this keeps track of who is receiving directly from whom
-                                                                // updated locally based on received acks OR packets
-                                                                // updated for others based on their disseminated info
+	// Index of current in the slot record buffer
+    private int mCurrentIdx = 0;
 
-    private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>(); // mResendRelqyQueue really
+    // This keeps track of who is receiving directly from whom.
+    // Updated locally based on received acks OR packets; updated for
+    // others based on their disseminated info.
+    private short[] mConnectivityMatrix = new short[MAX_SLOTS];
+
+    // Should be called mResendRelayQueue, really.
+    private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>();
 
 
     /**
@@ -163,30 +168,42 @@ public class SerialRetransmitter
     {
         // Any packet in mPrevious that has not been acknowledged should be
         // requeued for resending in the resend queue.
-	final int mPreviousIdx = mCurrentIdx == 0 ? MAX_SLOT_HISTORY - 1 : mCurrentIdx - 1;
-	final SlotRecord mPrevious = slotRecords[mPreviousIdx];
+        final int mPreviousIdx = mCurrentIdx == 0 ? MAX_SLOT_HISTORY - 1 : mCurrentIdx - 1;
+        final SlotRecord mPrevious = slotRecords[mPreviousIdx];
 
         for ( int i=0; i<mPrevious.mSendCount; i++ ) {
-	    PacketRecord pr = mPrevious.mSent[i];
+            PacketRecord pr = mPrevious.mSent[i];
             if ( pr.mExpectToHearFrom == 0 ) {
                 logger.trace( "Ack packet or a Normal Packet not requiring ack. deleting PacketRecord:{}", pr );
             } else if ( (pr.mExpectToHearFrom & pr.mHeardFrom) == pr.mExpectToHearFrom ) {
-		// We have received acks from all of the people
-		// that we thought we were sending to, so we can
-		// now remove the packet from the pool.
-		logger.debug( "Acked Packet: expected={}, heardFrom={}, deleting PacketRecord: {}",
-			new Object[] { pr.mExpectToHearFrom,
-				       pr.mHeardFrom,
-				       pr } );
+                // We have received acks from all of the people
+                // that we thought we were sending to, so we can
+                // now remove the packet from the pool.
+                logger.debug( "Acked Packet: expected={}, heardFrom={}, deleting PacketRecord: {}",
+                              new Object[] { pr.mExpectToHearFrom,
+                                             pr.mHeardFrom,
+                                             pr } );
             } else {
                 logger.trace( "expected={}, heardFrom={}, requeueing PacketRecord: {}",
-			new Object[] { pr.mExpectToHearFrom,
-				       pr.mHeardFrom,
-				       pr } );
+                              new Object[] { pr.mExpectToHearFrom,
+                                             pr.mHeardFrom,
+                                             pr } );
                 // Puts this in the resend queue to be resent later when possible.
                 if ( pr.mResends > 0 ) {
-		    logger.debug( "Resending Scheduled for PacketRecord: {}, with remaining tries {}", pr, pr.mResends);
+                    logger.debug( "Resending Scheduled for PacketRecord: {}, with remaining tries {}", pr, pr.mResends);
                     mResendQueue.offer( pr );
+                } else {
+                    // If the packet has no more resends left, assume
+                    // that the slots who haven't acked it yet have
+                    // dropped out, and remove them from the
+                    // connectivity matrix.
+                    int didntHearFrom = pr.mExpectToHearFrom ^ pr.mHeardFrom;
+                    for ( int j = 0; j < MAX_SLOTS; ++j ) {
+                        if ( ((didntHearFrom >>> j) & 0x1) != 0 ) {
+                            logger.trace( "Dropping {} from connectivity matrix", j );
+                            mConnectivityMatrix[j] = 0;
+                        }
+                    }
                 }
             }
         }
