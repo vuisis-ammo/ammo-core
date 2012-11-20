@@ -55,7 +55,7 @@ public class SerialRetransmitter
         PacketRecord( int uid, AmmoGatewayMessage agm ) {
             mUID = uid;
             mPacket = agm;
-            mExpectToHearFrom = mConnectivityMatrix[mySlotNumber];
+            mExpectToHearFrom = mConnectivityMatrix[mySlotNumber] & ~(0x1 << mySlotNumber);
             mHeardFrom = 0;
             mResends = DEFAULT_RESENDS;
         }
@@ -228,14 +228,14 @@ public class SerialRetransmitter
         // in the appropriate hyperperiod.
         if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
             logger.trace( "Received ack packet. payload={}", agm.payload );
-	    int theirAckBitsForMe = agm.payload[ mySlotNumber ];
-	    if ( theirAckBitsForMe != 0 ) {
-		mConnectivityMatrix[mySlotNumber] |= (0x1 << agm.mSlotID); // because I am getting an ack for my messages remote is receiving directly from me
-	    }
-	    for(int i=0; i<MAX_SLOTS; i++) {
-		if ( (agm.payload[i] & 0x80)  == 0x80 ) // remote is receiving directly from  slot i, top bit in the ack slot is set for receive info
-		    mConnectivityMatrix[agm.mSlotID] |= (0x1 << i);
-	    }
+            int theirAckBitsForMe = agm.payload[ mySlotNumber ];
+            if ( theirAckBitsForMe != 0 ) {
+                mConnectivityMatrix[mySlotNumber] |= (0x1 << agm.mSlotID); // because I am getting an ack for my messages remote is receiving directly from me
+            }
+            for(int i=0; i<MAX_SLOTS; i++) {
+                if ( (agm.payload[i] & 0x80)  == 0x80 ) // remote is receiving directly from  slot i, top bit in the ack slot is set for receive info
+                    mConnectivityMatrix[agm.mSlotID] |= (0x1 << i);
+            }
 
             if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
 
@@ -267,7 +267,7 @@ public class SerialRetransmitter
                 }
             } else {
                 logger.debug( "Spurious Ack received in hyperperiod={}, sent in hyperperiod={}, Ignoring ...",
-			hyperperiod, agm.mHyperperiod );
+                              hyperperiod, agm.mHyperperiod );
             }
         }
         else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
@@ -275,11 +275,13 @@ public class SerialRetransmitter
             // propagate up
             // We will need to put these in the retranmit mechanism once that is
             // implemented.
-	    // save it for relay if the original sender does not have the same connectivity matrix as you ...
-	    if (mConnectivityMatrix[mySlotNumber] != mConnectivityMatrix[agm.mSlotID]) {
-		int uid = createUID( hyperperiod, agm.mSlotID, agm.mIndexInSlot );
-		mResendQueue.offer(new PacketRecord(uid, agm) );
-	    }
+            // save it for relay if the original sender does not have the same connectivity matrix as you ...
+            if ( (mConnectivityMatrix[mySlotNumber] & ~mConnectivityMatrix[agm.mSlotID]) != 0) {
+                int uid = createUID( agm.mHyperperiod, agm.mSlotID, agm.mIndexInSlot );
+                PacketRecord pr = new PacketRecord(uid, agm);
+                mResendQueue.offer( pr );
+                logger.trace("Adding message from slot={} for relay pr={}", agm.mSlotID, pr);
+            }
             mChannel.deliverMessage( agm );
         }
         else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
@@ -295,56 +297,77 @@ public class SerialRetransmitter
             // except payload and checksum.
             logger.debug( "Received resend packet. payload={}", agm.payload );
             try {
-		// TODO: check if we have not already received a packet with this uid
-		// otherwise do this work ...
+                // TODO: check if we have not already received a packet with this uid
+                // otherwise do this work ...
 
-		short b2 = (agm.payload[3]);
-		short b1 = (agm.payload[2]);
-		short originalHP = (short)((b2 << 8)&0xff00 | b1&0xff);
+                short b1 = agm.payload[3];
+                short b2 = agm.payload[2];
+                logger.trace( "hp bytes: {} {}", b1, b2 );
+                short originalHP = (short) (( (b1 << 8) & 0xff00 | b2 & 0xff ) & 0xFFFF);
+
                 logger.trace( "resend packet originalHP={}, currentHP={}", originalHP, hyperperiod );
-		final int hpDelta = hyperperiod - originalHP;
-		if ( hpDelta < MAX_SLOT_HISTORY ) { // within our dup window 
-		    final byte  originalSlot = agm.payload[1];
-		    final byte  originalIdx  = agm.payload[0];
+                final int hpDelta = hyperperiod - originalHP; // FIXME: have to do modulo difference
+                if ( hpDelta < MAX_SLOT_HISTORY ) { // within our dup window
+                    final byte  originalSlot = agm.payload[1];
+                    final byte  originalIdx  = agm.payload[0];
 
-		    // find the ack record for that hyperperiod in our history ring buffer
-		    int   slotIdx    = mCurrentIdx - hpDelta;
-		    if (slotIdx < 0)
-			slotIdx += MAX_SLOT_HISTORY;
-
-		    final byte ackByte = slotRecords[slotIdx].mAcks[originalSlot];
-		    if ((ackByte &  (0x1 << originalIdx)) == 0) {
-
-			// we have not seen it before, update our slot record
-			slotRecords[slotIdx].mAcks[originalSlot] |= (0x1 << originalIdx);
-			
-
-			// TODO: optimize this code ...
-                logger.trace( "agm.size={}", agm.size );
-                int newSize = agm.size - 4;
-                logger.trace( "newSize={}", newSize );
-                byte[] newPayload = new byte[ newSize ];
+                    logger.trace( "resend packet originalSlot={}, currentIdx={}", originalSlot, originalIdx );
 
 
-                logger.trace( "agm.payload.length={}", agm.payload.length );
+                    // find the ack record for that hyperperiod in our history ring buffer
+                    int   slotIdx    = mCurrentIdx - hpDelta;
+                    if (slotIdx < 0)
+                        slotIdx += MAX_SLOT_HISTORY;
 
-                for ( int i = 0; i < newSize; ++i ) {
-                    newPayload[i] = agm.payload[i+4];
+                    final byte ackByte = slotRecords[slotIdx].mAcks[originalSlot];
+                    // if its not a packet from me,
+                    // and I didn't ack it earlier - then its not a duplicate
+                    if ((originalSlot != mySlotNumber) && 
+                        (ackByte &  (0x1 << originalIdx)) == 0) {
+
+                        // we have not seen it before, update our slot record
+                        slotRecords[slotIdx].mAcks[originalSlot] |= (0x1 << originalIdx);
+
+                        logger.trace( "agm.size={}", agm.size );
+                        int newSize = agm.size - 4;
+                        logger.trace( "newSize={}", newSize );
+                        byte[] newPayload = new byte[ newSize ];
+
+
+                        logger.trace( "agm.payload.length={}", agm.payload.length );
+
+                        // TODO: optimize this
+                        for ( int i = 0; i < newSize; ++i ) {
+                            newPayload[i] = agm.payload[i+4];
+                        }
+
+                        agm.payload = newPayload;
+                        agm.size = newSize;
+
+                        CRC32 crc32 = new CRC32();
+                        crc32.update( newPayload );
+                        agm.payload_checksum = crc32.getValue();
+
+                        // TODO: INTRODUCE RELAY HOPS TO AVOID RELAY LOOPS
+
+                        // add this for further relay IF
+                        // union of connectivity vector of original sender (originalSlot) and relayer (agm.mSlotID)
+                        // is not a superset of my connectivity vector
+                        if ( (mConnectivityMatrix[mySlotNumber] &
+                              ~( mConnectivityMatrix[agm.mSlotID] | mConnectivityMatrix[originalSlot]) ) != 0) {
+                            int uid = createUID( originalHP, originalSlot, originalIdx );
+                            PacketRecord pr = new PacketRecord(uid, agm);
+                            mResendQueue.offer( pr );
+                            logger.trace("Adding message from slot={} for RE-relay pr={}", originalSlot, pr);
+                        }
+
+                        mChannel.deliverMessage( agm );
+                    } else {
+                        logger.trace( "Filtered a duplicate packet origHP = {}, origSlot = {}, origIdx = {}",
+                                      new Object[] {originalHP, originalSlot, originalIdx} );
+
+                    }
                 }
-
-                agm.payload = newPayload;
-                agm.size = newSize;
-
-                CRC32 crc32 = new CRC32();
-                crc32.update( newPayload );
-                agm.payload_checksum = crc32.getValue();
-
-                mChannel.deliverMessage( agm );
-		    } else {
-			logger.trace( "Filtered a duplicate packet origHP = {}, origSlot = {}, origIdx = {}", new Object[] {originalHP, originalSlot, originalIdx} );
-
-		    }
-		}
             } catch ( Exception ex ) {
                 logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
             }
