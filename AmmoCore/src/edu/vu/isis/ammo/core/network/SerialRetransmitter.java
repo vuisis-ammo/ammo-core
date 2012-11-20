@@ -38,8 +38,11 @@ public class SerialRetransmitter
     private static final int MAX_SLOTS = 16;     // There are lots of shorts in this code that will need to be made larger
                                                  // so this constant can not be arbitrarily made larger without changing a lot of shorts
 
-    // There are lots of shorts in this code that will need to be made larger
-    // if we need to be able to have more than 16 slots.
+    private static final int MAX_SLOT_HISTORY = 16; // this should be a configurable parameter, this controls how far do we retain the past receive info to dedup
+                                                    // for a 16 node net, hyperperiod is 12 sec, and with 16 hyperperiods we get about 192 sec past 
+                                                    // this parameter should relate to the retries with N+1 retries, we can expect to receive repeat messages till 96 sec (4*2*12)
+                                                    // the relays would stretch this further by 1 hyperperiod - so we get 108 sec
+
     private class PacketRecord {
         public int mExpectToHearFrom;
         public int mHeardFrom;
@@ -115,11 +118,10 @@ public class SerialRetransmitter
 
     Map<Integer, UUID> mUUIDMap = new HashMap<Integer, UUID>();
 
-    private SlotRecord mCurrent = new SlotRecord();
-    private SlotRecord mPrevious = new SlotRecord();
+    private SlotRecord[] slotRecords = new SlotRecord[MAX_SLOT_HISTORY]; // this is a ring buffer
+    private int mCurrentIdx = 0;	// index of current in the slot record buffer
 
-    private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>();
-
+    private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>(); // mResendRelqyQueue really
 
 
     /**
@@ -131,6 +133,8 @@ public class SerialRetransmitter
 	mySlotNumber = mySlot;
         mChannel = channel;
         mChannelManager = channelManager;
+	for(int i=0; i<MAX_SLOT_HISTORY; i++)
+	    slotRecords[i] = new SlotRecord();
     }
 
 
@@ -138,25 +142,13 @@ public class SerialRetransmitter
     {
         logger.trace( "...swapHyperperiods(). new hyperperiod={}", hyperperiod );
 
-        if ( hyperperiod != mCurrent.mHyperperiodID ) {
-            logger.trace( "...swapping" );
-
-            logger.trace( "before:" );
-            logger.trace( "  current: {}", mCurrent );
-            logger.trace( "  previous: {}", mPrevious );
-
+        if ( hyperperiod != slotRecords[mCurrentIdx].mHyperperiodID ) {
             // We've entered a new hyperperiod, so make current point to the
             // new one, and discard the previous one.
             processPreviousBeforeSwap();
 
-            final SlotRecord temp = mPrevious;
-            mPrevious = mCurrent;
-            mCurrent = temp;
-
-            mCurrent.reset( hyperperiod );
-            logger.trace( "after:" );
-            logger.trace( "  current: {}", mCurrent );
-            logger.trace( "  previous: {}", mPrevious );
+	    mCurrentIdx = (mCurrentIdx + 1) % MAX_SLOT_HISTORY;
+            slotRecords[mCurrentIdx].reset( hyperperiod );
         }
     }
 
@@ -165,6 +157,8 @@ public class SerialRetransmitter
     {
         // Any packet in mPrevious that has not been acknowledged should be
         // requeued for resending in the resend queue.
+	final int mPreviousIdx = mCurrentIdx == 0 ? MAX_SLOT_HISTORY - 1 : mCurrentIdx - 1;
+	final SlotRecord mPrevious = slotRecords[mPreviousIdx];
 
         for ( int i=0; i<mPrevious.mSendCount; i++ ) {
 	    PacketRecord pr = mPrevious.mSent[i];
@@ -219,7 +213,7 @@ public class SerialRetransmitter
         swapHyperperiodsIfNeeded( hyperperiod );
 
         // Set the bit in the current hyperperiod for providing an ack back to sender
-        mCurrent.setAckBit( agm.mSlotID, agm.mIndexInSlot );
+        slotRecords[mCurrentIdx].setAckBit( agm.mSlotID, agm.mIndexInSlot );
 
 
         // First, if it's an ack packet and any bit is set for the byte
@@ -244,21 +238,20 @@ public class SerialRetransmitter
                 // For each 1 bit in their ack byte, find the PacketRecord
                 // for that index in mPrevious.mSent and set the ack bit
                 // in mHeardFrom.
-                int index = 0;
-                while ( theirAckBitsForMe != 0 ) {
+                final int mPreviousIdx = (mCurrentIdx == 0) ? (MAX_SLOT_HISTORY - 1) : (mCurrentIdx - 1);
+                final SlotRecord mPrevious = slotRecords[mPreviousIdx];
+
+                for ( int index = 0; index < mPrevious.mSendCount; ++index ) {
                     if ( (theirAckBitsForMe & 0x1) != 0 ) {
                         // They received a packet in the position in the slot
                         // with index "index".  Record this in the map.
                         logger.trace( "doing mSent with index={}, mPrevious.mSendCount={}",
-				index, mPrevious.mSendCount );
-			if (mPrevious.mSendCount > index) {
-			    PacketRecord stats = mPrevious.mSent[index];
-			    stats.mHeardFrom |= (0x1 << agm.mSlotID);
-			}
+                                      index, mPrevious.mSendCount );
+                        PacketRecord stats = mPrevious.mSent[index];
+                        stats.mHeardFrom |= (0x1 << agm.mSlotID);
                     }
 
                     theirAckBitsForMe = theirAckBitsForMe >>> 1;
-                    ++index;
 
                     // TODO: generate an ack message to send to the distributor to
                     // let them know that a packet we sent out was ack'd.
@@ -366,9 +359,9 @@ public class SerialRetransmitter
 		pr.mResends = 0;
 	    }
 
-            mCurrent.mSent[mCurrent.mSendCount] = pr;
-            mCurrent.mSendCount++;
-            logger.trace( "...mCurrent.mSendCount={}", mCurrent.mSendCount );
+            slotRecords[mCurrentIdx].mSent[slotRecords[mCurrentIdx].mSendCount] = pr;
+            slotRecords[mCurrentIdx].mSendCount++;
+            logger.trace( "...mCurrent.mSendCount={}", slotRecords[mCurrentIdx].mSendCount );
         } else {
             // Resend packets have an existing PacketRecord, which we reuse.
 	    // this is already inserted in the mSent when we create a resend packet
@@ -406,8 +399,8 @@ public class SerialRetransmitter
                 try {
                     // Keep the pr and put it in the mSent.array, while decrementing
                     // mResends.
-                    mCurrent.mSent[mCurrent.mSendCount] = pr;
-                    mCurrent.mSendCount++;
+                    slotRecords[mCurrentIdx].mSent[slotRecords[mCurrentIdx].mSendCount] = pr;
+                    slotRecords[mCurrentIdx].mSendCount++;
                     pr.mResends--;
 
                     int size = pr.mPacket.payload.length + 4;
@@ -455,6 +448,8 @@ public class SerialRetransmitter
                       hyperperiod );
 
         try {
+	    final int mPreviousIdx = mCurrentIdx == 0 ? MAX_SLOT_HISTORY - 1 : mCurrentIdx - 1;
+	    final SlotRecord mPrevious = slotRecords[mPreviousIdx];
 
             // We only send an ack if the previous hyperperiod was the preceding
             // one.  If the previous hyperperiod was an older one, just don't
