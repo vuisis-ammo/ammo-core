@@ -49,12 +49,13 @@ public class SerialRetransmitter
         public int mResends;
 
         public int mUID;	// this is the serial uid computed by or'ing of hyperperiod (2bytes), slot (1byte),  index in slot (1byte)
+	//public int mUUID;
         public AmmoGatewayMessage mPacket;
 
         PacketRecord( int uid, AmmoGatewayMessage agm ) {
             mUID = uid;
             mPacket = agm;
-            mExpectToHearFrom = mReceivingMeDirectly;
+            mExpectToHearFrom = mConnectivityMatrix[mySlotNumber];
             mHeardFrom = 0;
             mResends = DEFAULT_RESENDS;
         }
@@ -120,6 +121,10 @@ public class SerialRetransmitter
     private SlotRecord[] slotRecords = new SlotRecord[MAX_SLOT_HISTORY]; // this is a ring buffer
     private int mCurrentIdx = 0;	// index of current in the slot record buffer
 
+    private short[] mConnectivityMatrix = new short[MAX_SLOTS]; // this keeps track of who is receiving directly from whom
+                                                                // updated locally based on received acks OR packets
+                                                                // updated for others based on their disseminated info
+
     private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>(); // mResendRelqyQueue really
 
 
@@ -134,6 +139,8 @@ public class SerialRetransmitter
         mChannelManager = channelManager;
 	for(int i=0; i<MAX_SLOT_HISTORY; i++)
 	    slotRecords[i] = new SlotRecord();
+	for(int i=0; i<MAX_SLOTS; i++)
+	    mConnectivityMatrix[i] = (short)(0x1 << i); // each node can receive from itself
     }
 
 
@@ -223,8 +230,11 @@ public class SerialRetransmitter
             logger.trace( "Received ack packet. payload={}", agm.payload );
 	    int theirAckBitsForMe = agm.payload[ mySlotNumber ];
 	    if ( theirAckBitsForMe != 0 ) {
-		// They are receiving my directly.
-		mReceivingMeDirectly |= (0x1 << agm.mSlotID);
+		mConnectivityMatrix[mySlotNumber] |= (0x1 << agm.mSlotID); // because I am getting an ack for my messages remote is receiving directly from me
+	    }
+	    for(int i=0; i<MAX_SLOTS; i++) {
+		if ( (agm.payload[i] & 0x80)  == 0x80 ) // remote is receiving directly from  slot i, top bit in the ack slot is set for receive info
+		    mConnectivityMatrix[agm.mSlotID] |= (0x1 << i);
 	    }
 
             if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
@@ -265,6 +275,11 @@ public class SerialRetransmitter
             // propagate up
             // We will need to put these in the retranmit mechanism once that is
             // implemented.
+	    // save it for relay if the original sender does not have the same connectivity matrix as you ...
+	    if (mConnectivityMatrix[mySlotNumber] != mConnectivityMatrix[agm.mSlotID]) {
+		int uid = createUID( hyperperiod, agm.mSlotID, agm.mIndexInSlot );
+		mResendQueue.offer(new PacketRecord(uid, agm) );
+	    }
             mChannel.deliverMessage( agm );
         }
         else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
@@ -487,6 +502,11 @@ public class SerialRetransmitter
                 return null;
             }
 
+	    // provide my connectivity info to others ...
+	    for (int i=0; i<MAX_SLOTS; i++) {
+		mPrevious.mAcks[i] |=  ( (mConnectivityMatrix[ mySlotNumber ] >>  i) & 0x1 ) << 7; 
+	    }
+
             AmmoGatewayMessage.Builder b = AmmoGatewayMessage.newBuilder();
 
             b.size( mPrevious.mAcks.length );
@@ -525,14 +545,12 @@ public class SerialRetransmitter
     /**
      * I'm not sure when to call this.  Decide later.
      */
-    synchronized public void resetReceivingMeDirectly() { mReceivingMeDirectly = 0; }
+    synchronized public void resetReceivingMeDirectly() { mConnectivityMatrix[mySlotNumber] = (short)(0x1 << mySlotNumber); }
 
 
     private int mySlotNumber;
     private SerialChannel mChannel;
     private IChannelManager mChannelManager;
-
-    private short mReceivingMeDirectly = (short)0x0;
 
     private static final Logger logger = LoggerFactory.getLogger( "net.serial.retrans" );
 }
