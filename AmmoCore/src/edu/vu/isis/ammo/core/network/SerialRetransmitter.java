@@ -68,7 +68,6 @@ public class SerialRetransmitter
         }
     };
 
-
     // This class records information about packets sent in a slot and acks
     // received in a slot.  It is retained so that, once we receive acks for
     // our sent packets during the next slot, we can figure out if all
@@ -116,7 +115,7 @@ public class SerialRetransmitter
     };
 
 
-    Map<Integer, UUID> mUUIDMap = new HashMap<Integer, UUID>();
+    //Map<Integer, UUID> mUUIDMap = new HashMap<Integer, UUID>();
 
     private SlotRecord[] slotRecords = new SlotRecord[MAX_SLOT_HISTORY]; // this is a ring buffer
     private int mCurrentIdx = 0;	// index of current in the slot record buffer
@@ -255,7 +254,6 @@ public class SerialRetransmitter
 
                     // TODO: generate an ack message to send to the distributor to
                     // let them know that a packet we sent out was ack'd.
-
                 }
             } else {
                 logger.debug( "Spurious Ack received in hyperperiod={}, sent in hyperperiod={}, Ignoring ...",
@@ -284,10 +282,34 @@ public class SerialRetransmitter
             try {
 		// TODO: check if we have not already received a packet with this uid
 		// otherwise do this work ...
+
+		short b2 = (agm.payload[3]);
+		short b1 = (agm.payload[2]);
+		short originalHP = (short)((b2 << 8)&0xff00 | b1&0xff);
+                logger.trace( "resend packet originalHP={}, currentHP={}", originalHP, hyperperiod );
+		final int hpDelta = hyperperiod - originalHP;
+		if ( hpDelta < MAX_SLOT_HISTORY ) { // within our dup window 
+		    final byte  originalSlot = agm.payload[1];
+		    final byte  originalIdx  = agm.payload[0];
+
+		    // find the ack record for that hyperperiod in our history ring buffer
+		    int   slotIdx    = mCurrentIdx - hpDelta;
+		    if (slotIdx < 0)
+			slotIdx += MAX_SLOT_HISTORY;
+
+		    final byte ackByte = slotRecords[slotIdx].mAcks[originalSlot];
+		    if ((ackByte &  (0x1 << originalIdx)) == 0) {
+
+			// we have not seen it before, update our slot record
+			slotRecords[slotIdx].mAcks[originalSlot] |= (0x1 << originalIdx);
+			
+
+			// TODO: optimize this code ...
                 logger.trace( "agm.size={}", agm.size );
                 int newSize = agm.size - 4;
                 logger.trace( "newSize={}", newSize );
                 byte[] newPayload = new byte[ newSize ];
+
 
                 logger.trace( "agm.payload.length={}", agm.payload.length );
 
@@ -303,6 +325,11 @@ public class SerialRetransmitter
                 agm.payload_checksum = crc32.getValue();
 
                 mChannel.deliverMessage( agm );
+		    } else {
+			logger.trace( "Filtered a duplicate packet origHP = {}, origSlot = {}, origIdx = {}", new Object[] {originalHP, originalSlot, originalIdx} );
+
+		    }
+		}
             } catch ( Exception ex ) {
                 logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
             }
