@@ -506,7 +506,7 @@ public class AmmoService extends Service implements INetworkService,
         modelChannelMap.put(tcpChannel.name,
                 Gateway.getInstance(getBaseContext(), tcpChannel));
         modelChannelMap.put(tcpMediaChannel.name,
-                Gateway.getInstance(getBaseContext(), tcpMediaChannel));        
+                Gateway.getMediaInstance(getBaseContext(), tcpMediaChannel));        
         modelChannelMap.put(multicastChannel.name,
                 Multicast.getInstance(getBaseContext(), multicastChannel));
         modelChannelMap.put(reliableMulticastChannel.name,

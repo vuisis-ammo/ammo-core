@@ -118,6 +118,12 @@ public class Gateway extends ModelChannel {
         logger.trace("{} asked for a new Gateway instance", new Throwable().getStackTrace()[1]);
         return new Gateway(context, "Gateway Channel", channel);
     }
+    
+    public static Gateway getMediaInstance(Context context, NetChannel channel) {
+        // initialize the gateway media from the shared preferences
+        logger.trace("{} asked for a new Gateway Media instance", new Throwable().getStackTrace()[1]);
+        return new Gateway(context, "Gateway Media Channel", channel);
+    }    
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
