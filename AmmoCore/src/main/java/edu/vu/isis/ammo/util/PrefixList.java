@@ -109,4 +109,8 @@ public class PrefixList<V> extends AbstractPrefixTrie<V> {
         return vals;
     }
 
+	public int size() {
+		return this.nodes.size();
+	}
+
 }
