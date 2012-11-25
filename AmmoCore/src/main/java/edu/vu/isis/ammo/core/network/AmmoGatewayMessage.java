@@ -73,13 +73,32 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             HEADER_DATA_LENGTH
             + 4; // header checksum
 
+    // public static final int HEADER_DATA_LENGTH_TERSE =
+    //       4  // magic (3.5 bytes) and slot number (4 bits)
+    //     + 2  // payload size
+    //     + 2  // payload checksum
+    //     + 4  // timestamp
+    //     + 1  //   index in slot: 4 bits
+    //          //   <reserved>:    2 bits
+    //          //   packet type:   2 bits
+    //     + 1  // <reserved>
+    //     + 2; // header checksum
+    // // ------
+    // //   16 bytes
+
     public static final int HEADER_DATA_LENGTH_TERSE =
-            4 // magic (3.5 bytes) and slot number (4 bits)
-                    + 2 // payload size
-                    + 2 // payload checksum
-                    + 4 // timestamp
-                    + 2 // <reserved>
-                    + 2; // header checksum
+          4  // magic (3.5 bytes) and slot number (4 bits)
+        + 2  // payload size
+        + 2  // payload checksum
+        + 4  // UID (info about what we think that we're sending in)
+             //   hyperperiod:   2 bytes
+             //   slot number:   1 byte
+             //   index in slot: 1 byte
+        + 1  // packet type (low-order 2 bits)
+        + 1  // <reserved>
+        + 2; // header checksum
+    // ------
+    //   16 bytes
 
     // These are equal because the terse form doesn't use a header checksum.
     public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH;
@@ -730,8 +749,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     checkPayloadBytes[2] = 0;
                     checkPayloadBytes[3] = 0;
                     // drain.get( checkBytes, 0, 2 );
-                    logger.debug("   payload check={}", checkPayloadBytes);
-                    long payload_checksum = CheckSum.newInstance(checkPayloadBytes).asLong();
+		    CheckSum csum = new CheckSum(checkPayloadBytes);
+                    long payload_checksum = csum.asLong();
+                    logger.debug("   payload check={}, asLong={}", checkPayloadBytes, Long.toHexString(payload_checksum));
 
                     // UID
                     int uid = drain.getInt();
