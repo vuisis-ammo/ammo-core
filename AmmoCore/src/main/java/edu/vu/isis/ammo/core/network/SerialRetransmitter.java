@@ -334,6 +334,8 @@ public class SerialRetransmitter
                 // slot is set for receive info
                 if ( (agm.payload[i] & 0x00000080)  == 0x00000080 )
                     mConnectivityMatrix[agm.mSlotID] |= (0x1 << i);
+		else
+                    mConnectivityMatrix[agm.mSlotID] &= ~(0x1 << i);
             }
 
             if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
@@ -537,26 +539,30 @@ public class SerialRetransmitter
         // Resend packet:
 
         if ( agm.mPacketType != AmmoGatewayMessage.PACKETTYPE_RESEND ) {
+	    if (slotRecords[mCurrentIdx].mSendCount < MAX_PACKETS_PERSLOT) {
 
-            int uid = createUID( hyperperiod, slotIndex, indexInSlot );
-            PacketRecord pr = new PacketRecord( uid, agm );
+		int uid = createUID( hyperperiod, slotIndex, indexInSlot );
+		PacketRecord pr = new PacketRecord( uid, agm );
 
-            if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
-                logger.trace( "SEND: normal, uid = {}, ...PacketRecord={}", uid, pr );
-            } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
-                logger.trace( "SEND: ack, uid = {}, ...PacketRecord={}", uid, pr );
-            }
+		if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
+		    logger.trace( "SEND: normal, uid = {}, ...PacketRecord={}", uid, pr );
+		} else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+		    logger.trace( "SEND: ack, uid = {}, ...PacketRecord={}", uid, pr );
+		}
 
-            // The retransmitter functionality is only required for packet types
-            // that require acks.
-            if ( !agm.mNeedAck || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
-                pr.mExpectToHearFrom = 0;
-                pr.mResends = 0;
-            }
+		// The retransmitter functionality is only required for packet types
+		// that require acks.
+		if ( !agm.mNeedAck || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+		    pr.mExpectToHearFrom = 0;
+		    pr.mResends = 0;
+		}
 
-            slotRecords[mCurrentIdx].mSent[ slotRecords[mCurrentIdx].mSendCount ] = pr;
-            slotRecords[mCurrentIdx].mSendCount++;
-            logger.trace( "...packets sent this slot={}", slotRecords[mCurrentIdx].mSendCount );
+		slotRecords[mCurrentIdx].mSent[ slotRecords[mCurrentIdx].mSendCount ] = pr;
+		slotRecords[mCurrentIdx].mSendCount++;
+		logger.trace( "...packets sent this slot={}", slotRecords[mCurrentIdx].mSendCount );
+	    } else {
+		logger.error("... number of packets in this slot={} >= MAX_PACKET_PERSLOT .. NOT adding to the slot record", slotRecords[mCurrentIdx].mSendCount);
+	    }
         } else {
             // Resend packets have an existing PacketRecord, which we reuse.
             // this is already inserted in the mSent when we create a resend packet
