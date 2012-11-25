@@ -1206,7 +1206,7 @@ public class SerialChannel extends NetChannel
 
             // how much time do we have left in slot
             final long timeLeft = (thisSlotEnd - currentGpsTime) - thisSlotConsumed;
-            final long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
+            long bytesThatWillFit = (long) (timeLeft * bytesPerMs);
 
             // Loop as long as resend packets will fit.
             // Subtract out 50 to leave room to append the ack packet.
@@ -1214,6 +1214,8 @@ public class SerialChannel extends NetChannel
                 AmmoGatewayMessage agm = getRetransmitter().createResendPacket( bytesThatWillFit - RESERVE_FOR_ACK );
                 if ( agm != null ) {
                     sendMessage( agm, hyperperiod, slotIndex, indexInSlot );
+		    // decrement bytes that will fit
+		    bytesThatWillFit -= (agm.size + agm.HEADER_DATA_LENGTH_TERSE);
                 } else {
                     break;
                 }
