@@ -35,6 +35,9 @@ public class SerialRetransmitter
     // original send + N-retries
     private static final int DEFAULT_RESENDS = 3;
 
+    // number of hyperperiods after which to expire an unresponsive node from connmatrix
+    private static final int DEFAULT_CONNMATRIX_EXPIRE = 3;
+
     // this is bound by the ack - we have 1 byte for each slot which
     // limits to 8 messages, we reserve 1 bit for informing others
     // about receivingDirectlyFromMe
@@ -143,6 +146,9 @@ public class SerialRetransmitter
     // Updated locally based on received acks OR packets; updated for
     // others based on their disseminated info.
     private int[] mConnectivityMatrix = new int[MAX_SLOTS];
+    // last hyperperiod in which connectivity was updated for a remote node
+    // this is used to decide when to expire a node from connectivity matrix
+    private int[] mConnectivityUpdated = new int[MAX_SLOTS];
 
     // Should be called mResendRelayQueue, really.
     private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>();
@@ -173,6 +179,9 @@ public class SerialRetransmitter
             // We've entered a new hyperperiod, so make current point to the
             // new one, and discard the previous one.
             processPreviousBeforeSwap();
+
+	    // repair connectivity matrix
+	    repairConnectivityMatrix( hyperperiod );
 
             mCurrentIdx = (mCurrentIdx + 1) % MAX_SLOT_HISTORY;
             slotRecords[mCurrentIdx].reset( hyperperiod );
@@ -213,25 +222,38 @@ public class SerialRetransmitter
                     logger.debug( "Resending Scheduled for PacketRecord: {}, with remaining tries {}", pr, pr.mResends);
                     mResendQueue.offer( pr );
                     logger.trace( "RESENDQUEUE: {} in queue", mResendQueue.size() );
-                } else {
+                }
+		// else {
                     // If the packet has no more resends left, assume
                     // that the slots who haven't acked it yet have
                     // dropped out, and remove them from the
                     // connectivity matrix.
-                    int didntHearFrom = pr.mExpectToHearFrom ^ pr.mHeardFrom;
-                    for ( int j = 0; j < MAX_SLOTS; ++j ) {
-                        if ( ((didntHearFrom >>> j) & 0x1) != 0 ) {
-                            logger.trace( "Resends at 0. Connectivity Matrix: Dropped {}", j );
-                            mConnectivityMatrix[mySlotNumber] &= ~(0x1 << j);
-                            mConnectivityMatrix[j] = 0;
-                        }
-                    }
-                }
+                    // int didntHearFrom = pr.mExpectToHearFrom ^ pr.mHeardFrom;
+                    // for ( int j = 0; j < MAX_SLOTS; ++j ) {
+                    //     if ( ((didntHearFrom >>> j) & 0x1) != 0 ) {
+                    //         logger.trace( "Resends at 0. Connectivity Matrix: Dropped {}", j );
+                    //         mConnectivityMatrix[mySlotNumber] &= ~(0x1 << j);
+                    //         mConnectivityMatrix[j] = 0;
+                    //     }
+                    // }
+                // }
             }
         }
         logger.trace( "SWAP: end" );
     }
 
+    private void repairConnectivityMatrix( int hyperperiod )
+    {
+	// now repair connectivity matrix
+	for(int i=0; i<MAX_SLOTS; i++) {
+	    if ( i == mySlotNumber )
+		continue;
+	    if ( (hyperperiod - mConnectivityUpdated[i]) > DEFAULT_CONNMATRIX_EXPIRE ) {
+		mConnectivityMatrix[mySlotNumber] &= ~(0x1 << i);
+	    }
+	}
+	
+    }
 
     /**
      * Returns as a String a list of numbers denoting the "1" bits in a bitmap.
@@ -324,6 +346,8 @@ public class SerialRetransmitter
                 // directly from me
                 int before = mConnectivityMatrix[mySlotNumber];
                 mConnectivityMatrix[mySlotNumber] |= (0x1 << agm.mSlotID);
+		// updating hyperperiod in which we received from remote
+		mConnectivityUpdated[agm.mSlotID] = hyperperiod;
                 if ( before != mConnectivityMatrix[mySlotNumber] ) {
                     logger.trace( "Connectivity Matrix: Added {}", agm.mSlotID );
                 }
@@ -334,6 +358,8 @@ public class SerialRetransmitter
                 // slot is set for receive info
                 if ( (agm.payload[i] & 0x00000080)  == 0x00000080 )
                     mConnectivityMatrix[agm.mSlotID] |= (0x1 << i);
+		else
+                    mConnectivityMatrix[agm.mSlotID] &= ~(0x1 << i);
             }
 
             if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
@@ -537,26 +563,30 @@ public class SerialRetransmitter
         // Resend packet:
 
         if ( agm.mPacketType != AmmoGatewayMessage.PACKETTYPE_RESEND ) {
+	    if (slotRecords[mCurrentIdx].mSendCount < MAX_PACKETS_PERSLOT) {
 
-            int uid = createUID( hyperperiod, slotIndex, indexInSlot );
-            PacketRecord pr = new PacketRecord( uid, agm );
+		int uid = createUID( hyperperiod, slotIndex, indexInSlot );
+		PacketRecord pr = new PacketRecord( uid, agm );
 
-            if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
-                logger.trace( "SEND: normal, uid = {}, ...PacketRecord={}", uid, pr );
-            } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
-                logger.trace( "SEND: ack, uid = {}, ...PacketRecord={}", uid, pr );
-            }
+		if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
+		    logger.trace( "SEND: normal, uid = {}, ...PacketRecord={}", uid, pr );
+		} else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+		    logger.trace( "SEND: ack, uid = {}, ...PacketRecord={}", uid, pr );
+		}
 
-            // The retransmitter functionality is only required for packet types
-            // that require acks.
-            if ( !agm.mNeedAck || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
-                pr.mExpectToHearFrom = 0;
-                pr.mResends = 0;
-            }
+		// The retransmitter functionality is only required for packet types
+		// that require acks.
+		if ( !agm.mNeedAck || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+		    pr.mExpectToHearFrom = 0;
+		    pr.mResends = 0;
+		}
 
-            slotRecords[mCurrentIdx].mSent[ slotRecords[mCurrentIdx].mSendCount ] = pr;
-            slotRecords[mCurrentIdx].mSendCount++;
-            logger.trace( "...packets sent this slot={}", slotRecords[mCurrentIdx].mSendCount );
+		slotRecords[mCurrentIdx].mSent[ slotRecords[mCurrentIdx].mSendCount ] = pr;
+		slotRecords[mCurrentIdx].mSendCount++;
+		logger.trace( "...packets sent this slot={}", slotRecords[mCurrentIdx].mSendCount );
+	    } else {
+		logger.error("... number of packets in this slot={} >= MAX_PACKET_PERSLOT .. NOT adding to the slot record", slotRecords[mCurrentIdx].mSendCount);
+	    }
         } else {
             // Resend packets have an existing PacketRecord, which we reuse.
             // this is already inserted in the mSent when we create a resend packet
