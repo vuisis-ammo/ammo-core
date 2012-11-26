@@ -99,8 +99,8 @@
               <reportFormat>plain</reportFormat>
               <redirectTestOutputToFile>true</redirectTestOutputToFile>
               <systemPropertyVariables>
-                  <java.util.logging.config.file>${build.testOutputDirectory}/logging.properties</java.util.logging.config.file>
-                  <logback.configurationFile>${build.testOutputDirectory}/logback.xml</logback.configurationFile>
+                  <java.util.logging.config.file>${project.build.testOutputDirectory}/logging.properties</java.util.logging.config.file>
+                  <logback.configurationFile>${project.build.testOutputDirectory}/logback.xml</logback.configurationFile>
               </systemPropertyVariables>
           </configuration>
       </plugin>
@@ -174,16 +174,6 @@
 
   <reporting>
     <plugins>
-       <plugin>
-         <groupId>org.apache.maven.plugins</groupId>
-         <artifactId>maven-javadoc-plugin</artifactId>
-         <configuration>
-           <links>
-             <link>http://commons.apache.org/lang/api</link>
-             <link>http://java.sun.com/j2se/1.5.0/docs/api</link>
-           </links>
-         </configuration>
-       </plugin>
 <!--
        <plugin>
          <groupId>org.codehaus.sonar-plugins</groupId>
@@ -193,11 +183,28 @@
          <groupId>com.soebes.maven.plugins.dmg</groupId>
          <artifactId>doxygen-maven-plugin</artifactId>
        </plugin>
--->
        <plugin>
           <groupId>maven-plugins</groupId>
           <artifactId>maven-doxygen-plugin</artifactId>
         </plugin>
+-->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>${maven.javadoc.plugin.version}</version>
+        <configuration>
+          <links>
+            <link>http://commons.apache.org/lang/api</link>
+            <link>http://java.sun.com/j2se/1.5.0/docs/api</link>
+          </links>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-plugin-plugin</artifactId>
+        <version>${maven.plugin.plugin.version}</version>
+      </plugin>
     </plugins>
   </reporting>
+
 </project>
