@@ -174,20 +174,7 @@
 
   <reporting>
     <plugins>
-<!--
-       <plugin>
-         <groupId>org.codehaus.sonar-plugins</groupId>
-         <artifactId>sonar-doxygen-plugin</artifactId>
-       </plugin>
-       <plugin>
-         <groupId>com.soebes.maven.plugins.dmg</groupId>
-         <artifactId>doxygen-maven-plugin</artifactId>
-       </plugin>
-       <plugin>
-          <groupId>maven-plugins</groupId>
-          <artifactId>maven-doxygen-plugin</artifactId>
-        </plugin>
--->
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
@@ -199,12 +186,42 @@
           </links>
         </configuration>
       </plugin>
+
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-plugin-plugin</artifactId>
         <version>${maven.plugin.plugin.version}</version>
       </plugin>
+
+      <plugin>
+        <groupId>net.sf.doodleproject</groupId>
+        <artifactId>doxygen-maven-plugin</artifactId>
+        <version>2.3-SNAPSHOT</version>
+        <configuration>
+          <executable>/usr/bin/doxygen</executable>
+          <alphabeticalIndex>true</alphabeticalIndex>
+          <generateHtml>true</generateHtml>
+          <inputDirectory>${basedir}/src/main/java</inputDirectory>
+          <filePatterns>*.java</filePatterns>
+          <recursive>true</recursive>
+          <maxDotGraphDepth>3</maxDotGraphDepth>
+        </configuration>
+      </plugin>
+
     </plugins>
   </reporting>
+
+<!--
+  <pluginRepositories>
+    <pluginRepository>
+      <id>doodleproject-repo</id>
+      <name>DoodleProject Maven 2 Repository</name>
+      <url>http://doodleproject.sourceforge.net/maven2/release</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+    </pluginRepository>
+  </pluginRepositories>
+-->
 
 </project>
