@@ -64,6 +64,23 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <build>
     <pluginManagement>
       <plugins>
+<!--
+        <plugin>
+          <groupId>org.codehaus.sonar-plugins</groupId>
+          <artifactId>sonar-doxygen-plugin</artifactId>
+          <version>0.1</version>
+        </plugin>
+       <plugin>
+         <groupId>com.soebes.maven.plugins.dmg</groupId>
+         <artifactId>doxygen-maven-plugin</artifactId>
+         <version>1.0.1</version>
+       </plugin>
+-->
+       <plugin>
+          <groupId>maven-plugins</groupId>
+          <artifactId>maven-doxygen-plugin</artifactId>
+          <version>1.0</version>
+        </plugin>
       </plugins>
     </pluginManagement>
   </build>

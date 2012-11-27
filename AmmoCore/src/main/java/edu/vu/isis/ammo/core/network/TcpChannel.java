@@ -358,12 +358,16 @@ public class TcpChannel extends NetChannel {
 
   private final AtomicLong mTimeOfLastGoodRead = new AtomicLong( 0 );
 
+  private final AtomicLong mTimeOfLastGoodSend = new AtomicLong( 0 );
+
   // This should be called each time we successfully read data from the
   // socket.
   private void resetTimeoutWatchdog()
   {
     //logger.debug( "Resetting watchdog timer" );
     mTimeOfLastGoodRead.set( System.currentTimeMillis() );
+    // update the time of last good send ...
+    mTimeOfLastGoodSend.set(0);
   }
 
 
@@ -371,7 +375,13 @@ public class TcpChannel extends NetChannel {
   // any data from the socket.
   private boolean hasWatchdogExpired()
   {
-    return (System.currentTimeMillis() - mTimeOfLastGoodRead.get()) > flatLineTime;
+    if (mTimeOfLastGoodSend.get() == 0) 
+      return false; 
+    if ((System.currentTimeMillis() - mTimeOfLastGoodSend.get()) > flatLineTime)
+      return true;
+     else 
+      return false;
+//    return (System.currentTimeMillis() - mTimeOfLastGoodRead.get()) > flatLineTime;
   }
 
 
@@ -390,6 +400,11 @@ public class TcpChannel extends NetChannel {
     long nowInMillis = System.currentTimeMillis();
     if ( nowInMillis < mNextHeartbeatTime.get() ) return;
 
+    //check DistQueue, if some thing is already there to be sent, 
+    // no need for a heartbeat
+    if (mSenderQueue.sizeOfDistQ() > 0)
+      return;
+
     // Send the heartbeat here.
     logger.warn( "Sending a heartbeat. t={}", nowInMillis );
 
@@ -405,6 +420,7 @@ public class TcpChannel extends NetChannel {
 
     final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
     agmb.isGateway(true);
+    agmb.isHeartbeat(true);
     this.sendRequest( agmb.build() );
 
     mNextHeartbeatTime.set( nowInMillis + mHeartbeatInterval );
@@ -744,7 +760,7 @@ public class TcpChannel extends NetChannel {
         boolean result = parent.mSocketChannel.finishConnect();
       }
       catch ( AsynchronousCloseException ex ) {
-        logger.info( "connection to {}:{} async close failure",
+        logger.warn( "connection to {}:{} async close failure",
             new Object[]{ipaddr, port}, ex);
         parent.mSocketChannel = null;
         return false;
@@ -989,6 +1005,9 @@ public class TcpChannel extends NetChannel {
       setIsAuthorized( false );
     }
 
+    public int sizeOfDistQ () {
+      return mDistQueue.size();
+    }
 
     private BlockingQueue<AmmoGatewayMessage> mDistQueue;
     private LinkedList<AmmoGatewayMessage> mAuthQueue;
@@ -1048,6 +1067,10 @@ public class TcpChannel extends NetChannel {
           int bytesWritten = mSocketChannel.write( buf );
 
           logger.info( "Send packet to Network, size ({})", bytesWritten );
+
+          //set time of heartbeat sent 
+          if (msg.isHeartbeat())
+            mTimeOfLastGoodSend.set( System.currentTimeMillis() );
 
           //update status count 
           mMessagesSent.incrementAndGet();
