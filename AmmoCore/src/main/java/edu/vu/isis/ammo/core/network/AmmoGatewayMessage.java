@@ -39,13 +39,20 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * <li>4 Bytes : header checksum</li>
  * <li>N bytes : payload</li>
  * </ul>
- * The magic is set to 0xfeedbeef. The primary purpose of the magic is assist in
- * detecting the start of messages. The message size is encoded as unsigned
- * little endian, the size of the payload, and only the payload, in bytes. The
- * priority, also appears in the payload and is copied from there. The reserved
- * bytes, for future use. The payload checksum, the CRC32 checksum of the
- * payload, and only the paylod. The header checksum, the CRC32 checksum of the
- * header, not including the payload nor itself.
+ * <p>
+ * The magic is set to 0xfeedbeef.
+ * The primary purpose of the magic is assist in detecting the start of messages.
+ * <p>
+ * The message size is encoded as unsigned little endian,
+ * the size of the payload, and only the payload, in bytes.
+ * <p>
+ * The priority, also appears in the payload and is copied from there.
+ * <p>
+ * The reserved bytes, for future use.
+ * <p>
+ * The payload checksum, the CRC32 checksum of the payload, and only the paylod.
+ * The header checksum, the CRC32 checksum of the header, not including the payload nor itself.
+ * <p>
  */
 public class AmmoGatewayMessage implements Comparable<Object> {
     private static final Logger logger = LoggerFactory.getLogger("net.message");
@@ -93,7 +100,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public final boolean isMulticast;
     public final boolean isSerialChannel;
     public final boolean isGateway;
+    public final boolean isHeartbeat;
     public final NetChannel channel;
+
+    public boolean isHeartbeat () {return isHeartbeat;}
 
     public final long buildTime;
     public long gpsOffset;
@@ -322,8 +332,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             return this;
         }
 
-        private byte[] payload_serialized;
-
+        private boolean isHeartbeat = false;
+        public boolean isHeartbeat() { return this.isHeartbeat; }
+        public Builder isHeartbeat(boolean val) { this.isHeartbeat = val; return this; }
+ 
+       private byte[] payload_serialized;
         public byte[] payload() {
             return this.payload_serialized;
         }
@@ -391,6 +404,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.isMulticast = builder.isMulticast;
         this.isSerialChannel = builder.isSerialChannel;
         this.isGateway = builder.isGateway;
+        this.isHeartbeat = builder.isHeartbeat;
         this.channel = builder.channel;
         /**
          * record the time when the message is built so we can sort it by time
@@ -705,7 +719,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     }
 
     /**
-     * error values for MessageHeader These error codes are for the reasons why
+     * error values for MessageHeader 
+     * <p>
+     * These error codes are for the reasons why
      * the gateway may subsequently disconnect. If the error code is non-zero,
      * the message size and checksum will be zero. The headerChecksum is present
      * and is calculated normally. The key to deciding whether to process the
