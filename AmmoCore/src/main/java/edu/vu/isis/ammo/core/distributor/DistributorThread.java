@@ -42,7 +42,6 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Debug;
-import android.os.Parcel;
 import android.os.Process;
 import android.preference.PreferenceManager;
 
@@ -1366,6 +1365,10 @@ public class DistributorThread extends Thread {
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
                         System.currentTimeMillis() - now, serialized.length);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
+			      notice.atGatewayDelivered.getVia().isActive() ||
+			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
+                    .uuid( uuid );
                 return agmb.build();
             }
         });

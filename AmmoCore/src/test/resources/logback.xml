@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+ 
+ <!--
+   By default encoders are assigned the type
+     ch.qos.logback.classic.encoder.PatternLayoutEncoder
+   see http://logback.qos.ch/manual/layouts.html
+ -->
+<configuration>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%-4relative [%thread] %-5level %logger{35} - %msg %n</pattern>
+    </encoder>
+  </appender>
+  
+  <!-- set the connector to INFO to show connect, disconnect info in nominal logs -->
+  <!-- 
+  <logger name="net.gateway.connector" level="INFO"/> 
+  <logger name="api" level="INFO"/>
+  <logger name="net.gateway.receiver" level="TRACE"/>
+  <logger name="provider.dist" level="TRACE"/>
+  <logger name="class.temporal" level="TRACE"/>
+  <logger name="class.store.presence" level="TRACE"/>
+   -->
+ 
+  <root level="TRACE">
+    <appender-ref ref="CONSOLE" />
+  </root>
+
+</configuration>
