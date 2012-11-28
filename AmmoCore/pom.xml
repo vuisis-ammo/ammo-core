@@ -204,7 +204,8 @@
           <inputDirectory>${basedir}/src/main/java</inputDirectory>
           <filePatterns>*.java</filePatterns>
           <recursive>true</recursive>
-          <maxDotGraphDepth>3</maxDotGraphDepth>
+          <dotGraphMaxNodes>20</dotGraphMaxNodes>
+          <maxDotGraphDepth>7</maxDotGraphDepth>
         </configuration>
       </plugin>
 
