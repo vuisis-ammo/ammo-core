@@ -419,7 +419,7 @@ public class RequestSerializer {
             final String channelName,
             final Uri provider, final Encoding encoding, final byte[] data) {
 
-        logger.debug("deserialize message");
+        logger.debug("deserialize message type=<{}>", encoding.getType());
 
         final UriFuture uri;
         switch (encoding.getType()) {
@@ -439,8 +439,10 @@ public class RequestSerializer {
                 uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
                         provider, encoding, data);
         }
-        if (uri == null)
+        if (uri == null) {
+            logger.warn("provider update produced no result");
             return null;
+        }
         try {
             return uri.get();
         } catch (InterruptedException ex) {
@@ -501,7 +503,8 @@ public class RequestSerializer {
     public static UriFuture deserializeCustomToProvider(final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
-
+        logger.debug("deserialize custom to provider");
+        
         final String key = provider.toString();
         if (RequestSerializer.remoteServiceMap.containsKey(key)) {
             final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
@@ -1051,7 +1054,8 @@ public class RequestSerializer {
     public static UriFuture deserializeJsonToProvider(final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
-
+        logger.debug("deserialize json to provider");
+        
         final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
         // find the end of the json portion of the data
         int position = 0;
