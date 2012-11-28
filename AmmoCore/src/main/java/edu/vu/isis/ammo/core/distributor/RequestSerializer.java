@@ -504,7 +504,7 @@ public class RequestSerializer {
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
         logger.debug("deserialize custom to provider");
-        
+
         final String key = provider.toString();
         if (RequestSerializer.remoteServiceMap.containsKey(key)) {
             final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
@@ -563,13 +563,14 @@ public class RequestSerializer {
      * <dt>field name</dt>
      * <dd>A null terminated name,</dd>
      * <dt>field data length</dt>
-     * <dd>A 4 byte big-endian integer length, indicating the number of bytes in the
-     * data blob.</dd>
+     * <dd>A 4 byte big-endian integer length, indicating the number of bytes in
+     * the data blob.</dd>
      * <dt>field data blob</dt>
      * <dd>A set of bytes whose quantity is that of the field data length</dd>
      * <dt>field data validation and metadata</dt>
-     * <dd>A 4 byte field, the validation quality is achieved by replicating the field data length.
-     * The metadata indicates the qualitative size of the blob.</dd>
+     * <dd>A 4 byte field, the validation quality is achieved by replicating the
+     * field data length. The metadata indicates the qualitative size of the
+     * blob.</dd>
      * </dl>
      * </dd>
      * </dl>
@@ -1040,10 +1041,10 @@ public class RequestSerializer {
     }
 
     /**
-     * JSON encoding 
-     * <p> This method interacts directly with the
-     * content provider. It should only be used with content providers which are
-     * known to be responsive.
+     * JSON encoding
+     * <p>
+     * This method interacts directly with the content provider. It should only
+     * be used with content providers which are known to be responsive.
      * 
      * @param context
      * @param provider
@@ -1055,7 +1056,7 @@ public class RequestSerializer {
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
         logger.debug("deserialize json to provider");
-        
+
         final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
         // find the end of the json portion of the data
         int position = 0;
@@ -1073,8 +1074,22 @@ public class RequestSerializer {
                 input = (JSONObject) value;
                 PLogger.API_STORE.trace("JSON payload=[{}]", value);
             } else if (value instanceof JSONArray) {
+                final JSONArray jarray = (JSONArray) value;
                 PLogger.API_STORE.warn("invalid JSON payload=[{}]", parsePayload);
-                return null;
+                final int jLength = jarray.length();
+                Uri finalUri = null;
+                for (int ix = 0; ix < jLength; ix++) {
+                    final Object subValue = jarray.get(ix);
+                    if (subValue instanceof JSONObject) {
+                        final JSONObject subInput = (JSONObject) subValue;
+                        finalUri = deserializeJsonObjectToProvider(channelName, resolver, provider, subInput);
+                    } else {
+                        PLogger.API_STORE.warn("{} JSON payload=[{}]", subValue.getClass().getName(),
+                        parsePayload);
+                    }
+                }
+                return new UriFuture(finalUri);
+                
             } else if (value == JSONObject.NULL) {
                 PLogger.API_STORE.warn("null JSON payload=[{}]", parsePayload);
                 return null;
@@ -1267,6 +1282,83 @@ public class RequestSerializer {
         return new UriFuture(tupleUri);
     }
 
+    private static Uri deserializeJsonObjectToProvider(final String channelName, final ContentResolver resolver, final Uri provider, final JSONObject input) {
+
+        final ContentValues cv = new ContentValues();
+        cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+        final StringBuilder sb = new StringBuilder()
+                .append(AmmoProviderSchema.Disposition.REMOTE.name())
+                .append('.')
+                .append(channelName);
+        cv.put(AmmoProviderSchema._DISPOSITION, sb.toString());
+
+        for (final Iterator<?> iter = input.keys(); iter.hasNext();) {
+            final Object keyObj = iter.next();
+            if (keyObj instanceof String) {
+                final String key = (String) keyObj;
+                final Object value;
+                try {
+                    value = input.get(key);
+                } catch (JSONException ex) {
+                    PLogger.API_STORE.error("invalid JSON key=[{}]", key, ex);
+                    continue;
+                }
+                if (value == null) {
+                    cv.put(key, "");
+                    PLogger.API_STORE.error("json value is null key=[{}]", key);
+                    continue;
+                } else if (value instanceof String) {
+                    cv.put(key, (String) value);
+                } else if (value instanceof Boolean) {
+                    cv.put(key, (Boolean) value);
+                } else if (value instanceof Integer) {
+                    cv.put(key, (Integer) value);
+                } else if (value instanceof Long) {
+                    cv.put(key, (Long) value);
+                } else if (value instanceof Double) {
+                    cv.put(key, (Double) value);
+                } else if (value instanceof JSONObject) {
+                    PLogger.API_STORE.error(
+                            "value has unexpected type=[JSONObject] key=[{}] value=[{}]", key,
+                            value);
+                    continue;
+                } else if (value instanceof JSONArray) {
+                    PLogger.API_STORE
+                            .error("value has unexpected type=[JSONArray] key=[{}] value=[{}]",
+                                    key, value);
+                    continue;
+                } else {
+                    PLogger.API_STORE.error("value has unexpected type JSON key=[{}] value=[{}]",
+                            key, value);
+                    continue;
+                }
+            } else {
+                PLogger.API_STORE.error("invalid JSON key=[{}]", keyObj);
+            }
+        }
+
+        final Uri tupleUri;
+        try {
+            tupleUri = resolver.insert(provider, cv); // TBD SKN --- THIS IS A
+                                                      // SYNCHRONOUS IPC? we
+                                                      // will block here for a
+                                                      // while ...
+            if (tupleUri == null) {
+                logger.warn("could not insert {} into {}", cv, provider);
+                return null;
+            }
+            logger.info("Deserialized Received message, content {}", cv);
+            PLogger.TEST_FUNCTIONAL.info("cv: {}, provider:{}", cv, provider);
+        } catch (SQLiteException ex) {
+            logger.warn("invalid sql insert", ex);
+            return null;
+        } catch (IllegalArgumentException ex) {
+            logger.warn("bad provider or values", ex);
+            return null;
+        }
+        return tupleUri;
+    }
+
     /**
      * Terse encoding (deprecated) This is a compressed encoding to be used over
      * networks with limited bandwidth.
@@ -1409,41 +1501,45 @@ public class RequestSerializer {
                     tuple.put(bytesValue);
                     break;
                 }
-	        case FILE: {
-		    final Uri fieldUri = Uri.withAppendedPath(tupleUri, key);
-		    try {
-			final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri, "r");
-			if (afd == null) {
-			    logger.warn("could not acquire file descriptor {}", fieldUri);
-			    throw new IOException("could not acquire file descriptor "
-				    + fieldUri);
-			}
-			final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-			final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-			final BufferedInputStream bis = new BufferedInputStream(instream);
-			final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
-			final byte[] buffer = new byte[1024];
-			for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-			    fieldBlob.write(buffer, 0, bytesRead);
-			}
-			bis.close();
-			logger.trace("Writing FILE blob {}, size {}", key, fieldBlob.size());
-			tuple.putShort( (short)fieldBlob.size()); // size of the bytearrayoutputstream 
-			tuple.put(fieldBlob.toByteArray()); // put the bytearray into it
-		    } catch (SQLiteException ex) {
-			logger.error("unable to create stream {}", fieldUri, ex);
-			continue;
+                case FILE: {
+                    final Uri fieldUri = Uri.withAppendedPath(tupleUri, key);
+                    try {
+                        final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri,
+                                "r");
+                        if (afd == null) {
+                            logger.warn("could not acquire file descriptor {}", fieldUri);
+                            throw new IOException("could not acquire file descriptor "
+                                    + fieldUri);
+                        }
+                        final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+                        final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(
+                                pfd);
+                        final BufferedInputStream bis = new BufferedInputStream(instream);
+                        final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
+                        final byte[] buffer = new byte[1024];
+                        for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+                            fieldBlob.write(buffer, 0, bytesRead);
+                        }
+                        bis.close();
+                        logger.trace("Writing FILE blob {}, size {}", key, fieldBlob.size());
+                        tuple.putShort((short) fieldBlob.size()); // size of the
+                                                                  // bytearrayoutputstream
+                        tuple.put(fieldBlob.toByteArray()); // put the bytearray
+                                                            // into it
+                    } catch (SQLiteException ex) {
+                        logger.error("unable to create stream {}", fieldUri, ex);
+                        continue;
 
-		    } catch (IOException ex) {
-			logger.trace("unable to create stream {}", fieldUri, ex);
-			throw new FileNotFoundException("Unable to create stream");
-		    } catch (Exception ex) {
-			logger.error("content provider unable to create stream {}", fieldUri, ex);
-			continue;
-		    }
+                    } catch (IOException ex) {
+                        logger.trace("unable to create stream {}", fieldUri, ex);
+                        throw new FileNotFoundException("Unable to create stream");
+                    } catch (Exception ex) {
+                        logger.error("content provider unable to create stream {}", fieldUri, ex);
+                        continue;
+                    }
 
-		    break;
-		}
+                    break;
+                }
                 default:
                     logger.warn("unhandled data type {}", type);
             }
@@ -1500,7 +1596,7 @@ public class RequestSerializer {
             final ByteBuffer tuple = ByteBuffer.wrap(data);
             final ContentValues wrap = new ContentValues();
 
-	    final HashMap<String, byte[]> fileMap = new HashMap<String, byte[]>(2);
+            final HashMap<String, byte[]> fileMap = new HashMap<String, byte[]>(2);
 
             for (final String key : serialMetaCursor.getColumnNames()) {
                 final int type = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
@@ -1572,16 +1668,16 @@ public class RequestSerializer {
                         }
                         break;
                     }
-	            case FILE: {
+                    case FILE: {
                         final short bytesLength = tuple.getShort();
                         if (bytesLength > 0) {
                             final byte[] bytesValue = new byte[bytesLength];
                             tuple.get(bytesValue, 0, bytesLength);
-			    logger.trace("Received a FILE blob {}, size {}", key, bytesLength);
-			    fileMap.put(key, bytesValue);
+                            logger.trace("Received a FILE blob {}, size {}", key, bytesLength);
+                            fileMap.put(key, bytesValue);
                         }
-			break;
-		    }
+                        break;
+                    }
                     default:
                         logger.warn("unhandled data type {}", type);
                 }
@@ -1597,35 +1693,35 @@ public class RequestSerializer {
 
             final Uri tupleUri = resolver.insert(provider, wrap);
 
-	    // now iterate over file map to stick files into correct uri
-	    for (Map.Entry<String, byte[]> entry : fileMap.entrySet()) {
-		String key = entry.getKey();
-		byte[] byteValue = entry.getValue();
+            // now iterate over file map to stick files into correct uri
+            for (Map.Entry<String, byte[]> entry : fileMap.entrySet()) {
+                String key = entry.getKey();
+                byte[] byteValue = entry.getValue();
 
-		final long tupleId = ContentUris.parseId(tupleUri);
-		final Uri.Builder uriBuilder = provider.buildUpon();
-		final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
-		final Uri fieldUri = updateTuple.appendPath(key).build();
-		
-		try {
-		    final OutputStream outstream = resolver.openOutputStream(fieldUri);
-		    if (outstream == null) {
-			logger.error("failed to open output stream to content provider: {} ",
-				fieldUri);
-			return null;
-		    }
-		    outstream.write(byteValue);
-		    outstream.close();
-		    logger.trace("Wrote FILE blob to {}", fieldUri);
-		} catch (SQLiteException ex) {
-		    logger.error("in provider {} could not open output stream {}",
-			    fieldUri, ex.getLocalizedMessage());
-		} catch (FileNotFoundException ex) {
-		    logger.error("blob file not found: {}", fieldUri, ex);
-		} catch (IOException ex) {
-		    logger.error("error writing blob file: {}", fieldUri, ex);
-		}
-	    }
+                final long tupleId = ContentUris.parseId(tupleUri);
+                final Uri.Builder uriBuilder = provider.buildUpon();
+                final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
+                final Uri fieldUri = updateTuple.appendPath(key).build();
+
+                try {
+                    final OutputStream outstream = resolver.openOutputStream(fieldUri);
+                    if (outstream == null) {
+                        logger.error("failed to open output stream to content provider: {} ",
+                                fieldUri);
+                        return null;
+                    }
+                    outstream.write(byteValue);
+                    outstream.close();
+                    logger.trace("Wrote FILE blob to {}", fieldUri);
+                } catch (SQLiteException ex) {
+                    logger.error("in provider {} could not open output stream {}",
+                            fieldUri, ex.getLocalizedMessage());
+                } catch (FileNotFoundException ex) {
+                    logger.error("blob file not found: {}", fieldUri, ex);
+                } catch (IOException ex) {
+                    logger.error("error writing blob file: {}", fieldUri, ex);
+                }
+            }
 
             return new UriFuture(tupleUri);
         }
