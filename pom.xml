@@ -6,7 +6,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammo-common-parent</artifactId>
-    <version>1.7.0-RC2</version>
+    <version>1.7.0-RC3</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
@@ -14,7 +14,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <groupId>edu.vu.isis</groupId>
   <artifactId>ammocore-parent</artifactId>
   <packaging>pom</packaging>
-  <version>1.7.0-RC2</version>
+  <version>1.7.0-RC3</version>
   <name>ammocore parent project</name>
 
   <modules>
