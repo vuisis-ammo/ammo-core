@@ -29,8 +29,6 @@ public class DistribributorPolicyTest
 
     /**
      * Create the test case
-     * 
-     * @param testName name of the test case
      */
     public DistribributorPolicyTest()
     {
