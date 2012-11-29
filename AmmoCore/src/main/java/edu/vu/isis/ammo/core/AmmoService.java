@@ -1670,8 +1670,8 @@ public class AmmoService extends Service implements INetworkService,
             JournalChannel.getInstance(ChannelFilter.JOURNAL, this);
     private SerialChannel serialChannel = null;
     
-    final private TcpChannelMedia tcpMediaChannel =
-            TcpChannelMedia.getInstance(ChannelFilter.GATEWAYMEDIA, this);
+    final private TcpChannel tcpMediaChannel =
+            TcpChannel.getInstance(ChannelFilter.GATEWAYMEDIA, this);
 
     final public List<NetChannel> registeredChannels =
             new ArrayList<NetChannel>();

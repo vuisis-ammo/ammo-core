@@ -50,7 +50,12 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  *
  */
 public class TcpChannel extends NetChannel {
-  private static final Logger logger = LoggerFactory.getLogger("net.gateway");
+  // a class based logger to be used by static methods ... 
+  private static final Logger classlogger = LoggerFactory.getLogger("net.gateway");
+  
+  // private instance logger which is created in the constructor and used 
+  // all over ...
+  private Logger logger = null;
 
   private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in milliseconds
 
@@ -103,6 +108,8 @@ public class TcpChannel extends NetChannel {
   private final SenderQueue mSenderQueue;
 
   private final AtomicBoolean mIsAuthorized;
+  
+  private String channelName = null;
 
   // status counts for gui
   private final AtomicInteger mMessagesSent = new AtomicInteger();
@@ -115,8 +122,16 @@ public class TcpChannel extends NetChannel {
   private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
   private TcpChannel(String name, IChannelManager iChannelManager ) {
-    super(name);
+    super(name); 
+ // create the instance logger for instance methods
+    logger = LoggerFactory.getLogger("net." + channelName);
     logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
+    
+    // store the channel name
+    channelName = name;
+    
+    
+    
     this.syncObj = this;
 
     mIsAuthorized = new AtomicBoolean( false );
@@ -131,7 +146,7 @@ public class TcpChannel extends NetChannel {
 
   public static TcpChannel getInstance(String name, IChannelManager iChannelManager )
   {
-    logger.trace("Thread <{}>::getInstance", Thread.currentThread().getId());
+    classlogger.trace("Thread <{}>::getInstance", Thread.currentThread().getId());
     final TcpChannel instance = new TcpChannel(name, iChannelManager );
     return instance;
   }
@@ -436,7 +451,9 @@ public class TcpChannel extends NetChannel {
    *
    */
   private class ConnectorThread extends Thread {
-    private final Logger logger = LoggerFactory.getLogger( "net.gateway.connector" );
+    private final Logger classlogger = LoggerFactory.getLogger( "net.gateway.connector" );
+    
+    private Logger logger = null;
 
     private final String DEFAULT_HOST = "192.168.1.100";
     private final int DEFAULT_PORT = 33289;
@@ -462,8 +479,11 @@ public class TcpChannel extends NetChannel {
     }
 
 
-    private ConnectorThread(TcpChannel parent) {
-            super(new StringBuilder("Tcp-Connect-").append(Thread.activeCount()).toString());
+    private ConnectorThread(TcpChannel parent) 
+    {
+      super(new StringBuilder("Tcp-Connect-").append(Thread.activeCount()).toString());
+      //create the logger 
+      logger = LoggerFactory.getLogger("net." + channelName + ".connector");
       logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
       this.parent = parent;
       this.state = new State();
@@ -1023,11 +1043,13 @@ public class TcpChannel extends NetChannel {
         SenderQueue iQueue,
         SocketChannel iSocketChannel )
     {
-            super(new StringBuilder("Tcp-Sender-").append(Thread.activeCount()).toString());
+      super(new StringBuilder("Tcp-Sender-").append(Thread.activeCount()).toString());
       mParent = iParent;
       mChannel = iChannel;
       mQueue = iQueue;
       mSocketChannel = iSocketChannel;
+      // create the logger 
+      logger = LoggerFactory.getLogger("net." + channelName + ".sender");
     }
 
 
@@ -1107,7 +1129,8 @@ public class TcpChannel extends NetChannel {
     private TcpChannel mChannel;
     private SenderQueue mQueue;
     private SocketChannel mSocketChannel;
-    private final Logger logger = LoggerFactory.getLogger( "net.gateway.sender" );
+    private final Logger classlogger = LoggerFactory.getLogger( "net.gateway.sender" );
+    private Logger logger = null;
   }
 
 
@@ -1119,10 +1142,12 @@ public class TcpChannel extends NetChannel {
         TcpChannel iDestination,
         SocketChannel iSocketChannel )
     {
-            super(new StringBuilder("Tcp-Receiver-").append(Thread.activeCount()).toString());
+      super(new StringBuilder("Tcp-Receiver-").append(Thread.activeCount()).toString());
       mParent = iParent;
       mDestination = iDestination;
       mSocketChannel = iSocketChannel;
+      logger = LoggerFactory.getLogger( "net." + channelName + ".receiver" );
+      
     }
 
     /**
@@ -1241,8 +1266,10 @@ public class TcpChannel extends NetChannel {
     private ConnectorThread mParent;
     private TcpChannel mDestination;
     private SocketChannel mSocketChannel;
-    private final Logger logger
+    private final Logger classlogger
     = LoggerFactory.getLogger( "net.gateway.receiver" );
+    
+    private Logger logger = null;
   }
 
 
