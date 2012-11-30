@@ -6,7 +6,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammo-common-parent</artifactId>
-    <version>1.7.0-RC4</version>
+    <version>1.7.0</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
@@ -28,28 +28,28 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammolib</artifactId>
-        <version>1.7.0-RC4</version>
+        <version>1.7.0</version>
         <type>jar</type>
       </dependency>
 
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammolib</artifactId>
-        <version>1.7.0-RC4</version>
+        <version>1.7.0</version>
         <type>apklib</type>
       </dependency>
 
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammo-message</artifactId>
-        <version>1.7.0-RC4</version>
+        <version>1.7.0</version>
         <classifier>protoc24</classifier>
       </dependency>
 
       <dependency>
         <groupId>org.jgroups</groupId>
         <artifactId>jgroups-android</artifactId>
-        <version>1.7.0-RC4</version>
+        <version>1.7.0</version>
       </dependency>
 
       <dependency>
