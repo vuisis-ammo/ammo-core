@@ -124,13 +124,10 @@ public class TcpChannel extends NetChannel {
   private TcpChannel(String name, IChannelManager iChannelManager ) {
     super(name); 
  // create the instance logger for instance methods
-    logger = LoggerFactory.getLogger("net." + channelName);
-    logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
-    
     // store the channel name
-    channelName = name;
-    
-    
+    channelName = name;    
+    logger = LoggerFactory.getLogger("net." + channelName);
+    logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());    
     
     this.syncObj = this;
 
