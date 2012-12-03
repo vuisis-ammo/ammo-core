@@ -1168,6 +1168,12 @@ public class TcpChannel extends NetChannel {
           logger.debug( "SocketChannel getting header read bytes={}", bytesRead );
           if (bytesRead == 0) continue;
 
+          if (bytesRead < 0) {
+              logger.error("bytes read = {}, exiting", bytesRead);
+              setReceiverState( INetChannel.INTERRUPTED );
+              mParent.socketOperationFailed();
+              return;
+          }
 
           setReceiverState( INetChannel.START );
 
@@ -1194,6 +1200,12 @@ public class TcpChannel extends NetChannel {
                   size -= rem;
                   bbuf.clear();
                   bytesRead =  mSocketChannel.read( bbuf );
+                  if (bytesRead < 0) {
+                      logger.error("bytes read = {}, exiting", bytesRead);
+                      setReceiverState( INetChannel.INTERRUPTED );
+                      mParent.socketOperationFailed();
+                      return;                      
+                  }
                   mDestination.resetTimeoutWatchdog(); // a successfull read should reset the timer
                   bbuf.flip();
                   continue;
@@ -1215,7 +1227,13 @@ public class TcpChannel extends NetChannel {
                 size -= rem;
                 bbuf.clear();
                 bytesRead =  mSocketChannel.read( bbuf );
-            	  mDestination.resetTimeoutWatchdog();  // a successfull read should reset the timer
+                if (bytesRead < 0) {
+                    logger.error("bytes read = {}, exiting", bytesRead);
+                    setReceiverState( INetChannel.INTERRUPTED );
+                    mParent.socketOperationFailed();
+                    return;                    
+                }                
+                mDestination.resetTimeoutWatchdog();  // a successfull read should reset the timer
                 bbuf.flip();
                 continue;
               }
