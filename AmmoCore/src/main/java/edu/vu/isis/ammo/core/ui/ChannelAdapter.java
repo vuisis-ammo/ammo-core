@@ -143,6 +143,8 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
 
         TextView text_one = null;
         TextView text_two = null;
+        TextView text_send = null;
+        TextView text_receive = null;
         TextView text = null;
         ToggleButton icon = null;
 
@@ -151,6 +153,9 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
         {
 	        text_one = (TextView)row.findViewById(R.id.gateway_status_text_one);
 	        text_two = (TextView)row.findViewById(R.id.gateway_status_text_two);
+
+	        text_send = (TextView) row.findViewById( R.id.gateway_send_stats );
+	        text_receive = (TextView) row.findViewById( R.id.gateway_receive_stats );
         }
         else if ( channelType.equals(Multicast.KEY) )
         {
@@ -350,6 +355,10 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
                 }
                 // Display the send/receive counts on line one.
                 text_one.setText( channel.getNetChannel().getSendReceiveStats());
+                if ( text_send != null )
+                    text_send.setText( channel.getNetChannel().getSendBitStats());
+                if ( text_receive != null )
+                    text_receive.setText( channel.getNetChannel().getReceiveBitStats());
             }
         }
 

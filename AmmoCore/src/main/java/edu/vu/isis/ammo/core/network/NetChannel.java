@@ -65,7 +65,13 @@ public abstract class NetChannel implements INetChannel {
 
 	@Override
 	public boolean isAuthenticatingChannel() { return false; }
-	
+
 	@Override
-	public String getSendReceiveStats () { return ""; }
+	public String getSendReceiveStats() { return ""; }
+
+	@Override
+    public String getSendBitStats() { return ""; }
+
+	@Override
+    public String getReceiveBitStats() { return ""; }
 }

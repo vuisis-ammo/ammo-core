@@ -93,6 +93,8 @@ public interface INetChannel {
      * Returns channels send and receive status
      */
     String getSendReceiveStats();
+    String getSendBitStats();
+    String getReceiveBitStats();
 
     public void linkUp(String name);
 
