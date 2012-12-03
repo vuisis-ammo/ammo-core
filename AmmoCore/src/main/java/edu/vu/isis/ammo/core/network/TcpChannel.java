@@ -1168,8 +1168,6 @@ public class TcpChannel extends NetChannel {
           logger.debug( "SocketChannel getting header read bytes={}", bytesRead );
           if (bytesRead == 0) continue;
 
-          // update status count .... 
-          mMessagesReceived.incrementAndGet();
 
           setReceiverState( INetChannel.START );
 
@@ -1196,7 +1194,7 @@ public class TcpChannel extends NetChannel {
                   size -= rem;
                   bbuf.clear();
                   bytesRead =  mSocketChannel.read( bbuf );
-		  mDestination.resetTimeoutWatchdog(); // a successfull read should reset the timer
+                  mDestination.resetTimeoutWatchdog(); // a successfull read should reset the timer
                   bbuf.flip();
                   continue;
                 }
@@ -1217,7 +1215,7 @@ public class TcpChannel extends NetChannel {
                 size -= rem;
                 bbuf.clear();
                 bytesRead =  mSocketChannel.read( bbuf );
-		mDestination.resetTimeoutWatchdog();  // a successfull read should reset the timer
+            	  mDestination.resetTimeoutWatchdog();  // a successfull read should reset the timer
                 bbuf.flip();
                 continue;
               }
@@ -1229,6 +1227,9 @@ public class TcpChannel extends NetChannel {
 
               setReceiverState( INetChannel.DELIVER );
               mDestination.deliverMessage( agm );
+
+              // received a valid message, update status count .... 
+              mMessagesReceived.incrementAndGet();
               break;
             }
           }
