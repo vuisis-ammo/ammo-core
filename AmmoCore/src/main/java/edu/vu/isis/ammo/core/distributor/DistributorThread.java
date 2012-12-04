@@ -242,13 +242,15 @@ public class DistributorThread extends Thread {
 
         if (change == ChannelChange.DEACTIVATE)
         {
-            for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+        	logger.debug("Channel: {} deactivated", channelName);
+        	for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
                 if (entry.getValue().change == ChannelChange.ACTIVATE) {
                     return; // leave, since at least one channel is still active
                 }
             }
 
             // none of the channels are active ...
+        	logger.debug("None of the channels are active, take out icon");
             if (notify != null) {
                 this.ammoService.notifyMsg.removeCallbacks(notify);
                 notify.terminate();

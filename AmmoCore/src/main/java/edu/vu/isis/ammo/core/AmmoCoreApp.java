@@ -46,12 +46,12 @@ public class AmmoCoreApp  extends Application {
         
         final Intent svc = new Intent();
 
-        svc.setClass(this, AmmoService.class);
-        this.startService(svc);
+//        svc.setClass(this, AmmoService.class);
+//        this.startService(svc);
         // context.startService(AmmoService.LAUNCH);
 
-        svc.setClass(this, EthTrackSvc.class);
-        this.startService(svc);
+ //       svc.setClass(this, EthTrackSvc.class);
+ //       this.startService(svc);
     }
 
     /**

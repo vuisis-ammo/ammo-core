@@ -75,7 +75,6 @@ import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
-import edu.vu.isis.ammo.core.network.TcpChannelMedia;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
@@ -113,7 +112,7 @@ public class AmmoService extends Service implements INetworkService,
     public static final String BIND = "edu.vu.isis.ammo.core.distributor.AmmoService.BIND";
     public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.AmmoService.PREPARE_FOR_STOP";
     public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.AmmoService.SEND_SERIALIZED";
-
+ 
     /**
      * The channel status map.
      * <p>
