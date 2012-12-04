@@ -504,8 +504,6 @@ public class TcpChannel extends NetChannel {
    *
    */
   private class ConnectorThread extends Thread {
-    private final Logger classlogger = LoggerFactory.getLogger( "net.gateway.connector" );
-    
     private Logger logger = null;
 
     private final String DEFAULT_HOST = "192.168.1.100";
@@ -1189,7 +1187,6 @@ public class TcpChannel extends NetChannel {
     private TcpChannel mChannel;
     private SenderQueue mQueue;
     private SocketChannel mSocketChannel;
-    private final Logger classlogger = LoggerFactory.getLogger( "net.gateway.sender" );
     private Logger logger = null;
   }
 
@@ -1349,8 +1346,6 @@ public class TcpChannel extends NetChannel {
     private ConnectorThread mParent;
     private TcpChannel mDestination;
     private SocketChannel mSocketChannel;
-    private final Logger classlogger
-    = LoggerFactory.getLogger( "net.gateway.receiver" );
     
     private Logger logger = null;
   }

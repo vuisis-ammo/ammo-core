@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Environment;
-import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
@@ -78,7 +78,7 @@ public class JournalChannel extends NetChannel {
         return journalingSwitch = journalingSwitch ? false : true;
     }
 
-    private JournalChannel(String name, AmmoService driver) {
+    private JournalChannel(String name, NetworkManager driver) {
         super(name);
         logger.trace("::<constructor>");
         this.syncObj = this;
@@ -87,7 +87,7 @@ public class JournalChannel extends NetChannel {
         JournalChannel.isConnected = false;
     }
 
-    public static JournalChannel getInstance(String name, AmmoService driver) {
+    public static JournalChannel getInstance(String name, NetworkManager driver) {
         logger.trace("::getInstance");
         synchronized (JournalChannel.isConnected) {
             JournalChannel instance = new JournalChannel(name, driver);

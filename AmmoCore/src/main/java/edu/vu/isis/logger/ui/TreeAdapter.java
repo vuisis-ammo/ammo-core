@@ -2,7 +2,6 @@ package edu.vu.isis.logger.ui;
 
 import java.util.ArrayList;
 
-
 import android.content.Context;
 import android.util.Log;
 import android.view.LayoutInflater;
