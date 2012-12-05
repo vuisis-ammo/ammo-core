@@ -173,6 +173,8 @@ public class DistributorThread extends Thread {
 
         private void updateNotification() {
 
+        	logger.trace("Update Sent and Receive Counts");
+        	
             // check for variable update ...
             int total_sent = parent.total_sent.get();
             int total_recv = parent.total_recv.get();
@@ -192,7 +194,11 @@ public class DistributorThread extends Thread {
                 icon = R.drawable.alldata;
 
             String contentText = "Sent " + total_sent + " Received " + total_recv;
-
+            
+            // check if the channels have been deactivated or not
+            if (terminate.get () == true)
+            	return;
+            
             parent.notifyIcon("", "Data Channel", contentText, icon);
 
             // save the last sent and recv ...
