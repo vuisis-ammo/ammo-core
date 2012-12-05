@@ -123,7 +123,7 @@ public class TcpChannel extends NetChannel {
     private volatile long mLastBytesSent = 0;
     private volatile long mLastBytesRead = 0;
 
-    private static final int BPS_STATS_UPDATE_INTERVAL = 10; // seconds
+    private static final int BPS_STATS_UPDATE_INTERVAL = 60; // seconds
     private volatile long mBpsSent = 0;
     private volatile long mBpsRead = 0;
 
