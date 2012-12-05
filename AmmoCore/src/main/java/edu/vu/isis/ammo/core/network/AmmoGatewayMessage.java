@@ -16,8 +16,8 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Comparator;
-import java.util.zip.CRC32;
 import java.util.UUID;
+import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -752,7 +752,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                             .version(version)
                             .error(error);
                 } else if ((version & 0xC0) == 0x40) {
-                    @SuppressWarnings("unused")
                     byte phone_id = (byte) (version & 0x3F);
 
                     int size = drain.getShort();
@@ -771,7 +770,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     int uid = drain.getInt();
                     int hyperperiod = (uid >>> 16);
                     logger.trace( "deserialized hyperperiod={}", hyperperiod );
-                    int slotID = (uid >>> 8) & 0xFF;
+                    @SuppressWarnings("unused")
+					int slotID = (uid >>> 8) & 0xFF;
                     int indexInSlot = uid  & 0xFF;
 
                     // Packed type

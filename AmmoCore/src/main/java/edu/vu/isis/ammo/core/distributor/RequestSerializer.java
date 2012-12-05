@@ -51,10 +51,11 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
+import android.util.SparseArray;
 import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
-import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
@@ -93,8 +94,8 @@ public class RequestSerializer {
             this.code = code;
         }
 
-        private static final Map<Integer, FieldType> codemap =
-                new HashMap<Integer, FieldType>();
+        private static final SparseArray<FieldType> codemap =
+                new SparseArray<FieldType>();
         static {
             for (FieldType t : FieldType.values()) {
                 FieldType.codemap.put(t.code, t);
@@ -215,7 +216,7 @@ public class RequestSerializer {
         return new RequestSerializer(provider, payload);
     }
 
-    public DisposalState act(final AmmoService that, final Encoding encode, final String channel) {
+    public DisposalState act(final NetworkManager that, final Encoding encode, final String channel) {
         final RequestSerializer parent = RequestSerializer.this;
         final Encoding local_encode = encode;
         final String local_channel = channel;

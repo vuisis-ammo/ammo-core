@@ -13,12 +13,8 @@ package edu.vu.isis.ammo.core.network;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.UUID;
 import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
@@ -101,9 +97,10 @@ public class SerialRetransmitter
 
         // FIXME: magic number - limits max radios in hyperperiod to 16
         // Should we optimize for smaller nets?
-        public void SlotRecord() {
-            for ( int i = 0; i < mSent.length; ++i )
+		public SlotRecord() {
+            for ( int i = 0; i < mSent.length; ++i ) {
                 mSent[i] = null;
+            }
         }
 
         public void reset( int newHyperperiod ) {
@@ -520,7 +517,7 @@ public class SerialRetransmitter
                     }
                 }
             } catch ( Exception ex ) {
-                logger.warn( "receiver threw an exception {}", ex.getStackTrace() );
+                logger.warn( "receiver threw an exception", ex );
             }
         }
 
@@ -637,7 +634,8 @@ public class SerialRetransmitter
 
                     b.putInt( pr.mUID );
                     logger.trace( "...creating resend packet with UID={}", pr.mUID );
-                    byte[] raw = b.array();
+                    @SuppressWarnings("unused")
+					byte[] raw = b.array();
                     b.put( pr.mPacket.payload );
 
                     byte[] payload = b.array();
@@ -661,7 +659,7 @@ public class SerialRetransmitter
                     return agm;
 
                 } catch ( Exception ex ) {
-                    logger.warn("createResendPacket() threw exception {}", ex.getStackTrace() );
+                    logger.warn("createResendPacket() threw exception", ex );
                 }
             }
 
@@ -714,7 +712,7 @@ public class SerialRetransmitter
             return agm;
 
         } catch ( Exception ex ) {
-            logger.warn("createAckPacket() threw exception {}", ex.getStackTrace() );
+            logger.warn("createAckPacket() threw exception", ex );
         }
 
         return null;
@@ -743,7 +741,8 @@ public class SerialRetransmitter
 
     private int mySlotNumber;
     private SerialChannel mChannel;
-    private IChannelManager mChannelManager;
+    @SuppressWarnings("unused")
+	private IChannelManager mChannelManager;
 
     private static final Logger logger = LoggerFactory.getLogger( "net.serial.retrans" );
 }

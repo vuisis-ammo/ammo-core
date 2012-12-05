@@ -29,6 +29,7 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
 import edu.vu.isis.ammo.util.Genealogist;
@@ -91,7 +92,7 @@ public class DistributorProvider extends ContentProvider {
                 }
                 logger.debug("service connected ");
                 final AmmoService.DistributorServiceAidl proxy = (AmmoService.DistributorServiceAidl) binder;
-                final AmmoService service = proxy.getService();
+                final NetworkManager service = proxy.getService();
 
                 parent.dds = service.store();
                 parent.isBound = true;

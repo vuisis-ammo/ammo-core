@@ -19,7 +19,7 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
@@ -113,7 +113,7 @@ public class Dispersal {
      *      unless the forced channel matches the term - mark the clause true if
      *      it doesn't contain the forced channel
      */
-    public Dispersal multiplexRequest(AmmoService that, RequestSerializer serializer) {
+    public Dispersal multiplexRequest(NetworkManager that, RequestSerializer serializer) {
         logger.trace("::multiplex request");
 
         if (this.policy == null) {

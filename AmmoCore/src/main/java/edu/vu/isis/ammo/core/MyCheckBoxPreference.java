@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import android.preference.CheckBoxPreference;
-import android.preference.Preference.OnPreferenceClickListener;
 import android.util.AttributeSet;
 
 /**

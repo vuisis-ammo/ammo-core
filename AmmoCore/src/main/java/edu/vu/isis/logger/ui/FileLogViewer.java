@@ -12,7 +12,6 @@ import android.view.View;
 import android.widget.AbsListView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import ch.qos.logback.classic.Level;
 import edu.vu.isis.ammo.core.R;
 

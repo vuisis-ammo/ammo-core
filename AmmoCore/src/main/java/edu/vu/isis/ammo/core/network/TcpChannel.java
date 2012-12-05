@@ -25,6 +25,8 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
 import java.util.LinkedList;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -115,6 +117,16 @@ public class TcpChannel extends NetChannel {
   private final AtomicInteger mMessagesSent = new AtomicInteger();
   private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
+    private volatile long mBytesSent = 0;
+    private volatile long mBytesRead = 0;
+
+    private volatile long mLastBytesSent = 0;
+    private volatile long mLastBytesRead = 0;
+
+    private static final int BPS_STATS_UPDATE_INTERVAL = 60; // seconds
+    private volatile long mBpsSent = 0;
+    private volatile long mBpsRead = 0;
+
   // I made this public to support the hack to get authentication
   // working before Nilabja's code is ready.  Make it private again
   // once his stuff is in.
@@ -124,13 +136,10 @@ public class TcpChannel extends NetChannel {
   private TcpChannel(String name, IChannelManager iChannelManager ) {
     super(name); 
  // create the instance logger for instance methods
-    logger = LoggerFactory.getLogger("net." + channelName);
-    logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());
-    
     // store the channel name
-    channelName = name;
-    
-    
+    channelName = name;    
+    logger = LoggerFactory.getLogger("net." + channelName);
+    logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());    
     
     this.syncObj = this;
 
@@ -142,7 +151,26 @@ public class TcpChannel extends NetChannel {
     this.flatLineTime = DEFAULT_WATCHDOG_TIMOUT * 1000; // seconds into milliseconds
 
     mSenderQueue = new SenderQueue( this );
+
+    // Set up timer to trigger once per minute.
+    TimerTask updateBps = new UpdateBpsTask();
+    mUpdateBpsTimer.scheduleAtFixedRate( updateBps, 0, BPS_STATS_UPDATE_INTERVAL * 1000 );
   }
+
+    private Timer mUpdateBpsTimer = new Timer();
+
+    class UpdateBpsTask extends TimerTask {
+        public void run() {
+            logger.trace( "UpdateBpsTask fired" );
+
+            // Update the BPS stats for the sending and receiving.
+            mBpsSent = (mBytesSent - mLastBytesSent) / BPS_STATS_UPDATE_INTERVAL;
+            mLastBytesSent = mBytesSent;
+
+            mBpsRead = (mBytesRead - mLastBytesRead) / BPS_STATS_UPDATE_INTERVAL;
+            mLastBytesRead = mBytesRead;
+        }
+    };
 
   public static TcpChannel getInstance(String name, IChannelManager iChannelManager )
   {
@@ -158,6 +186,31 @@ public class TcpChannel extends NetChannel {
     countsString.append( "R:" ).append( mMessagesReceived.get() );
     return countsString.toString();
   }
+
+
+	@Override
+    public String getSendBitStats() {
+        StringBuilder result = new StringBuilder();
+        result.append( "S: " ).append( humanReadableByteCount(mBytesSent, true) );
+        result.append( ", BPS:" ).append( mBpsSent );
+        return result.toString();
+    }
+
+	@Override
+    public String getReceiveBitStats() {
+        StringBuilder result = new StringBuilder();
+        result.append( "R: " ).append( humanReadableByteCount(mBytesRead, true) );
+        result.append( ", BPS:" ).append( mBpsRead );
+        return result.toString();
+    }
+
+    public static String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.2f %sB", bytes / Math.pow(unit, exp), pre);
+    }
 
   public boolean isConnected() { 
     return this.connectorThread.isConnected(); 
@@ -451,8 +504,6 @@ public class TcpChannel extends NetChannel {
    *
    */
   private class ConnectorThread extends Thread {
-    private final Logger classlogger = LoggerFactory.getLogger( "net.gateway.connector" );
-    
     private Logger logger = null;
 
     private final String DEFAULT_HOST = "192.168.1.100";
@@ -809,6 +860,12 @@ public class TcpChannel extends NetChannel {
       logger.info( "connection to {}:{} established ", ipaddr, port );
 
       mIsConnected.set( true );
+      mBytesSent = 0;
+      mBytesRead = 0;
+      mLastBytesSent = 0;
+      mLastBytesRead = 0;
+      mBpsSent = 0;
+      mBpsRead = 0;
 
       // Create the security object.  This must be done before
       // the ReceiverThread is created in case we receive a
@@ -1087,6 +1144,7 @@ public class TcpChannel extends NetChannel {
           ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
           setSenderState( INetChannel.SENDING );
           int bytesWritten = mSocketChannel.write( buf );
+          mBytesSent += bytesWritten;
 
           logger.info( "Send packet to Network, size ({})", bytesWritten );
 
@@ -1129,7 +1187,6 @@ public class TcpChannel extends NetChannel {
     private TcpChannel mChannel;
     private SenderQueue mQueue;
     private SocketChannel mSocketChannel;
-    private final Logger classlogger = LoggerFactory.getLogger( "net.gateway.sender" );
     private Logger logger = null;
   }
 
@@ -1167,13 +1224,19 @@ public class TcpChannel extends NetChannel {
       while ( mState != INetChannel.INTERRUPTED ) {
         try {
           int bytesRead =  mSocketChannel.read( bbuf );
+
           mDestination.resetTimeoutWatchdog();
           logger.debug( "SocketChannel getting header read bytes={}", bytesRead );
           if (bytesRead == 0) continue;
 
-          // update status count .... 
-          mMessagesReceived.incrementAndGet();
+          if (bytesRead < 0) {
+              logger.error("bytes read = {}, exiting", bytesRead);
+              setReceiverState( INetChannel.INTERRUPTED );
+              mParent.socketOperationFailed();
+              return;
+          }
 
+          mBytesRead += bytesRead;
           setReceiverState( INetChannel.START );
 
           // prepare to drain buffer
@@ -1199,7 +1262,14 @@ public class TcpChannel extends NetChannel {
                   size -= rem;
                   bbuf.clear();
                   bytesRead =  mSocketChannel.read( bbuf );
-		  mDestination.resetTimeoutWatchdog(); // a successfull read should reset the timer
+                  if (bytesRead < 0) {
+                      logger.error("bytes read = {}, exiting", bytesRead);
+                      setReceiverState( INetChannel.INTERRUPTED );
+                      mParent.socketOperationFailed();
+                      return;                      
+                  }
+                  mBytesRead += bytesRead;
+                  mDestination.resetTimeoutWatchdog(); // a successfull read should reset the timer
                   bbuf.flip();
                   continue;
                 }
@@ -1220,7 +1290,14 @@ public class TcpChannel extends NetChannel {
                 size -= rem;
                 bbuf.clear();
                 bytesRead =  mSocketChannel.read( bbuf );
-		mDestination.resetTimeoutWatchdog();  // a successfull read should reset the timer
+                if (bytesRead < 0) {
+                    logger.error("bytes read = {}, exiting", bytesRead);
+                    setReceiverState( INetChannel.INTERRUPTED );
+                    mParent.socketOperationFailed();
+                    return;                    
+                }                
+                mDestination.resetTimeoutWatchdog();  // a successfull read should reset the timer
+                mBytesRead += bytesRead;
                 bbuf.flip();
                 continue;
               }
@@ -1232,6 +1309,9 @@ public class TcpChannel extends NetChannel {
 
               setReceiverState( INetChannel.DELIVER );
               mDestination.deliverMessage( agm );
+
+              // received a valid message, update status count .... 
+              mMessagesReceived.incrementAndGet();
               break;
             }
           }
@@ -1266,8 +1346,6 @@ public class TcpChannel extends NetChannel {
     private ConnectorThread mParent;
     private TcpChannel mDestination;
     private SocketChannel mSocketChannel;
-    private final Logger classlogger
-    = LoggerFactory.getLogger( "net.gateway.receiver" );
     
     private Logger logger = null;
   }

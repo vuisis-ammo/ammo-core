@@ -16,15 +16,12 @@ package edu.vu.isis.ammo.core;
  * example:
  *   File dir = AppEx.getInstance().getPublicDirectory("images");
  *
- * @author phreed
  *
  */
 import java.io.File;
 
 import android.app.Application;
-import android.content.Intent;
 import android.os.Environment;
-import edu.vu.isis.ammo.core.ethertracker.EthTrackSvc;
 
 public class AmmoCoreApp  extends Application {
     // private static final Logger logger = LoggerFactory.getLogger("app");
@@ -44,14 +41,14 @@ public class AmmoCoreApp  extends Application {
         super.onCreate();
         singleton = this;
         
-        final Intent svc = new Intent();
+        //final Intent svc = new Intent();
 
-        svc.setClass(this, AmmoService.class);
-        this.startService(svc);
+//        svc.setClass(this, AmmoService.class);
+//        this.startService(svc);
         // context.startService(AmmoService.LAUNCH);
 
-        svc.setClass(this, EthTrackSvc.class);
-        this.startService(svc);
+ //       svc.setClass(this, EthTrackSvc.class);
+ //       this.startService(svc);
     }
 
     /**

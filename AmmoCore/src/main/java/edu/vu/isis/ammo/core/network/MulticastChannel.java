@@ -1181,8 +1181,6 @@ public class MulticastChannel extends NetChannel
                         continue;
                     }
 
-                    // update received count ....
-                    mMessagesReceived.incrementAndGet();
 
                     logger.info("Received a packet from ({}) size({})",
                             packet.getAddress(), packet.getLength());
@@ -1213,6 +1211,9 @@ public class MulticastChannel extends NetChannel
                     setReceiverState(INetChannel.DELIVER);
                     mDestination.deliverMessage(agm);
                     logger.trace("received a message {}", payload.length);
+                    
+                    // update received count ....
+                    mMessagesReceived.incrementAndGet();
                 } catch (ClosedChannelException ex)
                 {
                     logger.info("receiver threw ClosedChannelException");

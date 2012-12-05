@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory;
 
 import android.content.Context;
 import android.preference.EditTextPreference;
-import android.preference.Preference.OnPreferenceClickListener;
 import android.util.AttributeSet;
 import android.widget.Toast;
 
