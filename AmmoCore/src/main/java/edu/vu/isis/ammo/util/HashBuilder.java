@@ -31,7 +31,7 @@ public class HashBuilder {
      * 
      * @param left
      * @param right
-     * @return
+     * @return are the left and right objects different?
      */
     public static boolean differ(Object left, Object right) {
         if (left == right)
@@ -57,7 +57,7 @@ public class HashBuilder {
      * Arrays are special.
      * 
      * @param nextcode
-     * @return
+     * @return the modifed HashBuilder
      */
     public HashBuilder increment(Object nextcode) {
         this.hashcode *= 31;

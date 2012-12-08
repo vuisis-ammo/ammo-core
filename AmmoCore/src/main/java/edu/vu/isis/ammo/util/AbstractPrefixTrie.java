@@ -14,7 +14,7 @@ package edu.vu.isis.ammo.util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/*
+/**
  * This is a Trie which uses bits on bytes as potential branches.
  */
 abstract public class AbstractPrefixTrie<V> implements IPrefixTrie<V> {
@@ -34,7 +34,7 @@ abstract public class AbstractPrefixTrie<V> implements IPrefixTrie<V> {
      * </dl>
      * 
      * @param key
-     * @return
+     * @return best matching node
      */
     public V longestPrefix(String key) {
         @SuppressWarnings("unchecked")
@@ -89,7 +89,7 @@ abstract public class AbstractPrefixTrie<V> implements IPrefixTrie<V> {
         }
 
         /**
-         * @param frag
+         * @param key
          * @return the number of frag bytes matched.
          */
         @Override

@@ -16,8 +16,9 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/*
- * This is a Trie which uses bits on bytes as potential branches.
+/**
+ * This is an efficient tr
+ * 
  */
 public interface IPrefixTrie<V> {
     public static final Logger logger = LoggerFactory.getLogger("util.iptrie");
@@ -34,7 +35,7 @@ public interface IPrefixTrie<V> {
      * </dl>
      * 
      * @param key
-     * @return
+     * @return the node having/being the longest matching prefix
      */
     public INode longestPrefix(IKey key);
 
@@ -54,11 +55,15 @@ public interface IPrefixTrie<V> {
         public int compareItem(int ix, IKey that);
 
         /**
-         * @param frag
-         * @return the number of frag bytes matched.
+         * @param that
+         * @return the number of that bytes matched.
          */
         public int match(IKey that);
 
+        /**
+         * @param frag
+         * @return the number of frag bytes matched.
+         */
         public int match(byte[] frag);
 
         public int burst(int length);
