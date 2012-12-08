@@ -6,16 +6,32 @@ import java.io.ObjectOutput;
 
 public interface IPretrieLeaf<V> {
 
+	/**
+	 * Get the payload associated with the prefix match.
+	 * In the case of a simple leaf the payload is returned directly.
+	 * In the case of the branch an ascent of the trie may be required.
+	 * Note that if the zero length prefix is set something will always match.
+	 * 
+	 * @return the payload, null if none found.
+	 */
 	V getValue();
 
+	/**
+	 * Put the value in the leaf.  This is a direct replacement of the current payload.
+	 * The previous value is returned, if none was set then null is returned.
+	 * 
+	 * @param value
+	 * @return
+	 */
 	V putValue(final V value);
 
 	/**
 	 * Prefix wraps java byte arrays (byte[]) to allow byte arrays to be used as
-	 * keys/prefix in the IPretrieve.
+	 * keys/prefix in the IPretrieve. This class also allows the triple of
+	 * array, offset and length to be carried around as a single object. This
+	 * approach preserves all of the prefixes. This way when we want to show the
+	 * complete prefix we just do it without any lookup.
 	 * 
-	 * This class also allows the triple of array, offset and length to be
-	 * carried around as a single object.
 	 */
 	public static final class Prefix {
 
