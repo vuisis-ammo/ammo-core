@@ -4,8 +4,6 @@ import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
 
-import edu.vu.isis.ammo.pretrie.Pretrie;
-
 /**
  * Test the basic functionality of the pretrie. The pretrie is a tree whose keys
  * are prefixes. When queried the pretrie returns the values having the longest
@@ -15,31 +13,31 @@ import edu.vu.isis.ammo.pretrie.Pretrie;
  * prefixes. A matching prefix is one which is a prefix to the supplied key.
  * 
  */
-public class PretrieTest {
+public class NaivePretrieTest {
 
 	@Test
 	public void basicPutAndGet() {
-		final Pretrie<String> pretrie = new Pretrie<String>();
-		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'e' }, "abcde");
-		pretrie.put(new byte[] { 'a', 'b', 'c', 'd' }, "abcd");
+		final PrefixList<String> pretrie = new PrefixList<String>();
+		pretrie.insert("abced", "abcde");
+		pretrie.insert("abcd", "abcd");
 
 		Assert.assertThat("just missed (no safetynet)",
-				pretrie.get(new byte[] { 'a', 'b', 'c' }), CoreMatchers.is("a"));
+				pretrie.longestPrefix("abc"), CoreMatchers.is("a"));
 
-		pretrie.put(new byte[] { 'a' }, "a");
+		pretrie.insert("a", "a");
 		Assert.assertThat("just missed (with safetynet)",
-				pretrie.get(new byte[] { 'a', 'b', 'c' }), CoreMatchers.is("a"));
+				pretrie.longestPrefix("abc"), CoreMatchers.is("a"));
 
 		Assert.assertThat("exact hit",
-				pretrie.get(new byte[] { 'a', 'b', 'c', 'd' }),
+				pretrie.longestPrefix("abcd"),
 				CoreMatchers.is("abcd"));
 
 		Assert.assertThat("exact hit over",
-				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e' }),
+				pretrie.longestPrefix("abcde"),
 				CoreMatchers.is("abcde"));
 
 		Assert.assertThat("over shoot",
-				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e', 'f' }),
+				pretrie.longestPrefix("abcdef"),
 				CoreMatchers.is("abcde"));
 	}
 
