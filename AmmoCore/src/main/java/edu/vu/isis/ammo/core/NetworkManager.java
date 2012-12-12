@@ -109,7 +109,7 @@ public enum NetworkManager  implements INetworkService,
     // ===========================================================
     // Constants
     // ===========================================================
-    public static final Logger logger = LoggerFactory.getLogger("service");
+    public static final Logger logger = LoggerFactory.getLogger("network.manager");
 
     public static final Intent LAUNCH = new Intent(
             "edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
