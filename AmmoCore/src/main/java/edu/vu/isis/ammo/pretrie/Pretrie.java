@@ -1,8 +1,11 @@
 package edu.vu.isis.ammo.pretrie;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * The Pretrie interface provides for a node based collection. As with many node
- * based collections (e.g. TreeNode) each node represents a subtree. A subtree
+ * based collections (e.g. TreeTwig) each node represents a subtree. A subtree
  * need contain only itself in which case it is a leaf. A pretrie node will have
  * both leaves and branches.
  * <p>
@@ -14,14 +17,25 @@ package edu.vu.isis.ammo.pretrie;
  * The pretrie is a key:value store where its keys are prefixes. The value is
  * typicall a function object.
  * <p>
+ * The pretrie is composed of:
+ * <dl>
+ * <dt>Branch</dt>
+ * <dd>nodes with children and values</dd>
+ * <dt>Twig</dt>
+ * <dd>nodes with children</dd>
+ * <dt>Leaf</dt>
+ * <dd>a node with a value</dd>
+ * <dt>Trunk</dt>
+ * <dd>carries an extended prefix</dd>
+ * </dl>
  * Generally the methods mimic those of java.util.Collection<E>.
  * 
  * @param <V>
  *            the type of the values stored in the node.
  */
 
-public class Pretrie<V> implements IPretrieLeaf<V> {
-
+public class Pretrie<V> {
+	private static final Logger logger = LoggerFactory.getLogger(Pretrie.class);
 	/**
 	 * The node is split using the following constants The primary array
 	 * prevents most of this waste by only loading up when needed. Essentially
@@ -33,221 +47,58 @@ public class Pretrie<V> implements IPretrieLeaf<V> {
 	static private final int MINOR_SIZE;
 	static private final int MAJOR_SIZE;
 	static {
-		MINOR_BITMASK = ~0x07;
+		MINOR_BITMASK = 0x07;
 		MAJOR_SHIFT = 3;
 		MINOR_SIZE = 8;
 		MAJOR_SIZE = 32;
 	}
+	private final Trunk<V> root;
 
-	/** The prefix to this map */
-	private final Pretrie<V> parent;
-	private final Node<V>[] primary;
-	private V leaf;
-
-	/**
-	 * The base object is a branch object. It is expected to have multiple
-	 * prefixes and values.
-	 * 
-	 * <p>
-	 * 
-	 * 
-	 * @param parent
-	 */
 	public Pretrie() {
-		this(null);
-	}
-
-	@SuppressWarnings("unchecked")
-	public Pretrie(final Pretrie<V> parent) {
-		this.parent = parent;
-		this.primary = new Node[MAJOR_SIZE];
-		this.leaf = null;
-	}
-
-	public Pretrie(Prefix prefix, IPretrieLeaf<V> leaf) {
-		this(null);
-		final int primaryIndex = ((int) prefix.getCurrentByte()) >>> MAJOR_SHIFT;
-		final Node<V> node = new Node<V>(this);
-		node.put(prefix, leaf);
-		this.primary[primaryIndex] = node;
+		this.root = new Trunk<V>((Trunk<V>) null, (Prefix) null,
+				(Branch<V>) null);
 	}
 
 	/**
-	 * Recursively ascend to get the best matching leaf.
-	 */
-	@Override
-	public V getValue() {
-		if (this.leaf != null) {
-			return this.leaf;
-		}
-		if (this.parent == null) {
-			return null;
-		}
-		return this.parent.getValue();
-	}
-
-	@Override
-	public V putValue(final V value) {
-		final V prior = this.leaf;
-		this.leaf = value;
-		return prior;
-	}
-
-	/**
-	 * When there is only one and no branch is required.
+	 * This method is for adding an existing
 	 * 
-	 * @param <V>
+	 * @param prefix
+	 * @param node
 	 */
-	private static class Leaf<V> implements IPretrieLeaf<V> {
-		private V leaf;
-
-		public Leaf(final V leaf) {
-			this.leaf = leaf;
-		}
-
-		@Override
-		public V getValue() {
-			return this.leaf;
-		}
-
-		@Override
-		public V putValue(final V value) {
-			final V prior = this.leaf;
-			this.leaf = value;
-			return prior;
-		}
+	public Pretrie(Trunk<V> node) {
+		throw new UnsupportedOperationException("pretrie branch from node");
 	}
 
-	/**
-	 * A node extends each primary prefix by 8 times;
-	 * 
-	 * @param <V>
-	 */
-	private static class Node<V> {
-		private final Pretrie<V> parent;
-		private final Element<V>[] element;
-
-		@SuppressWarnings("unchecked")
-		public Node(final Pretrie<V> parent) {
-			this.parent = parent;
-			this.element = (Element<V>[]) new Element[MINOR_SIZE];
-		}
-
-		V get(final Prefix key) {
-			final int secondaryIndex = ((int) key.getCurrentByte())
-					& MINOR_BITMASK;
-			final Element<V> element = this.element[secondaryIndex];
-			if (this.element[secondaryIndex] == null) {
-				return this.parent.getValue();
-			}
-			final V match = element.get(key.increment());
-			return (match == null) ? this.parent.getValue() : match;
-		}
-
-		V put(final Prefix prefix, final V value) {
-			final int secondaryIndex = ((int) prefix.getCurrentByte())
-					& MINOR_BITMASK;
-
-			final Element<V> element;
-			if (this.element[secondaryIndex] == null) {
-				element = new Element<V>(prefix, this.parent);
-				this.element[secondaryIndex] = element;
-			} else {
-				element = (Element<V>) this.element[secondaryIndex];
-			}
-			return element.put(prefix, value);
-		}
-
-		V put(final Prefix prefix, final IPretrieLeaf<V> leaf) {
-			final int secondaryIndex = ((int) prefix.getCurrentByte())
-					& MINOR_BITMASK;
-
-			final Element<V> element = new Element<V>(prefix, this.parent);
-			this.element[secondaryIndex] = element;
-
-			return element.put(prefix, leaf);
-		}
+	public V get(final Prefix key) {
+		return this.root.get(key);
 	}
 
-	/**
-	 * An element consists of the continuation of the prefix
-	 * 
-	 * @param <V>
-	 */
-	public static class Element<V> {
-		private Prefix prefix;
-		private IPretrieLeaf<V> leaf;
-
-		public Element(final Prefix prefix, final Pretrie<V> value) {
-			this.prefix = prefix;
-			this.leaf = value;
-		}
-
-		V get(final Prefix key) {
-			if (this.prefix.equals(key)) {
-				return this.leaf.getValue();
-			}
-			return null;
-		}
-
-		/**
-		 * Look for a place where there is no match. Split the element.
-		 * 
-		 * @param prefix
-		 * @param position
-		 * @param value
-		 * @return
-		 */
-		V put(final Prefix prefix, final V value) {
-			final int offset = this.prefix.matchOffset(prefix);
-			if (offset < 0) {
-				return this.leaf.getValue();
-			}
-			final Prefix replacement = this.prefix.trimOffEnd(offset);
-			final Prefix right = this.prefix.trimOffStart(offset);
-			final Prefix left = prefix.trimOffStart(offset);
-
-			this.prefix = replacement;
-			final Pretrie<V> branch = new Pretrie<V>(right, this.leaf);
-			branch.put(left, value);
-			this.leaf = branch;
-			return null;
-		}
-
-		V put(final Prefix prefix, final IPretrieLeaf<V> leaf) {
-			final int offset = this.prefix.matchOffset(prefix);
-			if (offset < 0) {
-				return this.leaf.getValue();
-			}
-			final Prefix replacement = this.prefix.trimOffEnd(offset);
-			final Prefix right = this.prefix.trimOffStart(offset);
-			final Prefix left = prefix.trimOffStart(offset);
-
-			this.prefix = replacement;
-			final Pretrie<V> branch = new Pretrie<V>(right, this.leaf);
-			branch.put(left, leaf);
-			this.leaf = branch;
-			return null;
-		}
+	public V put(final Prefix key, final V value) {
+		return this.root.put(key, value);
 	}
 
-	/**
-	 * Retrieve the match with the best prefix.
-	 * 
-	 * @param key
-	 *            the key for which the best match is sought
-	 * @return the best matching value
-	 */
+	public V put(final byte[] prefix, final V value) {
+		logger.trace("put w/ byte");
+		return this.put(Prefix.newInstance(prefix), value);
+	}
+
 	public V get(final byte[] key) {
-		return this.get(new Prefix(key));
+		logger.trace("get w/ bytes");
+		return this.get(Prefix.newInstance(key));
 	}
 
-	private V get(final Prefix key) {
-		final int primaryIndex = ((int) key.getCurrentByte()) >>> MAJOR_SHIFT;
-		if (this.primary[primaryIndex] != null) {
-			return this.primary[primaryIndex].get(key);
-		}
-		return this.getValue();
+	public V get(final String key) {
+		logger.trace("get w/ bytes");
+		return this.get(Prefix.newInstance(key));
+	}
+
+	@Override
+	public String toString() {
+		return this.toString(new StringBuilder()).toString();
+	}
+
+	public StringBuilder toString(final StringBuilder sb) {
+		return this.root.toStringBuilder(sb);
 	}
 
 	/**
@@ -258,48 +109,313 @@ public class Pretrie<V> implements IPretrieLeaf<V> {
 	 * @return the best matching value
 	 */
 	public boolean containsKey(final byte[] key) {
-		return this.get(key) != null;
+		logger.trace("contains key");
+		return this.root.get(Prefix.newInstance(key)) != null;
 	}
 
-	/**
-	 * Insert a new prefix and its value. The previous value of the value
-	 * corresponding to the prefix is returned. If the value was not set null is
-	 * returned.
-	 * 
-	 * @param prefix
-	 * @param value
-	 * @return did the insert succeed
-	 */
-	public V put(final byte[] prefix, final V value) {
-		return this.put(new Prefix(prefix), value);
+	public void putAll(Branch<? extends V> sub) {
+		logger.trace("put all from sub");
 	}
 
-	public V put(final Prefix prefix, final V value) {
-		if (prefix.getLength() < 1) {
-			this.leaf = value;
-			return null;
-		}
-		final int primaryIndex = ((int) prefix.getCurrentByte()) >>> MAJOR_SHIFT;
-		final Node<V> node;
-		if (this.primary[primaryIndex] == null) {
-			node = new Node<V>(this);
-			this.primary[primaryIndex] = node;
-		} else {
-			node = this.primary[primaryIndex];
-		}
-		return node.put(prefix, value);
-	}
-	
-	public V put(final Prefix prefix, final IPretrieLeaf<V> leaf) {
-		return null;
-	}
-
-	public void putAll(Pretrie<? extends V> map) {
-
+	public V remove(final Prefix prefix) {
+		logger.trace("remove w/ prefix");
+		return this.root.remove(prefix);
 	}
 
 	public V remove(final byte[] prefix) {
-		return null;
+		logger.trace("remove w/ prefix");
+		return this.root.remove(Prefix.newInstance(prefix));
+	}
+
+	public V getValue() {
+		return this.root.getValue();
+	}
+
+	public V putValue(final Prefix prefix, final V value) {
+		return this.root.put(prefix, value);
+	}
+
+	/**
+	 * The pretrie branch and twig are used to select the next trunk.
+	 * 
+	 * 
+	 * @param <V>
+	 */
+	private static class Branch<V> {
+		private static final Logger logger = LoggerFactory
+				.getLogger(Branch.class);
+
+		/** The prefix to this map */
+		private final Trunk<V> parent;
+		private final Twig<V>[] twigSet;
+
+		public Trunk<V> getTrunk() {
+			return this.parent;
+		}
+
+		/**
+		 * The base object is a branch object. It is expected to have multiple
+		 * prefixes and values.
+		 * 
+		 * <p>
+		 * 
+		 * 
+		 * @param parent
+		 */
+
+		@SuppressWarnings("unchecked")
+		public Branch(final Trunk<V> parent) {
+			logger.trace("constructor : 1");
+			this.parent = parent;
+			this.twigSet = new Twig[MAJOR_SIZE];
+		}
+
+		/**
+		 * Insert a new prefix and its value. The previous value of the value
+		 * corresponding to the prefix is returned. If the value was not set
+		 * null is returned.
+		 * 
+		 * @param prefix
+		 * @param value
+		 * @return did the insert succeed
+		 */
+		public V put(final Prefix prefix, final V value) {
+			logger.trace("put w/ prefix");
+			final Twig<V> twig = this.acquireTwig(prefix, true);
+			return twig.put(prefix, value);
+		}
+
+		/**
+		 * 
+		 * @param prefix
+		 * @param branch
+		 */
+		public void put(final Prefix prefix, final Trunk<V> trunk) {
+			logger.trace("put w/ prefix");
+			final Twig<V> twig = this.acquireTwig(prefix, true);
+			twig.put(prefix, trunk);
+		}
+
+		/**
+		 * Gets the twig if it is already there, and creates it if it is not.
+		 * 
+		 * @param prefix
+		 * @return
+		 */
+		private Twig<V> acquireTwig(final Prefix prefix, final boolean shouldAllocate) {
+			final int index = ((int) prefix.getCurrentByte()) >>> MAJOR_SHIFT;
+			
+			if (shouldAllocate && this.twigSet[index] == null) {
+				final Twig<V> twig = new Twig<V>(this);
+				this.twigSet[index] = twig;
+				return twig;
+			} 
+			return this.twigSet[index];
+		}
+
+		public V remove(final Prefix prefix) {
+			logger.trace("remove w/ prefix");
+			return null;
+		}
+
+		@Override
+		public String toString() {
+			return this.toStringBiulder(new StringBuilder()).toString();
+		}
+
+		public StringBuilder toStringBiulder(final StringBuilder sb) {
+			for (Twig<V> twig : this.twigSet) {
+				if (twig == null)
+					continue;
+				twig.toStringBuilder(sb).append('\n');
+			}
+			return sb;
+		}
+
+	}
+
+	/**
+	 * A graft extends a branch by MINOR_SIZE times;
+	 * 
+	 * @param <V>
+	 */
+	private static class Twig<V> {
+		private static final Logger logger = LoggerFactory
+				.getLogger(Twig.class);
+		private final Branch<V> parent;
+		private final Trunk<V>[] trunkSet;
+		private Trunk<V> trunk;
+
+		@SuppressWarnings("unchecked")
+		public Twig(final Branch<V> branch) {
+			logger.trace("constructor");
+			this.parent = branch;
+			this.trunk = branch.getTrunk();
+			this.trunkSet = (Trunk<V>[]) new Trunk[MINOR_SIZE];
+		}
+
+		Trunk<V> acquireTrunk(final Prefix prefix, final boolean shouldAllocate) {
+			final int index = ((int) prefix.getCurrentByte()) & MINOR_BITMASK;
+			
+			if (shouldAllocate && this.trunkSet[index] == null) {
+				final Trunk<V> trunk = new Trunk<V>(this.trunk, prefix, this.parent);
+				this.trunkSet[index] = trunk;
+				return trunk;
+			} 
+			return this.trunkSet[index];
+		}
+
+		V put(final Prefix prefix, final V value) {
+			logger.trace("put w/ value");
+			final Trunk<V> trunk = this.acquireTrunk(prefix, true);
+			return trunk.put(prefix, value);
+		}
+
+		void put(final Prefix prefix, final Trunk<V> oldTrunk) {
+			logger.trace("put w/ value");
+			final Trunk<V> trunk = this.acquireTrunk(prefix, true);
+			trunk.put(prefix, oldTrunk);
+		}
+
+		@Override
+		public String toString() {
+			return this.toStringBuilder(new StringBuilder()).toString();
+		}
+
+		public StringBuilder toStringBuilder(final StringBuilder sb) {
+			for (Trunk<V> trunk : this.trunkSet) {
+				if (trunk == null)
+					continue;
+				trunk.toStringBuilder(sb).append('\n');
+			}
+			return sb;
+		}
+	}
+
+	/**
+	 * An twig extends the prefix on a graft and points to an Trunk. The twig
+	 * carries a Prefix which spans its contribution. The offset for the prefix
+	 * indicates the byte used by the branch and graft.
+	 * 
+	 * @param <V>
+	 */
+	public static class Trunk<V> {
+		private static final Logger logger = LoggerFactory
+				.getLogger(Trunk.class);
+		private Prefix prefix;
+		private Trunk<V> parent;
+		private Branch<V> branch;
+		private V value;
+
+		public Trunk(final Trunk<V> parent, final Prefix prefix,
+				final Branch<V> branch) {
+			logger.trace("constructor");
+			this.parent = parent;
+			this.prefix = prefix;
+			this.branch = branch;
+			this.value = null;
+		}
+
+		public void resetParentTrunk() {
+			this.parent = this.parent.parent;
+		}
+
+		public Prefix getPrefix() {
+			return this.prefix;
+		}
+
+		public int getOffset() {
+			return this.prefix.getOffset();
+		}
+
+		/**
+		 * Ascend the pretrie until you find a node with a value.
+		 * 
+		 * @return
+		 */
+		public V getValue() {
+			if (this.value != null) return value;
+			if (this.parent == null) return null;
+			return this.parent.getValue();
+		}
+
+		V get(final Prefix key) {
+			logger.trace("get");
+			if (this.prefix.equals(key)) {
+				return this.getValue();
+			}
+			return null;
+		}
+
+		/**
+		 * Look for a place where there is no match. Split the trunk. At the
+		 * split the left side gets the old (prefix/value)s and the right side
+		 * gets the new prefix/value.
+		 * 
+		 * @param prefix
+		 * @param position
+		 * @param value
+		 * @return
+		 */
+		V put(final Prefix prefix, final V value) {
+			logger.trace("put value w/ prefix {}", prefix);
+			if (this.prefix == null) {
+				this.prefix = prefix;
+				this.value = value;
+				return null;
+			}
+			final int offset;
+			try {
+				offset = this.prefix.partialMatchOffset(prefix);
+			} catch (Exception e) {
+				return null;
+			}
+			if (offset < 0) {
+				final V oldValue = this.value;
+				this.value = value;
+				return oldValue;
+			}
+			final Prefix before = this.prefix.trimLength(offset);
+			final Prefix leftPrefix = this.prefix.trimOffset(offset);
+			final Prefix rightPrefix = prefix.trimOffset(offset);
+
+			this.prefix = before;
+			final Branch<V> wipBranch = new Branch<V>(this);
+			wipBranch.put(leftPrefix, this);
+			wipBranch.put(rightPrefix, value);
+			this.branch = wipBranch;
+
+			return null;
+		}
+
+		void put(final Prefix prefix, final Trunk<V> that) {
+			logger.trace("put w/ leaf");
+			this.prefix = prefix;
+			this.branch = that.branch;
+			this.value = that.value;
+		}
+
+		public V remove(final Prefix prefix) {
+			logger.trace("remove w/ prefix");
+			if (this.branch != null)
+				return null;
+			return this.branch.remove(prefix);
+		}
+
+		@Override
+		public String toString() {
+			return this.toStringBuilder(new StringBuilder()).toString();
+		}
+
+		public StringBuilder toStringBuilder(final StringBuilder sb) {
+			if (this.prefix != null)
+				this.prefix.toStringBuilder(sb);
+			if (this.branch != null)
+				this.branch.toStringBiulder(sb);
+			sb.append('{').append(value).append('}');
+			return sb;
+		}
+
 	}
 
 }

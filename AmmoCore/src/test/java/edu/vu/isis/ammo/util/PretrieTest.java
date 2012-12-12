@@ -21,14 +21,15 @@ public class PretrieTest {
 	public void basicPutAndGet() {
 		final Pretrie<String> pretrie = new Pretrie<String>();
 		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'e' }, "abcde");
-		pretrie.put(new byte[] { 'a', 'b', 'c', 'd' }, "abcd");
+		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'f'}, "abcdf");
+		pretrie.put(new byte[] { 'a', 'b', 'c' }, "abc");
 
 		Assert.assertThat("just missed (no safetynet)",
-				pretrie.get(new byte[] { 'a', 'b', 'c' }), CoreMatchers.is("a"));
+				pretrie.get(new byte[] { 'a', 'b' }), CoreMatchers.nullValue());
 
 		pretrie.put(new byte[] { 'a' }, "a");
 		Assert.assertThat("just missed (with safetynet)",
-				pretrie.get(new byte[] { 'a', 'b', 'c' }), CoreMatchers.is("a"));
+				pretrie.get(new byte[] { 'a', 'b' }), CoreMatchers.is("a"));
 
 		Assert.assertThat("exact hit",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd' }),
@@ -39,7 +40,7 @@ public class PretrieTest {
 				CoreMatchers.is("abcde"));
 
 		Assert.assertThat("over shoot",
-				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e', 'f' }),
+				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e', 'g' }),
 				CoreMatchers.is("abcde"));
 	}
 

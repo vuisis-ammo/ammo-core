@@ -1,0 +1,238 @@
+package edu.vu.isis.ammo.pretrie;
+
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.io.UnsupportedEncodingException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Prefix {
+	private static final Logger logger = LoggerFactory.getLogger(Prefix.class);
+
+	private final byte[] array;
+	private final int offset;
+	private final int length;
+
+	/**
+	 * Create an instance of this class that wraps the given array. This class
+	 * does not make a copy of the array, it just saves the reference.
+	 */
+	private Prefix(final byte[] array, final int offset, final int length) {
+		logger.trace("consructor");
+		this.array = array;
+		this.offset = offset;
+		this.length = length;
+	}
+
+	private Prefix(final byte[] array) {
+		this(array, 0, array.length);
+	}
+
+	public static Prefix newInstance(final byte[] array) {
+		return new Prefix(array, 0, array.length);
+	}
+
+	public static Prefix newInstance(final String key) {
+		try {
+			return new Prefix(key.getBytes("UTF-8"));
+		} catch (UnsupportedEncodingException ex) {
+			logger.error("unsupported encoding", ex);
+		}
+		return null;
+	}
+
+	/**
+	 * Value equality for byte arrays.
+	 */
+	public boolean equals(Object other) {
+		logger.trace("equals");
+		if (other instanceof Prefix) {
+			Prefix ob = (Prefix) other;
+			return Prefix.equals(array, offset, length, ob.array, ob.offset,
+					ob.length);
+		}
+		return false;
+	}
+
+	/**
+		  */
+	public int hashCode() {
+		logger.trace("hash code");
+		byte[] larray = array;
+
+		int hash = length;
+		for (int i = 0; i < length; i++) {
+			hash += larray[i + offset];
+		}
+		return hash;
+	}
+
+	public final byte[] getArray() {
+		return array;
+	}
+
+	public final int getOffset() {
+		return offset;
+	}
+
+	public final int getLength() {
+		return length;
+	}
+
+	/**
+	 * Read this object from a stream of stored objects.
+	 * 
+	 * @param in
+	 *            read this.
+	 * 
+	 * @exception IOException
+	 *                thrown on error
+	 */
+	public Prefix readExternal(ObjectInput in) throws IOException {
+		logger.trace("read external");
+		final int len = in.readInt();
+		final int offset = 0;
+		final byte[] array = new byte[len];
+
+		in.readFully(array, 0, len);
+		return new Prefix(array, offset, len);
+	}
+
+	/**
+	 * Write the byte array out w/o compression
+	 * 
+	 * @param out
+	 *            write bytes here.
+	 * 
+	 * @exception IOException
+	 *                thrown on error
+	 */
+	public void writeExternal(ObjectOutput out) throws IOException {
+		out.writeInt(length);
+		out.write(array, offset, length);
+	}
+
+	/**
+	 * Compare two byte arrays using value equality. Two byte arrays are equal
+	 * if their length is identical and their contents are identical.
+	 * 
+	 * @param a
+	 * @param aOffset
+	 * @param aLength
+	 * @param b
+	 * @param bOffset
+	 * @param bLength
+	 * @return
+	 */
+	private static boolean equals(byte[] a, int aOffset, int aLength, byte[] b,
+			int bOffset, int bLength) {
+
+		if (aLength != bLength)
+			return false;
+
+		for (int i = 0; i < aLength; i++) {
+			if (a[i + aOffset] != b[i + bOffset])
+				return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Get the byte currently under the offset.
+	 * 
+	 * @return
+	 */
+	public int getCurrentByte() {
+		return this.array[this.offset];
+	}
+
+	public Prefix increment() {
+		return new Prefix(this.array, this.offset + 1, this.length);
+	}
+
+	/**
+	 * Check to see if that Prefix is a prefix of this Prefix. If it is the
+	 * offset of the first non-matching byte.
+	 * 
+	 * @param that
+	 * @return <0 indicates a complete match
+	 * @throws Exception 
+	 */
+	public int partialMatchOffset(final Prefix that) throws Exception {
+		if (this.offset != that.offset) {
+			throw new Exception("offsets do not match");
+		}
+		int sharedOffset = this.offset;
+		if (this.length > that.length) {
+			for (int sharedLength = 0; sharedLength < that.length; sharedLength++, sharedOffset++) {
+				if (this.array[sharedOffset] != that.array[sharedOffset]) {
+					return sharedOffset;
+				}
+			}
+			return sharedOffset;
+		} else {
+			for (int sharedLength = 0; sharedLength < this.length; sharedLength++, sharedOffset++) {
+				if (this.array[sharedOffset] != that.array[sharedOffset]) {
+					return sharedOffset;
+				}
+			}
+			return -1;
+		} 
+	}
+
+	/**
+	 * Trim the end off the prefix by shortening the length.
+	 * 
+	 * @param offset
+	 * @return
+	 */
+	public Prefix trimLength(int endOffset) {
+		return new Prefix(this.array, this.offset, endOffset - this.offset - 1);
+	}
+
+	/**
+	 * Trim the front of the prefix by advancing the offset and shortening the
+	 * length.
+	 * 
+	 * @param offset
+	 * @return
+	 */
+	public Prefix trimOffset(int endOffset) {
+		return new Prefix(this.array, endOffset, this.length - (endOffset - this.offset));
+	}
+
+	@Override
+	public String toString() {
+		return this.toStringBuilder(new StringBuilder()).toString();
+	}
+
+	public StringBuilder toStringBuilder(final StringBuilder sb) {
+		int ix = 0;
+		final int length = this.array.length;
+		sb.append('[');
+		for (; ix < length; ix++) {
+			if (this.offset <= ix)
+				break;
+			sb.append(' ');
+			sb.append(this.array[ix]);
+		}
+		sb.append(" (");
+		final int last = this.offset + this.length;
+		for (; ix < length; ix++) {
+			if (last < ix)
+				break;
+			sb.append(' ');
+			sb.append(this.array[ix]);
+		}
+		sb.append(" )");
+		for (; ix < length; ix++) {
+			sb.append(' ');
+			sb.append(this.array[ix]);
+		}
+		sb.append(" ]");
+		return sb;
+	}
+
+}
