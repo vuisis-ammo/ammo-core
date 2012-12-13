@@ -18,7 +18,7 @@
     <color name="status_connected">#FF008000</color>
 
     <string name="status_busy">Busy</string>
-    <color name="status_busy">#FF0000FF</color>
+    <color name="status_busy">#FF7F00FF</color>
 
     <string name="status_ready">Ready</string>
     <color name="status_ready">#FF008000</color>
