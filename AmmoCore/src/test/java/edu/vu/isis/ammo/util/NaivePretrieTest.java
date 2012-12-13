@@ -4,8 +4,6 @@ import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
 
-import edu.vu.isis.ammo.pretrie.Pretrie;
-
 /**
  * Test the basic functionality of the pretrie. The pretrie is a tree whose keys
  * are prefixes. When queried the pretrie returns the values having the longest

@@ -1,5 +1,7 @@
 package edu.vu.isis.ammo.pretrie;
 
+import java.io.UnsupportedEncodingException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * <dd>nodes with children</dd>
  * <dt>Leaf</dt>
  * <dd>a node with a value</dd>
- * <dt>Trunk</dt>
+ * <dt>Stem</dt>
  * <dd>carries an extended prefix</dd>
  * </dl>
  * Generally the methods mimic those of java.util.Collection<E>.
@@ -52,34 +54,73 @@ public class Pretrie<V> {
 		MINOR_SIZE = 8;
 		MAJOR_SIZE = 32;
 	}
-	private final Trunk<V> root;
+	private final Stem<V> trunk;
 
 	public Pretrie() {
-		this.root = new Trunk<V>((Trunk<V>) null, (Prefix) null,
+		this.trunk = new Stem<V>((Stem<V>) null, (Prefix) null,
 				(Branch<V>) null);
 	}
 
+	private final static String stringEncoding = "UTF-8";
+	
 	/**
-	 * This method is for adding an existing
+	 * The insert method is deprecated and is provided for compatibility with the earlier PrefixList.
 	 * 
+	 * @deprecated
 	 * @param prefix
-	 * @param node
+	 * @param value
+	 * @return
+	 * @throws UnsupportedEncodingException
 	 */
-	public Pretrie(Trunk<V> node) {
-		throw new UnsupportedOperationException("pretrie branch from node");
+	public V insert(final String prefix, final V value) throws UnsupportedEncodingException {
+			return this.put(prefix.getBytes(stringEncoding), value);
 	}
-
-	public V get(final Prefix key) {
-		return this.root.get(key);
+	
+	/**
+	 * The longestPrefix method is deprecated and is provided for compatibility with the earlier PrefixList.
+	 * The get() method should be used instead.
+	 * 
+	 * @deprecated
+	 * @param key
+	 * @return
+	 * @throws UnsupportedEncodingException
+	 */
+	public V longestPrefix(final String key) throws UnsupportedEncodingException {
+		return this.get(key.getBytes(stringEncoding));
 	}
-
+	
+	/**
+	 * Different methods for inserting values into the pretrie.
+	 * 
+	 * @param key
+	 * @param value
+	 * @return
+	 */
 	public V put(final Prefix key, final V value) {
-		return this.root.put(key, value);
+		return this.trunk.put(key, value);
 	}
 
 	public V put(final byte[] prefix, final V value) {
 		logger.trace("put w/ byte");
-		return this.put(Prefix.newInstance(prefix), value);
+		final V result = this.put(Prefix.newInstance(prefix), value);
+		logger.debug("toString: trunk [{}]", this.trunk);
+		return result;
+	}
+
+
+	public void putAll(Branch<? extends V> sub) {
+		logger.trace("put all from sub");
+	}
+
+
+	/**
+	 * The preferred methods for retrieving values from the pretrie.
+	 * 
+	 * @param key
+	 * @return
+	 */
+	public V get(final Prefix key) {
+		return this.trunk.get(key);
 	}
 
 	public V get(final byte[] key) {
@@ -98,7 +139,7 @@ public class Pretrie<V> {
 	}
 
 	public StringBuilder toString(final StringBuilder sb) {
-		return this.root.toStringBuilder(sb);
+		return this.trunk.toStringBuilder(sb);
 	}
 
 	/**
@@ -110,33 +151,29 @@ public class Pretrie<V> {
 	 */
 	public boolean containsKey(final byte[] key) {
 		logger.trace("contains key");
-		return this.root.get(Prefix.newInstance(key)) != null;
-	}
-
-	public void putAll(Branch<? extends V> sub) {
-		logger.trace("put all from sub");
+		return this.trunk.get(Prefix.newInstance(key)) != null;
 	}
 
 	public V remove(final Prefix prefix) {
 		logger.trace("remove w/ prefix");
-		return this.root.remove(prefix);
+		return this.trunk.remove(prefix);
 	}
 
 	public V remove(final byte[] prefix) {
 		logger.trace("remove w/ prefix");
-		return this.root.remove(Prefix.newInstance(prefix));
+		return this.trunk.remove(Prefix.newInstance(prefix));
 	}
 
 	public V getValue() {
-		return this.root.getValue();
+		return this.trunk.getValue();
 	}
 
 	public V putValue(final Prefix prefix, final V value) {
-		return this.root.put(prefix, value);
+		return this.trunk.put(prefix, value);
 	}
 
 	/**
-	 * The pretrie branch and twig are used to select the next trunk.
+	 * The pretrie branch and twig are used to select the next stem.
 	 * 
 	 * 
 	 * @param <V>
@@ -146,10 +183,10 @@ public class Pretrie<V> {
 				.getLogger(Branch.class);
 
 		/** The prefix to this map */
-		private final Trunk<V> parent;
+		private final Stem<V> parent;
 		private final Twig<V>[] twigSet;
 
-		public Trunk<V> getTrunk() {
+		public Stem<V> getStem() {
 			return this.parent;
 		}
 
@@ -164,7 +201,7 @@ public class Pretrie<V> {
 		 */
 
 		@SuppressWarnings("unchecked")
-		public Branch(final Trunk<V> parent) {
+		public Branch(final Stem<V> parent) {
 			logger.trace("constructor : 1");
 			this.parent = parent;
 			this.twigSet = new Twig[MAJOR_SIZE];
@@ -190,10 +227,10 @@ public class Pretrie<V> {
 		 * @param prefix
 		 * @param branch
 		 */
-		public void put(final Prefix prefix, final Trunk<V> trunk) {
+		public void put(final Prefix prefix, final Stem<V> stem) {
 			logger.trace("put w/ prefix");
 			final Twig<V> twig = this.acquireTwig(prefix, true);
-			twig.put(prefix, trunk);
+			twig.put(prefix, stem);
 		}
 
 		/**
@@ -224,6 +261,7 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBiulder(final StringBuilder sb) {
+			logger.trace("toString: branch {}", this.hashCode());
 			for (Twig<V> twig : this.twigSet) {
 				if (twig == null)
 					continue;
@@ -243,38 +281,38 @@ public class Pretrie<V> {
 		private static final Logger logger = LoggerFactory
 				.getLogger(Twig.class);
 		private final Branch<V> parent;
-		private final Trunk<V>[] trunkSet;
-		private Trunk<V> trunk;
+		private final Stem<V>[] stemSet;
+		private Stem<V> stem;
 
 		@SuppressWarnings("unchecked")
 		public Twig(final Branch<V> branch) {
 			logger.trace("constructor");
 			this.parent = branch;
-			this.trunk = branch.getTrunk();
-			this.trunkSet = (Trunk<V>[]) new Trunk[MINOR_SIZE];
+			this.stem = branch.getStem();
+			this.stemSet = (Stem<V>[]) new Stem[MINOR_SIZE];
 		}
 
-		Trunk<V> acquireTrunk(final Prefix prefix, final boolean shouldAllocate) {
+		Stem<V> acquireStem(final Prefix prefix, final boolean shouldAllocate) {
 			final int index = ((int) prefix.getCurrentByte()) & MINOR_BITMASK;
 			
-			if (shouldAllocate && this.trunkSet[index] == null) {
-				final Trunk<V> trunk = new Trunk<V>(this.trunk, prefix, this.parent);
-				this.trunkSet[index] = trunk;
-				return trunk;
+			if (shouldAllocate && this.stemSet[index] == null) {
+				final Stem<V> stem = new Stem<V>(this.stem, prefix, this.parent);
+				this.stemSet[index] = stem;
+				return stem;
 			} 
-			return this.trunkSet[index];
+			return this.stemSet[index];
 		}
 
 		V put(final Prefix prefix, final V value) {
 			logger.trace("put w/ value");
-			final Trunk<V> trunk = this.acquireTrunk(prefix, true);
-			return trunk.put(prefix, value);
+			final Stem<V> stem = this.acquireStem(prefix, true);
+			return stem.put(prefix, value);
 		}
 
-		void put(final Prefix prefix, final Trunk<V> oldTrunk) {
+		void put(final Prefix prefix, final Stem<V> oldStem) {
 			logger.trace("put w/ value");
-			final Trunk<V> trunk = this.acquireTrunk(prefix, true);
-			trunk.put(prefix, oldTrunk);
+			final Stem<V> stem = this.acquireStem(prefix, true);
+			stem.put(prefix, oldStem);
 		}
 
 		@Override
@@ -283,31 +321,32 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBuilder(final StringBuilder sb) {
-			for (Trunk<V> trunk : this.trunkSet) {
-				if (trunk == null)
+			logger.trace("toString: twig {}", this.hashCode());
+			for (Stem<V> stem : this.stemSet) {
+				if (stem == null)
 					continue;
-				trunk.toStringBuilder(sb).append('\n');
+				stem.toStringBuilder(sb);
 			}
 			return sb;
 		}
 	}
 
 	/**
-	 * An twig extends the prefix on a graft and points to an Trunk. The twig
+	 * An twig extends the prefix on a graft and points to an Stem. The twig
 	 * carries a Prefix which spans its contribution. The offset for the prefix
 	 * indicates the byte used by the branch and graft.
 	 * 
 	 * @param <V>
 	 */
-	public static class Trunk<V> {
+	public static class Stem<V> {
 		private static final Logger logger = LoggerFactory
-				.getLogger(Trunk.class);
+				.getLogger(Stem.class);
 		private Prefix prefix;
-		private Trunk<V> parent;
+		private Stem<V> parent;
 		private Branch<V> branch;
 		private V value;
 
-		public Trunk(final Trunk<V> parent, final Prefix prefix,
+		public Stem(final Stem<V> parent, final Prefix prefix,
 				final Branch<V> branch) {
 			logger.trace("constructor");
 			this.parent = parent;
@@ -316,7 +355,7 @@ public class Pretrie<V> {
 			this.value = null;
 		}
 
-		public void resetParentTrunk() {
+		public void resetParentStem() {
 			this.parent = this.parent.parent;
 		}
 
@@ -348,7 +387,7 @@ public class Pretrie<V> {
 		}
 
 		/**
-		 * Look for a place where there is no match. Split the trunk. At the
+		 * Look for a place where there is no match. Split the stem. At the
 		 * split the left side gets the old (prefix/value)s and the right side
 		 * gets the new prefix/value.
 		 * 
@@ -371,6 +410,7 @@ public class Pretrie<V> {
 				return null;
 			}
 			if (offset < 0) {
+				this.branch = null;
 				final V oldValue = this.value;
 				this.value = value;
 				return oldValue;
@@ -382,13 +422,18 @@ public class Pretrie<V> {
 			this.prefix = before;
 			final Branch<V> wipBranch = new Branch<V>(this);
 			wipBranch.put(leftPrefix, this);
-			wipBranch.put(rightPrefix, value);
+			if (rightPrefix == null) {
+				this.value = value;
+			} else {
+				this.value = null;
+				wipBranch.put(rightPrefix, value);
+			}
 			this.branch = wipBranch;
 
 			return null;
 		}
 
-		void put(final Prefix prefix, final Trunk<V> that) {
+		void put(final Prefix prefix, final Stem<V> that) {
 			logger.trace("put w/ leaf");
 			this.prefix = prefix;
 			this.branch = that.branch;
@@ -408,11 +453,17 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBuilder(final StringBuilder sb) {
-			if (this.prefix != null)
+			logger.trace("toString: stem {} [{}] -> \"{}\"", this.hashCode(), this.prefix, this.value);
+			sb.append('\n');
+			if (this.prefix != null) {
 				this.prefix.toStringBuilder(sb);
+			} else {
+				sb.append("no prefix");
+			}
+			sb.append('{').append(value).append('}');
+			
 			if (this.branch != null)
 				this.branch.toStringBiulder(sb);
-			sb.append('{').append(value).append('}');
 			return sb;
 		}
 

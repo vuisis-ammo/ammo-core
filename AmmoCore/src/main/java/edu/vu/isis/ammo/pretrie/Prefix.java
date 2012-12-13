@@ -20,7 +20,23 @@ public class Prefix {
 	 * does not make a copy of the array, it just saves the reference.
 	 */
 	private Prefix(final byte[] array, final int offset, final int length) {
-		logger.trace("consructor");
+		logger.trace("consructor {} {} {}", array.length, offset, length);
+		if (array.length < (offset + length)) {
+			logger.error("array too small: [{}] < {} + {}", array.length, offset, length);
+			throw new IllegalArgumentException("endpoint exceeds parameters");
+		}
+		if (array.length <= offset) {
+			logger.error("offset too small: {}", offset);
+			throw new IllegalArgumentException("offset too small");
+		}
+		if (offset < 0) {
+			logger.error("offset too small: {}", offset);
+			throw new IllegalArgumentException("offset too small");
+		}
+		if (length < 0) {
+			logger.error("offset too small: {}", offset);
+			throw new IllegalArgumentException("offset too small");
+		}
 		this.array = array;
 		this.offset = offset;
 		this.length = length;
@@ -48,16 +64,23 @@ public class Prefix {
 	 */
 	public boolean equals(Object other) {
 		logger.trace("equals");
-		if (other instanceof Prefix) {
-			Prefix ob = (Prefix) other;
-			return Prefix.equals(array, offset, length, ob.array, ob.offset,
-					ob.length);
+		if (!(other instanceof Prefix)) {
+			return false;
 		}
-		return false;
+		final Prefix that = (Prefix) other;
+
+		if (this.length != that.length)
+			return false;
+
+		for (int ix = 0; ix < this.length; ix++) {
+			if (this.array[ix + this.length] != that.array[ix + that.length])
+				return false;
+		}
+		return true;
 	}
 
 	/**
-		  */
+	*/
 	public int hashCode() {
 		logger.trace("hash code");
 		byte[] larray = array;
@@ -115,36 +138,12 @@ public class Prefix {
 	}
 
 	/**
-	 * Compare two byte arrays using value equality. Two byte arrays are equal
-	 * if their length is identical and their contents are identical.
-	 * 
-	 * @param a
-	 * @param aOffset
-	 * @param aLength
-	 * @param b
-	 * @param bOffset
-	 * @param bLength
-	 * @return
-	 */
-	private static boolean equals(byte[] a, int aOffset, int aLength, byte[] b,
-			int bOffset, int bLength) {
-
-		if (aLength != bLength)
-			return false;
-
-		for (int i = 0; i < aLength; i++) {
-			if (a[i + aOffset] != b[i + bOffset])
-				return false;
-		}
-		return true;
-	}
-
-	/**
 	 * Get the byte currently under the offset.
 	 * 
 	 * @return
 	 */
 	public int getCurrentByte() {
+		logger.trace("get current byte {} {}", this.array.length, this.offset);
 		return this.array[this.offset];
 	}
 
@@ -158,7 +157,7 @@ public class Prefix {
 	 * 
 	 * @param that
 	 * @return <0 indicates a complete match
-	 * @throws Exception 
+	 * @throws Exception
 	 */
 	public int partialMatchOffset(final Prefix that) throws Exception {
 		if (this.offset != that.offset) {
@@ -179,7 +178,7 @@ public class Prefix {
 				}
 			}
 			return -1;
-		} 
+		}
 	}
 
 	/**
@@ -194,13 +193,17 @@ public class Prefix {
 
 	/**
 	 * Trim the front of the prefix by advancing the offset and shortening the
-	 * length.
+	 * length. Returns null if the new offset is beyond the total length
 	 * 
 	 * @param offset
-	 * @return
+	 * @return 
 	 */
 	public Prefix trimOffset(int endOffset) {
-		return new Prefix(this.array, endOffset, this.length - (endOffset - this.offset));
+		if (this.offset + this.length <= endOffset) {
+			return null;
+		}
+		return new Prefix(this.array, endOffset, this.length
+				- (endOffset - this.offset));
 	}
 
 	@Override
