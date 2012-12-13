@@ -446,6 +446,8 @@ public class TcpChannel extends NetChannel {
   // any data from the socket.
   private boolean hasWatchdogExpired()
   {
+	logger.trace("Check for connection expiry {}", mTimeOfLastGoodSend.get());
+	
     if (mTimeOfLastGoodSend.get() == 0) 
       return false; 
     if ((System.currentTimeMillis() - mTimeOfLastGoodSend.get()) > flatLineTime)
@@ -1152,8 +1154,11 @@ public class TcpChannel extends NetChannel {
           logger.info( "Send packet to Network, size ({})", bytesWritten );
 
           //set time of heartbeat sent 
-          if (msg.isHeartbeat())
-            mTimeOfLastGoodSend.set( System.currentTimeMillis() );
+          if (msg.isHeartbeat()) {
+        	  if (mTimeOfLastGoodSend.get() == 0)
+        		  mTimeOfLastGoodSend.set( System.currentTimeMillis() );
+          }
+
 
           //update status count 
           mMessagesSent.incrementAndGet();
