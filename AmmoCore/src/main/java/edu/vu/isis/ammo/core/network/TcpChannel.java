@@ -320,20 +320,23 @@ public class TcpChannel extends NetChannel {
     }
   }
 
-
   private void statusChange()
   {
+	int connState = this.connectorThread.state.value;
     int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
     int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
 
     try {
-      mChannelManager.statusChange( this,
-          this.connectorThread.state.value,
-          senderState,
-          receiverState );
+      mChannelManager.statusChange(this,
+      		this.lastConnState, connState,
+            this.lastSenderState, senderState,
+            this.lastReceiverState, receiverState);
     } catch ( Exception ex ) {
       logger.error( "Exception thrown in statusChange()", ex);
     }
+    this.lastConnState = connState;
+    this.lastSenderState = senderState;
+    this.lastReceiverState = receiverState;
   }
 
 
