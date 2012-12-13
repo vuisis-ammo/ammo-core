@@ -10,7 +10,8 @@ import org.slf4j.LoggerFactory;
 
 public class Prefix {
 	private static final Logger logger = LoggerFactory.getLogger(Prefix.class);
-
+	private static final boolean LOG_ON = false;
+	
 	private final byte[] array;
 	private final int offset;
 	private final int length;
@@ -20,7 +21,7 @@ public class Prefix {
 	 * does not make a copy of the array, it just saves the reference.
 	 */
 	private Prefix(final byte[] array, final int offset, final int length) {
-		logger.trace("consructor {} {} {}", array.length, offset, length);
+		if (LOG_ON) logger.trace("consructor {} {} {}", array.length, offset, length);
 		if (array.length < (offset + length)) {
 			logger.error("array too small: [{}] < {} + {}", array.length,
 					offset, length);
@@ -64,17 +65,18 @@ public class Prefix {
 	 * Value equality for byte arrays.
 	 */
 	public boolean equals(Object other) {
-		logger.trace("equals");
+		if (LOG_ON) logger.trace("equals");
 		if (!(other instanceof Prefix)) {
 			return false;
 		}
 		final Prefix that = (Prefix) other;
-
+		
 		if (this.length != that.length)
 			return false;
 
-		for (int ix = 0; ix < this.length; ix++) {
-			if (this.array[ix + this.length] != that.array[ix + that.length])
+		int endLength = this.offset + this.length;
+		for (int ix = 0; ix < endLength; ix++) {
+			if (this.array[ix] != that.array[ix])
 				return false;
 		}
 		return true;
@@ -83,7 +85,7 @@ public class Prefix {
 	/**
 	*/
 	public int hashCode() {
-		logger.trace("hash code");
+		if (LOG_ON) logger.trace("hash code");
 		byte[] larray = array;
 
 		int hash = length;
@@ -144,7 +146,7 @@ public class Prefix {
 	 * @return
 	 */
 	public int getCurrentByte() {
-		logger.trace("get current byte {} {}", this.array.length, this.offset);
+		if (LOG_ON) logger.trace("get current byte {} {}", this.array.length, this.offset);
 		return this.array[this.offset];
 	}
 
@@ -187,13 +189,35 @@ public class Prefix {
 
 
 	/**
+	 * Determine if this is a proper prefix of key.
+	 * 
+	 * @param key
+	 * @return
+	 */
+	public boolean isPrefixOf(Prefix key)  throws IllegalArgumentException {
+		if (this.offset != key.offset) {
+			throw new IllegalArgumentException("offsets do not match");
+		}
+		if (key.length < this.length) {
+			return false;
+		}
+		int sharedOffset = this.offset;
+		for (int sharedLength = 0; sharedLength < this.length; sharedLength++, sharedOffset++) {
+			if (this.array[sharedOffset] != key.array[sharedOffset]) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	/**
 	 * Trim the end off the prefix by shortening the length.
 	 * 
 	 * @param offset
 	 * @return
 	 */
 	public Prefix trimLength(int endOffset) {
-		return new Prefix(this.array, this.offset, endOffset - this.offset - 1);
+		return new Prefix(this.array, this.offset, endOffset - this.offset);
 	}
 
 	/**
@@ -229,7 +253,7 @@ public class Prefix {
 		sb.append(" (");
 		final int last = this.offset + this.length;
 		for (; ix < length; ix++) {
-			if (last < ix)
+			if (last <= ix)
 				break;
 			sb.append(' ');
 			sb.append(this.array[ix]);
@@ -242,5 +266,6 @@ public class Prefix {
 		sb.append(" ]");
 		return sb;
 	}
+
 
 }

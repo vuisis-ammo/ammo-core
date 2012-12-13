@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class Pretrie<V> {
 	private static final Logger logger = LoggerFactory.getLogger(Pretrie.class);
 	private static final boolean LOG_ON = false;
-	
+
 	/**
 	 * The node is split using the following constants The primary array
 	 * prevents most of this waste by only loading up when needed. Essentially
@@ -123,16 +123,16 @@ public class Pretrie<V> {
 	 * @return
 	 */
 	public V get(final Prefix key) {
+		logger.trace("get by prefix key {}", key);
 		return this.trunk.get(key);
 	}
 
 	public V get(final byte[] key) {
-		logger.trace("get w/ bytes");
 		return this.get(Prefix.newInstance(key));
 	}
 
 	public V get(final String key) {
-		logger.trace("get w/ bytes");
+		logger.trace("get by string key {}", key);
 		return this.get(Prefix.newInstance(key));
 	}
 
@@ -211,6 +211,17 @@ public class Pretrie<V> {
 		}
 
 		/**
+		 * Get the value associated with the key.
+		 * 
+		 * @param key
+		 * @return
+		 */
+		public V get(final Prefix key) {
+			final Twig<V> twig = this.acquireTwig(key, false);
+			return twig.get(key);
+		}
+
+		/**
 		 * Insert a new prefix and its value. The previous value of the value
 		 * corresponding to the prefix is returned. If the value was not set
 		 * null is returned.
@@ -265,13 +276,15 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBiulder(final StringBuilder sb) {
-			if (LOG_ON) logger.trace("toString: branch {}", this.hashCode());
+			if (LOG_ON)
+				logger.trace("toString: branch {}", this.hashCode());
 			for (Twig<V> twig : this.twigSet) {
 				if (twig == null)
 					continue;
 				twig.toStringBuilder(sb).append('\n');
 			}
-			if (LOG_ON) logger.trace("toString: branch {} exit", this.hashCode());
+			if (LOG_ON)
+				logger.trace("toString: branch {} exit", this.hashCode());
 			return sb;
 		}
 
@@ -308,6 +321,22 @@ public class Pretrie<V> {
 			return this.stemSet[index];
 		}
 
+		/**
+		 * Get the value associated with the key.
+		 * 
+		 * @param key
+		 * @return
+		 */
+		public V get(final Prefix key) {
+			final Stem<V> stem = this.acquireStem(key, false);
+			return stem.get(key);
+		}
+
+		/**
+		 * Insert a new prefix and its value. The previous value of the value
+		 * corresponding to the prefix is returned. If the value was not set
+		 * null is returned.
+		 */
 		V put(final Prefix prefix, final V value) {
 			logger.trace("put w/ value");
 			final Stem<V> stem = this.acquireStem(prefix, true);
@@ -326,13 +355,15 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBuilder(final StringBuilder sb) {
-			if (LOG_ON) logger.trace("toString: twig {}", this.hashCode());
+			if (LOG_ON)
+				logger.trace("toString: twig {}", this.hashCode());
 			for (Stem<V> stem : this.stemSet) {
 				if (stem == null)
 					continue;
 				stem.toStringBuilder(sb);
 			}
-			if (LOG_ON) logger.trace("toString: twig {} exit", this.hashCode());
+			if (LOG_ON)
+				logger.trace("toString: twig {} exit", this.hashCode());
 			return sb;
 		}
 	}
@@ -386,12 +417,26 @@ public class Pretrie<V> {
 			return this.parent.getValue();
 		}
 
+		/**
+		 * Descend the pretrie looking for the longest match.
+		 * 
+		 * @param key
+		 * @return
+		 */
 		V get(final Prefix key) {
 			logger.trace("get");
+			if (! this.prefix.isPrefixOf(key)) {
+				if (this.parent == null) {
+					return null;
+				}
+				return this.parent.getValue();
+			}
 			if (this.prefix.equals(key)) {
 				return this.getValue();
 			}
-			return null;
+			final int endOffset = this.prefix.getEndOffset();
+			final Prefix newKey = key.trimOffset(endOffset);
+			return this.branch.get(newKey);
 		}
 
 		/**
@@ -433,7 +478,7 @@ public class Pretrie<V> {
 			if (branchOffset >= this.prefix.getEndOffset()) {
 				if (branchOffset >= that_prefix.getEndOffset()) {
 					/**
-					 * this.prefix = that_prefix 
+					 * this.prefix = that_prefix
 					 */
 					final V oldValue = this.value;
 					this.value = value;
@@ -450,7 +495,7 @@ public class Pretrie<V> {
 				return null;
 			}
 			if (branchOffset >= that_prefix.getEndOffset()) {
-				/**  this.prefix > that_prefix */
+				/** this.prefix > that_prefix */
 				final Prefix before = this.prefix.trimLength(branchOffset);
 				final Prefix leftPrefix = this.prefix.trimOffset(branchOffset);
 
@@ -482,6 +527,7 @@ public class Pretrie<V> {
 			this.prefix = prefix;
 			this.branch = that.branch;
 			this.value = that.value;
+			this.parent = that;
 		}
 
 		public V remove(final Prefix prefix) {
@@ -498,8 +544,8 @@ public class Pretrie<V> {
 
 		public StringBuilder toStringBuilder(final StringBuilder sb) {
 			if (LOG_ON)
-			logger.trace("toString: stem {} [{}] -> \"{}\"", this.hashCode(),
-					this.prefix, this.value);
+				logger.trace("toString: stem {} [{}] -> \"{}\"",
+						this.hashCode(), this.prefix, this.value);
 			sb.append('\n');
 			if (this.prefix != null) {
 				this.prefix.toStringBuilder(sb);
@@ -514,7 +560,7 @@ public class Pretrie<V> {
 				this.branch.toStringBiulder(sb);
 			}
 			if (LOG_ON)
-			logger.trace("toString: stem {} exit", this.hashCode());
+				logger.trace("toString: stem {} exit", this.hashCode());
 			return sb;
 		}
 

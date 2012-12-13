@@ -43,12 +43,12 @@ public class PretrieTest {
 				pretrie.get(new byte[] { 'a', 'b' }), CoreMatchers.is("a"));
 
 		logger.debug("begining 3rd get");
-		Assert.assertThat("exact hit",
+		Assert.assertThat("over shot",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd' }),
-				CoreMatchers.is("abcd"));
+				CoreMatchers.is("abc"));
 
 		logger.debug("begining 4th get");
-		Assert.assertThat("exact hit over",
+		Assert.assertThat("exact hit",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e' }),
 				CoreMatchers.is("abcde"));
 		
