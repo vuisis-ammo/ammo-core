@@ -5,6 +5,8 @@ import java.io.UnsupportedEncodingException;
 import org.hamcrest.CoreMatchers;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.pretrie.Pretrie;
 
@@ -18,29 +20,39 @@ import edu.vu.isis.ammo.pretrie.Pretrie;
  * 
  */
 public class PretrieTest {
+	private static final Logger logger = LoggerFactory.getLogger(PretrieTest.class);
 
 	@Test
 	public void basicPutAndGet() {
 		final Pretrie<String> pretrie = new Pretrie<String>();
+		logger.debug("begining 1st put set");
 		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'e' }, "abcde");
 		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'f' }, "abcdf");
 		pretrie.put(new byte[] { 'a', 'b', 'c' }, "abc");
 
+		logger.debug("begining 1st get");
+		
 		Assert.assertThat("just missed (no safetynet)",
 				pretrie.get(new byte[] { 'a', 'b' }), CoreMatchers.nullValue());
 
+		logger.debug("begining 2nd put set");
 		pretrie.put(new byte[] { 'a' }, "a");
+		
+		logger.debug("begining 2nd get");
 		Assert.assertThat("just missed (with safetynet)",
 				pretrie.get(new byte[] { 'a', 'b' }), CoreMatchers.is("a"));
 
+		logger.debug("begining 3rd get");
 		Assert.assertThat("exact hit",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd' }),
 				CoreMatchers.is("abcd"));
 
+		logger.debug("begining 4th get");
 		Assert.assertThat("exact hit over",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e' }),
 				CoreMatchers.is("abcde"));
-
+		
+		logger.debug("begining 5th get");
 		Assert.assertThat("over shoot",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e', 'g' }),
 				CoreMatchers.is("abcde"));

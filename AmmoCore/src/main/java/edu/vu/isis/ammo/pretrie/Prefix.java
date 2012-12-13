@@ -22,7 +22,8 @@ public class Prefix {
 	private Prefix(final byte[] array, final int offset, final int length) {
 		logger.trace("consructor {} {} {}", array.length, offset, length);
 		if (array.length < (offset + length)) {
-			logger.error("array too small: [{}] < {} + {}", array.length, offset, length);
+			logger.error("array too small: [{}] < {} + {}", array.length,
+					offset, length);
 			throw new IllegalArgumentException("endpoint exceeds parameters");
 		}
 		if (array.length <= offset) {
@@ -159,27 +160,31 @@ public class Prefix {
 	 * @return <0 indicates a complete match
 	 * @throws Exception
 	 */
-	public int partialMatchOffset(final Prefix that) throws Exception {
+	public int partialMatchOffset(final Prefix that) throws IllegalArgumentException {
 		if (this.offset != that.offset) {
-			throw new Exception("offsets do not match");
+			throw new IllegalArgumentException("offsets do not match");
 		}
 		int sharedOffset = this.offset;
-		if (this.length > that.length) {
-			for (int sharedLength = 0; sharedLength < that.length; sharedLength++, sharedOffset++) {
-				if (this.array[sharedOffset] != that.array[sharedOffset]) {
-					return sharedOffset;
-				}
+		final int minLength = (this.length < that.length) ? this.length
+				: that.length;
+		for (int sharedLength = 0; sharedLength < minLength; sharedLength++, sharedOffset++) {
+			if (this.array[sharedOffset] != that.array[sharedOffset]) {
+				return sharedOffset;
 			}
-			return sharedOffset;
-		} else {
-			for (int sharedLength = 0; sharedLength < this.length; sharedLength++, sharedOffset++) {
-				if (this.array[sharedOffset] != that.array[sharedOffset]) {
-					return sharedOffset;
-				}
-			}
-			return -1;
 		}
+		return sharedOffset;
 	}
+	
+
+	/**
+	 * Get the offset of the end of the prefix.
+	 * 
+	 * @return
+	 */
+	public int getEndOffset() {
+		return this.offset + this.length;
+	}
+
 
 	/**
 	 * Trim the end off the prefix by shortening the length.
@@ -196,7 +201,7 @@ public class Prefix {
 	 * length. Returns null if the new offset is beyond the total length
 	 * 
 	 * @param offset
-	 * @return 
+	 * @return
 	 */
 	public Prefix trimOffset(int endOffset) {
 		if (this.offset + this.length <= endOffset) {

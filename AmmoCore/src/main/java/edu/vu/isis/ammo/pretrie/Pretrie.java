@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 
 public class Pretrie<V> {
 	private static final Logger logger = LoggerFactory.getLogger(Pretrie.class);
+	private static final boolean LOG_ON = false;
+	
 	/**
 	 * The node is split using the following constants The primary array
 	 * prevents most of this waste by only loading up when needed. Essentially
@@ -62,9 +64,10 @@ public class Pretrie<V> {
 	}
 
 	private final static String stringEncoding = "UTF-8";
-	
+
 	/**
-	 * The insert method is deprecated and is provided for compatibility with the earlier PrefixList.
+	 * The insert method is deprecated and is provided for compatibility with
+	 * the earlier PrefixList.
 	 * 
 	 * @deprecated
 	 * @param prefix
@@ -72,23 +75,25 @@ public class Pretrie<V> {
 	 * @return
 	 * @throws UnsupportedEncodingException
 	 */
-	public V insert(final String prefix, final V value) throws UnsupportedEncodingException {
-			return this.put(prefix.getBytes(stringEncoding), value);
+	public V insert(final String prefix, final V value)
+			throws UnsupportedEncodingException {
+		return this.put(prefix.getBytes(stringEncoding), value);
 	}
-	
+
 	/**
-	 * The longestPrefix method is deprecated and is provided for compatibility with the earlier PrefixList.
-	 * The get() method should be used instead.
+	 * The longestPrefix method is deprecated and is provided for compatibility
+	 * with the earlier PrefixList. The get() method should be used instead.
 	 * 
 	 * @deprecated
 	 * @param key
 	 * @return
 	 * @throws UnsupportedEncodingException
 	 */
-	public V longestPrefix(final String key) throws UnsupportedEncodingException {
+	public V longestPrefix(final String key)
+			throws UnsupportedEncodingException {
 		return this.get(key.getBytes(stringEncoding));
 	}
-	
+
 	/**
 	 * Different methods for inserting values into the pretrie.
 	 * 
@@ -107,11 +112,9 @@ public class Pretrie<V> {
 		return result;
 	}
 
-
 	public void putAll(Branch<? extends V> sub) {
 		logger.trace("put all from sub");
 	}
-
 
 	/**
 	 * The preferred methods for retrieving values from the pretrie.
@@ -239,14 +242,15 @@ public class Pretrie<V> {
 		 * @param prefix
 		 * @return
 		 */
-		private Twig<V> acquireTwig(final Prefix prefix, final boolean shouldAllocate) {
+		private Twig<V> acquireTwig(final Prefix prefix,
+				final boolean shouldAllocate) {
 			final int index = ((int) prefix.getCurrentByte()) >>> MAJOR_SHIFT;
-			
+
 			if (shouldAllocate && this.twigSet[index] == null) {
 				final Twig<V> twig = new Twig<V>(this);
 				this.twigSet[index] = twig;
 				return twig;
-			} 
+			}
 			return this.twigSet[index];
 		}
 
@@ -261,12 +265,13 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBiulder(final StringBuilder sb) {
-			logger.trace("toString: branch {}", this.hashCode());
+			if (LOG_ON) logger.trace("toString: branch {}", this.hashCode());
 			for (Twig<V> twig : this.twigSet) {
 				if (twig == null)
 					continue;
 				twig.toStringBuilder(sb).append('\n');
 			}
+			if (LOG_ON) logger.trace("toString: branch {} exit", this.hashCode());
 			return sb;
 		}
 
@@ -294,12 +299,12 @@ public class Pretrie<V> {
 
 		Stem<V> acquireStem(final Prefix prefix, final boolean shouldAllocate) {
 			final int index = ((int) prefix.getCurrentByte()) & MINOR_BITMASK;
-			
+
 			if (shouldAllocate && this.stemSet[index] == null) {
-				final Stem<V> stem = new Stem<V>(this.stem, prefix, this.parent);
+				final Stem<V> stem = new Stem<V>(this.stem, prefix, null);
 				this.stemSet[index] = stem;
 				return stem;
-			} 
+			}
 			return this.stemSet[index];
 		}
 
@@ -321,12 +326,13 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBuilder(final StringBuilder sb) {
-			logger.trace("toString: twig {}", this.hashCode());
+			if (LOG_ON) logger.trace("toString: twig {}", this.hashCode());
 			for (Stem<V> stem : this.stemSet) {
 				if (stem == null)
 					continue;
 				stem.toStringBuilder(sb);
 			}
+			if (LOG_ON) logger.trace("toString: twig {} exit", this.hashCode());
 			return sb;
 		}
 	}
@@ -373,8 +379,10 @@ public class Pretrie<V> {
 		 * @return
 		 */
 		public V getValue() {
-			if (this.value != null) return value;
-			if (this.parent == null) return null;
+			if (this.value != null)
+				return value;
+			if (this.parent == null)
+				return null;
 			return this.parent.getValue();
 		}
 
@@ -390,46 +398,82 @@ public class Pretrie<V> {
 		 * Look for a place where there is no match. Split the stem. At the
 		 * split the left side gets the old (prefix/value)s and the right side
 		 * gets the new prefix/value.
+		 * <p>
+		 * The relationships of the two prefixes A & B are:
+		 * <ul>
+		 * <li>prefix A has not been set</li>
+		 * <li>A equals B (they are proper prefixes of each other)</li>
+		 * <li>A is a proper prefix of B</li>
+		 * <li>B is a proper prefix of A</li>
+		 * <li>A and B do not share a common prefix</li>
+		 * <li>A and B share a common prefix</li>
+		 * </ul>
 		 * 
-		 * @param prefix
+		 * @param that_prefix
 		 * @param position
 		 * @param value
 		 * @return
 		 */
-		V put(final Prefix prefix, final V value) {
-			logger.trace("put value w/ prefix {}", prefix);
+		V put(final Prefix that_prefix, final V value) {
+			logger.trace("put value w/ prefix {}", that_prefix);
 			if (this.prefix == null) {
-				this.prefix = prefix;
+				/** prefix A has not been set */
+				this.prefix = that_prefix;
 				this.value = value;
-				return null;
-			}
-			final int offset;
-			try {
-				offset = this.prefix.partialMatchOffset(prefix);
-			} catch (Exception e) {
-				return null;
-			}
-			if (offset < 0) {
 				this.branch = null;
-				final V oldValue = this.value;
-				this.value = value;
-				return oldValue;
+				return null;
 			}
-			final Prefix before = this.prefix.trimLength(offset);
-			final Prefix leftPrefix = this.prefix.trimOffset(offset);
-			final Prefix rightPrefix = prefix.trimOffset(offset);
+			final int branchOffset;
+			try {
+				branchOffset = this.prefix.partialMatchOffset(that_prefix);
+			} catch (IllegalArgumentException e) {
+				logger.error("bad match");
+				return null;
+			}
+			if (branchOffset >= this.prefix.getEndOffset()) {
+				if (branchOffset >= that_prefix.getEndOffset()) {
+					/**
+					 * this.prefix = that_prefix 
+					 */
+					final V oldValue = this.value;
+					this.value = value;
+					return oldValue;
+				}
+				/** this.prefix < that_prefix */
+				final Prefix before = this.prefix.trimLength(branchOffset);
+				final Prefix rightPrefix = that_prefix.trimOffset(branchOffset);
+
+				this.prefix = before;
+				final Branch<V> wipBranch = new Branch<V>(this);
+				wipBranch.put(rightPrefix, value);
+				this.branch = wipBranch;
+				return null;
+			}
+			if (branchOffset >= that_prefix.getEndOffset()) {
+				/**  this.prefix > that_prefix */
+				final Prefix before = this.prefix.trimLength(branchOffset);
+				final Prefix leftPrefix = this.prefix.trimOffset(branchOffset);
+
+				this.prefix = before;
+				final Branch<V> wipBranch = new Branch<V>(this);
+				wipBranch.put(leftPrefix, this);
+				this.branch = wipBranch;
+
+				this.value = value;
+				return null;
+			}
+
+			/** this.prefix and that_prefix share a common prefix */
+			final Prefix before = this.prefix.trimLength(branchOffset);
+			final Prefix leftPrefix = this.prefix.trimOffset(branchOffset);
+			final Prefix rightPrefix = that_prefix.trimOffset(branchOffset);
 
 			this.prefix = before;
 			final Branch<V> wipBranch = new Branch<V>(this);
 			wipBranch.put(leftPrefix, this);
-			if (rightPrefix == null) {
-				this.value = value;
-			} else {
-				this.value = null;
-				wipBranch.put(rightPrefix, value);
-			}
+			this.value = null;
+			wipBranch.put(rightPrefix, value);
 			this.branch = wipBranch;
-
 			return null;
 		}
 
@@ -453,17 +497,24 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBuilder(final StringBuilder sb) {
-			logger.trace("toString: stem {} [{}] -> \"{}\"", this.hashCode(), this.prefix, this.value);
+			if (LOG_ON)
+			logger.trace("toString: stem {} [{}] -> \"{}\"", this.hashCode(),
+					this.prefix, this.value);
 			sb.append('\n');
 			if (this.prefix != null) {
 				this.prefix.toStringBuilder(sb);
 			} else {
 				sb.append("no prefix");
 			}
-			sb.append('{').append(value).append('}');
-			
-			if (this.branch != null)
+			if (this.value != null) {
+				sb.append('{').append(value).append('}');
+			}
+
+			if (this.branch != null) {
 				this.branch.toStringBiulder(sb);
+			}
+			if (LOG_ON)
+			logger.trace("toString: stem {} exit", this.hashCode());
 			return sb;
 		}
 
