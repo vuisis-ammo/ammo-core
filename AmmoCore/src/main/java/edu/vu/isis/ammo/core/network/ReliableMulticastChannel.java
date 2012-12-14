@@ -337,7 +337,9 @@ public class ReliableMulticastChannel extends NetChannel {
         }
     }
 
+    
     private void statusChange() {
+    	int connState = this.connectorThread.state.value;
         int senderState = (mSender != null) ? mSender.getSenderState()
                 : INetChannel.PENDING;
         int receiverState = (mReceiver != null) ? mReceiver.getReceiverState()
@@ -345,11 +347,15 @@ public class ReliableMulticastChannel extends NetChannel {
 
         try {
             mChannelManager.statusChange(this,
-                    this.connectorThread.state.value, senderState,
-                    receiverState);
+            		this.lastConnState, connState,
+                    this.lastSenderState, senderState,
+                    this.lastReceiverState, receiverState);
         } catch (Exception ex) {
             logger.error("Exception thrown in statusChange()", ex);
         }
+        this.lastConnState = connState;
+        this.lastSenderState = senderState;
+        this.lastReceiverState = receiverState;
     }
 
     private void setSecurityObject(ISecurityObject iSecurityObject) {
