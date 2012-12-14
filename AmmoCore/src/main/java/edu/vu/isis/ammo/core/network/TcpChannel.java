@@ -10,6 +10,8 @@ purpose whatsoever, and to have or authorize others to do so.
  */
 package edu.vu.isis.ammo.core.network;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
@@ -22,7 +24,6 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
-import java.nio.channels.SocketChannel;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.Timer;
@@ -85,7 +86,6 @@ public class TcpChannel extends NetChannel {
   /** default timeout is 45 seconds */
   private int DEFAULT_WATCHDOG_TIMOUT = 45;
 
-  private Socket socket = null;
   private ConnectorThread connectorThread;
 
   // New threads
@@ -95,7 +95,7 @@ public class TcpChannel extends NetChannel {
   @SuppressWarnings("unused")
   private int connectTimeout = 5 * 1000; // this should come from network preferences
   @SuppressWarnings("unused")
-  private int socketTimeout = 5 * 1000; // milliseconds.
+  private int socketTimeout = 30 * 1000; // milliseconds.
 
   private String gatewayHost = null;
   private int gatewayPort = -1;
@@ -105,7 +105,10 @@ public class TcpChannel extends NetChannel {
 
   private boolean shouldBeDisabled = false;
   private long flatLineTime;
-  private SocketChannel mSocketChannel;
+
+    private Socket mSocket;
+    private DataInputStream mDataInputStream;
+    private DataOutputStream mDataOutputStream;
 
   private final SenderQueue mSenderQueue;
 
@@ -526,7 +529,7 @@ public class TcpChannel extends NetChannel {
 
 
     // Called by the sender and receiver when they have an exception on the
-    // SocketChannel.  We only want to call reset() once, so we use an
+    // Socket.  We only want to call reset() once, so we use an
     // AtomicBoolean to keep track of whether we need to call it.
     public void socketOperationFailed()
     {
@@ -794,11 +797,11 @@ public class TcpChannel extends NetChannel {
         logger.error("channel exception", ex);
       }
       try {
-        if (this.parent.socket == null) {
+        if (this.parent.mSocket == null) {
           logger.error("channel closing without active socket}");
           return;
         }
-        this.parent.socket.close();
+        this.parent.mSocket.close();
       } catch (IOException ex) {
         logger.error("channel closing without proper socket", ex);
       }
@@ -825,40 +828,38 @@ public class TcpChannel extends NetChannel {
         return false;
       }
 
-      // Create the SocketChannel.
+      // Create the Socket
       InetSocketAddress sockAddr = new InetSocketAddress( ipaddr, port );
-      try
-      {
-        if ( parent.mSocketChannel != null )
-          logger.error( "Tried to create mSocketChannel when we already had one." );
-        parent.mSocketChannel = SocketChannel.open( sockAddr );
-        @SuppressWarnings("unused")
-        boolean result = parent.mSocketChannel.finishConnect();
-      }
-      catch ( AsynchronousCloseException ex ) {
+      try {
+        if ( parent.mSocket != null )
+          logger.error( "Tried to create mSocket when we already had one." );
+
+        parent.mSocket = new Socket();
+        parent.mSocket.connect( sockAddr, parent.connectTimeout );
+        parent.mSocket.setSoTimeout( parent.socketTimeout );
+
+        parent.mDataInputStream = new DataInputStream( parent.mSocket.getInputStream() );
+        parent.mDataOutputStream = new DataOutputStream( parent.mSocket.getOutputStream() );
+
+      } catch ( AsynchronousCloseException ex ) {
         logger.warn( "connection to {}:{} async close failure",
             new Object[]{ipaddr, port}, ex);
-        parent.mSocketChannel = null;
+        parent.mSocket = null;
         return false;
-      }
-      catch ( ClosedChannelException ex ) {
+      } catch ( ClosedChannelException ex ) {
         logger.info( "connection to {}:{} closed channel failure",
             new Object[]{ipaddr, port}, ex);
-        parent.mSocketChannel = null;
+        parent.mSocket = null;
         return false;
-      }
-      catch ( ConnectException ex )
-      {
+      } catch ( ConnectException ex ) {
         logger.info( "connection failed to {}:{}",
             new Object[]{ipaddr, port}, ex);
-        parent.mSocketChannel = null;
+        parent.mSocket = null;
         return false;
-      }
-      catch ( Exception ex )
-      {
+      } catch ( Exception ex ) {
         logger.warn( "connection to {}:{} failed",
             new Object[]{ipaddr, port}, ex);
-        parent.mSocketChannel = null;
+        parent.mSocket = null;
         return false;
       }
 
@@ -886,13 +887,13 @@ public class TcpChannel extends NetChannel {
       parent.mSender = new SenderThread( this,
           parent,
           parent.mSenderQueue,
-          parent.mSocketChannel );
+          parent.mSocket );
       parent.mSender.start();
 
       // Create the receiving thread.
       if ( parent.mReceiver != null )
         logger.error( "Tried to create Receiver when we already had one." );
-      parent.mReceiver = new ReceiverThread( this, parent, parent.mSocketChannel );
+      parent.mReceiver = new ReceiverThread( this, parent, parent.mSocket );
       parent.mReceiver.start();
 
       // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
@@ -922,22 +923,12 @@ public class TcpChannel extends NetChannel {
 
         mSenderQueue.reset();
 
-        if ( parent.mSocketChannel != null )
+        if ( parent.mSocket != null )
         {
-          Socket s = parent.mSocketChannel.socket();
-          if ( s != null )
-          {
-            logger.debug( "Closing underlying socket." );
-            s.close();
+            logger.debug( "Closing socket..." );
+            parent.mSocket.close();
             logger.debug( "Done" );
-          }
-          else
-          {
-            logger.debug( "SocketChannel had no underlying socket!" );
-          }
-          logger.trace( "Closing SocketChannel..." );
-          parent.mSocketChannel.close();
-          parent.mSocketChannel = null;
+            parent.mSocket = null;
         }
 
         setIsAuthorized( false );
@@ -1103,13 +1094,13 @@ public class TcpChannel extends NetChannel {
     public SenderThread( ConnectorThread iParent,
         TcpChannel iChannel,
         SenderQueue iQueue,
-        SocketChannel iSocketChannel )
+        Socket iSocket )
     {
       super(new StringBuilder("Tcp-Sender-").append(Thread.activeCount()).toString());
       mParent = iParent;
       mChannel = iChannel;
       mQueue = iQueue;
-      mSocketChannel = iSocketChannel;
+      mSocket = iSocket;
       // create the logger 
       logger = LoggerFactory.getLogger("net." + channelName + ".sender");
     }
@@ -1128,7 +1119,7 @@ public class TcpChannel extends NetChannel {
       // Then send it on the socket channel. Upon getting a socket error,
       // notify our parent and go into an error state.
 
-      while ( mState != INetChannel.INTERRUPTED )
+      while ( mState != INetChannel.INTERRUPTED && !isInterrupted() )
       {
         AmmoGatewayMessage msg = null;
         try
@@ -1148,10 +1139,11 @@ public class TcpChannel extends NetChannel {
         {
           ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
           setSenderState( INetChannel.SENDING );
-          int bytesWritten = mSocketChannel.write( buf );
-          mBytesSent += bytesWritten;
+          int bytesToSend = buf.remaining();
+          mDataOutputStream.write( buf.array(), 0, bytesToSend );
+          mBytesSent += bytesToSend;
 
-          logger.info( "Send packet to Network, size ({})", bytesWritten );
+          logger.info( "Send packet to Network, size ({})", bytesToSend );
 
           //set time of heartbeat sent 
           if (msg.isHeartbeat()) {
@@ -1194,7 +1186,7 @@ public class TcpChannel extends NetChannel {
     private ConnectorThread mParent;
     private TcpChannel mChannel;
     private SenderQueue mQueue;
-    private SocketChannel mSocketChannel;
+    private Socket mSocket;
     private Logger logger = null;
   }
 
@@ -1205,18 +1197,18 @@ public class TcpChannel extends NetChannel {
   {
     public ReceiverThread( ConnectorThread iParent,
         TcpChannel iDestination,
-        SocketChannel iSocketChannel )
+        Socket iSocket )
     {
       super(new StringBuilder("Tcp-Receiver-").append(Thread.activeCount()).toString());
       mParent = iParent;
       mDestination = iDestination;
-      mSocketChannel = iSocketChannel;
+      mSocket = iSocket;
       logger = LoggerFactory.getLogger( "net." + channelName + ".receiver" );
       
     }
 
     /**
-     * Block on reading from the SocketChannel until we get some data.
+     * Block on reading from the Socket until we get some data.
      * Then examine the buffer to see if we have any complete packets.
      * If we have an error, notify our parent and go into an error state.
      */
@@ -1228,13 +1220,20 @@ public class TcpChannel extends NetChannel {
 
       ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
       bbuf.order( endian ); // mParent.endian
+      byte[] bbufArray = bbuf.array();
 
-      while ( mState != INetChannel.INTERRUPTED ) {
+        threadWhile:
+      while ( mState != INetChannel.INTERRUPTED && !isInterrupted() )
+      {
         try {
-          int bytesRead =  mSocketChannel.read( bbuf );
+            int position = bbuf.position();
+            int bytesRead = mDataInputStream.read( bbufArray, position, bbuf.remaining() );
+            if ( isInterrupted() )
+                break threadWhile; // exit thread
+            bbuf.position( position + bytesRead );
 
           mDestination.resetTimeoutWatchdog();
-          logger.debug( "SocketChannel getting header read bytes={}", bytesRead );
+          logger.debug( "Socket getting header read bytes={}", bytesRead );
           if (bytesRead == 0) continue;
 
           if (bytesRead < 0) {
@@ -1269,7 +1268,11 @@ public class TcpChannel extends NetChannel {
                   int rem =  bbuf.remaining();
                   size -= rem;
                   bbuf.clear();
-                  bytesRead =  mSocketChannel.read( bbuf );
+                  position = bbuf.position();
+                  bytesRead = mDataInputStream.read( bbufArray, position, bbuf.remaining() );
+                  if ( isInterrupted() )
+                      break threadWhile; // exit thread
+                  bbuf.position( position + bytesRead );
                   if (bytesRead < 0) {
                       logger.error("bytes read = {}, exiting", bytesRead);
                       setReceiverState( INetChannel.INTERRUPTED );
@@ -1297,7 +1300,11 @@ public class TcpChannel extends NetChannel {
                 offset += rem;
                 size -= rem;
                 bbuf.clear();
-                bytesRead =  mSocketChannel.read( bbuf );
+                position = bbuf.position();
+                bytesRead = mDataInputStream.read( bbufArray, position, bbuf.remaining() );
+                if ( isInterrupted() )
+                    break threadWhile; // exit thread
+                bbuf.position( position + bytesRead );
                 if (bytesRead < 0) {
                     logger.error("bytes read = {}, exiting", bytesRead);
                     setReceiverState( INetChannel.INTERRUPTED );
@@ -1353,8 +1360,7 @@ public class TcpChannel extends NetChannel {
     private int mState = INetChannel.TAKING; // FIXME
     private ConnectorThread mParent;
     private TcpChannel mDestination;
-    private SocketChannel mSocketChannel;
-    
+    private Socket mSocket;
     private Logger logger = null;
   }
 
