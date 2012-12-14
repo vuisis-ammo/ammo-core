@@ -14,7 +14,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <groupId>edu.vu.isis</groupId>
   <artifactId>ammocore-parent</artifactId>
   <packaging>pom</packaging>
-  <version>1.7.2-SNAPSHOT</version>
+  <version>1.7.3-SNAPSHOT</version>
   <name>ammocore parent project</name>
 
   <modules>
@@ -28,14 +28,14 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammolib</artifactId>
-        <version>1.7.1-SNAPSHOT</version>
+        <version>1.7.1</version>
         <type>jar</type>
       </dependency>
 
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammolib</artifactId>
-        <version>1.7.1-SNAPSHOT</version>
+        <version>1.7.1</version>
         <type>apklib</type>
       </dependency>
 
