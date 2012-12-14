@@ -197,9 +197,7 @@ public class AmmoService extends Service  {
         logger.info("ammo service on create {}",
                 Integer.toHexString(System.identityHashCode(this)));
         
-        this.impl = NetworkManager.INSTANCE;
-        this.impl.setContext(this);
-        this.impl.onCreate();
+        this.impl = NetworkManager.getInstance (this);
     }
 
 
