@@ -134,9 +134,6 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
     {
         int[] status = channel.getStatus();
         
-        logger.trace("The status received is of length {}", status.length);
-        logger.trace("The status are {}", status[0]);
-
         if ( status == null )
             return false;
         if ( status.length < 1 )
