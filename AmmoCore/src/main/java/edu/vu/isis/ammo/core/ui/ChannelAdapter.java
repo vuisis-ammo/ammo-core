@@ -133,7 +133,7 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
     private boolean onStatusChange( View item, ModelChannel channel )
     {
         int[] status = channel.getStatus();
-
+        
         if ( status == null )
             return false;
         if ( status.length < 1 )

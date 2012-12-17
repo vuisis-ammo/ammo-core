@@ -1632,13 +1632,21 @@ public class SerialChannel extends NetChannel
     {
         // FIXME: make a better state than PENDING.  At this point
         // they have *no* state since they don't exist.
+    	int connState = this.getState();
         int senderState = (mSender != null) ? mSender.getSenderState() : PENDING;
         int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : PENDING;
 
-        mChannelManager.statusChange( this,
-                                      getState(),
-                                      senderState,
-                                      receiverState );
+        try {
+            mChannelManager.statusChange(this,
+            		this.lastConnState, connState,
+                    this.lastSenderState, senderState,
+                    this.lastReceiverState, receiverState);
+        } catch (Exception ex) {
+            logger.error("Exception thrown in statusChange()", ex);
+        }
+        this.lastConnState = connState;
+        this.lastSenderState = senderState;
+        this.lastReceiverState = receiverState;
     }
 
 

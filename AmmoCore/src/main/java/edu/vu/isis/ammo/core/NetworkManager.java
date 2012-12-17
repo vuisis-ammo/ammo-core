@@ -99,17 +99,25 @@ public enum NetworkManager  implements INetworkService,
 	INSTANCE;
 	
 	private Context context = null;
-	public void setContext(final Context context) {
-		this.context = context;
+	public static NetworkManager getInstance (final Context context) {
+		if (INSTANCE.context == null) {
+			INSTANCE.context = context;
+			INSTANCE.onCreate();
+		}
+		
+		return INSTANCE;
 	}
-	public Context getContext() {
-		return this.context;
+	
+	public Context getContext () {
+		return context;
 	}
+	
 	
     // ===========================================================
     // Constants
     // ===========================================================
-    public static final Logger logger = LoggerFactory.getLogger("service");
+    public static final Logger logger = LoggerFactory.getLogger("network.manager");
+
 
     public static final Intent LAUNCH = new Intent(
             "edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
@@ -276,7 +284,7 @@ public enum NetworkManager  implements INetworkService,
      * from the SystemPreferences.
      */
    
-    public void onCreate() {
+    private void onCreate() {
         logger.info("ammo service on create {}",
                 Integer.toHexString(System.identityHashCode(this)));
 
@@ -515,6 +523,9 @@ public enum NetworkManager  implements INetworkService,
             this.mReceiverRegistrar.unregisterReceiver(this.myNetworkReceiver);
             this.mReceiverRegistrar.unregisterReceiver(this.mReadyResourceReceiver);
         }
+        
+        if (context != null)
+        	context = null;
     }
 
     // ===========================================================
@@ -1433,8 +1444,9 @@ public enum NetworkManager  implements INetworkService,
      * application who acts as a broker.
      */
     @Override
-    public void statusChange(NetChannel channel, int connStatus,
-            int sendStatus, int recvStatus) {
+	public void statusChange(NetChannel channel, int lastConnStatus,
+			int connStatus, int lastSendStatus, int sendStatus,
+			int lastRecvStatus, int recvStatus) {
         if (logger.isDebugEnabled()) {
             logger.debug("change channel=[{}] status=[{}]", channel.name,
                     NetChannel.showState(connStatus));
@@ -1444,9 +1456,15 @@ public enum NetworkManager  implements INetworkService,
         if (modelChannel == null) {
             logger.debug("no model for channel=[{}]", channel.name);
         } else {
-            modelChannel.setStatus(new int[] {
-                    connStatus, sendStatus, recvStatus
-            });
+			modelChannel.setStatus(new int[] { connStatus, sendStatus, recvStatus });
+		}
+
+		if (lastConnStatus != connStatus) {
+			final Intent broadcastIntent = new Intent(
+					AmmoIntents.AMMO_ACTION_CONNECTION_STATUS_CHANGE);
+			broadcastIntent.putExtra(AmmoIntents.EXTRA_CHANNEL, channel.name);
+			broadcastIntent.putExtra(AmmoIntents.EXTRA_CONNECT_STATUS, connStatus);
+			this.context.sendBroadcast(broadcastIntent);
         }
 
         switch (connStatus) {

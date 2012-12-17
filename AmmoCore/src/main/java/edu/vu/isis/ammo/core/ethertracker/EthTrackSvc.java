@@ -136,9 +136,9 @@ public class EthTrackSvc extends ServiceEx {
         if (msg.indexOf("Up") > 0) {
     	    icon = R.drawable.netstatus_up;
     	    contentText = "Network Up";
-            } else if (msg.indexOf("Down") > 0) {
+        } else if (msg.indexOf("Down") > 0) {
     	    icon = R.drawable.netstatus_down;
-    	    contentText = "Network Down";
+    	    contentText = "Network Down";    	    
         }        
 
         Notification notification = new Notification(icon, tickerText, when);
@@ -163,9 +163,11 @@ public class EthTrackSvc extends ServiceEx {
         if (msg.indexOf("Up") > 0) {
             mIsLinkUp = true;
             broadcastIntent.putExtra("state",AmmoIntents.LINK_UP);
+    	    logger.trace("Network Link Up");            
         } else if (msg.indexOf("Down") > 0) {
             mIsLinkUp = false;
             broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
+    	    logger.trace("Network Link Down");
         }
         this.sendBroadcast(broadcastIntent);
 

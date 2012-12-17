@@ -161,13 +161,18 @@ public class DistributorThread extends Thread {
         }
 
         private AtomicBoolean terminate = new AtomicBoolean(false);
+        
+        private AtomicBoolean channelStatus = new AtomicBoolean(false);
+        
+        void setChannelStatus (boolean status) {
+        	channelStatus.set(status);
+        }
 
         public void terminate() {
             terminate.set(true);
         }
 
         public void run() {
-            if (terminate.get() != true)
                 updateNotification();
         }
 
@@ -184,20 +189,32 @@ public class DistributorThread extends Thread {
 
             int icon = 0;
             // figure out the icon ...
-            if (sent == 0 && recv == 0)
-                icon = R.drawable.nodata;
-            else if (sent > 0 && recv == 0)
-                icon = R.drawable.up;
-            else if (sent == 0 && recv > 0)
-                icon = R.drawable.down;
-            else if (sent > 0 && recv > 0)
+            if (sent == 0 && recv == 0) {
+                logger.trace("No data in the last interval");
+                icon = R.drawable.nodata;                
+            }
+            else if (sent > 0 && recv == 0) {
+            	logger.trace("Only sending in the last interval");
+                icon = R.drawable.sending;
+            }
+            else if (sent == 0 && recv > 0) {
+            	logger.trace("Only receiving in the last interval");
+                icon = R.drawable.receiving;
+            }
+            else if (sent > 0 && recv > 0) {
+            	logger.trace("Sending and Receiving in the last interval");
                 icon = R.drawable.alldata;
+            }
 
             String contentText = "Sent " + total_sent + " Received " + total_recv;
             
-            // check if the channels have been deactivated or not
-            if (terminate.get () == true)
-            	return;
+            if (channelStatus.get() == false) {
+                int icon1 = R.drawable.channel_down;
+//                current_icon_id = IP_NOTIFY_ID;
+                logger.info("Ammo Channel Disconnected");
+                notifyIcon("Omma Channel Down", "Data Channel", "Offline", icon1);
+                return;
+            }
             
             parent.notifyIcon("", "Data Channel", contentText, icon);
 
@@ -207,6 +224,10 @@ public class DistributorThread extends Thread {
 
             parent.networkManager.notifyMsg.postDelayed(this, 30000);
         }
+
+		public boolean getChannelStatus() {
+			return channelStatus.get();
+		}
     }
 
     public DistributorDataStore store() {
@@ -242,10 +263,6 @@ public class DistributorThread extends Thread {
 
     private void setupNotificationIcon(String channelName, ChannelChange change)
     {
-        String ns = Context.NOTIFICATION_SERVICE;
-        NotificationManager mNotificationManager =
-                (NotificationManager) context.getSystemService(ns);
-
         if (change == ChannelChange.DEACTIVATE)
         {
         	logger.debug("Channel: {} deactivated", channelName);
@@ -256,39 +273,28 @@ public class DistributorThread extends Thread {
             }
 
             // none of the channels are active ...
-        	logger.debug("None of the channels are active, take out icon");
+        	logger.debug("All Ammo Channels Deactivated");
             if (notify != null) {
-                this.networkManager.notifyMsg.removeCallbacks(notify);
+            	notify.setChannelStatus(false);
                 notify.terminate();
-                notify = null;
             }
-            mNotificationManager.cancel(current_icon_id);
+            
             return;
         }
 
-        int icon;
-
-        if (channelName.equals("serial"))
-        {
-            // current_icon = R.drawable.notify_icon_152_small;
-
-            // right now using the same icon ... once we get new icons, replace
-            // this ..
-            icon = R.drawable.alldata;
-            current_icon_id = SERIAL_NOTIFY_ID;
-        }
-        else
-        {
-            // current_icon = R.drawable.notify_icon_wr_small;
-            icon = R.drawable.alldata;
-            current_icon_id = IP_NOTIFY_ID;
-        }
-
-        notifyIcon(channelName + " Channel Up", "Data Channel", "Online", icon);
-
-        if (notify == null) {
-            notify = new NotifyMsgNumber(this);
-            this.networkManager.notifyMsg.postDelayed(notify, 15000);
+        synchronized (this) {
+        	logger.trace("Ammo Channel {} Activated", channelName);
+        	
+        	if (notify == null) {
+        		logger.trace("Creating NotifyMsgNumber");
+        		notify = new NotifyMsgNumber(this);
+        	}        	
+        	
+        	if (notify.getChannelStatus() != true) {
+        		logger.trace("Post Delayed Registration");
+        		notify.setChannelStatus(true);
+        		this.networkManager.notifyMsg.postDelayed(notify, 5000);
+        	}
         }
     }
 
@@ -297,6 +303,8 @@ public class DistributorThread extends Thread {
             String contentText,
             int icon)
     {
+    	logger.trace("Creating a notification, tickerTxt: {}", tickerTxt);
+    	
         String ns = Context.NOTIFICATION_SERVICE;
         NotificationManager mNotificationManager =
                 (NotificationManager) context.getSystemService(ns);
