@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.preference.PreferenceManager;
@@ -161,16 +162,25 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
         {
 	        text_one = (TextView)row.findViewById(R.id.multicast_status_one);
 	        text_two = (TextView)row.findViewById(R.id.multicast_status_two);
+
+	        text_send = (TextView) row.findViewById( R.id.multicast_send_stats );
+	        text_receive = (TextView) row.findViewById( R.id.multicast_receive_stats );
         }
         else if ( channelType.equals(ReliableMulticast.KEY) )
         {
 	        text_one = (TextView)row.findViewById(R.id.reliable_multicast_status_one);
 	        text_two = (TextView)row.findViewById(R.id.reliable_multicast_status_two);
+
+	        text_send = (TextView) row.findViewById( R.id.reliable_multicast_send_stats );
+	        text_receive = (TextView) row.findViewById( R.id.reliable_multicast_receive_stats );
         }
         else if ( channelType.equals(Serial.KEY) )
         {
 	        text_one = (TextView) row.findViewById(R.id.serial_status_one);
 	        text_two = (TextView) row.findViewById(R.id.serial_status_two);
+
+	        text_send = (TextView) row.findViewById( R.id.serial_send_stats );
+	        text_receive = (TextView) row.findViewById( R.id.serial_receive_stats );
         }
 
         if ( text_one == null ) {
@@ -182,6 +192,13 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
             text_two.setVisibility(TextView.INVISIBLE);
 
         text = text_one;
+
+        // There isn't enough room for these stats when we're in
+        // portrait mode, so hide the widgets in that case.
+        if ( res.getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT ) {
+            text_send.setVisibility( View.INVISIBLE );
+            text_receive.setVisibility( View.INVISIBLE );
+        }
 
         if ( parent.netlinkAdvancedView )
         {
@@ -230,6 +247,10 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel>
                 text_two.setText( errorString.toString() );
                 text_two.setVisibility( TextView.VISIBLE );
 
+                if ( text_send != null )
+                    text_send.setText( ch.getSendBitStats());
+                if ( text_receive != null )
+                    text_receive.setText( ch.getReceiveBitStats());
             } else {
                 // Channels that are not Serial.
                 switch (status[0]) {
