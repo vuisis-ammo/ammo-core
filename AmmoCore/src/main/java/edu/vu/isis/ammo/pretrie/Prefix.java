@@ -27,7 +27,7 @@ public class Prefix {
 					offset, length);
 			throw new IllegalArgumentException("endpoint exceeds parameters");
 		}
-		if (array.length <= offset) {
+		if (array.length < offset) {
 			logger.error("offset too small: {}", offset);
 			throw new IllegalArgumentException("offset too small");
 		}
@@ -142,39 +142,20 @@ public class Prefix {
 
 	/**
 	 * Get the byte currently under the offset.
+	 * If there are no bytes in the prefix then the current byte is undefined.
+	 * As the array is of bytes any integer which is not a valid byte may be returned,
+	 * typically this will be -1;
 	 * 
 	 * @return
 	 */
 	public int getCurrentByte() {
 		if (LOG_ON) logger.trace("get current byte {} {}", this.array.length, this.offset);
+		if (this.length < 1) return -1;
 		return this.array[this.offset];
 	}
 
 	public Prefix increment() {
 		return new Prefix(this.array, this.offset + 1, this.length);
-	}
-
-	/**
-	 * Check to see if that Prefix is a prefix of this Prefix. If it is the
-	 * offset of the first non-matching byte.
-	 * 
-	 * @param that
-	 * @return <0 indicates a complete match
-	 * @throws Exception
-	 */
-	public int partialMatchOffset(final Prefix that) throws IllegalArgumentException {
-		if (this.offset != that.offset) {
-			throw new IllegalArgumentException("offsets do not match");
-		}
-		int sharedOffset = this.offset;
-		final int minLength = (this.length < that.length) ? this.length
-				: that.length;
-		for (int sharedLength = 0; sharedLength < minLength; sharedLength++, sharedOffset++) {
-			if (this.array[sharedOffset] != that.array[sharedOffset]) {
-				return sharedOffset;
-			}
-		}
-		return sharedOffset;
 	}
 	
 
@@ -267,5 +248,87 @@ public class Prefix {
 		return sb;
 	}
 
+
+
+	/**
+	 * Check to see if that Prefix is a prefix of this Prefix. If it is the
+	 * offset of the first non-matching byte.
+	 * 
+	 * @param that
+	 * @return <0 indicates a complete match
+	 * @throws Exception
+	 */
+	public Match match(final Prefix that) throws IllegalArgumentException {
+		if (this.offset != that.offset) {
+			throw new IllegalArgumentException("offsets do not match");
+		}
+		if (this.array[0] != that.array[0]) {
+			return new Match(Type.A_NOT_B, 0);
+		}
+		int sharedOffset = this.offset;
+		if (this.length == that.length) {
+			for (int sharedLength = 0; sharedLength < this.length-1; sharedLength++, sharedOffset++) {
+				if (this.array[sharedOffset] != that.array[sharedOffset]) {
+					return new Match(Type.A_B, sharedOffset);
+				}
+			}
+			if (this.array[this.length] == that.array[that.length]) {
+				return new Match(Type.A_EQ_B, this.length);
+			}
+			return new Match(Type.A_AT_B, sharedOffset);
+		} 
+		final Type candidateType;
+		final Prefix a;
+		final Prefix b;
+		if (this.length < that.length) {
+			candidateType = Type.A_LT_B;
+			a = this;
+			b = that;
+		} else {
+			candidateType = Type.A_GT_B;
+			a = that;
+			b = this;
+		}
+		for (int sharedLength = 0; sharedLength < a.length; sharedLength++, sharedOffset++) {
+			if (a.array[sharedOffset] != b.array[sharedOffset]) {
+				return new Match(Type.A_B, sharedOffset);
+			}
+		}
+		return new Match(candidateType, sharedOffset);
+	}
+	/**
+	<p>
+	 * The relationships of the two prefixes A & B
+	 * </ul>
+	 */
+	public enum Type {
+		/** prefix is not set */
+		NULL("null"), 
+		/** A equals B (they are proper prefixes of each other) : replace value */
+		A_EQ_B("A = B"), 
+		/** A prefixes B before last byte */
+		A_LT_B("A < B"), 
+		/** B prefixes A before last byte */
+		A_GT_B("A > B"), 
+		/** A and B share differ only at the last byte */
+		A_AT_B("A >@< B"), 
+		/** A and B share a common prefix before last byte */
+		A_B("A >< B"),
+        /** A and B do not share a common prefix */
+		A_NOT_B("A ! B");
+		
+		final public String text;
+		private Type(final String text) { 
+			this.text = text;
+		}   
+	}
+	public static class Match {
+		public final Type type;
+		public final int position;
+		public Match(final Type type, final int position) {
+			this.type = type;
+			this.position = position;
+		}
+	}
 
 }
