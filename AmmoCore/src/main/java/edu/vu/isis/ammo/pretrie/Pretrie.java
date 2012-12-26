@@ -479,8 +479,9 @@ public class Pretrie<V> {
 			if (this.prefix.equals(key)) {
 				return this.getValue();
 			}
-			if (this.branch == null)
-				return null;
+			if (this.branch == null) {
+				return this.getValue();
+			}
 			final int endOffset = this.prefix.getEndOffset();
 			final Prefix newKey = key.trimOffset(endOffset);
 			return this.branch.get(newKey);
