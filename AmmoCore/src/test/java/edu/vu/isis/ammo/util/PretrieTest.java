@@ -24,7 +24,7 @@ public class PretrieTest {
 
 	@Test
 	public void basicPutAndGet() {
-		final Pretrie<String> pretrie = new Pretrie<String>();
+		final Pretrie<String> pretrie = new Pretrie<String>("empty");
 		logger.debug("begining 1st put set");
 		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'e' }, "abcde");
 		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'f' }, "abcdf");
@@ -67,7 +67,7 @@ public class PretrieTest {
 	@SuppressWarnings("deprecation")
 	@Test
 	public void basicInsertAndLongestPrefix() {
-		final Pretrie<String> pretrie = new Pretrie<String>();
+		final Pretrie<String> pretrie = new Pretrie<String>("empty");
 		try {
 			pretrie.insert("abcde", "abcde");
 

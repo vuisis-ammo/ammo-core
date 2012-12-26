@@ -259,7 +259,11 @@ public class Prefix {
 	 * @throws Exception
 	 */
 	public Match match(final Prefix that) throws IllegalArgumentException {
+		if (this == that) {
+			return new Match(Type.A_EQ_B, this.offset + this.length - 1);
+		}
 		if (this.offset != that.offset) {
+			logger.error("offsets do not match {} {}", this, that);
 			throw new IllegalArgumentException("offsets do not match");
 		}
 		if (this.array[0] != that.array[0]) {
@@ -267,15 +271,16 @@ public class Prefix {
 		}
 		int sharedOffset = this.offset;
 		if (this.length == that.length) {
-			for (int sharedLength = 0; sharedLength < this.length-1; sharedLength++, sharedOffset++) {
+			for (int sharedLength = 0; sharedLength < this.length-2; sharedLength++, sharedOffset++) {
 				if (this.array[sharedOffset] != that.array[sharedOffset]) {
 					return new Match(Type.A_B, sharedOffset);
 				}
 			}
-			if (this.array[this.length] == that.array[that.length]) {
-				return new Match(Type.A_EQ_B, this.length);
+			sharedOffset++;
+			if (this.array[sharedOffset] == that.array[sharedOffset]) {
+				return new Match(Type.A_EQ_B, sharedOffset);
 			}
-			return new Match(Type.A_AT_B, sharedOffset);
+			return new Match(Type.A_B, sharedOffset);
 		} 
 		final Type candidateType;
 		final Prefix a;
@@ -310,8 +315,6 @@ public class Prefix {
 		A_LT_B("A < B"), 
 		/** B prefixes A before last byte */
 		A_GT_B("A > B"), 
-		/** A and B share differ only at the last byte */
-		A_AT_B("A >@< B"), 
 		/** A and B share a common prefix before last byte */
 		A_B("A >< B"),
         /** A and B do not share a common prefix */
@@ -324,10 +327,13 @@ public class Prefix {
 	}
 	public static class Match {
 		public final Type type;
-		public final int position;
-		public Match(final Type type, final int position) {
+		public final int offset;
+		public Match(final Type type, final int offset) {
 			this.type = type;
-			this.position = position;
+			this.offset = offset;
+		}
+		public String toString() {
+			return new StringBuilder().append(type).append(":").append(this.offset).toString();
 		}
 	}
 

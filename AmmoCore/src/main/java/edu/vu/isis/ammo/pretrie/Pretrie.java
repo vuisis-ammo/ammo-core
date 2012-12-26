@@ -59,11 +59,12 @@ public class Pretrie<V> {
 		MINOR_SIZE = 8;
 		MAJOR_SIZE = 32;
 	}
-	private Branch<V> trunk;
+	final private Branch<V> trunk;
+	private V bud;
 
-	public Pretrie() {
+	public Pretrie(final V base) {
 		this.trunk = new Branch<V>(null);
-		this.trunk.put(Prefix.newInstance(new byte[0]), (V) null);
+		this.bud = base;
 	}
 
 	private final static String stringEncoding = "UTF-8";
@@ -100,12 +101,16 @@ public class Pretrie<V> {
 	/**
 	 * Different methods for inserting values into the pretrie.
 	 * 
-	 * @param key
+	 * @param prefix
 	 * @param value
 	 * @return
 	 */
-	public void put(final Prefix key, final V value) {
-		this.trunk = this.trunk.put(key, value);
+	public void put(final Prefix prefix, final V value) {
+		if (prefix == null) {
+			this.bud = value;
+		}
+		this.trunk.put(prefix, value);
+		logger.debug("put prefix {} complete", this);
 	}
 
 	public void put(final byte[] prefix, final V value) {
@@ -143,6 +148,9 @@ public class Pretrie<V> {
 	}
 
 	public StringBuilder toString(final StringBuilder sb) {
+		if (this.bud != null) {
+			sb.append('\n').append("[ () ] {").append(this.bud).append('}');
+		}
 		return this.trunk.toStringBuilder(sb);
 	}
 
@@ -169,7 +177,7 @@ public class Pretrie<V> {
 	}
 
 	public void putValue(final Prefix prefix, final V value) {
-		this.trunk = this.trunk.put(prefix, value);
+		this.trunk.put(prefix, value);
 	}
 
 	/**
@@ -185,8 +193,12 @@ public class Pretrie<V> {
 		/** The prefix to this map */
 		private final Stem<V> parent;
 		private final Twig<V>[] twigSet;
-		private V bud;
 
+		/**
+		 * Get the stem which references this branch.
+		 * 
+		 * @return
+		 */
 		public Stem<V> getStem() {
 			return this.parent;
 		}
@@ -206,7 +218,6 @@ public class Pretrie<V> {
 			logger.trace("constructor : 1");
 			this.parent = parent;
 			this.twigSet = new Twig[MAJOR_SIZE];
-			this.bud = null;
 		}
 
 		/**
@@ -218,7 +229,7 @@ public class Pretrie<V> {
 		public V get(final Prefix key) {
 			final Twig<V> twig = this.acquireTwig(key, false);
 			if (twig == null) {
-				return this.bud;
+				return null;
 			}
 			return twig.get(key);
 		}
@@ -233,13 +244,16 @@ public class Pretrie<V> {
 		 * @return did the insert succeed
 		 */
 		public Branch<V> put(final Prefix prefix, final V value) {
-			logger.trace("put w/ prefix");
+			logger.trace("put w/ prefix {}", prefix);
 			final Twig<V> twig = this.acquireTwig(prefix, true);
-			if (twig == null) {
-				this.bud = value;
-				return this;
-			}
 			twig.put(prefix, value);
+			return this;
+		}
+
+		public Branch<V> put(final Stem<V> stem) {
+			logger.trace("put w/ prefix {}", stem.prefix);
+			final Twig<V> twig = this.acquireTwig(stem.prefix, true);
+			twig.put(stem);
 			return this;
 		}
 
@@ -252,7 +266,8 @@ public class Pretrie<V> {
 		private Twig<V> acquireTwig(final Prefix prefix,
 				final boolean shouldAllocate) {
 			final int currentByte = prefix.getCurrentByte();
-			if (currentByte < 0) return null;
+			if (currentByte < 0)
+				return null;
 			final int index = currentByte >>> MAJOR_SHIFT;
 
 			if (shouldAllocate && this.twigSet[index] == null) {
@@ -261,6 +276,14 @@ public class Pretrie<V> {
 				return twig;
 			}
 			return this.twigSet[index];
+		}
+		
+		void updateParentage(final Stem<V> stem) {
+			for (Twig<V> twig : this.twigSet) {
+				if (twig == null) continue;
+				logger.trace("stem of branch {} {}", twig.parent.parent.hashCode(), stem.hashCode());
+				twig.updateParentage(stem);
+			}
 		}
 
 		public V remove(final Prefix prefix) {
@@ -276,6 +299,7 @@ public class Pretrie<V> {
 		public StringBuilder toStringBuilder(final StringBuilder sb) {
 			if (LOG_ON)
 				logger.trace("toString: branch {}", this.hashCode());
+
 			for (Twig<V> twig : this.twigSet) {
 				if (twig == null)
 					continue;
@@ -284,12 +308,6 @@ public class Pretrie<V> {
 			if (LOG_ON)
 				logger.trace("toString: branch {} exit", this.hashCode());
 			return sb;
-		}
-
-		void putParentStem(final Stem<V> parent) {
-			for (Twig<V> twig : this.twigSet) {
-				if (twig != null) twig.putParentStem(parent);
-			}
 		}
 
 	}
@@ -304,13 +322,11 @@ public class Pretrie<V> {
 				.getLogger(Twig.class);
 		private final Branch<V> parent;
 		private final Stem<V>[] stemSet;
-		private Stem<V> stem;
 
 		@SuppressWarnings("unchecked")
 		public Twig(final Branch<V> branch) {
 			logger.trace("constructor");
 			this.parent = branch;
-			this.stem = branch.getStem();
 			this.stemSet = (Stem<V>[]) new Stem[MINOR_SIZE];
 		}
 
@@ -323,20 +339,23 @@ public class Pretrie<V> {
 		 */
 		Stem<V> acquireStem(final Prefix prefix, final boolean shouldAllocate) {
 			final int currentByte = prefix.getCurrentByte();
-			if (currentByte < 0) return null;
+			if (currentByte < 0)
+				return null;
 			final int index = currentByte & MINOR_BITMASK;
 
 			if (shouldAllocate && this.stemSet[index] == null) {
-				final Stem<V> stem = new Stem<V>(this.stem, prefix);
+				final Stem<V> stem = new Stem<V>(this.parent.getStem(), prefix);
 				this.stemSet[index] = stem;
 				return stem;
 			}
 			return this.stemSet[index];
 		}
-		
-		void putParentStem(final Stem<V> parent) {
+
+		void updateParentage(final Stem<V> parent) {
 			for (Stem<V> child : this.stemSet) {
-				if (child != null) child.parent = parent;
+				if (child == null) continue;
+				logger.trace("stem of branch {} {}", child.parent.hashCode(), parent.hashCode());
+				child.parent = parent;
 			}
 		}
 
@@ -357,9 +376,20 @@ public class Pretrie<V> {
 		 * null is returned.
 		 */
 		Stem<V> put(final Prefix prefix, final V value) {
-			logger.trace("put w/ value");
+			logger.trace("put w/ prefix {}", prefix);
 			final Stem<V> stem = this.acquireStem(prefix, true);
 			return stem.put(prefix, value);
+		}
+
+		Stem<V> put(final Stem<V> stem) {
+			logger.trace("put stem {}", stem.prefix);
+			final int currentByte = stem.prefix.getCurrentByte();
+			if (currentByte < 0) {
+				return null;
+			}
+			final int index = currentByte & MINOR_BITMASK;
+			this.stemSet[index] = stem;
+			return stem;
 		}
 
 		@Override
@@ -392,8 +422,11 @@ public class Pretrie<V> {
 		private static final Logger logger = LoggerFactory
 				.getLogger(Stem.class);
 		private Prefix prefix;
+		/** the prefix stem which this stem extends */
 		private Stem<V> parent;
+		/** the branch leading to other descendant stems */
 		private Branch<V> branch;
+		/** the value stored at the node */
 		private V value;
 
 		public Stem(final Stem<V> parent, final Prefix prefix) {
@@ -437,7 +470,7 @@ public class Pretrie<V> {
 		 */
 		V get(final Prefix key) {
 			logger.trace("get {}", key);
-			if (! this.prefix.isPrefixOf(key)) {
+			if (!this.prefix.isPrefixOf(key)) {
 				if (this.parent == null) {
 					return null;
 				}
@@ -446,7 +479,8 @@ public class Pretrie<V> {
 			if (this.prefix.equals(key)) {
 				return this.getValue();
 			}
-			if (this.branch == null) return null;
+			if (this.branch == null)
+				return null;
 			final int endOffset = this.prefix.getEndOffset();
 			final Prefix newKey = key.trimOffset(endOffset);
 			return this.branch.get(newKey);
@@ -459,7 +493,7 @@ public class Pretrie<V> {
 		 * 
 		 * 
 		 * @param that_prefix
-		 * @param position
+		 * @param offset
 		 * @param value
 		 * @return
 		 */
@@ -467,71 +501,101 @@ public class Pretrie<V> {
 			logger.trace("put value w/ prefix {}", that_prefix);
 			final Prefix.Match match;
 			try {
-				match = (this.prefix == null) ? new Match(Type.NULL, 0) : this.prefix.match(that_prefix);
+				match = (this.prefix == null) ? new Match(Type.NULL, 0)
+						: this.prefix.match(that_prefix);
 			} catch (IllegalArgumentException e) {
 				logger.error("bad match");
 				return null;
 			}
+
+			logger.trace("prefix match {}", match);
 			switch (match.type) {
 			case NULL:
-				logger.trace("prefix has not been set");
 				this.prefix = that_prefix;
-				this.value = value;
-				this.branch = null;
 				this.parent = null;
+				this.branch = null;
+				this.value = value;
 				return this;
 			case A_EQ_B:
-				logger.trace("A = B");
 				this.value = value;
 				return this;
-			case A_AT_B: 
-				if (this.branch != null) {
-					this.branch.put(that_prefix, value);
-					return this;
-				}
 			case A_LT_B: {
-				final Prefix rightPrefix = that_prefix.trimOffset(match.position);
+				final Prefix rightPrefix = that_prefix.trimOffset(match.offset);
 				if (this.branch == null) {
 					this.branch = new Branch<V>(this);
 				}
-				this.parent.branch.put(rightPrefix, value); 
-				return this.parent;
+				this.branch.put(rightPrefix, value);
+				return this;
 			}
 			case A_GT_B: {
-				final Prefix beforePrefix = this.prefix.trimLength(match.position);
-				this.parent = new Stem<V>(this.parent, beforePrefix);
-				this.parent.branch =  new Branch<V>(this.parent);
-				
-				this.prefix = this.prefix.trimOffset(match.position);
-				this.parent.prefix = this.prefix.trimOffset(match.position);
-				return this.parent;
+				final Prefix beforePrefix = this.prefix
+						.trimLength(match.offset);
+				final Prefix leftPrefix = this.prefix.trimOffset(match.offset);
+
+				final Stem<V> oldParent = this.parent;
+				final Stem<V> newParent = this;
+
+				final Branch<V> oldBranch = this.branch;
+				final Branch<V> newBranch = new Branch<V>(this);
+
+				final V oldValue = this.value;
+				final V newValue = value;
+
+				this.prefix = beforePrefix;
+				this.parent = oldParent;
+				this.branch = newBranch;
+				this.value = oldValue;
+
+				final Stem<V> newStem = new Stem<V>(this, leftPrefix);
+				newStem.prefix = leftPrefix;
+				newStem.parent = newParent;
+				newStem.branch = oldBranch;
+				newStem.value = oldValue;
+				newBranch.put(newStem);
+				if (oldBranch != null) {
+					oldBranch.updateParentage(newStem);
+				}
+				this.value = newValue;
+				return this;
 			}
 			case A_B: {
-				final Prefix beforePrefix = this.prefix.trimLength(match.position);
-				this.parent = new Stem<V>(this.parent, beforePrefix);
-				this.parent.branch =  new Branch<V>(this.parent);
-				
-				this.prefix = this.prefix.trimOffset(match.position);
-				
-				final Prefix rightPrefix = that_prefix.trimOffset(match.position);
-				this.parent.branch.put(rightPrefix, value); 
-				return this.parent;
+				final Prefix beforePrefix = this.prefix
+						.trimLength(match.offset);
+				final Prefix leftPrefix = this.prefix.trimOffset(match.offset);
+				final Prefix rightPrefix = that_prefix.trimOffset(match.offset);
+
+				final Stem<V> oldParent = this.parent;
+				final Stem<V> newParent = this;
+
+				final Branch<V> oldBranch = this.branch;
+				final Branch<V> newBranch = new Branch<V>(this);
+
+				final V oldValue = this.value;
+				final V newValue = value;
+
+				this.prefix = beforePrefix;
+				this.parent = oldParent;
+				this.branch = newBranch;
+				this.value = null;
+
+				final Stem<V> newStem = new Stem<V>(this, leftPrefix);
+				newStem.prefix = leftPrefix;
+				newStem.parent = newParent;
+				newStem.branch = oldBranch;
+				newStem.value = oldValue;
+				newBranch.put(newStem);
+				if (oldBranch != null) {
+					oldBranch.updateParentage(newStem);
+				}
+				newBranch.put(rightPrefix, newValue);
+				return this;
 			}
 			case A_NOT_B:
 				logger.error("you should never see A not B");
 				return null;
-				default:
-					return null;
+			default:
+				return null;
 			}
-		}
-
-		void put(final Prefix prefix, final Stem<V> that) {
-			logger.trace("put w/ leaf");
-			this.prefix = prefix;
-			this.branch = that.branch;
-			this.value = that.value;
-			this.parent = that;
-			if (this.branch != null) this.branch.putParentStem(this);
 		}
 
 		public V remove(final Prefix prefix) {
@@ -547,10 +611,8 @@ public class Pretrie<V> {
 		}
 
 		public StringBuilder toStringBuilder(final StringBuilder sb) {
-			if (LOG_ON)
-				logger.trace("toString: stem {} [{}] -> \"{}\"",
-						this.hashCode(), this.prefix, this.value);
-			sb.append('\n');
+			sb.append('\n').append('[').append(this.hashCode()).append(']');
+
 			if (this.prefix != null) {
 				this.prefix.toStringBuilder(sb);
 			} else {
@@ -559,16 +621,15 @@ public class Pretrie<V> {
 			if (this.value != null) {
 				sb.append('{').append(value).append('}');
 			}
+			if (this.parent != null) {
+				sb.append(" -> ");
+				sb.append(this.parent.hashCode());
+				// this.parent.toStringBuilder(sb);
+			}
 
 			if (this.branch != null) {
 				this.branch.toStringBuilder(sb);
 			}
-			if (this.parent != null) {
-				sb.append(" -> ");
-				this.parent.toStringBuilder(sb);
-			}
-			if (LOG_ON)
-				logger.trace("toString: stem {} exit", this.hashCode());
 			return sb;
 		}
 
