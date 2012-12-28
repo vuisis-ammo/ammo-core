@@ -1,6 +1,8 @@
 package edu.vu.isis.ammo.pretrie;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +41,7 @@ import edu.vu.isis.ammo.pretrie.Prefix.Type;
  *            the type of the values stored in the node.
  */
 
-public class Pretrie<V> {
+public class Pretrie<V> implements IPretrie<V> {
 	private static final Logger logger = LoggerFactory.getLogger(Pretrie.class);
 	private static final boolean LOG_ON = false;
 
@@ -79,6 +81,7 @@ public class Pretrie<V> {
 	 * @return
 	 * @throws UnsupportedEncodingException
 	 */
+	@Override
 	public void insert(final String prefix, final V value)
 			throws UnsupportedEncodingException {
 		this.put(prefix.getBytes(stringEncoding), value);
@@ -97,6 +100,10 @@ public class Pretrie<V> {
 			throws UnsupportedEncodingException {
 		return this.get(key.getBytes(stringEncoding));
 	}
+	
+	public V longestPrefix(final IKey key) {
+		return this.get(key.asBytes());
+	}
 
 	/**
 	 * Different methods for inserting values into the pretrie.
@@ -108,6 +115,11 @@ public class Pretrie<V> {
 	public void put(final Prefix prefix, final V value) {
 		if (prefix == null) {
 			this.bud = value;
+			return;
+		}
+		if (prefix.isEmpty()) {
+			this.bud = value;
+			return;
 		}
 		this.trunk.put(prefix, value);
 		logger.debug("put prefix {} complete", this);
@@ -123,14 +135,37 @@ public class Pretrie<V> {
 	}
 
 	/**
-	 * The preferred methods for retrieving values from the pretrie.
+	 * The methods for retrieving values from the pretrie.
 	 * 
 	 * @param key
 	 * @return
 	 */
 	public V get(final Prefix key) {
 		logger.trace("get by prefix key {}", key);
-		return this.trunk.get(key);
+		final Stem<V> stem = this.trunk.get(key);
+		return (stem == null) ? this.bud : stem.getValue();
+	}
+
+	/**
+	 * In most cases this is the preferred method for acquiring the value
+	 * associated with a prefix. This is because the value may be a set of
+	 * values and the specific value is not found in the longest matching
+	 * prefix.
+	 * 
+	 * @param key
+	 * @return
+	 */
+	public List<V> getList(final Prefix key) {
+		logger.trace("get by prefix key {}", key);
+		Stem<V> stem = this.trunk.get(key);
+		List<V> ancestry = new ArrayList<V>();
+		while (stem.parent != null) {
+			if (stem.value != null) {
+				ancestry.add(stem.value);
+			}
+			stem = stem.parent;
+		}
+		return ancestry;
 	}
 
 	public V get(final byte[] key) {
@@ -179,6 +214,13 @@ public class Pretrie<V> {
 	public void putValue(final Prefix prefix, final V value) {
 		this.trunk.put(prefix, value);
 	}
+	
+
+	@Override
+	public List<V> values() {
+		throw new UnsupportedOperationException("not yet implemented");
+	}
+
 
 	/**
 	 * The pretrie branch and twig are used to select the next stem.
@@ -226,7 +268,7 @@ public class Pretrie<V> {
 		 * @param key
 		 * @return
 		 */
-		public V get(final Prefix key) {
+		public Stem<V> get(final Prefix key) {
 			final Twig<V> twig = this.acquireTwig(key, false);
 			if (twig == null) {
 				return null;
@@ -277,11 +319,13 @@ public class Pretrie<V> {
 			}
 			return this.twigSet[index];
 		}
-		
+
 		void updateParentage(final Stem<V> stem) {
 			for (Twig<V> twig : this.twigSet) {
-				if (twig == null) continue;
-				logger.trace("stem of branch {} {}", twig.parent.parent.hashCode(), stem.hashCode());
+				if (twig == null)
+					continue;
+				logger.trace("stem of branch {} {}",
+						twig.parent.parent.hashCode(), stem.hashCode());
 				twig.updateParentage(stem);
 			}
 		}
@@ -353,8 +397,10 @@ public class Pretrie<V> {
 
 		void updateParentage(final Stem<V> parent) {
 			for (Stem<V> child : this.stemSet) {
-				if (child == null) continue;
-				logger.trace("stem of branch {} {}", child.parent.hashCode(), parent.hashCode());
+				if (child == null)
+					continue;
+				logger.trace("stem of branch {} {}", child.parent.hashCode(),
+						parent.hashCode());
 				child.parent = parent;
 			}
 		}
@@ -365,7 +411,7 @@ public class Pretrie<V> {
 		 * @param key
 		 * @return
 		 */
-		public V get(final Prefix key) {
+		public Stem<V> get(final Prefix key) {
 			final Stem<V> stem = this.acquireStem(key, false);
 			return stem.get(key);
 		}
@@ -468,19 +514,19 @@ public class Pretrie<V> {
 		 * @param key
 		 * @return
 		 */
-		V get(final Prefix key) {
+		Stem<V> get(final Prefix key) {
 			logger.trace("get {}", key);
 			if (!this.prefix.isPrefixOf(key)) {
 				if (this.parent == null) {
 					return null;
 				}
-				return this.parent.getValue();
+				return this.parent;
 			}
 			if (this.prefix.equals(key)) {
-				return this.getValue();
+				return this;
 			}
 			if (this.branch == null) {
-				return this.getValue();
+				return this;
 			}
 			final int endOffset = this.prefix.getEndOffset();
 			final Prefix newKey = key.trimOffset(endOffset);

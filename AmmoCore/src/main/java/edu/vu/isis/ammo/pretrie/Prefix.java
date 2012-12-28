@@ -8,10 +8,12 @@ import java.io.UnsupportedEncodingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class Prefix {
+import edu.vu.isis.ammo.pretrie.IPretrie.IKey;
+
+public class Prefix implements IPretrie.IKey {
 	private static final Logger logger = LoggerFactory.getLogger(Prefix.class);
 	private static final boolean LOG_ON = false;
-	
+
 	private final byte[] array;
 	private final int offset;
 	private final int length;
@@ -21,7 +23,8 @@ public class Prefix {
 	 * does not make a copy of the array, it just saves the reference.
 	 */
 	private Prefix(final byte[] array, final int offset, final int length) {
-		if (LOG_ON) logger.trace("consructor {} {} {}", array.length, offset, length);
+		if (LOG_ON)
+			logger.trace("consructor {} {} {}", array.length, offset, length);
 		if (array.length < (offset + length)) {
 			logger.error("array too small: [{}] < {} + {}", array.length,
 					offset, length);
@@ -49,6 +52,9 @@ public class Prefix {
 	}
 
 	public static Prefix newInstance(final byte[] array) {
+		if (array == null) {
+			return new Prefix(new byte[0], 0, 0);
+		}
 		return new Prefix(array, 0, array.length);
 	}
 
@@ -65,12 +71,13 @@ public class Prefix {
 	 * Value equality for byte arrays.
 	 */
 	public boolean equals(Object other) {
-		if (LOG_ON) logger.trace("equals");
+		if (LOG_ON)
+			logger.trace("equals");
 		if (!(other instanceof Prefix)) {
 			return false;
 		}
 		final Prefix that = (Prefix) other;
-		
+
 		if (this.length != that.length)
 			return false;
 
@@ -85,7 +92,8 @@ public class Prefix {
 	/**
 	*/
 	public int hashCode() {
-		if (LOG_ON) logger.trace("hash code");
+		if (LOG_ON)
+			logger.trace("hash code");
 		byte[] larray = array;
 
 		int hash = length;
@@ -141,23 +149,25 @@ public class Prefix {
 	}
 
 	/**
-	 * Get the byte currently under the offset.
-	 * If there are no bytes in the prefix then the current byte is undefined.
-	 * As the array is of bytes any integer which is not a valid byte may be returned,
-	 * typically this will be -1;
+	 * Get the byte currently under the offset. If there are no bytes in the
+	 * prefix then the current byte is undefined. As the array is of bytes any
+	 * integer which is not a valid byte may be returned, typically this will be
+	 * -1;
 	 * 
 	 * @return
 	 */
 	public int getCurrentByte() {
-		if (LOG_ON) logger.trace("get current byte {} {}", this.array.length, this.offset);
-		if (this.length < 1) return -1;
+		if (LOG_ON)
+			logger.trace("get current byte {} {}", this.array.length,
+					this.offset);
+		if (this.length < 1)
+			return -1;
 		return this.array[this.offset];
 	}
 
 	public Prefix increment() {
 		return new Prefix(this.array, this.offset + 1, this.length);
 	}
-	
 
 	/**
 	 * Get the offset of the end of the prefix.
@@ -168,14 +178,13 @@ public class Prefix {
 		return this.offset + this.length;
 	}
 
-
 	/**
 	 * Determine if this is a proper prefix of key.
 	 * 
 	 * @param key
 	 * @return
 	 */
-	public boolean isPrefixOf(Prefix key)  throws IllegalArgumentException {
+	public boolean isPrefixOf(Prefix key) throws IllegalArgumentException {
 		if (this.offset != key.offset) {
 			throw new IllegalArgumentException("offsets do not match");
 		}
@@ -190,7 +199,7 @@ public class Prefix {
 		}
 		return true;
 	}
-	
+
 	/**
 	 * Trim the end off the prefix by shortening the length.
 	 * 
@@ -248,8 +257,6 @@ public class Prefix {
 		return sb;
 	}
 
-
-
 	/**
 	 * Check to see if that Prefix is a prefix of this Prefix. If it is the
 	 * offset of the first non-matching byte.
@@ -271,7 +278,7 @@ public class Prefix {
 		}
 		int sharedOffset = this.offset;
 		if (this.length == that.length) {
-			for (int sharedLength = 0; sharedLength < this.length-2; sharedLength++, sharedOffset++) {
+			for (int sharedLength = 0; sharedLength < this.length - 2; sharedLength++, sharedOffset++) {
 				if (this.array[sharedOffset] != that.array[sharedOffset]) {
 					return new Match(Type.A_B, sharedOffset);
 				}
@@ -281,7 +288,7 @@ public class Prefix {
 				return new Match(Type.A_EQ_B, sharedOffset);
 			}
 			return new Match(Type.A_B, sharedOffset);
-		} 
+		}
 		final Type candidateType;
 		final Prefix a;
 		final Prefix b;
@@ -301,40 +308,76 @@ public class Prefix {
 		}
 		return new Match(candidateType, sharedOffset);
 	}
+
 	/**
-	<p>
-	 * The relationships of the two prefixes A & B
-	 * </ul>
+	 * <p>
+	 * The relationships of the two prefixes A & B </ul>
 	 */
 	public enum Type {
 		/** prefix is not set */
-		NULL("null"), 
+		NULL("null"),
 		/** A equals B (they are proper prefixes of each other) : replace value */
-		A_EQ_B("A = B"), 
+		A_EQ_B("A = B"),
 		/** A prefixes B before last byte */
-		A_LT_B("A < B"), 
+		A_LT_B("A < B"),
 		/** B prefixes A before last byte */
-		A_GT_B("A > B"), 
+		A_GT_B("A > B"),
 		/** A and B share a common prefix before last byte */
 		A_B("A >< B"),
-        /** A and B do not share a common prefix */
+		/** A and B do not share a common prefix */
 		A_NOT_B("A ! B");
-		
+
 		final public String text;
-		private Type(final String text) { 
+
+		private Type(final String text) {
 			this.text = text;
-		}   
+		}
 	}
+
 	public static class Match {
 		public final Type type;
 		public final int offset;
+
 		public Match(final Type type, final int offset) {
 			this.type = type;
 			this.offset = offset;
 		}
+
 		public String toString() {
-			return new StringBuilder().append(type).append(":").append(this.offset).toString();
+			return new StringBuilder().append(type).append(":")
+					.append(this.offset).toString();
 		}
 	}
 
+	@Override
+	public int get() {
+		return this.getCurrentByte();
+	}
+
+	@Override
+	public int size() {
+		return this.offset + this.length;
+	}
+
+	@Override
+	public int compareItem(int ix, IKey obj) {
+		if (!(obj instanceof Prefix))
+			return -1;
+		final Prefix that = (Prefix) obj;
+
+		if (this.array[ix] == that.array[ix])
+			return 0;
+		return (this.array[ix] < that.array[ix]) ? -1 : 1;
+	}
+
+	@Override
+	public byte[] asBytes() {
+		return this.array;
+	}
+
+	public boolean isEmpty() {
+		if (this.array.length < 1) return true;
+		if (this.offset + this.length < 1) return true;
+		return false;
+	}
 }

@@ -24,41 +24,49 @@ public class PretrieTest {
 
 	@Test
 	public void basicPutAndGet() {
-		final Pretrie<String> pretrie = new Pretrie<String>("empty");
-		logger.debug("begining 1st put set");
+		final Pretrie<String> pretrie = new Pretrie<String>(null);
+		logger.debug("put 1.0.0");
 		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'e' }, "abcde");
 		pretrie.put(new byte[] { 'a', 'b', 'c', 'd', 'f' }, "abcdf");
 		pretrie.put(new byte[] { 'a', 'b', 'c' }, "abc");
 		
-		logger.debug("begining 1st get");
+		logger.debug("get 1.1.0");
 		Assert.assertThat("hit lowest",
 				pretrie.get(new byte[] { 'a', 'b', 'c' }), 
 				CoreMatchers.is("abc"));
 
-		logger.debug("begining 2nd get");
+		logger.debug("get 1.2.0");
 		Assert.assertThat("just missed (no safetynet)",
 				pretrie.get(new byte[] { 'a', 'b' }), 
 				CoreMatchers.nullValue());
+		
+		logger.debug("put 2.0.0");
+		pretrie.put((byte[]) null, "empty");
+		
+		logger.debug("get 2.1.0");
+		Assert.assertThat("just missed (no safetynet)",
+				pretrie.get(new byte[] { 'a', 'b' }), 
+				CoreMatchers.is("empty"));
 
-		logger.debug("begining 2nd put set");
+		logger.debug("put 3.0.0");
 		pretrie.put(new byte[] { 'a' }, "a");
 		
-		logger.debug("begining 3rd get");
+		logger.debug("get 3.1.0");
 		Assert.assertThat("just missed (with safetynet)",
 				pretrie.get(new byte[] { 'a', 'b' }), 
 				CoreMatchers.is("a"));
 
-		logger.debug("begining 4th get");
+		logger.debug("get 3.2.0");
 		Assert.assertThat("over shot",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd' }),
 				CoreMatchers.is("abc"));
 
-		logger.debug("begining 5th get");
+		logger.debug("get 3.3.0");
 		Assert.assertThat("exact hit",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e' }),
 				CoreMatchers.is("abcde"));
 		
-		logger.debug("begining 6th get");
+		logger.debug("get 3.4.0");
 		Assert.assertThat("over shoot",
 				pretrie.get(new byte[] { 'a', 'b', 'c', 'd', 'e', 'g' }),
 				CoreMatchers.is("abcde"));
@@ -75,19 +83,24 @@ public class PretrieTest {
 			pretrie.insert("abc", "abc");
 
 			Assert.assertThat("just missed (no safetynet)",
-					pretrie.longestPrefix("ab"), CoreMatchers.nullValue());
+					pretrie.longestPrefix("ab"), 
+					CoreMatchers.is("empty"));
 
 			pretrie.insert("a", "a");
 			Assert.assertThat("just missed (with safetynet)",
-					pretrie.longestPrefix("ab"), CoreMatchers.is("a"));
+					pretrie.longestPrefix("ab"), 
+					CoreMatchers.is("a"));
 
-			Assert.assertThat("exact hit", pretrie.longestPrefix("abc"),
+			Assert.assertThat("exact hit", 
+					pretrie.longestPrefix("abc"),
 					CoreMatchers.is("abc"));
 
-			Assert.assertThat("exact hit over", pretrie.longestPrefix("abcde"),
+			Assert.assertThat("exact hit over", 
+					pretrie.longestPrefix("abcde"),
 					CoreMatchers.is("abcde"));
 
-			Assert.assertThat("over shoot", pretrie.longestPrefix("abcdeg"),
+			Assert.assertThat("over shoot", 
+					pretrie.longestPrefix("abcdeg"),
 					CoreMatchers.is("abcde"));
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
