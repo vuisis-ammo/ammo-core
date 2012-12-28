@@ -143,7 +143,14 @@ public class Pretrie<V> implements IPretrie<V> {
 	public V get(final Prefix key) {
 		logger.trace("get by prefix key {}", key);
 		final Stem<V> stem = this.trunk.get(key);
-		return (stem == null) ? this.bud : stem.getValue();
+		if (stem == null) {
+			return this.bud;
+		}
+		final V value = stem.getValue();
+		if (value == null) {
+			return this.bud;
+		}
+		return value;
 	}
 
 	/**
@@ -218,7 +225,16 @@ public class Pretrie<V> implements IPretrie<V> {
 
 	@Override
 	public List<V> values() {
-		throw new UnsupportedOperationException("not yet implemented");
+		final List<V> values = new ArrayList<V>();
+		if (this.bud != null) values.add(this.bud);
+		this.trunk.getValues(values);
+		return values;
+	}
+	
+	@Override
+	public int size() {
+		int valueCount = this.trunk.size();
+		return (this.bud == null) ? valueCount : valueCount + 1;
 	}
 
 
@@ -243,6 +259,23 @@ public class Pretrie<V> implements IPretrie<V> {
 		 */
 		public Stem<V> getStem() {
 			return this.parent;
+		}
+
+		public int size() {
+			int size = 0;
+			for (Twig<V> twig : this.twigSet) {
+				if (twig == null) continue;
+				size += twig.size();
+			}
+			return size;
+		}
+		
+		public boolean getValues(List<V> values) {
+			for (Twig<V> twig : this.twigSet) {
+				if (twig == null) continue;
+				twig.getValues(values);
+			}
+			return true;	
 		}
 
 		/**
@@ -374,6 +407,23 @@ public class Pretrie<V> implements IPretrie<V> {
 			this.stemSet = (Stem<V>[]) new Stem[MINOR_SIZE];
 		}
 
+		public int size() {
+			int size = 0;
+			for (Stem<V> stem : this.stemSet) {
+				if (stem == null) continue;
+				size += stem.size();
+			}
+			return size;
+		}
+		
+		public boolean getValues(List<V> values) {
+			for (Stem<V> stem : this.stemSet) {
+				if (stem == null) continue;
+				stem.getValues(values);
+			}
+			return true;	
+		}
+
 		/**
 		 * Either get the indicated stem or (optionally) allocate a new stem.
 		 * 
@@ -481,6 +531,24 @@ public class Pretrie<V> implements IPretrie<V> {
 			this.prefix = prefix;
 			this.branch = null;
 			this.value = null;
+		}
+
+		public int size() {
+			int size = (this.value == null) ? 0 : 1;
+			if (this.branch != null) {
+				size += this.branch.size();
+			}
+			return size;
+		}
+		
+		public boolean getValues(List<V> values) {
+			if (this.value != null) {
+				values.add(this.value);
+			}
+			if (this.branch != null) {
+				this.branch.getValues(values);
+			}
+			return true;	
 		}
 
 		public void resetParentStem() {

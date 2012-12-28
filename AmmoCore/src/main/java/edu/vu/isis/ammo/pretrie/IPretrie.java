@@ -46,6 +46,11 @@ public interface IPretrie<V> {
 	 * Produce a list of all the values stored in the pretrie.
 	 */
 	public List<V> values();
+	
+	/**
+	 * How many prefix values are in the set.
+	 */
+	public int size();
 
 	public interface IKey {
 
