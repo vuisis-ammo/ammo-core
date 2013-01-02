@@ -23,10 +23,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
-import java.util.List;
-import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -54,10 +51,11 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
+import android.util.SparseArray;
 import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
-import edu.vu.isis.ammo.core.AmmoService;
+import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
@@ -74,7 +72,6 @@ import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
  */
 public class RequestSerializer {
     /* package */static final Logger logger = LoggerFactory.getLogger("dist.serializer");
-    
 
     /**
      * This enumeration's codes must match those of the AmmoGen files.
@@ -102,8 +99,8 @@ public class RequestSerializer {
             this.code = code;
         }
 
-        private static final Map<Integer, FieldType> codemap =
-                new HashMap<Integer, FieldType>();
+        private static final SparseArray<FieldType> codemap =
+                new SparseArray<FieldType>();
         static {
             for (FieldType t : FieldType.values()) {
                 FieldType.codemap.put(t.code, t);
@@ -137,7 +134,6 @@ public class RequestSerializer {
         public static FieldType fromCode(final int code) {
             return FieldType.codemap.get(code);
         }
-
         public static FieldType fromContractString(String dtype) {
             return stringMap.get(dtype);
         }
@@ -150,8 +146,11 @@ public class RequestSerializer {
      */
     public static final byte BLOB_MARKER_FIELD = (byte) 0xff;
 
-    public enum BlobTypeEnum {
-        LARGE, SMALL;
+    private enum BlobTypeEnum {
+        /** blob too large to send via binder */
+        LARGE, 
+        /** blob sufficiently small to send via binder */
+        SMALL;
 
         /**
          * The difficulty here is that the blob may have trailing null bytes.
@@ -268,7 +267,7 @@ public class RequestSerializer {
         return new RequestSerializer(provider, payload);
     }
 
-    public DisposalState act(final AmmoService that, final Encoding encode, final String channel) {
+    public DisposalState act(final NetworkManager that, final Encoding encode, final String channel) {
         final RequestSerializer parent = RequestSerializer.this;
         final Encoding local_encode = encode;
         final String local_channel = channel;
@@ -293,9 +292,8 @@ public class RequestSerializer {
     public static byte[] serializeFromContentValues(ContentValues cv,
             final DistributorPolicy.Encoding encoding, final String mimeType, final ContractStore contractStore) {
         logger.trace("serializing using content values and encoding {}", encoding);
-        
+
         ISerializer serializer;
-        
         switch (encoding.getType()) {
             case JSON: {
                 serializer = new JsonSerializer();
@@ -312,8 +310,8 @@ public class RequestSerializer {
             default: {
                 throw new UnsupportedOperationException("Custom serialization from ContentValues is not supported");
             }
-        }
-        
+            }
+
         ContractStore.Relation relation = contractStore.getRelationForType(mimeType);
         
         ContentValuesContentItem item = new ContentValuesContentItem(cv, relation, encoding);
@@ -350,7 +348,6 @@ public class RequestSerializer {
                 throw new UnsupportedOperationException("Custom serialization from ContentValues is not supported");
             }
         }
-        
         ContractStore.Relation relation = contractStore.getRelationForType(mimeType);
         
         List<String> fieldNames = new ArrayList<String>(relation.getFields().size());
@@ -371,31 +368,6 @@ public class RequestSerializer {
         return msg.cv;
     }
 
-    private static byte[] encodeAsJson(ContentValues cv) {
-        // encoding in json for now ...
-        if (cv == null) {
-            return null;
-        }
-        final Set<Map.Entry<String, Object>> data = cv.valueSet();
-        final Iterator<Map.Entry<String, Object>> iter = data.iterator();
-        final JSONObject json = new JSONObject();
-
-        while (iter.hasNext())
-        {
-            Map.Entry<String, Object> entry = (Map.Entry<String, Object>) iter.next();
-            try {
-                if (entry.getValue() instanceof String)
-                    json.put(entry.getKey(), cv.getAsString(entry.getKey()));
-                else if (entry.getValue() instanceof Integer)
-                    json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
-            } catch (JSONException ex) {
-                logger.warn("cannot encode content values as json", ex);
-                return null;
-            }
-        }
-
-        return json.toString().getBytes();
-    }
 
     private static ContentValues deserializeTerseWithContractRelation(byte[] data,
             ContractStore.Relation relation) {
@@ -421,7 +393,6 @@ public class RequestSerializer {
     private static byte[] serializeJsonWithContractRelation(ContentValues cv, ContractStore.Relation relation) {
         throw new RuntimeException("Not yet implemented");
     }
-
     /**
      * This simple Future which can only be bound to a value once.
      */
@@ -499,17 +470,15 @@ public class RequestSerializer {
     }
 
     /**
-   *
-   */
+     *
+     */
 
     public static byte[] serializeFromProvider(final ContentResolver resolver,
             final Uri tupleUri, final DistributorPolicy.Encoding encoding)
             throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
         logger.trace("serializing using encoding {}", encoding);
-        
         ISerializer serializer = null;
-        
         final Encoding.Type encodingType = encoding.getType();
         switch (encodingType) {
             case JSON:
@@ -522,16 +491,17 @@ public class RequestSerializer {
                 //TODO: integrate custom serialization into the new serialization framework
                 final ByteBufferFuture res = RequestSerializer
                         .serializeCustomFromProvider(resolver, tupleUri, encoding);
-                try {
-                    return res.get().array();
-                } catch (InterruptedException ex) {
-                    ex.printStackTrace();
-                } catch (ExecutionException ex) {
-                    ex.printStackTrace();
-                }
-                return null;
         }
-        
+        try {
+                    return res.get().array();
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
+        } catch (ExecutionException ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
         final ContentProviderContentItem item = new ContentProviderContentItem(tupleUri, resolver, encoding);
         byte[] result = serializer.serialize(item);
         
@@ -539,7 +509,6 @@ public class RequestSerializer {
         
         return result;
     }
-
     /**
      * All deserializers return this dataflow variable
      */
@@ -565,7 +534,6 @@ public class RequestSerializer {
         logger.debug("deserialize message");
 
         final UriFuture uri;
-        
         ISerializer serializer;
         switch (encoding.getType()) {
             case JSON:
@@ -578,21 +546,21 @@ public class RequestSerializer {
                 //TODO: integrate custom serialization into the new serialization framework
                 uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
                         provider, encoding, data);
-                
-                if (uri == null)
-                    return null;
-                try {
-                    return uri.get();
-                } catch (InterruptedException ex) {
-                    logger.error("interrupted thread ", ex);
-                    return null;
-                } catch (ExecutionException ex) {
-                    logger.error("execution error thread ", ex);
-                    return null;
-                }
+  
+        if (uri == null)
+            return null;
+        try {
+            return uri.get();
+        } catch (InterruptedException ex) {
+            logger.error("interrupted thread ", ex);
+            return null;
+        } catch (ExecutionException ex) {
+            logger.error("execution error thread ", ex);
+            return null;
         }
-        
-        /**
+    }
+
+    /**
          * 1) perform a query to get the field: names, types.
          * 
          * 2) parse the incoming data using the order of the names 
@@ -770,6 +738,7 @@ public class RequestSerializer {
     public static UriFuture deserializeCustomToProvider(final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
+        logger.debug("deserialize custom to provider");
 
         final String key = provider.toString();
         if (RequestSerializer.remoteServiceMap.containsKey(key)) {
@@ -1306,17 +1275,23 @@ public class RequestSerializer {
     }
 
     /**
-     * Old (pre-refactoring) JSON deserialization method.
      * JSON encoding 
      * <p> This method interacts directly with the
      * content provider. It should only be used with content providers which are
      * known to be responsive.
      * 
      * @deprecated
+
+     * @param context
+     * @param provider
+     * @param encoding
+     * @param data
+     * @return
      */
     public static UriFuture deserializeJsonToProviderOld(final Context context,
             final ContentResolver resolver,
             final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
+        logger.debug("deserialize json to provider");
 
         final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
         // find the end of the json portion of the data
@@ -1335,8 +1310,21 @@ public class RequestSerializer {
                 input = (JSONObject) value;
                 PLogger.API_STORE.trace("JSON payload=[{}]", value);
             } else if (value instanceof JSONArray) {
+                final JSONArray jarray = (JSONArray) value;
                 PLogger.API_STORE.warn("invalid JSON payload=[{}]", parsePayload);
-                return null;
+                final int jLength = jarray.length();
+                Uri finalUri = null;
+                for (int ix = 0; ix < jLength; ix++) {
+                    final Object subValue = jarray.get(ix);
+                    if (subValue instanceof JSONObject) {
+                        final JSONObject subInput = (JSONObject) subValue;
+                        finalUri = deserializeJsonObjectToProvider(channelName, resolver, provider, subInput);
+                    } else {
+                        PLogger.API_STORE.warn("{} JSON payload=[{}]", subValue.getClass().getName(),
+                        parsePayload);
+                    }
+                }
+                return new UriFuture(finalUri);
             } else if (value == JSONObject.NULL) {
                 PLogger.API_STORE.warn("null JSON payload=[{}]", parsePayload);
                 return null;
@@ -1416,7 +1404,7 @@ public class RequestSerializer {
                 return null;
             }
             logger.info("Deserialized Received message, content {}", cv);
-
+            PLogger.TEST_FUNCTIONAL.info("cv: {}, provider:{}", cv, provider);
         } catch (SQLiteException ex) {
             logger.warn("invalid sql insert", ex);
             return null;
@@ -2078,78 +2066,130 @@ public class RequestSerializer {
             FieldType type = dataTypes.get(i);
             i++;
             switch (type) {
-                case NULL:
-                    // wrap.put(key, null);
-                    break;
-                case SHORT: {
-                    final short shortValue = tuple.getShort();
+                    case NULL:
+                        // wrap.put(key, null);
+                        break;
+                    case SHORT: {
+                        final short shortValue = tuple.getShort();
                     decodedObject.put(key, shortValue);
-                    break;
-                }
-                case LONG:
-                case FK: {
-                    final long longValue = tuple.getLong();
+                        break;
+                    }
+                    case LONG:
+                    case FK: {
+                        final long longValue = tuple.getLong();
                     decodedObject.put(key, longValue);
-                    break;
-                }
-                case TIMESTAMP: {
-                    final int intValue = tuple.getInt();
-                    final long longValue = 1000l * (long) intValue; // seconds
-                                                                    // -->
-                                                                    // milliseconds
+                        break;
+                    }
+                    case TIMESTAMP: {
+                        final int intValue = tuple.getInt();
+                        final long longValue = 1000l * (long) intValue; // seconds
+                                                                        // -->
+                                                                        // milliseconds
                     decodedObject.put(key, longValue);
-                    break;
-                }
-                case TEXT:
-                case GUID: {
-                    final short textLength = tuple.getShort();
-                    if (textLength > 0) {
-                        try {
-                            byte[] textBytes = new byte[textLength];
-                            tuple.get(textBytes, 0, textLength);
-                            String textValue = new String(textBytes, "UTF8");
+                        break;
+                    }
+                    case TEXT:
+                    case GUID: {
+                        final short textLength = tuple.getShort();
+                        if (textLength > 0) {
+                            try {
+                                byte[] textBytes = new byte[textLength];
+                                tuple.get(textBytes, 0, textLength);
+                                String textValue = new String(textBytes, "UTF8");
                             decodedObject.put(key, textValue);
-                        } catch (java.io.UnsupportedEncodingException ex) {
-                            logger.error("Error in string encoding{}",
-                                    new Object[] {
-                                        ex.getStackTrace()
-                                    });
+                            } catch (java.io.UnsupportedEncodingException ex) {
+                                logger.error("Error in string encoding{}",
+                                        new Object[] {
+                                            ex.getStackTrace()
+                                        });
+                            }
                         }
+                        // final char[] textValue = new char[textLength];
+                        // for (int ix=0; ix < textLength; ++ix) {
+                        // textValue[ix] = tuple.getChar();
+                        // }
+                        break;
                     }
-                    // final char[] textValue = new char[textLength];
-                    // for (int ix=0; ix < textLength; ++ix) {
-                    // textValue[ix] = tuple.getChar();
-                    // }
-                    break;
-                }
-                case BOOL:
-                case INTEGER:
-                case EXCLUSIVE:
-                case INCLUSIVE: {
-                    final int intValue = tuple.getInt();
+                    case BOOL:
+                    case INTEGER:
+                    case EXCLUSIVE:
+                    case INCLUSIVE: {
+                        final int intValue = tuple.getInt();
                     decodedObject.put(key, intValue);
-                    break;
-                }
-                case REAL:
-                case FLOAT: {
-                    final double doubleValue = tuple.getDouble();
-                    decodedObject.put(key, doubleValue);
-                    break;
-                }
-                case BLOB: {
-                    final short bytesLength = tuple.getShort();
-                    if (bytesLength > 0) {
-                        final byte[] bytesValue = new byte[bytesLength];
-                        tuple.get(bytesValue, 0, bytesLength);
-                        decodedObject.put(key, bytesValue);
+                        break;
                     }
-                    break;
+                    case REAL:
+                    case FLOAT: {
+                        final double doubleValue = tuple.getDouble();
+                    decodedObject.put(key, doubleValue);
+                        break;
+                    }
+                    case BLOB: {
+                        final short bytesLength = tuple.getShort();
+                        if (bytesLength > 0) {
+                            final byte[] bytesValue = new byte[bytesLength];
+                            tuple.get(bytesValue, 0, bytesLength);
+                            decodedObject.put(key, bytesValue);
+                        }
+                        break;
+                    }
+	            case FILE: {
+                        final short bytesLength = tuple.getShort();
+                        if (bytesLength > 0) {
+                            final byte[] bytesValue = new byte[bytesLength];
+                            tuple.get(bytesValue, 0, bytesLength);
+			    logger.trace("Received a FILE blob {}, size {}", key, bytesLength);
+			    fileMap.put(key, bytesValue);
+                        }
+			break;
+		    }
+                    default:
+                        logger.warn("unhandled data type {}", type);
                 }
-                default:
-                    logger.warn("unhandled data type {}", type);
             }
-        }
-        return decodedObject;
-    }
+            serialMetaCursor.close();
 
+            wrap.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+            final StringBuilder sb = new StringBuilder()
+                    .append(AmmoProviderSchema.Disposition.REMOTE.name())
+                    .append('.')
+                    .append(channelName);
+            wrap.put(AmmoProviderSchema._DISPOSITION, sb.toString());
+
+            final Uri tupleUri = resolver.insert(provider, wrap);
+
+	    // now iterate over file map to stick files into correct uri
+	    for (Map.Entry<String, byte[]> entry : fileMap.entrySet()) {
+		String key = entry.getKey();
+		byte[] byteValue = entry.getValue();
+
+		final long tupleId = ContentUris.parseId(tupleUri);
+		final Uri.Builder uriBuilder = provider.buildUpon();
+		final Uri.Builder updateTuple = ContentUris.appendId(uriBuilder, tupleId);
+		final Uri fieldUri = updateTuple.appendPath(key).build();
+		
+		try {
+		    final OutputStream outstream = resolver.openOutputStream(fieldUri);
+		    if (outstream == null) {
+			logger.error("failed to open output stream to content provider: {} ",
+				fieldUri);
+			return null;
+		    }
+		    outstream.write(byteValue);
+		    outstream.close();
+		    logger.trace("Wrote FILE blob to {}", fieldUri);
+		} catch (SQLiteException ex) {
+		    logger.error("in provider {} could not open output stream {}",
+			    fieldUri, ex.getLocalizedMessage());
+		} catch (FileNotFoundException ex) {
+		    logger.error("blob file not found: {}", fieldUri, ex);
+		} catch (IOException ex) {
+		    logger.error("error writing blob file: {}", fieldUri, ex);
+		}
+	    }
+
+            return new UriFuture(tupleUri);
+        }
+
+    }
 }

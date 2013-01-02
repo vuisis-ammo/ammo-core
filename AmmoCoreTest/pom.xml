@@ -3,14 +3,12 @@
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammocore-parent</artifactId>
-    <version>1.7.1-SNAPSHOT</version>
+    <version>1.7.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
+
   <properties>
-    <vandylib.release.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/Vanderbilt/</vandylib.release.url>
-    <vandylib.snapshot.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/vanderbilt-snapshot/</vandylib.snapshot.url>
-    <vandylib.eucleo.url>http://ammo.isis.vanderbilt.edu:8081/nexus/content/repositories/eucleo/</vandylib.eucleo.url>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -19,38 +17,17 @@
   <name>Ammo Test Project</name>
 
   <build>
-    <directory>target</directory>
-    <sourceDirectory>src</sourceDirectory>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <executions>
-        </executions>
-        <dependencies>
-          <dependency>
-            <groupId>ant-contrib</groupId>
-            <artifactId>ant-contrib</artifactId>
-            <version>1.0b3</version>
-            <exclusions>
-              <exclusion>
-                <groupId>ant</groupId>
-                <artifactId>ant</artifactId>
-              </exclusion>
-            </exclusions>
-          </dependency>
-        </dependencies>
-      </plugin>
       <plugin>
         <groupId>com.jayway.maven.plugins.android.generation2</groupId>
         <artifactId>android-maven-plugin</artifactId>
-        <extensions>true</extensions>
         <configuration>
           <sdk>
             <platform>8</platform>
           </sdk>
           <undeployBeforeDeploy>true</undeployBeforeDeploy>
         </configuration>
+        <extensions>true</extensions>
       </plugin>
     </plugins>
   </build>
@@ -59,54 +36,88 @@
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammocore</artifactId>
-      <version>1.7.1-SNAPSHOT</version>
+      <scope>provided</scope>
+      <version>${project.version}</version>
       <type>apk</type>
     </dependency>
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammocore</artifactId>
-      <version>1.7.1-SNAPSHOT</version>
       <scope>provided</scope>
-      <type>jar</type>
-    </dependency>
-
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.android</groupId>
-      <artifactId>android</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-    </dependency>
-
-    <dependency>
-        <groupId>org.slf4j</groupId>
-        <artifactId>slf4j-api</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.github.tony19</groupId>
-      <artifactId>logback-android-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.github.tony19</groupId>
-      <artifactId>logback-android-classic</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>edu.vu.isis</groupId>
-      <artifactId>ammolib</artifactId>
-      <version>1.7.1-SNAPSHOT</version>
+      <version>${project.version}</version>
       <type>jar</type>
     </dependency>
 
     <dependency>
       <groupId>com.google.android</groupId>
       <artifactId>android-test</artifactId>
+      <scope>provided</scope>
     </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>provided</scope>
+      <type>jar</type>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>android</artifactId>
+      <scope>provided</scope>
+      <type>jar</type>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <scope>provided</scope>
+      <type>jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <scope>provided</scope>
+      <type>jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-core</artifactId>
+      <scope>provided</scope>
+      <type>jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-classic</artifactId>
+      <scope>provided</scope>
+      <type>jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammolib</artifactId>
+      <scope>provided</scope>
+      <type>apklib</type>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.mail</groupId>
+      <artifactId>mail-android</artifactId>
+      <version>4.0.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.activation</groupId>
+      <artifactId>activation-android</artifactId>
+      <version>4.0.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>javax.additional</groupId>
+      <artifactId>additional-android</artifactId>
+      <version>4.0.0</version>
+    </dependency>
+
   </dependencies>
 </project>

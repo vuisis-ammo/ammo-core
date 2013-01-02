@@ -42,7 +42,6 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Debug;
-import android.os.Parcel;
 import android.os.Process;
 import android.preference.PreferenceManager;
 
@@ -57,8 +56,8 @@ import edu.vu.isis.ammo.api.type.Order;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
-import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.AmmoService.ChannelChange;
+import edu.vu.isis.ammo.core.ChannelChange;
+import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
@@ -114,7 +113,7 @@ public class DistributorThread extends Thread {
     private static final int BURP_TIME = 20 * 1000;
 
     private final Context context;
-    private final AmmoService ammoService;
+    private final NetworkManager networkManager;
     /**
      * The backing store for the distributor
      */
@@ -133,11 +132,11 @@ public class DistributorThread extends Thread {
     private NotifyMsgNumber notify = null;
     static private final AtomicInteger gThreadOrdinal = new AtomicInteger(1);
 
-    public DistributorThread(final Context context, AmmoService parent) {
+    public DistributorThread(final Context context, final NetworkManager parent) {
         super(new StringBuilder("Distribute-").
                 append(DistributorThread.gThreadOrdinal.getAndIncrement()).toString());
         this.context = context;
-        this.ammoService = parent;
+        this.networkManager = parent;
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
         this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200,
                 new AmmoGatewayMessage.PriorityOrder());
@@ -165,18 +164,25 @@ public class DistributorThread extends Thread {
         }
 
         private AtomicBoolean terminate = new AtomicBoolean(false);
+        
+        private AtomicBoolean channelStatus = new AtomicBoolean(false);
+        
+        void setChannelStatus (boolean status) {
+        	channelStatus.set(status);
+        }
 
         public void terminate() {
             terminate.set(true);
         }
 
         public void run() {
-            if (terminate.get() != true)
                 updateNotification();
         }
 
         private void updateNotification() {
 
+        	logger.trace("Update Sent and Receive Counts");
+        	
             // check for variable update ...
             int total_sent = parent.total_sent.get();
             int total_recv = parent.total_recv.get();
@@ -186,25 +192,45 @@ public class DistributorThread extends Thread {
 
             int icon = 0;
             // figure out the icon ...
-            if (sent == 0 && recv == 0)
-                icon = R.drawable.nodata;
-            else if (sent > 0 && recv == 0)
-                icon = R.drawable.up;
-            else if (sent == 0 && recv > 0)
-                icon = R.drawable.down;
-            else if (sent > 0 && recv > 0)
+            if (sent == 0 && recv == 0) {
+                logger.trace("No data in the last interval");
+                icon = R.drawable.nodata;                
+            }
+            else if (sent > 0 && recv == 0) {
+            	logger.trace("Only sending in the last interval");
+                icon = R.drawable.sending;
+            }
+            else if (sent == 0 && recv > 0) {
+            	logger.trace("Only receiving in the last interval");
+                icon = R.drawable.receiving;
+            }
+            else if (sent > 0 && recv > 0) {
+            	logger.trace("Sending and Receiving in the last interval");
                 icon = R.drawable.alldata;
+            }
 
             String contentText = "Sent " + total_sent + " Received " + total_recv;
-
+            
+            if (channelStatus.get() == false) {
+                int icon1 = R.drawable.channel_down;
+//                current_icon_id = IP_NOTIFY_ID;
+                logger.info("Ammo Channel Disconnected");
+                notifyIcon("Omma Channel Down", "Data Channel", "Offline", icon1);
+                return;
+            }
+            
             parent.notifyIcon("", "Data Channel", contentText, icon);
 
             // save the last sent and recv ...
             last_sent_count = total_sent;
             last_recv_count = total_recv;
 
-            parent.ammoService.notifyMsg.postDelayed(this, 30000);
+            parent.networkManager.notifyMsg.postDelayed(this, 30000);
         }
+
+		public boolean getChannelStatus() {
+			return channelStatus.get();
+		}
     }
 
     public DistributorDataStore store() {
@@ -240,51 +266,38 @@ public class DistributorThread extends Thread {
 
     private void setupNotificationIcon(String channelName, ChannelChange change)
     {
-        String ns = Context.NOTIFICATION_SERVICE;
-        NotificationManager mNotificationManager =
-                (NotificationManager) context.getSystemService(ns);
-
         if (change == ChannelChange.DEACTIVATE)
         {
-            for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+        	logger.debug("Channel: {} deactivated", channelName);
+        	for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
                 if (entry.getValue().change == ChannelChange.ACTIVATE) {
                     return; // leave, since at least one channel is still active
                 }
             }
 
             // none of the channels are active ...
+        	logger.debug("All Ammo Channels Deactivated");
             if (notify != null) {
-                this.ammoService.notifyMsg.removeCallbacks(notify);
+            	notify.setChannelStatus(false);
                 notify.terminate();
-                notify = null;
             }
-            mNotificationManager.cancel(current_icon_id);
+            
             return;
         }
 
-        int icon;
-
-        if (channelName.equals("serial"))
-        {
-            // current_icon = R.drawable.notify_icon_152_small;
-
-            // right now using the same icon ... once we get new icons, replace
-            // this ..
-            icon = R.drawable.alldata;
-            current_icon_id = SERIAL_NOTIFY_ID;
-        }
-        else
-        {
-            // current_icon = R.drawable.notify_icon_wr_small;
-            icon = R.drawable.alldata;
-            current_icon_id = IP_NOTIFY_ID;
-        }
-
-        notifyIcon(channelName + " Channel Up", "Data Channel", "Online", icon);
-
-        if (notify == null) {
-            notify = new NotifyMsgNumber(this);
-            this.ammoService.notifyMsg.postDelayed(notify, 15000);
+        synchronized (this) {
+        	logger.trace("Ammo Channel {} Activated", channelName);
+        	
+        	if (notify == null) {
+        		logger.trace("Creating NotifyMsgNumber");
+        		notify = new NotifyMsgNumber(this);
+        	}        	
+        	
+        	if (notify.getChannelStatus() != true) {
+        		logger.trace("Post Delayed Registration");
+        		notify.setChannelStatus(true);
+        		this.networkManager.notifyMsg.postDelayed(notify, 5000);
+        	}
         }
     }
 
@@ -293,6 +306,8 @@ public class DistributorThread extends Thread {
             String contentText,
             int icon)
     {
+    	logger.trace("Creating a notification, tickerTxt: {}", tickerTxt);
+    	
         String ns = Context.NOTIFICATION_SERVICE;
         NotificationManager mNotificationManager =
                 (NotificationManager) context.getSystemService(ns);
@@ -574,16 +589,16 @@ public class DistributorThread extends Thread {
                 + (1 * 60 * 60 * 1000));
         // initial sanitation work happens after 1 hour (in milliseconds)
 
-        if (ammoService.isConnected()) {
+        if (networkManager.isConnected()) {
 
             for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
                 final String name = entry.getKey();
                 this.store.deactivateDisposalStateByChannel(name);
             }
 
-            this.doSubscribeCache(ammoService);
-            this.doRetrievalCache(ammoService);
-            this.doPostalCache(ammoService);
+            this.doSubscribeCache(networkManager);
+            this.doRetrievalCache(networkManager);
+            this.doPostalCache(networkManager);
         }
 
         try {
@@ -606,7 +621,7 @@ public class DistributorThread extends Thread {
 
                     if (this.channelDelta.getAndSet(false)) {
                         logger.trace("channel change");
-                        this.doChannelChange(ammoService);
+                        this.doChannelChange(networkManager);
                     }
 
                     if (!this.channelAck.isEmpty()) {
@@ -644,7 +659,7 @@ public class DistributorThread extends Thread {
                                     System.currentTimeMillis(), "response_queue",
                                     this.responseQueue.size()
                             });
-                            this.doResponse(ammoService, agm);
+                            this.doResponse(this.context, agm);
                         } catch (ClassCastException ex) {
                             logger.error("response queue contains illegal item of class", ex);
                         }
@@ -665,7 +680,7 @@ public class DistributorThread extends Thread {
                                             this.requestQueue.size(), ar.uuid, "n/a", ar
                                     });
 
-                            this.doRequest(ammoService, ar);
+                            this.doRequest(networkManager, ar);
                         } catch (ClassCastException ex) {
                             logger.error("request queue contains illegal item of class", ex);
                         }
@@ -693,7 +708,7 @@ public class DistributorThread extends Thread {
      * @param instream
      * @return was the message clean (true) or garbled (false).
      */
-    private boolean doRequest(AmmoService that, AmmoRequest agm) {
+    private boolean doRequest(NetworkManager that, AmmoRequest agm) {
         logger.trace("process request {}", agm);
         switch (agm.action) {
             case POSTAL:
@@ -742,7 +757,7 @@ public class DistributorThread extends Thread {
      * changed. This is all right it just means that this method may be called
      * with no work to do.
      */
-    private void doChannelChange(AmmoService that) {
+    private void doChannelChange(NetworkManager that) {
         logger.trace("::doChannelChange()");
 
         for (final Map.Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
@@ -766,7 +781,7 @@ public class DistributorThread extends Thread {
                     this.store.deactivateDisposalStateByChannel(name);
 
                     this.store.activateDisposalStateByChannel(name);
-                    this.announceChannelActive(that.getBaseContext(), name);
+                    this.announceChannelActive(that.getContext(), name);
                     logger.trace("::channel activated");
                     break;
 
@@ -775,7 +790,7 @@ public class DistributorThread extends Thread {
                     this.store.activateDisposalStateByChannel(name);
 
                     this.store.repairDisposalStateByChannel(name);
-                    this.announceChannelActive(that.getBaseContext(), name);
+                    this.announceChannelActive(that.getContext(), name);
                     logger.trace("::channel repaired");
                     break;
 
@@ -816,7 +831,7 @@ public class DistributorThread extends Thread {
             // a corrupt message occurred, so it can update its statistics.
             // Make this a more general mechanism later on.
             if (agm.isSerialChannel)
-                ammoService.receivedCorruptPacketOnSerialChannel();
+                networkManager.receivedCorruptPacketOnSerialChannel();
 
             return false;
         }
@@ -955,7 +970,7 @@ public class DistributorThread extends Thread {
      * @param handler
      * @return
      */
-    private void doPostalRequest(final AmmoService that, final AmmoRequest ar) {
+    private void doPostalRequest(final NetworkManager that, final AmmoRequest ar) {
 
         // Dispatch the message.
         try {
@@ -1003,7 +1018,7 @@ public class DistributorThread extends Thread {
             serializer.setSerializer(new RequestSerializer.OnSerialize() {
 
                 final RequestSerializer serializer_ = serializer;
-                final AmmoService that_ = that;
+                final NetworkManager that_ = that;
                 final DistributorThread parent = DistributorThread.this;
 
                 @Override
@@ -1025,7 +1040,7 @@ public class DistributorThread extends Thread {
                     } else {
                         try {
                             final byte[] result = RequestSerializer.serializeFromProvider(
-                                    that_.getContentResolver(), serializer_.provider.asUri(),
+                                    that_.getContext().getContentResolver(), serializer_.provider.asUri(),
                                     encode);
 
                             if (result == null) {
@@ -1089,7 +1104,7 @@ public class DistributorThread extends Thread {
         }
     }
 
-    private void cancelPostalRequest(final AmmoService that, final AmmoRequest ar) {
+    private void cancelPostalRequest(final NetworkManager that, final AmmoRequest ar) {
 
         // Dispatch the message.
         try {
@@ -1115,7 +1130,7 @@ public class DistributorThread extends Thread {
      * Check for requests whose delivery policy has not been fully satisfied and
      * for which there is, now, an available channel.
      */
-    private void doPostalCache(final AmmoService that) {
+    private void doPostalCache(final NetworkManager that) {
         logger.debug(MARK_POSTAL, "process table POSTAL");
 
         if (!that.isConnected())
@@ -1190,7 +1205,7 @@ public class DistributorThread extends Thread {
             serializer.setSerializer(new RequestSerializer.OnSerialize() {
                 final DistributorThread parent = DistributorThread.this;
                 final RequestSerializer serializer_ = serializer;
-                final AmmoService that_ = that;
+                final NetworkManager that_ = that;
                 final SerializeMode serialType_ = serialType;
                 final String data_ = data;
 
@@ -1210,7 +1225,7 @@ public class DistributorThread extends Thread {
                                 } else {
 
                                     return RequestSerializer.serializeFromProvider(
-                                            that_.getContentResolver(),
+                                            that_.getContext().getContentResolver(),
                                             serializer_.provider.asUri(), encode);
                                 }
                             } catch (IOException e1) {
@@ -1309,7 +1324,7 @@ public class DistributorThread extends Thread {
      * @param handler
      * @return
      */
-    private Dispersal dispatchPostalRequest(final AmmoService that,
+    private Dispersal dispatchPostalRequest(final NetworkManager that,
             final Notice notice, final UUID uuid, final String msgType,
             final Dispersal dispersal, final RequestSerializer serializer,
             final INetworkService.OnSendMessageHandler handler)
@@ -1336,8 +1351,8 @@ public class DistributorThread extends Thread {
                             .setUri(uuid.toString())
                             .setMimeType(msgType)
                             .setEncoding(encode.getType().name())
-                            .setUserId(ammoService.getOperatorId())
-                            .setOriginDevice(ammoService.getDeviceId())
+                            .setUserId(networkManager.getOperatorId())
+                            .setOriginDevice(networkManager.getDeviceId())
                             .setData(ByteString.copyFrom(serialized));
 
                     if (notice != null) {
@@ -1371,6 +1386,10 @@ public class DistributorThread extends Thread {
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
                         System.currentTimeMillis() - now, serialized.length);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
+			      notice.atGatewayDelivered.getVia().isActive() ||
+			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
+                    .uuid( uuid );
                 return agmb.build();
             }
         });
@@ -1499,7 +1518,7 @@ public class DistributorThread extends Thread {
      * @param ar
      * @param st
      */
-    private void doRetrievalRequest(AmmoService that, AmmoRequest ar) {
+    private void doRetrievalRequest(NetworkManager that, AmmoRequest ar) {
         logger.trace("process request RETRIEVAL {} {}", ar.topic.toString(), ar.provider.toString());
 
         // Dispatch the message.
@@ -1570,7 +1589,7 @@ public class DistributorThread extends Thread {
         }
     }
 
-    private void cancelRetrievalRequest(final AmmoService that, final AmmoRequest ar) {
+    private void cancelRetrievalRequest(final NetworkManager that, final AmmoRequest ar) {
 
         // Dispatch the message.
         try {
@@ -1600,7 +1619,7 @@ public class DistributorThread extends Thread {
      * time stamps to determine if the item had be sent. Now a status indicator
      * is used. Garbage collect items which are expired.
      */
-    private void doRetrievalCache(AmmoService that) {
+    private void doRetrievalCache(NetworkManager that) {
         logger.debug(MARK_RETRIEVAL, "process table RETRIEVAL");
 
         final Cursor pending = this.store.queryRetrievalReady();
@@ -1691,7 +1710,7 @@ public class DistributorThread extends Thread {
      * @return
      */
 
-    private Dispersal dispatchRetrievalRequest(final AmmoService that,
+    private Dispersal dispatchRetrievalRequest(final NetworkManager that,
             final UUID retrievalId, final String topic,
             final String selection, final Integer limit, final Dispersal dispersal,
             final INetworkService.OnSendMessageHandler handler)
@@ -1802,7 +1821,7 @@ public class DistributorThread extends Thread {
      * @param agm
      * @param st
      */
-    private void doSubscribeRequest(final AmmoService that, final AmmoRequest ar, int st) {
+    private void doSubscribeRequest(final NetworkManager that, final AmmoRequest ar, int st) {
         logger.trace("process request SUBSCRIBE {}", ar.topic.toString());
 
         // Dispatch the message.
@@ -1865,7 +1884,7 @@ public class DistributorThread extends Thread {
         }
     }
 
-    private void cancelSubscribeRequest(final AmmoService that, final AmmoRequest ar) {
+    private void cancelSubscribeRequest(final NetworkManager that, final AmmoRequest ar) {
 
         // Dispatch the message.
         try {
@@ -1891,14 +1910,14 @@ public class DistributorThread extends Thread {
 
     /**
      * Each time the subscription provider is modified, find out what the
-     * changes were and if necessary, send the data to the AmmoService. Be
+     * changes were and if necessary, send the data to the NetworkManager. Be
      * careful about the race condition; don't leave gaps in the time line.
      * Originally this method used time stamps to determine if the item had be
      * sent. Now a status indicator is used. Garbage collect items which are
      * expired.
      */
 
-    private void doSubscribeCache(AmmoService that) {
+    private void doSubscribeCache(NetworkManager that) {
         logger.debug(MARK_SUBSCRIBE, "process table SUBSCRIBE");
 
         final Cursor pending = this.store.querySubscribeReady();
@@ -1986,7 +2005,7 @@ public class DistributorThread extends Thread {
     /**
      * Deliver the subscription request to the network service for processing.
      */
-    private Dispersal dispatchSubscribeRequest(final AmmoService that,
+    private Dispersal dispatchSubscribeRequest(final NetworkManager that,
             final String topic, final String selection, final Dispersal dispersal,
             final INetworkService.OnSendMessageHandler handler)
     {
@@ -1998,8 +2017,8 @@ public class DistributorThread extends Thread {
                 .newBuilder();
         subscribeReq.setMimeType(topic);
         subscribeReq
-                .setOriginDevice(this.ammoService.getDeviceId())
-                .setOriginUser(this.ammoService.getOperatorId());
+                .setOriginDevice(this.networkManager.getDeviceId())
+                .setOriginUser(this.networkManager.getOperatorId());
 
         if (subscribeReq != null)
             subscribeReq.setQuery(selection);
@@ -2048,7 +2067,7 @@ public class DistributorThread extends Thread {
         com.google.protobuf.ByteString data = null;
         AmmoMessages.AcknowledgementThresholds at = null;
 
-        final String selfDevice = ammoService.getDeviceId();
+        final String selfDevice = networkManager.getDeviceId();
         if (mw.hasDataMessage()) {
             final AmmoMessages.DataMessage resp = mw.getDataMessage();
             mime = resp.getMimeType();
@@ -2074,7 +2093,7 @@ public class DistributorThread extends Thread {
             encode = "TERSE";
         }
 
-        final String selfOperator = ammoService.getOperatorId();
+        final String selfOperator = networkManager.getOperatorId();
         if (originUser.equals(selfOperator)) {
             logger.error("received own user message [{}:{}]",
                     originUser, selfOperator);
@@ -2111,8 +2130,8 @@ public class DistributorThread extends Thread {
                             .setThreshold(bt)
                             .setDestinationDevice(originDevice)
                             .setDestinationUser(originUser)
-                            .setAcknowledgingDevice(ammoService.getDeviceId())
-                            .setAcknowledgingUser(ammoService.getOperatorId())
+                            .setAcknowledgingDevice(networkManager.getDeviceId())
+                            .setAcknowledgingUser(networkManager.getOperatorId())
                             .setStatus(PushStatus.RECEIVED);
 
             final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper

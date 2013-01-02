@@ -217,7 +217,7 @@ Such that if the prior channel succeeds the next channel is not attempted.
                 <literal
                     condition="success"
                     encoding="json"
-                    term="gateway" />
+                    term="gatewaymedia" />
 
                 <literal
                     condition="success"
@@ -230,6 +230,26 @@ Such that if the prior channel succeeds the next channel is not attempted.
                     term="multicast" />
             </clause>
         </routing>
+
+        <routing
+            category="subscribe"
+            lifespan="500000"
+            priority="high" > <!-- about a year -->
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gatewaymedia" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+            </clause>
+        </routing>
+                
     </topic>
 
 

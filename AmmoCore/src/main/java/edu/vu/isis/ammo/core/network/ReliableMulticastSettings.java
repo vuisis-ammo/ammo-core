@@ -111,7 +111,8 @@ public class ReliableMulticastSettings {
 
         String xmlString = sw.toString();
 
-        byte bytes[] = xmlString.getBytes();
+        @SuppressWarnings("unused")
+		byte bytes[] = xmlString.getBytes();
 
         try {
 

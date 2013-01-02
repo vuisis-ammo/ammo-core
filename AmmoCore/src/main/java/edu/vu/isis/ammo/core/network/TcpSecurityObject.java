@@ -31,7 +31,6 @@ public class TcpSecurityObject implements ISecurityObject,
         mChannel = iChannel;
     }
 
-
     public void authorize( AmmoMessages.MessageWrapper.Builder mwb  )
     {
         logger.trace( "TcpSecurityObject::authorize()." );

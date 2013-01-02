@@ -5,8 +5,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.vu.isis.ammo.core.R;
-
 import android.app.ListActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -17,6 +15,7 @@ import android.view.View.OnTouchListener;
 import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
 import android.widget.ListView;
+import edu.vu.isis.ammo.core.R;
 
 public class LogViewerBase extends ListActivity {
 

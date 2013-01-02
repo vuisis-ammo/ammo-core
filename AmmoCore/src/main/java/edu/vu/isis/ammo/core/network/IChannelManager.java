@@ -52,9 +52,9 @@ public interface IChannelManager
      * @return boolean
      */
     void statusChange( NetChannel channel,
-                       int connStatus,
-                       int sendStatus,
-                       int recvStatus );
+    		int lastConnStatus, int connStatus,
+    		int lastSendStatus, int sendStatus,
+    		int lastRecvStatus, int recvStatus );
 
     /**
      * @param void

@@ -43,8 +43,8 @@ import android.content.res.Resources.NotFoundException;
 import android.net.Uri;
 import edu.vu.isis.ammo.api.IAmmoRequest;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.pretrie.PrefixList;
 import edu.vu.isis.ammo.util.HashBuilder;
-import edu.vu.isis.ammo.util.PrefixList;
 
 /**
  * This class provides the base level mapping between distribution policy and
@@ -60,8 +60,10 @@ import edu.vu.isis.ammo.util.PrefixList;
  * </ul>
  */
 public class DistributorPolicy implements ContentHandler {
-    private static final Logger logger = LoggerFactory.getLogger("dist.policy.class");
-    private static final Logger saxlogger = LoggerFactory.getLogger("dist.policy.sax");
+    private static final Logger logger = LoggerFactory
+            .getLogger("dist.policy.class");
+    private static final Logger saxlogger = LoggerFactory
+            .getLogger("dist.policy.sax");
 
     public static final String DEFAULT = "_default_";
 
@@ -87,9 +89,12 @@ public class DistributorPolicy implements ContentHandler {
      * 
      * @param context
      */
-    public static DistributorPolicy newInstance(Context context, String customPolicy) {
-        final File dir = context.getDir(policy_dir, Context.MODE_WORLD_READABLE);
-        final String fileName = (customPolicy == null) ? policy_file : customPolicy;
+    public static DistributorPolicy newInstance(Context context,
+            String customPolicy) {
+        final File dir = context
+                .getDir(policy_dir, Context.MODE_WORLD_READABLE);
+        final String fileName = (customPolicy == null) ? policy_file
+                : customPolicy;
         final File file = new File(dir, fileName);
         logger.info("acquire policy file [{}]", file);
 
@@ -102,14 +107,13 @@ public class DistributorPolicy implements ContentHandler {
                     logger.error("no policy file {}", file, ex);
                     return null;
                 }
-            }
-            else {
+            } else {
                 logger.warn("no custom policy file {}, using the default", file);
                 try {
                     final AssetManager am = context.getAssets();
                     final InputStream copiable = am.open(fileName);
 
-                    final File sample = new File(dir, fileName+".sample");
+                    final File sample = new File(dir, fileName + ".sample");
                     final OutputStream out = new FileOutputStream(sample);
                     final byte[] buf = new byte[1024];
                     int len;
@@ -141,16 +145,17 @@ public class DistributorPolicy implements ContentHandler {
                 try {
                     inputStream.close();
                 } catch (IOException ex) {
-                    logger.error("could not close distributor configuration file", ex);
+                    logger.error(
+                            "could not close distributor configuration file",
+                            ex);
                 }
             }
             logger.info("new policy from current context");
         }
     }
-    
+
     public static DistributorPolicy newInstance(InputSource custom) {
         final DistributorPolicy policy = new DistributorPolicy(custom);
-        logger.info("loaded policy [{}]", policy);
         return policy;
     }
 
@@ -173,8 +178,11 @@ public class DistributorPolicy implements ContentHandler {
             return;
         }
         try {
-            final SAXParserFactory parserFactory = SAXParserFactory.newInstance();
+            final SAXParserFactory parserFactory = SAXParserFactory
+                    .newInstance();
+            // parserFactory.setNamespaceAware(false);
             final SAXParser saxParser = parserFactory.newSAXParser();
+            logger.debug("is namespace aware {}", saxParser.isNamespaceAware());
             final XMLReader reader = saxParser.getXMLReader();
 
             reader.setContentHandler(this);
@@ -202,18 +210,15 @@ public class DistributorPolicy implements ContentHandler {
         final StringBuffer sb = new StringBuffer();
         if (this.postalPolicy != null)
             for (final Topic entry : this.postalPolicy.values()) {
-                sb.append('\n').append("POSTAL: \n")
-                        .append(entry);
+                sb.append('\n').append("POSTAL: \n").append(entry);
             }
         if (this.subscribePolicy != null)
             for (final Topic entry : this.subscribePolicy.values()) {
-                sb.append('\n').append("SUBSCRIBE: \n")
-                        .append(entry);
+                sb.append('\n').append("SUBSCRIBE: \n").append(entry);
             }
         if (this.retrievalPolicy != null)
             for (final Topic entry : this.retrievalPolicy.values()) {
-                sb.append('\n').append("RETRIEVAL: \n")
-                        .append(entry);
+                sb.append('\n').append("RETRIEVAL: \n").append(entry);
             }
         return sb.toString();
     }
@@ -222,10 +227,8 @@ public class DistributorPolicy implements ContentHandler {
      * A rule to catch all patterns which don't match anything else.
      */
     public void setDefaultRule() {
-        this.builder
-                .type("")
-                .addClause().addLiteral("gateway", true, Encoding.DEFAULT)
-                .build();
+        this.builder.type("").addClause()
+                .addLiteral("gateway", true, Encoding.DEFAULT).build();
     }
 
     /**
@@ -243,13 +246,13 @@ public class DistributorPolicy implements ContentHandler {
     }
 
     public Topic matchSubscribe(String key) {
-        final Topic rule =  this.subscribePolicy.longestPrefix(key);
+        final Topic rule = this.subscribePolicy.longestPrefix(key);
         logger.debug("match subscribe topic=[{}] rule=[{}]", key, rule);
         return rule;
     }
 
     public Topic matchRetrieval(String key) {
-        final Topic rule =  this.retrievalPolicy.longestPrefix(key);
+        final Topic rule = this.retrievalPolicy.longestPrefix(key);
         logger.debug("match retrieval topic=[{}] rule=[{}]", key, rule);
         return rule;
     }
@@ -284,8 +287,8 @@ public class DistributorPolicy implements ContentHandler {
             final String ind = DistributorPolicy.this.indent();
 
             final StringBuffer sb = new StringBuffer();
-            sb.append('\n').append(ind).append("routing: \"").append(this.type).append("\"")
-                    .append(this.routing);
+            sb.append('\n').append(ind).append("routing: \"").append(this.type)
+                    .append("\"").append(this.routing);
             DistributorPolicy.this.indent--;
             return sb.toString();
         }
@@ -387,9 +390,9 @@ public class DistributorPolicy implements ContentHandler {
             final String ind = DistributorPolicy.this.indent();
 
             final StringBuffer sb = new StringBuffer();
-            sb.append('\n').append(ind)
-                    .append(" priority: ").append(this.priority)
-                    .append(" lifespan: ").append(this.lifespan);
+            sb.append('\n').append(ind).append(" priority: ")
+                    .append(this.priority).append(" lifespan: ")
+                    .append(this.lifespan);
 
             for (Clause clause : this.clauses) {
                 sb.append(clause);
@@ -410,7 +413,8 @@ public class DistributorPolicy implements ContentHandler {
         }
 
         public void addLiteral(String term, Boolean condition, Encoding encoding) {
-            this.workingClause.addLiteral(new Literal(term, condition, encoding));
+            this.workingClause
+                    .addLiteral(new Literal(term, condition, encoding));
         }
 
         /**
@@ -424,19 +428,21 @@ public class DistributorPolicy implements ContentHandler {
          * @return expiration time in milliseconds
          */
         public long getExpiration(long appExpirationSeconds) {
-            final long workingExpiration =
-                    (appExpirationSeconds < Long.MAX_VALUE) ? appExpirationSeconds * 1000
-                            : Long.MAX_VALUE;
+            final long workingExpiration = (appExpirationSeconds < Long.MAX_VALUE) ? appExpirationSeconds * 1000
+                    : Long.MAX_VALUE;
             if (this.lifespan < 0) {
-                logger.debug("appl lifespan [{}] expiration [{}]", this.lifespan, workingExpiration);
+                logger.debug("appl lifespan [{}] expiration [{}]",
+                        this.lifespan, workingExpiration);
                 return workingExpiration;
             }
             if (this.lifespan == Long.MAX_VALUE) {
-                logger.debug("appl lifespan [{}] expiration [{}]", this.lifespan, workingExpiration);
+                logger.debug("appl lifespan [{}] expiration [{}]",
+                        this.lifespan, workingExpiration);
                 return workingExpiration;
             }
 
-            final long maxExpiration = System.currentTimeMillis() + this.lifespan;
+            final long maxExpiration = System.currentTimeMillis()
+                    + this.lifespan;
 
             if (maxExpiration < workingExpiration) {
                 logger.debug("max expiration [{}]", maxExpiration);
@@ -637,10 +643,8 @@ public class DistributorPolicy implements ContentHandler {
 
         @Override
         public String toString() {
-            return new StringBuilder().append('[')
-                    .append(type.name()).append(':')
-                    .append(this.name()).append(']')
-                    .toString();
+            return new StringBuilder().append('[').append(type.name())
+                    .append(':').append(this.name()).append(']').toString();
         }
 
         public static Encoding getInstanceByName(String encoding) {
@@ -689,10 +693,9 @@ public class DistributorPolicy implements ContentHandler {
             final String ind = DistributorPolicy.this.indent();
 
             final StringBuffer sb = new StringBuffer();
-            sb.append('\n').append(ind)
-                    .append("term: ").append(this.term).append(' ')
-                    .append("condition: ").append(this.condition).append(' ')
-                    .append("encoding: ").append(this.encoding);
+            sb.append('\n').append(ind).append("term: ").append(this.term)
+                    .append(' ').append("condition: ").append(this.condition)
+                    .append(' ').append("encoding: ").append(this.encoding);
             DistributorPolicy.this.indent--;
             return sb.toString();
         }
@@ -741,7 +744,8 @@ public class DistributorPolicy implements ContentHandler {
             return this.routing;
         }
 
-        public TopicBuilder newRouting(Category category, int priority, long lifespan) {
+        public TopicBuilder newRouting(Category category, int priority,
+                long lifespan) {
             this.routing = new Routing(category, priority, lifespan);
             return this;
         }
@@ -776,7 +780,8 @@ public class DistributorPolicy implements ContentHandler {
             return this;
         }
 
-        public TopicBuilder addLiteral(String term, Boolean condition, Encoding encoding) {
+        public TopicBuilder addLiteral(String term, Boolean condition,
+                Encoding encoding) {
             this.routing.addLiteral(term, condition, encoding);
             return this;
         }
@@ -784,11 +789,13 @@ public class DistributorPolicy implements ContentHandler {
 
     @Override
     public void startDocument() throws SAXException {
+        logger.trace("start document");
         this.setDefaultRule();
     }
 
     @Override
     public void endDocument() throws SAXException {
+        logger.trace("end document");
     }
 
     private boolean inPolicy = false;
@@ -804,18 +811,21 @@ public class DistributorPolicy implements ContentHandler {
     @Override
     public void startElement(String uri, String localName, String qName,
             Attributes atts) throws SAXException {
+        saxlogger.trace("start element uri={} name={} qnam={}", uri, localName, qName);
+        final String matchName = qName;
+        
         if (!this.inPolicy) {
-            if (localName.equals("policy")) {
+            if (matchName.equals("policy")) {
                 saxlogger.trace("begin 'policy'");
                 this.inPolicy = true;
                 return;
             }
-            saxlogger.warn("expecting begin 'policy': got {}", localName);
+            saxlogger.warn("expecting begin 'policy': got {}", matchName);
             return;
         }
         // in policy
         if (!this.inTopic && !this.inTest) {
-            if (localName.equals("topic")) {
+            if (matchName.equals("topic")) {
                 saxlogger.trace("begin 'topic'");
                 this.inTopic = true;
                 String type = atts.getValue(uri, "type");
@@ -831,23 +841,21 @@ public class DistributorPolicy implements ContentHandler {
                 }
                 return;
             }
-            if (localName.equals("test")) {
+            if (matchName.equals("test")) {
                 saxlogger.trace("begin 'test'");
                 this.inTest = true;
                 final String type = atts.getValue(uri, "type");
                 if (type == null)
                     return;
-                final String title = (null == atts.getValue(uri, "name"))
-                        ? type : atts.getValue(uri, "name");
+                final String title = (null == atts.getValue(uri, "name")) ? type
+                        : atts.getValue(uri, "name");
 
                 final String postalMatch = atts.getValue(uri, "postal");
                 if (postalMatch != null) {
                     final Topic topic = this.matchPostal(type);
                     if (!topic.type.equals(postalMatch)) {
                         saxlogger.error("postal test {} failed {} != {}",
-                                new String[] {
-                                        title, topic.type, postalMatch
-                                });
+                                title, topic.type, postalMatch);
                     }
                 }
 
@@ -856,9 +864,7 @@ public class DistributorPolicy implements ContentHandler {
                     final Topic topic = this.matchSubscribe(type);
                     if (!topic.type.equals(subscribeMatch)) {
                         saxlogger.error("subscribe test {} failed {} != {}",
-                                new String[] {
-                                        title, topic.type, subscribeMatch
-                                });
+                                title, topic.type, subscribeMatch);
                     }
                 }
 
@@ -867,34 +873,36 @@ public class DistributorPolicy implements ContentHandler {
                     final Topic topic = this.matchRetrieval(type);
                     if (!topic.type.equals(retrievalMatch)) {
                         saxlogger.error("retrieval test {} failed {} != {}",
-                                new String[] {
-                                        title, topic.type, retrievalMatch
-                                });
+                                title, topic.type, retrievalMatch);
                     }
                 }
 
                 return;
             }
-            saxlogger.warn("expecting begin 'topic' or 'test': got {}", localName);
+            saxlogger.warn("expecting begin 'topic' or 'test': got {}",
+                    matchName);
             return;
         }
         // in policy/topic
         if (!this.inDescription && !this.inRouting) {
-            if (localName.equals("routing")) {
+            if (matchName.equals("routing")) {
                 saxlogger.trace("begin 'routing'");
                 this.inRouting = true;
-                final Category category = extractCategory(uri, "category", Category.POSTAL, atts);
-                final int priority = extractPriority(uri, "priority", IAmmoRequest.PRIORITY_NORMAL,
-                        atts);
+                final Category category = extractCategory(uri, "category",
+                        Category.POSTAL, atts);
+                final int priority = extractPriority(uri, "priority",
+                        IAmmoRequest.PRIORITY_NORMAL, atts);
                 final long lifespan;
                 switch (category) {
                     case RETRIEVAL:
                         lifespan = extractLifespan(uri, "lifespan",
-                                DistributorDataStore.DEFAULT_RETRIEVAL_LIFESPAN, atts);
+                                DistributorDataStore.DEFAULT_RETRIEVAL_LIFESPAN,
+                                atts);
                         break;
                     case SUBSCRIBE:
                         lifespan = extractLifespan(uri, "lifespan",
-                                DistributorDataStore.DEFAULT_SUBSCRIBE_LIFESPAN, atts);
+                                DistributorDataStore.DEFAULT_SUBSCRIBE_LIFESPAN,
+                                atts);
                         break;
                     case POSTAL:
                     default:
@@ -906,96 +914,105 @@ public class DistributorPolicy implements ContentHandler {
                 this.builder.newRouting(category, priority, lifespan);
                 return;
             }
-            if (localName.equals("description")) {
+            if (matchName.equals("description")) {
                 saxlogger.trace("begin topic 'description'");
                 this.inDescription = true;
                 return;
             }
-            saxlogger.warn("expecting begin 'routing' or 'description': got {}", localName);
+            saxlogger.warn(
+                    "expecting begin 'routing' or 'description': got {}",
+                    matchName);
             return;
         }
         // in policy/topic/routing
         if (!this.inDescription && !this.inClause) {
-            if (localName.equals("clause")) {
+            if (matchName.equals("clause")) {
                 saxlogger.trace("begin 'clause'");
                 this.inClause = true;
                 this.builder.addClause();
                 return;
             }
-            if (localName.equals("description")) {
+            if (matchName.equals("description")) {
                 saxlogger.trace("begin routing 'description'");
                 this.inDescription = true;
                 saxlogger.trace("processing route description");
                 return;
             }
-            saxlogger.warn("expecting begin 'clause' or 'description': got {}", localName);
+            saxlogger.warn("expecting begin 'clause' or 'description': got {}",
+                    matchName);
             return;
         }
         // in policy/topic/routing/clause
         if (!this.inLiteral) {
-            if (localName.equals("literal")) {
+            if (matchName.equals("literal")) {
                 saxlogger.trace("begin 'literal'");
                 this.inLiteral = true;
                 final String term = extractTerm(uri, "term", "gateway", atts);
-                final Boolean condition = extractCondition(uri, "condition", true, atts);
-                final Encoding encoding = extractEncoding(uri, "encoding", Encoding.DEFAULT,
-                        atts);
+                final Boolean condition = extractCondition(uri, "condition",
+                        true, atts);
+                final Encoding encoding = extractEncoding(uri, "encoding",
+                        Encoding.DEFAULT, atts);
                 this.builder.addLiteral(term, condition, encoding);
                 return;
             }
-            saxlogger.warn("expecting begin 'literal': got {}", localName);
+            saxlogger.warn("expecting begin 'literal': got {}", matchName);
         }
         // in policy/topic/routing/clause/literal
-        saxlogger.warn("expecting <nothing>: got {}", localName);
+        saxlogger.warn("expecting <nothing>: got {}", matchName);
     }
 
     @Override
-    public void endElement(String uri, String localName, String qName) throws SAXException {
+    public void endElement(String uri, String localName, String qName)
+            throws SAXException {
+        saxlogger.trace("end element uri={} name={} qnam={}", uri, localName, qName);
+        final String matchName = qName;
         if (!this.inPolicy) {
-            saxlogger.error("excess elements {}", localName);
+            saxlogger.error("excess elements {}", matchName);
             return;
         }
         // in policy
 
         if (this.inTest) {
-            if (localName.equals("test")) {
+            if (matchName.equals("test")) {
                 saxlogger.trace("end 'test'");
                 this.inTest = false;
                 return;
             }
-            saxlogger.error("processing test and found {}", localName);
+            saxlogger.error("processing test and found {}", matchName);
             return;
         }
 
         if (!this.inTopic) {
-            if (localName.equals("policy")) {
+            if (matchName.equals("policy")) {
                 saxlogger.trace("end 'policy'");
                 this.inPolicy = false;
                 return;
             }
-            saxlogger.error("topic ended prematurely expecting policy got {}", localName);
+            saxlogger.error("topic ended prematurely expecting policy got {}",
+                    matchName);
             return;
         }
 
         // in policy/topic
         if (!this.inRouting) {
-            if (localName.equals("topic")) {
+            if (matchName.equals("topic")) {
 
                 saxlogger.trace("end 'topic'");
                 this.inTopic = false;
                 return;
             }
-            if (localName.equals("description")) {
+            if (matchName.equals("description")) {
                 saxlogger.trace("end 'topic/description'");
                 this.inDescription = false;
                 return;
             }
-            saxlogger.error("expecting end 'topic' or 'description' got {}", localName);
+            saxlogger.error("expecting end 'topic' or 'description' got {}",
+                    matchName);
             return;
         }
         // in policy/topic/routing
         if (!this.inClause) {
-            if (localName.equals("routing")) {
+            if (matchName.equals("routing")) {
                 final Topic topic = builder.build();
                 topic.setType(builder.type());
                 switch (builder.routing.category) {
@@ -1016,31 +1033,32 @@ public class DistributorPolicy implements ContentHandler {
                 this.inRouting = false;
                 return;
             }
-            if (localName.equals("description")) {
+            if (matchName.equals("description")) {
                 saxlogger.trace("end 'routing/description'");
                 this.inDescription = false;
                 return;
             }
-            saxlogger.error("expecting end 'routing' or 'description' got {}", localName);
+            saxlogger.error("expecting end 'routing' or 'description' got {}",
+                    matchName);
             return;
         }
         if (!this.inLiteral) {
             // in policy/topic/routing/clause
-            if (localName.equals("clause")) {
+            if (matchName.equals("clause")) {
                 saxlogger.trace("end 'clause'");
                 this.inClause = false;
                 return;
             }
-            saxlogger.error("expecting end 'clause' got {}", localName);
+            saxlogger.error("expecting end 'clause' got {}", matchName);
             return;
         }
         // in policy/topic/routing/clause/literal
-        if (localName.equals("literal")) {
+        if (matchName.equals("literal")) {
             saxlogger.trace("end 'literal'");
             this.inLiteral = false;
             return;
         }
-        saxlogger.error("expecting end 'literal' got {}", localName);
+        saxlogger.error("expecting end 'literal' got {}", matchName);
         return;
     }
 
@@ -1054,7 +1072,8 @@ public class DistributorPolicy implements ContentHandler {
      * @param atts
      * @return
      */
-    private boolean extractCondition(String uri, String attrname, boolean def, Attributes atts) {
+    private boolean extractCondition(String uri, String attrname, boolean def,
+            Attributes atts) {
         final String value = atts.getValue(uri, attrname);
         if (value == null)
             return def;
@@ -1073,7 +1092,8 @@ public class DistributorPolicy implements ContentHandler {
      * @param atts
      * @return
      */
-    private Encoding extractEncoding(String uri, String attrname, Encoding def, Attributes atts) {
+    private Encoding extractEncoding(String uri, String attrname, Encoding def,
+            Attributes atts) {
         final String value = atts.getValue(uri, attrname);
         if (value == null)
             return def;
@@ -1090,7 +1110,8 @@ public class DistributorPolicy implements ContentHandler {
      * @param atts
      * @return
      */
-    private String extractTerm(String uri, String attrname, String def, Attributes atts) {
+    private String extractTerm(String uri, String attrname, String def,
+            Attributes atts) {
         final String value = atts.getValue(uri, attrname);
         if (value == null)
             return def;
@@ -1107,7 +1128,8 @@ public class DistributorPolicy implements ContentHandler {
      * @param atts
      * @return
      */
-    private int extractPriority(String uri, String attrname, int def, Attributes atts) {
+    private int extractPriority(String uri, String attrname, int def,
+            Attributes atts) {
         final String value = atts.getValue(uri, attrname);
         if (value == null)
             return def;
@@ -1141,13 +1163,15 @@ public class DistributorPolicy implements ContentHandler {
      * @param atts
      * @return
      */
-    private long extractLifespan(String uri, String attrname, long def, Attributes atts) {
+    private long extractLifespan(String uri, String attrname, long def,
+            Attributes atts) {
         final String value = atts.getValue(uri, attrname);
         if (value == null)
             return def;
 
         try {
-            return DistributorDataStore.CONVERT_MINUTES_TO_MILLISEC * Integer.parseInt(value);
+            return DistributorDataStore.CONVERT_MINUTES_TO_MILLISEC
+                    * Integer.parseInt(value);
         } catch (NumberFormatException ex) {
             return def;
         }
@@ -1163,7 +1187,8 @@ public class DistributorPolicy implements ContentHandler {
      * @param atts
      * @return
      */
-    private Category extractCategory(String uri, String attrname, Category def, Attributes atts) {
+    private Category extractCategory(String uri, String attrname, Category def,
+            Attributes atts) {
         final String value = atts.getValue(uri, attrname);
         if (value == null)
             return def;
@@ -1179,7 +1204,8 @@ public class DistributorPolicy implements ContentHandler {
     }
 
     @Override
-    public void startPrefixMapping(String prefix, String uri) throws SAXException {
+    public void startPrefixMapping(String prefix, String uri)
+            throws SAXException {
     }
 
     @Override
@@ -1187,15 +1213,18 @@ public class DistributorPolicy implements ContentHandler {
     }
 
     @Override
-    public void characters(char[] ch, int start, int length) throws SAXException {
+    public void characters(char[] ch, int start, int length)
+            throws SAXException {
     }
 
     @Override
-    public void ignorableWhitespace(char[] ch, int start, int length) throws SAXException {
+    public void ignorableWhitespace(char[] ch, int start, int length)
+            throws SAXException {
     }
 
     @Override
-    public void processingInstruction(String target, String data) throws SAXException {
+    public void processingInstruction(String target, String data)
+            throws SAXException {
     }
 
     @Override
@@ -1204,6 +1233,11 @@ public class DistributorPolicy implements ContentHandler {
 
     @Override
     public void skippedEntity(String name) throws SAXException {
+    }
+
+    public int topicCount() {
+        return publishPolicy.size() + postalPolicy.size()
+                + subscribePolicy.size() + retrievalPolicy.size();
     }
 
 }

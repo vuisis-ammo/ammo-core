@@ -1,7 +1,7 @@
 package edu.vu.isis.logger.ui;
 
-import edu.vu.isis.ammo.core.R;
 import android.content.Context;
+import edu.vu.isis.ammo.core.R;
 
 /**
  * Represents the corresponding names and color values of all possible log levels

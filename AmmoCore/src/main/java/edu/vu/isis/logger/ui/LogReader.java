@@ -4,7 +4,6 @@ package edu.vu.isis.logger.ui;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import net.jcip.annotations.ThreadSafe;
-
 import android.content.Context;
 import android.os.Handler;
 

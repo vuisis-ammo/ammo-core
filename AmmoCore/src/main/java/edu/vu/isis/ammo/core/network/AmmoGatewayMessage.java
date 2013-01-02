@@ -16,6 +16,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Comparator;
+import java.util.UUID;
 import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
@@ -39,13 +40,20 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * <li>4 Bytes : header checksum</li>
  * <li>N bytes : payload</li>
  * </ul>
- * The magic is set to 0xfeedbeef. The primary purpose of the magic is assist in
- * detecting the start of messages. The message size is encoded as unsigned
- * little endian, the size of the payload, and only the payload, in bytes. The
- * priority, also appears in the payload and is copied from there. The reserved
- * bytes, for future use. The payload checksum, the CRC32 checksum of the
- * payload, and only the paylod. The header checksum, the CRC32 checksum of the
- * header, not including the payload nor itself.
+ * <p>
+ * The magic is set to 0xfeedbeef.
+ * The primary purpose of the magic is assist in detecting the start of messages.
+ * <p>
+ * The message size is encoded as unsigned little endian,
+ * the size of the payload, and only the payload, in bytes.
+ * <p>
+ * The priority, also appears in the payload and is copied from there.
+ * <p>
+ * The reserved bytes, for future use.
+ * <p>
+ * The payload checksum, the CRC32 checksum of the payload, and only the paylod.
+ * The header checksum, the CRC32 checksum of the header, not including the payload nor itself.
+ * <p>
  */
 public class AmmoGatewayMessage implements Comparable<Object> {
     private static final Logger logger = LoggerFactory.getLogger("net.message");
@@ -72,31 +80,94 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             HEADER_DATA_LENGTH
             + 4; // header checksum
 
+    // public static final int HEADER_DATA_LENGTH_TERSE =
+    //       4  // magic (3.5 bytes) and slot number (4 bits)
+    //     + 2  // payload size
+    //     + 2  // payload checksum
+    //     + 4  // timestamp
+    //     + 1  //   index in slot: 4 bits
+    //          //   <reserved>:    2 bits
+    //          //   packet type:   2 bits
+    //     + 1  // <reserved>
+    //     + 2; // header checksum
+    // // ------
+    // //   16 bytes
+
     public static final int HEADER_DATA_LENGTH_TERSE =
-            4 // magic (3.5 bytes) and slot number (4 bits)
-                    + 2 // payload size
-                    + 2 // payload checksum
-                    + 4 // timestamp
-                    + 2 // <reserved>
-                    + 2; // header checksum
+          4  // magic (3.5 bytes) and slot number (4 bits)
+        + 2  // payload size
+        + 2  // payload checksum
+        + 4  // UID (info about what we think that we're sending in)
+             //   hyperperiod:   2 bytes
+             //   slot number:   1 byte
+             //   index in slot: 1 byte
+        + 1  // packet type (low-order 2 bits)
+        + 1  // <reserved>
+        + 2; // header checksum
+    // ------
+    //   16 bytes
 
     // These are equal because the terse form doesn't use a header checksum.
     public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH;
 
-    public final int size;
+    public int size;
     public final byte priority;
     public final byte version;
-    public final CheckSum payload_checksum;
-    public final byte[] payload;
+    public CheckSum payload_checksum;
+    public byte[] payload;
     public final INetworkService.OnSendMessageHandler handler;
 
     public final boolean isMulticast;
     public final boolean isSerialChannel;
     public final boolean isGateway;
+    public final boolean isHeartbeat;
     public final NetChannel channel;
+
+    public boolean isHeartbeat () {return isHeartbeat;}
 
     public final long buildTime;
     public long gpsOffset;
+
+
+    // These values denote the packet type with respect to the resend
+    // functionality.  Note: used only in terse encoding
+    public static final int PACKETTYPE_NORMAL = 0x01;
+    public static final int PACKETTYPE_RESEND = 0x02;
+    public static final int PACKETTYPE_ACK    = 0x03;
+
+    //
+    // The following two members must not be made final, because they need to
+    // be set in the SerialChannel after the Builder has run.  The Builder
+    // pattern is probably a bad idea in this class.
+    // Note: We might want to make both of these shorts.
+    //
+    public int mPacketType;
+
+    // For received packets, this member records the hyperperiod in which the
+    // sender thought he was sending.
+    public int mHyperperiod;
+
+    // For received packets, this member records the slot in which the sender
+    // thought he was sending.
+    public int mSlotID;
+
+    // This denoted the index in the sequence of packets within
+    // the current slot.  Note: used only in terse encoding.
+    public int mIndexInSlot;
+
+    // Whether this message needs to be acked.  E.g., PLI packets do not need
+    // acks, but chat messages do.
+    public boolean mNeedAck;
+
+    // The UUID of the message.  This will uniquely identify it to the
+    // distributor when we acknowledge it.
+    public UUID mUUID;
+
+    // Hop count for Harris 152 resend/retransmit mechanism
+    public int mHopCount;
+
+
+
 
     /**
      * This is used by PriorityBlockingQueue() to prioritize it contents. when
@@ -278,6 +349,36 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             return this;
         }
 
+        private int mPacketType;
+        public int packetType() { return mPacketType; }
+        public Builder packetType( int type ) { mPacketType = type; return this; }
+
+        private int mHyperperiod;
+        public int hyperperiod() { return mHyperperiod; }
+        public Builder hyperperiod( int hyperperiod ) { mHyperperiod = hyperperiod; return this; }
+
+        private int mSlotID;
+        public int slotID() { return mSlotID; }
+        public Builder slotID( int index ) { mSlotID = index; return this; }
+
+        private int mIndexInSlot;
+        public int indexInSlot() { return mIndexInSlot; }
+        public Builder indexInSlot( int index ) { mIndexInSlot = index; return this; }
+
+        private boolean mNeedAck;
+        public boolean needAck() { return mNeedAck; }
+        public Builder needAck( boolean needAck ) { mNeedAck = needAck; return this; }
+
+        private UUID mUUID;
+        public UUID uuid() { return mUUID; }
+        public Builder uuid( UUID uuid ) { mUUID = uuid; return this; }
+
+        private int mHopCount;
+        public int hopCount() { return mHopCount; }
+        public Builder hopCount( int hopcount ) { mHopCount = hopcount; return this; }
+
+
+
         private INetworkService.OnSendMessageHandler handler;
 
         public INetworkService.OnSendMessageHandler handler() {
@@ -322,8 +423,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             return this;
         }
 
-        private byte[] payload_serialized;
-
+        private boolean isHeartbeat = false;
+        public boolean isHeartbeat() { return this.isHeartbeat; }
+        public Builder isHeartbeat(boolean val) { this.isHeartbeat = val; return this; }
+ 
+       private byte[] payload_serialized;
         public byte[] payload() {
             return this.payload_serialized;
         }
@@ -375,6 +479,12 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.version = VERSION_1_FULL;
             this.checksum = 0;
             this.handler = null;
+            mPacketType = PACKETTYPE_NORMAL;
+            mHyperperiod = -1;  // default to an invalid hyperperiod
+            mSlotID = -1;       // default to an invalid slot
+            mIndexInSlot = -1;  // default to an invalid index
+            mNeedAck = false;   // default to an invalid index
+            mHopCount = 1;
         }
     }
 
@@ -391,7 +501,17 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.isMulticast = builder.isMulticast;
         this.isSerialChannel = builder.isSerialChannel;
         this.isGateway = builder.isGateway;
+        this.isHeartbeat = builder.isHeartbeat;
         this.channel = builder.channel;
+
+        mPacketType =   builder.mPacketType;
+        mHyperperiod =  builder.mHyperperiod;
+        mSlotID =       builder.mSlotID;
+        mIndexInSlot =  builder.mIndexInSlot;
+        mNeedAck =      builder.mNeedAck;
+        mUUID =         builder.mUUID;
+        mHopCount =     builder.mHopCount;
+
         /**
          * record the time when the message is built so we can sort it by time
          * if the priority is same
@@ -512,7 +632,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * 
      * @return
      */
-    static public ByteBuffer serializeTerse_V1(ByteOrder endian, byte phone_id,
+    public ByteBuffer serializeTerse_V1(ByteOrder endian, byte phone_id,
             int size, byte[] payload, CheckSum checksum, long gpsOffset)
     {
         int total_length = HEADER_LENGTH_TERSE + payload.length;
@@ -539,13 +659,26 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         buf.put(payloadCheckSum[1]);
         // buf.put( convertChecksum(this.payload_checksum), 0, 2 );
 
-        long nowInMillis = System.currentTimeMillis() - gpsOffset;
-        int nowInMillisInt = (int) (nowInMillis % 1000000000);
+        // long nowInMillis = System.currentTimeMillis() - gpsOffset;
+        // int nowInMillisInt = (int) (nowInMillis % 1000000000);
+
+        int uid = 0;
+        logger.trace( "serializing hyperperiod={}", mHyperperiod );
+        uid |= (mHyperperiod << 16);
+        uid |= (phone_id << 8);
+        uid |= mIndexInSlot;
+        buf.putInt( uid );      // 4 bytes
+
+        buf.put( (byte) mPacketType ); // byte
+
+        // <reserved> (1 byte)
+        buf.put( (byte) mHopCount ); // byte
+
 
         // buf.putLong( nowInMillis );
         // buf.putInt( 0 ); // time will go here.
-        buf.putInt(nowInMillisInt);
-        buf.putShort((short) (gpsOffset));
+        // buf.putInt(nowInMillisInt);
+        // buf.putShort((short) (gpsOffset));
         // Put two-byte header checksum here. The checksum covers the
         // magic sequence and everything up to and including the six
         // zero bytes just written.
@@ -619,7 +752,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                             .version(version)
                             .error(error);
                 } else if ((version & 0xC0) == 0x40) {
-                    @SuppressWarnings("unused")
                     byte phone_id = (byte) (version & 0x3F);
 
                     int size = drain.getShort();
@@ -630,12 +762,30 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     checkPayloadBytes[2] = 0;
                     checkPayloadBytes[3] = 0;
                     // drain.get( checkBytes, 0, 2 );
-                    logger.debug("   payload check={}", checkPayloadBytes);
-                    long payload_checksum = CheckSum.newInstance(checkPayloadBytes).asLong();
+		    CheckSum csum = new CheckSum(checkPayloadBytes);
+                    long payload_checksum = csum.asLong();
+                    logger.debug("   payload check={}, asLong={}", checkPayloadBytes, Long.toHexString(payload_checksum));
+
+                    // UID
+                    int uid = drain.getInt();
+                    int hyperperiod = (uid >>> 16);
+                    logger.trace( "deserialized hyperperiod={}", hyperperiod );
+                    @SuppressWarnings("unused")
+					int slotID = (uid >>> 8) & 0xFF;
+                    int indexInSlot = uid  & 0xFF;
+
+                    // Packed type
+                    byte next = drain.get();
+                    int packetType = next & 0x03;
+                    logger.error( "packetType={}", packetType );
+
+                    // <reserved> (1 byte)
+                    byte hopCount = drain.get();
+                    logger.error( "hopCount={}", hopCount );
 
                     // Discard six bytes of zero
-                    drain.getInt();
-                    drain.getShort();
+                    // drain.getInt();
+                    // drain.getShort();
 
                     /**
                      * Hack for CACI test. It's inefficient to have this happen
@@ -655,7 +805,12 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     return AmmoGatewayMessage.newBuilder()
                             .size(size)
                             .version(version)
-                            .checksum(payload_checksum);
+                            .checksum(payload_checksum)
+                        .packetType( packetType )
+                        .hyperperiod( hyperperiod )
+                        .slotID( phone_id )
+                        .indexInSlot( indexInSlot )
+                        .hopCount( hopCount );
                 } else {
                     logger.error("apparent magic number but version invalid");
                 }
@@ -705,7 +860,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     }
 
     /**
-     * error values for MessageHeader These error codes are for the reasons why
+     * error values for MessageHeader 
+     * <p>
+     * These error codes are for the reasons why
      * the gateway may subsequently disconnect. If the error code is non-zero,
      * the message size and checksum will be zero. The headerChecksum is present
      * and is calculated normally. The key to deciding whether to process the

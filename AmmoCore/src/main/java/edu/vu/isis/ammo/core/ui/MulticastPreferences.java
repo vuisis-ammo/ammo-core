@@ -4,9 +4,9 @@ import android.os.Bundle;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.MyCheckBoxPreference;
 import edu.vu.isis.ammo.core.MyEditIntegerPreference;
+import edu.vu.isis.ammo.core.MyEditIntegerPreference.Type;
 import edu.vu.isis.ammo.core.MyEditTextPreference;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.MyEditIntegerPreference.Type;
 
 public class MulticastPreferences extends AbstractAmmoPreference{
 

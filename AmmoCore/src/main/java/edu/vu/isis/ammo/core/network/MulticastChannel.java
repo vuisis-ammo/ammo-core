@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -137,7 +139,28 @@ public class MulticastChannel extends NetChannel
         // The thread is start()ed the first time the network disables and
         // reenables it.
         this.connectorThread = new ConnectorThread(this);
+
+        // Set up timer to trigger once per minute.
+        TimerTask updateBps = new UpdateBpsTask();
+        mUpdateBpsTimer.scheduleAtFixedRate( updateBps, 0, BPS_STATS_UPDATE_INTERVAL * 1000 );
     }
+
+
+    private Timer mUpdateBpsTimer = new Timer();
+
+    class UpdateBpsTask extends TimerTask {
+        public void run() {
+            logger.trace( "UpdateBpsTask fired" );
+
+            // Update the BPS stats for the sending and receiving.
+            mBpsSent = (mBytesSent - mLastBytesSent) / BPS_STATS_UPDATE_INTERVAL;
+            mLastBytesSent = mBytesSent;
+
+            mBpsRead = (mBytesRead - mLastBytesRead) / BPS_STATS_UPDATE_INTERVAL;
+            mLastBytesRead = mBytesRead;
+        }
+    };
+
 
     public static MulticastChannel getInstance(String name, IChannelManager iChannelManager)
     {
@@ -278,20 +301,24 @@ public class MulticastChannel extends NetChannel
         }
     }
 
-    private void statusChange()
+    private synchronized void statusChange()
     {
+    	int connState = this.connectorThread.state.value;
         int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
         int receiverState = (mReceiver != null) ? mReceiver.getReceiverState()
                 : INetChannel.PENDING;
 
         try {
             mChannelManager.statusChange(this,
-                    this.connectorThread.state.value,
-                    senderState,
-                    receiverState);
+            		this.lastConnState, connState,
+                    this.lastSenderState, senderState,
+                    this.lastReceiverState, receiverState);
         } catch (Exception ex) {
             logger.error("Exception thrown in statusChange()", ex);
         }
+        this.lastConnState = connState;
+        this.lastSenderState = senderState;
+        this.lastReceiverState = receiverState;
     }
 
     private void setSecurityObject(ISecurityObject iSecurityObject)
@@ -780,6 +807,12 @@ public class MulticastChannel extends NetChannel
                     parent.mMulticastPort);
 
             mIsConnected.set(true);
+            mBytesSent = 0;
+            mBytesRead = 0;
+            mLastBytesSent = 0;
+            mLastBytesRead = 0;
+            mBpsSent = 0;
+            mBpsRead = 0;
 
             // Create the security object. This must be done before
             // the ReceiverThread is created in case we receive a
@@ -1088,6 +1121,7 @@ public class MulticastChannel extends NetChannel
 
                     // update send messages ...
                     mMessagesSent.incrementAndGet();
+                    mBytesSent += packet.getLength();
 
                     logger.info("Send packet to Network: size({})", packet.getLength());
 
@@ -1175,14 +1209,13 @@ public class MulticastChannel extends NetChannel
                     setReceiverState(INetChannel.START);
 
                     mSocket.receive(packet);
+                    mBytesRead += packet.getLength();
                     if (addresses.contains(packet.getAddress()))
                     {
                         logger.debug("Discarding packet from self.");
                         continue;
                     }
 
-                    // update received count ....
-                    mMessagesReceived.incrementAndGet();
 
                     logger.info("Received a packet from ({}) size({})",
                             packet.getAddress(), packet.getLength());
@@ -1213,6 +1246,9 @@ public class MulticastChannel extends NetChannel
                     setReceiverState(INetChannel.DELIVER);
                     mDestination.deliverMessage(agm);
                     logger.trace("received a message {}", payload.length);
+                    
+                    // update received count ....
+                    mMessagesReceived.incrementAndGet();
                 } catch (ClosedChannelException ex)
                 {
                     logger.info("receiver threw ClosedChannelException");
