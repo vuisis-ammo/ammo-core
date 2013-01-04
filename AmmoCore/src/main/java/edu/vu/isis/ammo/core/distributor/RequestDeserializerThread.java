@@ -149,7 +149,7 @@ public class RequestDeserializerThread extends Thread {
                 } else if(item.operation == DeserializerOperation.TO_REROUTE) {
                     final ContentValues cv = RequestSerializer.deserializeToContentValues(item.data, item.encoding, item.mimeType, this.distributor.contractStore);
                     //Create a new request to forward this on to the distributor
-                    InternalRequestBuilder builder = new InternalRequestBuilder();
+                    InternalRequestBuilder builder = new InternalRequestBuilder(null);
                     builder.payload(cv);
                     builder.topic(item.mimeType);
                     builder.priority(item.priority);

@@ -28,14 +28,14 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammolib</artifactId>
-        <version>1.7.1</version>
+        <version>1.7.2-SNAPSHOT</version>
         <type>jar</type>
       </dependency>
 
       <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammolib</artifactId>
-        <version>1.7.1</version>
+        <version>1.7.2-SNAPSHOT</version>
         <type>apklib</type>
       </dependency>
 

@@ -4,10 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-import android.content.ContentValues;
-
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.RequestSerializer.ByteBufferFuture;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.DeserializedMessage;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
 
@@ -193,6 +190,9 @@ public class TerseSerializer implements ISerializer {
                         decodedObject.cv.put(key, bytesValue); //TODO: put this in the DecodedMessage blob field like in the JSON serializer
                     }
                     break;
+                }
+                case FILE: {
+                	throw new UnsupportedOperationException("no file");
                 }
                 default:
                     logger.warn("unhandled data type {}", type);

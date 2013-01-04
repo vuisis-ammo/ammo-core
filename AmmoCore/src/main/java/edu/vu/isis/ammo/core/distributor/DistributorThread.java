@@ -2155,7 +2155,7 @@ public class DistributorThread extends Thread {
             }
         }
         
-        DistributorPolicy policy = this.ammoService.policy();
+        DistributorPolicy policy = this.networkManager.policy();
         
         DistributorPolicy.Topic topicPolicy = policy.matchPostal(topic);
         
