@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Environment;
 import edu.vu.isis.ammo.core.NetworkManager;
@@ -434,4 +435,9 @@ public class JournalChannel extends NetChannel {
                         context, this.journalFile
                 });
     }
+    
+    @Override
+	public void handleNetworkBroadcastIntent(final Context context, final String action, final Intent aIntent) {
+		throw new UnsupportedOperationException("journal channel not complete");
+	}
 }

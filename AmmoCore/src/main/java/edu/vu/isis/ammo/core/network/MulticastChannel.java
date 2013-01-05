@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import android.content.Intent;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -1335,4 +1336,10 @@ public class MulticastChannel extends NetChannel
                         context, mMulticastAddress, mMulticastPort
                 });
     }
+    
+    @Override
+	public void handleNetworkBroadcastIntent(final Context context, final String action, final Intent aIntent) {
+		this.handleNetworkBroadcastIntentImpl(context, action, aIntent);
+	}
+	
 }

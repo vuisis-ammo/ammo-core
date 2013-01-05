@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import android.content.Intent;
 import android.location.GpsStatus.NmeaListener;
 import android.location.Location;
 import android.location.LocationListener;
@@ -44,6 +45,8 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Process;
+import android.telephony.TelephonyManager;
+import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
@@ -1755,4 +1758,22 @@ public class SerialChannel extends NetChannel
     private LocationListener mLocationListener;
 
     private static final Logger logger = LoggerFactory.getLogger( "net.serial" );
+
+
+	@Override
+	public void handleNetworkBroadcastIntent(final Context context, final String action, final Intent aIntent) {
+		if (AmmoIntents.ACTION_SERIAL_LINK_CHANGE.equals(action)) {
+            int state = aIntent.getIntExtra("state", 0);
+            String devname = aIntent.getStringExtra("devname");
+            logger.error("Serial link changed. devname: {}, state: {}", devname, state);
+
+            if (state == 1)
+                this.linkUp(devname);
+            else
+                this.linkDown(devname);
+
+        } else if (Intent.ACTION_TIME_CHANGED.equals(action)) {
+            this.systemTimeChange();
+        }
+	}
 }

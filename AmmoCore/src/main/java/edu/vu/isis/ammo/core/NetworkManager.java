@@ -1583,55 +1583,22 @@ public enum NetworkManager  implements INetworkService,
     private class NetworkBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(final Context context, final Intent aIntent) {
+
             final String action = aIntent.getAction();
-            logger.debug("onReceive: {}", action);
+            logger.debug("onReceive: {}", aIntent);
 
+            tcpChannel.handleNetworkBroadcastIntent(context, action, aIntent);
+            multicastChannel.handleNetworkBroadcastIntent(context, action, aIntent);
+            reliableMulticastChannel.handleNetworkBroadcastIntent(context, action, aIntent);
+            tcpMediaChannel.handleNetworkBroadcastIntent(context, action, aIntent);
+            for (NetChannel channel : NetworkManager.this.registeredChannels) {
+                channel.handleNetworkBroadcastIntent(context, action, aIntent);
+            }
             if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)) {
-                logger.trace("Ether Link state changed");
-                int state = aIntent.getIntExtra("state", 0);
-
-                // Should we be doing this here?
-                // It's not parallel with the wifi and 3G below.
-                if (state != 0) {
-                    switch (state) {
-                        case AmmoIntents.LINK_UP:
-                            logger.trace("onReceive: Link UP {}", action);
-                            tcpChannel.linkUp(null);
-                            multicastChannel.linkUp(null);
-                            reliableMulticastChannel.linkUp(null);
-                            tcpMediaChannel.linkUp(null);
-                            for (NetChannel channel : NetworkManager.this.registeredChannels) {
-                                channel.linkUp(null);
-                            }
-
-                            break;
-                        case AmmoIntents.LINK_DOWN:
-                            logger.trace("onReceive: Link DOWN {}", action);
-                            tcpChannel.linkDown(null);
-                            tcpMediaChannel.linkDown(null);
-                            multicastChannel.linkDown(null);
-                            reliableMulticastChannel.linkDown(null);
-                            for (NetChannel channel : NetworkManager.this.registeredChannels) {
-                                channel.linkDown(null);
-                            }
-                            break;
-                    }
-                }
-
                 // This intent comes in for both wired and wifi.
                 mNetlinks.get(linkTypes.WIRED.value).updateStatus();
                 mNetlinks.get(linkTypes.WIFI.value).updateStatus();
                 netlinkStatusChanged();
-            } else if (AmmoIntents.ACTION_SERIAL_LINK_CHANGE.equals(action)) {
-                int state = aIntent.getIntExtra("state", 0);
-                String devname = aIntent.getStringExtra("devname");
-                logger.error("Serial link changed. devname: {}, state: {}", devname, state);
-
-                if (state == 1)
-                    serialChannel.linkUp(devname);
-                else
-                    serialChannel.linkDown(devname);
-
             } else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)
                     || WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)
                     || WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
@@ -1644,9 +1611,7 @@ public enum NetworkManager  implements INetworkService,
                 logger.trace("3G state changed");
                 mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
                 netlinkStatusChanged();
-            } else if (Intent.ACTION_TIME_CHANGED.equals(action)) {
-                serialChannel.systemTimeChange();
-            }
+            } 
 
             // if (INetworkService.ACTION_RECONNECT.equals(action)) {
             // //NetworkManager.this.connectChannels(true);
