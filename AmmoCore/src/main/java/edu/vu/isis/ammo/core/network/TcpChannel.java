@@ -120,16 +120,6 @@ public class TcpChannel extends NetChannel {
   private final AtomicInteger mMessagesSent = new AtomicInteger();
   private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
-    private volatile long mBytesSent = 0;
-    private volatile long mBytesRead = 0;
-
-    private volatile long mLastBytesSent = 0;
-    private volatile long mLastBytesRead = 0;
-
-    private static final int BPS_STATS_UPDATE_INTERVAL = 60; // seconds
-    private volatile long mBpsSent = 0;
-    private volatile long mBpsRead = 0;
-
   // I made this public to support the hack to get authentication
   // working before Nilabja's code is ready.  Make it private again
   // once his stuff is in.
