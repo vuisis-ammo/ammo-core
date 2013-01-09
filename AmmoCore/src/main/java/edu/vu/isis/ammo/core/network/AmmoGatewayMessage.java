@@ -22,6 +22,7 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 /**
@@ -368,6 +369,20 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         private boolean mNeedAck;
         public boolean needAck() { return mNeedAck; }
         public Builder needAck( boolean needAck ) { mNeedAck = needAck; return this; }
+        public Builder needAck( final Notice notice ) { 
+        	if (notice.atDeviceDelivered.getVia().isActive()) {
+        		mNeedAck = true;
+        	} else
+        	if (notice.atGatewayDelivered.getVia().isActive()) {
+        		mNeedAck = true;
+        	} else
+    		if (notice.atPluginDelivered.getVia().isActive()) {
+    			mNeedAck = true;
+    		} else {
+        	    mNeedAck = false; 
+    		}
+        	return this; 
+        }
 
         private UUID mUUID;
         public UUID uuid() { return mUUID; }
@@ -483,7 +498,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             mHyperperiod = -1;  // default to an invalid hyperperiod
             mSlotID = -1;       // default to an invalid slot
             mIndexInSlot = -1;  // default to an invalid index
-            mNeedAck = false;   // default to an invalid index
+            mNeedAck = false;   // default to no acknowledgment needed
             mHopCount = 1;
         }
     }

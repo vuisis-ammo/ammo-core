@@ -1130,13 +1130,17 @@ public class TcpChannel extends NetChannel {
 					mMessagesSent.incrementAndGet();
 
 					// legitimately sent to gateway.
-					if (msg.handler != null)
-						mChannel.ackToHandler(msg.handler, DisposalState.SENT);
+					if (msg.handler != null) {
+						mChannel.ackToHandler(msg.handler,
+								(msg.mNeedAck) ? DisposalState.TOLD
+										: DisposalState.SENT);
+					}
 				} catch (Exception ex) {
 					logger.warn("sender threw exception", ex);
-					if (msg.handler != null)
+					if (msg.handler != null) {
 						mChannel.ackToHandler(msg.handler,
 								DisposalState.REJECTED);
+					}
 					setSenderState(INetChannel.INTERRUPTED);
 					mParent.socketOperationFailed();
 				}
@@ -1412,7 +1416,8 @@ public class TcpChannel extends NetChannel {
 	}
 
 	@Override
-	public void handleNetworkBroadcastIntent(final Context context, final String action, final Intent aIntent) {
+	public void handleNetworkBroadcastIntent(final Context context,
+			final String action, final Intent aIntent) {
 		this.handleNetworkBroadcastIntentImpl(context, action, aIntent);
 	}
 }

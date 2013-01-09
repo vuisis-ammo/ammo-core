@@ -958,8 +958,8 @@ public class MulticastChannel extends NetChannel
         }
 
         /**
-         * In the new design, aren't we supposed to let the AmmoService know if
-         * the outgoing queue is full or not?
+         * The NetworkManager is informed that the queue is full by
+         * posting the DisposalState.BUSY. 
          */
         public DisposalState putFromDistributor(AmmoGatewayMessage iMessage)
         {

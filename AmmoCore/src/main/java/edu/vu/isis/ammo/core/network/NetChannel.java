@@ -16,12 +16,9 @@ import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.Enumeration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import edu.vu.isis.ammo.api.AmmoIntents;
 
 import android.content.Context;
 import android.content.Intent;
@@ -29,7 +26,10 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.support.v4.net.ConnectivityManagerCompat;
 import android.telephony.TelephonyManager;
+import android.util.SparseArray;
+import edu.vu.isis.ammo.api.AmmoIntents;
 
 public abstract class NetChannel implements INetChannel {
 	private static final Logger logger = LoggerFactory
@@ -161,16 +161,32 @@ public abstract class NetChannel implements INetChannel {
 		return String.format("%.2f %sB", bytes / Math.pow(unit, exp), pre);
 	}
 
-	protected NetworkInterface interfaceName = null;
+	protected NetworkInterface link = null;
+	protected NetworkInfo linkInfo = null;
 
-	public void setNetworkInterfaceType(final Socket socket) {
+	/**
+	 * It may be useful to have the NetworkInfo to map the name of the interface
+	 * to the network type. There is no immediately obvious approach.
+	 * <p>
+	 * I leave the connectivity manager code as a comment as the solution may be
+	 * in that direction.
+	 * 
+	 * @param context
+	 * @param socket
+	 */
+	public void setNetworkInterfaceType(final Context context,
+			final Socket socket) {
 		final InetAddress sourceAddr = socket.getLocalAddress();
+
 		try {
-			this.interfaceName = NetworkInterface.getByInetAddress(sourceAddr);
+			this.link = NetworkInterface.getByInetAddress(sourceAddr);
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+		// final ConnectivityManager cm = (ConnectivityManager)
+		// context.getSystemService(Context.CONNECTIVITY_SERVICE);
 	}
 
 	/**
@@ -181,8 +197,7 @@ public abstract class NetChannel implements INetChannel {
 	 */
 	public boolean isMyLink(final InetAddress ip) {
 		try {
-			return (this.interfaceName.equals(NetworkInterface
-					.getByInetAddress(ip)));
+			return (this.link.equals(NetworkInterface.getByInetAddress(ip)));
 		} catch (SocketException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -190,8 +205,14 @@ public abstract class NetChannel implements INetChannel {
 		return false;
 	}
 
+	public boolean isMyLinkType(final int type) {
+		return (this.linkInfo.getType() == type);
+	}
+
 	/**
 	 * Handle the intent to see if the channel needs to be updated.
+	 * <h3>telephony</h3>
+	 * we don't care about the call state <code>tm.getCallState()</code> only the data state.
 	 * 
 	 * @param context
 	 * @param action
@@ -202,9 +223,13 @@ public abstract class NetChannel implements INetChannel {
 
 	public void handleNetworkBroadcastIntentImpl(final Context context,
 			String action, Intent aIntent) {
+		final ConnectivityManager cm = (ConnectivityManager) context
+				.getSystemService(Context.CONNECTIVITY_SERVICE);
+		final NetworkInfo ni = ConnectivityManagerCompat
+				.getNetworkInfoFromBroadcast(cm, aIntent);
 
 		if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)) {
-			logger.trace("Ether Link state changed");
+			logger.trace("Ether Link state changed {}", ni.getTypeName());
 			int state = aIntent.getIntExtra("state", 0);
 
 			// Should we be doing this here?
@@ -222,10 +247,14 @@ public abstract class NetChannel implements INetChannel {
 				}
 			}
 		} else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)) {
-
+			logger.trace("network state changed {} {}", ni.getTypeName(), ni.getState() );
+			
 		} else if (WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)) {
+			logger.trace("wifi state changed {} {}", ni.getTypeName(), ni.getState() );
+			
 		} else if (WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION
 				.equals(action)) {
+			logger.trace("wifi supplicant connection changed {}", ni.getTypeName());
 			final WifiManager wm = (WifiManager) context
 					.getSystemService(Context.WIFI_SERVICE);
 			final WifiInfo wi = wm.getConnectionInfo();
@@ -245,14 +274,87 @@ public abstract class NetChannel implements INetChannel {
 			} catch (UnknownHostException e) {
 				logger.warn("bad host", e);
 			}
-			
+
 		} else if (WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action)) {
-			logger.trace("WIFI state changed");
+			logger.trace("WIFI state changed {}", ni.getTypeName());
 
 		} else if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
-			logger.trace("3G state changed");
+			logger.trace("3G state changed {} {}", ni.getTypeName(), ni.getState());
 
+			final TelephonyManager tm = (TelephonyManager) context
+					.getSystemService(Context.TELEPHONY_SERVICE);
+			
+			switch (DataState.map.get(tm.getDataState())) {
+			case CONNECTED:
+				this.linkUp(action);
+				break;
+
+			case CONNECTING:
+			case DISCONNECTED:
+			case SUSPENDED:
+				this.linkDown(action);
+				break;
+
+			default:
+				break;
+			}
 		}
+	}
+
+	/**
+	 * Data connection state:
+	 */
+	public enum DataState {
+		/** State: Connected. */
+		CONNECTED(TelephonyManager.DATA_CONNECTED),
+		/** State: Currently setting up a data connection. */
+		CONNECTING(TelephonyManager.DATA_CONNECTING),
+		/** State: Disconnected. */
+		DISCONNECTED(TelephonyManager.DATA_DISCONNECTED),
+		/** Data connection state: Suspended. */
+		SUSPENDED(TelephonyManager.DATA_SUSPENDED);
+
+		final public int code;
+		static final public SparseArray<DataState> map = new SparseArray<DataState>();
+		static {
+			for (DataState value : DataState.values()) {
+				DataState.map.put(value.code, value);
+			}
+		}
+
+		private DataState(int code) {
+			this.code = code;
+		}
+
+	}
+
+	/**
+	 * Data connection activity:
+	 */
+	public enum DataActivity {
+		/** Activity : active, but physical link is down */
+		DORMANT(TelephonyManager.DATA_ACTIVITY_DORMANT),
+		/** Activity : Currently receiving IP PPP traffic. */
+		IN(TelephonyManager.DATA_ACTIVITY_IN),
+		/** Activity : Currently both sending and receiving IP PPP traffic. */
+		INOUT(TelephonyManager.DATA_ACTIVITY_INOUT),
+		/** Activity : No traffic. */
+		NONE(TelephonyManager.DATA_ACTIVITY_NONE),
+		/** Activity : Currently sending IP PPP traffic. */
+		OUT(TelephonyManager.DATA_ACTIVITY_OUT);
+
+		final public int code;
+		static final public SparseArray<DataActivity> map = new SparseArray<DataActivity>();
+		static {
+			for (DataActivity value : DataActivity.values()) {
+				DataActivity.map.put(value.code, value);
+			}
+		}
+
+		private DataActivity(int code) {
+			this.code = code;
+		}
+
 	}
 
 }

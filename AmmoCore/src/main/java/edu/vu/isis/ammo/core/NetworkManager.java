@@ -1587,6 +1587,7 @@ public enum NetworkManager  implements INetworkService,
             final String action = aIntent.getAction();
             logger.debug("onReceive: {}", aIntent);
 
+            /** update the channels */
             tcpChannel.handleNetworkBroadcastIntent(context, action, aIntent);
             multicastChannel.handleNetworkBroadcastIntent(context, action, aIntent);
             reliableMulticastChannel.handleNetworkBroadcastIntent(context, action, aIntent);
@@ -1594,6 +1595,8 @@ public enum NetworkManager  implements INetworkService,
             for (NetChannel channel : NetworkManager.this.registeredChannels) {
                 channel.handleNetworkBroadcastIntent(context, action, aIntent);
             }
+            
+            /** update the human interface */
             if (AmmoIntents.AMMO_ACTION_ETHER_LINK_CHANGE.equals(action)) {
                 // This intent comes in for both wired and wifi.
                 mNetlinks.get(linkTypes.WIRED.value).updateStatus();
@@ -1660,8 +1663,8 @@ public enum NetworkManager  implements INetworkService,
                                                          // error
                 logger.trace("telephone data state={}", dataState);
 
-                mNetworkConnected = wifiState == WifiManager.WIFI_STATE_ENABLED
-                        || dataState == TelephonyManager.DATA_CONNECTED;
+                mNetworkConnected = (wifiState == WifiManager.WIFI_STATE_ENABLED)
+                        || (dataState == TelephonyManager.DATA_CONNECTED);
                 logger.trace("mConnected={}", mNetworkConnected);
             }
             {

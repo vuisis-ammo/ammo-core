@@ -268,11 +268,14 @@ public class DistributorDataStore {
      * The states of a request over a particular channel. The DISTRIBUTE
      * RequestDisposal indicates that the total state is an aggregate of the
      * distribution of the request across the relevant channels.
+     * <h3>Reliability</h3>
+     * If there is a reasonable expectation of an acknowledgment then the state should be set to told.
+     * On reconnect the told messages should be re-told.
      */
     public enum DisposalState {
         /** an initial transient state */
         NEW(0x0001, "new"),
-        /** channel is temporarily rejecting req (probably down) */
+        /** channel is temporarily rejecting requests (probably down) */
         REJECTED(0x0002, "rejected"),
         /** message is problematic, don't try again */
         BAD(0x0080, "bad"),
@@ -282,13 +285,11 @@ public class DistributorDataStore {
         QUEUED(0x0008, "queued"),
         /** channel queue was busy (full channel queue) */
         BUSY(0x0100, "full"),
-        /** message has been sent synchronously */
+        /** message has been sent asynchronously with no expectation of an acknowledgment */
         SENT(0x0010, "sent"),
-        /**
-         * message sent asynchronously, with an expectation of an acknowledgment
-         */
+        /** message sent asynchronously, with an expectation of an acknowledgment */
         TOLD(0x0020, "told"),
-        /** async (told) message acknowledged */
+        /** asynchronously send (told) message has been acknowledged */
         DELIVERED(0x0040, "delivered"), ;
 
         final public int o;
