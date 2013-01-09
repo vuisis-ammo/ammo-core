@@ -1475,6 +1475,8 @@ public class DistributorThread extends Thread {
 			postalReq.close();
 			return false;
 		}
+		final long tupleId =  postalReq.getInt(postalReq.getColumnIndex(PostalTableSchema.DISPOSITION.n));
+		this.store.updatePostalByKey(tupleId, null, DisposalState.DELIVERED);
 
 		if (pushResp.hasThreshold()) {
 			final AcknowledgementThresholds thresholds = pushResp
