@@ -1077,13 +1077,14 @@ public class RequestSerializer {
             } else if (value instanceof JSONArray) {
                 final JSONArray jarray = (JSONArray) value;
                 PLogger.API_STORE.warn("invalid JSON payload=[{}]", parsePayload);
+                final long timestamp = System.currentTimeMillis();
                 final int jLength = jarray.length();
                 Uri finalUri = null;
                 for (int ix = 0; ix < jLength; ix++) {
                     final Object subValue = jarray.get(ix);
                     if (subValue instanceof JSONObject) {
                         final JSONObject subInput = (JSONObject) subValue;
-                        finalUri = deserializeJsonObjectToProvider(channelName, resolver, provider, subInput);
+                        finalUri = deserializeJsonObjectToProvider(timestamp, channelName, resolver, provider, subInput);
                     } else {
                         PLogger.API_STORE.warn("{} JSON payload=[{}]", subValue.getClass().getName(),
                         parsePayload);
@@ -1283,10 +1284,10 @@ public class RequestSerializer {
         return new UriFuture(tupleUri);
     }
 
-    private static Uri deserializeJsonObjectToProvider(final String channelName, final ContentResolver resolver, final Uri provider, final JSONObject input) {
+    private static Uri deserializeJsonObjectToProvider(final long timestamp, final String channelName, final ContentResolver resolver, final Uri provider, final JSONObject input) {
 
         final ContentValues cv = new ContentValues();
-        cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
+        cv.put(AmmoProviderSchema._RECEIVED_DATE, timestamp);
         final StringBuilder sb = new StringBuilder()
                 .append(AmmoProviderSchema.Disposition.REMOTE.name())
                 .append('.')
