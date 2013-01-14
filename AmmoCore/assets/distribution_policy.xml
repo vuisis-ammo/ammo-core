@@ -157,6 +157,40 @@ Such that if the prior channel succeeds the next channel is not attempted.
         </routing>
     </topic>
 
+    <topic type="ammo/edu.vu.isis.ammo.dash.media" >
+
+        <description>
+        </description>
+
+        <routing
+            category="postal"
+            lifespan="30"
+            priority="normal" >
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gatewaymedia" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemulticast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="multicast" />
+            </clause>
+        </routing>
+    </topic>
+    
     <topic type="ammo/transapps.chat.message_groupAll" >
 
         <description>
