@@ -1,4 +1,4 @@
-package edu.vu.isis.ammo.core.distributor;
+package edu.vu.isis.ammo.core.distributor.serializer;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -16,8 +16,6 @@ import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.DeserializedMessage;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
-import edu.vu.isis.ammo.core.distributor.serializer.IContentItem;
-import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
 
 public class CustomSerializer implements ISerializer {
 
