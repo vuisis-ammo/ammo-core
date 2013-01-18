@@ -1245,7 +1245,7 @@ public class RequestSerializer {
                     final Uri fieldUri = updateTuple.appendPath(fieldName).build();
                     try {
                         PLogger.API_STORE.debug("write blob uri=[{}]", fieldUri);
-                        final OutputStream outstream = resolver.openOutputStream(fieldUri, "wt");
+                        final OutputStream outstream = resolver.openOutputStream(fieldUri);
                         if (outstream == null) {
                             logger.error("failed to open output stream to content provider: {} ",
                                     fieldUri);
@@ -1706,7 +1706,7 @@ public class RequestSerializer {
                 final Uri fieldUri = updateTuple.appendPath(key).build();
 
                 try {
-                    final OutputStream outstream = resolver.openOutputStream(fieldUri, "wt");
+                    final OutputStream outstream = resolver.openOutputStream(fieldUri);
                     if (outstream == null) {
                         logger.error("failed to open output stream to content provider: {} ",
                                 fieldUri);
