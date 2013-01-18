@@ -2155,12 +2155,9 @@ public class DistributorThread extends Thread {
             }
         }
         
-        DistributorPolicy policy = this.networkManager.policy();
+        final DistributorPolicy policy = this.networkManager.policy();
+        final DistributorPolicy.Topic topicPolicy = policy.matchPostal(topic);
         
-        DistributorPolicy.Topic topicPolicy = policy.matchPostal(topic);
-        
-        
-
         final Encoding encoding = Encoding.getInstanceByName(encode);
         this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
                 data.toByteArray());

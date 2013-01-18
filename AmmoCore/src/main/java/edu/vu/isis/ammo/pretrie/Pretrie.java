@@ -130,6 +130,11 @@ public class Pretrie<V> implements IPretrie<V> {
 		this.put(Prefix.newInstance(prefix), value);
 	}
 
+	public void put(final String prefix, final V value) {
+		logger.trace("put w/ string");
+		this.put(Prefix.newInstance(prefix), value);
+	}
+
 	public void putAll(Branch<? extends V> sub) {
 		logger.trace("put all from sub");
 	}
