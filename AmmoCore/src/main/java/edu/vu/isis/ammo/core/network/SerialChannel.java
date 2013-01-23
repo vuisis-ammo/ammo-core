@@ -1038,7 +1038,7 @@ public class SerialChannel extends NetChannel
                                           mDelta.get() } );
 
                         if ( getRetransmitter() != null )
-                            getRetransmitter().swapHyperperiodsIfNeeded( hyperperiod );
+                            getRetransmitter().switchHyperperiodsIfNeeded( hyperperiod );
 
                         while (true) {
                             try {
