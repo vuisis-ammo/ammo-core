@@ -397,6 +397,9 @@ public enum NetworkManager  implements INetworkService,
         this.multicastChannel.disable();
         this.reliableMulticastChannel.disable();
         this.tcpMediaChannel.disable();
+        serialChannel.disable(); // Unnecessary, but the UI needs an
+                                 // update after the modelChannelMap
+                                 // is initialized.
         // The serial channel is created in a disabled state.
 
         this.acquirePreferences();

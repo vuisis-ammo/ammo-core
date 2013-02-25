@@ -7,11 +7,15 @@ The US government has the right to use, modify, reproduce, release,
 perform, display, or disclose computer software or computer software 
 documentation in whole or in part, in any manner and for any 
 purpose whatsoever, and to have or authorize others to do so.
-*/
+ */
 package edu.vu.isis.ammo.location;
 
 /**
- * @author Demetri Miller
+ * The Geoid provides methods for converting between different geoid (earth)
+ * point location/orientation systems. Most are coordinate representations like
+ * (longitude,latitude).
+ * <p>
+ * Methods are also provided for computing the distances between points.
  * 
  */
 public class Geoid {
@@ -26,14 +30,23 @@ public class Geoid {
 
 	private static final double NORTH = Math.PI * 0.5;
 
-	// Vars
+	/**
+	 * The position and orientation on the geoid.
+	 * Internally Geoid always uses radians, but all the interfaces use degrees by default.
+	 */
 	private BasicPoint _ctr = null;
 	private double _rad = 0.0;
 
 	// *****End Data Members*****
 
-	// Internally Geoid always uses radians, but all the interfaces use
-	// degrees by default.
+	/**
+	 * Specify a point on the geoid in longitude, latitude, heading in the angular unit specified.
+	 * 
+	 * @param lon
+	 * @param lat
+	 * @param rad
+	 * @param unit
+	 */
 	public Geoid(double lon, double lat, double rad, double unit) {
 		// Default values if params
 		if (unit < 0) {
@@ -47,6 +60,13 @@ public class Geoid {
 		_ctr = new BasicPoint(lon / unit, lat / unit);
 	}
 
+	/**
+	 * A factory method for converting a point location from one angular unit to another.
+	 * 
+	 * @param geo the point to be converted
+	 * @param unit the target units
+	 * @return the new point
+	 */
 	public static BasicPoint convert(BasicPoint geo, double unit) {
 		return new BasicPoint(geo.getX() * unit, geo.getY() * unit);
 	}
@@ -63,7 +83,7 @@ public class Geoid {
 	 *            (phi_f) latitude of finish point
 	 * @param ls
 	 *            (lambda_s) longitude of start point
-	 * @param ls
+	 * @param lf
 	 *            (lambda_f) longitude of finish point
 	 * @param unit
 	 *            the units of angular measure (radians by default)
@@ -85,26 +105,32 @@ public class Geoid {
 		ls *= unit;
 		lf *= unit;
 
-		double dL = lf - ls;
-		double sin_dL = Math.sin(dL);
-		double cos_dL = Math.cos(dL);
+		final double dL = lf - ls;
+		final double sin_dL = Math.sin(dL);
+		final double cos_dL = Math.cos(dL);
 
-		double cos_Pf = Math.cos(pf);
-		double sin_Pf = Math.sin(pf);
+		final double cos_Pf = Math.cos(pf);
+		final double sin_Pf = Math.sin(pf);
 
-		double cos_Ps = Math.cos(ps);
-		double sin_Ps = Math.sin(ps);
+		final double cos_Ps = Math.cos(ps);
+		final double sin_Ps = Math.sin(ps);
 
-		double addend = cos_Ps * sin_Pf - sin_Ps * cos_Pf * cos_dL;
-		double num = cos_Pf * sin_dL * cos_Pf * sin_dL + addend * addend;
+		final double addend = cos_Ps * sin_Pf - sin_Ps * cos_Pf * cos_dL;
+		final double num = cos_Pf * sin_dL * cos_Pf * sin_dL + addend * addend;
 
-		double den = sin_Ps * sin_Pf + cos_Ps * cos_Pf * cos_dL;
+		final double den = sin_Ps * sin_Pf + cos_Ps * cos_Pf * cos_dL;
 
 		return radius * Math.atan2(Math.sqrt(num), den) / unit;
 	}
 
 	/**
-	 * distance along the great circle to the next point
+	 * Distance along the great circle from the current location to the
+	 * specified location. The result is specified in the provided angular units.
+	 * 
+	 * @param lon
+	 * @param lat
+	 * @param unit
+	 * @return
 	 */
 	public double distance(double lon, double lat, double unit) {
 		if (unit < 0) {
@@ -115,11 +141,12 @@ public class Geoid {
 
 	/**
 	 * http://en.wikipedia.org/wiki/Orthographic_projection_(cartography)
-	 * http://www.progonos.com/furuti/MapProj/Dither/ProjAz/projAz.html Long/Lat
-	 * are expressed in radians. Distances are relative to the radius.
-	 * 
+	 * http://www.progonos.com/furuti/MapProj/Dither/ProjAz/projAz.html
+	 * <p>
+	 * Long/Lat are expressed in radians. Distances are relative to the radius.
+	 * <p>
 	 * Given a plane tangent at the objects center project onto that plane from
-	 * the geoid.
+	 * the spheroid.
 	 * 
 	 * @param lon
 	 *            longitude
@@ -131,25 +158,27 @@ public class Geoid {
 		lon /= unit;
 		lat /= unit;
 
-		double dL = lon - _ctr.getX();
-		double cos_dL = Math.cos(dL);
-		double sin_dL = Math.sin(dL);
+		final double dL = lon - _ctr.getX();
+		final double cos_dL = Math.cos(dL);
+		final double sin_dL = Math.sin(dL);
 
-		double cos_lat = Math.cos(lat);
-		double cos_lat_0 = Math.cos(_ctr.getY());
-		double sin_lat = Math.sin(lat);
-		double sin_lat_0 = Math.sin(_ctr.getY());
+		final double cos_lat = Math.cos(lat);
+		final double cos_lat_0 = Math.cos(_ctr.getY());
+		final double sin_lat = Math.sin(lat);
+		final double sin_lat_0 = Math.sin(_ctr.getY());
 
 		return new BasicPoint(_rad * cos_lat * sin_dL, _rad
 				* (cos_lat_0 * sin_lat - sin_lat_0 * cos_lat_0 * cos_dL));
 	}
 
 	/**
+	 * Normalize the angular measure to be always within the bounds [0 360).
+	 * 
 	 * @return never negative rather than returning [-180:0] or [0:+180],
 	 *         [180:360] or [0:+180]
 	 */
 	public static double azimuth(double current, double last) {
-		double azimuth = current - last;
+		final double azimuth = current - last;
 		if (azimuth < 0.0)
 			return 360.0 + (azimuth % 360);
 		if (azimuth > 360)
@@ -158,32 +187,44 @@ public class Geoid {
 	}
 
 	/**
-	 * Heading in degrees from true north positive clockwise
+	 * Heading in degrees from true north. The result has clockwise as the
+	 * positive direction.
+	 * 
+	 * @param lon
+	 * @param lat
+	 * @param unit
+	 * @return
 	 */
 	public double heading(double lon, double lat, double unit) {
 		if (unit < 0) {
 			unit = DEGREES;
 		}
-		BasicPoint excursion = azimuth_ortho_fwd(lon, lat, unit);
+		final BasicPoint excursion = azimuth_ortho_fwd(lon, lat, unit);
 		return (NORTH - Math.atan2(excursion.getY(), excursion.getX())) * unit;
 	}
-	
-	 /**
-     * @param radx the x coordinate on the tangent plane
-     * @param rady the y coordinate on the tangent plane
-     */
-	    public BasicPoint azimuth_ortho_inv(double x, double y, double unit) {
-        double rho = Math.sqrt( x*x + y*y);
-        double cee = Math.asin(rho/_rad);
-        
-        double cos_cee = Math.cos(cee);
-        double sin_cee = Math.sin(cee);
-        double cos_lat_0 = Math.cos(_ctr.getY());
-        double sin_lat_0 = Math.sin(_ctr.getY());
-        
-        double lon = _ctr.getX() 
-           + Math.atan2( x*sin_cee, rho*cos_lat_0*cos_cee - y*sin_lat_0*sin_cee );
-        double lat = Math.asin( cos_cee*sin_lat_0 + y*sin_cee*cos_lat_0/rho );
-        return new BasicPoint(unit*lon, unit*lat);
-     }
+
+	/**
+	 * This method is the inverse to azimuth_ortho_fwd.
+	 * 
+	 * @param x
+	 *            the x coordinate on the tangent plane
+	 * @param y
+	 *            the y coordinate on the tangent plane
+	 */
+	public BasicPoint azimuth_ortho_inv(double x, double y, double unit) {
+		final double rho = Math.sqrt(x * x + y * y);
+		final double cee = Math.asin(rho / _rad);
+
+		final double cos_cee = Math.cos(cee);
+		final double sin_cee = Math.sin(cee);
+		final double cos_lat_0 = Math.cos(_ctr.getY());
+		final double sin_lat_0 = Math.sin(_ctr.getY());
+
+		final double lon = _ctr.getX()
+				+ Math.atan2(x * sin_cee, rho * cos_lat_0 * cos_cee - y
+						* sin_lat_0 * sin_cee);
+		final double lat = Math.asin(cos_cee * sin_lat_0 + y * sin_cee * cos_lat_0
+				/ rho);
+		return new BasicPoint(unit * lon, unit * lat);
+	}
 }

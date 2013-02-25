@@ -21,6 +21,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.LinkedList;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -79,7 +81,26 @@ public class SerialChannel extends NetChannel
 
         // The channel is created in the disabled state, so it will
         // not have a Connector thread.
+
+        // Set up timer to trigger once per minute.
+        TimerTask updateBps = new UpdateBpsTask();
+        mUpdateBpsTimer.scheduleAtFixedRate( updateBps, 0, BPS_STATS_UPDATE_INTERVAL * 1000 );
     }
+
+    private Timer mUpdateBpsTimer = new Timer();
+
+    class UpdateBpsTask extends TimerTask {
+        public void run() {
+            logger.trace( "UpdateBpsTask fired" );
+
+            // Update the BPS stats for the sending and receiving.
+            mBpsSent = (mBytesSent - mLastBytesSent) / BPS_STATS_UPDATE_INTERVAL;
+            mLastBytesSent = mBytesSent;
+
+            mBpsRead = (mBytesRead - mLastBytesRead) / BPS_STATS_UPDATE_INTERVAL;
+            mLastBytesRead = mBytesRead;
+        }
+    };
 
 
     /**
@@ -499,7 +520,6 @@ public class SerialChannel extends NetChannel
 
             // FIXME: Do better error handling.  If we can't enable Nmea
             // messages, should we close the channel?
-            // TBD SKN: Start the NMEA Message after we have made a connection to the serial port
             try {
                 if ( !enableNmeaMessages() )
                 {
@@ -549,6 +569,12 @@ public class SerialChannel extends NetChannel
             mSenderQueue.markAsAuthorized();
 
             mIsConnected.set( true );
+            mBytesSent = 0;
+            mBytesRead = 0;
+            mLastBytesSent = 0;
+            mLastBytesRead = 0;
+            mBpsSent = 0;
+            mBpsRead = 0;
 
             return true;
         }
@@ -702,7 +728,12 @@ public class SerialChannel extends NetChannel
                             // mDelta = (mCount*mDelta + delta)/(mCount+1);
 
                             // FIR Filter
-                            mDelta.set( 0 );
+                            // I'm commenting out the following line, since this
+                            // looks like a race condition.  If another thread
+                            // reads mDelta while it is 0 and in the process of
+                            // being recalculated, this will give a momentary
+                            // erroneous value.
+                            //mDelta.set( 0 );
                             long accumulator = 0;
                             for (long d : mDeltaSamples)
                                 accumulator += d;
@@ -975,6 +1006,10 @@ public class SerialChannel extends NetChannel
                         // our hyperperiod is the low order short of (currentGpsTime / cycleDuration).
                         // We use this so the retransmitter can tell which slot it's in.
                         final int hyperperiod = ((int) (currentGpsTime / cycleDuration)) & 0x0000FFFF;
+                        logger.trace( "Sender HP calc: {}, {}, {}",
+                                      new Object[] { currentGpsTime,
+                                                     cycleDuration,
+                                                     hyperperiod });
 
                         // for this cycle when does our slot begin
                         final long thisSlotBegin = thisCycleStartTime + offset;
@@ -1011,7 +1046,7 @@ public class SerialChannel extends NetChannel
                                           mDelta.get() } );
 
                         if ( getRetransmitter() != null )
-                            getRetransmitter().swapHyperperiodsIfNeeded( hyperperiod );
+                            getRetransmitter().switchHyperperiodsIfNeeded( hyperperiod );
 
                         while (true) {
                             try {
@@ -1172,6 +1207,7 @@ public class SerialChannel extends NetChannel
 
                 mPort.write( buf.array() );
                 mMessagesSent.getAndIncrement();
+                mBytesSent += buf.array().length;
 
                 logger.debug(
                              "sent message size={}, checksum={}, data:{}",
@@ -1214,8 +1250,8 @@ public class SerialChannel extends NetChannel
                 AmmoGatewayMessage agm = getRetransmitter().createResendPacket( bytesThatWillFit - RESERVE_FOR_ACK );
                 if ( agm != null ) {
                     sendMessage( agm, hyperperiod, slotIndex, indexInSlot );
-		    // decrement bytes that will fit
-		    bytesThatWillFit -= (agm.size + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE);
+                    // decrement bytes that will fit
+                    bytesThatWillFit -= (agm.size + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE);
                 } else {
                     break;
                 }
@@ -1354,6 +1390,10 @@ public class SerialChannel extends NetChannel
                         // our hyperperiod is the low order short of (currentGpsTime / cycleDuration).
                         // We use this so the retransmitter can tell which slot it's in.
                         hyperperiod = ((int) (currentTime / cycleDuration)) & 0x0000FFFF;
+                        logger.trace( "Receiver HP calc: {}, {}, {}",
+                                      new Object[] { currentTime,
+                                                     cycleDuration,
+                                                     hyperperiod });
 
                         long currentSlot = (currentTime - thisCycleStartTime) / slotDuration;
                         logger.debug( "Read magic sequence in slot {} at {}",
@@ -1485,6 +1525,7 @@ public class SerialChannel extends NetChannel
 
             logger.trace( "val={}", (byte) val );
             mBytesSinceMagic.getAndIncrement();
+            mBytesRead += 1;
 
             return (byte) val;
         }
@@ -1647,6 +1688,32 @@ public class SerialChannel extends NetChannel
         this.lastConnState = connState;
         this.lastSenderState = senderState;
         this.lastReceiverState = receiverState;
+    }
+
+
+	@Override
+    public String getSendBitStats() {
+        //StringBuilder result = new StringBuilder();
+        //result.append( "S: " ).append( humanReadableByteCount(mBytesSent, true) );
+        //result.append( ", BPS:" ).append( mBpsSent );
+        //return result.toString();
+        if ( getRetransmitter() != null )
+            return getRetransmitter().getSendBitStats();  // just for field testing
+        else
+            return "";
+    }
+
+
+	@Override
+    public String getReceiveBitStats() {
+        //StringBuilder result = new StringBuilder();
+        //result.append( "R: " ).append( humanReadableByteCount(mBytesRead, true) );
+        //result.append( ", BPS:" ).append( mBpsRead );
+        //return result.toString();
+        if ( getRetransmitter() != null )
+            return getRetransmitter().getReceiveBitStats();  // just for field testing
+        else
+            return "";
     }
 
 

@@ -11,6 +11,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.network;
 
 public abstract class NetChannel implements INetChannel {
+
 	protected static final boolean HEARTBEAT_ENABLED = true;
 
 	protected static final int CONNECTION_RETRY_DELAY = 20 * 1000; // 20 seconds
@@ -97,18 +98,45 @@ public abstract class NetChannel implements INetChannel {
 		return "";
 	}
 
-	@Override
-	public String getSendBitStats() {
-		return "";
-	}
-
-	@Override
-	public String getReceiveBitStats() {
-		return "";
-	}
 
 	protected int lastConnState = INetChannel.PENDING;
 	protected int lastSenderState = INetChannel.PENDING;
 	protected int lastReceiverState = INetChannel.PENDING;
 
+    protected volatile long mBytesSent = 0;
+    protected volatile long mBytesRead = 0;
+
+    protected volatile long mLastBytesSent = 0;
+    protected volatile long mLastBytesRead = 0;
+
+    protected static final int BPS_STATS_UPDATE_INTERVAL = 60; // seconds
+    protected volatile long mBpsSent = 0;
+    protected volatile long mBpsRead = 0;
+
+
+	@Override
+    public String getSendBitStats() {
+        StringBuilder result = new StringBuilder();
+        result.append( "S: " ).append( humanReadableByteCount(mBytesSent, true) );
+        result.append( ", BPS:" ).append( mBpsSent );
+        return result.toString();
+    }
+
+
+	@Override
+    public String getReceiveBitStats() {
+        StringBuilder result = new StringBuilder();
+        result.append( "R: " ).append( humanReadableByteCount(mBytesRead, true) );
+        result.append( ", BPS:" ).append( mBpsRead );
+        return result.toString();
+    }
+
+
+    private static String humanReadableByteCount(long bytes, boolean si) {
+        int unit = si ? 1000 : 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+        return String.format("%.2f %sB", bytes / Math.pow(unit, exp), pre);
+    }
 }

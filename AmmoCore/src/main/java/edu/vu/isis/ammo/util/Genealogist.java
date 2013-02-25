@@ -18,8 +18,8 @@ public class Genealogist {
      * Given an object all of its ancestor classes are identified. At each level
      * all of the implemented interfaces are also identified.
      * 
-     * @param object
-     * @return
+     * @param object the object whose ancestors are sought
+     * @return a list (as a tree) of all ancestors
      */
     public static TreeNode<Class<?>> getAncestry(Object object) {
         logger.trace("get ancestry for object {}", object.getClass().getName());
@@ -38,7 +38,7 @@ public class Genealogist {
      * 
      * @param classObject
      * @param target
-     * @return
+     * @return a list (as a tree) of ancestors
      */
     private static TreeNode<Class<?>> getAncestryAux(Class<?> classObject, TreeNode<Class<?>> target) {
         logger.trace("get ancestry for class {}", classObject.getName());

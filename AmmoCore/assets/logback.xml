@@ -53,6 +53,7 @@
  
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
+     <appender-ref ref="STAT" />
   </root>
 
 </configuration>

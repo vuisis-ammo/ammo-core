@@ -101,7 +101,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
              //   hyperperiod:   2 bytes
              //   slot number:   1 byte
              //   index in slot: 1 byte
-        + 1  // packet type (low-order 2 bits)
+        + 1  // packet type
         + 1  // <reserved>
         + 2; // header checksum
     // ------
@@ -134,6 +134,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public static final int PACKETTYPE_NORMAL = 0x01;
     public static final int PACKETTYPE_RESEND = 0x02;
     public static final int PACKETTYPE_ACK    = 0x03;
+    public static final int PACKETTYPE_RELAY  = 0x04;
 
     //
     // The following two members must not be made final, because they need to
@@ -762,7 +763,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     checkPayloadBytes[2] = 0;
                     checkPayloadBytes[3] = 0;
                     // drain.get( checkBytes, 0, 2 );
-		    CheckSum csum = new CheckSum(checkPayloadBytes);
+                    CheckSum csum = new CheckSum(checkPayloadBytes);
                     long payload_checksum = csum.asLong();
                     logger.debug("   payload check={}, asLong={}", checkPayloadBytes, Long.toHexString(payload_checksum));
 
@@ -774,9 +775,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 					int slotID = (uid >>> 8) & 0xFF;
                     int indexInSlot = uid  & 0xFF;
 
-                    // Packed type
+                    // Packet type
                     byte next = drain.get();
-                    int packetType = next & 0x03;
+                    int packetType = next; // & 0x03;  // Is is wise to mask here?
                     logger.error( "packetType={}", packetType );
 
                     // <reserved> (1 byte)
