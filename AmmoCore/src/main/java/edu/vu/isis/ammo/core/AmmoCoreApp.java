@@ -20,7 +20,11 @@ package edu.vu.isis.ammo.core;
  */
 import java.io.File;
 
+import android.app.AlarmManager;
 import android.app.Application;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
 import android.os.Environment;
 
 public class AmmoCoreApp  extends Application {
@@ -41,14 +45,15 @@ public class AmmoCoreApp  extends Application {
         super.onCreate();
         singleton = this;
         
-        //final Intent svc = new Intent();
-
-//        svc.setClass(this, AmmoService.class);
-//        this.startService(svc);
-        // context.startService(AmmoService.LAUNCH);
-
- //       svc.setClass(this, EthTrackSvc.class);
- //       this.startService(svc);
+   
+        /**
+         * keep the service running
+         */
+        final Intent intent = new Intent(this, AmmoService.class);
+        final PendingIntent service = PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        final AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        alarmManager.cancel(service);
+        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), 1000, service);
     }
 
     /**
