@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
+
 /**
  * We can pass in fewer of these arguments to the constructor if we make this
  * a private class of the SerialChannel.  Wait until we see how big this class
@@ -28,6 +29,16 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialRetransmitter
 {
+    private static final Logger logger = LoggerFactory.getLogger( "net.serial.retrans" );
+
+    //
+    // Constants
+    //
+
+    // This needs to be public because it needs to be used by the
+    // SerialChannel.
+    public static final int DEFAULT_HOP_COUNT = 4;
+
     // original send + N-retries
     private static final int DEFAULT_RESENDS = 3;
 
@@ -37,7 +48,7 @@ public class SerialRetransmitter
     // this is bound by the ack - we have 1 byte for each slot which
     // limits to 8 messages, we reserve 1 bit for informing others
     // about receivingDirectlyFromMe
-    private static final int MAX_PACKETS_PERSLOT = 7;
+    private static final int MAX_PACKETS_PER_SLOT = 7;
 
     private static final int MAX_SLOTS = 16;
 
@@ -50,105 +61,47 @@ public class SerialRetransmitter
     // hyperperiod - so we get 108 sec
     private static final int MAX_SLOT_HISTORY = 16;
 
-    public static final int DEFAULT_HOP_COUNT = 3;
+    //
+    // Member variables
+    //
 
-
-    private class PacketRecord {
-        public int mExpectToHearFrom;
-        public int mHeardFrom;
-        public int mResends;
-
-        // this is the serial uid computed by or'ing of hyperperiod
-        // (2bytes), slot (1byte), index in slot (1byte)
-        public int mUID;
-
-        public int mHopCount;
-
-        public AmmoGatewayMessage mPacket;
-
-        PacketRecord( int uid, AmmoGatewayMessage agm ) {
-            mUID = uid;
-            mPacket = agm;
-            mExpectToHearFrom = mConnectivityMatrix[mySlotNumber] & ~(0x1 << mySlotNumber);
-            mHeardFrom = 0;
-            mResends = DEFAULT_RESENDS;
-            mHopCount = agm.mHopCount;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder result = new StringBuilder();
-            result.append( mPacket ).append( ", " ).append( Integer.toHexString(mExpectToHearFrom) ).append( ", " );
-            result.append( Integer.toHexString(mHeardFrom) ).append( ", " ).append( mResends );
-            return result.toString();
-        }
-    };
-
-    // This class records information about packets sent in a slot and acks
-    // received in a slot.  It is retained so that, once we receive acks for
-    // our sent packets during the next slot, we can figure out if all
-    // intended receivers have received each packet.
-    private class SlotRecord {
-        public int mHyperperiodID;
-        public PacketRecord[] mSent = new PacketRecord[MAX_PACKETS_PERSLOT]; // we can only sent and ack atmost 8 packets
-        public int mSendCount;
-
-        public byte[] mAcks = new byte[MAX_SLOTS];
-
-        // FIXME: magic number - limits max radios in hyperperiod to 16
-        // Should we optimize for smaller nets?
-		public SlotRecord() {
-            for ( int i = 0; i < mSent.length; ++i ) {
-                mSent[i] = null;
-            }
-        }
-
-        public void reset( int newHyperperiod ) {
-            mHyperperiodID = newHyperperiod;
-            mSendCount = 0;
-
-            for ( int i = 0; i < mSent.length; ++i )
-                mSent[ i ] = null;
-            for ( int i = 0; i < mAcks.length; ++i )
-                mAcks[ i ] = 0;
-        }
-
-        public void setAckBit( int slotID, int indexInSlot ) {
-            logger.trace( "setting ack bit for indexInSlot={}", indexInSlot );
-            byte bits = mAcks[ slotID ];
-            //logger.trace( "...before: bits={}, indexInSlot={}", bits, indexInSlot );
-            bits |= (0x1 << indexInSlot);
-            //logger.trace( "...after: bits={}", bits );
-            mAcks[ slotID ] = bits;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder result = new StringBuilder();
-            result.append( mHyperperiodID ).append( ", " );
-            result.append( mSendCount ).append( ", " );
-            result.append( mSent.length );
-            return result.toString();
-        }
-    };
-
-
-    // This is a ring buffer
-    private SlotRecord[] slotRecords = new SlotRecord[MAX_SLOT_HISTORY];
-
-    // Index of current in the slot record buffer
-    private int mCurrentIdx = 0;
-
-    // This keeps track of who is receiving directly from whom.
-    // Updated locally based on received acks OR packets; updated for
-    // others based on their disseminated info.
-    private int[] mConnectivityMatrix = new int[MAX_SLOTS];
-    // last hyperperiod in which connectivity was updated for a remote node
-    // this is used to decide when to expire a node from connectivity matrix
-    private int[] mConnectivityUpdated = new int[MAX_SLOTS];
-
-    // Should be called mResendRelayQueue, really.
+    // Contains packets waiting to be transmitted.  This includes both
+    // packets to be resent and also packets being retransmitted.
     private Queue<PacketRecord> mResendQueue = new LinkedList<PacketRecord>();
+
+    private ConnectivityMatrix mConnMatrix;
+    private SlotRecords mSlotRecords;
+
+    // Our slot number is constant for the lifetime of this object, so
+    // we cache it for efficiency.
+    private int mySlotNumber;
+
+    // Only used for delivering messages
+    private SerialChannel mChannel;
+
+    private volatile int mNormalReceived = 0;
+    private volatile int mResendReceived = 0;
+    private volatile int mRelayReceived = 0;
+
+    /**
+     * This method provides a way to display the resend/relay stats for field testing.
+     */
+    public String getSendBitStats() {
+        StringBuilder result = new StringBuilder();
+        result.append( "Normal rec:" ).append( mNormalReceived );
+        return result.toString();
+    }
+
+
+    /**
+     * This method provides a way to display the resend/relay stats for field testing.
+     */
+    public String getReceiveBitStats() {
+        StringBuilder result = new StringBuilder();
+        result.append( "Resend:" ).append( mResendReceived );
+        result.append( ", Relay:" ).append( mRelayReceived );
+        return result.toString();
+    }
 
 
     /**
@@ -159,29 +112,28 @@ public class SerialRetransmitter
         logger.trace( "SerialRetransmitter::SerialRetransmitter()" );
         mySlotNumber = mySlot;
         mChannel = channel;
-        mChannelManager = channelManager;
-        for(int i=0; i<MAX_SLOT_HISTORY; i++)
-            slotRecords[i] = new SlotRecord();
-        for(int i=0; i<MAX_SLOTS; i++)
-            mConnectivityMatrix[i] = 0x1 << i; // each node can receive from itself
+
+        mConnMatrix = new ConnectivityMatrix( MAX_SLOTS, mySlot, DEFAULT_CONNMATRIX_EXPIRE );
+        mSlotRecords = new SlotRecords( MAX_SLOT_HISTORY, MAX_SLOTS, MAX_PACKETS_PER_SLOT );
     }
 
 
-    synchronized public void swapHyperperiodsIfNeeded( int hyperperiod )
+    synchronized public void switchHyperperiodsIfNeeded( int hyperperiod )
     {
-        if ( hyperperiod != slotRecords[mCurrentIdx].mHyperperiodID ) {
+        if ( hyperperiod != mSlotRecords.getCurrentHyperperiod() ) {
             logger.trace( "HYPERPERIOD: swapping {}-->{}",
-                          slotRecords[mCurrentIdx].mHyperperiodID, hyperperiod );
+                          mSlotRecords.getCurrentHyperperiod(), hyperperiod );
+            if ( Math.abs( mSlotRecords.getCurrentHyperperiod() - hyperperiod ) != 1 ) {
+                logger.error( "ERROR: hyperperiods differ by more than one: {}-->{}",
+                              mSlotRecords.getCurrentHyperperiod(), hyperperiod );
+            }
 
             // We've entered a new hyperperiod, so make current point to the
             // new one, and discard the previous one.
             processPreviousBeforeSwap();
 
-	    // repair connectivity matrix
-	    repairConnectivityMatrix( hyperperiod );
-
-            mCurrentIdx = (mCurrentIdx + 1) % MAX_SLOT_HISTORY;
-            slotRecords[mCurrentIdx].reset( hyperperiod );
+            mConnMatrix.repair( hyperperiod );
+            mSlotRecords.incrementSlot( hyperperiod );
         } else {
             logger.trace( "HYPERPERIOD: swap called but same: {}", hyperperiod );
         }
@@ -192,10 +144,10 @@ public class SerialRetransmitter
     {
         // Any packet in mPrevious that has not been acknowledged should be
         // requeued for resending in the resend queue.
-        final int mPreviousIdx = mCurrentIdx == 0 ? MAX_SLOT_HISTORY - 1 : mCurrentIdx - 1;
-        final SlotRecord mPrevious = slotRecords[mPreviousIdx];
+        final SlotRecord mPrevious = mSlotRecords.getPreviousSlotRecord();
 
-        logger.trace( "SWAP: begin: previous is ring buffer index={}", mPreviousIdx );
+        logger.trace( "SWAP: begin: previous is ring buffer index={}",
+                      mSlotRecords.getPreviousIndex() );
 
         for ( int i=0; i<mPrevious.mSendCount; i++ ) {
             PacketRecord pr = mPrevious.mSent[i];
@@ -206,13 +158,13 @@ public class SerialRetransmitter
                 // that we thought we were sending to, so we can
                 // now remove the packet from the pool.
                 logger.debug( "Deleting fully acked Packet: expected={}, heardFrom={}, PacketRecord: {}",
-                              new Object[] { bitsToNumberList( pr.mExpectToHearFrom ),
-                                             bitsToNumberList( pr.mHeardFrom ),
+                              new Object[] { Util.bitsToNumberList( pr.mExpectToHearFrom ),
+                                             Util.bitsToNumberList( pr.mHeardFrom ),
                                              pr } );
             } else {
                 logger.trace( "Requeueing: expected={}, heardFrom={}, PacketRecord: {}",
-                              new Object[] { bitsToNumberList( pr.mExpectToHearFrom ),
-                                             bitsToNumberList( pr.mHeardFrom ),
+                              new Object[] { Util.bitsToNumberList( pr.mExpectToHearFrom ),
+                                             Util.bitsToNumberList( pr.mHeardFrom ),
                                              pr } );
                 // Puts this in the resend queue to be resent later when possible.
                 if ( pr.mResends > 0 ) {
@@ -220,85 +172,22 @@ public class SerialRetransmitter
                     mResendQueue.offer( pr );
                     logger.trace( "RESENDQUEUE: {} in queue", mResendQueue.size() );
                 }
-		// else {
-                    // If the packet has no more resends left, assume
-                    // that the slots who haven't acked it yet have
-                    // dropped out, and remove them from the
-                    // connectivity matrix.
-                    // int didntHearFrom = pr.mExpectToHearFrom ^ pr.mHeardFrom;
-                    // for ( int j = 0; j < MAX_SLOTS; ++j ) {
-                    //     if ( ((didntHearFrom >>> j) & 0x1) != 0 ) {
-                    //         logger.trace( "Resends at 0. Connectivity Matrix: Dropped {}", j );
-                    //         mConnectivityMatrix[mySlotNumber] &= ~(0x1 << j);
-                    //         mConnectivityMatrix[j] = 0;
-                    //     }
-                    // }
+                // else {
+                // If the packet has no more resends left, assume
+                // that the slots who haven't acked it yet have
+                // dropped out, and remove them from the
+                // connectivity matrix.
+                // int didntHearFrom = pr.mExpectToHearFrom ^ pr.mHeardFrom;
+                // for ( int j = 0; j < MAX_SLOTS; ++j ) {
+                //     if ( ((didntHearFrom >>> j) & 0x1) != 0 ) {
+                //         logger.trace( "Resends at 0. Connectivity Matrix: Dropped {}", j );
+                //         mConnMatrix.didNotHearFrom( mySlotNumber, j );
+                //     }
+                // }
                 // }
             }
         }
         logger.trace( "SWAP: end" );
-    }
-
-    private void repairConnectivityMatrix( int hyperperiod )
-    {
-	// now repair connectivity matrix
-	for(int i=0; i<MAX_SLOTS; i++) {
-	    if ( i == mySlotNumber )
-		continue;
-	    if ( (hyperperiod - mConnectivityUpdated[i]) > DEFAULT_CONNMATRIX_EXPIRE ) {
-		mConnectivityMatrix[mySlotNumber] &= ~(0x1 << i);
-	    }
-	}
-	
-    }
-
-    /**
-     * Returns as a String a list of numbers denoting the "1" bits in a bitmap.
-     * E.g., 00100110 is converted to (1,2,5).
-     */
-    private String bitsToNumberList( int bits ) {
-        boolean firstTime = true;
-        StringBuilder sb = new StringBuilder();
-        sb.append( "(" );
-
-        int i = 0;
-        while ( bits != 0 ) {
-            if ( (bits & 0x1) != 0 ) {
-                if ( firstTime ) {
-                    sb.append( i );
-                    firstTime = false;
-                } else {
-                    sb.append( "," ).append( i );
-                }
-            }
-            bits = bits >>> 1;
-            ++i;
-        }
-
-        sb.append( ")" );
-        return sb.toString();
-    }
-
-
-    /**
-     * Returns a string representation of the type of the packet.
-     */
-    private String packetTypeAsString( int type ) {
-        // There is probably some fancy enum way to get Strings, but this will
-        // do for now.
-        String result = null;
-        switch ( type ) {
-        case AmmoGatewayMessage.PACKETTYPE_NORMAL:
-            result =  "NORMAL";
-            break;
-        case AmmoGatewayMessage.PACKETTYPE_RESEND:
-            result = "RESEND";
-            break;
-        case AmmoGatewayMessage.PACKETTYPE_ACK:
-            result = "ACK";
-            break;
-        }
-        return result;
     }
 
 
@@ -312,7 +201,7 @@ public class SerialRetransmitter
                                                      int hyperperiod )
     {
         logger.trace( "Received packet: type={}, hyperperiod={}, my slot={}, their slot={}",
-                      new Object[] { packetTypeAsString(agm.mPacketType),
+                      new Object[] { Util.packetTypeAsString(agm.mPacketType),
                                      hyperperiod, mySlotNumber, agm.mSlotID } );
 
         //
@@ -323,17 +212,18 @@ public class SerialRetransmitter
         // thinks is the current slot, or if a new slot has started.  If so,
         // save off the current slot stats as previous and start collecting
         // new stats.
-        swapHyperperiodsIfNeeded( hyperperiod );
+        switchHyperperiodsIfNeeded( hyperperiod );
 
         // Set the bit in the current hyperperiod for providing an ack back to sender
-        slotRecords[mCurrentIdx].setAckBit( agm.mSlotID, agm.mIndexInSlot );
+        mSlotRecords.setAckBit( agm.mSlotID, agm.mIndexInSlot );
 
-        // First, if it's an ack packet and any bit is set for the byte
-        // corresponding to my slot, mark that this slot ID is actively
-        // receiving from me.  Only accept ack packets from others sending
-        // in the appropriate hyperperiod.
         if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
             logger.trace( "RECEIVED: ack packet. payload={}", agm.payload );
+
+            // First, if it's an ack packet and any bit is set for the byte
+            // corresponding to my slot, mark that this slot ID is actively
+            // receiving from me.  Only accept ack packets from others sending
+            // in the appropriate hyperperiod.
 
             // Prevent sign extension and mask out 7 bit since it's not really
             // an ack for a packet.
@@ -341,23 +231,10 @@ public class SerialRetransmitter
             if ( theirAckBitsForMe != 0 ) {
                 // because I am getting an ack for my messages remote is receiving
                 // directly from me
-                int before = mConnectivityMatrix[mySlotNumber];
-                mConnectivityMatrix[mySlotNumber] |= (0x1 << agm.mSlotID);
-		// updating hyperperiod in which we received from remote
-		mConnectivityUpdated[agm.mSlotID] = hyperperiod;
-                if ( before != mConnectivityMatrix[mySlotNumber] ) {
-                    logger.trace( "Connectivity Matrix: Added {}", agm.mSlotID );
-                }
+                mConnMatrix.set( hyperperiod, agm.mSlotID, true );
             }
 
-            for ( int i = 0; i < MAX_SLOTS; i++ ) {
-                // remote is receiving directly from slot i, top bit in the ack
-                // slot is set for receive info
-                if ( (agm.payload[i] & 0x00000080)  == 0x00000080 )
-                    mConnectivityMatrix[agm.mSlotID] |= (0x1 << i);
-		else
-                    mConnectivityMatrix[agm.mSlotID] &= ~(0x1 << i);
-            }
+            mConnMatrix.processAckPacketPayload( agm.mSlotID, agm.payload );
 
             if ( hyperperiod == agm.mHyperperiod || hyperperiod == agm.mHyperperiod + 1 ) {
                 // We also use their ack information to tell which of the
@@ -367,11 +244,10 @@ public class SerialRetransmitter
                 // For each 1 bit in their ack byte, find the PacketRecord
                 // for that index in mPrevious.mSent and set the ack bit
                 // in mHeardFrom.
-                final int mPreviousIdx = (mCurrentIdx == 0) ? (MAX_SLOT_HISTORY - 1) : (mCurrentIdx - 1);
-                final SlotRecord mPrevious = slotRecords[mPreviousIdx];
+                final SlotRecord mPrevious = mSlotRecords.getPreviousSlotRecord();
 
                 logger.trace( "...slot {} acked me, messages: {}", agm.mSlotID,
-                              bitsToNumberList( theirAckBitsForMe ));
+                              Util.bitsToNumberList( theirAckBitsForMe ));
                 for ( int index = 0; index < mPrevious.mSendCount; ++index ) {
                     if ( (theirAckBitsForMe & 0x1) != 0 ) {
                         // They received a packet in the position in the slot
@@ -395,18 +271,17 @@ public class SerialRetransmitter
         else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
             logger.trace( "RECEIVED: normal packet. payload={}", agm.payload );
 
+            mNormalReceived++;
+
             // Propagate up --
 
             // Save it for relaying if the original sender does not have the same
             // connectivity matrix as we do...
-            // FIXME: Shouldn't this be a superset of me rather than equal to me?
-            logger.trace( "...sender receiving: {}", bitsToNumberList( mConnectivityMatrix[agm.mSlotID] ));
-            logger.trace( "...my receiving: {}", bitsToNumberList( mConnectivityMatrix[mySlotNumber] ));
-            if ( (mConnectivityMatrix[mySlotNumber] &
-                  (mConnectivityMatrix[mySlotNumber] ^ mConnectivityMatrix[agm.mSlotID])) != 0) {
-                int uid = createUID( agm.mHyperperiod, agm.mSlotID, agm.mIndexInSlot );
-                PacketRecord pr = new PacketRecord(uid, agm);
+            if ( !mConnMatrix.coversMyConnectivity( agm.mSlotID )) {
+                int uid = Util.createUID( agm.mHyperperiod, agm.mSlotID, agm.mIndexInSlot );
+                PacketRecord pr = new PacketRecord( uid, agm, mConnMatrix.expectToHearFrom(), DEFAULT_RESENDS );
                 --pr.mHopCount;
+                pr.mPacketType = AmmoGatewayMessage.PACKETTYPE_RELAY;
                 logger.trace( "HOPCOUNT: Normal packet decrementing to {}", pr.mHopCount );
                 if ( pr.mHopCount > 0 ) {
                     mResendQueue.offer( pr );
@@ -419,7 +294,8 @@ public class SerialRetransmitter
             }
             mChannel.deliverMessage( agm );
         }
-        else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
+        else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND
+                  || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RELAY ) {
             // If we have already seen the packet before, discard it and don't
             // deliver it to the distributor.
             // NOTE: For Ft. Drum, we will ignore this and send it up multiple times.
@@ -428,9 +304,19 @@ public class SerialRetransmitter
             // packet has a four-byte UID prepended to the payload, and we want
             // to deliver a packet with the original payload.
 
-            // Tweak the agm here.  Everything in the agm should just stay the
+
+            // Only increment the counters if we have not received this packet before.
+            if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
+                logger.debug( "RECEIVED: resend packet. payload={}", agm.payload );
+            } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RELAY ) {
+                logger.debug( "RECEIVED: relay packet. payload={}", agm.payload );
+            } else {
+                logger.warn( "Invalid packet type in processReceivedMessage(): {}", agm.mPacketType );
+            }
+
+
+            // Tweak the agm here.  Everything in the agm should just stay the same
             // except payload and checksum.
-            logger.debug( "RECEIVED: resend packet. payload={}", agm.payload );
             try {
                 // TODO: check if we have not already received a packet with this uid
                 // otherwise do this work...
@@ -447,26 +333,33 @@ public class SerialRetransmitter
                 final int hpDelta = hyperperiod - originalHP; // FIXME: have to do modulo difference?
 
                 // If within our dup window
-                if ( hpDelta < MAX_SLOT_HISTORY ) {
+                if ( hpDelta < mSlotRecords.getMaxSlotHistory() ) {
                     final byte originalSlot = agm.payload[1];
                     final byte originalIdx = agm.payload[0];
 
                     logger.trace( "resend packet originalSlot={}, originalIdx={}", originalSlot, originalIdx );
 
                     // find the ack record for that hyperperiod in our history ring buffer
-                    int slotIdx = mCurrentIdx - hpDelta;
-                    if ( slotIdx < 0 )
-                        slotIdx += MAX_SLOT_HISTORY;
+                    int slotIdx = mSlotRecords.getSlotIndexWithDelta( hpDelta );
 
-                    final byte ackByte = slotRecords[slotIdx].mAcks[originalSlot];
+                    final int ackByte = mSlotRecords.getAckByte( slotIdx, originalSlot );
                     // if it's not a packet from me,
                     // and I didn't ack it earlier - then its not a duplicate
                     if ( (originalSlot != mySlotNumber) &&
                          (ackByte & (0x1 << originalIdx)) == 0) {
                         logger.trace( "...packet I haven't seen before" );
 
+                        // Only increment the counters if we have not received this packet before.
+                        if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
+                            mResendReceived++;
+                        } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_RELAY ) {
+                            mRelayReceived++;
+                        } else {
+                            logger.warn( "Invalid packet type in processReceivedMessage(): {}", agm.mPacketType );
+                        }
+
                         // we have not seen it before, update our slot record
-                        slotRecords[slotIdx].mAcks[originalSlot] |= (0x1 << originalIdx);
+                        mSlotRecords.setAckBit( slotIdx, originalSlot, originalIdx );
 
                         //logger.trace( "agm.size={}", agm.size );
                         int newSize = agm.size - 4;
@@ -476,7 +369,9 @@ public class SerialRetransmitter
 
                         logger.trace( "agm.payload.length={}", agm.payload.length );
 
-                        // TODO: optimize this - OR create a new AmmoGatewayMessage rather than modifying the one received
+                        // TODO: optimize this - OR create a new
+                        // AmmoGatewayMessage rather than modifying
+                        // the one received
                         for ( int i = 0; i < newSize; ++i ) {
                             newPayload[i] = agm.payload[i+4];
                         }
@@ -491,15 +386,13 @@ public class SerialRetransmitter
                         // Add this for further relay if union of connectivity
                         // vector of original sender (originalSlot) and relayer
                         // (agm.mSlotID) is not a superset of my connectivity vector.
-                        int union = mConnectivityMatrix[agm.mSlotID] | mConnectivityMatrix[originalSlot];
-                        logger.trace( "...union receiving: {}", bitsToNumberList( union ));
-                        logger.trace( "...my receiving: {}", bitsToNumberList( mConnectivityMatrix[mySlotNumber] ));
-                        if ( (mConnectivityMatrix[mySlotNumber] &
-                              (mConnectivityMatrix[mySlotNumber] ^ union)) != 0 )
-                        {
-                            int uid = createUID( originalHP, originalSlot, originalIdx );
-                            PacketRecord pr = new PacketRecord(uid, agm);
+                        if ( !mConnMatrix.unionCoversMyConnectivity( agm.mSlotID, originalSlot )) {
+                            int uid = Util.createUID( originalHP, originalSlot, originalIdx );
+                            PacketRecord pr = new PacketRecord( uid, agm, mConnMatrix.expectToHearFrom(),
+                                                                DEFAULT_RESENDS );
                             --pr.mHopCount;
+                            pr.mPacketType = agm.mPacketType;
+
                             logger.trace( "HOPCOUNT: Resend packet decrementing to {}", pr.mHopCount );
                             if ( pr.mHopCount > 0 ) {
                                 mResendQueue.offer( pr );
@@ -519,8 +412,9 @@ public class SerialRetransmitter
             } catch ( Exception ex ) {
                 logger.warn( "receiver threw an exception", ex );
             }
+        } else {
+            logger.warn( "SerialRetransmitter discarding packet with invalid packetype={}", agm.mPacketType );
         }
-
 
         // We have to do the delivery inside of this method, since if
         // we receive a resent packet that we've already delivered to
@@ -529,7 +423,6 @@ public class SerialRetransmitter
         // HACK: We need to do something different about knowing when to pass
         // the packet up, but for now just discard the ack packets.
     }
-
 
 
     /**
@@ -559,31 +452,31 @@ public class SerialRetransmitter
         // Ack packet: mExpectedToHearFrom is 0, so gets GCed.
         // Resend packet:
 
-        if ( agm.mPacketType != AmmoGatewayMessage.PACKETTYPE_RESEND ) {
-	    if (slotRecords[mCurrentIdx].mSendCount < MAX_PACKETS_PERSLOT) {
+        if ( agm.mPacketType != AmmoGatewayMessage.PACKETTYPE_RESEND
+             && agm.mPacketType != AmmoGatewayMessage.PACKETTYPE_RELAY ) {
+            if ( mSlotRecords.getCurrentSendCount() < MAX_PACKETS_PER_SLOT ) {
 
-		int uid = createUID( hyperperiod, slotIndex, indexInSlot );
-		PacketRecord pr = new PacketRecord( uid, agm );
+                int uid = Util.createUID( hyperperiod, slotIndex, indexInSlot );
+                PacketRecord pr = new PacketRecord( uid, agm, mConnMatrix.expectToHearFrom(), DEFAULT_RESENDS );
 
-		if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
-		    logger.trace( "SEND: normal, uid = {}, ...PacketRecord={}", uid, pr );
-		} else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
-		    logger.trace( "SEND: ack, uid = {}, ...PacketRecord={}", uid, pr );
-		}
+                if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_NORMAL ) {
+                    logger.trace( "SEND: normal, uid = {}, ...PacketRecord={}", uid, pr );
+                } else if ( agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+                    logger.trace( "SEND: ack, uid = {}, ...PacketRecord={}", uid, pr );
+                }
 
-		// The retransmitter functionality is only required for packet types
-		// that require acks.
-		if ( !agm.mNeedAck || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
-		    pr.mExpectToHearFrom = 0;
-		    pr.mResends = 0;
-		}
+                // The retransmitter functionality is only required for packet types
+                // that require acks.
+                if ( !agm.mNeedAck || agm.mPacketType == AmmoGatewayMessage.PACKETTYPE_ACK ) {
+                    pr.mExpectToHearFrom = 0;
+                    pr.mResends = 0;
+                }
 
-		slotRecords[mCurrentIdx].mSent[ slotRecords[mCurrentIdx].mSendCount ] = pr;
-		slotRecords[mCurrentIdx].mSendCount++;
-		logger.trace( "...packets sent this slot={}", slotRecords[mCurrentIdx].mSendCount );
-	    } else {
-		logger.error("... number of packets in this slot={} >= MAX_PACKET_PERSLOT .. NOT adding to the slot record", slotRecords[mCurrentIdx].mSendCount);
-	    }
+                mSlotRecords.addPacketRecord( pr );
+                logger.trace( "...packets sent this slot={}", mSlotRecords.getCurrentSendCount() );
+            } else {
+                logger.error("... number of packets in this slot={} >= MAX_PACKET_PERSLOT .. NOT adding to the slot record", mSlotRecords.getCurrentSendCount() );
+            }
         } else {
             // Resend packets have an existing PacketRecord, which we reuse.
             // this is already inserted in the mSent when we create a resend packet
@@ -623,19 +516,25 @@ public class SerialRetransmitter
                 try {
                     // Keep the pr and put it in the mSent.array, while decrementing
                     // mResends.
-                    slotRecords[mCurrentIdx].mSent[slotRecords[mCurrentIdx].mSendCount] = pr;
-                    slotRecords[mCurrentIdx].mSendCount++;
+                    mSlotRecords.addPacketRecord( pr );
                     pr.mResends--;
-                    logger.trace( "...packets sent this slot={}", slotRecords[mCurrentIdx].mSendCount );
+                    logger.trace( "...packets sent this slot={}", mSlotRecords.getCurrentSendCount() );
 
                     int size = pr.mPacket.payload.length + 4;
                     ByteBuffer b = ByteBuffer.allocate( size );
                     b.order( ByteOrder.LITTLE_ENDIAN );
 
                     b.putInt( pr.mUID );
-                    logger.trace( "...creating resend packet with UID={}", pr.mUID );
-                    @SuppressWarnings("unused")
-					byte[] raw = b.array();
+
+                    if ( pr.mPacketType == AmmoGatewayMessage.PACKETTYPE_RESEND ) {
+                        logger.trace( "...creating resend packet with UID={}", pr.mUID );
+                    } else if ( pr.mPacketType == AmmoGatewayMessage.PACKETTYPE_RELAY ) {
+                        logger.trace( "...creating relay packet with UID={}", pr.mUID );
+                    } else {
+                        logger.warn( "Invalid packet type in createResendPacket(): {}", pr.mPacketType );
+                    }
+
+                    //Byte[] raw = b.array();
                     b.put( pr.mPacket.payload );
 
                     byte[] payload = b.array();
@@ -649,13 +548,13 @@ public class SerialRetransmitter
                     crc32.update( payload );
                     agmb.checksum( crc32.getValue() );
 
-                    agmb.packetType( AmmoGatewayMessage.PACKETTYPE_RESEND );
+                    agmb.packetType( pr.mPacketType );
 
                     agmb.hopCount( pr.mHopCount );
                     logger.trace( "HOPCOUNT: Resending packet with hop count of {}", pr.mHopCount );
 
                     AmmoGatewayMessage agm = agmb.build();
-                    logger.trace( "returning resend packet uid: {}. payload length={}", pr.mUID, payload.length );
+                    logger.trace( "returning resend/relay packet uid: {}. payload length={}", pr.mUID, payload.length );
                     return agm;
 
                 } catch ( Exception ex ) {
@@ -671,7 +570,9 @@ public class SerialRetransmitter
 
 
     /**
-     *
+     * Creates an ack packet if possible.  Returns the ack packet if
+     * one was created, null otherwise.  We don't create an ack packet
+     * if we are not in the correct hyperperiod.
      */
     synchronized public AmmoGatewayMessage createAckPacket( int hyperperiod )
     {
@@ -679,32 +580,27 @@ public class SerialRetransmitter
                       hyperperiod );
 
         try {
-            final int mPreviousIdx = mCurrentIdx == 0 ? MAX_SLOT_HISTORY - 1 : mCurrentIdx - 1;
-            final SlotRecord mPrevious = slotRecords[mPreviousIdx];
+            final SlotRecord previous = mSlotRecords.getPreviousSlotRecord();
 
             // We only send an ack if the previous hyperperiod was the preceding
             // one.  If the previous hyperperiod was an older one, just don't
             // send anything.
-            if ( hyperperiod - 1 != mPrevious.mHyperperiodID ) {
+            if ( hyperperiod - 1 != previous.mHyperperiodID ) {
                 logger.trace( "wrong hyperperiod: current={}, previous={}",
-                              hyperperiod, mPrevious.mHyperperiodID );
+                              hyperperiod, previous.mHyperperiodID );
                 return null;
             }
 
-            // provide my connectivity info to others ...
-            for (int i=0; i<MAX_SLOTS; i++) {
-                mPrevious.mAcks[i] |=  ( (mConnectivityMatrix[ mySlotNumber ] >>>  i) & 0x1 ) << 7;
-            }
-            logger.trace( "CONNECTIVITY: my current: {}",
-                          bitsToNumberList( mConnectivityMatrix[mySlotNumber] ));
+            // Provide my connectivity info to others...
+            mConnMatrix.provideAckInfo( previous.mAcks );
 
             AmmoGatewayMessage.Builder b = AmmoGatewayMessage.newBuilder();
 
-            b.size( mPrevious.mAcks.length );
-            b.payload( mPrevious.mAcks );
+            b.size( previous.mAcks.length );
+            b.payload( previous.mAcks );
 
             CRC32 crc32 = new CRC32();
-            crc32.update( mPrevious.mAcks );
+            crc32.update( previous.mAcks );
             b.checksum( crc32.getValue() );
 
             AmmoGatewayMessage agm = b.build();
@@ -717,12 +613,371 @@ public class SerialRetransmitter
 
         return null;
     }
+}
+
+
+/**
+ *
+ */
+class PacketRecord {
+    public int mExpectToHearFrom;
+    public int mHeardFrom;
+    public int mResends;
+
+    // this is the serial uid computed by or'ing of hyperperiod
+    // (2bytes), slot (1byte), index in slot (1byte)
+    public int mUID;
+
+    public int mHopCount;
+
+    public int mPacketType = AmmoGatewayMessage.PACKETTYPE_RESEND;
+    public AmmoGatewayMessage mPacket;
+
+    PacketRecord( int uid, AmmoGatewayMessage agm, int expectToHearFrom, int resends ) {
+        mUID = uid;
+        mPacket = agm;
+        mExpectToHearFrom = expectToHearFrom;
+        mHeardFrom = 0;
+        mResends = resends;
+        mHopCount = agm.mHopCount;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        result.append( mPacket ).append( ", " )
+            .append( Integer.toHexString(mExpectToHearFrom) ).append(", ");
+        result.append( Integer.toHexString(mHeardFrom) ).append( ", " )
+            .append( mResends );
+        return result.toString();
+    }
+};
+
+
+/**
+ * This class records information about packets sent in a slot and acks 
+ * received in a slot.  It is retained so that, once we receive acks for
+ * our sent packets during the next slot, we can figure out if all
+ * intended receivers have received each packet.
+ */
+class SlotRecord {
+    private static final Logger logger = LoggerFactory.getLogger( "net.serial.retrans" );
+
+    public int mHyperperiodID;
+
+    // we can only sent and ack atmost 8 packets
+    public PacketRecord[] mSent;
+    public int mSendCount;
+
+    public byte[] mAcks;
+
+    // FIXME: magic number - limits max radios in hyperperiod to 16
+    // Should we optimize for smaller nets?
+    public SlotRecord( int maxSlots, int maxPacketsPerSlot ) {
+
+        mSent = new PacketRecord[maxPacketsPerSlot];
+        for ( int i = 0; i < mSent.length; ++i ) {
+            mSent[i] = null;
+        }
+
+        mAcks = new byte[maxSlots];
+    }
+
+    public void reset( int newHyperperiod ) {
+        mHyperperiodID = newHyperperiod;
+        mSendCount = 0;
+
+        for ( int i = 0; i < mSent.length; ++i )
+            mSent[ i ] = null;
+        for ( int i = 0; i < mAcks.length; ++i )
+            mAcks[ i ] = 0;
+    }
+
+    public void setAckBit( int slotID, int indexInSlot ) {
+        logger.trace( "setting ack bit for indexInSlot={}", indexInSlot );
+        byte bits = mAcks[ slotID ];
+        //logger.trace( "...before: bits={}, indexInSlot={}", bits, indexInSlot );
+        bits |= (0x1 << indexInSlot);
+        //logger.trace( "...after: bits={}", bits );
+        mAcks[ slotID ] = bits;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder result = new StringBuilder();
+        result.append( mHyperperiodID ).append( ", " );
+        result.append( mSendCount ).append( ", " );
+        result.append( mSent.length );
+        return result.toString();
+    }
+};
+
+
+/**
+ *
+ */
+class SlotRecords
+{
+    public SlotRecords( int maxSlotHistory, int maxSlots, int maxPacketsPerSlot ) {
+        mMaxSlotHistory = maxSlotHistory;
+
+        mRingBuffer = new SlotRecord[mMaxSlotHistory];
+        for( int i = 0; i < mMaxSlotHistory; ++i )
+            mRingBuffer[i] = new SlotRecord( maxSlots, maxPacketsPerSlot );
+    }
+
+    public void incrementSlot( int hyperperiod ) {
+        mCurrentIdx = (mCurrentIdx + 1) % mMaxSlotHistory;
+        mRingBuffer[mCurrentIdx].reset( hyperperiod );
+    }
+
+    public int getCurrentHyperperiod() {
+        return mRingBuffer[mCurrentIdx].mHyperperiodID;
+    }
+
+    public int getPreviousIndex() {
+        return mCurrentIdx == 0 ? mMaxSlotHistory - 1 : mCurrentIdx - 1;
+    }
+
+    public SlotRecord getPreviousSlotRecord() {
+        final int mPreviousIdx = mCurrentIdx == 0 ? mMaxSlotHistory - 1 : mCurrentIdx - 1;
+        return mRingBuffer[mPreviousIdx];
+    }
+
+    public void setAckBit( int slotID, int indexInSlot ) {
+        mRingBuffer[mCurrentIdx].setAckBit( slotID, indexInSlot );
+    }
+
+    public int getAckByte( int slotIndex, int originalSlot ) {
+        final byte ackByte = mRingBuffer[slotIndex].mAcks[originalSlot];
+        return ackByte;
+    }
+
+    public void setAckBit( int slotIndex, int originalSlot, int originalIndex ) {
+        mRingBuffer[slotIndex].mAcks[originalSlot] |= (0x1 << originalIndex);
+    }
+
+    public int getCurrentSendCount() {
+        return mRingBuffer[mCurrentIdx].mSendCount;
+    }
+
+    public void addPacketRecord( PacketRecord pr ) {
+        mRingBuffer[mCurrentIdx].mSent[ mRingBuffer[mCurrentIdx].mSendCount ] = pr;
+        mRingBuffer[mCurrentIdx].mSendCount++;
+    }
+
+    public int getSlotIndexWithDelta( int delta ) {
+        int slotIdx = mCurrentIdx - delta;
+        if ( slotIdx < 0 )
+            slotIdx += mMaxSlotHistory;
+        return slotIdx;
+    }
+
+    // I should probably refactor some of the code in processReceivedMessage()
+    // and put it in this method.
+    // public boolean packetAlreadyReceived( int originalHyperperiod,
+    //                                       int originalSlotID,
+    //                                       int originalIndexInSlot )
+    // {
+    // }
+
+    public int getMaxSlotHistory() { return mMaxSlotHistory; }
+
+    private int mMaxSlotHistory = 0;
+
+    private SlotRecord[] mRingBuffer;
+
+    // Index of current in the slot record buffer
+    private int mCurrentIdx = 0;
+};
+
+
+
+/**
+ *
+ */
+class ConnectivityMatrix
+{
+    private static final Logger logger = LoggerFactory.getLogger( "net.serial.retrans" );
+
+    public ConnectivityMatrix( int maxSlots, int mySlotID, int connMatrixExpire )
+    {
+        mMaxSlots = maxSlots;
+        mMySlotID = mySlotID;
+        mConnMatrixExpire = connMatrixExpire;
+
+        mConnectivityMatrix = new int[mMaxSlots];
+        mConnectivityUpdated = new int[mMaxSlots];
+
+        for ( int i = 0; i < mMaxSlots; ++i )
+            mConnectivityMatrix[i] = 0x1 << i; // each node can receive from itself
+    }
+
+
+    public void set( int hyperperiod, int theirSlotID, boolean value )
+    {
+        int before = mConnectivityMatrix[mMySlotID];
+
+        mConnectivityMatrix[mMySlotID] |= (0x1 << theirSlotID);
+
+        // updating hyperperiod in which we received from remote
+        mConnectivityUpdated[theirSlotID] = hyperperiod;
+
+        if ( before != mConnectivityMatrix[mMySlotID] ) {
+            logger.trace( "Connectivity Matrix: Added {}", theirSlotID );
+        }
+    }
+
+
+    public void processAckPacketPayload( int theirSlotID, byte[] payload )
+    {
+        for ( int i = 0; i < mMaxSlots; ++i ) {
+            // remote is receiving directly from slot i, top bit in the ack
+            // slot is set for receive info
+            if ( (payload[i] & 0x00000080) == 0x00000080 )
+                mConnectivityMatrix[theirSlotID] |= (0x1 << i);
+            else
+                mConnectivityMatrix[theirSlotID] &= ~(0x1 << i);
+        }
+    }
+
+
+    public boolean coversMyConnectivity( int theirSlotID )
+    {
+        // FIXME: Shouldn't this be a superset of me rather than equal to me?
+        logger.trace( "...sender receiving: {}", Util.bitsToNumberList( mConnectivityMatrix[theirSlotID] ));
+        logger.trace( "...my receiving: {}", Util.bitsToNumberList( mConnectivityMatrix[mMySlotID] ));
+        return (mConnectivityMatrix[mMySlotID] &
+                (mConnectivityMatrix[mMySlotID] ^ mConnectivityMatrix[theirSlotID])) == 0;
+    }
+
+
+    public boolean unionCoversMyConnectivity( int theirSlotID, int originalSlotID )
+    {
+        logger.trace( "...original sender receiving: {}", Util.bitsToNumberList( mConnectivityMatrix[originalSlotID] ));
+        logger.trace( "...relayer receiving: {}", Util.bitsToNumberList( mConnectivityMatrix[theirSlotID] ));
+
+        int union = mConnectivityMatrix[theirSlotID] | mConnectivityMatrix[originalSlotID];
+        logger.trace( "...union receiving: {}", Util.bitsToNumberList( union ));
+        logger.trace( "...my receiving: {}", Util.bitsToNumberList( mConnectivityMatrix[mMySlotID] ));
+        return (mConnectivityMatrix[mMySlotID] &
+                (mConnectivityMatrix[mMySlotID] ^ union)) == 0;
+    }
+
+
+    public void provideAckInfo( byte[] acks )
+    {
+        for ( int i = 0; i < mMaxSlots; ++i ) {
+            acks[i] |= ((mConnectivityMatrix[mMySlotID] >>> i) & 0x1) << 7;
+        }
+        logger.trace( "CONNECTIVITY: my current: {}",
+                      Util.bitsToNumberList( mConnectivityMatrix[mMySlotID] ));
+            
+    }
+
+
+    // Expires entries in the connectivity matrix for which the time
+    // limit has been exceeded.
+    public void repair( int hyperperiod )
+    {
+        for( int i = 0; i < mMaxSlots; ++i ) {
+            if ( i == mMySlotID )
+                continue;
+            if ( (hyperperiod - mConnectivityUpdated[i]) > mConnMatrixExpire ) {
+                mConnectivityMatrix[mMySlotID] &= ~(0x1 << i);
+            }
+        }
+    }
+
+
+    public int expectToHearFrom()
+    {
+        // The connectivity matrix may contain our own slot ID, so unset that before
+        // returning a result.
+        return mConnectivityMatrix[mMySlotID] & ~(0x1 << mMySlotID);
+    }
+
+
+    public void didNotHearFrom( int theirSlotID )
+    {
+        mConnectivityMatrix[mMySlotID] &= ~(0x1 << theirSlotID);
+        mConnectivityMatrix[theirSlotID] = 0;
+    }
+
+        
+    private int mMaxSlots;
+    private int mMySlotID;
+    private int mConnMatrixExpire;
+
+    // This keeps track of who is receiving directly from whom.
+    // Updated locally based on received acks OR packets; updated for
+    // others based on their disseminated info.
+    private int[] mConnectivityMatrix;
+
+    // last hyperperiod in which connectivity was updated for a remote node
+    // this is used to decide when to expire a node from connectivity matrix
+    private int[] mConnectivityUpdated;
+};
+
+
+class Util {
+    /**
+     * Returns as a String a list of numbers denoting the "1" bits in a bitmap.
+     * E.g., 00100110 is converted to (1,2,5).
+     */
+    public static String bitsToNumberList( int bits ) {
+        boolean firstTime = true;
+        StringBuilder sb = new StringBuilder();
+        sb.append( "(" );
+
+        int i = 0;
+        while ( bits != 0 ) {
+            if ( (bits & 0x1) != 0 ) {
+                if ( firstTime ) {
+                    sb.append( i );
+                    firstTime = false;
+                } else {
+                    sb.append( "," ).append( i );
+                }
+            }
+            bits = bits >>> 1;
+            ++i;
+        }
+
+        sb.append( ")" );
+        return sb.toString();
+    }
+
+
+    /**
+     * Returns a string representation of the type of the packet.
+     */
+    public static String packetTypeAsString( int type ) {
+        // There is probably some fancy enum way to get Strings, but this will
+        // do for now.
+        String result = null;
+        switch ( type ) {
+        case AmmoGatewayMessage.PACKETTYPE_NORMAL:
+            result =  "NORMAL";
+            break;
+        case AmmoGatewayMessage.PACKETTYPE_RESEND:
+            result = "RESEND";
+            break;
+        case AmmoGatewayMessage.PACKETTYPE_ACK:
+            result = "ACK";
+            break;
+        case AmmoGatewayMessage.PACKETTYPE_RELAY:
+            result = "RELAY";
+            break;
+        }
+        return result;
+    }
 
 
     /**
      * Construct UID for message.
      */
-    private int createUID( int hyperperiod, int slotIndex, int indexInSlot )
+    public static int createUID( int hyperperiod, int slotIndex, int indexInSlot )
     {
         int uid = 0;
         uid |= hyperperiod << 16;
@@ -731,18 +986,4 @@ public class SerialRetransmitter
 
         return uid;
     }
-
-
-    /**
-     * I'm not sure when to call this.  Decide later.
-     */
-    synchronized public void resetReceivingMeDirectly() { mConnectivityMatrix[mySlotNumber] = 0x1 << mySlotNumber; }
-
-
-    private int mySlotNumber;
-    private SerialChannel mChannel;
-    @SuppressWarnings("unused")
-	private IChannelManager mChannelManager;
-
-    private static final Logger logger = LoggerFactory.getLogger( "net.serial.retrans" );
 }

@@ -520,7 +520,6 @@ public class SerialChannel extends NetChannel
 
             // FIXME: Do better error handling.  If we can't enable Nmea
             // messages, should we close the channel?
-            // TBD SKN: Start the NMEA Message after we have made a connection to the serial port
             try {
                 if ( !enableNmeaMessages() )
                 {
@@ -729,7 +728,12 @@ public class SerialChannel extends NetChannel
                             // mDelta = (mCount*mDelta + delta)/(mCount+1);
 
                             // FIR Filter
-                            mDelta.set( 0 );
+                            // I'm commenting out the following line, since this
+                            // looks like a race condition.  If another thread
+                            // reads mDelta while it is 0 and in the process of
+                            // being recalculated, this will give a momentary
+                            // erroneous value.
+                            //mDelta.set( 0 );
                             long accumulator = 0;
                             for (long d : mDeltaSamples)
                                 accumulator += d;
@@ -1002,6 +1006,10 @@ public class SerialChannel extends NetChannel
                         // our hyperperiod is the low order short of (currentGpsTime / cycleDuration).
                         // We use this so the retransmitter can tell which slot it's in.
                         final int hyperperiod = ((int) (currentGpsTime / cycleDuration)) & 0x0000FFFF;
+                        logger.trace( "Sender HP calc: {}, {}, {}",
+                                      new Object[] { currentGpsTime,
+                                                     cycleDuration,
+                                                     hyperperiod });
 
                         // for this cycle when does our slot begin
                         final long thisSlotBegin = thisCycleStartTime + offset;
@@ -1038,7 +1046,7 @@ public class SerialChannel extends NetChannel
                                           mDelta.get() } );
 
                         if ( getRetransmitter() != null )
-                            getRetransmitter().swapHyperperiodsIfNeeded( hyperperiod );
+                            getRetransmitter().switchHyperperiodsIfNeeded( hyperperiod );
 
                         while (true) {
                             try {
@@ -1382,6 +1390,10 @@ public class SerialChannel extends NetChannel
                         // our hyperperiod is the low order short of (currentGpsTime / cycleDuration).
                         // We use this so the retransmitter can tell which slot it's in.
                         hyperperiod = ((int) (currentTime / cycleDuration)) & 0x0000FFFF;
+                        logger.trace( "Receiver HP calc: {}, {}, {}",
+                                      new Object[] { currentTime,
+                                                     cycleDuration,
+                                                     hyperperiod });
 
                         long currentSlot = (currentTime - thisCycleStartTime) / slotDuration;
                         logger.debug( "Read magic sequence in slot {} at {}",
@@ -1676,6 +1688,32 @@ public class SerialChannel extends NetChannel
         this.lastConnState = connState;
         this.lastSenderState = senderState;
         this.lastReceiverState = receiverState;
+    }
+
+
+	@Override
+    public String getSendBitStats() {
+        //StringBuilder result = new StringBuilder();
+        //result.append( "S: " ).append( humanReadableByteCount(mBytesSent, true) );
+        //result.append( ", BPS:" ).append( mBpsSent );
+        //return result.toString();
+        if ( getRetransmitter() != null )
+            return getRetransmitter().getSendBitStats();  // just for field testing
+        else
+            return "";
+    }
+
+
+	@Override
+    public String getReceiveBitStats() {
+        //StringBuilder result = new StringBuilder();
+        //result.append( "R: " ).append( humanReadableByteCount(mBytesRead, true) );
+        //result.append( ", BPS:" ).append( mBpsRead );
+        //return result.toString();
+        if ( getRetransmitter() != null )
+            return getRetransmitter().getReceiveBitStats();  // just for field testing
+        else
+            return "";
     }
 
 
