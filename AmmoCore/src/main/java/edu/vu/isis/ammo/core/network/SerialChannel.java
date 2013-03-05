@@ -1205,20 +1205,26 @@ public class SerialChannel extends NetChannel
                 //outputStream.write( buf.array() );
                 //outputStream.flush();
 
-                mPort.write( buf.array() );
+                int result = mPort.write( buf.array() );
+                if ( result < 0 ) {
+                    // If we got a negative number from the write(),
+                    // we are in an error state, so throw an exception
+                    // and shut down.
+                    throw new IOException( "write on serial port returned: " + result );
+                }
                 mMessagesSent.getAndIncrement();
                 mBytesSent += buf.array().length;
 
-                logger.debug(
-                             "sent message size={}, checksum={}, data:{}",
-                             new Object[] { msg.size,
-                                            msg.payload_checksum.toHexString(),
-                                            msg.payload });
-                if ( getRetransmitter() != null )
+                logger.debug( "sent message size={}, checksum={}, data:{}",
+                              new Object[] { msg.size,
+                                             msg.payload_checksum.toHexString(),
+                                             msg.payload });
+                if ( getRetransmitter() != null ) {
                     getRetransmitter().sendingPacket( msg,
                                                       hyperperiod,
                                                       slotIndex,
                                                       indexInSlot );
+                }
             }
 
             // legitimately sent to gateway.
