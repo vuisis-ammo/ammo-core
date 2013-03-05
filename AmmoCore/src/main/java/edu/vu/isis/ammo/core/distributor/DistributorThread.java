@@ -118,6 +118,8 @@ public class DistributorThread extends Thread {
      * The backing store for the distributor
      */
     final private DistributorDataStore store;
+    
+    final public ContractStore contractStore;
 
     private static final int SERIAL_NOTIFY_ID = 1;
     private static final int IP_NOTIFY_ID = 2;
@@ -138,9 +140,10 @@ public class DistributorThread extends Thread {
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
         this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200,
                 new AmmoGatewayMessage.PriorityOrder());
-        this.deserialThread = new RequestDeserializerThread();
+        this.deserialThread = new RequestDeserializerThread(this);
         this.deserialThread.start();
         this.store = new DistributorDataStore(context);
+        this.contractStore = ContractStore.newInstance(context);
 
         this.channelStatus = new ConcurrentHashMap<String, ChannelStatus>();
         this.channelDelta = new AtomicBoolean(true);
@@ -984,7 +987,9 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.UUID.cv(), uuid.toString());
             values.put(PostalTableSchema.AUID.cv(), auid);
             values.put(PostalTableSchema.TOPIC.cv(), topic);
-            values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+            if(ar.provider != null) {
+                values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
+            }
             values.put(PostalTableSchema.CHANNEL.cv(), channel);
             if (ar.payload != null) {
                 final byte[] payloadBytes = ar.payload.pickle();
@@ -1023,7 +1028,7 @@ public class DistributorThread extends Thread {
                         final byte[] result =
                                 RequestSerializer.serializeFromContentValues(
                                         serializer_.payload.getCV(),
-                                        encode);
+                                        encode, ar.topic.asString(), contractStore);
 
                         if (result == null) {
                             logger.error(
@@ -1216,7 +1221,7 @@ public class DistributorThread extends Thread {
                             try {
                                 if (payload != null && payload.isSet()) {
                                     return RequestSerializer.serializeFromContentValues(
-                                            payload.getCV(), encode);
+                                            payload.getCV(), encode, topic, contractStore);
                                 } else {
 
                                     return RequestSerializer.serializeFromProvider(
@@ -2149,10 +2154,17 @@ public class DistributorThread extends Thread {
                 channel.sendRequest(oagmb.build());
             }
         }
-
+        
+        final DistributorPolicy policy = this.networkManager.policy();
+        final DistributorPolicy.Topic topicPolicy = policy.matchPostal(topic);
+        
         final Encoding encoding = Encoding.getInstanceByName(encode);
         this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
                 data.toByteArray());
+        
+        if(topicPolicy.getRouted() == true) {
+            this.deserialThread.toReroute(priority, context, channel.name, encoding, topic, data.toByteArray());
+        }
 
         logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
 

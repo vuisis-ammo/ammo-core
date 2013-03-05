@@ -2,8 +2,10 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Map;
-
+import java.util.Map.Entry;
+import java.util.Set;
 
 import junit.framework.Assert;
 import junit.framework.Test;
@@ -65,6 +67,7 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
     private static final Logger logger = LoggerFactory.getLogger("test.request.serial");
 
     private Context mContext;
+    private Uri mBaseUri;
 
     public RequestSerializerComponentTest() {
         //super("edu.vu.isis.ammo.core.distributor", RequestSerializer.class);
@@ -86,11 +89,15 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
     protected void setUp() throws Exception
     {
         mContext = getContext();
+        mBaseUri = AmmoTableSchema.CONTENT_URI;
+        //cr = new MockContentResolver();
     }
 
     protected void tearDown() throws Exception
     {
         mContext = null;
+        mBaseUri = null;
+        //cr = null;
     }
 
     
@@ -115,15 +122,42 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
      *  Namely how the parts interact with the differing content.
      *=====================================================================
      */
-
-    public void testRoundTripJson_table1_basic()
-    {
-	SchemaTable1Data d = new SchemaTable1Data();
-	ContentValues cv = d.createContentValues();
-        this.roundTripTrial(Encoding.newInstance(Encoding.Type.JSON), cv, d.getTable(), d );
+    private interface SerialChecker {
+        public void check(final byte[] bytes);
     }
 
-    public void testRoundTripJson_table1_random()
+    public void testRoundTripJson()
+    {
+        final ContentValues cv = new ContentValues();
+        final int sampleForeignKey = -1;
+        cv.put(AmmoTableSchema.A_FOREIGN_KEY_REF, sampleForeignKey);
+        cv.put(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION, AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH);
+        cv.put(AmmoTableSchema.AN_INCLUSIVE_ENUMERATION, AmmoTableSchema.AN_INCLUSIVE_ENUMERATION_APPLE);
+
+        this.roundTripTrial(Encoding.newInstance(Encoding.Type.JSON), cv, Tables.AMMO_TBL,
+                            new SerialChecker() {
+                                @Override public void check(final byte[] bytes) {
+                                    String jsonStr = null;
+                                    try {
+                                        jsonStr = new String(bytes, "UTF-8");
+                                        final JSONObject jsonObj = new JSONObject(jsonStr);
+                                        Assert.assertEquals("quick check json",
+                                                            String.valueOf(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION_HIGH),
+                                                            jsonObj.get(AmmoTableSchema.AN_EXCLUSIVE_ENUMERATION));
+
+                                    } catch (UnsupportedEncodingException ex) {
+                                        Assert.fail("unsupported encoding");
+                                        return;
+                                    } catch (JSONException ex) {
+                                        Assert.fail("invalid json "+ jsonStr);
+                                        return;
+                                    }
+                                }
+                            });
+    }
+
+
+public void testRoundTripJson_table1_random()
     {
 	SchemaTable1Data d = new SchemaTable1Data();
 	ContentValues cv = d.createContentValuesRandom();
@@ -183,6 +217,10 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
      * <li>deserialize into the content provider
      * <li>check the content of the content provider,(imitating the application)
      * </ol>
+     * @param serialChecker
+     * @param ammoTbl
+     * @param cv
+     * @param encoding
      */
     private void roundTripTrial(Encoding encoding, ContentValues cv, String table, SchemaTable d) 
     {
@@ -195,6 +233,7 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
         AmmoMockProvider01 provider = null;
         try {
             provider = AmmoMockProvider01.getInstance(mContext);
+            Assert.assertNotNull(provider);
             Assert.assertNotNull(provider);
             final MockContentResolver resolver = new MockContentResolver();
             resolver.addProvider(AmmoMockSchema01.AUTHORITY, provider);
@@ -271,7 +310,7 @@ public class RequestSerializerComponentTest extends AndroidTestCase {
 								    d.getBaseUri(), 
 								    enc, 
 								    encodedBytes);
-	
+
 	Assert.assertNotNull(tupleIn);
 	Log.d(TAG, "deserialized uri = " + tupleIn.toString());
 
