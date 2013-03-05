@@ -32,25 +32,6 @@ public class SerialPort {
 
     public SerialPort(File device, int baudrate) throws SecurityException, IOException
     {
-        /* Check access permission */
-        // if (!device.canRead() || !device.canWrite()) {
-        //     try {
-        //         /* Missing read/write permission, trying to chmod the file */
-        //         Process su;
-        //         //su = Runtime.getRuntime().exec("/system/bin/su");
-        //         //String cmd = "chmod 666 " + device.getAbsolutePath() + "\n"
-        //         //        + "exit\n";
-        //         //su.getOutputStream().write(cmd.getBytes());
-        //         //if ((su.waitFor() != 0) || !device.canRead()
-        //         //        || !device.canWrite()) {
-        //         //    throw new SecurityException();
-        //        / }
-        //     } catch (Exception e) {
-        //         e.printStackTrace();
-        //         throw new SecurityException();
-        //     }
-        // }
-
         Log.e(TAG, "SerialPort: about to call JNI open() method.");
         mFd = open(device.getAbsolutePath(), baudrate);
         if (mFd == null) {
@@ -73,9 +54,4 @@ public class SerialPort {
     public native void close();
 
     public native int write( byte[] bytestosend );
-
-
-    //static {
-    //  System.loadLibrary("ammocore");
-    //}
 }
