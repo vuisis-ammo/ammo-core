@@ -119,8 +119,7 @@ public enum NetworkManager  implements INetworkService,
     public static final Logger logger = LoggerFactory.getLogger("network.manager");
 
 
-    public static final Intent LAUNCH = new Intent(
-            "edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
+    public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
     public static final String BIND = "edu.vu.isis.ammo.core.distributor.AmmoService.BIND";
     public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.AmmoService.PREPARE_FOR_STOP";
     public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.AmmoService.SEND_SERIALIZED";
