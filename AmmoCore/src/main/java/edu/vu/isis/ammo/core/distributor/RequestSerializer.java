@@ -46,6 +46,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.serializer.ContentProviderContentItem;
 import edu.vu.isis.ammo.core.distributor.serializer.ContentValuesContentItem;
+import edu.vu.isis.ammo.core.distributor.serializer.CustomAdaptorCache;
 import edu.vu.isis.ammo.core.distributor.serializer.CustomSerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
@@ -60,6 +61,8 @@ public class RequestSerializer {
 	/* package */static final Logger logger = LoggerFactory
 			.getLogger("dist.serializer");
 
+	private final CustomAdaptorCache adaptorCache;
+	
 	/**
 	 * This enumeration's codes must match those of the AmmoGen files.
 	 */
@@ -235,6 +238,7 @@ public class RequestSerializer {
 	}
 
 	private RequestSerializer(Provider provider, Payload payload) {
+	    this.adaptorCache = new CustomAdaptorCache();
 		this.provider = provider;
 		this.payload = payload;
 		this.agm = null;
@@ -548,7 +552,7 @@ public class RequestSerializer {
 		final ISerializer serializer;
 		switch (encoding.getType()) {
 		case CUSTOM:
-			serializer = new CustomSerializer(context, provider, encoding);
+			serializer = new CustomSerializer(adaptorCache, context, provider, encoding);
 			break;
 		case JSON:
 			serializer = new JsonSerializer();
@@ -557,7 +561,7 @@ public class RequestSerializer {
 			serializer = new TerseSerializer();
 			break;
 		default:
-			serializer = new CustomSerializer(context, provider, encoding);
+			serializer = new CustomSerializer(adaptorCache, context, provider, encoding);
 		}
 
 		/**

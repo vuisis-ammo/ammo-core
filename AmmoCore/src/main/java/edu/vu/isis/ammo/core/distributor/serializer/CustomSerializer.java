@@ -23,17 +23,15 @@ public class CustomSerializer implements ISerializer {
 	 * This maintains a set of persistent connections to content provider
 	 * adapter services.
 	 */
-	final static private Map<String, IDistributorAdaptor> remoteServiceMap;
-	static {
-		remoteServiceMap = new HashMap<String, IDistributorAdaptor>(10);
-	}
+	final private CustomAdaptorCache ammoAdaptorCache;
 
 	final private Uri provider;
 	final private Context context;
 	final private Encoding encoding;
 
-	public CustomSerializer(final Context context,
+	public CustomSerializer(final CustomAdaptorCache adaptorCache, final Context context, 
 			final Uri provider, final Encoding encoding) {
+	    this.ammoAdaptorCache = adaptorCache;
 		this.context = context;
 		this.provider = provider;
 		this.encoding = encoding;
@@ -50,49 +48,14 @@ public class CustomSerializer implements ISerializer {
 		logger.debug("deserialize custom to provider");
 
 		final String key = provider.toString();
-		if (CustomSerializer.remoteServiceMap.containsKey(key)) {
-			final IDistributorAdaptor adaptor = CustomSerializer.remoteServiceMap
-					.get(key);
-			try {
-				final String uriString = adaptor.deserialize(encoding.name(),
-						key, data);
-				Uri.parse(uriString);
-
-			} catch (RemoteException ex) {
-				ex.printStackTrace();
-			}
-			return null;
-		}
-
-		final byte[] data_ = data;
-		final ServiceConnection connection = new ServiceConnection() {
-			@Override
-			public void onServiceConnected(ComponentName name, IBinder service) {
-
-				if (!CustomSerializer.remoteServiceMap.containsKey(key)) {
-					CustomSerializer.remoteServiceMap.put(key,
-							IDistributorAdaptor.Stub.asInterface(service));
-				}
-				final IDistributorAdaptor adaptor = CustomSerializer.remoteServiceMap
-						.get(key);
-
-				// call the deserialize function here ....
-				try {
-					adaptor.deserialize(encoding.name(), key, data_);
-				} catch (RemoteException ex) {
-					ex.printStackTrace();
-				}
-			}
-
-			@Override
-			public void onServiceDisconnected(ComponentName name) {
-				logger.debug("service disconnected");
-				CustomSerializer.remoteServiceMap.remove(key);
-			}
-		};
-		final Intent intent = new Intent();
-		context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
+		this.ammoAdaptorCache.toProvider(encoding.name(), key, data);
 		return null;
+	}
+	
+	private static class AdaptorProxy {
+	    private AdaptorProxy() {
+	    
+	    }
 	}
 	
 

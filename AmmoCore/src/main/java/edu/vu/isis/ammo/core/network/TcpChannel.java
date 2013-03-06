@@ -526,6 +526,7 @@ public class TcpChannel extends NetChannel {
         this.attempt = Long.MIN_VALUE;
       }
       public synchronized void linkUp() {
+          logger.debug("link status {} {}", this.value, this.actual);
         this.notifyAll();
       }
       public synchronized void linkDown() {
@@ -634,7 +635,7 @@ public class TcpChannel extends NetChannel {
     @Override
     public void run() {
       try {
-        logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+        logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
         MAINTAIN_CONNECTION: while (true) {
           logger.trace("connector state: {}",this.showState());
 
