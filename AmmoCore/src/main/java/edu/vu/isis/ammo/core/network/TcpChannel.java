@@ -526,9 +526,11 @@ public class TcpChannel extends NetChannel {
         this.attempt = Long.MIN_VALUE;
       }
       public synchronized void linkUp() {
+        logger.debug("link up request {} {}", this.value, this.actual);
         this.notifyAll();
       }
       public synchronized void linkDown() {
+        logger.debug("link down request {} {}", this.value, this.actual);
         this.reset();
       }
       public synchronized void set(int state) {

@@ -497,10 +497,12 @@ public class MulticastChannel extends NetChannel
             }
 
             public synchronized void linkUp() {
+                logger.debug("link up request {} {}", this.value, this.actual);
                 this.notifyAll();
             }
 
             public synchronized void linkDown() {
+                logger.debug("link down request {} {}", this.value, this.actual);
                 this.reset();
             }
 
