@@ -50,6 +50,11 @@
   <logger name="class.temporal" level="TRACE"/>
   <logger name="class.store.presence" level="TRACE"/>
    -->
+  <logger name="net.journal" level="DEBUG"/> 
+  <logger name="net.serial" level="DEBUG"/>
+  <logger name="net.rmcast" level="DEBUG"/>
+  <logger name="net.mcast" level="DEBUG"/>
+  <logger name="net.gateway" level="DEBUG"/>
  
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
