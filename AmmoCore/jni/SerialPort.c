@@ -368,9 +368,14 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_write( JNIEnv *env,
 
     gettimeofday( &tv, NULL );
 
-    ssize_t num_written = write( descriptor, elems, length );
-	LOGD( "JNI: wrote bytes = %d, at time=%lu", num_written, tv.tv_sec * 1000 + tv.tv_usec / 1000 );
+    // write() returns the number of bytes written upon success (may
+    // be zero), but -1 or some other negative number upon failure.
+    // This code originally didn't return the result from the JNI
+    // call but now does, since the Java code needs to know if there
+    // was an error.
+    ssize_t result = write( descriptor, elems, length );
+	LOGD( "JNI: wrote bytes = %d, at time=%lu", result, tv.tv_sec * 1000 + tv.tv_usec / 1000 );
 
     (*env)->ReleaseByteArrayElements( env, data, elems, 0 );
-    return 0;
+    return result;
 }
