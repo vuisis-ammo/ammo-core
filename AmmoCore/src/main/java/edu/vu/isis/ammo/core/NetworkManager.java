@@ -1597,7 +1597,7 @@ public enum NetworkManager  implements INetworkService,
                 if (state != 0) {
                     switch (state) {
                         case AmmoIntents.LINK_UP:
-                            logger.trace("onReceive: Link UP {}", action);
+                            logger.debug("onReceive: Link UP {}", action);
                             tcpChannel.linkUp(null);
                             multicastChannel.linkUp(null);
                             reliableMulticastChannel.linkUp(null);
@@ -1608,7 +1608,7 @@ public enum NetworkManager  implements INetworkService,
 
                             break;
                         case AmmoIntents.LINK_DOWN:
-                            logger.trace("onReceive: Link DOWN {}", action);
+                            logger.debug("onReceive: Link DOWN {}", action);
                             tcpChannel.linkDown(null);
                             tcpMediaChannel.linkDown(null);
                             multicastChannel.linkDown(null);

@@ -55,7 +55,9 @@
   <logger name="net.rmcast" level="DEBUG"/>
   <logger name="net.mcast" level="DEBUG"/>
   <logger name="net.gateway" level="DEBUG"/>
- 
+  <logger name="net.ethermon" level="DEBUG"/>
+  <logger name="network.manager" level="DEBUG"/>
+  
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
      <appender-ref ref="STAT" />
