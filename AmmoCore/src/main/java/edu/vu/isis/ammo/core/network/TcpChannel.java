@@ -634,7 +634,7 @@ public class TcpChannel extends NetChannel {
     @Override
     public void run() {
       try {
-        logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+        logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
         MAINTAIN_CONNECTION: while (true) {
           logger.trace("connector state: {}",this.showState());
 
@@ -1079,7 +1079,7 @@ public class TcpChannel extends NetChannel {
     @Override
     public void run()
     {
-      logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
+      logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
       // Block on reading from the queue until we get a message to send.
       // Then send it on the socket channel. Upon getting a socket error,
@@ -1134,6 +1134,7 @@ public class TcpChannel extends NetChannel {
           mParent.socketOperationFailed();
         }
       }
+      logger.info( "Thread <{}>::run() exiting", Thread.currentThread().getId() );
     }
 
 
@@ -1181,7 +1182,7 @@ public class TcpChannel extends NetChannel {
     @Override
     public void run()
     {
-      logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
+      logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
 
       ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
@@ -1310,6 +1311,7 @@ public class TcpChannel extends NetChannel {
           mParent.socketOperationFailed();
         }
       }
+      logger.info( "Thread <{}>::run() exiting", Thread.currentThread().getId() );
     }
 
     private void setReceiverState( int iState )

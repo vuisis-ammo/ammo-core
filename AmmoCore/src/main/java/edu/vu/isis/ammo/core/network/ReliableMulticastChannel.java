@@ -663,7 +663,7 @@ public class ReliableMulticastChannel extends NetChannel {
         @Override
         public void run() {
             try {
-                logger.trace("Thread <{}>ConnectorThread::run", Thread
+                logger.info("Thread <{}>ConnectorThread::run", Thread
                         .currentThread().getId());
                 MAINTAIN_CONNECTION: while (true) {
                     logger.trace("connector state: {}", this.showState());
@@ -1096,7 +1096,7 @@ public class ReliableMulticastChannel extends NetChannel {
          */
         @Override
         public void run() {
-            logger.trace("Thread <{}>::run()", Thread.currentThread().getId());
+            logger.info("Thread <{}>::run()", Thread.currentThread().getId());
 
             // Block on reading from the queue until we get a message to send.
             // Then send it on the socket channel. Upon getting a socket error,
@@ -1132,12 +1132,12 @@ public class ReliableMulticastChannel extends NetChannel {
                             mChannel.mMulticastPort);
                     logger.debug("Sending datagram packet. length={}",
                             packet.getLength());
-
-		    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
-			logger.debug("...{}", buf.array());
-		    } else {
-			logger.debug("...buffer: {} bytes", buf.array().length);
-		    }
+        
+        		    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
+        			logger.debug("...{}", buf.array());
+        		    } else {
+        			logger.debug("...buffer: {} bytes", buf.array().length);
+        		    }
                     logger.debug("...{}", buf.remaining());
                     logger.debug("...{}", mChannel.mMulticastGroup);
                     logger.debug("...{}", mChannel.mMulticastPort);
@@ -1170,6 +1170,7 @@ public class ReliableMulticastChannel extends NetChannel {
                     break;
                 }
             }
+            logger.info("Thread <{}>::end()", Thread.currentThread().getId());
         }
 
         private void setSenderState(int iState) {

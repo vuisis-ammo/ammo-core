@@ -436,7 +436,7 @@ public class SerialChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.debug( "SerialChannel.Connector::run()",
+            logger.info( "SerialChannel.Connector::run()",
                           Thread.currentThread().getId() );
 
             // We might have been disabled before the thread even gets
@@ -483,7 +483,7 @@ public class SerialChannel extends NetChannel
             Looper.myLooper().quit();
             disconnect();
 
-            logger.debug( "Connector <{}>::run() exiting.", Thread.currentThread().getId() );
+            logger.info( "Connector <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
@@ -1314,7 +1314,7 @@ public class SerialChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.debug( "ReceiverThread <{}>::run()", Thread.currentThread().getId() );
+            logger.info( "ReceiverThread <{}>::run()", Thread.currentThread().getId() );
 
             // Block on reading from the SerialPort until we get some data.
             // If we get an error, notify our parent and go into an error state.
@@ -1505,7 +1505,7 @@ public class SerialChannel extends NetChannel
                 ioOperationFailed();
             }
 
-            logger.debug( "ReceiverThread <{}>::run() exiting.", Thread.currentThread().getId() );
+            logger.info( "ReceiverThread <{}>::run() exiting.", Thread.currentThread().getId() );
         }
 
 
