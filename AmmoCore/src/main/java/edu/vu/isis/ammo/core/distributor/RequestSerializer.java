@@ -487,9 +487,8 @@ public class RequestSerializer {
 	}
 
 	/**
-     *
+     * Serializes an object in a content provider.
      */
-
 	public static byte[] serializeFromProvider(final ContentResolver resolver,
 			final Uri tupleUri, final DistributorPolicy.Encoding encoding)
 			throws TupleNotFoundException, NonConformingAmmoContentProvider,
@@ -537,7 +536,7 @@ public class RequestSerializer {
 	}
 
 	/**
-	 * @see serializeFromProvider with which this method is symmetric.
+	 * Deserializes an object and puts it in a content provider.
 	 */
 	public static Uri deserializeToProvider(final Context context,
 			final ContentResolver resolver, final String channelName,
@@ -567,11 +566,27 @@ public class RequestSerializer {
 		 * types as a guide.
 		 */
 		// TODO: Move this someplace else? (Into ContentProviderContentItem?)
-		final Cursor serialMetaCursor;
+		Cursor serialMetaCursor = null;
 		try {
-			serialMetaCursor = resolver.query(
-					Uri.withAppendedPath(provider, "_data_type"), null, null,
-					null, null);
+            final Uri baseDataTypeUri = Uri.withAppendedPath(provider, "_data_type");
+
+            final Uri encodingSpecificUri = Uri.withAppendedPath(baseDataTypeUri, encoding.name());
+
+            try {
+                serialMetaCursor = resolver.query(encodingSpecificUri, null, null, null, null);
+            } catch (IllegalArgumentException ex) {
+                logger.warn("Data-type specific metadata doesn't exist...  falling back to old behavior");
+                //row didn't exist, move on to fallback behavior
+            }
+
+            if(serialMetaCursor == null) {
+                //Fallback logic to maintain backwards compatibility...  always fall back to the _data_type URI
+                //(intentionally different from ContentProviderContentItem fallback logic--  we only use this
+                //metadata for terse right now, and we don't (in an old-style provider) have enough information
+                //to do this for JSON)
+
+                serialMetaCursor = resolver.query(baseDataTypeUri, null, null, null, null);
+            }
 		} catch (IllegalArgumentException ex) {
 			logger.warn("unknown content provider", ex);
 			return null;
