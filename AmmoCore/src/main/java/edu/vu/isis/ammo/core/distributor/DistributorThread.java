@@ -69,6 +69,11 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSche
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeMode;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.distributor.serializer.ContentProviderContentItem;
+import edu.vu.isis.ammo.core.distributor.serializer.CustomAdaptorCache;
+import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
+import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
+import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
 import edu.vu.isis.ammo.core.distributor.store.Presence;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -81,6 +86,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
+import edu.vu.isis.ammo.util.DataFlow.ByteBufferFuture;
 import edu.vu.isis.ammo.util.FullTopic;
 
 /**
@@ -113,7 +119,9 @@ public class DistributorThread extends Thread {
     private static final int BURP_TIME = 20 * 1000;
 
     private final Context context;
+    public Context getContext() { return this.context; }
     private final NetworkManager networkManager;
+    private final CustomAdaptorCache ammoAdaptorCache;
     /**
      * The backing store for the distributor
      */
@@ -121,7 +129,9 @@ public class DistributorThread extends Thread {
     
     final public ContractStore contractStore;
 
+    @SuppressWarnings("unused")
     private static final int SERIAL_NOTIFY_ID = 1;
+    @SuppressWarnings("unused")
     private static final int IP_NOTIFY_ID = 2;
 
     private int current_icon_id = 1;
@@ -149,6 +159,7 @@ public class DistributorThread extends Thread {
         this.channelDelta = new AtomicBoolean(true);
 
         this.channelAck = new LinkedBlockingQueue<ChannelAck>(200);
+        this.ammoAdaptorCache = new CustomAdaptorCache(context);
         logger.debug("thread constructed");
     }
 
@@ -1013,16 +1024,21 @@ public class DistributorThread extends Thread {
                 return;
             }
 
-            final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider,
-                    ar.payload);
-            serializer.setSerializer(new RequestSerializer.OnSerialize() {
+            final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
+            serializer.setSerializeActor(new RequestSerializer.OnSerialize() {
 
                 final RequestSerializer serializer_ = serializer;
                 final NetworkManager that_ = that;
                 final DistributorThread parent = DistributorThread.this;
-
+                
+                final ByteBufferFuture bytes = new ByteBufferFuture();
                 @Override
-                public byte[] run(Encoding encode) {
+                public ByteBufferFuture getBytes() {
+                    return this.bytes;
+                }
+             
+                @Override
+                public void run(Encoding encode) {
                     // TODO FPE handle payload with data types
                     if (serializer_.payload.whatContent() != Payload.Type.NONE) {
                         final byte[] result =
@@ -1035,22 +1051,48 @@ public class DistributorThread extends Thread {
                                     "Null result from serialize content value, encoding into {}",
                                     encode);
                         }
-                        return result;
-                        // return serializer_.payload.asBytes();
+                        this.bytes.bind(result);
+                        return;
+                        
                     } else {
                         try {
-                            final byte[] result = RequestSerializer.serializeFromProvider(
-                                    that_.getContext().getContentResolver(), serializer_.provider.asUri(),
+                            logger.trace("serializing using encoding {}", encode);
+                            final Uri tupleUri = serializer_.provider.asUri();
+                            
+                            ISerializer serializer = null;
+                            final Encoding.Type encodingType = encode.getType();
+                            switch (encodingType) {
+                            case CUSTOM:
+                                parent.ammoAdaptorCache.serialize(tupleUri, encode);
+                                return;
+                            case JSON:
+                                serializer = new JsonSerializer();
+                                break;
+                            case TERSE:
+                                serializer = new TerseSerializer();
+                                break;
+                            default:
+                                parent.ammoAdaptorCache.serialize(tupleUri, encode);
+                                return;
+                            }
+
+                            final ContentProviderContentItem item = new ContentProviderContentItem(
+                                    tupleUri, 
+                                    that_.getContext().getContentResolver(), 
                                     encode);
+                            byte[] result = serializer.serialize(item);
+
+                            item.close();
 
                             if (result == null) {
                                 logger.error("Null result from serialize {} {} ",
                                         serializer_.provider, encode);
                             }
-                            return result;
+                            this.bytes.bind(result);
+                            return;
                         } catch (IOException ex) {
                             logger.error("invalid row for serialization", ex);
-                            return null;
+                            return;
                         } catch (TupleNotFoundException e) {
                             logger.error("tuple not found when processing postal table");
                             parent.store().deletePostal(new StringBuilder()
@@ -1061,10 +1103,10 @@ public class DistributorThread extends Thread {
                                     new String[] {
                                             e.missingTupleUri.getPath(), topic
                                     });
-                            return null;
+                            return;
                         } catch (NonConformingAmmoContentProvider ex) {
                             logger.error("non-conforming content provider", ex);
-                            return null;
+                            return;
                         }
                     }
                 }
@@ -1202,31 +1244,67 @@ public class DistributorThread extends Thread {
                 }
             }
 
-            serializer.setSerializer(new RequestSerializer.OnSerialize() {
+            serializer.setSerializeActor(new RequestSerializer.OnSerialize() {
                 final DistributorThread parent = DistributorThread.this;
                 final RequestSerializer serializer_ = serializer;
                 final NetworkManager that_ = that;
                 final SerializeMode serialType_ = serialType;
                 final String data_ = data;
+                
+                final ByteBufferFuture bytes = new ByteBufferFuture();
+                @Override
+                public ByteBufferFuture getBytes() {
+                    return this.bytes;
+                }
 
                 @Override
-                public byte[] run(Encoding encode) {
+                public void run(Encoding encode) {
                     switch (serialType_) {
-                        case DIRECT:
-                            return (data_.length() > 0) ? data_.getBytes() : null;
-
+                        case DIRECT: {
+                            final byte[] array = (data_.length() > 0) ? data_.getBytes() : null;
+                            this.bytes.bind(array);
+                            return;
+                        }
                         case INDIRECT:
                         case DEFERRED:
                         default:
                             try {
                                 if (payload != null && payload.isSet()) {
-                                    return RequestSerializer.serializeFromContentValues(
+                                    final byte[] array = RequestSerializer.serializeFromContentValues(
                                             payload.getCV(), encode, topic, contractStore);
+                                    ByteBufferFuture.wrap(array);
+                                    return;
                                 } else {
 
-                                    return RequestSerializer.serializeFromProvider(
-                                            that_.getContext().getContentResolver(),
-                                            serializer_.provider.asUri(), encode);
+                                    logger.trace("serializing using encoding {}", encode);
+                                    final Uri tupleUri = serializer_.provider.asUri();
+                                    
+                                    ISerializer serializer = null;
+                                    final Encoding.Type encodingType = encode.getType();
+                                    switch (encodingType) {
+                                    case CUSTOM:
+                                        parent.ammoAdaptorCache.serialize(tupleUri, encode);
+                                        return;
+                                    case JSON:
+                                        serializer = new JsonSerializer();
+                                        break;
+                                    case TERSE:
+                                        serializer = new TerseSerializer();
+                                        break;
+                                    default:
+                                        parent.ammoAdaptorCache.serialize(tupleUri, encode);
+                                        return;
+                                    }
+
+                                    final ContentProviderContentItem item = new ContentProviderContentItem(
+                                            tupleUri, 
+                                            that_.getContext().getContentResolver(), 
+                                            encode);
+                                    byte[] result = serializer.serialize(item);
+
+                                    item.close();
+                                    this.bytes.bind(result);
+                                    return;
                                 }
                             } catch (IOException e1) {
                                 logger.error("invalid row for serialization");
@@ -1247,7 +1325,6 @@ public class DistributorThread extends Thread {
                             }
                     }
                     logger.error("no serialized data produced");
-                    return null;
                 }
             });
 
@@ -1334,7 +1411,7 @@ public class DistributorThread extends Thread {
         final Long now = System.currentTimeMillis();
         logger.debug("Building MessageWrapper @ time {}", now);
 
-        serializer.setAction(new RequestSerializer.OnReady() {
+        serializer.setReadyActor(new RequestSerializer.OnReady() {
             @Override
             public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
 
@@ -1737,7 +1814,7 @@ public class DistributorThread extends Thread {
         // expiration
         try {
             final RequestSerializer serializer = RequestSerializer.newInstance();
-            serializer.setAction(new RequestSerializer.OnReady() {
+            serializer.setReadyActor(new RequestSerializer.OnReady() {
 
                 private AmmoMessages.PullRequest.Builder retrieveReq_ = retrieveReq;
 
@@ -2024,7 +2101,7 @@ public class DistributorThread extends Thread {
             subscribeReq.setQuery(selection);
 
         final RequestSerializer serializer = RequestSerializer.newInstance();
-        serializer.setAction(new RequestSerializer.OnReady() {
+        serializer.setReadyActor(new RequestSerializer.OnReady() {
 
             final AmmoMessages.SubscribeMessage.Builder subscribeReq_ = subscribeReq;
 

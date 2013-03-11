@@ -15,6 +15,10 @@ import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Order;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.core.distributor.serializer.CustomAdaptorCache;
+import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
+import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
+import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 
 public class RequestDeserializerThread extends Thread {
     private static final Logger logger = LoggerFactory.getLogger("dist.deserializer");
@@ -22,6 +26,7 @@ public class RequestDeserializerThread extends Thread {
 
     private final PriorityBlockingQueue<Item> queue;
     private AtomicInteger masterSequence;
+    private final CustomAdaptorCache ammoAdaptorCache;
     
     private final DistributorThread distributor;
     
@@ -72,6 +77,7 @@ public class RequestDeserializerThread extends Thread {
         this.masterSequence = new AtomicInteger(0);
         this.queue = new PriorityBlockingQueue<Item>(200, new PriorityOrder());
         this.distributor = distributor;
+        this.ammoAdaptorCache = new CustomAdaptorCache(distributor.getContext());
     }
 
     /**
@@ -135,8 +141,25 @@ public class RequestDeserializerThread extends Thread {
 
                 if(item.operation == DeserializerOperation.TO_PROVIDER) {
                     try {
+
+                        final ISerializer serializer;
+                        switch (item.encoding.getType()) {
+                        case CUSTOM:
+                            this.ammoAdaptorCache.deserialize(item.provider, item.encoding, item.data);
+                            return;
+                        case JSON:
+                            serializer = new JsonSerializer();
+                            break;
+                        case TERSE:
+                            serializer = new TerseSerializer();
+                            break;
+                        default:
+                            this.ammoAdaptorCache.deserialize(item.provider, item.encoding, item.data);
+                            return;
+                        }
+
                         final Uri tuple = RequestSerializer.deserializeToProvider(
-                                item.context, item.context.getContentResolver(),
+                                serializer, item.context.getContentResolver(),
                                 item.channelName, item.provider, item.encoding, item.data);
                         logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
                                 new Object[]{item.provider, tuple, queue.size()} );

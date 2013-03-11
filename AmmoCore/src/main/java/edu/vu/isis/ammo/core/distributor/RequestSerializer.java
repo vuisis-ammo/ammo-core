@@ -14,7 +14,6 @@ package edu.vu.isis.ammo.core.distributor;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -22,10 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
@@ -44,25 +38,21 @@ import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
-import edu.vu.isis.ammo.core.distributor.serializer.ContentProviderContentItem;
 import edu.vu.isis.ammo.core.distributor.serializer.ContentValuesContentItem;
-import edu.vu.isis.ammo.core.distributor.serializer.CustomAdaptorCache;
-import edu.vu.isis.ammo.core.distributor.serializer.CustomSerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.util.DataFlow.ByteBufferFuture;
 
 /**
  * The purpose of these objects is lazily serialize an object. Once it has been
- * serialized once a copy is kept.
+ * serialized a copy is kept.
  */
 public class RequestSerializer {
 	/* package */static final Logger logger = LoggerFactory
 			.getLogger("dist.serializer");
 
-	private final CustomAdaptorCache adaptorCache;
-	
 	/**
 	 * This enumeration's codes must match those of the AmmoGen files.
 	 */
@@ -208,7 +198,9 @@ public class RequestSerializer {
 	}
 
 	public interface OnSerialize {
-		public byte[] run(Encoding encode);
+		public void run(final Encoding encode);
+
+        ByteBufferFuture getBytes();
 	}
 
 	public final Provider provider;
@@ -238,7 +230,6 @@ public class RequestSerializer {
 	}
 
 	private RequestSerializer(Provider provider, Payload payload) {
-	    this.adaptorCache = new CustomAdaptorCache();
 		this.provider = provider;
 		this.payload = payload;
 		this.agm = null;
@@ -252,10 +243,15 @@ public class RequestSerializer {
 		};
 		this.serializeActor = new RequestSerializer.OnSerialize() {
 			@Override
-			public byte[] run(Encoding encode) {
+			public void run(final Encoding encode) {
 				logger.trace("serialize actor not defined {}", encode);
-				return null;
 			}
+
+            @Override
+            public ByteBufferFuture getBytes() {
+                logger.trace("serialize actor not defined {}");
+                return null;
+            }
 		};
 	}
 
@@ -270,7 +266,9 @@ public class RequestSerializer {
 
 	/**
 	 * The primary function of the request serializer is to serialize and
-	 * deliver the request. This method fulfills that purpose. This is performed
+	 * deliver a request. This method fulfills that purpose. 
+	 * <p>
+	 * This is performed
 	 * by two actors registered with the serializer.
 	 * 
 	 * @param that
@@ -284,8 +282,18 @@ public class RequestSerializer {
 		final Encoding local_encode = encode;
 		final String local_channel = channel;
 		if (parent.agm == null) {
-			final byte[] agmBytes = parent.serializeActor.run(local_encode);
-			parent.agm = parent.readyActor.run(local_encode, agmBytes);
+			parent.serializeActor.run(local_encode);
+			
+            // FIXME This should be added as a message to the thread handler
+			byte[] bytes;
+            try {
+                bytes = parent.serializeActor.getBytes().get().array();
+                parent.agm = parent.readyActor.run(local_encode, bytes);
+            } catch (InterruptedException ex) {
+                logger.error("could not get serialize future", ex);
+            } catch (ExecutionException ex) {
+                logger.error("could not get serialize future", ex);
+            }
 		}
 		if (parent.agm == null)
 			return null;
@@ -293,11 +301,19 @@ public class RequestSerializer {
 		return that.sendRequest(parent.agm, local_channel);
 	}
 
-	public void setAction(OnReady action) {
-		this.readyActor = action;
+	/**
+	 * The actor sends the serialized data to its destination.
+	 */
+	public void setReadyActor(final OnReady onReady) {
+		this.readyActor = onReady;
 	}
 
-	public void setSerializer(OnSerialize onSerialize) {
+	/**
+	 * The serializer performs the serialization of the object to bytes.
+	 * 
+	 * @param onSerialize
+	 */
+	public void setSerializeActor(final OnSerialize onSerialize) {
 		this.serializeActor = onSerialize;
 	}
 
@@ -414,155 +430,15 @@ public class RequestSerializer {
 		return msg.cv;
 	}
 
-	/**
-	 * This simple Future which can only be bound to a value once.
-	 */
-	public static class DataFlow<V> implements Future<V> {
-		final AtomicReference<V> value;
-
-		public DataFlow() {
-			this.value = new AtomicReference<V>();
-		}
-
-		public DataFlow(V value) {
-			this();
-			this.value.set(value);
-		}
-
-		public void bind(final V value) {
-			if (!this.value.compareAndSet(null, value))
-				return;
-			this.notifyAll();
-		}
-
-		@Override
-		public boolean cancel(boolean mayInterruptIfRunning) {
-			return false;
-		}
-
-		@Override
-		public V get() throws InterruptedException, ExecutionException {
-			synchronized (this) {
-				if (this.value.get() == null) {
-					this.wait();
-				}
-			}
-			return this.value.get();
-		}
-
-		@Override
-		public V get(long timeout, TimeUnit unit) throws InterruptedException,
-				ExecutionException, TimeoutException {
-			synchronized (this) {
-				if (this.value.get() == null) {
-					this.wait(unit.toMillis(timeout));
-				}
-			}
-			return this.value.get();
-		}
-
-		@Override
-		public boolean isCancelled() {
-			return false;
-		}
-
-		@Override
-		public boolean isDone() {
-			return this.value.get() != null;
-		}
-	}
-
-	/**
-	 * All serializer methods return this dataflow variable.
-	 */
-	public static class ByteBufferFuture extends DataFlow<ByteBuffer> {
-
-		public ByteBufferFuture() {
-			super();
-		}
-
-		public ByteBufferFuture(ByteBuffer value) {
-			super(value);
-		}
-
-		public static ByteBufferFuture wrap(byte[] value) {
-			return new ByteBufferFuture(ByteBuffer.wrap(value));
-		}
-	}
-
-	/**
-     *
-     */
-
-	public static byte[] serializeFromProvider(final ContentResolver resolver,
-			final Uri tupleUri, final DistributorPolicy.Encoding encoding)
-			throws TupleNotFoundException, NonConformingAmmoContentProvider,
-			IOException {
-
-		logger.trace("serializing using encoding {}", encoding);
-		ISerializer serializer = null;
-		final Encoding.Type encodingType = encoding.getType();
-		switch (encodingType) {
-		case CUSTOM:
-			serializer = new CustomSerializer(null, tupleUri, encoding);
-			break;
-		case JSON:
-			serializer = new JsonSerializer();
-			break;
-		case TERSE:
-			serializer = new TerseSerializer();
-			break;
-		default:
-			serializer = new CustomSerializer(null, tupleUri, encoding);
-		}
-
-		final ContentProviderContentItem item = new ContentProviderContentItem(
-				tupleUri, resolver, encoding);
-		byte[] result = serializer.serialize(item);
-
-		item.close();
-
-		return result;
-	}
-
-	/**
-	 * All deserializers return this dataflow variable
-	 */
-	public static class UriFuture extends DataFlow<Uri> {
-
-		public UriFuture() {
-			super();
-		}
-
-		public UriFuture(Uri tupleUri) {
-			super(tupleUri);
-		}
-
-	}
-
+	
 	/**
 	 * @see serializeFromProvider with which this method is symmetric.
 	 */
-	public static Uri deserializeToProvider(final Context context,
+	public static Uri deserializeToProvider(final ISerializer serializer,
 			final ContentResolver resolver, final String channelName,
 			final Uri provider, final Encoding encoding, final byte[] data) {
 
 		logger.debug("deserialize message");
-
-		final ISerializer serializer;
-		switch (encoding.getType()) {
-		case CUSTOM:
-			serializer = new CustomSerializer(adaptorCache, context, provider, encoding);
-			break;
-		case JSON:
-			serializer = new JsonSerializer();
-			break;
-		case TERSE:
-			serializer = new TerseSerializer();
-			break;
-		default:
-			serializer = new CustomSerializer(adaptorCache, context, provider, encoding);
-		}
 
 		/**
 		 * 1) perform a query to get the field: names, types.
