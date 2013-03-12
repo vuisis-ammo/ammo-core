@@ -113,7 +113,7 @@ public class Dispersal {
      *      unless the forced channel matches the term - mark the clause true if
      *      it doesn't contain the forced channel
      */
-    public Dispersal multiplexRequest(NetworkManager that, RequestSerializer serializer) {
+    public Dispersal multiplexRequest(final NetworkManager that, final RequestSerializer serializer) {
         logger.trace("::multiplex request");
 
         if (this.policy == null) {

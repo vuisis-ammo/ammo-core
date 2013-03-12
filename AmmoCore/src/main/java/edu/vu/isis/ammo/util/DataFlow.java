@@ -73,8 +73,9 @@ public class DataFlow<V> implements Future<V> {
      */
     public static class ByteBufferFuture extends DataFlow<ByteBuffer> {
 
-        public ByteBufferFuture() {
-            super();
+        public static ByteBufferFuture getEmptyInstance() {
+            final byte[] empty = new byte[0];
+            return new ByteBufferFuture(ByteBuffer.wrap(empty));
         }
 
         public ByteBufferFuture(ByteBuffer value) {

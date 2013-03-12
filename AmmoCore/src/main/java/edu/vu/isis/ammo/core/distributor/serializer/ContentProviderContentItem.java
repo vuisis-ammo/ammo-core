@@ -47,7 +47,7 @@ public class ContentProviderContentItem implements IContentItem {
             try {
                 final Uri baseDataTypeUri = Uri.withAppendedPath(tupleUri, "_data_type");
                 
-                final Uri encodingSpecificUri = Uri.withAppendedPath(tupleUri, encoding.name());
+                final Uri encodingSpecificUri = Uri.withAppendedPath(baseDataTypeUri, encoding.name());
                 
                 try {
                     serialMetaCursor = resolver.query(encodingSpecificUri, null, null, null, null);

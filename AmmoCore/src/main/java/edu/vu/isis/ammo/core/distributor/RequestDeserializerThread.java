@@ -13,16 +13,11 @@ import android.net.Uri;
 import android.os.Process;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Order;
-import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.serializer.CustomAdaptorCache;
-import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
-import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
-import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 
 public class RequestDeserializerThread extends Thread {
     private static final Logger logger = LoggerFactory.getLogger("dist.deserializer");
-    private static final Logger tlogger = LoggerFactory.getLogger("test.queue.insert");
 
     private final PriorityBlockingQueue<Item> queue;
     private AtomicInteger masterSequence;
@@ -142,33 +137,18 @@ public class RequestDeserializerThread extends Thread {
                 if(item.operation == DeserializerOperation.TO_PROVIDER) {
                     try {
 
-                        final ISerializer serializer;
-                        switch (item.encoding.getType()) {
-                        case CUSTOM:
-                            this.ammoAdaptorCache.deserialize(item.provider, item.encoding, item.data);
-                            return;
-                        case JSON:
-                            serializer = new JsonSerializer();
-                            break;
-                        case TERSE:
-                            serializer = new TerseSerializer();
-                            break;
-                        default:
-                            this.ammoAdaptorCache.deserialize(item.provider, item.encoding, item.data);
-                            return;
-                        }
-
-                        final Uri tuple = RequestSerializer.deserializeToProvider(
-                                serializer, item.context.getContentResolver(),
+                        final Uri tupleUri = RequestSerializer.deserializeToProvider(
+                                this.ammoAdaptorCache,
+                                item.context.getContentResolver(),
                                 item.channelName, item.provider, item.encoding, item.data);
-                        logger.info("Ammo inserted received message in remote content provider=[{}] inserted in [{}], remaining in insert queue [{}]", 
-                                new Object[]{item.provider, tuple, queue.size()} );
-                        tlogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[]{System.currentTimeMillis(), "insert_queue", this.queue.size()});
-    
+                        logger.info("Ammo inserted received message in remote content provider=[{}], as [{}], remaining in insert queue [{}]", 
+                                item.provider,  tupleUri, queue.size());
+                        
                     } catch (Exception ex) {
                         logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
-                                new Object []{item.provider, queue.size()}, ex);
+                                item.provider, queue.size(), ex);
                     }
+                   
                 } else if(item.operation == DeserializerOperation.TO_REROUTE) {
                     final ContentValues cv = RequestSerializer.deserializeToContentValues(item.data, item.encoding, item.mimeType, this.distributor.contractStore);
                     //Create a new request to forward this on to the distributor

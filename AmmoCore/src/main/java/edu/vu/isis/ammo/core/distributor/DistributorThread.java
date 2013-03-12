@@ -1031,7 +1031,7 @@ public class DistributorThread extends Thread {
                 final NetworkManager that_ = that;
                 final DistributorThread parent = DistributorThread.this;
                 
-                final ByteBufferFuture bytes = new ByteBufferFuture();
+                final ByteBufferFuture bytes = ByteBufferFuture.getEmptyInstance();
                 @Override
                 public ByteBufferFuture getBytes() {
                     return this.bytes;
@@ -1251,7 +1251,7 @@ public class DistributorThread extends Thread {
                 final SerializeMode serialType_ = serialType;
                 final String data_ = data;
                 
-                final ByteBufferFuture bytes = new ByteBufferFuture();
+                final ByteBufferFuture bytes = ByteBufferFuture.getEmptyInstance();
                 @Override
                 public ByteBufferFuture getBytes() {
                     return this.bytes;
