@@ -31,7 +31,7 @@ import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
  *
  */
 public class JsonSerializer implements ISerializer {
-    static final Logger logger = LoggerFactory.getLogger("dist.serializer");
+    static final Logger logger = LoggerFactory.getLogger("dist.serializer.json");
     
     /**
      * The presence of the BLOB_MARKER_FIELD as the first byte in the footer for
@@ -41,11 +41,9 @@ public class JsonSerializer implements ISerializer {
     public static final byte BLOB_MARKER_FIELD = (byte) 0xff;
 
     @Override
-    public byte[] serialize(IContentItem item) throws IOException {
-        logger.trace("Serialize the non-blob data");
+    public byte[] serialize(final IContentItem item) throws IOException {
+        logger.debug("Serialize the non-blob data <{}>", item);
         
-        byte[] tuple = null;
-
         final JSONObject json = new JSONObject();
         int countBinaryFields = 0;
         for (final String field : item.keySet()) {
@@ -76,9 +74,12 @@ public class JsonSerializer implements ISerializer {
                 }
             }
         }
-        tuple = json.toString().getBytes();
-        if (countBinaryFields < 1)
+        final String jsonString = json.toString();
+        final byte[] tuple = jsonString.getBytes();
+        logger.debug("serialized payload <{}> <{}>", jsonString, tuple);
+        if (countBinaryFields < 1) {
             return tuple;
+        }
 
         logger.trace("loading larger tuple buffer");
         ByteArrayOutputStream bigTuple = null;
@@ -195,9 +196,9 @@ public class JsonSerializer implements ISerializer {
     }
 
     @Override
-    public DeserializedMessage deserialize(byte[] data, List<String> fieldNames,
-            List<FieldType> dataTypes) {
-        DeserializedMessage msg = new DeserializedMessage();
+    public DeserializedMessage deserialize(final byte[] data, final List<String> fieldNames,
+            final List<FieldType> dataTypes) {
+        final DeserializedMessage msg = new DeserializedMessage();
         final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
         // find the end of the json portion of the data
         int position = 0;
@@ -208,8 +209,8 @@ public class JsonSerializer implements ISerializer {
         final byte[] payload = new byte[length];
         System.arraycopy(data, 0, payload, 0, length);
         final JSONObject input;
-        try {
-            final String parsePayload = new String(payload);
+        final String parsePayload = new String(payload);
+        try {  
             final Object value = new JSONTokener(parsePayload).nextValue();
             if (value instanceof JSONObject) {
                 input = (JSONObject) value;
@@ -226,10 +227,10 @@ public class JsonSerializer implements ISerializer {
                 return null;
             }
         } catch (ClassCastException ex) {
-            PLogger.API_STORE.warn("invalid JSON content", ex);
+            PLogger.API_STORE.warn("invalid JSON content, <{}>", parsePayload, ex);
             return null;
         } catch (JSONException ex) {
-            PLogger.API_STORE.warn("invalid JSON content", ex);
+            PLogger.API_STORE.warn("invalid JSON content, <{}>", parsePayload, ex);
             return null;
         }
 

@@ -59,6 +59,20 @@ public class RequestDeserializerThread extends Thread {
             this.mimeType = mimeType;
             this.data = data;
         }
+        
+
+        @Override
+        public String toString() {
+            return this.toString(new StringBuilder()).toString();
+        }
+        
+        public StringBuilder toString(final StringBuilder sb) {
+            sb.append("provider: ").append(this.provider).append('\n');
+            sb.append("encoding: ").append(this.encoding).append('\n');
+            sb.append("data: ").append(this.mimeType).append(" -> ").append(this.data).append('\n');
+            return sb;
+        }
+
     }
 
     /**
@@ -136,7 +150,7 @@ public class RequestDeserializerThread extends Thread {
 
                 if(item.operation == DeserializerOperation.TO_PROVIDER) {
                     try {
-
+                        logger.trace("deserialize received message <{}>", item);
                         final Uri tupleUri = RequestSerializer.deserializeToProvider(
                                 this.ammoAdaptorCache,
                                 item.context.getContentResolver(),

@@ -4,14 +4,18 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.DeserializedMessage;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
 
 public class TerseSerializer implements ISerializer {
+    static final Logger logger = LoggerFactory.getLogger("dist.serializer.terse");
 
     @Override
-    public byte[] serialize(IContentItem item) throws IOException {
+    public byte[] serialize(final IContentItem item) throws IOException {
         final ByteBuffer tuple = ByteBuffer.allocate(2048);
 
         // For the new serialization for the 152s, write the data we want to
@@ -114,9 +118,9 @@ public class TerseSerializer implements ISerializer {
     }
 
     @Override
-    public DeserializedMessage deserialize(byte[] data, List<String> fieldNames,
-            List<FieldType> dataTypes) {
-        DeserializedMessage decodedObject = new DeserializedMessage();
+    public DeserializedMessage deserialize(final byte[] data, final List<String> fieldNames,
+            final List<FieldType> dataTypes) {
+        final DeserializedMessage decodedObject = new DeserializedMessage();
 
         final ByteBuffer tuple = ByteBuffer.wrap(data);
         int i = 0;

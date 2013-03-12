@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,5 +144,24 @@ public class ContentValuesContentItem implements IContentItem {
         // TODO Auto-generated method stub
         return null;
     }
+    
+    @Override
+    public String toString() {
+        return this.toString(new StringBuilder()).toString();
+    }
+    
+    public StringBuilder toString(final StringBuilder sb) {
+        sb.append("values: ").append(this.cv).append(", ");
+        sb.append("field types: ").append('\n');
+        for (final Entry<String, FieldType> entry : this.fieldTypes.entrySet()) {
+            sb.append(entry.getKey()).append(" -> ").append(entry.getValue()).append(",\n");
+        }
+        sb.append("serial set: ").append('\n');
+        for (final String entry : this.serialSet) {
+            sb.append(entry).append(",\n");
+        }
+        return sb;
+    }
+
 
 }

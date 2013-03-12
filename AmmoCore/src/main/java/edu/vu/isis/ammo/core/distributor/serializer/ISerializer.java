@@ -10,7 +10,7 @@ import edu.vu.isis.ammo.core.distributor.RequestSerializer.DeserializedMessage;
 import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
 
 public interface ISerializer {
-    static final Logger logger = LoggerFactory.getLogger("dist.serializer.json");
+    static final Logger logger = LoggerFactory.getLogger("dist.serializer");
     /**
      * Serializes a content item.
      * 
@@ -18,7 +18,7 @@ public interface ISerializer {
      * @return the serialized content
      * @throws IOException 
      */
-    public byte[] serialize(IContentItem item) throws IOException;
+    public byte[] serialize(final IContentItem item) throws IOException;
     
     /**
      * Deserializes a content item.
@@ -28,5 +28,5 @@ public interface ISerializer {
      * @param dataTypes an ordered list of data types for the fields in fieldNames
      * @return a DeserializedMessage object containing the deserialized data
      */
-    public DeserializedMessage deserialize(byte[] data, List<String> fieldNames, List<FieldType> dataTypes);
+    public DeserializedMessage deserialize(final byte[] data, final List<String> fieldNames, final List<FieldType> dataTypes);
 }

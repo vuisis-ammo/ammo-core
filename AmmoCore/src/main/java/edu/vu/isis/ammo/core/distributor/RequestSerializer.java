@@ -473,7 +473,7 @@ public class RequestSerializer {
 			final ContentResolver resolver, final String channelName,
 			final Uri provider, final Encoding encoding, final byte[] data) {
 
-		logger.debug("deserialize message");
+		logger.debug("deserialize message <{}>", data);
 
 		/**
 		 * 1) perform a query to get the field: names, types.
@@ -521,17 +521,15 @@ public class RequestSerializer {
 			return null;
 		}
 
-		List<String> columnNames = Arrays.asList(serialMetaCursor
-				.getColumnNames());
-		List<FieldType> dataTypes = new ArrayList<FieldType>(columnNames.size());
+		final List<String> columnNames = Arrays.asList(serialMetaCursor.getColumnNames());
+		final List<FieldType> dataTypes = new ArrayList<FieldType>(columnNames.size());
 
-		for (String key : columnNames) {
+		for (final String key : columnNames) {
 			dataTypes.add(FieldType.fromCode(serialMetaCursor
 					.getInt(serialMetaCursor.getColumnIndex(key))));
 		}
 
-		DeserializedMessage msg = serializer.deserialize(data, columnNames,
-				dataTypes);
+		final DeserializedMessage msg = serializer.deserialize(data, columnNames, dataTypes);
 
 		final Uri tupleUri;
 		try {

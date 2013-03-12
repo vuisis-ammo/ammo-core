@@ -3,6 +3,7 @@ package edu.vu.isis.ammo.core.distributor.serializer;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -411,6 +412,20 @@ public class ContentProviderContentItem implements IContentItem {
         if(cursor != null) {
             cursor.close();
         }
+    }
+    
+    @Override
+    public String toString() {
+        return this.toString(new StringBuilder()).toString();
+    }
+    
+    public StringBuilder toString(final StringBuilder sb) {
+        sb.append("tuple: ").append(this.tupleUri).append(", ");
+        sb.append("fields: ").append('\n');
+        for (Entry<String, FieldType> entry : this.fieldMap.entrySet()) {
+            sb.append(entry.getKey()).append(" -> ").append(entry.getValue()).append(",\n");
+        }
+        return sb;
     }
 
 }
