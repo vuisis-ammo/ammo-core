@@ -20,7 +20,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ExecutionException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +43,6 @@ import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
-import edu.vu.isis.ammo.util.DataFlow.ByteBufferFuture;
 
 /**
  * The purpose of these objects is lazily serialize an object. Once it has been
@@ -201,7 +199,7 @@ public class RequestSerializer {
 	public interface OnSerialize {
 		public void run(final Encoding encode);
 
-        public ByteBufferFuture getBytes();
+        public byte[] getBytes();
 	}
 
 	public final Provider provider;
@@ -249,9 +247,9 @@ public class RequestSerializer {
 			}
 
             @Override
-            public ByteBufferFuture getBytes() {
+            public byte[] getBytes() {
                 logger.trace("serialize actor not defined {}");
-				return ByteBufferFuture.getEmptyInstance();
+				return null;
 			}
 		};
 	}
@@ -283,16 +281,8 @@ public class RequestSerializer {
 		final String local_channel = channel;
 		if (parent.agm == null) {
 			parent.serializeActor.run(local_encode);
-			
-			byte[] bytes;
-            try {
-                bytes = parent.serializeActor.getBytes().get().array();
+			byte[] bytes = parent.serializeActor.getBytes();
                 parent.agm = parent.readyActor.run(local_encode, bytes);
-            } catch (InterruptedException ex) {
-                logger.error("could not get serialize future", ex);
-            } catch (ExecutionException ex) {
-                logger.error("could not get serialize future", ex);
-            }
 		}
 		if (parent.agm == null)
 			return null;
@@ -630,7 +620,7 @@ public class RequestSerializer {
 	 * A pair of functions which communicate with a Content Adaptor Service.
 	 * These Content Adaptor Services are created by the code generator.
 	 */
-	public static ByteBufferFuture serializeCustomFromProvider(
+	public static byte[] serializeCustomFromProvider(
 			final ContentResolver resolver, final Uri tupleUri,
 			final DistributorPolicy.Encoding encoding)
 			throws TupleNotFoundException, NonConformingAmmoContentProvider,
@@ -664,7 +654,7 @@ public class RequestSerializer {
 
 		final String tupleString = tupleCursor.getString(0);
 		tupleCursor.close();
-		return ByteBufferFuture.wrap(tupleString.getBytes());
+		return tupleString.getBytes();
 
 	}
 

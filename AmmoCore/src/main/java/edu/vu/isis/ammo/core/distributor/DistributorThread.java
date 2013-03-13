@@ -86,7 +86,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
-import edu.vu.isis.ammo.util.DataFlow.ByteBufferFuture;
 import edu.vu.isis.ammo.util.FullTopic;
 
 /**
@@ -1031,9 +1030,9 @@ public class DistributorThread extends Thread {
                 final NetworkManager that_ = that;
                 final DistributorThread parent = DistributorThread.this;
                 
-                final ByteBufferFuture bytes = ByteBufferFuture.getUnboundInstance();
+                byte[] bytes = null;
                 @Override
-                public ByteBufferFuture getBytes() {
+                public byte[] getBytes() {
                     return this.bytes;
                 }
              
@@ -1041,17 +1040,21 @@ public class DistributorThread extends Thread {
                 public void run(Encoding encode) {
                     // TODO FPE handle payload with data types
                     if (serializer_.payload.whatContent() != Payload.Type.NONE) {
-                        final byte[] result =
+                        if (this.bytes != null) {
+                            logger.warn("bytes already bound {}", this.bytes);
+                            return;
+                        }
+                        this.bytes =
                                 RequestSerializer.serializeFromContentValues(
                                         serializer_.payload.getCV(),
                                         encode, ar.topic.asString(), contractStore);
 
-                        if (result == null) {
+                        if (this.bytes == null) {
                             logger.error(
                                     "Null result from serialize content value, encoding into {}",
                                     encode);
                         }
-                        this.bytes.bind(result);
+                        
                         return;
                         
                     } else {
@@ -1075,20 +1078,21 @@ public class DistributorThread extends Thread {
                                 parent.ammoAdaptorCache.serialize(tupleUri, encode);
                                 return;
                             }
-
+                            if (this.bytes != null) {
+                                logger.warn("bytes already bound {}", this.bytes);
+                                return;
+                            }
                             final ContentProviderContentItem item = new ContentProviderContentItem(
                                     tupleUri, 
                                     that_.getContext().getContentResolver(), 
                                     encode);
-                            byte[] result = serializer.serialize(item);
-
+                            this.bytes = serializer.serialize(item);
                             item.close();
 
-                            if (result == null) {
+                            if (this.bytes == null) {
                                 logger.error("Null result from serialize {} {} ",
                                         serializer_.provider, encode);
                             }
-                            this.bytes.bind(result);
                             return;
                         } catch (IOException ex) {
                             logger.error("invalid row for serialization", ex);
@@ -1251,9 +1255,9 @@ public class DistributorThread extends Thread {
                 final SerializeMode serialType_ = serialType;
                 final String data_ = data;
                 
-                final ByteBufferFuture bytes = ByteBufferFuture.getUnboundInstance();
+                byte[] bytes = null;
                 @Override
-                public ByteBufferFuture getBytes() {
+                public byte[] getBytes() {
                     return this.bytes;
                 }
 
@@ -1261,8 +1265,11 @@ public class DistributorThread extends Thread {
                 public void run(Encoding encode) {
                     switch (serialType_) {
                         case DIRECT: {
-                            final byte[] array = (data_.length() > 0) ? data_.getBytes() : null;
-                            this.bytes.bind(array);
+                            if (this.bytes != null) {
+                                logger.warn("bytes already bound {}", this.bytes);
+                                return;
+                            }
+                            this.bytes = (data_.length() > 0) ? data_.getBytes() : null;
                             return;
                         }
                         case INDIRECT:
@@ -1270,9 +1277,12 @@ public class DistributorThread extends Thread {
                         default:
                             try {
                                 if (payload != null && payload.isSet()) {
-                                    final byte[] array = RequestSerializer.serializeFromContentValues(
+                                    if (this.bytes != null) {
+                                        logger.warn("bytes already bound {}", this.bytes);
+                                        return;
+                                    }
+                                    this.bytes = RequestSerializer.serializeFromContentValues(
                                             payload.getCV(), encode, topic, contractStore);
-                                    ByteBufferFuture.wrap(array);
                                     return;
                                 } else {
 
@@ -1295,15 +1305,16 @@ public class DistributorThread extends Thread {
                                         parent.ammoAdaptorCache.serialize(tupleUri, encode);
                                         return;
                                     }
-
+                                    if (this.bytes != null) {
+                                        logger.warn("bytes already bound {}", this.bytes);
+                                        return;
+                                    }
                                     final ContentProviderContentItem item = new ContentProviderContentItem(
                                             tupleUri, 
                                             that_.getContext().getContentResolver(), 
                                             encode);
-                                    byte[] result = serializer.serialize(item);
-
+                                    this.bytes = serializer.serialize(item);
                                     item.close();
-                                    this.bytes.bind(result);
                                     return;
                                 }
                             } catch (IOException e1) {
