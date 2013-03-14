@@ -13,11 +13,13 @@ import android.net.Uri;
 import android.os.Process;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.type.Order;
+import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.serializer.CustomAdaptorCache;
 
 public class RequestDeserializerThread extends Thread {
     private static final Logger logger = LoggerFactory.getLogger("dist.deserializer");
+    private static final Logger tlogger = LoggerFactory.getLogger("test.queue.insert");
 
     private final PriorityBlockingQueue<Item> queue;
     private AtomicInteger masterSequence;
@@ -157,7 +159,9 @@ public class RequestDeserializerThread extends Thread {
                                 item.channelName, item.provider, item.encoding, item.data);
                         logger.info("Ammo inserted received message in remote content provider=[{}], as [{}], remaining in insert queue [{}]", 
                                 item.provider,  tupleUri, queue.size());
-                        
+                        tlogger.info(PLogger.TEST_QUEUE_FORMAT, 
+                                System.currentTimeMillis(), "insert_queue", this.queue.size() );
+
                     } catch (Exception ex) {
                         logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
                                 item.provider, queue.size(), ex);

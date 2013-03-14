@@ -12,6 +12,11 @@ package edu.vu.isis.ammo.core.distributor;
 
 import android.net.Uri;
 
+/**
+ * An exception to be raised when the content provider being used
+ * does not conform to the ammo service expectations.
+ *
+ */
 public class NonConformingAmmoContentProvider extends Exception {
 	private static final long serialVersionUID = -1917539810288091287L;
 	public final Uri providerUri;
