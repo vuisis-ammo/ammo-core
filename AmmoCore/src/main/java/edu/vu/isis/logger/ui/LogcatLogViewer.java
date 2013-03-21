@@ -19,6 +19,7 @@ public class LogcatLogViewer extends LogViewerBase {
     public static final int NOTIFY_INVALID_REGEX_MSG = 1;
 
     private static final int OPEN_PREFS_MENU = Menu.NONE + 3;
+    private static final int CLEAR_SCREEN_MENU = Menu.NONE + 4;
 
     private SharedPreferences mPrefs;
     private String mRegex;
@@ -85,6 +86,7 @@ public class LogcatLogViewer extends LogViewerBase {
         final boolean returnValue = true && super.onPrepareOptionsMenu(menu);
 
         menu.add(Menu.NONE, OPEN_PREFS_MENU, Menu.NONE, "Open preferences");
+        menu.add(Menu.NONE, CLEAR_SCREEN_MENU, Menu.NONE, "Clear screen");
 
         return returnValue;
 
@@ -96,6 +98,10 @@ public class LogcatLogViewer extends LogViewerBase {
             final Intent intent = new Intent().setClass(this,
                     LogViewerPreferences.class);
             startActivityForResult(intent, 0);
+            return true;
+        } else if (item.getItemId() == CLEAR_SCREEN_MENU) {
+            mAdapter.clear();
+            mListView.invalidateViews();
             return true;
         }
         return super.onOptionsItemSelected(item);
