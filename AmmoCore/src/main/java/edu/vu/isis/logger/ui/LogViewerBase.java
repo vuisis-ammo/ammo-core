@@ -175,7 +175,8 @@ public class LogViewerBase extends ListActivity {
 	}
 
 	protected void setScrollToBottom() {
-		this.mListView.setSelection(this.mAdapter.getCount() - 1);
+	    final int bottomViewPos = this.mAdapter.getCount() - 1;
+		this.mListView.setSelection(bottomViewPos);
 		this.isAutoJump.set(true);
 	}
 
