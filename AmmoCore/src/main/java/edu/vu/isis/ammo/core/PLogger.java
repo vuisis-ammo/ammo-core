@@ -131,7 +131,7 @@ public abstract class PLogger {
 	/**
 	 * Loggers and format strings for use with python tests.
 	 */
-	public static final String TEST_QUEUE_FORMAT = "{\"timestamp\": {}, \"queue_name\": \"{}\", \"queue_size\": {}}";
+	public static final String TEST_QUEUE_FORMAT = "{\"timestamp\": {}, \"queue_name\": \"{}\", \"queue_size\": {}, \"latency\": {}}";
 
 	public static final Logger TEST_FUNCTIONAL = LoggerFactory.getLogger("test.functional");
 

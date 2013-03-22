@@ -140,6 +140,9 @@ public class DistributorThread extends Thread {
 
     private NotifyMsgNumber notify = null;
     static private final AtomicInteger gThreadOrdinal = new AtomicInteger(1);
+    
+    private ResponseExecutor deserializeExecutor;
+
 
     public DistributorThread(final Context context, final NetworkManager parent) {
         super(new StringBuilder("Distribute-").
@@ -149,8 +152,8 @@ public class DistributorThread extends Thread {
         this.requestQueue = new LinkedBlockingQueue<AmmoRequest>(200);
         this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200,
                 new AmmoGatewayMessage.PriorityOrder());
-        this.deserialThread = new RequestDeserializerThread(this);
-        this.deserialThread.start();
+        this.deserializeExecutor = ResponseExecutor.newInstance(this);
+        
         this.store = new DistributorDataStore(context);
         this.contractStore = ContractStore.newInstance(context);
 
@@ -546,8 +549,6 @@ public class DistributorThread extends Thread {
      */
     private final PriorityBlockingQueue<AmmoGatewayMessage> responseQueue;
 
-    private RequestDeserializerThread deserialThread;
-
     public boolean distributeResponse(AmmoGatewayMessage agm) {
         PLogger.QUEUE_RESP_ENTER.trace("\"action\":\"offer\" \"response\":\"{}\"", agm);
         if (!this.responseQueue.offer(agm, 1, TimeUnit.SECONDS)) {
@@ -629,6 +630,8 @@ public class DistributorThread extends Thread {
                 }
                 while (this.isReady()) {
 
+                    final long currentTime = System.currentTimeMillis();
+                    
                     if (this.channelDelta.getAndSet(false)) {
                         logger.trace("channel change");
                         this.doChannelChange(networkManager);
@@ -654,21 +657,21 @@ public class DistributorThread extends Thread {
                         try {
                             final AmmoGatewayMessage agm = this.responseQueue.take();
                             PLogger.QUEUE_RESP_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                    new Object[] {
                                             this.responseQueue.size(), agm.payload_checksum,
                                             agm.size, agm
-                                    });
-
+                                    );
+                            
                             logger.info(
                                     "processing response {}, recvd @{}, remaining {}",
-                                    new Object[] {
                                             agm.payload_checksum, agm.buildTime,
                                             this.responseQueue.size()
-                                    });
-                            resLogger.info(PLogger.TEST_QUEUE_FORMAT, new Object[] {
-                                    System.currentTimeMillis(), "response_queue",
-                                    this.responseQueue.size()
-                            });
+                                    );
+                            resLogger.info(PLogger.TEST_QUEUE_FORMAT,
+                                    currentTime, 
+                                    "response_queue",
+                                    this.responseQueue.size(),
+                                    currentTime - agm.buildTime
+                            );
                             this.doResponse(this.context, agm);
                         } catch (ClassCastException ex) {
                             logger.error("response queue contains illegal item of class", ex);
@@ -681,14 +684,14 @@ public class DistributorThread extends Thread {
                             logger.info("processing request uuid {}, remaining {}", ar.uuid,
                                     this.requestQueue.size());
                             reqLogger.info(PLogger.TEST_QUEUE_FORMAT,
-                                    new Object[] {
-                                            System.currentTimeMillis(), "request_queue",
-                                            this.requestQueue.size()
-                                    });
+                                            System.currentTimeMillis(), 
+                                            "request_queue",
+                                            this.requestQueue.size(),
+                                            currentTime - ar.buildTime
+                                    );
                             PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                    new Object[] {
                                             this.requestQueue.size(), ar.uuid, "n/a", ar
-                                    });
+                                    );
 
                             this.doRequest(networkManager, ar);
                         } catch (ClassCastException ex) {
@@ -965,6 +968,7 @@ public class DistributorThread extends Thread {
 
     @SuppressWarnings("unused")
     private boolean collectGarbage = true;
+    private RequestDeserializer.Builder requestDeserializerBuilder;
 
     // =========== POSTAL ====================
 
@@ -1886,9 +1890,14 @@ public class DistributorThread extends Thread {
         // update the actual provider
 
         final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-        final boolean queued = this.deserialThread.toProvider(priority, context, channel.name,
+        this.requestDeserializerBuilder = RequestDeserializer.newBuilder(this, this.ammoAdaptorCache);
+        
+        final RequestDeserializer deserializeCommand = 
+                this.requestDeserializerBuilder.toProvider(priority, context, channel.name,
                 provider, encoding, resp.getData().toByteArray());
-        logger.debug("tuple upserted {}", queued);
+        this.deserializeExecutor.execute(deserializeCommand);
+       
+        logger.debug("tuple upserted");
 
         return true;
     }
@@ -2247,13 +2256,18 @@ public class DistributorThread extends Thread {
         final DistributorPolicy.Topic topicPolicy = policy.matchPostal(topic);
         
         final Encoding encoding = Encoding.getInstanceByName(encode);
-        this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
-                data.toByteArray());
-        
+      
+       this.requestDeserializerBuilder = RequestDeserializer.newBuilder(this, this.ammoAdaptorCache);
+       
+       final RequestDeserializer deserializeCommand = 
+               this.requestDeserializerBuilder.toProvider(priority, context, channel.name,
+               provider, encoding, data.toByteArray());
+       this.deserializeExecutor.execute(deserializeCommand);
+     
         if(topicPolicy.getRouted() == true) {
-            this.deserialThread.toReroute(priority, context, channel.name, encoding, topic, data.toByteArray());
+            this.deserializeExecutor.execute(deserializeCommand.toReroute());
         }
-
+        
         logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
 
         return true;

@@ -43,6 +43,7 @@
   
   <!-- set the connector to INFO to show connect, disconnect info in nominal logs -->
   <logger name="net.gateway.connector" level="INFO"/> 
+  <logger name="net.channel.tcp.connector" level="INFO"/> 
   <logger name="api" level="INFO"/>
   <logger name="dist.serializer" level="TRACE"/>
   <logger name="dist.deserializer" level="TRACE"/>

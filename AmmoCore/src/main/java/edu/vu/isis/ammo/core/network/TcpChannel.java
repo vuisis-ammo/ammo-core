@@ -92,10 +92,9 @@ public class TcpChannel extends NetChannel {
   private SenderThread mSender;
   private ReceiverThread mReceiver;
 
-  @SuppressWarnings("unused")
-  private int connectTimeout = 5 * 1000; // this should come from network preferences
-  @SuppressWarnings("unused")
-  private int socketTimeout = 30 * 1000; // milliseconds.
+  /** these should come from network preferences, both are in milliseconds */
+  private int connectTimeout = 30 * 1000; 
+  private int socketTimeout = 30 * 1000;
 
   private String gatewayHost = null;
   private int gatewayPort = -1;
@@ -131,7 +130,7 @@ public class TcpChannel extends NetChannel {
  // create the instance logger for instance methods
     // store the channel name
     channelName = name;    
-    logger = LoggerFactory.getLogger("net." + channelName);
+    logger = LoggerFactory.getLogger("net.channel.tcp.base." + channelName);
     logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());    
     
     this.syncObj = this;
@@ -508,7 +507,7 @@ public class TcpChannel extends NetChannel {
     {
       super(new StringBuilder("Tcp-Connect-").append(Thread.activeCount()).toString());
       //create the logger 
-      logger = LoggerFactory.getLogger("net." + channelName + ".connector");
+      logger = LoggerFactory.getLogger("net.channel.tcp.connecgtor." + channelName );
       logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
       this.parent = parent;
       this.state = new State();
@@ -801,36 +800,44 @@ public class TcpChannel extends NetChannel {
         if ( parent.mSocket != null )
           logger.error( "Tried to create mSocket when we already had one." );
 
+        final long startConnectionMark = System.currentTimeMillis();
         parent.mSocket = new Socket();
         parent.mSocket.connect( sockAddr, parent.connectTimeout );
         parent.mSocket.setSoTimeout( parent.socketTimeout );
+        final long finishConnectionMark = System.currentTimeMillis();
+        logger.info("connection time to establish={} ms", finishConnectionMark-startConnectionMark);
 
         parent.mDataInputStream = new DataInputStream( parent.mSocket.getInputStream() );
         parent.mDataOutputStream = new DataOutputStream( parent.mSocket.getOutputStream() );
 
       } catch ( AsynchronousCloseException ex ) {
-        logger.warn( "connection to {}:{} async close failure",
-            new Object[]{ipaddr, port}, ex);
+        logger.warn( "connection async close failure to {}:{} ",
+            ipaddr, port, ex);
         parent.mSocket = null;
         return false;
       } catch ( ClosedChannelException ex ) {
-        logger.info( "connection to {}:{} closed channel failure",
-            new Object[]{ipaddr, port}, ex);
+        logger.info( "connection closed channel failure to {}:{} ",
+            ipaddr, port, ex);
         parent.mSocket = null;
         return false;
       } catch ( ConnectException ex ) {
         logger.info( "connection failed to {}:{}",
-            new Object[]{ipaddr, port}, ex);
+            ipaddr, port, ex);
         parent.mSocket = null;
         return false;
+      } catch ( SocketException ex ) {
+          logger.warn( "connection timeout={} sec, socket {}:{}",
+              parent.connectTimeout/1000, ipaddr, port, ex);
+          parent.mSocket = null;
+          return false;
       } catch ( Exception ex ) {
-        logger.warn( "connection to {}:{} failed",
-            new Object[]{ipaddr, port}, ex);
+        logger.warn( "connection failed to {}:{}",
+            ipaddr, port, ex);
         parent.mSocket = null;
         return false;
       }
 
-      logger.info( "connection to {}:{} established ", ipaddr, port );
+      logger.info( "connection established to {}:{}", ipaddr, port );
 
       mIsConnected.set( true );
       mBytesSent = 0;
@@ -1069,7 +1076,7 @@ public class TcpChannel extends NetChannel {
       mQueue = iQueue;
       mSocket = iSocket;
       // create the logger 
-      logger = LoggerFactory.getLogger("net." + channelName + ".sender");
+      logger = LoggerFactory.getLogger("net.channel.tcp.sender." + channelName );
     }
 
 
@@ -1153,6 +1160,7 @@ public class TcpChannel extends NetChannel {
     private ConnectorThread mParent;
     private TcpChannel mChannel;
     private SenderQueue mQueue;
+    @SuppressWarnings("unused")
     private Socket mSocket;
     private Logger logger = null;
   }
@@ -1170,7 +1178,7 @@ public class TcpChannel extends NetChannel {
       mParent = iParent;
       mDestination = iDestination;
       mSocket = iSocket;
-      logger = LoggerFactory.getLogger( "net." + channelName + ".receiver" );
+      logger = LoggerFactory.getLogger( "net.channel.tcp.receiver." + channelName );
       
     }
 
@@ -1327,6 +1335,7 @@ public class TcpChannel extends NetChannel {
     private int mState = INetChannel.TAKING; // FIXME
     private ConnectorThread mParent;
     private TcpChannel mDestination;
+    @SuppressWarnings("unused")
     private Socket mSocket;
     private Logger logger = null;
   }
