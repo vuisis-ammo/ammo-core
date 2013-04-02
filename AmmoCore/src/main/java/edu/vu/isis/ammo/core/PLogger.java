@@ -119,6 +119,7 @@ public abstract class PLogger {
 	public static final Logger STORE_CAPABILITY_DML = LoggerFactory.getLogger( "store.capability.dml" );
 	public static final Logger STORE_PRESENCE_DML = LoggerFactory.getLogger( "store.presence.dml" );
 	public static final Logger STORE_DISPOSAL_DML = LoggerFactory.getLogger( "store.disposal.dml" );
+	public static final Logger STORE_INVITATION_DML = LoggerFactory.getLogger( "store.invitation.dml" );
 
 	public static final Logger STORE_POSTAL_DQL = LoggerFactory.getLogger( "store.postal.dql" );
 	public static final Logger STORE_SUBSCRIBE_DQL = LoggerFactory.getLogger( "store.subscribe.dql" );
@@ -127,6 +128,7 @@ public abstract class PLogger {
 	public static final Logger STORE_CAPABILITY_DQL = LoggerFactory.getLogger( "store.capability.dql" );
 	public static final Logger STORE_PRESENCE_DQL = LoggerFactory.getLogger( "store.presence.dql" );
 	public static final Logger STORE_DISPOSAL_DQL = LoggerFactory.getLogger( "store.disposal.dql" );
+	public static final Logger STORE_INVITATION_DQL = LoggerFactory.getLogger( "store.invitation.dql" );
 	
 	/**
 	 * Loggers and format strings for use with python tests.

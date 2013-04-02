@@ -10,6 +10,7 @@ import edu.vu.isis.ammo.core.provider.TemporalState;
 
 /**
  * This class is primarily concerned with deriving the TemporalState.
+ * Items of this type become state and are removed.
  */
 abstract public class TemporalItem {
     static private final Logger logger = LoggerFactory.getLogger("class.temporal.item");
