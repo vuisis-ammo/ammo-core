@@ -47,6 +47,7 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
+import edu.vu.isis.ammo.util.UDPSendException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,6 +159,8 @@ public class ReliableMulticastChannel extends NetChannel {
         // Set up timer to trigger once per minute.
         TimerTask updateBps = new UpdateBpsTask();
         mUpdateBpsTimer.scheduleAtFixedRate( updateBps, 0, BPS_STATS_UPDATE_INTERVAL * 1000 );
+        
+        System.setProperty("java.net.preferIPv4Stack" , "true");
     }
 
 
@@ -705,6 +708,7 @@ public class ReliableMulticastChannel extends NetChannel {
                                 synchronized (this.state) {
                                     while (!parent.isAnyLinkUp()
                                             && !this.state.isDisabled()) {
+                                      
                                         this.state.wait(BURP_TIME); // wait for
                                                                     // a
                                                                     // link
@@ -1156,6 +1160,14 @@ public class ReliableMulticastChannel extends NetChannel {
                     if (msg.handler != null)
                         mChannel.ackToHandler(msg.handler, DisposalState.SENT);
                 } catch (SocketException ex) {
+                    logger.debug("sender caught SocketException");
+                    if (msg.handler != null)
+                        mChannel.ackToHandler(msg.handler,
+                                DisposalState.REJECTED);
+                    setSenderState(INetChannel.INTERRUPTED);
+                    mParent.socketOperationFailed();
+                    break;
+                } catch (UDPSendException ex) {
                     logger.debug("sender caught SocketException");
                     if (msg.handler != null)
                         mChannel.ackToHandler(msg.handler,

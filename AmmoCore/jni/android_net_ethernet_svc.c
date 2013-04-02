@@ -505,7 +505,7 @@ jint Java_edu_vu_isis_ammo_core_ethertracker_EthTrackSvc_initEthernetNative(JNIE
 		goto error;
 	}
 
-	netlink_send_dump_request(nl_socket_poll, RTM_GETLINK, AF_PACKET);
+	netlink_send_dump_request(nl_socket_poll, RTM_GETLINK | RTM_GETADDR, AF_PACKET);
 
 
 	//LOGE("%s exited with success",__FUNCTION__);
