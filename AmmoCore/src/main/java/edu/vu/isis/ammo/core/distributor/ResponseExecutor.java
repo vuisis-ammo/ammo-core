@@ -22,7 +22,7 @@ public class ResponseExecutor extends ThreadPoolExecutor {
     private static final Logger logger = LoggerFactory.getLogger("dist.resp.exec");
     private static final Logger tlogger = LoggerFactory.getLogger("test.queue.insert");
    
-    private static final int N_THREADS = 4;
+    private static final int N_THREADS = 1;
 
     public static ResponseExecutor newInstance(final DistributorThread parent) {
         final RequestDeserializer.Prioritizer prioritizer = new RequestDeserializer.Prioritizer();

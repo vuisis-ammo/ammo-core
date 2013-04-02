@@ -47,6 +47,7 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
+import edu.vu.isis.ammo.util.UDPSendException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -158,6 +159,8 @@ public class ReliableMulticastChannel extends NetChannel {
         // Set up timer to trigger once per minute.
         TimerTask updateBps = new UpdateBpsTask();
         mUpdateBpsTimer.scheduleAtFixedRate( updateBps, 0, BPS_STATS_UPDATE_INTERVAL * 1000 );
+        
+        System.setProperty("java.net.preferIPv4Stack" , "true");
     }
 
 
@@ -546,10 +549,12 @@ public class ReliableMulticastChannel extends NetChannel {
             }
 
             public synchronized void linkUp() {
+                logger.debug("link up request {} {}", this.value, this.actual);
                 this.notifyAll();
             }
 
             public synchronized void linkDown() {
+                logger.debug("link down request {} {}", this.value, this.actual);
                 this.reset();
             }
 
@@ -663,7 +668,7 @@ public class ReliableMulticastChannel extends NetChannel {
         @Override
         public void run() {
             try {
-                logger.trace("Thread <{}>ConnectorThread::run", Thread
+                logger.info("Thread <{}>ConnectorThread::run", Thread
                         .currentThread().getId());
                 MAINTAIN_CONNECTION: while (true) {
                     logger.trace("connector state: {}", this.showState());
@@ -703,6 +708,7 @@ public class ReliableMulticastChannel extends NetChannel {
                                 synchronized (this.state) {
                                     while (!parent.isAnyLinkUp()
                                             && !this.state.isDisabled()) {
+                                      
                                         this.state.wait(BURP_TIME); // wait for
                                                                     // a
                                                                     // link
@@ -1096,7 +1102,7 @@ public class ReliableMulticastChannel extends NetChannel {
          */
         @Override
         public void run() {
-            logger.trace("Thread <{}>::run()", Thread.currentThread().getId());
+            logger.info("Thread <{}>::run()", Thread.currentThread().getId());
 
             // Block on reading from the queue until we get a message to send.
             // Then send it on the socket channel. Upon getting a socket error,
@@ -1132,12 +1138,12 @@ public class ReliableMulticastChannel extends NetChannel {
                             mChannel.mMulticastPort);
                     logger.debug("Sending datagram packet. length={}",
                             packet.getLength());
-
-		    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
-			logger.debug("...{}", buf.array());
-		    } else {
-			logger.debug("...buffer: {} bytes", buf.array().length);
-		    }
+        
+        		    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
+        			logger.debug("...{}", buf.array());
+        		    } else {
+        			logger.debug("...buffer: {} bytes", buf.array().length);
+        		    }
                     logger.debug("...{}", buf.remaining());
                     logger.debug("...{}", mChannel.mMulticastGroup);
                     logger.debug("...{}", mChannel.mMulticastPort);
@@ -1161,6 +1167,14 @@ public class ReliableMulticastChannel extends NetChannel {
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
+                } catch (UDPSendException ex) {
+                    logger.debug("sender caught SocketException");
+                    if (msg.handler != null)
+                        mChannel.ackToHandler(msg.handler,
+                                DisposalState.REJECTED);
+                    setSenderState(INetChannel.INTERRUPTED);
+                    mParent.socketOperationFailed();
+                    break;
                 } catch (Exception ex) {
                     logger.warn("sender threw exception", ex);
                     if (msg.handler != null)
@@ -1170,6 +1184,7 @@ public class ReliableMulticastChannel extends NetChannel {
                     break;
                 }
             }
+            logger.info("Thread <{}>::end()", Thread.currentThread().getId());
         }
 
         private void setSenderState(int iState) {

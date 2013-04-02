@@ -163,11 +163,11 @@ public class EthTrackSvc extends ServiceEx {
         if (msg.indexOf("Up") > 0) {
             mIsLinkUp = true;
             broadcastIntent.putExtra("state",AmmoIntents.LINK_UP);
-    	    logger.trace("Network Link Up");            
+    	    logger.info("Network Link Up");            
         } else if (msg.indexOf("Down") > 0) {
             mIsLinkUp = false;
             broadcastIntent.putExtra("state", AmmoIntents.LINK_DOWN);
-    	    logger.trace("Network Link Down");
+    	    logger.info("Network Link Down");
         }
         this.sendBroadcast(broadcastIntent);
 
