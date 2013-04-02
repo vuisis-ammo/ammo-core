@@ -6,7 +6,7 @@
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammocore-parent</artifactId>
-    <version>1.7.5-p03</version>
+    <version>1.7.6</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
@@ -141,10 +141,7 @@
             </goals>
             <configuration>
               <manifest>
-                <versionCode>176</versionCode>
-                <!--
                 <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
-                -->
               </manifest>
             </configuration>
           </execution>
