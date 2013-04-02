@@ -30,6 +30,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
@@ -119,8 +120,7 @@ public enum NetworkManager  implements INetworkService,
     public static final Logger logger = LoggerFactory.getLogger("network.manager");
 
 
-    public static final Intent LAUNCH = new Intent(
-            "edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
+    public static final Intent LAUNCH = new Intent("edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH");
     public static final String BIND = "edu.vu.isis.ammo.core.distributor.AmmoService.BIND";
     public static final String PREPARE_FOR_STOP = "edu.vu.isis.ammo.core.distributor.AmmoService.PREPARE_FOR_STOP";
     public static final String SEND_SERIALIZED = "edu.vu.isis.ammo.core.distributor.AmmoService.SEND_SERIALIZED";
@@ -1598,7 +1598,7 @@ public enum NetworkManager  implements INetworkService,
                 if (state != 0) {
                     switch (state) {
                         case AmmoIntents.LINK_UP:
-                            logger.trace("onReceive: Link UP {}", action);
+                            logger.debug("onReceive: Link UP {}", action);
                             tcpChannel.linkUp(null);
                             multicastChannel.linkUp(null);
                             reliableMulticastChannel.linkUp(null);
@@ -1609,7 +1609,7 @@ public enum NetworkManager  implements INetworkService,
 
                             break;
                         case AmmoIntents.LINK_DOWN:
-                            logger.trace("onReceive: Link DOWN {}", action);
+                            logger.debug("onReceive: Link DOWN {}", action);
                             tcpChannel.linkDown(null);
                             tcpMediaChannel.linkDown(null);
                             multicastChannel.linkDown(null);
@@ -1624,6 +1624,11 @@ public enum NetworkManager  implements INetworkService,
                 // This intent comes in for both wired and wifi.
                 mNetlinks.get(linkTypes.WIRED.value).updateStatus();
                 mNetlinks.get(linkTypes.WIFI.value).updateStatus();
+                
+             // if this is not for wifi it has to be wired .. bad logic maybe but no other choice now 
+                if (mNetlinks.get(linkTypes.WIFI.value).isLinkUp() == false) 
+                  mNetlinks.get(linkTypes.WIRED.value).setLinkUp(true);
+                
                 netlinkStatusChanged();
             } else if (AmmoIntents.ACTION_SERIAL_LINK_CHANGE.equals(action)) {
                 int state = aIntent.getIntExtra("state", 0);

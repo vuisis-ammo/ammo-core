@@ -345,7 +345,7 @@ public class JournalChannel extends NetChannel {
          */
         @Override
         public void run() {
-            logger.trace("::run");
+            logger.info("::run");
             BufferedOutputStream dos;
             try {
                 dos = JournalChannel.this.ostream;
@@ -405,10 +405,12 @@ public class JournalChannel extends NetChannel {
 
     @Override
     public void linkUp(String name) {
+        logger.debug("link up request: not implemented");
     }
 
     @Override
     public void linkDown(String name) {
+        logger.debug("link down request: not implemented");
     }
 
     public void reset() {

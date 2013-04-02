@@ -828,8 +828,8 @@ public class TcpChannel extends NetChannel {
       } catch ( SocketException ex ) {
           logger.warn( "connection timeout={} sec, socket {}:{}",
               parent.connectTimeout/1000, ipaddr, port, ex);
-          parent.mSocket = null;
-          return false;
+        parent.mSocket = null;
+        return false;
       } catch ( Exception ex ) {
         logger.warn( "connection failed to {}:{}",
             ipaddr, port, ex);

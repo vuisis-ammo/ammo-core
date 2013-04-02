@@ -497,10 +497,12 @@ public class MulticastChannel extends NetChannel
             }
 
             public synchronized void linkUp() {
+                logger.debug("link up request {} {}", this.value, this.actual);
                 this.notifyAll();
             }
 
             public synchronized void linkDown() {
+                logger.debug("link down request {} {}", this.value, this.actual);
                 this.reset();
             }
 
@@ -617,7 +619,7 @@ public class MulticastChannel extends NetChannel
         @Override
         public void run() {
             try {
-                logger.trace("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+                logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
                 MAINTAIN_CONNECTION: while (true) {
                     logger.trace("connector state: {}", this.showState());
 
@@ -757,7 +759,7 @@ public class MulticastChannel extends NetChannel
                 this.parent.socket.close();
             } catch (IOException ex) {
                 ex.printStackTrace();
-                logger.error("channel closing without proper socket");
+                logger.error("channel closing without proper socket", ex);
             }
             logger.error("channel closing");
         }
@@ -1065,7 +1067,7 @@ public class MulticastChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.trace("Thread <{}>::run()", Thread.currentThread().getId());
+            logger.info("Thread <{}>::run()", Thread.currentThread().getId());
 
             // Block on reading from the queue until we get a message to send.
             // Then send it on the socket channel. Upon getting a socket error,
@@ -1146,6 +1148,7 @@ public class MulticastChannel extends NetChannel
                     break;
                 }
             }
+            logger.info("Thread <{}>::run() exiting", Thread.currentThread().getId());
         }
 
         private void setSenderState(int iState)
@@ -1186,7 +1189,7 @@ public class MulticastChannel extends NetChannel
         @Override
         public void run()
         {
-            logger.trace("Thread <{}>::run()", Thread.currentThread().getId());
+            logger.info("Thread <{}>::run()", Thread.currentThread().getId());
 
             // Block on reading from the MulticastSocket until we get some data.
             // If we get an error, notify our parent and go into an error state.
@@ -1266,6 +1269,7 @@ public class MulticastChannel extends NetChannel
                     mParent.socketOperationFailed();
                 }
             }
+            logger.info("Thread <{}>::run() exiting", Thread.currentThread().getId());
         }
 
         private void setReceiverState(int iState)
