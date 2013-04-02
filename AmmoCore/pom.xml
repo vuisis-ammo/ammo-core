@@ -141,7 +141,10 @@
             </goals>
             <configuration>
               <manifest>
+                <versionCode>176</versionCode>
+                <!--
                 <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
+                -->
               </manifest>
             </configuration>
           </execution>
