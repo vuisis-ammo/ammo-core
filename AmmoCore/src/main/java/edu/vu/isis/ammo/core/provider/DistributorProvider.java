@@ -234,6 +234,8 @@ public class DistributorProvider extends ContentProvider {
                     cursor = this.dds.queryPresenceAll();
                 } else if (PresenceSchema.WHERE_OPERATOR_IS.equals(selection)) {
                     cursor = this.dds.queryPresenceByOperator(selectionArgs[0]);
+                } else if (PresenceSchema.WHERE_OPERATOR_IS_SQL.equals(selection)) {
+                    cursor = this.dds.queryPresenceByOperator(selectionArgs[0]);
                 } else {
                     logger.warn("unknown selection=[{}]", selection);
                     cursor = null;

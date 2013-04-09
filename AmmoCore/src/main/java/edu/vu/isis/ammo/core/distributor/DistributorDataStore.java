@@ -35,6 +35,8 @@ import android.database.sqlite.SQLiteQueryBuilder;
 import android.provider.BaseColumns;
 import android.text.TextUtils;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
+import edu.vu.isis.ammo.core.distributor.store.InvitationMap;
+import edu.vu.isis.ammo.core.distributor.store.InvitationMap.Worker;
 import edu.vu.isis.ammo.core.distributor.store.Presence;
 import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
 import edu.vu.isis.ammo.core.provider.CapabilitySchema;
@@ -547,6 +549,16 @@ public class DistributorDataStore {
         TOPIC("topic", "TEXT"),
 
         /**
+         * This extends the topic. Subtopics which are lists are serialized
+         * using the first letter is the delimiter scheme. Thus the list
+         * {'foo','bar','baz'} would serialize as ' foo bar baz' the first
+         * character, and subsequent delimiters, being the blank. The blank is
+         * the only allowed delimiter, thus all alternatives are immediately
+         * rejected.
+         */
+        SUBTOPIC("topic", "TEXT"),
+
+        /**
          * This specifies a forced channel be used and no other. NULL indicates
          * that the normal processing to select a channel be used.
          */
@@ -676,6 +688,16 @@ public class DistributorDataStore {
 
         /** This is the data type */
         TOPIC("topic", "TEXT"),
+
+        /**
+         * This extends the topic. Subtopics which are lists are serialized
+         * using the first letter is the delimiter scheme. Thus the list
+         * {'foo','bar','baz'} would serialize as ' foo bar baz' the first
+         * character, and subsequent delimiters, being the blank. The blank is
+         * the only allowed delimiter, thus all alternatives are immediately
+         * rejected.
+         */
+        SUBTOPIC("topic", "TEXT"),
 
         /**
          * This is a unique identifier for the request as specified by the
@@ -821,6 +843,16 @@ public class DistributorDataStore {
 
         /** The data type of the objects being subscribed to */
         TOPIC("topic", "TEXT"),
+
+        /**
+         * This extends the topic. Subtopics which are lists are serialized
+         * using the first letter is the delimiter scheme. Thus the list
+         * {'foo','bar','baz'} would serialize as ' foo bar baz' the first
+         * character, and subsequent delimiters, being the blank. The blank is
+         * the only allowed delimiter, thus all alternatives are immediately
+         * rejected.
+         */
+        SUBTOPIC("topic", "TEXT"),
 
         /** The application UUID for the request */
         AUID("auid", "TEXT"),
@@ -1463,6 +1495,8 @@ public class DistributorDataStore {
     static final private String POSTAL_UPDATE_CLAUSE = new StringBuilder()
             .append(PostalTableSchema.TOPIC.q()).append("=?")
             .append(" AND ")
+            .append(PostalTableSchema.SUBTOPIC.q()).append("=?")
+            .append(" AND ")
             .append(PostalTableSchema.PROVIDER.q()).append("=?")
             .toString();
 
@@ -1470,6 +1504,7 @@ public class DistributorDataStore {
         try {
             final String uuid = cv.getAsString(RetrievalTableSchema.UUID.cv());
             final String topic = cv.getAsString(RetrievalTableSchema.TOPIC.cv());
+            final String subtopic = cv.getAsString(RetrievalTableSchema.SUBTOPIC.cv());
             final String provider = cv.getAsString(RetrievalTableSchema.PROVIDER.cv());
 
             final long key;
@@ -1509,6 +1544,8 @@ public class DistributorDataStore {
             .append(" AND ")
             .append(RetrievalTableSchema.TOPIC.q()).append("=?")
             .append(" AND ")
+            .append(RetrievalTableSchema.SUBTOPIC.q()).append("=?")
+            .append(" AND ")
             .append(RetrievalTableSchema.PROVIDER.q()).append("=?")
             .toString();
 
@@ -1518,11 +1555,12 @@ public class DistributorDataStore {
     public synchronized long upsertSubscribe(ContentValues cv, Dispersal status) {
         try {
             final String topic = cv.getAsString(SubscribeTableSchema.TOPIC.cv());
+            final String subtopic = cv.getAsString(SubscribeTableSchema.SUBTOPIC.cv());
             final String provider = cv.getAsString(SubscribeTableSchema.PROVIDER.cv());
 
             final long key;
             final String[] updateArgs = new String[] {
-                    topic, provider
+                    topic, subtopic, provider
             };
             if (0 < this.db.update(Relations.SUBSCRIBE.n, cv, SUBSCRIBE_UPDATE_CLAUSE, updateArgs)) {
                 final Cursor cursor = this.db.query(Relations.SUBSCRIBE.n,
@@ -1550,6 +1588,8 @@ public class DistributorDataStore {
 
     static final private String SUBSCRIBE_UPDATE_CLAUSE = new StringBuilder()
             .append(SubscribeTableSchema.TOPIC.q()).append("=?")
+            .append(" AND ")
+            .append(SubscribeTableSchema.SUBTOPIC.q()).append("=?")
             .append(" AND ")
             .append(SubscribeTableSchema.PROVIDER.q()).append("=?")
             .toString();
@@ -1812,6 +1852,9 @@ public class DistributorDataStore {
         if (!values.containsKey(PostalTableSchema.TOPIC.n)) {
             values.put(PostalTableSchema.TOPIC.n, "unknown");
         }
+        if (!values.containsKey(PostalTableSchema.SUBTOPIC.n)) {
+            values.put(PostalTableSchema.SUBTOPIC.n, "");
+        }
         if (!values.containsKey(PostalTableSchema.PROVIDER.n)) {
             values.put(PostalTableSchema.PROVIDER.n, "unknown");
         }
@@ -1873,6 +1916,9 @@ public class DistributorDataStore {
         if (!values.containsKey(RetrievalTableSchema.TOPIC.n)) {
             values.put(RetrievalTableSchema.TOPIC.n, "unknown");
         }
+        if (!values.containsKey(RetrievalTableSchema.SUBTOPIC.n)) {
+            values.put(RetrievalTableSchema.SUBTOPIC.n, "");
+        }
         if (!values.containsKey(RetrievalTableSchema.PROJECTION.n)) {
             values.put(RetrievalTableSchema.PROJECTION.n, "");
         }
@@ -1922,6 +1968,9 @@ public class DistributorDataStore {
         }
         if (!values.containsKey(SubscribeTableSchema.TOPIC.n)) {
             values.put(SubscribeTableSchema.TOPIC.n, "unknown");
+        }
+        if (!values.containsKey(SubscribeTableSchema.SUBTOPIC.n)) {
+            values.put(SubscribeTableSchema.SUBTOPIC.n, "");
         }
 
         if (!values.containsKey(SubscribeTableSchema.SELECTION.n)) {
@@ -2099,6 +2148,42 @@ public class DistributorDataStore {
             return db.delete(Relations.RETRIEVAL.n, null, null);
         } catch (IllegalArgumentException ex) {
             logger.error("purgeRetrieval");
+        }
+        return 0;
+    }
+
+    // ========= INVITATION : DELETE ================
+
+    public synchronized int deleteInvite(final InvitationMap.Select selection, final String topic,
+            final String[] subtopic) {
+        try {
+            switch (selection) {
+                case BY_SUBTOPIC:
+                    final Worker worker = InvitationMap.getWorker();
+                    worker.topic(topic).subtopic(subtopic);
+                    final int count = worker.delete();
+                    logger.trace("Subscribe delete {} {}", count);
+                    return count;
+                default:
+                    logger.error("delete invitation: unknown selection {} {} {}", selection, topic, subtopic);
+            }
+        } catch (IllegalArgumentException ex) {
+            logger.error("delete invitation {} {} {}", selection, topic, subtopic);
+        }
+        return 0;
+    }
+
+    public synchronized int deleteInviteGarbage() {
+        try {
+            final InvitationMap impl = InvitationMap.INSTANCE;
+            final int expireCount = impl.deleteGarbage();
+
+            logger.trace("Subscribe garbage {}", expireCount);
+            return expireCount;
+        } catch (IllegalArgumentException ex) {
+            logger.error("deleteSubscribeGarbage", ex);
+        } catch (SQLiteException ex) {
+            logger.error("deleteSubscribeGarbage", ex);
         }
         return 0;
     }

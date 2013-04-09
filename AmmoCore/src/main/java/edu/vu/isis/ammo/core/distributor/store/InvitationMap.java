@@ -2,18 +2,26 @@
 package edu.vu.isis.ammo.core.distributor.store;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.text.TextUtils;
+import edu.vu.isis.ammo.api.type.Notice;
+import edu.vu.isis.ammo.api.type.Topic;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.distributor.Dispersal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.provider.InviteSchema;
 
 /**
@@ -30,14 +38,21 @@ public enum InvitationMap {
     /*
      * A map of keys to items.
      */
-    private final Map<Invitation.Key, Invitation> impl;
+    private final Map<Invitation.Key, Invitation> mapTopic;
+    private final Map<UUID, Invitation> mapUuid;
+    private final ConcurrentLinkedQueue<Invitation> toSendQueue;
+    public ConcurrentLinkedQueue<Invitation> toSendQueue() {
+        return this.toSendQueue;
+    }
 
     public int size() {
-        return this.impl.size();
+        return this.mapTopic.size();
     }
 
     private InvitationMap() {
-        this.impl = new ConcurrentHashMap<Invitation.Key, Invitation>();
+        this.mapTopic = new ConcurrentHashMap<Invitation.Key, Invitation>();
+        this.mapUuid = new ConcurrentHashMap<UUID, Invitation>();
+        this.toSendQueue = new ConcurrentLinkedQueue<Invitation>();
     }
 
     /**
@@ -52,16 +67,24 @@ public enum InvitationMap {
     private static volatile long _id_seq = Long.MIN_VALUE;
 
     /**
-     * Used for building invitations.
-     * These invitations will be placed in the map.
+     * Used for building invitations. These invitations will be placed in the
+     * map.
      */
     public static class Builder {
         private final static Logger logger = LoggerFactory
                 .getLogger("class.store.invitation.builder");
 
         protected String topic = "default topic";
-        protected List<String> subtopic = null;
+        protected String[] subtopic = null;
         protected List<String> invitee = null;
+
+        protected Object expiration;
+        protected DisposalState disposition;
+        protected UUID uuid;
+        protected Dispersal route;
+
+        protected Notice notice;
+        protected String auid;
 
         private Builder() {
         }
@@ -71,14 +94,61 @@ public enum InvitationMap {
             return this;
         }
 
-        public Builder subtopic(final List<String> value) {
+        public Builder subtopic(final Topic[] value) {
+            this.subtopic = new String[value.length];
+            for (int ix = 0; ix < value.length; ++ix) {
+                this.subtopic[ix] = value[ix].asString();
+            }
+            return this;
+        }
+
+        public Builder subtopic(final String[] value) {
             this.subtopic = value;
             return this;
         }
 
+        public Builder uuid(final UUID value) {
+            this.uuid = value;
+            return this;
+        }
+
+        public Builder expiration(final long value) {
+            this.expiration = value;
+            return this;
+        }
+
+        public Builder disposition(final DisposalState value) {
+            this.disposition = value;
+            return this;
+        }
+
+        public Builder route(final Dispersal value) {
+            this.route = value;
+            return this;
+        }
+
+        public Builder invitee(final String value) {
+            this.invitee.add(value);
+            return this;
+        }
+
+        public Builder invitee(final String[] value) {
+            this.invitee.addAll(Arrays.asList(value));
+            return this;
+        }
+
+        /**
+         * builds the invitation and adds it to the work queues.
+         * 
+         * @return
+         */
         public Invitation build() {
             final Invitation item = new Invitation(this);
             logger.debug("ctor [{}]", item);
+            InvitationMap.INSTANCE.mapTopic.put(item.key, item);
+            InvitationMap.INSTANCE.mapUuid.put(item.key.uuid, item);
+            item.enqueue();
+
             return item;
         }
 
@@ -93,6 +163,12 @@ public enum InvitationMap {
                     append("key={").append(key).append("}").
                     toString();
         }
+
+        public Builder auid(String auid) {
+            this.auid = auid;
+            return this;
+        }
+
     }
 
     /**
@@ -122,16 +198,6 @@ public enum InvitationMap {
                     toString();
         }
 
-        public Worker topic(String value) {
-            this.topic = value;
-            return this;
-        }
-        
-        public Worker subtopic(List<String> value) {
-            this.subtopic = value;
-            return this;
-        }
-        
         public Worker invitee(Map<String, Object> value) {
             this.invitee = value;
             return this;
@@ -154,14 +220,15 @@ public enum InvitationMap {
                 try {
                     final Invitation.Key key = builder.buildKey();
 
-                    if (relation.impl.containsKey(key)) {
-                        final Invitation invitation = relation.impl.get(key);
+                    if (relation.mapTopic.containsKey(key)) {
+                        final Invitation invitation = relation.mapTopic.get(key);
                         invitation.update();
                         PLogger.STORE_INVITATION_DML.debug("updated item=[{}]", invitation);
                         return 1;
                     } else {
                         final Invitation item = builder.build();
-                        relation.impl.put(key, item);
+                        relation.mapTopic.put(key, item);
+                        relation.mapUuid.put(key.uuid, item);
                         PLogger.STORE_INVITATION_DML.debug("inserted item=[{}]", item);
                         return 1;
                     }
@@ -181,7 +248,7 @@ public enum InvitationMap {
          * @param tupleId
          * @return
          */
-        public int delete(final String tupleId) {
+        public int delete() {
             PLogger.STORE_CAPABILITY_DML.trace("delete invitation: device=[{}] @ {}",
                     this);
             final InvitationMap relation = InvitationMap.INSTANCE;
@@ -193,7 +260,7 @@ public enum InvitationMap {
                 try {
                     final Invitation.Key key = builder.buildKey();
 
-                    final Invitation item = relation.impl.get(key);
+                    final Invitation item = relation.mapTopic.get(key);
                     if (item == null) {
                         PLogger.STORE_CAPABILITY_DML.debug("updated cap=[{}]", this);
                         return -1;
@@ -207,6 +274,12 @@ public enum InvitationMap {
                 return -1;
             }
         }
+
+    }
+
+    public int delete(String topic, String[] subtopic) {
+        final Invitation.Key key = newBuilder().topic(topic).subtopic(subtopic).buildKey();
+        return 0;
     }
 
     /**
@@ -216,10 +289,12 @@ public enum InvitationMap {
         /**
          * The fields of the invitation which are keys into the map.
          */
-        public static final class Key extends Object {
+        public static final class Key {
             public final long id;
+            public final UUID uuid;
             public final String topic;
-            public final List<String> subtopic;
+            public final String[] subtopic;
+            public final long created;
 
             final private int hashCode;
 
@@ -230,7 +305,9 @@ public enum InvitationMap {
 
             private Key(Builder that) {
                 InvitationMap._id_seq++;
+                this.created = System.currentTimeMillis();
                 this.id = InvitationMap._id_seq;
+                this.uuid = that.uuid;
                 this.topic = that.topic;
                 this.subtopic = that.subtopic;
 
@@ -259,11 +336,11 @@ public enum InvitationMap {
                         return true;
                     return false;
                 }
-                if (this.subtopic.size() != that.subtopic.size()) {
+                if (this.subtopic.length != that.subtopic.length) {
                     return false;
                 }
-                for (int ix = 0; ix < this.subtopic.size(); ++ix) {
-                    if (!TextUtils.equals(this.subtopic.get(ix), that.subtopic.get(ix)))
+                for (int ix = 0; ix < this.subtopic.length; ++ix) {
+                    if (!TextUtils.equals(this.subtopic[ix], that.subtopic[ix]))
                         return false;
                 }
                 return true;
@@ -281,11 +358,50 @@ public enum InvitationMap {
 
         public final Key key;
         public final List<String> invitee;
+        private final AtomicReference<DisposalState> disposition =
+                new AtomicReference<DisposalState>(DisposalState.NEW);
+        public final Notice notice;
+        public final Dispersal route;
 
         public Invitation(final Builder that) {
             super();
             this.key = new Key(that);
             this.invitee = that.invitee;
+            this.disposition.set(that.disposition);
+            this.notice = that.notice;
+            this.route = that.route;
+        }
+
+        public DisposalState setState(final DisposalState state) {
+            final DisposalState oldState = this.disposition.getAndSet(state);
+            this.enqueue();
+            return oldState;
+        }
+        
+        public void enqueue() {
+            switch (this.disposition.get()) {
+                case NEW:
+                    InvitationMap.INSTANCE.toSendQueue.offer(this);
+                    break;
+                case PENDING:
+                    InvitationMap.INSTANCE.toSendQueue.offer(this);
+                    break;
+                case BAD:
+                    break;
+                case BUSY:
+                    InvitationMap.INSTANCE.toSendQueue.offer(this);
+                    break;
+                case DELIVERED:
+                    break;
+                case QUEUED:
+                    break;
+                case REJECTED:
+                    break;
+                case SENT:
+                    break;
+                case TOLD:
+                    break;
+            }
         }
 
         @Override
@@ -349,7 +465,7 @@ public enum InvitationMap {
                     return invitation.getExpiration();
                 }
             });
-            
+
             getters.put(InviteSchema.SUBTOPIC, new Getter() {
                 @Override
                 public Object getValue(final Invitation invitation) {
@@ -358,7 +474,7 @@ public enum InvitationMap {
             });
 
         }
-        
+
         public Object getInvitee() {
             return this.invitee;
         }
@@ -366,7 +482,46 @@ public enum InvitationMap {
     }
 
     public static Collection<Invitation> queryAll() {
-        return InvitationMap.INSTANCE.impl.values();
+        return InvitationMap.INSTANCE.mapTopic.values();
+    }
+
+    static final String SUBTOPIC_DELIMITER = "[|]";
+
+    public static String encodeFromStringArray(final String[] subtopic) {
+
+        final StringBuilder sb = new StringBuilder();
+        for (final String sub : subtopic) {
+            sb.append(SUBTOPIC_DELIMITER).append(sub);
+        }
+        return sb.toString();
+    }
+
+    public static String encodeFromArray(final Topic[] subtopic) {
+
+        final StringBuilder sb = new StringBuilder();
+        for (final Topic sub : subtopic) {
+            sb.append(SUBTOPIC_DELIMITER).append(sub);
+        }
+        return sb.toString();
+    }
+
+    public static String[] decodeToStringArray(final String subtopic) {
+        if (subtopic.length() < 3)
+            return null;
+
+        final String delimiter = subtopic.substring(0, 3);
+        return subtopic.split(delimiter);
+    }
+
+    public static enum Select {
+        /** topic + subtopic */
+        BY_SUBTOPIC;
+
+    }
+
+    public int deleteGarbage() {
+        // TODO determine which expired invitations to remove.
+        return 0;
     }
 
 }

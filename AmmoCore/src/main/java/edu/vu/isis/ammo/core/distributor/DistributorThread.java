@@ -12,6 +12,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
@@ -55,6 +56,7 @@ import edu.vu.isis.ammo.api.type.Notice.Via;
 import edu.vu.isis.ammo.api.type.Order;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.api.type.Topic;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.ChannelChange;
 import edu.vu.isis.ammo.core.NetworkManager;
@@ -75,6 +77,8 @@ import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
+import edu.vu.isis.ammo.core.distributor.store.InvitationMap;
+import edu.vu.isis.ammo.core.distributor.store.InvitationMap.Invitation;
 import edu.vu.isis.ammo.core.distributor.store.Presence;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
@@ -103,6 +107,7 @@ public class DistributorThread extends Thread {
     private static final boolean RUN_TRACE = false;
 
     private static final Marker MARK_POSTAL = MarkerFactory.getMarker("postal");
+    private static final Marker MARK_INVITE = MarkerFactory.getMarker("invite");
     private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
     private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
 
@@ -370,6 +375,7 @@ public class DistributorThread extends Thread {
         public final long id;
 
         public final String topic;
+        public final String[] subtopic;
         public final UUID uuid;
         public final String auid;
         public final Notice notice;
@@ -377,14 +383,15 @@ public class DistributorThread extends Thread {
         public final String channel;
         public final DisposalState status;
 
-        public ChannelAck(Relations type, long id, UUID uuid,
-                String topic, String auid, Notice notice,
-                String channel, DisposalState status)
+        public ChannelAck(final Relations type, final long id, final UUID uuid,
+                final String topic, final String[] subtopic, final String auid, final Notice notice,
+                final String channel, final DisposalState status)
         {
             this.type = type;
             this.id = id;
             this.uuid = uuid;
             this.topic = topic;
+            this.subtopic = subtopic;
             this.auid = auid;
             this.notice = notice;
 
@@ -395,13 +402,14 @@ public class DistributorThread extends Thread {
         @Override
         public String toString() {
             return new StringBuilder()
-                    .append(" type ").append(type)
-                    .append(" id ").append(id)
-                    .append(" uuid ").append(uuid)
-                    .append(" topic ").append(topic)
-                    .append(" aid ").append(auid)
-                    .append(" channel ").append(channel)
-                    .append(" status ").append(status)
+                    .append(" type ").append(this.type)
+                    .append(" id ").append(this.id)
+                    .append(" uuid ").append(this.uuid)
+                    .append(" topic ").append(this.topic)
+                    .append(" subtopic ").append(this.subtopic)
+                    .append(" aid ").append(this.auid)
+                    .append(" channel ").append(this.channel)
+                    .append(" status ").append(this.status)
                     .toString();
         }
     }
@@ -466,6 +474,7 @@ public class DistributorThread extends Thread {
 
                 final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
                         .topic(ack.topic)
+                        .subtopic(ack.subtopic)
                         .auid(ack.auid)
                         .channel(ack.channel);
 
@@ -527,7 +536,7 @@ public class DistributorThread extends Thread {
 
     public String distributeRequest(AmmoRequest request) {
         try {
-            logger.info("From AIDL into AMMO type:{} uuid:{}", request.topic, request.uuid);
+            logger.info("From AIDL into AMMO type:{}+{} uuid:{}", request.topic, request.subtopic, request.uuid);
 
             PLogger.QUEUE_REQ_ENTER.trace("\"action\":\"offer\" \"request\":\"{}\"", request);
             if (!this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
@@ -755,8 +764,10 @@ public class DistributorThread extends Thread {
             case UNSUBSCRIBE:
                 cancelSubscribeRequest(that, agm);
                 break;
+            case INVITE:
+                doInviteRequest(that, agm);
             case NONE:
-            case PUBLISH:
+            
             default:
                 break;
         }
@@ -991,6 +1002,7 @@ public class DistributorThread extends Thread {
             final UUID uuid = UUID.fromString(ar.uuid); // UUID.randomUUID();
             final String auid = ar.uid;
             final String topic = ar.topic.asString();
+            final String[] subtopic = Topic.asString(ar.subtopic);
             final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
             final String channel = (ar.channelFilter == null) ? null : ar.channelFilter.cv();
 
@@ -1001,6 +1013,7 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.UUID.cv(), uuid.toString());
             values.put(PostalTableSchema.AUID.cv(), auid);
             values.put(PostalTableSchema.TOPIC.cv(), topic);
+            values.put(PostalTableSchema.SUBTOPIC.cv(), InvitationMap.encodeFromArray(ar.subtopic));
             if(ar.provider != null) {
                 values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
             }
@@ -1127,12 +1140,13 @@ public class DistributorThread extends Thread {
                 final long id = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 
                 final Dispersal dispatchResult = this.dispatchPostalRequest(that, ar.notice,
-                        uuid, topic, dispersal, serializer,
+                        uuid, topic, subtopic, dispersal, serializer,
                         new INetworkService.OnSendMessageHandler() {
                             final DistributorThread parent = DistributorThread.this;
                             final long id_ = id;
                             final UUID uuid_ = uuid;
                             final String topic_ = topic;
+                            final String[] subtopic_ = subtopic;
                             final String auid_ = ar.uid;
                             final Notice notice_ = ar.notice;
 
@@ -1140,7 +1154,7 @@ public class DistributorThread extends Thread {
                             public boolean ack(String channel, DisposalState status) {
                                 final ChannelAck chack = new ChannelAck(Relations.POSTAL,
                                         id_, uuid_,
-                                        topic_, auid_, notice_,
+                                        topic_, subtopic_, auid_, notice_,
                                         channel, status);
                                 return parent.announceChannelAck(chack);
                             }
@@ -1216,6 +1230,8 @@ public class DistributorThread extends Thread {
             logger.trace("payload=[{}]", payload);
             final String topic = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.TOPIC.n));
+            final String[] subtopic = InvitationMap.decodeToStringArray(pending.getString(pending
+                    .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
             final String channelFilter = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.CHANNEL.n));
 
@@ -1376,7 +1392,7 @@ public class DistributorThread extends Thread {
 
                     final Dispersal dispatchResult =
                             this.dispatchPostalRequest(that, notice,
-                                    uuid, topic,
+                                    uuid, topic, subtopic,
                                     dispersal, serializer,
                                     new INetworkService.OnSendMessageHandler() {
                                         final DistributorThread parent = DistributorThread.this;
@@ -1384,13 +1400,14 @@ public class DistributorThread extends Thread {
                                         final UUID uuid_ = uuid;
                                         final String auid_ = auid;
                                         final String topic_ = topic;
+                                        final String[] subtopic_ = subtopic;
                                         final Notice notice_ = notice;
 
                                         @Override
                                         public boolean ack(String channel, DisposalState status) {
                                             final ChannelAck chack = new ChannelAck(
                                                     Relations.POSTAL, id_, uuid_,
-                                                    topic_, auid_, notice_,
+                                                    topic_, subtopic_, auid_, notice_,
                                                     channel, status);
                                             return parent.announceChannelAck(chack);
                                         }
@@ -1417,7 +1434,8 @@ public class DistributorThread extends Thread {
      * @return
      */
     private Dispersal dispatchPostalRequest(final NetworkManager that,
-            final Notice notice, final UUID uuid, final String msgType,
+            final Notice notice, final UUID uuid, 
+            final String topic, final String[] subtopic,
             final Dispersal dispersal, final RequestSerializer serializer,
             final INetworkService.OnSendMessageHandler handler)
     {
@@ -1441,7 +1459,8 @@ public class DistributorThread extends Thread {
                     final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
                             .newBuilder()
                             .setUri(uuid.toString())
-                            .setMimeType(msgType)
+                            .setMimeType(topic)
+                            .addAllSubtopics(Arrays.asList(subtopic))
                             .setEncoding(encode.getType().name())
                             .setUserId(networkManager.getOperatorId())
                             .setOriginDevice(networkManager.getDeviceId())
@@ -1462,9 +1481,9 @@ public class DistributorThread extends Thread {
                     mw.setDataMessage(pushReq);
 
                 } else {
-                    final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
+                    final Integer mimeId = AmmoMimeTypes.mimeIds.get(topic);
                     if (mimeId == null) {
-                        logger.error("no integer mapping for this mime type {}", msgType);
+                        logger.error("no integer mapping for this mime type {}", topic);
                         return null;
                     }
                     final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
@@ -1596,6 +1615,226 @@ public class DistributorThread extends Thread {
             context.startService(noticed);
         }
     }
+    
+    // =========== INVITE ====================
+
+    /**
+     * Used when a new postal request arrives. It first tries to dispatch the
+     * request to the network service. Regardless of whether that works, the
+     * request is recorded for later use.
+     * 
+     * @param that
+     * @param uri
+     * @param mimeType
+     * @param data
+     * @param handler
+     * @return
+     */
+    private void doInviteRequest(final NetworkManager that, final AmmoRequest ar) {
+
+        // Dispatch the message.
+        try {
+            final UUID uuid = UUID.fromString(ar.uuid); // UUID.randomUUID();
+            final String auid = ar.uid;
+            final String topic = ar.topic.asString();
+            final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
+            final String channel = (ar.channelFilter == null) ? null : ar.channelFilter.cv();
+
+            logger.debug("process request topic {}, uuid {}", ar.topic, uuid);
+            logger.trace(" channel {}, policy {}", channel, policy);
+
+            final InvitationMap.Builder builder = InvitationMap.newBuilder();
+            builder
+               .topic(topic)
+               .subtopic(ar.subtopic)
+               .uuid(uuid)
+               .auid(auid)
+               .expiration(policy.routing.getExpiration(ar.expire.cv()));
+            
+            builder
+              .disposition(DisposalState.NEW)
+              .route(policy.makeRouteMap(channel));
+            final Invitation invitation = builder.build();
+            logger.debug("no channel connected, added invite [{}]", invitation);
+            
+            doInviteCache(that);
+            
+        } catch (NullPointerException ex) {
+            logger.warn("sending invite request failed", ex);
+        }
+    }
+
+    @SuppressWarnings("unused")
+    private Object uuid(UUID uuid) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @SuppressWarnings("unused")
+    private void cancelInviteRequest(final NetworkManager that, final AmmoRequest ar) {
+
+        // Dispatch the message.
+        try {
+            // final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
+            // final String auid = ar.uid;
+            final String topic = ar.topic.asString();
+            final String[] subtopic = Topic.asString(ar.subtopic);
+
+            this.store().deleteInvite(InvitationMap.Select.BY_SUBTOPIC, topic, subtopic);
+        } finally {
+
+        }
+
+    }
+
+    /**
+     * Check for requests whose delivery policy has not been fully satisfied and
+     * for which there is, now, an available channel.
+     */
+    private void doInviteCache(final NetworkManager that) {
+        logger.debug(MARK_INVITE, "process table INVITE");
+
+        if (!that.isConnected()) {
+            return;
+        }
+
+        final RequestSerializer serializer = RequestSerializer.newInstance();
+        serializer.setSerializeActor(new RequestSerializer.OnSerialize() {
+            @Override
+            public byte[] getBytes() {
+                return null;
+            }
+         
+            @Override
+            public void run(Encoding encode) { }
+        });
+
+        for (final Invitation it : InvitationMap.INSTANCE.toSendQueue()) {
+            final Dispersal dispatchResult = this.dispatchInviteRequest(that, it.notice,
+                    it.key.uuid, it.key.topic, it.key.subtopic, it.route, serializer,
+                    new INetworkService.OnSendMessageHandler() {
+                        final DistributorThread parent = DistributorThread.this;
+                        final Invitation it_ = it;
+
+                        @Override
+                        public boolean ack(final String channel, final DisposalState status) {
+                            final ChannelAck chack = new ChannelAck(Relations.INVITE,
+                                    it_.key.id, it_.key.uuid,
+                                    it_.key.topic, it_.key.subtopic, 
+                                    "", it_.notice,
+                                    channel, status);
+                            return parent.announceChannelAck(chack);
+                        }
+                    });
+            
+            it.setState(DisposalState.QUEUED);
+            logger.info("invitation {}", dispatchResult);
+        }
+        
+        logger.debug(MARK_INVITE, "processed table INVITE");
+    }
+
+    /**
+     * dispatch the request to the network service. It is presumed that the
+     * connection to the network service exists before this method is called.
+     * 
+     * @param that
+     * @param provider
+     * @param msgType
+     * @param subtopic 
+     * @param data
+     * @param handler
+     * @return
+     */
+    private Dispersal dispatchInviteRequest(final NetworkManager that,
+            final Notice notice, final UUID uuid, final String msgType,
+            String[] subtopic, final Dispersal dispersal, final RequestSerializer serializer,
+            final INetworkService.OnSendMessageHandler handler)
+    {
+        logger.trace("::dispatchInviteRequest");
+
+        final Long now = System.currentTimeMillis();
+        logger.debug("Building MessageWrapper @ time {}", now);
+
+        serializer.setReadyActor(new RequestSerializer.OnReady() {
+            @Override
+            public AmmoGatewayMessage run(final Encoding encode, final byte[] serialized) {
+
+                if (serialized == null) {
+                    logger.error("No Payload");
+                    return null;
+                }
+
+                final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
+                        .newBuilder();
+                if (encode.getType() != Encoding.Type.TERSE) {
+                    final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
+                            .newBuilder()
+                            .setUri(uuid.toString())
+                            .setMimeType(msgType)
+                            .setEncoding(encode.getType().name())
+                            .setUserId(networkManager.getOperatorId())
+                            .setOriginDevice(networkManager.getDeviceId())
+                            .setData(ByteString.copyFrom(serialized));
+
+                    if (notice != null) {
+                        final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds
+                                .newBuilder()
+                                .setDeviceDelivered(notice.atDeviceDelivered.getVia().isActive())
+                                .setAndroidPluginReceived(
+                                        notice.atGatewayDelivered.getVia().isActive())
+                                .setPluginDelivered(notice.atPluginDelivered.getVia().isActive());
+
+                        pushReq.setThresholds(noticeBuilder);
+                    }
+
+                    mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+                    mw.setDataMessage(pushReq);
+
+                } else {
+                    final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
+                    if (mimeId == null) {
+                        logger.error("no integer mapping for this mime type {}", msgType);
+                        return null;
+                    }
+                    final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
+                            .newBuilder()
+                            .setMimeType(mimeId)
+                            .setData(ByteString.copyFrom(serialized));
+                    mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
+                    mw.setTerseMessage(pushReq);
+                }
+
+                logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
+                        System.currentTimeMillis() - now, serialized.length);
+                final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
+                  notice.atGatewayDelivered.getVia().isActive() ||
+                  notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
+                    .uuid( uuid );
+                return agmb.build();
+            }
+        });
+        return dispersal.multiplexRequest(that, serializer);
+    }
+
+    /**
+     * Get response to InviteRequest these are corresponding subscribe requests.
+     * 
+     * @param mw
+     * @return
+     */
+    @SuppressWarnings("unused")
+    private boolean receiveInviteResponse(Context context, AmmoMessages.MessageWrapper mw,
+            NetChannel channel) {
+        logger.trace("receive response INVITE");
+
+        if (mw == null)
+            return false;
+       
+        return true;
+    }
+
 
     // =========== RETRIEVAL ====================
 
@@ -1618,6 +1857,7 @@ public class DistributorThread extends Thread {
             final UUID uuid = UUID.randomUUID();
             final String auid = ar.uid;
             final String topic = ar.topic.asString();
+            final String[] subtopic = Topic.asString(ar.subtopic);
             final String select = ar.select.toString();
             final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
             final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
@@ -1655,20 +1895,21 @@ public class DistributorThread extends Thread {
                 final long id = this.store.upsertRetrieval(values, policy.makeRouteMap(null));
 
                 final Dispersal dispatchResult = this.dispatchRetrievalRequest(that,
-                        uuid, topic, select, limit, dispersal,
+                        uuid, topic, subtopic, select, limit, dispersal,
                         new INetworkService.OnSendMessageHandler() {
                             final DistributorThread parent = DistributorThread.this;
                             final long id_ = id;
                             final UUID uuid_ = uuid;
                             final String auid_ = auid;
                             final String topic_ = topic;
+                            final String[] subtopic_ = subtopic;
                             final Notice notice_ = new Notice();
 
                             @Override
                             public boolean ack(String channel, DisposalState status) {
                                 final ChannelAck chack = new ChannelAck(Relations.RETRIEVAL,
                                         id_, uuid_,
-                                        topic_, auid_, notice_,
+                                        topic_, subtopic_, auid_, notice_,
                                         channel, status);
                                 return parent.announceChannelAck(chack);
                             }
@@ -1725,6 +1966,9 @@ public class DistributorThread extends Thread {
             final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
             final String topic = pending.getString(pending
                     .getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
+            final String[] subtopic = InvitationMap.decodeToStringArray(pending.getString(pending
+                    .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
+            
             final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
             final Dispersal dispersal = policy.makeRouteMap(null);
             {
@@ -1765,19 +2009,20 @@ public class DistributorThread extends Thread {
                     final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
 
                     final Dispersal dispatchResult = this.dispatchRetrievalRequest(that,
-                            uuid, topic, selection, limit, dispersal,
+                            uuid, topic, subtopic, selection, limit, dispersal,
                             new INetworkService.OnSendMessageHandler() {
                                 final DistributorThread parent = DistributorThread.this;
                                 final String auid_ = auid;
                                 final UUID uuid_ = uuid;
                                 final String topic_ = topic;
+                                final String[] subtopic_ = subtopic;
                                 final Notice notice_ = new Notice();
 
                                 @Override
                                 public boolean ack(String channel, DisposalState status) {
                                     final ChannelAck chack = new ChannelAck(Relations.RETRIEVAL,
                                             id, uuid_,
-                                            topic_, auid_, notice_,
+                                            topic_, subtopic_, auid_, notice_,
                                             channel, status);
                                     return parent.announceChannelAck(chack);
                                 }
@@ -1803,7 +2048,7 @@ public class DistributorThread extends Thread {
      */
 
     private Dispersal dispatchRetrievalRequest(final NetworkManager that,
-            final UUID retrievalId, final String topic,
+            final UUID retrievalId, final String topic, final String[] subtopic,
             final String selection, final Integer limit, final Dispersal dispersal,
             final INetworkService.OnSendMessageHandler handler)
     {
@@ -1926,6 +2171,7 @@ public class DistributorThread extends Thread {
             final UUID uuid = UUID.randomUUID();
             final String auid = ar.uid;
             final String topic = ar.topic.asString();
+            final String[] subtopic = Topic.asString(ar.subtopic);
             final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
 
             final ContentValues values = new ContentValues();
@@ -1962,13 +2208,14 @@ public class DistributorThread extends Thread {
                             final UUID uuid_ = uuid;
                             final String auid_ = auid;
                             final String topic_ = topic;
+                            final String[] subtopic_ = subtopic;
                             final Notice notice_ = new Notice();
 
                             @Override
                             public boolean ack(String channel, DisposalState status) {
                                 final ChannelAck chack = new ChannelAck(Relations.SUBSCRIBE,
                                         id_, uuid_,
-                                        topic_, auid_, notice_,
+                                        topic_, subtopic_, auid_, notice_,
                                         channel, status);
                                 return parent.announceChannelAck(chack);
                             }
@@ -2027,11 +2274,14 @@ public class DistributorThread extends Thread {
             // serialize it, then pass it off to the NPS.
             final int id = pending.getInt(pending.getColumnIndex(SubscribeTableSchema._ID.n));
             final String uuidString = pending.getString(pending
-                    .getColumnIndex(PostalTableSchema.UUID.n));
+                    .getColumnIndex(SubscribeTableSchema.UUID.n));
             final UUID uuid = UUID.fromString(uuidString);
 
             final String topic = pending.getString(pending
                     .getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
+            final String[] subtopic = InvitationMap.decodeToStringArray(pending.getString(pending
+                    .getColumnIndex(SubscribeTableSchema.SUBTOPIC.n)));
+            
             final String auid = pending.getString(pending.getColumnIndex(SubscribeTableSchema.AUID
                     .cv()));
 
@@ -2079,13 +2329,14 @@ public class DistributorThread extends Thread {
                                 final UUID uuid_ = uuid;
                                 final String auid_ = auid;
                                 final String topic_ = topic;
+                                final String[] subtopic_ = subtopic;
                                 final Notice notice_ = new Notice();
 
                                 @Override
                                 public boolean ack(String channel, DisposalState status) {
                                     final ChannelAck chack = new ChannelAck(Relations.SUBSCRIBE,
                                             id_, uuid_,
-                                            topic_, auid_, notice_,
+                                            topic_, subtopic_, auid_, notice_,
                                             channel, status);
                                     return parent.announceChannelAck(chack);
                                 }
