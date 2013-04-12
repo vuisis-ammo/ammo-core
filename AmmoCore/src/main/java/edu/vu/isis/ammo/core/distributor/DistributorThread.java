@@ -13,6 +13,7 @@ package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
@@ -88,9 +89,10 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.SubtopicInvitation;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.SubtopicInvitation.Invitee;
 import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
-import edu.vu.isis.ammo.util.FullTopic;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -110,27 +112,24 @@ public class DistributorThread extends Thread {
     private static final Marker MARK_INVITE = MarkerFactory.getMarker("invite");
     private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
     private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
-
-    private static final String ACTION_BASE = "edu.vu.isis.ammo.";
-    public static final String ACTION_MSG_SENT = ACTION_BASE + "ACTION_MESSAGE_SENT";
-    public static final String ACTION_MSG_RCVD = ACTION_BASE + "ACTION_MESSAGE_RECEIVED";
-    public static final String EXTRA_TOPIC = "topic";
-    public static final String EXTRA_UID = "uid";
-    public static final String EXTRA_CHANNEL = "channel";
-    public static final String EXTRA_STATUS = "status";
+   
 
     // 20 seconds expressed in milliseconds
     private static final int BURP_TIME = 20 * 1000;
 
     private final Context context;
-    public Context getContext() { return this.context; }
+
+    public Context getContext() {
+        return this.context;
+    }
+
     private final NetworkManager networkManager;
     private final CustomAdaptorCache ammoAdaptorCache;
     /**
      * The backing store for the distributor
      */
     final private DistributorDataStore store;
-    
+
     final public ContractStore contractStore;
 
     @SuppressWarnings("unused")
@@ -145,9 +144,8 @@ public class DistributorThread extends Thread {
 
     private NotifyMsgNumber notify = null;
     static private final AtomicInteger gThreadOrdinal = new AtomicInteger(1);
-    
-    private ResponseExecutor deserializeExecutor;
 
+    private ResponseExecutor deserializeExecutor;
 
     public DistributorThread(final Context context, final NetworkManager parent) {
         super(new StringBuilder("Distribute-").
@@ -158,7 +156,7 @@ public class DistributorThread extends Thread {
         this.responseQueue = new PriorityBlockingQueue<AmmoGatewayMessage>(200,
                 new AmmoGatewayMessage.PriorityOrder());
         this.deserializeExecutor = ResponseExecutor.newInstance(this);
-        
+
         this.store = new DistributorDataStore(context);
         this.contractStore = ContractStore.newInstance(context);
 
@@ -182,11 +180,11 @@ public class DistributorThread extends Thread {
         }
 
         private AtomicBoolean terminate = new AtomicBoolean(false);
-        
+
         private AtomicBoolean channelStatus = new AtomicBoolean(false);
-        
-        void setChannelStatus (boolean status) {
-        	channelStatus.set(status);
+
+        void setChannelStatus(boolean status) {
+            channelStatus.set(status);
         }
 
         public void terminate() {
@@ -194,13 +192,13 @@ public class DistributorThread extends Thread {
         }
 
         public void run() {
-                updateNotification();
+            updateNotification();
         }
 
         private void updateNotification() {
 
-        	logger.trace("Update Sent and Receive Counts");
-        	
+            logger.trace("Update Sent and Receive Counts");
+
             // check for variable update ...
             int total_sent = parent.total_sent.get();
             int total_recv = parent.total_recv.get();
@@ -212,31 +210,31 @@ public class DistributorThread extends Thread {
             // figure out the icon ...
             if (sent == 0 && recv == 0) {
                 logger.trace("No data in the last interval");
-                icon = R.drawable.nodata;                
+                icon = R.drawable.nodata;
             }
             else if (sent > 0 && recv == 0) {
-            	logger.trace("Only sending in the last interval");
+                logger.trace("Only sending in the last interval");
                 icon = R.drawable.sending;
             }
             else if (sent == 0 && recv > 0) {
-            	logger.trace("Only receiving in the last interval");
+                logger.trace("Only receiving in the last interval");
                 icon = R.drawable.receiving;
             }
             else if (sent > 0 && recv > 0) {
-            	logger.trace("Sending and Receiving in the last interval");
+                logger.trace("Sending and Receiving in the last interval");
                 icon = R.drawable.alldata;
             }
 
             String contentText = "Sent " + total_sent + " Received " + total_recv;
-            
+
             if (channelStatus.get() == false) {
                 int icon1 = R.drawable.channel_down;
-//                current_icon_id = IP_NOTIFY_ID;
+                // current_icon_id = IP_NOTIFY_ID;
                 logger.info("Ammo Channel Disconnected");
                 notifyIcon("Omma Channel Down", "Data Channel", "Offline", icon1);
                 return;
             }
-            
+
             parent.notifyIcon("", "Data Channel", contentText, icon);
 
             // save the last sent and recv ...
@@ -246,9 +244,9 @@ public class DistributorThread extends Thread {
             parent.networkManager.notifyMsg.postDelayed(this, 30000);
         }
 
-		public boolean getChannelStatus() {
-			return channelStatus.get();
-		}
+        public boolean getChannelStatus() {
+            return channelStatus.get();
+        }
     }
 
     public DistributorDataStore store() {
@@ -286,36 +284,36 @@ public class DistributorThread extends Thread {
     {
         if (change == ChannelChange.DEACTIVATE)
         {
-        	logger.debug("Channel: {} deactivated", channelName);
-        	for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
+            logger.debug("Channel: {} deactivated", channelName);
+            for (Entry<String, ChannelStatus> entry : channelStatus.entrySet()) {
                 if (entry.getValue().change == ChannelChange.ACTIVATE) {
                     return; // leave, since at least one channel is still active
                 }
             }
 
             // none of the channels are active ...
-        	logger.debug("All Ammo Channels Deactivated");
+            logger.debug("All Ammo Channels Deactivated");
             if (notify != null) {
-            	notify.setChannelStatus(false);
+                notify.setChannelStatus(false);
                 notify.terminate();
             }
-            
+
             return;
         }
 
         synchronized (this) {
-        	logger.trace("Ammo Channel {} Activated", channelName);
-        	
-        	if (notify == null) {
-        		logger.trace("Creating NotifyMsgNumber");
-        		notify = new NotifyMsgNumber(this);
-        	}        	
-        	
-        	if (notify.getChannelStatus() != true) {
-        		logger.trace("Post Delayed Registration");
-        		notify.setChannelStatus(true);
-        		this.networkManager.notifyMsg.postDelayed(notify, 5000);
-        	}
+            logger.trace("Ammo Channel {} Activated", channelName);
+
+            if (notify == null) {
+                logger.trace("Creating NotifyMsgNumber");
+                notify = new NotifyMsgNumber(this);
+            }
+
+            if (notify.getChannelStatus() != true) {
+                logger.trace("Post Delayed Registration");
+                notify.setChannelStatus(true);
+                this.networkManager.notifyMsg.postDelayed(notify, 5000);
+            }
         }
     }
 
@@ -324,21 +322,21 @@ public class DistributorThread extends Thread {
             String contentText,
             int icon)
     {
-    	logger.trace("Creating a notification, tickerTxt: {}", tickerTxt);
-    	
-        String ns = Context.NOTIFICATION_SERVICE;
-        NotificationManager mNotificationManager =
+        logger.trace("Creating a notification, tickerTxt: {}", tickerTxt);
+
+        final String ns = Context.NOTIFICATION_SERVICE;
+        final NotificationManager mNotificationManager =
                 (NotificationManager) context.getSystemService(ns);
 
-        CharSequence tickerText = tickerTxt;
+        final CharSequence tickerText = tickerTxt;
         long when = System.currentTimeMillis();
 
-        Notification notification = new Notification(icon, tickerText, when);
+        final Notification notification = new Notification(icon, tickerText, when);
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
 
-        Intent notificationIntent = new Intent(context, AmmoCore.class);
+        final Intent notificationIntent = new Intent(context, AmmoCore.class);
 
-        PendingIntent contentIntent = PendingIntent
+        final PendingIntent contentIntent = PendingIntent
                 .getActivity(context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         notification.setLatestEventInfo(context, contentTitle, contentText,
@@ -384,7 +382,8 @@ public class DistributorThread extends Thread {
         public final DisposalState status;
 
         public ChannelAck(final Relations type, final long id, final UUID uuid,
-                final String topic, final String[] subtopic, final String auid, final Notice notice,
+                final String topic, final String[] subtopic, final String auid,
+                final Notice notice,
                 final String channel, final DisposalState status)
         {
             this.type = type;
@@ -536,11 +535,13 @@ public class DistributorThread extends Thread {
 
     public String distributeRequest(AmmoRequest request) {
         try {
-            logger.info("From AIDL into AMMO type:{}+{} uuid:{}", request.topic, request.subtopic, request.uuid);
+            logger.info("From AIDL into AMMO type:{}+{} uuid:{}", request.topic, request.subtopic,
+                    request.uuid);
 
             PLogger.QUEUE_REQ_ENTER.trace("\"action\":\"offer\" \"request\":\"{}\"", request);
             if (!this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
-                logger.error("could not process request={} size={}", request, this.requestQueue.size());
+                logger.error("could not process request={} size={}", request,
+                        this.requestQueue.size());
                 this.signal();
                 return null;
             }
@@ -640,7 +641,7 @@ public class DistributorThread extends Thread {
                 while (this.isReady()) {
 
                     final long currentTime = System.currentTimeMillis();
-                    
+
                     if (this.channelDelta.getAndSet(false)) {
                         logger.trace("channel change");
                         this.doChannelChange(networkManager);
@@ -666,21 +667,21 @@ public class DistributorThread extends Thread {
                         try {
                             final AmmoGatewayMessage agm = this.responseQueue.take();
                             PLogger.QUEUE_RESP_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                            this.responseQueue.size(), agm.payload_checksum,
-                                            agm.size, agm
+                                    this.responseQueue.size(), agm.payload_checksum,
+                                    agm.size, agm
                                     );
-                            
+
                             logger.info(
                                     "processing response {}, recvd @{}, remaining {}",
-                                            agm.payload_checksum, agm.buildTime,
-                                            this.responseQueue.size()
+                                    agm.payload_checksum, agm.buildTime,
+                                    this.responseQueue.size()
                                     );
                             resLogger.info(PLogger.TEST_QUEUE_FORMAT,
-                                    currentTime, 
+                                    currentTime,
                                     "response_queue",
                                     this.responseQueue.size(),
                                     currentTime - agm.buildTime
-                            );
+                                    );
                             this.doResponse(this.context, agm);
                         } catch (ClassCastException ex) {
                             logger.error("response queue contains illegal item of class", ex);
@@ -693,13 +694,13 @@ public class DistributorThread extends Thread {
                             logger.info("processing request uuid {}, remaining {}", ar.uuid,
                                     this.requestQueue.size());
                             reqLogger.info(PLogger.TEST_QUEUE_FORMAT,
-                                            System.currentTimeMillis(), 
-                                            "request_queue",
-                                            this.requestQueue.size(),
-                                            currentTime - ar.buildTime
+                                    System.currentTimeMillis(),
+                                    "request_queue",
+                                    this.requestQueue.size(),
+                                    currentTime - ar.buildTime
                                     );
                             PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                            this.requestQueue.size(), ar.uuid, "n/a", ar
+                                    this.requestQueue.size(), ar.uuid, "n/a", ar
                                     );
 
                             this.doRequest(networkManager, ar);
@@ -767,7 +768,7 @@ public class DistributorThread extends Thread {
             case INVITE:
                 doInviteRequest(that, agm);
             case NONE:
-            
+
             default:
                 break;
         }
@@ -883,9 +884,9 @@ public class DistributorThread extends Thread {
         switch (mw.getType()) {
             case DATA_MESSAGE:
             case TERSE_MESSAGE:
-                final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel,
+                final boolean postalResult = receivePostalMessage(context, mw, agm.channel,
                         agm.priority);
-                logger.debug("subscribe reply {}", subscribeResult);
+                logger.debug("subscribe reply {}", postalResult);
                 if (mw.hasDataMessage()) {
                     final AmmoMessages.DataMessage dm = mw.getDataMessage();
                     if (dm.hasOriginDevice()) {
@@ -903,8 +904,8 @@ public class DistributorThread extends Thread {
                 break;
 
             case PUSH_ACKNOWLEDGEMENT:
-                final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
-                logger.debug("post acknowledgement {}", postalResult);
+                final boolean postalAckResult = receivePostalResponse(context, mw, agm.channel);
+                logger.debug("post acknowledgement {}", postalAckResult);
                 break;
 
             case PULL_RESPONSE:
@@ -914,27 +915,14 @@ public class DistributorThread extends Thread {
                 break;
 
             case SUBSCRIBE_MESSAGE:
-                if (mw.hasSubscribeMessage()) {
-                    final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
-                    final FullTopic fulltopic = FullTopic.fromType(sm.getMimeType());
+                final boolean subscribeResult = receiveSubscribeMessage(context, mw, agm.channel,
+                        agm.priority);
+                logger.debug("subscribe response {}", subscribeResult);
+                break;
 
-                    if (sm.hasOriginDevice()) {
-                        final String deviceId = sm.getOriginDevice();
-                        final String operator = sm.getOriginUser();
-
-                        Capability.getWorker()
-                                .origin(deviceId)
-                                .operator(operator)
-                                .topic(fulltopic.topic)
-                                .subtopic(fulltopic.subtopic)
-                                .upsert();
-
-                        Presence.getWorker()
-                                .device(deviceId)
-                                .operator(operator)
-                                .upsert();
-                    }
-                }
+            case SUBTOPIC_INVITATION:
+                final boolean inviteResult = receiveInviteMessage(context, mw, agm.channel);
+                logger.debug("subscribe response {}", inviteResult);
                 break;
 
             case AUTHENTICATION_MESSAGE:
@@ -942,6 +930,7 @@ public class DistributorThread extends Thread {
             case UNSUBSCRIBE_MESSAGE:
                 logger.debug("{} message, no processing", mw.getType());
                 break;
+
             default:
                 logger.error("unexpected reply type. {}", mw.getType());
         }
@@ -1013,8 +1002,9 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.UUID.cv(), uuid.toString());
             values.put(PostalTableSchema.AUID.cv(), auid);
             values.put(PostalTableSchema.TOPIC.cv(), topic);
-            values.put(PostalTableSchema.SUBTOPIC.cv(), InvitationMap.encodeFromArray(ar.subtopic));
-            if(ar.provider != null) {
+            values.put(PostalTableSchema.SUBTOPIC.cv(),
+                    DistributorDataStore.encodeFromArray(ar.subtopic));
+            if (ar.provider != null) {
                 values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
             }
             values.put(PostalTableSchema.CHANNEL.cv(), channel);
@@ -1040,19 +1030,21 @@ public class DistributorThread extends Thread {
                 return;
             }
 
-            final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider, ar.payload);
+            final RequestSerializer serializer = RequestSerializer.newInstance(ar.provider,
+                    ar.payload);
             serializer.setSerializeActor(new RequestSerializer.OnSerialize() {
 
                 final RequestSerializer serializer_ = serializer;
                 final NetworkManager that_ = that;
                 final DistributorThread parent = DistributorThread.this;
-                
+
                 byte[] bytes = null;
+
                 @Override
                 public byte[] getBytes() {
                     return this.bytes;
                 }
-             
+
                 @Override
                 public void run(Encoding encode) {
                     // TODO FPE handle payload with data types
@@ -1071,37 +1063,37 @@ public class DistributorThread extends Thread {
                                     "Null result from serialize content value, encoding into {}",
                                     encode);
                         }
-                        
+
                         return;
-                        
+
                     } else {
                         try {
                             logger.trace("serializing using encoding {}", encode);
                             final Uri tupleUri = serializer_.provider.asUri();
-                            
+
                             ISerializer serializer = null;
                             final Encoding.Type encodingType = encode.getType();
                             switch (encodingType) {
-                            case CUSTOM:
-                                parent.ammoAdaptorCache.serialize(tupleUri, encode);
-                                return;
-                            case JSON:
-                                serializer = new JsonSerializer();
-                                break;
-                            case TERSE:
-                                serializer = new TerseSerializer();
-                                break;
-                            default:
-                                parent.ammoAdaptorCache.serialize(tupleUri, encode);
-                                return;
+                                case CUSTOM:
+                                    parent.ammoAdaptorCache.serialize(tupleUri, encode);
+                                    return;
+                                case JSON:
+                                    serializer = new JsonSerializer();
+                                    break;
+                                case TERSE:
+                                    serializer = new TerseSerializer();
+                                    break;
+                                default:
+                                    parent.ammoAdaptorCache.serialize(tupleUri, encode);
+                                    return;
                             }
                             if (this.bytes != null) {
                                 logger.warn("bytes already bound {}", this.bytes);
                                 return;
                             }
                             final ContentProviderContentItem item = new ContentProviderContentItem(
-                                    tupleUri, 
-                                    that_.getContext().getContentResolver(), 
+                                    tupleUri,
+                                    that_.getContext().getContentResolver(),
                                     encode);
                             this.bytes = serializer.serialize(item);
                             item.close();
@@ -1230,8 +1222,9 @@ public class DistributorThread extends Thread {
             logger.trace("payload=[{}]", payload);
             final String topic = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.TOPIC.n));
-            final String[] subtopic = InvitationMap.decodeToStringArray(pending.getString(pending
-                    .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
+            final String[] subtopic = DistributorDataStore.decodeToStringArray(pending
+                    .getString(pending
+                            .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
             final String channelFilter = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.CHANNEL.n));
 
@@ -1274,8 +1267,9 @@ public class DistributorThread extends Thread {
                 final NetworkManager that_ = that;
                 final SerializeMode serialType_ = serialType;
                 final String data_ = data;
-                
+
                 byte[] bytes = null;
+
                 @Override
                 public byte[] getBytes() {
                     return this.bytes;
@@ -1308,30 +1302,30 @@ public class DistributorThread extends Thread {
 
                                     logger.trace("serializing using encoding {}", encode);
                                     final Uri tupleUri = serializer_.provider.asUri();
-                                    
+
                                     ISerializer serializer = null;
                                     final Encoding.Type encodingType = encode.getType();
                                     switch (encodingType) {
-                                    case CUSTOM:
-                                        parent.ammoAdaptorCache.serialize(tupleUri, encode);
-                                        return;
-                                    case JSON:
-                                        serializer = new JsonSerializer();
-                                        break;
-                                    case TERSE:
-                                        serializer = new TerseSerializer();
-                                        break;
-                                    default:
-                                        parent.ammoAdaptorCache.serialize(tupleUri, encode);
-                                        return;
+                                        case CUSTOM:
+                                            parent.ammoAdaptorCache.serialize(tupleUri, encode);
+                                            return;
+                                        case JSON:
+                                            serializer = new JsonSerializer();
+                                            break;
+                                        case TERSE:
+                                            serializer = new TerseSerializer();
+                                            break;
+                                        default:
+                                            parent.ammoAdaptorCache.serialize(tupleUri, encode);
+                                            return;
                                     }
                                     if (this.bytes != null) {
                                         logger.warn("bytes already bound {}", this.bytes);
                                         return;
                                     }
                                     final ContentProviderContentItem item = new ContentProviderContentItem(
-                                            tupleUri, 
-                                            that_.getContext().getContentResolver(), 
+                                            tupleUri,
+                                            that_.getContext().getContentResolver(),
                                             encode);
                                     this.bytes = serializer.serialize(item);
                                     item.close();
@@ -1434,7 +1428,7 @@ public class DistributorThread extends Thread {
      * @return
      */
     private Dispersal dispatchPostalRequest(final NetworkManager that,
-            final Notice notice, final UUID uuid, 
+            final Notice notice, final UUID uuid,
             final String topic, final String[] subtopic,
             final Dispersal dispersal, final RequestSerializer serializer,
             final INetworkService.OnSendMessageHandler handler)
@@ -1497,14 +1491,156 @@ public class DistributorThread extends Thread {
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
                         System.currentTimeMillis() - now, serialized.length);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
-                agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
-			      notice.atGatewayDelivered.getVia().isActive() ||
-			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
-                    .uuid( uuid );
+                agmb.needAck(notice.atDeviceDelivered.getVia().isActive() ||
+                        notice.atGatewayDelivered.getVia().isActive() ||
+                        notice.atPluginDelivered.getVia().isActive()) // does
+                                                                      // App
+                                                                      // need an
+                                                                      // Ack
+                        .uuid(uuid);
                 return agmb.build();
             }
         });
         return dispersal.multiplexRequest(that, serializer);
+    }
+
+    /**
+     * Update the content providers as appropriate. These are typically received
+     * in response to subscriptions. In other words these replies are postal
+     * messages which have been redirected. The subscribing uri isn't sent with
+     * the subscription to the gateway therefore it needs to be recovered from
+     * the subscription table.
+     */
+    private boolean receivePostalMessage(Context context, AmmoMessages.MessageWrapper mw,
+            NetChannel channel, int priority) {
+        if (mw == null) {
+            logger.warn("no message");
+            return false;
+        }
+        if (!mw.hasDataMessage() && !mw.hasTerseMessage()) {
+            logger.warn("no data in message");
+            return false;
+        }
+
+        String mime = null;
+        String[] subtopic = null;
+        String encode = null;
+        String originUser = null;
+        String originDevice = null;
+        String originUid = null;
+        com.google.protobuf.ByteString data = null;
+        AmmoMessages.AcknowledgementThresholds at = null;
+
+        final String selfDevice = networkManager.getDeviceId();
+        if (mw.hasDataMessage()) {
+            final AmmoMessages.DataMessage resp = mw.getDataMessage();
+            mime = resp.getMimeType();
+            subtopic = new String[resp.getSubtopicsCount()];
+            subtopic = resp.getSubtopicsList().toArray(subtopic);
+            data = resp.getData();
+            encode = resp.getEncoding();
+            at = resp.getThresholds();
+            originUser = resp.getUserId();
+            originDevice = resp.getOriginDevice();
+            originUid = resp.getUri(); // SKN: URI is really UID
+
+            if (originDevice.equals(selfDevice)) {
+                logger.error("received own device message [{}:{}]",
+                        originDevice, selfDevice);
+                // FIXME return false;
+                // Apparently the unique device identifies are not unique.
+            }
+        } else {
+            final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
+            mime = AmmoMimeTypes.mimeTypes.get(resp.getMimeType());
+            data = resp.getData();
+            originUser = resp.getUserId(); // SERIAL does not have this -- do we
+                                           // have a use for it?
+            encode = "TERSE";
+        }
+
+        final String selfOperator = networkManager.getOperatorId();
+        if (originUser.equals(selfOperator)) {
+            logger.error("received own user message [{}:{}]",
+                    originUser, selfOperator);
+        }
+
+        // final ContentResolver resolver = context.getContentResolver();
+
+        final String topic = mime;
+        final Cursor cursor = this.store.querySubscribeByKey(new String[] {
+                SubscribeTableSchema.PROVIDER.n
+        }, topic, subtopic, null);
+        if (cursor.getCount() < 1) {
+            logger.warn("received a message for which there is no subscription {}", topic);
+            cursor.close();
+            return false;
+        }
+        cursor.moveToFirst();
+        final String uriString = cursor.getString(0); // only asked for one so
+        // it better be it.
+        cursor.close();
+        final Uri provider = Uri.parse(uriString);
+
+        // we were subscribed to this - does the sender need an ack (let's be
+        // careful...), do this before deserializing
+        logger.debug("data message notice=[{}]", at);
+        if (at != null && at.getDeviceDelivered()) {
+            final AcknowledgementThresholds bt = AcknowledgementThresholds.newBuilder()
+                    .setDeviceDelivered(true)
+                    .build();
+
+            final AmmoMessages.PushAcknowledgement.Builder pushAck =
+                    AmmoMessages.PushAcknowledgement.newBuilder()
+                            .setUri(originUid)
+                            .setThreshold(bt)
+                            .setDestinationDevice(originDevice)
+                            .setDestinationUser(originUser)
+                            .setAcknowledgingDevice(networkManager.getDeviceId())
+                            .setAcknowledgingUser(networkManager.getOperatorId())
+                            .setStatus(PushStatus.RECEIVED);
+
+            final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper
+                    .newBuilder()
+                    .setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
+                    .setPushAcknowledgement(pushAck);
+
+            final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb,
+                    new INetworkService.OnSendMessageHandler() {
+                        // final AmmoMessages.PushAcknowledgement.Builder ack_ =
+                        // pushAck;
+                        @Override
+                        public boolean ack(String channel, DisposalState status) {
+                            return true;
+                        }
+                    });
+
+            logger.debug("sending ack=[{}]", pushAck);
+            if (channel != null) {
+                channel.sendRequest(oagmb.build());
+            }
+        }
+
+        final DistributorPolicy policy = this.networkManager.policy();
+        final DistributorPolicy.Topic topicPolicy = policy.matchPostal(topic);
+
+        final Encoding encoding = Encoding.getInstanceByName(encode);
+
+        this.requestDeserializerBuilder = RequestDeserializer.newBuilder(this,
+                this.ammoAdaptorCache);
+
+        final RequestDeserializer deserializeCommand =
+                this.requestDeserializerBuilder.toProvider(priority, context, channel.name,
+                        provider, encoding, data.toByteArray());
+        this.deserializeExecutor.execute(deserializeCommand);
+
+        if (topicPolicy.getRouted() == true) {
+            this.deserializeExecutor.execute(deserializeCommand.toReroute());
+        }
+
+        logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
+
+        return true;
     }
 
     /**
@@ -1554,9 +1690,12 @@ public class DistributorThread extends Thread {
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv()));
             logger.debug("notice bytes {}", noticeBytes);
             final Notice notice = Notice.unpickle(noticeBytes);
-            
+
             final String topic = postalReq.getString(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv()));
+            final String subtopicStr = postalReq.getString(postalReq
+                    .getColumnIndex(DistributorDataStore.PostalTableSchema.SUBTOPIC.cv()));
+            final String[] subtopic = DistributorDataStore.decodeToStringArray(subtopicStr);
             final String auid = postalReq.getString(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv()));
 
@@ -1565,6 +1704,7 @@ public class DistributorThread extends Thread {
             // check if it is for us , and how we should notify
             final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(notice)
                     .topic(topic)
+                    .subtopic(subtopic)
                     .auid(auid)
                     .channel(channel.name)
                     .device(pushResp.getAcknowledgingDevice())
@@ -1615,7 +1755,7 @@ public class DistributorThread extends Thread {
             context.startService(noticed);
         }
     }
-    
+
     // =========== INVITE ====================
 
     /**
@@ -1645,20 +1785,20 @@ public class DistributorThread extends Thread {
 
             final InvitationMap.Builder builder = InvitationMap.newBuilder();
             builder
-               .topic(topic)
-               .subtopic(ar.subtopic)
-               .uuid(uuid)
-               .auid(auid)
-               .expiration(policy.routing.getExpiration(ar.expire.cv()));
-            
+                    .topic(topic)
+                    .subtopic(ar.subtopic)
+                    .uuid(uuid)
+                    .auid(auid)
+                    .expiration(policy.routing.getExpiration(ar.expire.cv()));
+
             builder
-              .disposition(DisposalState.NEW)
-              .route(policy.makeRouteMap(channel));
+                    .disposition(DisposalState.NEW)
+                    .route(policy.makeRouteMap(channel));
             final Invitation invitation = builder.build();
             logger.debug("no channel connected, added invite [{}]", invitation);
-            
+
             doInviteCache(that);
-            
+
         } catch (NullPointerException ex) {
             logger.warn("sending invite request failed", ex);
         }
@@ -1704,9 +1844,10 @@ public class DistributorThread extends Thread {
             public byte[] getBytes() {
                 return null;
             }
-         
+
             @Override
-            public void run(Encoding encode) { }
+            public void run(Encoding encode) {
+            }
         });
 
         for (final Invitation it : InvitationMap.INSTANCE.toSendQueue()) {
@@ -1720,17 +1861,17 @@ public class DistributorThread extends Thread {
                         public boolean ack(final String channel, final DisposalState status) {
                             final ChannelAck chack = new ChannelAck(Relations.INVITE,
                                     it_.key.id, it_.key.uuid,
-                                    it_.key.topic, it_.key.subtopic, 
+                                    it_.key.topic, it_.key.subtopic,
                                     "", it_.notice,
                                     channel, status);
                             return parent.announceChannelAck(chack);
                         }
                     });
-            
+
             it.setState(DisposalState.QUEUED);
             logger.info("invitation {}", dispatchResult);
         }
-        
+
         logger.debug(MARK_INVITE, "processed table INVITE");
     }
 
@@ -1741,7 +1882,7 @@ public class DistributorThread extends Thread {
      * @param that
      * @param provider
      * @param msgType
-     * @param subtopic 
+     * @param subtopic
      * @param data
      * @param handler
      * @return
@@ -1808,10 +1949,11 @@ public class DistributorThread extends Thread {
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
                         System.currentTimeMillis() - now, serialized.length);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
-                agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
-                  notice.atGatewayDelivered.getVia().isActive() ||
-                  notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
-                    .uuid( uuid );
+                /** does App need an Ack */
+                agmb.needAck(notice.atDeviceDelivered.getVia().isActive() ||
+                        notice.atGatewayDelivered.getVia().isActive() ||
+                        notice.atPluginDelivered.getVia().isActive())
+                        .uuid(uuid);
                 return agmb.build();
             }
         });
@@ -1819,22 +1961,42 @@ public class DistributorThread extends Thread {
     }
 
     /**
-     * Get response to InviteRequest these are corresponding subscribe requests.
+     * When an invitation is received the invitation is recorded
+     * and any interested applications are notified of its arrival.
      * 
      * @param mw
      * @return
      */
-    @SuppressWarnings("unused")
-    private boolean receiveInviteResponse(Context context, AmmoMessages.MessageWrapper mw,
+    private boolean receiveInviteMessage(Context context, AmmoMessages.MessageWrapper mw,
             NetChannel channel) {
         logger.trace("receive response INVITE");
 
         if (mw == null)
             return false;
+
+        if (!mw.hasSubtopicInvitation()) {
+            return false;
+        }
        
+        final SubtopicInvitation sm = mw.getSubtopicInvitation();
+        final String topic = sm.getMimeType();
+        final String[] subtopic = sm.getSubtopicsList().toArray(
+                new String[sm.getSubtopicsCount()]);
+        final List<Invitee> invitee = sm.getInviteesList();
+        
+        final InvitationMap.Worker worker = InvitationMap.getWorker();
+        worker.topic(topic)
+            .subtopic(subtopic);
+        
+        worker.invitee(invitee).upsert();
+        
+        final Topic.IntentBuilder builder = Topic.getIntentBuilder()
+                .topic(topic)
+                .subtopic(subtopic);
+        final Intent intent = builder.build(this.context, Topic.ACTION_INVITATION);
+        context.sendBroadcast(intent);
         return true;
     }
-
 
     // =========== RETRIEVAL ====================
 
@@ -1966,9 +2128,10 @@ public class DistributorThread extends Thread {
             final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
             final String topic = pending.getString(pending
                     .getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
-            final String[] subtopic = InvitationMap.decodeToStringArray(pending.getString(pending
-                    .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
-            
+            final String[] subtopic = DistributorDataStore.decodeToStringArray(pending
+                    .getString(pending
+                            .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
+
             final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
             final Dispersal dispersal = policy.makeRouteMap(null);
             {
@@ -2116,13 +2279,16 @@ public class DistributorThread extends Thread {
         // find the provider to use
         final String uuidString = resp.getRequestUid();
         final String topic = resp.getMimeType();
+        final String[] subtopic = resp.getSubtopicsList().toArray(
+                new String[resp.getSubtopicsCount()]);
+
         final Cursor cursor = this.store
                 .queryRetrievalByKey(new String[] {
                         RetrievalTableSchema.PROVIDER.n
-                }, uuidString, topic, null);
+                }, uuidString, topic, subtopic, null);
         if (cursor.getCount() < 1) {
-            logger.error("received a message for which there is no retrieval {} {}", topic,
-                    uuidString);
+            logger.error("received a message for which there is no retrieval {} {} {}",
+                    topic, subtopic, uuidString);
             cursor.close();
             return false;
         }
@@ -2135,13 +2301,14 @@ public class DistributorThread extends Thread {
         // update the actual provider
 
         final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
-        this.requestDeserializerBuilder = RequestDeserializer.newBuilder(this, this.ammoAdaptorCache);
-        
-        final RequestDeserializer deserializeCommand = 
+        this.requestDeserializerBuilder = RequestDeserializer.newBuilder(this,
+                this.ammoAdaptorCache);
+
+        final RequestDeserializer deserializeCommand =
                 this.requestDeserializerBuilder.toProvider(priority, context, channel.name,
-                provider, encoding, resp.getData().toByteArray());
+                        provider, encoding, resp.getData().toByteArray());
         this.deserializeExecutor.execute(deserializeCommand);
-       
+
         logger.debug("tuple upserted");
 
         return true;
@@ -2164,7 +2331,7 @@ public class DistributorThread extends Thread {
      * @param st
      */
     private void doSubscribeRequest(final NetworkManager that, final AmmoRequest ar, int st) {
-        logger.trace("process request SUBSCRIBE {}", ar.topic.toString());
+        logger.trace("process request SUBSCRIBE {} {}", ar.topic, ar.subtopic);
 
         // Dispatch the message.
         try {
@@ -2178,6 +2345,8 @@ public class DistributorThread extends Thread {
             values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
             values.put(RetrievalTableSchema.AUID.cv(), auid);
             values.put(SubscribeTableSchema.TOPIC.cv(), topic);
+            values.put(SubscribeTableSchema.SUBTOPIC.cv(),
+                    DistributorDataStore.encodeFromStringArray(subtopic));
 
             values.put(SubscribeTableSchema.PROVIDER.cv(), ar.provider.cv());
             values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
@@ -2201,7 +2370,7 @@ public class DistributorThread extends Thread {
             synchronized (this.store) {
                 final long id = this.store.upsertSubscribe(values, dispersal);
                 final Dispersal dispatchResult = this.dispatchSubscribeRequest(that,
-                        topic, ar.select.toString(), dispersal,
+                        topic, subtopic, ar.select.toString(), dispersal,
                         new INetworkService.OnSendMessageHandler() {
                             final DistributorThread parent = DistributorThread.this;
                             final long id_ = id;
@@ -2235,22 +2404,27 @@ public class DistributorThread extends Thread {
             // final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
             // final String auid = ar.uid;
             final String topic = ar.topic.asString();
+            final String[] subtopic = Topic.asString(ar.subtopic);
             final String provider = ar.provider.cv();
-            final String selection = new StringBuilder()
-                    .append(SubscribeTableSchema.PROVIDER.q()).append("=?")
-                    .append(" AND ")
-                    .append(SubscribeTableSchema.TOPIC.q()).append("=?")
-                    .toString();
+            
             final String[] selectionArgs = new String[] {
-                    provider, topic
+                    provider, topic, DistributorDataStore.encodeFromStringArray(subtopic)
             };
 
-            this.store().deleteSubscribe(selection, selectionArgs);
+            this.store().deleteSubscribe(CANCEL_SUBSCRIBE_BY_KEY, selectionArgs);
         } finally {
 
         }
 
     }
+    private static final String CANCEL_SUBSCRIBE_BY_KEY = 
+     new StringBuilder()
+    .append(SubscribeTableSchema.PROVIDER.q()).append("=?")
+    .append(" AND ")
+    .append(SubscribeTableSchema.TOPIC.q()).append("=?")
+    .append(" AND ")
+    .append(SubscribeTableSchema.SUBTOPIC.q()).append("=?")
+    .toString();
 
     /**
      * Each time the subscription provider is modified, find out what the
@@ -2279,9 +2453,10 @@ public class DistributorThread extends Thread {
 
             final String topic = pending.getString(pending
                     .getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
-            final String[] subtopic = InvitationMap.decodeToStringArray(pending.getString(pending
-                    .getColumnIndex(SubscribeTableSchema.SUBTOPIC.n)));
-            
+            final String[] subtopic = DistributorDataStore.decodeToStringArray(pending
+                    .getString(pending
+                            .getColumnIndex(SubscribeTableSchema.SUBTOPIC.n)));
+
             final String auid = pending.getString(pending.getColumnIndex(SubscribeTableSchema.AUID
                     .cv()));
 
@@ -2322,7 +2497,7 @@ public class DistributorThread extends Thread {
                     long numUpdated = this.store.updateSubscribeByKey(id, values, null);
 
                     final Dispersal dispatchResult = this.dispatchSubscribeRequest(that,
-                            topic, selection, dispersal,
+                            topic, subtopic, selection, dispersal,
                             new INetworkService.OnSendMessageHandler() {
                                 final DistributorThread parent = DistributorThread.this;
                                 final int id_ = id;
@@ -2354,7 +2529,8 @@ public class DistributorThread extends Thread {
      * Deliver the subscription request to the network service for processing.
      */
     private Dispersal dispatchSubscribeRequest(final NetworkManager that,
-            final String topic, final String selection, final Dispersal dispersal,
+            final String topic, final String[] subtopic,
+            final String selection, final Dispersal dispersal,
             final INetworkService.OnSendMessageHandler handler)
     {
         logger.trace("::dispatchSubscribeRequest {}", topic);
@@ -2389,138 +2565,32 @@ public class DistributorThread extends Thread {
         return dispersal.multiplexRequest(that, serializer);
     }
 
-    /**
-     * Update the content providers as appropriate. These are typically received
-     * in response to subscriptions. In other words these replies are postal
-     * messages which have been redirected. The subscribing uri isn't sent with
-     * the subscription to the gateway therefore it needs to be recovered from
-     * the subscription table.
-     */
-    private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw,
+    private boolean receiveSubscribeMessage(Context context, AmmoMessages.MessageWrapper mw,
             NetChannel channel, int priority) {
-        if (mw == null) {
-            logger.warn("no message");
-            return false;
-        }
-        if (!mw.hasDataMessage() && !mw.hasTerseMessage()) {
-            logger.warn("no data in message");
-            return false;
-        }
 
-        String mime = null;
-        String encode = null;
-        String originUser = null;
-        String originDevice = null;
-        String originUid = null;
-        com.google.protobuf.ByteString data = null;
-        AmmoMessages.AcknowledgementThresholds at = null;
+        if (mw.hasSubscribeMessage()) {
+            final AmmoMessages.SubscribeMessage sm = mw.getSubscribeMessage();
+            final String topic = sm.getMimeType();
+            final String[] subtopic = sm.getSubtopicsList().toArray(
+                    new String[sm.getSubtopicsCount()]);
 
-        final String selfDevice = networkManager.getDeviceId();
-        if (mw.hasDataMessage()) {
-            final AmmoMessages.DataMessage resp = mw.getDataMessage();
-            mime = resp.getMimeType();
-            data = resp.getData();
-            encode = resp.getEncoding();
-            at = resp.getThresholds();
-            originUser = resp.getUserId();
-            originDevice = resp.getOriginDevice();
-            originUid = resp.getUri(); // SKN: URI is really UID
+            if (sm.hasOriginDevice()) {
+                final String deviceId = sm.getOriginDevice();
+                final String operator = sm.getOriginUser();
 
-            if (originDevice.equals(selfDevice)) {
-                logger.error("received own device message [{}:{}]",
-                        originDevice, selfDevice);
-                // FIXME return false;
-                // Apparently the unique device identifies are not unique.
-            }
-        } else {
-            final AmmoMessages.TerseMessage resp = mw.getTerseMessage();
-            mime = AmmoMimeTypes.mimeTypes.get(resp.getMimeType());
-            data = resp.getData();
-            originUser = resp.getUserId(); // SERIAL does not have this -- do we
-                                           // have a use for it?
-            encode = "TERSE";
-        }
+                Capability.getWorker()
+                        .origin(deviceId)
+                        .operator(operator)
+                        .topic(topic)
+                        .subtopic(subtopic)
+                        .upsert();
 
-        final String selfOperator = networkManager.getOperatorId();
-        if (originUser.equals(selfOperator)) {
-            logger.error("received own user message [{}:{}]",
-                    originUser, selfOperator);
-        }
-
-        // final ContentResolver resolver = context.getContentResolver();
-
-        final String topic = mime;
-        final Cursor cursor = this.store.querySubscribeByKey(new String[] {
-                SubscribeTableSchema.PROVIDER.n
-        }, topic, null);
-        if (cursor.getCount() < 1) {
-            logger.warn("received a message for which there is no subscription {}", topic);
-            cursor.close();
-            return false;
-        }
-        cursor.moveToFirst();
-        final String uriString = cursor.getString(0); // only asked for one so
-        // it better be it.
-        cursor.close();
-        final Uri provider = Uri.parse(uriString);
-
-        // we were subscribed to this - does the sender need an ack (let's be
-        // careful...), do this before deserializing
-        logger.debug("data message notice=[{}]", at);
-        if (at != null && at.getDeviceDelivered()) {
-            final AcknowledgementThresholds bt = AcknowledgementThresholds.newBuilder()
-                    .setDeviceDelivered(true)
-                    .build();
-
-            final AmmoMessages.PushAcknowledgement.Builder pushAck =
-                    AmmoMessages.PushAcknowledgement.newBuilder()
-                            .setUri(originUid)
-                            .setThreshold(bt)
-                            .setDestinationDevice(originDevice)
-                            .setDestinationUser(originUser)
-                            .setAcknowledgingDevice(networkManager.getDeviceId())
-                            .setAcknowledgingUser(networkManager.getOperatorId())
-                            .setStatus(PushStatus.RECEIVED);
-
-            final AmmoMessages.MessageWrapper.Builder mwb = AmmoMessages.MessageWrapper
-                    .newBuilder()
-                    .setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
-                    .setPushAcknowledgement(pushAck);
-
-            final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb,
-                    new INetworkService.OnSendMessageHandler() {
-                        // final AmmoMessages.PushAcknowledgement.Builder ack_ =
-                        // pushAck;
-                        @Override
-                        public boolean ack(String channel, DisposalState status) {
-                            return true;
-                        }
-                    });
-
-            logger.debug("sending ack=[{}]", pushAck);
-            if (channel != null) {
-                channel.sendRequest(oagmb.build());
+                Presence.getWorker()
+                        .device(deviceId)
+                        .operator(operator)
+                        .upsert();
             }
         }
-        
-        final DistributorPolicy policy = this.networkManager.policy();
-        final DistributorPolicy.Topic topicPolicy = policy.matchPostal(topic);
-        
-        final Encoding encoding = Encoding.getInstanceByName(encode);
-      
-       this.requestDeserializerBuilder = RequestDeserializer.newBuilder(this, this.ammoAdaptorCache);
-       
-       final RequestDeserializer deserializeCommand = 
-               this.requestDeserializerBuilder.toProvider(priority, context, channel.name,
-               provider, encoding, data.toByteArray());
-       this.deserializeExecutor.execute(deserializeCommand);
-     
-        if(topicPolicy.getRouted() == true) {
-            this.deserializeExecutor.execute(deserializeCommand.toReroute());
-        }
-        
-        logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
-
         return true;
     }
 

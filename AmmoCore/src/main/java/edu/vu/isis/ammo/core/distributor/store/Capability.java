@@ -28,14 +28,14 @@ public enum Capability {
     /*
      * A map of keys to items.
      */
-    private final Map<Item.Key, Item> relMap;
+    private final Map<Item.Key, Item> mapTopic;
 
     public int size() {
-        return this.relMap.size();
+        return this.mapTopic.size();
     }
 
     private Capability() {
-        this.relMap = new ConcurrentHashMap<Item.Key, Item>();
+        this.mapTopic = new ConcurrentHashMap<Item.Key, Item>();
 
         // a dummy item for testing
         /*
@@ -64,27 +64,27 @@ public enum Capability {
         private String operator = "default operator";
 
         private String topic = "default topic";
-        private String subtopic = null;
+        private String[] subtopic = null;
 
         private Builder() {
         }
 
-        public Builder origin(String value) {
+        public Builder origin(final String value) {
             this.origin = value;
             return this;
         }
 
-        public Builder operator(String value) {
+        public Builder operator(final String value) {
             this.operator = value;
             return this;
         }
 
-        public Builder topic(String value) {
+        public Builder topic(final String value) {
             this.topic = value;
             return this;
         }
 
-        public Builder subtopic(String value) {
+        public Builder subtopic(final String[] value) {
             this.subtopic = value;
             return this;
         }
@@ -124,7 +124,7 @@ public enum Capability {
         private String origin;
         private String operator;
         private String topic;
-        private String subtopic;
+        private String[] subtopic;
 
         private Worker() {
         }
@@ -139,22 +139,22 @@ public enum Capability {
                     toString();
         }
 
-        public Worker origin(String value) {
+        public Worker origin(final String value) {
             this.origin = value;
             return this;
         }
 
-        public Worker operator(String value) {
+        public Worker operator(final String value) {
             this.operator = value;
             return this;
         }
 
-        public Worker topic(String value) {
+        public Worker topic(final String value) {
             this.topic = value;
             return this;
         }
 
-        public Worker subtopic(String value) {
+        public Worker subtopic(final String[] value) {
             this.subtopic = value;
             return this;
         }
@@ -179,14 +179,14 @@ public enum Capability {
                 try {
                     final Item.Key key = builder.buildKey();
 
-                    if (relation.relMap.containsKey(key)) {
-                        final Item item = relation.relMap.get(key);
+                    if (relation.mapTopic.containsKey(key)) {
+                        final Item item = relation.mapTopic.get(key);
                         item.update();
                         PLogger.STORE_CAPABILITY_DML.debug("updated item=[{}]", item);
                         return 1;
                     } else {
                         final Item item = builder.buildItem();
-                        relation.relMap.put(key, item);
+                        relation.mapTopic.put(key, item);
                         PLogger.STORE_CAPABILITY_DML.debug("inserted item=[{}]", item);
                         return 1;
                     }
@@ -220,7 +220,7 @@ public enum Capability {
                 try {
                     final Item.Key key = builder.buildKey();
 
-                    final Item item = relation.relMap.get(key);
+                    final Item item = relation.mapTopic.get(key);
                     if (item == null) {
                         PLogger.STORE_CAPABILITY_DML.debug("updated cap=[{}]", this);
                         return -1;
@@ -248,7 +248,7 @@ public enum Capability {
             public final String origin;
             public final String operator;
             public final String topic;
-            public final String subtopic;
+            public final String[] subtopic;
 
             final private int hashCode;
 
@@ -297,8 +297,13 @@ public enum Capability {
                     return false;
                 if (!TextUtils.equals(this.topic, that.topic))
                     return false;
-                if (!TextUtils.equals(this.subtopic, that.subtopic))
+                if (this.subtopic.length != that.subtopic.length)
                     return false;
+                final int length = this.subtopic.length;
+                for (int ix = 0; ix < length; ++ix) {
+                    if (!TextUtils.equals(this.subtopic[ix], that.subtopic[ix]))
+                        return false;
+                }
                 return true;
             }
 
@@ -424,7 +429,7 @@ public enum Capability {
     }
 
     public static Collection<Item> queryAll() {
-        return Capability.INSTANCE.relMap.values();
+        return Capability.INSTANCE.mapTopic.values();
     }
 
 }

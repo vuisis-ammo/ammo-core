@@ -34,6 +34,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
 import android.provider.BaseColumns;
 import android.text.TextUtils;
+import edu.vu.isis.ammo.api.type.Topic;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
 import edu.vu.isis.ammo.core.distributor.store.InvitationMap;
 import edu.vu.isis.ammo.core.distributor.store.InvitationMap.Worker;
@@ -272,6 +273,8 @@ public class DistributorDataStore {
      * distribution of the request across the relevant channels.
      */
     public enum DisposalState {
+        /** deleted, rescinded, cancelled */
+        CANCELLED(0x0000, "cancelled"), 
         /** an initial transient state */
         NEW(0x0001, "new"),
         /** channel is temporarily rejecting req (probably down) */
@@ -286,12 +289,11 @@ public class DistributorDataStore {
         BUSY(0x0100, "full"),
         /** message has been sent synchronously */
         SENT(0x0010, "sent"),
-        /**
-         * message sent asynchronously, with an expectation of an acknowledgment
-         */
+        /** message sent asynchronously, with an expectation of an acknowledgment */
         TOLD(0x0020, "told"),
         /** async (told) message acknowledged */
-        DELIVERED(0x0040, "delivered"), ;
+        DELIVERED(0x0040, "delivered");
+
 
         final public int o;
         final public String t;
@@ -556,7 +558,7 @@ public class DistributorDataStore {
          * the only allowed delimiter, thus all alternatives are immediately
          * rejected.
          */
-        SUBTOPIC("topic", "TEXT"),
+        SUBTOPIC("subtopic", "TEXT"),
 
         /**
          * This specifies a forced channel be used and no other. NULL indicates
@@ -697,7 +699,7 @@ public class DistributorDataStore {
          * the only allowed delimiter, thus all alternatives are immediately
          * rejected.
          */
-        SUBTOPIC("topic", "TEXT"),
+        SUBTOPIC("subtopic", "TEXT"),
 
         /**
          * This is a unique identifier for the request as specified by the
@@ -852,7 +854,7 @@ public class DistributorDataStore {
          * the only allowed delimiter, thus all alternatives are immediately
          * rejected.
          */
-        SUBTOPIC("topic", "TEXT"),
+        SUBTOPIC("subtopic", "TEXT"),
 
         /** The application UUID for the request */
         AUID("auid", "TEXT"),
@@ -1235,8 +1237,8 @@ public class DistributorDataStore {
         return null;
     }
 
-    public synchronized Cursor queryRetrievalByKey(String[] projection, String uuid, String topic,
-            String sortOrder) {
+    public synchronized Cursor queryRetrievalByKey(final String[] projection, final String uuid, 
+            final String topic, final String[] subtopic, final String sortOrder) {
         try {
             final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
@@ -1246,7 +1248,7 @@ public class DistributorDataStore {
             // Get the database and run the query.
             final SQLiteDatabase db = this.helper.getReadableDatabase();
             return qb.query(db, projection, RETRIEVAL_QUERY, new String[] {
-                    uuid, topic
+                    uuid, topic, 
             }, null, null,
                     (!TextUtils.isEmpty(sortOrder)) ? sortOrder
                             : RetrievalTable.DEFAULT_SORT_ORDER);
@@ -1323,8 +1325,8 @@ public class DistributorDataStore {
         return null;
     }
 
-    public synchronized Cursor querySubscribeByKey(String[] projection,
-            String topic, String sortOrder) {
+    public synchronized Cursor querySubscribeByKey(final String[] projection,
+            final String topic, final String[] subtopic, final String sortOrder) {
         try {
             final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
@@ -1346,6 +1348,8 @@ public class DistributorDataStore {
 
     static private final String SUSCRIBE_QUERY = new StringBuilder()
             .append(SubscribeTableSchema.TOPIC.q()).append("=?")
+            .append(" AND ")
+            .append(SubscribeTableSchema.SUBTOPIC.q()).append("=?")
             .toString();
 
     public synchronized Cursor querySubscribeReady() {
@@ -1509,7 +1513,7 @@ public class DistributorDataStore {
 
             final long key;
             final String[] updateArgs = new String[] {
-                    uuid, topic, provider
+                    uuid, topic, subtopic, provider
             };
             if (0 < this.db.update(Relations.RETRIEVAL.n, cv, RETRIEVAL_UPDATE_CLAUSE, updateArgs)) {
                 final Cursor cursor = this.db.query(Relations.RETRIEVAL.n,
@@ -2602,6 +2606,34 @@ public class DistributorDataStore {
     public int deleteCapability() {
         // TODO Auto-generated method stub
         return 0;
+    }
+    
+    static final String SUBTOPIC_DELIMITER = "[|]";
+
+    public static String encodeFromStringArray(final String[] subtopic) {
+
+        final StringBuilder sb = new StringBuilder();
+        for (final String sub : subtopic) {
+            sb.append(SUBTOPIC_DELIMITER).append(sub);
+        }
+        return sb.toString();
+    }
+
+    public static String encodeFromArray(final Topic[] subtopic) {
+
+        final StringBuilder sb = new StringBuilder();
+        for (final Topic sub : subtopic) {
+            sb.append(SUBTOPIC_DELIMITER).append(sub);
+        }
+        return sb.toString();
+    }
+
+    public static String[] decodeToStringArray(final String subtopic) {
+        if (subtopic.length() < 3)
+            return null;
+
+        final String delimiter = subtopic.substring(0, 3);
+        return subtopic.split(delimiter);
     }
 
 }

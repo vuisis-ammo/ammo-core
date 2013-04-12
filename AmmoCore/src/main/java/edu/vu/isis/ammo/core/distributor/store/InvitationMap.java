@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -21,7 +22,10 @@ import edu.vu.isis.ammo.api.type.Notice;
 import edu.vu.isis.ammo.api.type.Topic;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.Dispersal;
+import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.distributor.store.Presence.Worker;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.SubtopicInvitation.Invitee;
 import edu.vu.isis.ammo.core.provider.InviteSchema;
 
 /**
@@ -41,6 +45,7 @@ public enum InvitationMap {
     private final Map<Invitation.Key, Invitation> mapTopic;
     private final Map<UUID, Invitation> mapUuid;
     private final ConcurrentLinkedQueue<Invitation> toSendQueue;
+
     public ConcurrentLinkedQueue<Invitation> toSendQueue() {
         return this.toSendQueue;
     }
@@ -202,6 +207,15 @@ public enum InvitationMap {
             this.invitee = value;
             return this;
         }
+        
+
+        public Worker invitee(List<Invitee> value) {
+            final Map<String,Object> invited = new HashMap<String, Object>(value.size());
+            for (final Invitee entry : value) {
+                invited.put(entry.getName(), null);
+            }
+            return this;
+        }
 
         /**
          * upsert the tuple indicated use the key to determine if the item is
@@ -210,7 +224,7 @@ public enum InvitationMap {
          * @return
          */
         public long upsert() {
-            PLogger.STORE_CAPABILITY_DML.trace("upsert invitation: device=[{}] @ {}", this);
+            PLogger.STORE_INVITATION_DML.trace("upsert invitation: device=[{}] @ {}", this);
             final InvitationMap relation = InvitationMap.INSTANCE;
             synchronized (relation) {
 
@@ -234,9 +248,7 @@ public enum InvitationMap {
                     }
 
                 } catch (IllegalArgumentException ex) {
-                    logger.error("update capablity", ex);
-                } finally {
-                    // this.db.endTransaction();
+                    logger.error("update invitation", ex);
                 }
                 return -1;
             }
@@ -249,37 +261,32 @@ public enum InvitationMap {
          * @return
          */
         public int delete() {
-            PLogger.STORE_CAPABILITY_DML.trace("delete invitation: device=[{}] @ {}",
+            PLogger.STORE_INVITATION_DML.trace("delete invitation: device=[{}] @ {}",
                     this);
             final InvitationMap relation = InvitationMap.INSTANCE;
             synchronized (relation) {
 
-                final Builder builder = newBuilder()
-                        .topic(this.topic)
-                        .subtopic(this.subtopic);
                 try {
-                    final Invitation.Key key = builder.buildKey();
+                    final Invitation.Key key = newBuilder()
+                            .topic(this.topic)
+                            .subtopic(this.subtopic)
+                            .buildKey();
 
-                    final Invitation item = relation.mapTopic.get(key);
-                    if (item == null) {
-                        PLogger.STORE_CAPABILITY_DML.debug("updated cap=[{}]", this);
+                    final Invitation invitation = relation.mapTopic.remove(key);
+                    if (invitation == null) {
+                        PLogger.STORE_INVITATION_DML.debug("deleted invite=[{}]", this);
                         return -1;
                     }
-                    item.update();
+                    invitation.setState(DistributorDataStore.DisposalState.CANCELLED);
+                    relation.mapUuid.remove(invitation.key.uuid);
+
                 } catch (IllegalArgumentException ex) {
-                    logger.error("update capablity", ex);
-                } finally {
-                    // this.db.endTransaction();
+                    logger.error("deleting invitation", ex);
                 }
                 return -1;
             }
         }
 
-    }
-
-    public int delete(String topic, String[] subtopic) {
-        final Invitation.Key key = newBuilder().topic(topic).subtopic(subtopic).buildKey();
-        return 0;
     }
 
     /**
@@ -377,9 +384,11 @@ public enum InvitationMap {
             this.enqueue();
             return oldState;
         }
-        
+
         public void enqueue() {
             switch (this.disposition.get()) {
+                case CANCELLED:
+                    break;
                 case NEW:
                     InvitationMap.INSTANCE.toSendQueue.offer(this);
                     break;
@@ -400,6 +409,8 @@ public enum InvitationMap {
                 case SENT:
                     break;
                 case TOLD:
+                    break;
+                default:
                     break;
             }
         }
@@ -485,33 +496,7 @@ public enum InvitationMap {
         return InvitationMap.INSTANCE.mapTopic.values();
     }
 
-    static final String SUBTOPIC_DELIMITER = "[|]";
-
-    public static String encodeFromStringArray(final String[] subtopic) {
-
-        final StringBuilder sb = new StringBuilder();
-        for (final String sub : subtopic) {
-            sb.append(SUBTOPIC_DELIMITER).append(sub);
-        }
-        return sb.toString();
-    }
-
-    public static String encodeFromArray(final Topic[] subtopic) {
-
-        final StringBuilder sb = new StringBuilder();
-        for (final Topic sub : subtopic) {
-            sb.append(SUBTOPIC_DELIMITER).append(sub);
-        }
-        return sb.toString();
-    }
-
-    public static String[] decodeToStringArray(final String subtopic) {
-        if (subtopic.length() < 3)
-            return null;
-
-        final String delimiter = subtopic.substring(0, 3);
-        return subtopic.split(delimiter);
-    }
+  
 
     public static enum Select {
         /** topic + subtopic */
@@ -523,5 +508,7 @@ public enum InvitationMap {
         // TODO determine which expired invitations to remove.
         return 0;
     }
+    
+    
 
 }
