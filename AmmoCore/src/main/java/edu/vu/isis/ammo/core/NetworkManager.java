@@ -341,10 +341,12 @@ public enum NetworkManager  implements INetworkService,
         this.policy();
 
         this.globalSettings = new Settings(context);
+        logger.trace( "registered pref change listener for global settings" );
         this.globalSettings
                 .registerOnSharedPreferenceChangeListener(this.pantherPreferenceChangeListener);
 
         this.localSettings = PreferenceManager.getDefaultSharedPreferences(this.context);
+        logger.trace( "registered pref change listener for local settings" );
         this.localSettings
                 .registerOnSharedPreferenceChangeListener(this.ammoPreferenceChangeListener);
 
@@ -473,6 +475,7 @@ public enum NetworkManager  implements INetworkService,
      * their subscriptions.
      */
     void refresh() {
+        logger.trace( "::refresh()" );
         logger.trace("Forcing applications to register their subscriptions");
 
         this.distThread.clearTables();
@@ -544,7 +547,7 @@ public enum NetworkManager  implements INetworkService,
      * @return the selected value
      */
     private String aggregatePref(final String key, final String def) {
-        logger.trace("AggregatePref called: key={}", key);
+        logger.trace("aggregatePref() called: key={}", key);
         final String local = this.localSettings.getString(key, def);
         final String global = this.globalSettings.getString(key, local);
 
@@ -554,18 +557,18 @@ public enum NetworkManager  implements INetworkService,
         if (global == null) {
             return null;
         }
-        logger.trace("Committing preferences for key={} value={}", key, global);
+        logger.trace("Committing local preferences for key={} value={}", key, global);
         final boolean success = this.localSettings.edit()
                 .putString(key, global)
                 .commit();
         if (!success) {
-            logger.error("cannot aggregate local setting {}", key);
+            logger.error("cannot aggregate local preference {}", key);
         }
         return global;
     }
 
     private Boolean aggregatePref(final String key, final boolean def) {
-        logger.trace("AggregatePref called: key={}", key);
+        logger.trace("aggregatePref() called: key={}", key);
         final Boolean local = this.localSettings.getBoolean(key, def);
         final Boolean global = Boolean.parseBoolean(this.globalSettings.getString(key,
                 String.valueOf(local)));
@@ -576,17 +579,18 @@ public enum NetworkManager  implements INetworkService,
         if (global == null) {
             return null;
         }
-        logger.trace("Committing preferences for key={} value={}", key, global);
+        logger.trace("Committing local preferences for key={} value={}", key, global);
         final boolean success = this.localSettings.edit()
                 .putBoolean(key, global)
                 .commit();
         if (!success) {
-            logger.error("cannot aggregate local setting {}", key);
+            logger.error("cannot aggregate local preference {}", key);
         }
         return global;
     }
 
     private String updatePref(final String key, final String def) {
+        logger.trace("updatePref() called: key={}", key);
         final String global = this.globalSettings.getString(key, def);
         final String local = this.localSettings.getString(key, def);
         if (this.localSettings.contains(key) && (local != null) && local.equals(global)) {
@@ -595,16 +599,18 @@ public enum NetworkManager  implements INetworkService,
         if (global == null) {
             return null;
         }
+        logger.trace("Committing local preferences for key={} value={}", key, global);
         final boolean success = this.localSettings.edit()
                 .putString(key, global)
                 .commit();
         if (!success) {
-            logger.error("cannot update local setting {}", key);
+            logger.error("cannot update local preference {}", key);
         }
         return global;
     }
 
     private Boolean updatePref(final String key, final boolean def) {
+        logger.trace("updatePref() called: key={}", key);
         final Boolean global = Boolean.parseBoolean(this.globalSettings.getString(key,
                 String.valueOf(def)));
         final Boolean local = this.localSettings.getBoolean(key, def);
@@ -614,16 +620,18 @@ public enum NetworkManager  implements INetworkService,
         if (global == null) {
             return null;
         }
+        logger.trace("Committing local preferences for key={} value={}", key, global);
         final boolean success = this.localSettings.edit()
                 .putBoolean(key, global)
                 .commit();
         if (!success) {
-            logger.error("cannot update local setting {}", key);
+            logger.error("cannot update local preference {}", key);
         }
         return global;
     }
 
     private Integer updatePref(final String key, final int def) {
+        logger.trace("updatePref() called: key={}", key);
         final String defStr = String.valueOf(def);
         final Integer global = Integer.parseInt(this.globalSettings.getString(key, defStr));
         final Integer local = Integer.parseInt(this.localSettings.getString(key, defStr));
@@ -633,11 +641,12 @@ public enum NetworkManager  implements INetworkService,
         if (global == null) {
             return null;
         }
+        logger.trace("Committing local preferences for key={} value={}", key, global);
         final boolean success = this.localSettings.edit()
                 .putString(key, String.valueOf(global))
                 .commit();
         if (!success) {
-            logger.error("cannot update local setting {}", key);
+            logger.error("cannot update local preference {}", key);
         }
         return global;
     }
@@ -646,7 +655,7 @@ public enum NetworkManager  implements INetworkService,
      * Read the system preferences for the network connection information.
      */
     void acquirePreferences() {
-        logger.trace("::acquirePreferences");
+        logger.trace("::acquirePreferences()");
 
         this.networkingSwitch = this.localSettings
                 .getBoolean(INetDerivedKeys.NET_CONN_PREF_SHOULD_USE,
@@ -775,34 +784,42 @@ public enum NetworkManager  implements INetworkService,
         /*
          * SerialChannel
          */
+        logger.trace( "serial: setting isSerialSuppressed" );
         this.isSerialSuppressed = this
                 .aggregatePref(INetPrefKeys.SERIAL_DISABLED,
                         INetPrefKeys.DEFAULT_SERIAL_ENABLED);
 
+        logger.trace( "serial: setting device" );
         this.serialChannel.setDevice(this.localSettings
                 .getString(INetPrefKeys.SERIAL_DEVICE,
                         INetPrefKeys.DEFAULT_SERIAL_DEVICE));
 
+        logger.trace( "serial: setting baudrate" );
         this.serialChannel.setBaudRate(Integer.parseInt(this.localSettings
                 .getString(INetPrefKeys.SERIAL_BAUD_RATE,
                         String.valueOf(INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE))));
 
+        logger.trace( "serial: setting slot number" );
         this.serialChannel.setSlotNumber(Integer.parseInt(this
                 .aggregatePref(INetPrefKeys.SERIAL_SLOT_NUMBER,
                         String.valueOf(INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER))));
 
+        logger.trace( "serial: setting radios in group" );
         serialChannel.setRadiosInGroup(Integer.parseInt(this
                 .aggregatePref(INetPrefKeys.SERIAL_RADIOS_IN_GROUP,
                         String.valueOf(INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP))));
 
+        logger.trace( "serial: setting slot duration" );
         serialChannel.setSlotDuration(Integer.parseInt(this.localSettings
                 .getString(INetPrefKeys.SERIAL_SLOT_DURATION,
                         String.valueOf(INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION))));
 
+        logger.trace( "serial: setting transmit duration" );
         serialChannel.setTransmitDuration(Integer.parseInt(this.localSettings
                 .getString(INetPrefKeys.SERIAL_TRANSMIT_DURATION,
                         String.valueOf(INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION))));
 
+        logger.trace( "serial: setting sender enabled" );
         serialChannel.setSenderEnabled(this.localSettings
                 .getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED,
                         INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED));
@@ -956,36 +973,43 @@ public enum NetworkManager  implements INetworkService,
                     // Serial port
                     //
                     else if (key.equals(INetPrefKeys.SERIAL_DISABLED)) {
+                        logger.trace( "serial: setting isSerialSuppressed" );
                         final boolean active = parent.updatePref(key, parent.isSerialSuppressed);
                         PLogger.SET_PANTHR_SERIAL.debug("suppress[{} -> {}]",
                                 parent.isSerialSuppressed, active);
                     }
                     else if (key.equals(INetPrefKeys.SERIAL_DEVICE)) {
+                        logger.trace( "serial: setting device" );
                         final String prev = parent.deviceId;
                         final String device = parent.updatePref(key, prev);
                         PLogger.SET_PANTHR_SERIAL.debug("device[{} -> {}]", prev, device);
                     }
                     else if (key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
+                        logger.trace( "serial: setting baud rate" );
                         final int prev = INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE;
                         final int baud = parent.updatePref(key, prev);
                         PLogger.SET_PANTHR_SERIAL.debug("baud[{} -> {}]", prev, baud);
                     }
                     else if (key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
+                        logger.trace( "serial: setting slot number" );
                         final int prev = INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER;
                         final int slot = parent.updatePref(key, prev);
                         PLogger.SET_PANTHR_SERIAL.debug("slot[{} -> {}]", prev, slot);
                     }
                     else if (key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP)) {
+                        logger.trace( "serial: setting radios in group" );
                         final int prev = INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP;
                         final int count = parent.updatePref(key, prev);
                         PLogger.SET_PANTHR_SERIAL.debug("slot$[{} -> {}]", prev, count);
                     }
                     else if (key.equals(INetPrefKeys.SERIAL_SLOT_DURATION)) {
+                        logger.trace( "serial: setting slot duration" );
                         final int prev = INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION;
                         final int duration = parent.updatePref(key, prev);
                         PLogger.SET_PANTHR_SERIAL.debug("slot@[{} -> {}]", prev, duration);
                     }
                     else if (key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION)) {
+                        logger.trace( "serial: setting transmit duration" );
                         final int prev = INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION;
                         final int xmit = parent.updatePref(key, prev);
                         PLogger.SET_PANTHR_SERIAL.debug("slots%[{} -> {}]", prev, xmit);
@@ -1178,40 +1202,51 @@ public enum NetworkManager  implements INetworkService,
                         // Serial port
                         //
                         else if (key.equals(INetPrefKeys.SERIAL_DEVICE)) {
+                            logger.trace( "serial: setting device" );
                             serialChannel.setDevice(prefs.getString(key,
                                     INetPrefKeys.DEFAULT_SERIAL_DEVICE));
                         }
                         else if (key.equals(INetPrefKeys.SERIAL_BAUD_RATE)) {
+                            logger.trace( "serial: setting baud rate" );
                             serialChannel.setBaudRate(Integer.parseInt(prefs.getString(key,
                                     String.valueOf(INetPrefKeys.DEFAULT_SERIAL_BAUD_RATE))));
                         }
                         else if (key.equals(INetPrefKeys.SERIAL_SLOT_NUMBER)) {
+                            logger.trace( "serial: setting slot number" );
                             serialChannel.setSlotNumber(Integer.parseInt(prefs.getString(key,
                                     String.valueOf(INetPrefKeys.DEFAULT_SERIAL_SLOT_NUMBER))));
                         }
                         else if (key.equals(INetPrefKeys.SERIAL_RADIOS_IN_GROUP)) {
+                            logger.trace( "serial: setting radios in group" );
                             serialChannel.setRadiosInGroup(Integer.parseInt(prefs.getString(key,
                                     String.valueOf(INetPrefKeys.DEFAULT_SERIAL_RADIOS_IN_GROUP))));
                         }
                         else if (key.equals(INetPrefKeys.SERIAL_SLOT_DURATION)) {
+                            logger.trace( "serial: setting slot duration" );
                             serialChannel.setSlotDuration(Integer.parseInt(prefs.getString(key,
                                     String.valueOf(INetPrefKeys.DEFAULT_SERIAL_SLOT_DURATION))));
                         }
                         else if (key.equals(INetPrefKeys.SERIAL_TRANSMIT_DURATION)) {
+                            logger.trace( "serial: setting transmit duration" );
                             serialChannel
                                     .setTransmitDuration(Integer.parseInt(prefs.getString(
                                             key,
                                             String.valueOf(INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION))));
                         }
                         else if (key.equals(INetPrefKeys.SERIAL_SEND_ENABLED)) {
+                            logger.trace( "serial: setting send enabled" );
                             serialChannel.setSenderEnabled(prefs.getBoolean(key,
                                     !INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED));
                         }
                         else if (key.equals(INetPrefKeys.SERIAL_DISABLED)) {
-                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_ENABLED))
+                            logger.trace( "serial: setting channel " );
+                            if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_SERIAL_ENABLED)) {
+                                logger.trace( "serial: setting channel disabled" );
                                 parent.serialChannel.disable();
-                            else
+                            } else {
+                                logger.trace( "serial: setting channel enabled" );
                                 parent.serialChannel.enable();
+                            }
                         }
                         else {
                             logger.warn("shared preference key {} is unknown", key);
@@ -1716,6 +1751,7 @@ public enum NetworkManager  implements INetworkService,
 	}
 
 	public void reloadGlobalSettings() {
+        logger.trace( "::reloadGlobalSettings()" );
 		this.globalSettings.reload();
 	}
 }
