@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" android:versionCode="1008000" android:versionName="1.8.0-SNAPSHOT" package="edu.vu.isis.ammo.test.ics">
+
+    <uses-sdk android:minSdkVersion="11" android:targetSdkVersion="17"/>
+
+    <application android:allowBackup="true" android:icon="@drawable/ic_launcher" android:label="@string/app_name" android:theme="@style/AppTheme">
+        <activity android:label="@string/app_name" android:name="edu.vu.isis.ammo.test.ics.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity android:exported="false" android:label="@string/title_activity_about" android:name="edu.vu.isis.ammo.test.ics.AboutActivity">
+        </activity>
+        <activity android:exported="false" android:label="@string/title_activity_global_settings" android:name="edu.vu.isis.ammo.test.ics.GlobalSettingsActivity">
+        </activity>
+        
+        <activity android:exported="false" android:label="@string/title_activity_receiver" android:name="edu.vu.isis.ammo.test.ics.ReceiverActivity">
+        </activity>
+        
+        <activity android:exported="false" android:label="Test Setup" android:name="edu.vu.isis.ammo.test.ics.TestSetupActivity2">
+        </activity>
+        
+        <!-- Providers -->
+        <provider android:authorities="edu.vu.isis.ammo.test.ics.provider.ammotestdriverprovider" android:name="edu.vu.isis.ammo.test.ics.provider.AmmotestdriverProvider">
+        </provider>
+        
+        <!-- Services -->
+        <service android:enabled="true" android:name="edu.vu.isis.ammo.test.ics.TestService">
+            <intent-filter>
+                <action android:name="edu.vu.isis.ammo.test.ics.TestService.START_TEST"/>
+                <action android:name="edu.vu.isis.ammo.test.ics.TestService.STOP_RUNNING_TEST"/>
+                <action android:name="edu.vu.isis.ammo.test.ics.TestService.TEST_STATUS"/>
+                <action android:name="edu.vu.isis.ammo.test.ics.TestService.QUICK_TEST"/>
+                <action android:name="edu.vu.isis.ammo.test.ics.TestService.ADD_TEST"/>
+            </intent-filter>
+            
+        </service>
+        
+    </application>
+
+</manifest>

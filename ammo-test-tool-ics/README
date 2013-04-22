@@ -1,0 +1,32 @@
+
+Send an intent to remotely control tests:
+
+Actions:
+
+edu.vu.isis.ammo.test.ics.TestService.START_TEST
+	Extras:  (optional - defaults to values in shared prefs)
+	"name" (string) - set the test name
+	"duration" (string/long) - set the test duration, in minutes
+	"delay" (string/long) - set the msg delay, in milliseconds
+
+edu.vu.isis.ammo.test.ics.TestService.STOP_RUNNING_TEST
+
+edu.vu.isis.ammo.test.ics.TestService.TEST_STATUS
+
+edu.vu.isis.ammo.test.ics.TestService.QUICK_TEST
+
+edu.vu.isis.ammo.test.ics.TestService.ADD_TEST
+
+
+
+
+EXAMPLE:
+adb shell am startservice -a edu.vu.isis.ammo.test.ics.TestService.START_TEST \
+--es "name" "Frobozz3" \
+--es "delay" "900" \
+--es "duration" "2"
+
+adb shell am startservice -a edu.vu.isis.ammo.test.ics.TestService.FLAP_ACTION \
+--es "status" "sent" \
+--es "what" "yes"
+

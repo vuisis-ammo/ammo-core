@@ -66,7 +66,7 @@ public class UniqueIdentifiers {
                 .getMacAddress();
         final String macCode = (macAddr != null) ? macAddr : "null";
 
-        UUID deviceUuid = new UUID(
+        final UUID deviceUuid = new UUID(
                 ((long) androidId.hashCode() << 32) | macCode.hashCode(),
                 ((long) device.hashCode() << 32) | serial.hashCode());
         return "ammo:" + deviceUuid.toString();

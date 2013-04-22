@@ -19,7 +19,7 @@
         tarball. Otherwise, the tarball will be created with the
         default version being 0 (e.g. Gateway.0.tar.gz) -->
 
-    <property name="android.target" value="android-8"/>
+    <property name="android.target" value="android-17"/>
 
     <!--property name="project" value="${ant.project.name}"/-->
     <property name="build" value="build"/>

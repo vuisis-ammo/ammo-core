@@ -220,7 +220,7 @@ public enum NetworkManager  implements INetworkService,
             this.updatePref(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
             logger.warn("no device specified, generating: [{}]", this.deviceId);
         }
-        return deviceId;
+        return this.deviceId;
     }
 
     private NetworkBroadcastReceiver myNetworkReceiver = null;

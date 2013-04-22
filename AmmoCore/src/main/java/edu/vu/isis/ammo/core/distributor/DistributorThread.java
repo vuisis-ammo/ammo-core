@@ -1542,10 +1542,11 @@ public class DistributorThread extends Thread {
             at = resp.getThresholds();
             originUser = resp.getUserId();
             originDevice = resp.getOriginDevice();
-            originUid = resp.getUri(); // SKN: URI is really UID
+            // URI is intended to be a unique id
+            originUid = resp.getUri(); 
 
             if (originDevice.equals(selfDevice)) {
-                logger.error("received own device message [{}:{}]",
+                logger.info("received own device message [{}:{}]",
                         originDevice, selfDevice);
                 // FIXME return false;
                 // Apparently the unique device identifies are not unique.
