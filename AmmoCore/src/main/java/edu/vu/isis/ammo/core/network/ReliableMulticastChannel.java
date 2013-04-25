@@ -536,6 +536,7 @@ public class ReliableMulticastChannel extends NetChannel {
             this.state = new State();
             mIsConnected = new AtomicBoolean(false);
         }
+        
 
         private class State {
             private int value;
@@ -850,6 +851,8 @@ public class ReliableMulticastChannel extends NetChannel {
                 logger.warn("connection to {}:{} failed: ", new Object[] {
                         parent.mMulticastGroup, parent.mMulticastPort
                 }, ex);
+                parent.mJGroupChannel.disconnect();
+                parent.mJGroupChannel.close();
                 parent.mJGroupChannel = null;
                 return false;
             }
@@ -918,6 +921,7 @@ public class ReliableMulticastChannel extends NetChannel {
                 // an interruptible datagram socket.
                 if (parent.mJGroupChannel != null) {
                     logger.debug("Closing ReliableMulticastSocket.");
+                    parent.mJGroupChannel.disconnect();
                     parent.mJGroupChannel.close(); // will disconnect first if
                                                    // still connected
                     logger.debug("Done");

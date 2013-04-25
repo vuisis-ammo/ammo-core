@@ -1599,37 +1599,22 @@ public enum NetworkManager  implements INetworkService,
                     switch (state) {
                         case AmmoIntents.LINK_UP:
                             logger.debug("onReceive: Link UP {}", action);
-                            tcpChannel.linkUp(null);
-                            multicastChannel.linkUp(null);
-                            reliableMulticastChannel.linkUp(null);
-                            tcpMediaChannel.linkUp(null);
-                            for (NetChannel channel : NetworkManager.this.registeredChannels) {
-                                channel.linkUp(null);
-                            }
+                            startChannels();
 
                             break;
                         case AmmoIntents.LINK_DOWN:
                             logger.debug("onReceive: Link DOWN {}", action);
-                            tcpChannel.linkDown(null);
-                            tcpMediaChannel.linkDown(null);
-                            multicastChannel.linkDown(null);
-                            reliableMulticastChannel.linkDown(null);
-                            for (NetChannel channel : NetworkManager.this.registeredChannels) {
-                                channel.linkDown(null);
-                            }
+                            stopChannels();
                             break;
                     }
                 }
 
-                // This intent comes in for both wired and wifi.
-                mNetlinks.get(linkTypes.WIRED.value).updateStatus();
-                mNetlinks.get(linkTypes.WIFI.value).updateStatus();
+                // sets the netlink status which channels monitor
+                updateNetLinkStatus(state);
                 
-             // if this is not for wifi it has to be wired .. bad logic maybe but no other choice now 
-                if (mNetlinks.get(linkTypes.WIFI.value).isLinkUp() == false) 
-                  mNetlinks.get(linkTypes.WIRED.value).setLinkUp(true);
-                
+                // broadcast intent about network change 
                 netlinkStatusChanged();
+                
             } else if (AmmoIntents.ACTION_SERIAL_LINK_CHANGE.equals(action)) {
                 int state = aIntent.getIntExtra("state", 0);
                 String devname = aIntent.getStringExtra("devname");
@@ -1666,6 +1651,46 @@ public enum NetworkManager  implements INetworkService,
             // }
 
             return;
+        }
+
+        private void stopChannels() {
+          
+          tcpChannel.linkDown(null);
+          tcpMediaChannel.linkDown(null);
+          multicastChannel.linkDown(null);
+          reliableMulticastChannel.linkDown(null);
+          
+          for (NetChannel channel : NetworkManager.this.registeredChannels) {
+              channel.linkDown(null);
+          }
+        }
+
+        private void startChannels() {
+          
+          tcpChannel.linkUp(null);
+          multicastChannel.linkUp(null);
+          reliableMulticastChannel.linkUp(null);
+          tcpMediaChannel.linkUp(null);
+          
+          for (NetChannel channel : NetworkManager.this.registeredChannels) {
+              channel.linkUp(null);
+          }
+        }
+
+        private void updateNetLinkStatus(int networkState) {
+          // This intent comes in for both wired and wifi.
+          mNetlinks.get(linkTypes.WIRED.value).updateStatus();
+          mNetlinks.get(linkTypes.WIFI.value).updateStatus();
+          
+          if (networkState == AmmoIntents.LINK_UP) {
+            // if this is not for wifi it has to be wired .. bad logic maybe but no other choice now 
+            if (mNetlinks.get(linkTypes.WIFI.value).isLinkUp() == false) 
+              mNetlinks.get(linkTypes.WIRED.value).setLinkUp(true);
+            
+          }
+          else if (networkState == AmmoIntents.LINK_DOWN) 
+            mNetlinks.get(linkTypes.WIRED.value).setLinkUp(false);            
+          
         }
     }
 
