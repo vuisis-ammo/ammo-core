@@ -775,6 +775,10 @@ public enum NetworkManager  implements INetworkService,
                 .getString(INetPrefKeys.RELIABLE_MULTICAST_TTL,
                         String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL)));
 
+        int reliableMulticastFragDelay = Integer.parseInt(this.localSettings
+                .getString(INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY,
+                        String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_FRAG_DELAY)));
+
         this.reliableMulticastChannel.setHost(reliableMulticastHost);
         this.reliableMulticastChannel.setPort(reliableMulticastPort);
         this.reliableMulticastChannel.setFlatLineTime(reliableMulticastFlatLine);
@@ -1197,6 +1201,12 @@ public enum NetworkManager  implements INetworkService,
                                     key,
                                     String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL)));
                             parent.reliableMulticastChannel.setTTL(ttl);
+                        }
+                        else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY)) {
+                            int frag_delay = Integer.parseInt(prefs.getString(
+                                    key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_FRAG_DELAY)));
+                            parent.reliableMulticastChannel.setFragDelay(frag_delay);
                         }
 
                         //
