@@ -683,12 +683,12 @@ public class DistributorThread extends Thread {
                             final AmmoRequest ar = this.requestQueue.take();
                             logger.info("processing request uuid {}, remaining {}", ar.uuid,
                                     this.requestQueue.size());
-                            //reqLogger.info(PLogger.TEST_QUEUE_FORMAT,
-                            //                System.currentTimeMillis(), 
-                            //                "request_queue",
-                            //                this.requestQueue.size(),
-                            //                currentTime - ar.buildTime
-                            //        );
+                            reqLogger.info(PLogger.TEST_QUEUE_FORMAT,
+                                            System.currentTimeMillis(), 
+                                            "request_queue",
+                                            this.requestQueue.size(),
+                                            currentTime - ar.buildTime
+                                    );
                             PLogger.QUEUE_REQ_EXIT.trace(PLogger.QUEUE_FORMAT,
                                             this.requestQueue.size(), ar.uuid, "n/a", ar
                                     );
