@@ -112,7 +112,6 @@ public class DistributorThread extends Thread {
     private static final Marker MARK_INVITE = MarkerFactory.getMarker("invite");
     private static final Marker MARK_RETRIEVAL = MarkerFactory.getMarker("retrieval");
     private static final Marker MARK_SUBSCRIBE = MarkerFactory.getMarker("subscribe");
-   
 
     // 20 seconds expressed in milliseconds
     private static final int BURP_TIME = 20 * 1000;
@@ -1491,13 +1490,14 @@ public class DistributorThread extends Thread {
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
                         System.currentTimeMillis() - now, serialized.length);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                // does App need an Ack ?
                 agmb.needAck(notice.atDeviceDelivered.getVia().isActive() ||
                         notice.atGatewayDelivered.getVia().isActive() ||
-                        notice.atPluginDelivered.getVia().isActive()) // does
-                                                                      // App
-                                                                      // need an
-                                                                      // Ack
+                        notice.atPluginDelivered.getVia().isActive())
                         .uuid(uuid);
+                agmb.topic(topic);
+                agmb.subtopic(subtopic);
+
                 return agmb.build();
             }
         });
@@ -1543,7 +1543,7 @@ public class DistributorThread extends Thread {
             originUser = resp.getUserId();
             originDevice = resp.getOriginDevice();
             // URI is intended to be a unique id
-            originUid = resp.getUri(); 
+            originUid = resp.getUri();
 
             if (originDevice.equals(selfDevice)) {
                 logger.info("received own device message [{}:{}]",
@@ -1882,15 +1882,15 @@ public class DistributorThread extends Thread {
      * 
      * @param that
      * @param provider
-     * @param msgType
+     * @param topic
      * @param subtopic
      * @param data
      * @param handler
      * @return
      */
     private Dispersal dispatchInviteRequest(final NetworkManager that,
-            final Notice notice, final UUID uuid, final String msgType,
-            String[] subtopic, final Dispersal dispersal, final RequestSerializer serializer,
+            final Notice notice, final UUID uuid, final String topic,
+            final String[] subtopic, final Dispersal dispersal, final RequestSerializer serializer,
             final INetworkService.OnSendMessageHandler handler)
     {
         logger.trace("::dispatchInviteRequest");
@@ -1913,7 +1913,8 @@ public class DistributorThread extends Thread {
                     final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
                             .newBuilder()
                             .setUri(uuid.toString())
-                            .setMimeType(msgType)
+                            .setMimeType(topic)
+                            .addAllSubtopics(Arrays.asList(subtopic))
                             .setEncoding(encode.getType().name())
                             .setUserId(networkManager.getOperatorId())
                             .setOriginDevice(networkManager.getDeviceId())
@@ -1934,9 +1935,9 @@ public class DistributorThread extends Thread {
                     mw.setDataMessage(pushReq);
 
                 } else {
-                    final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
+                    final Integer mimeId = AmmoMimeTypes.mimeIds.get(topic);
                     if (mimeId == null) {
-                        logger.error("no integer mapping for this mime type {}", msgType);
+                        logger.error("no integer mapping for this mime type {}", topic);
                         return null;
                     }
                     final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
@@ -1955,6 +1956,10 @@ public class DistributorThread extends Thread {
                         notice.atGatewayDelivered.getVia().isActive() ||
                         notice.atPluginDelivered.getVia().isActive())
                         .uuid(uuid);
+
+                agmb.topic(topic);
+                agmb.subtopic(subtopic);
+
                 return agmb.build();
             }
         });
@@ -1962,8 +1967,8 @@ public class DistributorThread extends Thread {
     }
 
     /**
-     * When an invitation is received the invitation is recorded
-     * and any interested applications are notified of its arrival.
+     * When an invitation is received the invitation is recorded and any
+     * interested applications are notified of its arrival.
      * 
      * @param mw
      * @return
@@ -1978,19 +1983,19 @@ public class DistributorThread extends Thread {
         if (!mw.hasSubtopicInvitation()) {
             return false;
         }
-       
+
         final SubtopicInvitation sm = mw.getSubtopicInvitation();
         final String topic = sm.getMimeType();
         final String[] subtopic = sm.getSubtopicsList().toArray(
                 new String[sm.getSubtopicsCount()]);
         final List<Invitee> invitee = sm.getInviteesList();
-        
+
         final InvitationMap.Worker worker = InvitationMap.getWorker();
         worker.topic(topic)
-            .subtopic(subtopic);
-        
+                .subtopic(subtopic);
+
         worker.invitee(invitee).upsert();
-        
+
         final Topic.IntentBuilder builder = Topic.getIntentBuilder()
                 .topic(topic)
                 .subtopic(subtopic);
@@ -2225,7 +2230,8 @@ public class DistributorThread extends Thread {
         final AmmoMessages.PullRequest.Builder retrieveReq = AmmoMessages.PullRequest
                 .newBuilder()
                 .setRequestUid(retrievalId.toString())
-                .setMimeType(topic);
+                .setMimeType(topic)
+                .addAllSubtopics(Arrays.asList(subtopic));
 
         if (selection != null)
             retrieveReq.setQuery(selection);
@@ -2250,10 +2256,13 @@ public class DistributorThread extends Thread {
                     mw.setPullRequest(retrieveReq_);
                     final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw,
                             handler);
+                    agmb.topic(topic);
+                    agmb.subtopic(subtopic);
                     return agmb.build();
                 }
             });
             return dispersal.multiplexRequest(that, serializer);
+
         } catch (com.google.protobuf.UninitializedMessageException ex) {
             logger.warn("Failed to marshal the message", ex);
         }
@@ -2407,7 +2416,7 @@ public class DistributorThread extends Thread {
             final String topic = ar.topic.asString();
             final String[] subtopic = Topic.asString(ar.subtopic);
             final String provider = ar.provider.cv();
-            
+
             final String[] selectionArgs = new String[] {
                     provider, topic, DistributorDataStore.encodeFromStringArray(subtopic)
             };
@@ -2418,14 +2427,15 @@ public class DistributorThread extends Thread {
         }
 
     }
-    private static final String CANCEL_SUBSCRIBE_BY_KEY = 
-     new StringBuilder()
-    .append(SubscribeTableSchema.PROVIDER.q()).append("=?")
-    .append(" AND ")
-    .append(SubscribeTableSchema.TOPIC.q()).append("=?")
-    .append(" AND ")
-    .append(SubscribeTableSchema.SUBTOPIC.q()).append("=?")
-    .toString();
+
+    private static final String CANCEL_SUBSCRIBE_BY_KEY =
+            new StringBuilder()
+                    .append(SubscribeTableSchema.PROVIDER.q()).append("=?")
+                    .append(" AND ")
+                    .append(SubscribeTableSchema.TOPIC.q()).append("=?")
+                    .append(" AND ")
+                    .append(SubscribeTableSchema.SUBTOPIC.q()).append("=?")
+                    .toString();
 
     /**
      * Each time the subscription provider is modified, find out what the
@@ -2539,9 +2549,9 @@ public class DistributorThread extends Thread {
         /** Message Building */
 
         final AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage
-                .newBuilder();
-        subscribeReq.setMimeType(topic);
-        subscribeReq
+                .newBuilder()
+                .setMimeType(topic)
+                .addAllSubtopics(Arrays.asList(subtopic))
                 .setOriginDevice(this.networkManager.getDeviceId())
                 .setOriginUser(this.networkManager.getOperatorId());
 
@@ -2558,8 +2568,11 @@ public class DistributorThread extends Thread {
                 final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                         .newBuilder();
                 mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
+
                 mw.setSubscribeMessage(subscribeReq_);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                agmb.topic(topic);
+                agmb.subtopic(subtopic);
                 return agmb.build();
             }
         });

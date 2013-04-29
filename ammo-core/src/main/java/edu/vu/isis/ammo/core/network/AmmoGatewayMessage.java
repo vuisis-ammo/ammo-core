@@ -167,6 +167,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     // Hop count for Harris 152 resend/retransmit mechanism
     public int mHopCount;
 
+    public final String topic;
+    public final String[] subtopic;
+    public final String channelKey;
+
 
 
 
@@ -455,16 +459,46 @@ public class AmmoGatewayMessage implements Comparable<Object> {
          * delivery channel
          */
         private NetChannel channel;
-
+       
         public NetChannel channel() {
             return this.channel;
         }
 
-        public Builder channel(NetChannel val) {
+        public Builder channel(final NetChannel val) {
             this.channel = val;
             return this;
         }
+        
+        /**
+         * topic specification.
+         */
+        private String topic;
+        
+        public String topic() {
+            return this.topic;
+        }
 
+        public Builder topic(final String val) {
+            this.topic = val;
+            return this;
+        }
+
+        private String[] subtopic;
+        
+        public String[] subtopic() {
+            return this.subtopic;
+        }
+
+        public Builder subtopic(final String[] val) {
+            this.subtopic = val;
+            return this;
+        }
+
+        /**
+         * Factory method for constructing message.
+         * 
+         * @return
+         */
         public AmmoGatewayMessage build() {
             if (this.size != this.payload_serialized.length)
                 throw new IllegalArgumentException("payload size incorrect");
@@ -480,6 +514,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.version = VERSION_1_FULL;
             this.checksum = 0;
             this.handler = null;
+            this.subtopic = null;
             mPacketType = PACKETTYPE_NORMAL;
             mHyperperiod = -1;  // default to an invalid hyperperiod
             mSlotID = -1;       // default to an invalid slot
@@ -493,6 +528,16 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         this.size = builder.size;
         if (this.size != payload.length)
             throw new IllegalArgumentException("payload size incorrect");
+        this.topic = builder.topic;
+        this.subtopic = builder.subtopic;
+        final StringBuilder channelKeyBuilder = new StringBuilder("[ammo-key");
+        channelKeyBuilder.append("][").append(builder.topic);
+        for (final String st : builder.subtopic) {
+            channelKeyBuilder.append("][").append(st);
+        }
+        channelKeyBuilder.append("]");
+        this.channelKey = channelKeyBuilder.toString();
+        
         this.priority = builder.priority;
         this.version = builder.version;
         this.payload_checksum = new CheckSum(builder.checksum);

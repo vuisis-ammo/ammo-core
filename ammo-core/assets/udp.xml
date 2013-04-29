@@ -5,6 +5,8 @@
   author: Bela Ban
 	 mcast_addr="${jgroups.udp.mcast_addr:228.9.5.1}"
     <FD_SOCK/>
+    
+  The singleton_name causes a shared transport; only one transport for all groups.
 
   DATE: 2012-03-05
 
@@ -16,6 +18,7 @@
     <UDP
 	     mcast_addr="${jgroups.udp.mcast_addr:228.8.8.8}"
          mcast_port="${jgroups.udp.mcast_port:45588}"
+         singleton_name="tp_one"
          tos="8"
          ucast_recv_buf_size="20M"
          ucast_send_buf_size="640K"

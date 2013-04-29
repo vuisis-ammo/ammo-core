@@ -82,7 +82,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
 
   <build>
     <sourceDirectory>src</sourceDirectory>
-    <finalName>dash</finalName>
+    <finalName>ammo-test</finalName>
      
     <plugins>
       <!-- Bug in release plugin prevents other plugin configurations from carrying 

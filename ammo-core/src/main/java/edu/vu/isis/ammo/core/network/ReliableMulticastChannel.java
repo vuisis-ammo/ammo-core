@@ -29,9 +29,12 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -47,7 +50,7 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
-import edu.vu.isis.ammo.util.UDPSendException;
+import org.jgroups.stack.ProtocolStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,12 +58,15 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.UDPSendException;
 
 public class ReliableMulticastChannel extends NetChannel {
     private static final Logger logger = LoggerFactory.getLogger("net.rmcast");
 
-    private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in
-                                                   // milliseconds
+    // 5 seconds expressed in milliseconds
+    private static final int BURP_TIME = 5 * 1000; 
+    
+    final String baseChannelKey = "AmmoGroup";
 
     /**
      * <code>
@@ -114,7 +120,9 @@ public class ReliableMulticastChannel extends NetChannel {
     @SuppressWarnings("unused")
     private final long flatLineTime;
 
-    private JChannel mJGroupChannel;
+    // private JChannel mJGroupChannel;
+    private Map<String, JChannel> mJGroupChannelMap;
+    
     // private MulticastSocket mSocket;
     private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
@@ -161,6 +169,7 @@ public class ReliableMulticastChannel extends NetChannel {
         mUpdateBpsTimer.scheduleAtFixedRate( updateBps, 0, BPS_STATS_UPDATE_INTERVAL * 1000 );
         
         System.setProperty("java.net.preferIPv4Stack" , "true");
+        this.mJGroupChannelMap = new ConcurrentHashMap<String, JChannel>(8, 0.9f, 1);
     }
 
 
@@ -534,7 +543,7 @@ public class ReliableMulticastChannel extends NetChannel {
                     .currentThread().getId());
             this.parent = parent;
             this.state = new State();
-            mIsConnected = new AtomicBoolean(false);
+            this.mIsConnected = new AtomicBoolean(false);
         }
 
         private class State {
@@ -823,6 +832,11 @@ public class ReliableMulticastChannel extends NetChannel {
             logger.error("channel closing");
         }
 
+        /**
+         * Construct a JGroup for each unique subtopic.
+         * 
+         * @return true when connection request succeeds.
+         */
         private boolean connect() {
             logger.trace("Thread <{}>ConnectorThread::connect", Thread
                     .currentThread().getId());
@@ -836,23 +850,26 @@ public class ReliableMulticastChannel extends NetChannel {
             }
 
             // Create the MulticastSocket.
-            if (parent.mJGroupChannel != null)
+       
+            
+            if (parent.mJGroupChannelMap.containsKey(baseChannelKey)) {
                 logger.error("Tried to create mJGroupChannel when we already had one.");
-            try {
-                parent.mJGroupChannel = new JChannel(parent.configFile);
+            } else {
+                
+                try {
+                final JChannel jGroupChannel = new JChannel(parent.configFile);
                 // Put call to set operator ID here.
-                parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
-
-                // parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT,
-                // Boolean.TRUE ); // deprecated
-                parent.mJGroupChannel.connect("AmmoGroup");
+                jGroupChannel.setName(mChannelManager.getOperatorId());
+                jGroupChannel.connect(baseChannelKey);          
+                
             } catch (Exception ex) {
                 logger.warn("connection to {}:{} failed: ", new Object[] {
                         parent.mMulticastGroup, parent.mMulticastPort
                 }, ex);
-                parent.mJGroupChannel = null;
                 return false;
             }
+            }
+            final JChannel jGroupChannel = parent.mJGroupChannelMap.get(baseChannelKey);
 
             logger.info("connection to {}:{} established ",
                     parent.mMulticastGroup, parent.mMulticastPort);
@@ -876,8 +893,10 @@ public class ReliableMulticastChannel extends NetChannel {
             // Create the sending thread.
             if (parent.mSender != null)
                 logger.error("Tried to create Sender when we already had one.");
+            
+            // FIXME: here we need to pass the channel map.
             parent.mSender = new SenderThread(this, parent,
-                    parent.mSenderQueue, parent.mJGroupChannel);
+                    parent.mSenderQueue, parent.mJGroupChannelMap);
             parent.mSender.start();
 
             // Create the receiving thread.
@@ -885,7 +904,7 @@ public class ReliableMulticastChannel extends NetChannel {
                 logger.error("Tried to create Receiver when we already had one.");
             parent.mReceiver = new ChannelReceiver(this, parent);
 
-            parent.mJGroupChannel.setReceiver(parent.mReceiver);
+            jGroupChannel.setReceiver(parent.mReceiver);
             // parent.mJGroupChannel.addChannelListener( this ); // don't do
             // this yet
 
@@ -908,6 +927,11 @@ public class ReliableMulticastChannel extends NetChannel {
             return true;
         }
 
+        /**
+         * disconnects all active connections.
+         * 
+         * @return
+         */
         private boolean disconnect() {
             logger.trace("Thread <{}>ConnectorThread::disconnect", Thread
                     .currentThread().getId());
@@ -916,13 +940,16 @@ public class ReliableMulticastChannel extends NetChannel {
 
                 // Have to close the socket first unless we convert to
                 // an interruptible datagram socket.
-                if (parent.mJGroupChannel != null) {
+                
+                // FIXME: disconnect channels
+                if (parent.mJGroupChannelMap != null) {
                     logger.debug("Closing ReliableMulticastSocket.");
-                    parent.mJGroupChannel.close(); // will disconnect first if
-                                                   // still connected
+                    for (final Entry<String, JChannel> jChannel : parent.mJGroupChannelMap.entrySet()) {
+                     // will disconnect first if still connected
+                    jChannel.getValue().close(); 
+                    parent.mJGroupChannelMap.remove(jChannel.getKey());
+                    }
                     logger.debug("Done");
-
-                    parent.mJGroupChannel = null;
                 }
 
                 if (mSender != null) {
@@ -1083,18 +1110,24 @@ public class ReliableMulticastChannel extends NetChannel {
     // /////////////////////////////////////////////////////////////////////////
     //
     class SenderThread extends Thread {
+        // Asserted maximum useful size of trace logging message (e.g. size of PLI msg)
+    	private static final int TRACE_CUTOFF_SIZE = 512;
+    	
+    	final private ProtocolStack protocolStack;
 
-	// Asserted maximum useful size of trace logging message (e.g. size of PLI msg)
-	private static final int TRACE_CUTOFF_SIZE = 512;
-
-        public SenderThread(ConnectorThread iParent,
+        public SenderThread(final ConnectorThread iParent,
                 ReliableMulticastChannel iChannel, SenderQueue iQueue,
-                JChannel iJChannel) {
+                Map<String, JChannel> mJGroupChannelMap) {
             super(new StringBuilder("RMcast-Sender-").append(Thread.activeCount()).toString());
-            mParent = iParent;
-            mChannel = iChannel;
-            mQueue = iQueue;
-            mJChannel = iJChannel;
+            this.mParent = iParent;
+            this.mChannel = iChannel;
+            this.mQueue = iQueue;
+            this.mJChannelMap = mJGroupChannelMap;
+            if (this.mJChannelMap.isEmpty()) {
+                throw new IllegalArgumentException("no base channel specified");
+            }
+            final JChannel jChannel = mJGroupChannelMap.values().iterator().next();
+            this.protocolStack = jChannel.getProtocolStack();
         }
 
         /**
@@ -1129,11 +1162,11 @@ public class ReliableMulticastChannel extends NetChannel {
                 }
 
                 try {
-                    ByteBuffer buf = msg.serialize(endian,
+                    final ByteBuffer buf = msg.serialize(endian,
                             AmmoGatewayMessage.VERSION_1_FULL, (byte) 0);
                     setSenderState(INetChannel.SENDING);
 
-                    DatagramPacket packet = new DatagramPacket(buf.array(),
+                    final DatagramPacket packet = new DatagramPacket(buf.array(),
                             buf.remaining(), mChannel.mMulticastGroup,
                             mChannel.mMulticastPort);
                     logger.debug("Sending datagram packet. length={}",
@@ -1148,7 +1181,18 @@ public class ReliableMulticastChannel extends NetChannel {
                     logger.debug("...{}", mChannel.mMulticastGroup);
                     logger.debug("...{}", mChannel.mMulticastPort);
 
-                    mJChannel.send(null, buf.array());
+                    final JChannel jChannel;
+                    if (this.mJChannelMap.containsKey(msg.channelKey)) {                  
+                        jChannel = this.mJChannelMap.get(msg.channelKey);
+                    } else {
+                        jChannel = new JChannel();
+                        jChannel.setProtocolStack(this.protocolStack);
+                        // Put call to set operator ID here.
+                        jChannel.setName(mChannelManager.getOperatorId());
+                        jChannel.connect(msg.channelKey); 
+                        this.mJChannelMap.put(msg.channelKey, jChannel);                      
+                    }
+                    jChannel.send(null, buf.array());                 
 
                     mMessagesSent.incrementAndGet();
                     mBytesSent += packet.getLength();
@@ -1202,7 +1246,7 @@ public class ReliableMulticastChannel extends NetChannel {
         private ConnectorThread mParent;
         private ReliableMulticastChannel mChannel;
         private SenderQueue mQueue;
-        private JChannel mJChannel;
+        private Map<String, JChannel> mJChannelMap;
         private final Logger logger = LoggerFactory
                 .getLogger("net.rmcast.sender");
     }
@@ -1217,6 +1261,9 @@ public class ReliableMulticastChannel extends NetChannel {
             setReceiverState(INetChannel.START);
         }
 
+        /* FIXME: when the message is received we can determine to which jgroup 
+           the message was delivered over but it should not be needed for processing.
+           */
         @Override
         public void receive(Message msg) {
             logger.trace("Thread <{}>: ChannelReceiver::receive()", Thread
