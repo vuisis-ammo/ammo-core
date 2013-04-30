@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="fill_parent" android:layout_height="wrap_content"
+	android:background="@android:color/black">
+
+	<TextView android:id="@+id/gateway_label"
+		android:layout_width="fill_parent" android:layout_height="wrap_content"
+		android:layout_alignParentTop="true" android:gravity="center"
+		android:text="gateway_title" android:textColor="@android:color/primary_text_light"
+		android:textSize="20dip" />
+
+	<TextView android:id="@+id/version_label"
+		android:layout_width="fill_parent" android:layout_height="wrap_content"
+		android:layout_below="@id/gateway_label" android:gravity="center"
+		android:text="" android:textSize="8dip" />
+
+	<edu.vu.isis.ammo.ui.ChannelListView
+		android:id="@+id/gateway_list" android:layout_width="fill_parent"
+		android:layout_height="fill_parent" android:layout_below="@id/version_label"
+		android:layout_weight="1" />
+</RelativeLayout>

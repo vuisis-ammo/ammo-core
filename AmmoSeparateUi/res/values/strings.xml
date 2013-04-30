@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="AMMO">AMMO</string>
+    <string name="OTHER">OTHER</string>
+    <string name="app_name">Service_test</string>
+    <string name="remote_service_started">svc start</string>
+    <string name="remote_service_label">label</string>
+    <string name="remote_service_connected">rmt svc conn</string>
+    <string name="remote_service_disconnected">rmt svc d/c</string>
+</resources>

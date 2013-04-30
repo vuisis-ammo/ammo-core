@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="fill_parent" android:layout_height="fill_parent" android:background="@color/netlink_background">
+
+	<TextView android:id="@+id/netlink_label"
+		android:layout_width="fill_parent" android:layout_height="wrap_content"
+		android:layout_alignParentTop="true" android:gravity="center"
+		android:text="@string/netlink_title" android:textColor="@color/branding"
+		android:textSize="20dip" />
+
+	<TextView android:id="@+id/version_label"
+		android:layout_width="fill_parent" android:layout_height="wrap_content"
+		android:layout_below="@id/netlink_label" android:gravity="center"
+		android:text="" android:textSize="8dip" />
+
+	<ListView android:id="@+id/netlink_list" android:layout_width="fill_parent"
+		android:layout_height="fill_parent" android:layout_below="@id/version_label"
+		android:layout_weight="1" android:drawSelectorOnTop="false" />
+</RelativeLayout>

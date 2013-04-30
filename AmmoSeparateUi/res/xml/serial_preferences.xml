@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/serial_prefs"
+    android:key="@string/serial_pref_screen"
+    android:title="Serial Preferences" >
+
+    <edu.vu.isis.ammo.core.MyCheckBoxPreference
+        android:name="Suppress Channel"
+        android:defaultValue="true"
+        android:key="@string/network_serial_disable"
+        android:title="Disable"
+        android:widgetLayout="@layout/cb_supress" />
+
+    <edu.vu.isis.ammo.core.MyEditTextPreference
+        android:name="Device"
+        android:defaultValue="/dev/ttyUSB0"
+        android:key="@string/network_serial_device"
+        android:title="Device" />
+
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Baud Rate"
+        android:defaultValue="9600"
+        android:inputType="number"
+        android:key="@string/network_serial_rate"
+        android:title="Baud Rate" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Slot Number"
+        android:defaultValue="8"
+        android:inputType="number"
+        android:key="@string/network_serial_slot_id"
+        android:title="Slot Number" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Radios in Group"
+        android:defaultValue="16"
+        android:inputType="number"
+        android:key="@string/network_serial_slot_count"
+        android:title="Radios in Group" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Slot Duration"
+        android:defaultValue="750"
+        android:inputType="number"
+        android:key="@string/network_serial_slot_duration"
+        android:title="Slot Duration (ms)" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="Transmit Duration"
+        android:defaultValue="500"
+        android:inputType="number"
+        android:key="@string/network_serial_xmit_duration"
+        android:title="Transmit Duration (ms)" />
+
+    <!--
+          Sending/receiving prefs removed 
+          
+          <edu.vu.isis.ammo.core.MyCheckBoxPreference
+              android:key="@string/network_serial_send_enable"
+              android:title="Sending Enabled"
+              android:name="Sending Enabled"
+              android:defaultValue="true"/>
+
+          <edu.vu.isis.ammo.core.MyCheckBoxPreference
+              android:key="@string/network_serial_receive_enable"
+              android:title="Receiving Enabled"
+              android:name="Receiving Enabled"
+              android:defaultValue="true"/>
+    -->
+
+</PreferenceScreen>

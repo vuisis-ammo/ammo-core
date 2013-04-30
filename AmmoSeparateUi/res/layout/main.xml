@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" -->
+	<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	    android:layout_width="fill_parent"
+	    android:layout_height="fill_parent"
+	    android:orientation="horizontal"
+	    android:paddingBottom="200dp">
+	    <LinearLayout android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:orientation="vertical" 
+	        >
+		    <TextView
+		        android:layout_width="fill_parent"
+		        android:layout_height="wrap_content"
+                android:text="@string/OTHER" />
+		    <Button android:text="Do it" android:id="@+id/Button01"
+		        android:layout_width="wrap_content"
+		        android:layout_height="wrap_content"></Button>
+		    <Button android:text="Stop it" android:id="@+id/Button02"
+		        android:layout_width="wrap_content"
+		        android:layout_height="wrap_content"></Button>
+		    <Button android:text="rawr" android:id="@+id/Button03"
+		        android:layout_width="wrap_content"
+		        android:layout_height="wrap_content"></Button>
+		    <Button android:text="send_rnd" android:id="@+id/Button04"
+		        android:layout_width="wrap_content"
+		        android:layout_height="wrap_content"></Button>
+		    <Button android:text="send_prefs" android:id="@+id/Button05"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"></Button>
+		    <TextView 
+		        android:layout_width="wrap_content"
+		        android:layout_height="wrap_content"
+		        android:id="@+id/tv01"
+		        android:text="default"/>
+		    <TextView
+		        android:layout_width="wrap_content"
+		        android:layout_height="wrap_content"
+		        android:id="@+id/tvprefs"
+		        android:text="PREFS default"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="fill_parent" android:layout_height="fill_parent"
+            android:orientation="vertical" >
+	        <Button android:text="       prefs       " android:id="@+id/prefs"
+	            android:layout_width="wrap_content" android:layout_height="fill_parent" 
+	            android:layout_gravity="right"/>
+	     </LinearLayout>
+    </LinearLayout>    
+<!--  /LinearLayout-->
