@@ -25,7 +25,7 @@ public class TcpSecurityObject implements ISecurityObject,
 {
     private static final Logger logger = LoggerFactory.getLogger("net.gateway.security");
 
-    TcpSecurityObject( TcpChannel iChannel )
+    TcpSecurityObject( TcpChannelBase iChannel )
     {
         logger.trace( "Constructor of TcpSecurityObject." );
         mChannel = iChannel;
@@ -65,5 +65,5 @@ public class TcpSecurityObject implements ISecurityObject,
     }
 
 
-    private TcpChannel mChannel;
+    private TcpChannelBase mChannel;
 }

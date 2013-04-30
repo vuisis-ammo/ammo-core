@@ -52,7 +52,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * The sent messages are placed into a queue if the socket is connected.
  *
  */
-public class TcpChannel extends NetChannel {
+public class TcpChannel extends TcpChannelBase {
   // a class based logger to be used by static methods ... 
   private static final Logger classlogger = LoggerFactory.getLogger("net.gateway");
   
@@ -125,7 +125,7 @@ public class TcpChannel extends NetChannel {
   public final IChannelManager mChannelManager;
   private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
-  private TcpChannel(String name, IChannelManager iChannelManager ) {
+  protected TcpChannel(String name, IChannelManager iChannelManager ) {
     super(name); 
  // create the instance logger for instance methods
     // store the channel name
