@@ -362,24 +362,29 @@ public class MyEditIntegerPreference extends EditTextPreference {
 	public void refresh() {
 		final String raw_value = this.getPersistedString(super.getText());
 		final String cooked_value;
-		switch (mType)
-		{
-		case TIMEOUT:
-				if(this.getKey().equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME))
-				{
-					cooked_value = Integer.toString(Integer.parseInt(raw_value)*60);
-				}
-				else if(this.getKey().equals(INetPrefKeys.GATEWAY_TIMEOUT))
-				{
-					cooked_value =  Integer.toString(Integer.parseInt(raw_value)/1000);
-				}
-				else {
-					cooked_value = raw_value;
-				}
-            break;
-		default:
+		
+		if (mType == null) {
 			cooked_value = raw_value;
-		}
+    } else	 {
+  		switch (mType)
+  		{
+  		case TIMEOUT:
+  				if(this.getKey().equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME))
+  				{
+  					cooked_value = Integer.toString(Integer.parseInt(raw_value)*60);
+  				}
+  				else if(this.getKey().equals(INetPrefKeys.GATEWAY_TIMEOUT))
+  				{
+  					cooked_value =  Integer.toString(Integer.parseInt(raw_value)/1000);
+  				}
+  				else {
+  					cooked_value = raw_value;
+  				}
+              break;
+  		default:
+  			cooked_value = raw_value;
+  		}
+    }
 		this.setSummary(new StringBuilder()
 		    .append(summaryPrefix)
 		    .append(cooked_value)

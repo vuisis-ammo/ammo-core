@@ -48,6 +48,7 @@ import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
 import edu.vu.isis.ammo.util.UDPSendException;
+import edu.vu.isis.ammo.util.AmmoConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -165,6 +166,8 @@ public class ReliableMulticastChannel extends NetChannel {
 
 
     private Timer mUpdateBpsTimer = new Timer();
+
+    private int mFragDelay = 0;
 
     class UpdateBpsTask extends TimerTask {
         public void run() {
@@ -315,6 +318,18 @@ public class ReliableMulticastChannel extends NetChannel {
         this.reset();
         return true;
     }
+    public boolean setFragDelay (int frag_delay) {
+      logger.trace("Thread <{}>::setFragDelay {}", Thread.currentThread().getId(),
+              frag_delay);
+      if (this.mFragDelay  == frag_delay)
+          return false;
+      this.mFragDelay = frag_delay;
+      
+      //we do not need to change the udp.xml since we are phasing out this feature 
+      //ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
+      this.reset();
+      return true;
+  }
 
     public void setTTL(int ttl) {
         logger.trace("Thread <{}>::setTTL {}", Thread.currentThread().getId(),
@@ -536,6 +551,7 @@ public class ReliableMulticastChannel extends NetChannel {
             this.state = new State();
             mIsConnected = new AtomicBoolean(false);
         }
+        
 
         private class State {
             private int value;
@@ -839,7 +855,12 @@ public class ReliableMulticastChannel extends NetChannel {
             if (parent.mJGroupChannel != null)
                 logger.error("Tried to create mJGroupChannel when we already had one.");
             try {
-                parent.mJGroupChannel = new JChannel(parent.configFile);
+              
+                AmmoConfigurator ammoConfigurator = 
+                    new AmmoConfigurator (parent.configFile, parent.context);
+                
+                //parent.mJGroupChannel = new JChannel(parent.configFile);
+                parent.mJGroupChannel = new JChannel(ammoConfigurator);
                 // Put call to set operator ID here.
                 parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
 
@@ -850,6 +871,8 @@ public class ReliableMulticastChannel extends NetChannel {
                 logger.warn("connection to {}:{} failed: ", new Object[] {
                         parent.mMulticastGroup, parent.mMulticastPort
                 }, ex);
+                parent.mJGroupChannel.disconnect();
+                parent.mJGroupChannel.close();
                 parent.mJGroupChannel = null;
                 return false;
             }
@@ -918,6 +941,7 @@ public class ReliableMulticastChannel extends NetChannel {
                 // an interruptible datagram socket.
                 if (parent.mJGroupChannel != null) {
                     logger.debug("Closing ReliableMulticastSocket.");
+                    parent.mJGroupChannel.disconnect();
                     parent.mJGroupChannel.close(); // will disconnect first if
                                                    // still connected
                     logger.debug("Done");
