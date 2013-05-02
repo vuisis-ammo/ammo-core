@@ -51,6 +51,7 @@ public class SerialPort {
 
     // JNI
     private native static FileDescriptor open(String path, int baudrate);
+    public native static boolean isCorrectTTY( String path );
     public native void close();
 
     public native int write( byte[] bytestosend );
