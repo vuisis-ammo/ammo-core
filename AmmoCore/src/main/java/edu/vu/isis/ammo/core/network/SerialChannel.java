@@ -17,9 +17,11 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.List;
 import java.util.LinkedList;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -498,6 +500,36 @@ public class SerialChannel extends NetChannel
         }
 
 
+        // Because of the permissions on the Notes's dev directory,
+        // the standard code using listFiles() doesn't work.  This
+        // code below is a kluge, but it will work unless TTY's don't
+        // get freed up the normal way, for some reason, and in that
+        // case we have bigger problems than this function failing.
+        private List findTTYs() {
+            String[] names = { "/dev/ttyUSB0",
+                               "/dev/ttyUSB1",
+                               "/dev/ttyUSB2",
+                               "/dev/ttyUSB3",
+                               "/dev/ttyUSB4",
+                               "/dev/ttyUSB5",
+                               "/dev/ttyUSB6",
+                               "/dev/ttyUSB7",
+                               "/dev/ttyUSB8",
+                               "/dev/ttyUSB9" };
+            
+            List<String> result = new ArrayList<String>();
+            for ( String n : names ) {
+                File f = new File( n );
+                if ( f.exists() ) {
+                    logger.error( f.getName() + " exists" );
+                    result.add( n );
+                }
+            }
+            
+            return result;
+        }
+
+
         /**
          *
          */
@@ -505,11 +537,33 @@ public class SerialChannel extends NetChannel
         {
             logger.info( "SerialChannel.Connector::connect()" );
 
+            // With the new setup with control and data connections,
+            // there will be multiple TTYs present, so we need to make
+            // a list and test CTS for each until we find the right
+            // one.
+            List<String> ttys = findTTYs();
+
+            String deviceToUse = "";
+            for ( String pathname : ttys ) {
+                boolean x = SerialPort.isCorrectTTY( pathname );
+                logger.error( "{} isCorrectTTY={}", pathname, x );
+                if ( x ) {
+                    deviceToUse = pathname;
+                    break;
+                }
+            }
+
+            // Now use the one we found instead of mDevice below.
+            if ( deviceToUse.equals( "" )) {
+                logger.info( "No appropriate TTY found" );
+                return false;
+            }
+
             // Create the SerialPort.
             if ( mPort != null )
                 logger.warn( "Tried to create mPort when we already had one." );
             try {
-                mPort = new SerialPort( new File(mDevice), mBaudRate );
+                mPort = new SerialPort( new File(deviceToUse), mBaudRate );
             } catch ( Exception e ) {
                 logger.warn( "Connection to serial port failed" );
                 mPort = null;
