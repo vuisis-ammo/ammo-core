@@ -135,6 +135,7 @@
         <!-- ========== PROVIDER SECTION ================= -->
         <provider android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider" android:name=".provider.PreferenceProvider"/>
         <provider android:authorities="edu.vu.isis.ammo.core.provider.distributor" android:name=".provider.DistributorProvider"/>
+        <provider android:authorities="edu.vu.isis.ammo.core.provider.channel" android:name=".provider.ChannelProvider"/>
     </application>
 
 </manifest>

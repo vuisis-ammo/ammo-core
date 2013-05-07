@@ -5,12 +5,16 @@ public class AmmoListItem {
 	private String formal;
 	private String status_one;
 	private String status_two;
+	private String send_stats;
+	private String receive_stats;
 	
-	public AmmoListItem(String a, String b, String c, String d){
+	public AmmoListItem(String a, String b, String c, String d, String e, String f){
 		name = a;
 		formal = b;
 		status_one = c;
 		status_two = d;
+		send_stats = e;
+		receive_stats = f;
 	}
 	
 	public String getName(){
@@ -29,17 +33,29 @@ public class AmmoListItem {
 		return status_two;
 	}
 	
-	public boolean update(String status_oneNew, String status_twoNew){
+	public String getSendStats(){
+		return send_stats;
+	}
+	
+	public String getReceiveStats(){
+		return receive_stats;
+	}
+	
+	public boolean update(String status_oneNew, String status_twoNew, String send_new, String receive_new){
 		status_one = status_oneNew;
 		status_two = status_twoNew;
+		send_stats = send_new;
+		receive_stats = receive_new;
 		return true;
 	}
 	
-	public boolean update(String nameNew, String formalNew, String status_oneNew, String status_twoNew){
+	public boolean update(String nameNew, String formalNew, String status_oneNew, String status_twoNew, String send_new, String receive_new){
 		name = nameNew;
 		formal = formalNew;
 		status_one = status_oneNew;
 		status_two = status_twoNew;
+		send_stats = send_new;
+		receive_stats = receive_new;
 		return true;
 	}
 }

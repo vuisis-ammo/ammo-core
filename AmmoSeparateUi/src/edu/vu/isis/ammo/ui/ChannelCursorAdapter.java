@@ -63,7 +63,7 @@ public class ChannelCursorAdapter extends CursorAdapter
     
     @Override
     public AmmoListItem getItem(int position){
-    	return new AmmoListItem("","","","");
+    	return new AmmoListItem("","","","","","");
     }
 
 	@Override

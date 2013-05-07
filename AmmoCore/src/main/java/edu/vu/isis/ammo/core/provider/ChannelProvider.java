@@ -10,7 +10,6 @@ purpose whatsoever, and to have or authorize others to do so.
  */
 package edu.vu.isis.ammo.core.provider;
 
-import java.util.Iterator;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -30,14 +29,15 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import edu.vu.isis.ammo.core.AmmoService;
 import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.network.INetworkService;
+import edu.vu.isis.ammo.core.ui.ProviderAdapter;
 
 public class ChannelProvider extends ContentProvider {
     List<ModelChannel> _gatewayList = null;//new ArrayList<ModelChannel>(gChannels.values());
@@ -46,7 +46,9 @@ public class ChannelProvider extends ContentProvider {
     
     public final Handler myHandler = new Handler();
     
-    int fakeCount = 0;
+    private ProviderAdapter adapter;
+    
+    private boolean queryStarted = false;
     
     private boolean isConnected = false;
     private static final Intent AMMO_SERVICE;
@@ -115,19 +117,66 @@ public class ChannelProvider extends ContentProvider {
     @Override
     public Cursor query(Uri uri, String[] projection, String selection,
             String[] selectionArgs, String sortOrder) {
+        boolean sendColors = false;
         if (isConnected){
-        	fakeCount++;
-            String[] cols = new String[]{"_id" , "Name","FormalIP","Port","Election"};
+        	
+        	if (queryStarted == false){
+        		queryLoop();
+        		queryStarted = true;
+        	}
+        	
+            if (selection != null){ // Check whether we need to send the color information this pass
+                sendColors = true;  // 
+            }
+            //fakeCount++;
+            String[] cols;
+            if (!sendColors){
+                cols = new String[]{"_id", "Name","FormalIP","StatusOne","StatusTwo","Send","Receive"};
+            } else {
+                cols = new String[]{"_id", "Name","FormalIP","StatusOne","StatusTwo","Send","Receive"};//TODO add color functionality
+            }
+            
             MatrixCursor mc = new MatrixCursor(cols);
 
             getGatewayList();
-            Iterator<ModelChannel> _it = _gatewayList.iterator();
+            adapter = new ProviderAdapter(getContext(), _gatewayList);
+            
+            int count = adapter.getCount();
+            
+            View v = new View(getContext());
+            RelativeLayout[] itemArray = new RelativeLayout[count];
+            
+            for (int i = 0; i < count; i++){
+                itemArray[i] = (RelativeLayout) adapter.getView(i, null, null);
+            }
+            
+            String[][] rowChildren = new String[count][itemArray[0].getChildCount() + 1];
+            logger.error("Child Count for 0 is : " + itemArray[0].getChildCount()); //TODO change to trace
+            
+            for (int i = 0; i < count; i++){
+                for (int j = 0; j < rowChildren[0].length; j++){
+                    if (j == 0){
+                        rowChildren[i][j] = i+"";
+                    } else if (j < 5){
+                        rowChildren[i][j] = ((TextView)(itemArray[i]).getChildAt(j)).getText().toString();
+                    } else if (j == 5){
+                        LinearLayout tempLL = (LinearLayout) (itemArray[i]).getChildAt(j);
+                        rowChildren[i][j] = ((TextView) tempLL.getChildAt(0)).getText().toString(); //first child of LL, send stats
+                        rowChildren[i][j+1] = ((TextView) tempLL.getChildAt(1)).getText().toString(); // second child of LL, receive stats
+                    }
+                    logger.error("["+i+"]["+j+"]= {" + rowChildren[i][j]+"}"); //TODO change to trace
+                }
+                mc.addRow(rowChildren[i]);
+            }
+            
+            
+            /*Iterator<ModelChannel> _it = _gatewayList.iterator();
             
             int id = 0;
             while (_it.hasNext()) {
                 ModelChannel cm = _it.next();
                 View view = new View(getContext());
-                RelativeLayout row;
+                
                 LayoutInflater inflater = (LayoutInflater)getContext().getSystemService
                           (Context.LAYOUT_INFLATER_SERVICE);
                 row = (RelativeLayout) cm.getView(view, inflater);
@@ -143,7 +192,7 @@ public class ChannelProvider extends ContentProvider {
                 String[] temp = {""+id, str1, str2, "Stuff: "+str3+fakeCount, str4+fakeCount};
                 mc.addRow(temp);
                 id++;
-            }
+            }*/
             mc.setNotificationUri(getContext().getContentResolver(), CONTENT_URI);
             
             return mc;
@@ -202,7 +251,7 @@ public class ChannelProvider extends ContentProvider {
                     getContext().getContentResolver().notifyChange(ChannelProvider.CONTENT_URI,null);
                     
                     if (msgCount%5 == 0){
-                    	Toast.makeText(getContext(), "Notification sent from provider " + msgCount, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "Notification sent from provider " + msgCount, Toast.LENGTH_SHORT).show();
                     }
                     
                     
@@ -220,11 +269,11 @@ public class ChannelProvider extends ContentProvider {
                     currentToast.setText("Notification sent from provider " + msgCount);
                     */
                     /*myHandler.postDelayed(
-                    		new Runnable() {
+                            new Runnable() {
                         @Override
                         public void run() {
                             currentToast.cancel();
-                        	currentToast.setText("CLOSING");
+                            currentToast.setText("CLOSING");
                         }
                     }, 600);*/
                     
@@ -236,20 +285,34 @@ public class ChannelProvider extends ContentProvider {
     }
     
     private void updateLoop(){
-    	this.getContext().unbindService(networkServiceConnection);
-    	
-    	boolean status = this.getContext().bindService(AMMO_SERVICE, networkServiceConnection, Context.BIND_AUTO_CREATE);
+        this.getContext().unbindService(networkServiceConnection);
+        
+        boolean status = this.getContext().bindService(AMMO_SERVICE, networkServiceConnection, Context.BIND_AUTO_CREATE);
         logger.trace("ChannelProvider updateLoop - Attempting to bind to service. Status = {}", status);
-    	/*if (currentToast != null){
+        /*if (currentToast != null){
             currentToast.setText("update");
-    	}*/
+        }*/
         (myHandler).postDelayed(new Runnable(){
 
-			@Override
+            @Override
+            public void run() {
+                updateLoop();
+            }
+            
+        }, 15000);
+    }
+    
+    private void queryLoop(){
+    	getContext().getContentResolver().notifyChange(ChannelProvider.CONTENT_URI,null);
+    	
+    	myHandler.postDelayed(new Runnable(){
+
+            @Override
 			public void run() {
-				updateLoop();
+				queryLoop();
 			}
     		
-    	}, 15000);
+    	}, 2000);
     }
+    
 }

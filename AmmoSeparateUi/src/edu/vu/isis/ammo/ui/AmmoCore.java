@@ -147,12 +147,12 @@ public class AmmoCore extends ActivityEx {
             public void run() {
                 while (true){
                     if ((receiveCount%5) == 0 && receiveCount != 0){
-                    	Cursor tempcurs = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, null, null, null);
-                    	if (tempcurs != null){
-                    		currentCursor = tempcurs;
-                    	} else {
-                    		Toast.makeText(getApplicationContext(), "Attempt to re-query cursor at count " + receiveCount + " failed.", Toast.LENGTH_SHORT).show();
-                    	}
+                        Cursor tempcurs = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, null, null, null);
+                        if (tempcurs != null){
+                            currentCursor = tempcurs;
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Attempt to re-query cursor at count " + receiveCount + " failed.", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }
             }
@@ -161,10 +161,7 @@ public class AmmoCore extends ActivityEx {
     
     private Thread cursorLooper;*/
     
-    AmmoListItem oneALI;
-    AmmoListItem twoALI;
-    AmmoListItem threeALI;
-    AmmoListItem fourALI;
+    AmmoListItem[] AmmoChannelList;
     
     
     private void initializeGatewayAdapter() {
@@ -182,48 +179,42 @@ public class AmmoCore extends ActivityEx {
         //ContentResolver x;
         //Toast.makeText(getApplicationContext(), "count is : " + managedCursor.getCount() + "", Toast.LENGTH_SHORT).show();
         //logger.error("count is : " + managedCursor.getCount() + "");
-         
-        /*AmmoListItem gateway*/ oneALI= new AmmoListItem("GatewayTest", "1","2","3");
-        /*AmmoListItem serial*/ twoALI= new AmmoListItem("SerialTest", "1","2","3");
-        /*AmmoListItem multicast*/ threeALI= new AmmoListItem("MulticastTest", "1","2","3");
-        /*AmmoListItem rmulticast*/ fourALI= new AmmoListItem("ReliableMulticastTest", "1","2","3");
+        AmmoChannelList = new AmmoListItem[4];
+        /*AmmoListItem gateway*/ AmmoChannelList[0]= new AmmoListItem("GatewayTest", "T","H","I","S"," ");
+        /*AmmoListItem serial*/ AmmoChannelList[1]= new AmmoListItem("SerialTest", "I","S"," "," "," ");
+        /*AmmoListItem multicast*/ AmmoChannelList[2]= new AmmoListItem("MulticastTest", "A"," "," "," "," ");
+        /*AmmoListItem rmulticast*/ AmmoChannelList[3]= new AmmoListItem("ReliableMulticastTest", "T","E","S","T"," ");
         //Cursor channelCursor;
         currentCursor = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, null, null, null);
 
         Handler handler = new Handler();
         
         final TextView temptest = (TextView) findViewById(R.id.ammo_test_tv11);
-        //final AmmoCore parent = this;
-        
-        
         
         if (currentCursor != null){ //if that worked...
-            currentCursor.moveToFirst();
-            oneALI/*gateway*/ = new AmmoListItem(currentCursor.getString(0), 
-                    currentCursor.getString(1), currentCursor.getString(2), currentCursor.getString(3));
-            currentCursor.moveToNext();
-            twoALI/*serial*/ = new AmmoListItem(currentCursor.getString(0), 
-                    currentCursor.getString(1), currentCursor.getString(2), currentCursor.getString(3));
-            currentCursor.moveToNext();
-            threeALI/*multicast*/ = new AmmoListItem(currentCursor.getString(0), 
-                    currentCursor.getString(1), currentCursor.getString(2), currentCursor.getString(3));
-            currentCursor.moveToNext();
-            fourALI/*rmulticast*/ = new AmmoListItem(currentCursor.getString(0), 
-                    currentCursor.getString(1), currentCursor.getString(2), currentCursor.getString(3));
             
-            channelList = (ChannelListView) findViewById(R.id.gateway_list);
+            AmmoChannelList = new AmmoListItem[currentCursor.getCount()];
             
             channelModel.clear();
-            channelModel.add(oneALI);
-            channelModel.add(twoALI);
-            channelModel.add(threeALI);
-            channelModel.add(fourALI);
+            
+            for (int i = 0; i < AmmoChannelList.length; i++){
+                
+            	if (currentCursor.moveToNext()){
+            		AmmoChannelList[i] = new AmmoListItem(currentCursor.getString(1), 
+                            currentCursor.getString(2), currentCursor.getString(3), currentCursor.getString(4)
+                            , currentCursor.getString(5), currentCursor.getString(6));
+            		channelModel.add(AmmoChannelList[i]);
+            	}
+                
+            }
+            
+            channelList = (ChannelListView) findViewById(R.id.gateway_list);
             
             channelAdapter = new ChannelAdapter2(this, channelModel);
             channelAdapter.notifyDataSetChanged();
             channelList.setAdapter(channelAdapter);
         } else {
-        	Toast.makeText(getApplicationContext(), "Cursor was null; cannot initialize UI", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getApplicationContext(), "Cursor was null; cannot initialize UI", Toast.LENGTH_SHORT).show();
         }
         
         
@@ -235,8 +226,8 @@ public class AmmoCore extends ActivityEx {
                  receiveCount++;
                  //Toast.makeText(getApplicationContext(), "Inside onChange1 method", Toast.LENGTH_SHORT).show();
                  //Toast.makeText(getApplicationContext(), "Received notification in activity "+ receiveCount, Toast.LENGTH_SHORT).show();
-                 Cursor tempcursor = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, null, null, null);
-                 tempcursor.moveToFirst();
+                 Cursor tempCursor = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, null, null, null);
+
                  /*channelModel.clear();
                  //////testing
                  channelAdapter = new ChannelAdapter2(parent, channelModel);
@@ -263,24 +254,19 @@ public class AmmoCore extends ActivityEx {
                  
                  channelAdapter.setNotifyOnChange(true);
                  
-                 oneALI.update(tempcursor.getString(1), 
-                         tempcursor.getString(2), tempcursor.getString(3), tempcursor.getString(4));
-                 tempcursor.moveToNext();
-                 
-                 twoALI.update(tempcursor.getString(1), 
-                         tempcursor.getString(2), tempcursor.getString(3), tempcursor.getString(4));
-                 tempcursor.moveToNext();
-                 
-                 threeALI.update(tempcursor.getString(0), 
-                         tempcursor.getString(1), tempcursor.getString(2), tempcursor.getString(3));
-                 tempcursor.moveToNext();
-                 
-                 fourALI.update(tempcursor.getString(0), 
-                         tempcursor.getString(1), tempcursor.getString(2), tempcursor.getString(3));
+                 for (int i = 0; i < AmmoChannelList.length; i++){
+                     
+                 	if (tempCursor.moveToNext()){
+                 		AmmoChannelList[i].update(tempCursor.getString(1), 
+                         tempCursor.getString(2), tempCursor.getString(3), tempCursor.getString(4)
+                         , tempCursor.getString(5), tempCursor.getString(6));
+                 	}
+                     
+                 }
 
                  channelAdapter.notifyDataSetChanged();
                  
-                 tempcursor.close();
+                 tempCursor.close();
                  temptest.setText(/*"Stuff just happened!!"*/""+receiveCount);
              } 
         });

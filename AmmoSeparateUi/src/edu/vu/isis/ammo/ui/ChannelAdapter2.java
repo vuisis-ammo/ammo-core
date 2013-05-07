@@ -51,12 +51,14 @@ public class ChannelAdapter2 extends ArrayAdapter<AmmoListItem>
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
 		if (convertView == null || convertView.getId()!=R.id.gateway_layout){
-			convertView = this.parent.getLayoutInflater().inflate(R.layout.multicast_item, null);
+			convertView = this.parent.getLayoutInflater().inflate(R.layout.ui_list_item, null);
 		}
-    	((TextView)convertView.findViewById(R.id.multicast_name)).setText(model.get(position).getName());
-    	((TextView)convertView.findViewById(R.id.multicast_formal)).setText(model.get(position).getFormal());
-    	((TextView)convertView.findViewById(R.id.multicast_status_one)).setText(model.get(position).getStatusOne());
-    	((TextView)convertView.findViewById(R.id.multicast_status_two)).setText(model.get(position).getStatusTwo());
+    	((TextView)convertView.findViewById(R.id.item_name)).setText(model.get(position).getName());
+    	((TextView)convertView.findViewById(R.id.item_formal)).setText(model.get(position).getFormal());
+    	((TextView)convertView.findViewById(R.id.item_status_one)).setText(model.get(position).getStatusOne());
+    	((TextView)convertView.findViewById(R.id.item_status_two)).setText(model.get(position).getStatusTwo());
+    	((TextView)convertView.findViewById(R.id.item_send_stats)).setText(model.get(position).getSendStats());
+    	((TextView)convertView.findViewById(R.id.item_receive_stats)).setText(model.get(position).getReceiveStats());
     	return convertView;
     }
 

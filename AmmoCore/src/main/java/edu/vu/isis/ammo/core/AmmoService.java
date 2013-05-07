@@ -11,6 +11,8 @@ purpose whatsoever, and to have or authorize others to do so.
 
 package edu.vu.isis.ammo.core;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -20,8 +22,12 @@ import org.slf4j.LoggerFactory;
 
 import android.app.Service;
 import android.content.Intent;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
+import android.os.Messenger;
 import android.os.RemoteException;
+import android.widget.Toast;
 import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.api.IDistributorService;
 
@@ -98,6 +104,11 @@ public class AmmoService extends Service  {
         public NetworkManager getService() {
             logger.trace("DistributorServiceAidl::getService");
             return AmmoService.this.impl;
+        }
+        
+        public IBinder getMessenger() {
+            logger.trace("DistributorServiceAidl::getMessenger");
+            return mMessenger.getBinder();
         }
     }
     public DistributorServiceAidl newDistributorServiceInstance() {
@@ -207,6 +218,65 @@ public class AmmoService extends Service  {
         this.impl.onDestroy();
      
         super.onDestroy();
+    }
+    
+    // ===========================================================
+    // Messenger classes/methods/variables
+    // ===========================================================
+    
+    final Messenger mMessenger = new Messenger(new IncomingHandler());
+    
+    ArrayList<Messenger> mClients = new ArrayList<Messenger>();
+    
+    Messenger backup;
+    class IncomingHandler extends Handler {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case 0:
+                    mClients.add(msg.replyTo);
+                    break;
+                case 1:
+                    mClients.remove(msg.replyTo);
+                    break;
+            }
+            backup = msg.replyTo;
+        }
+    }
+    
+    private boolean updateClientProviders(){
+        Iterator<Messenger> it = mClients.iterator();
+        //Toast.makeText(getApplicationContext(), "Inside updateClientProviders() method", Toast.LENGTH_SHORT).show();
+        while (it.hasNext()){
+            Messenger current = it.next();
+            try { 
+                current.send(Message.obtain(null, 1));
+            } catch (RemoteException e) {
+                it.remove();
+            }
+        }
+        if (backup != null){
+            try { 
+                backup.send(Message.obtain(null, 1));
+            } catch (RemoteException e) {
+                Toast.makeText(getApplicationContext(), "Failed to send msg to backup messenger", Toast.LENGTH_SHORT).show();
+            }
+        }
+        return true;
+    }
+    
+    private Handler updateLoopHandler = new Handler();
+    
+    private void updateLoop(){
+    	updateClientProviders();
+    	updateLoopHandler.postDelayed(new Runnable(){
+
+			@Override
+			public void run() {
+				updateLoop();
+			}
+    		
+    	}, 1500);
     }
 
 }

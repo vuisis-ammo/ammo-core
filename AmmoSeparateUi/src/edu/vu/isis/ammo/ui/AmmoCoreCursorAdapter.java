@@ -184,10 +184,10 @@ public class AmmoCoreCursorAdapter extends ActivityEx {
         //Toast.makeText(getApplicationContext(), "count is : " + managedCursor.getCount() + "", Toast.LENGTH_SHORT).show();
         //logger.error("count is : " + managedCursor.getCount() + "");
          
-        /*AmmoListItem gateway*/ oneALI= new AmmoListItem("GatewayTest", "1","2","3");
-        /*AmmoListItem serial*/ twoALI= new AmmoListItem("SerialTest", "1","2","3");
-        /*AmmoListItem multicast*/ threeALI= new AmmoListItem("MulticastTest", "1","2","3");
-        /*AmmoListItem rmulticast*/ fourALI= new AmmoListItem("ReliableMulticastTest", "1","2","3");
+        /*AmmoListItem gateway*/ oneALI= new AmmoListItem("GatewayTest", "T","H","I","S"," ");
+        /*AmmoListItem serial*/ twoALI= new AmmoListItem("SerialTest", "I","S"," "," "," ");
+        /*AmmoListItem multicast*/ threeALI= new AmmoListItem("MulticastTest", "A"," "," "," "," ");
+        /*AmmoListItem rmulticast*/ fourALI= new AmmoListItem("ReliableMulticastTest", "T","E","S","T"," ");
         //Cursor channelCursor;
         currentCursor = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, null, null, null);
 
