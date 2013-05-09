@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	  android:layout_width="fill_parent"
+	  android:layout_height="fill_parent"
+	  android:orientation="vertical"
+	  android:background="@drawable/distributor_detail_view_border" >
+	  
+  <ScrollView android:id="@+id/dist_detail"
+	  android:layout_width="fill_parent"
+	  android:layout_height="wrap_content"
+	  android:layout_weight=".5"
+	  android:scrollbars="vertical" >
+	   <LinearLayout 
+		  android:layout_width="fill_parent" 
+		  android:layout_height="fill_parent"
+		  android:orientation="vertical">
+
+	  <RelativeLayout
+	      android:id="@+id/dist_detail_main"
+	      android:layout_width="fill_parent"
+	      android:layout_height="fill_parent" >
+
+	      <TextView
+	          android:layout_width="wrap_content"
+	          android:layout_height="wrap_content"
+	          android:layout_alignParentLeft="true"
+	          android:layout_alignParentTop="true"
+	          android:padding="3dip"
+	          android:text="Entry Information"
+	          android:textColor="#FFFFFF"
+	          android:textSize="22dp" />
+
+	      <Button
+	          android:id="@+id/dist_detail_close_button"
+	          android:layout_width="40dip"
+	          android:layout_height="40dip"
+	          android:layout_alignParentRight="true"
+	          android:layout_alignParentTop="true"
+	          android:onClick="closePopup"
+	          android:text="@string/title_close" />
+	  </RelativeLayout>
+	  
+	      <View android:layout_width="fill_parent" android:layout_height="2px"
+				android:layout_marginTop="2dp" android:layout_marginBottom="2dp"
+				android:background="#FFFFFF" />
+
+	  	<!-- 
+	  	All TableRows are set to a visibility of gone initially. Desired rows are
+	  	made visible programatically.
+	  	 -->
+	    <TableLayout android:id="@+id/dist_detail_params"
+		    android:layout_width="fill_parent"
+		    android:layout_height="fill_parent"
+		   android:shrinkColumns="1"
+		    >
+	
+		    <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="topic"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_topic"
+		            android:hint="ammo/edu.vu.isis.ammo.*"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="visible">
+		        <TextView
+		            android:text="provider"
+		        	android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+
+		        <TextView
+		            android:id="@+id/dist_detail_provider"
+		            android:layout_width="wrap_content"
+		            android:layout_height="wrap_content"
+		            android:gravity="left"
+		            android:hint="content://edu.vu.isis.ammo/sample"
+		            android:padding="3dip"
+		            android:text="content://edu.vu.isis.ammo.sms.provider.smsprovider/message" />
+		    </TableRow>
+		    
+		        <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="payload"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_payload"
+		            android:hint="&lt;payload&gt;"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="projection"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_projection"
+		            android:hint="&lt;columns projected&gt;"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="select"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_selection"
+		            android:hint="&lt;rows selected&gt;"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="args"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_select_args"
+		            android:hint="&lt;rows selected&gt;"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="expiration"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_expiration"
+		            android:hint="2011 Jan 15"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		  <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="modified"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_modified"
+		            android:hint="2011 Jan 15"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		    <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="created"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_created"
+		            android:hint="2011 Jan 15"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		    <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="priority"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_priority"
+		            android:hint="normal"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		    <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="disposition"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_disposal"
+		            android:hint="normal"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="notice"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_notice"
+		            android:hint="normal"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+		    
+		     <TableRow android:visibility="gone">
+		        <TextView
+		            android:text="identity"
+		            android:textColor="#FFFFFF"
+		            android:padding="3dip" />
+		        <TextView android:id="@+id/dist_detail_identity"
+		            android:hint="2"
+		            android:gravity="left"
+		            android:padding="3dip" />
+		    </TableRow>
+	   </TableLayout>
+	  </LinearLayout>
+	</ScrollView>
+      <!-- <SlidingDrawer
+	     android:id="@+id/drawer"
+	     android:layout_width="match_parent"
+	     android:layout_height="match_parent"
+	
+	     android:handle="@+id/dist_channel_handle"
+	     android:content="@+id/dist_channel_content">
+	     
+	     <TextView
+	         android:id="@id/dist_channel_handle"
+	         android:layout_width="wrap_content"
+	         android:layout_height="wrap_content" 
+	         android:background="#FF222222"
+	         android:text="channel state"
+	         android:padding="10dip" /> -->
+	         <View
+        android:layout_width="fill_parent"
+        android:layout_height="4px"
+        android:layout_marginBottom="2dp"
+        android:layout_marginTop="2dp"
+        android:background="#FFFFFF" />
+
+    <TextView
+        android:id="@+id/dist_channel_handle"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="#FF222222"
+        android:padding="10dip"
+        android:text="Channel State"
+        android:textSize="18dp"
+        android:textColor="#FFFFFF" />
+
+    <View
+        android:layout_width="fill_parent"
+        android:layout_height="2px"
+        android:layout_marginBottom="2dp"
+        android:layout_marginTop="2dp"
+        android:background="#FFFFFF" />
+
+    <ListView
+        android:id="@+id/dist_channel_content"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight=".5"
+        android:background="#FF111111" />
+	
+	<!-- </SlidingDrawer> -->
+ </LinearLayout>

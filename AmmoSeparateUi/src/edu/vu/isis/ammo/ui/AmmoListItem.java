@@ -7,6 +7,8 @@ public class AmmoListItem {
 	private String status_two;
 	private String send_stats;
 	private String receive_stats;
+	private int colorOne;
+	private int colorTwo;
 	
 	public AmmoListItem(String a, String b, String c, String d, String e, String f){
 		name = a;
@@ -57,5 +59,21 @@ public class AmmoListItem {
 		send_stats = send_new;
 		receive_stats = receive_new;
 		return true;
+	}
+
+	public int getColorOne() {
+		return colorOne;
+	}
+
+	public void setColorOne(int colorOne) {
+		this.colorOne = colorOne;
+	}
+
+	public int getColorTwo() {
+		return colorTwo;
+	}
+
+	public void setColorTwo(int colorTwo) {
+		this.colorTwo = colorTwo;
 	}
 }

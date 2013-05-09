@@ -1,4 +1,4 @@
-/*Copyright (C) 2010-2012 Institute for Software Integrated Systems (ISIS)
+/*Copyright (C) 2010-2013 Institute for Software Integrated Systems (ISIS)
 This software was developed by the Institute for Software Integrated
 Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
 Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
@@ -48,18 +48,17 @@ import edu.vanderbilt.isis.ammo.ui.R;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetworkService;
-import edu.vu.isis.ammo.core.provider.ChannelProvider;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
 import edu.vu.isis.ammo.core.ui.AboutActivity;
+import edu.vu.isis.ammo.core.ui.util.ActivityEx;
+import edu.vu.isis.ammo.coreui.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.ui.preferences.GatewayPreferences;
 import edu.vu.isis.ammo.ui.preferences.MulticastPreferences;
 import edu.vu.isis.ammo.ui.preferences.ReliableMulticastPreferences;
 import edu.vu.isis.ammo.ui.preferences.SerialPreferences;
-import edu.vu.isis.ammo.core.ui.util.ActivityEx;
 import edu.vu.isis.logger.ui.LoggerEditor;
 
 /**
@@ -185,7 +184,8 @@ public class AmmoCore extends ActivityEx {
         /*AmmoListItem multicast*/ AmmoChannelList[2]= new AmmoListItem("MulticastTest", "A"," "," "," "," ");
         /*AmmoListItem rmulticast*/ AmmoChannelList[3]= new AmmoListItem("ReliableMulticastTest", "T","E","S","T"," ");
         //Cursor channelCursor;
-        currentCursor = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, null, null, null);
+        
+        currentCursor = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, "colors", null, null);
 
         Handler handler = new Handler();
         
@@ -203,6 +203,8 @@ public class AmmoCore extends ActivityEx {
             		AmmoChannelList[i] = new AmmoListItem(currentCursor.getString(1), 
                             currentCursor.getString(2), currentCursor.getString(3), currentCursor.getString(4)
                             , currentCursor.getString(5), currentCursor.getString(6));
+            		AmmoChannelList[i].setColorOne(Integer.parseInt(currentCursor.getString(7)));
+            		AmmoChannelList[i].setColorTwo(Integer.parseInt(currentCursor.getString(8)));
             		channelModel.add(AmmoChannelList[i]);
             	}
                 
@@ -226,31 +228,19 @@ public class AmmoCore extends ActivityEx {
                  receiveCount++;
                  //Toast.makeText(getApplicationContext(), "Inside onChange1 method", Toast.LENGTH_SHORT).show();
                  //Toast.makeText(getApplicationContext(), "Received notification in activity "+ receiveCount, Toast.LENGTH_SHORT).show();
-                 Cursor tempCursor = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, null, null, null);
-
-                 /*channelModel.clear();
-                 //////testing
-                 channelAdapter = new ChannelAdapter2(parent, channelModel);
-                 channelAdapter.notifyDataSetChanged();
-                 channelList.setAdapter(channelAdapter);
-                 channelList.invalidateViews();
-                 //////end test
-                 channelModel.add(new AmmoListItem(tempcursor.getString(0), 
-                         tempcursor.getString(1), tempcursor.getString(2), tempcursor.getString(3)));
-                 tempcursor.moveToNext();
-                 channelModel.add(new AmmoListItem(tempcursor.getString(0), 
-                         tempcursor.getString(1), tempcursor.getString(2), tempcursor.getString(3)));
-                 tempcursor.moveToNext();
-                 channelModel.add(new AmmoListItem(tempcursor.getString(0), 
-                         tempcursor.getString(1), tempcursor.getString(2), tempcursor.getString(3)));
-                 tempcursor.moveToNext();
-                 channelModel.add(new AmmoListItem(tempcursor.getString(0), 
-                         tempcursor.getString(1), tempcursor.getString(2), tempcursor.getString(3)));
-                 channelList = (ChannelListView) findViewById(R.id.gateway_list);
-                 channelAdapter = new ChannelAdapter2(parent, channelModel);
-                 channelAdapter.notifyDataSetChanged();
-                 channelList.setAdapter(channelAdapter);
-                 channelList.invalidateViews();*/
+                 
+                 boolean getColors = false;
+                 if (receiveCount != 0 && receiveCount%5 == 0){ //every fifth time, except the very first time...
+                	 getColors = true;
+                 }
+                 
+                 String colors = null;
+                 if (getColors){
+                	 colors = "colors";
+                 }//send null as the selection except every fifth time when we send "colors"
+                  //so the provider will send us the color information for those times
+                 
+                 Cursor tempCursor = getContentResolver().query(Uri.parse("content://edu.vu.isis.ammo.core.provider.channel/Channel"), null, colors, null, null);
                  
                  channelAdapter.setNotifyOnChange(true);
                  
@@ -260,6 +250,10 @@ public class AmmoCore extends ActivityEx {
                  		AmmoChannelList[i].update(tempCursor.getString(1), 
                          tempCursor.getString(2), tempCursor.getString(3), tempCursor.getString(4)
                          , tempCursor.getString(5), tempCursor.getString(6));
+                 		if (getColors){ //if we asked for and got colors, set them here
+                 			AmmoChannelList[i].setColorOne(Integer.parseInt(tempCursor.getString(7)));
+                 			AmmoChannelList[i].setColorTwo(Integer.parseInt(tempCursor.getString(8)));
+                 		}
                  	}
                      
                  }

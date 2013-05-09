@@ -18,7 +18,7 @@
 <string name="about_label">Help/About</string>
 
 <string name="netlink_title">Available Netlinks</string>
-<string name="gateway_title">AMMO Channel List</string>
+<string name="gateway_title">AMMO Separate UI Channel List</string>
 <string name="logger_viewer_label">Logging Tools</string>
 <string name="hard_reset_label">Hard Reset</string>
 

@@ -21,6 +21,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
@@ -29,7 +30,6 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.RemoteException;
-import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -133,7 +133,7 @@ public class ChannelProvider extends ContentProvider {
             if (!sendColors){
                 cols = new String[]{"_id", "Name","FormalIP","StatusOne","StatusTwo","Send","Receive"};
             } else {
-                cols = new String[]{"_id", "Name","FormalIP","StatusOne","StatusTwo","Send","Receive"};//TODO add color functionality
+                cols = new String[]{"_id", "Name","FormalIP","StatusOne","StatusTwo","Send","Receive","ColorOne","ColorTwo"};// add color functionality
             }
             
             MatrixCursor mc = new MatrixCursor(cols);
@@ -143,26 +143,38 @@ public class ChannelProvider extends ContentProvider {
             
             int count = adapter.getCount();
             
-            View v = new View(getContext());
             RelativeLayout[] itemArray = new RelativeLayout[count];
             
             for (int i = 0; i < count; i++){
                 itemArray[i] = (RelativeLayout) adapter.getView(i, null, null);
             }
-            
-            String[][] rowChildren = new String[count][itemArray[0].getChildCount() + 1];
+            String[][] rowChildren;
+
+            rowChildren = new String[count][cols.length]; // the number of columns in the MC must match 
+                                                          // the number of items in the String Array we pass in.
+                                                          // it will be either 7 or 9
             logger.error("Child Count for 0 is : " + itemArray[0].getChildCount()); //TODO change to trace
             
             for (int i = 0; i < count; i++){
                 for (int j = 0; j < rowChildren[0].length; j++){
                     if (j == 0){
                         rowChildren[i][j] = i+"";
-                    } else if (j < 5){
+                    } else if (j < 4){
                         rowChildren[i][j] = ((TextView)(itemArray[i]).getChildAt(j)).getText().toString();
+                    } else if (j == 4) {  
+                    	if (adapter.getTextTwoVisibility(i)){
+                    		rowChildren[i][j] = ((TextView)(itemArray[i]).getChildAt(j)).getText().toString();
+                    	} else {
+                    		rowChildren[i][j] = "";
+                    	}
                     } else if (j == 5){
                         LinearLayout tempLL = (LinearLayout) (itemArray[i]).getChildAt(j);
                         rowChildren[i][j] = ((TextView) tempLL.getChildAt(0)).getText().toString(); //first child of LL, send stats
                         rowChildren[i][j+1] = ((TextView) tempLL.getChildAt(1)).getText().toString(); // second child of LL, receive stats
+                    } else if (j == 7){//j can only be 7 or 8 if we added extra rows to rowChildren when we created it
+                    	rowChildren[i][j] = ((Integer)adapter.getColor(i, 0)).toString();
+                    } else if (j == 8){
+                    	rowChildren[i][j] = ((Integer)adapter.getColor(i, 1)).toString();
                     }
                     logger.error("["+i+"]["+j+"]= {" + rowChildren[i][j]+"}"); //TODO change to trace
                 }
@@ -312,7 +324,7 @@ public class ChannelProvider extends ContentProvider {
 				queryLoop();
 			}
     		
-    	}, 2000);
+    	}, 1000);
     }
     
 }

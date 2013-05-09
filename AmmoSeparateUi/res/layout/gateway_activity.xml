@@ -2,12 +2,12 @@
 
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:layout_width="fill_parent" android:layout_height="wrap_content"
-	android:background="@android:color/black">
+	android:background="@color/gateway_background">
 
 	<TextView android:id="@+id/gateway_label"
 		android:layout_width="fill_parent" android:layout_height="wrap_content"
 		android:layout_alignParentTop="true" android:gravity="center"
-		android:text="gateway_title" android:textColor="@android:color/primary_text_light"
+		android:text="@string/gateway_title" android:textColor="@color/branding"
 		android:textSize="20dip" />
 
 	<TextView android:id="@+id/version_label"

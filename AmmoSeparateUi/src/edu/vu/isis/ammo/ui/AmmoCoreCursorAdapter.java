@@ -49,7 +49,6 @@ import edu.vanderbilt.isis.ammo.ui.R;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.core.AmmoService;
-import edu.vu.isis.ammo.core.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.network.INetworkService;
@@ -61,6 +60,7 @@ import edu.vu.isis.ammo.ui.preferences.MulticastPreferences;
 import edu.vu.isis.ammo.ui.preferences.ReliableMulticastPreferences;
 import edu.vu.isis.ammo.ui.preferences.SerialPreferences;
 import edu.vu.isis.ammo.core.ui.util.ActivityEx;
+import edu.vu.isis.ammo.coreui.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.logger.ui.LoggerEditor;
 
 /**

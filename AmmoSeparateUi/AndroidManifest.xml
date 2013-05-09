@@ -22,6 +22,7 @@
         </activity>
         <activity android:name=".AmmoTest" />
         <activity android:name=".AmmoCore" />
+        <activity android:name="edu.vu.isis.ammo.ui.AboutActivity"/>
         <activity android:name="edu.vu.isis.ammo.ui.AmmoCore" />
         <activity android:name="edu.vu.isis.ammo.ui.AmmoCoreCursorAdapter" />
         <activity android:name="edu.vu.isis.ammo.ui.preferences.GatewayPreferences" />
@@ -29,7 +30,16 @@
         <activity android:name="edu.vu.isis.ammo.ui.preferences.MulticastPreferences" />
         <activity android:name="edu.vu.isis.ammo.ui.preferences.ReliableMulticastPreferences" />
         
-        <activity android:name="Service_testActivity" />
+        <activity android:name="edu.vu.isis.ammo.coreui.distributor.ui.DistributorTabActivity" />
+        <activity android:name="edu.vu.isis.ammo.coreui.distributor.ui.DistributorTableViewer"/>
+        <activity android:name="edu.vu.isis.ammo.coreui.distributor.ui.RetrievalTableViewer"/>
+        <activity android:name="edu.vu.isis.ammo.coreui.distributor.ui.SubscribeTableViewer"/>
+        <activity android:name="edu.vu.isis.ammo.coreui.distributor.ui.PostalTableViewer"/>
+        <activity android:name="edu.vu.isis.ammo.coreui.distributor.ui.PresenceTableViewer"/>
+        <activity android:name="edu.vu.isis.ammo.coreui.distributor.ui.CapabilityTableViewer"/>
+        
+        
+        <activity android:name=".Service_testActivity" />
         <!-- service android:name=".Service_ammo" android:process=":remote" android:exported="true"></service-->
     </application>
 

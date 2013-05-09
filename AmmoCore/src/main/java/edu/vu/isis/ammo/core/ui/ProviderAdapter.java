@@ -41,7 +41,6 @@ import edu.vu.isis.ammo.core.model.ReliableMulticast;
 import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
-import edu.vu.isis.ammo.core.provider.ChannelProvider;
 
 
 /**
@@ -57,7 +56,9 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
     private final Resources res;
     private final List<ModelChannel> model;
     private SharedPreferences prefs = null;
-
+    
+    private int[][] textColors;
+    private boolean[] textTwoVisible;
 
     public ProviderAdapter( Context parent, List<ModelChannel> model )
     {
@@ -67,6 +68,8 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
         this.context = parent;
         this.res = this.context.getResources();
         this.model = model;
+        textColors = new int[model.size()][2];
+        textTwoVisible = new boolean[model.size()];
         this.prefs = PreferenceManager.getDefaultSharedPreferences( context );
 
         for ( ModelChannel c : model ) {
@@ -108,7 +111,7 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
     	LayoutInflater inflater = (LayoutInflater)context.getSystemService
                 (Context.LAYOUT_INFLATER_SERVICE);
     	View row = channel.getView(convertView, inflater);
-    	onStatusChange( row, channel );
+    	onStatusChange( row, channel, position );
     	return row;
     }
 
@@ -136,7 +139,7 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
     }
 
 
-    private boolean onStatusChange( View item, ModelChannel channel )
+    private boolean onStatusChange( View item, ModelChannel channel, int position )
     {
         int[] status = channel.getStatus();
         
@@ -218,22 +221,32 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
                 case INetChannel.DISABLED:
                     setColor( icon, text_one, R.color.status_disabled );
                     setColor( icon, text_two, R.color.status_disabled );
+                    textColors[position][0] = this.res.getColor(R.color.status_disabled);
+                    textColors[position][1] = this.res.getColor(R.color.status_disabled);
                     break;
                 case INetChannel.LINK_WAIT:
                     setColor( icon, text_one, R.color.status_connecting );
                     setColor( icon, text_two, R.color.status_connecting );
+                    textColors[position][0] = this.res.getColor(R.color.status_connecting);
+                    textColors[position][1] = this.res.getColor(R.color.status_connecting);
                     break;
                 case INetChannel.CONNECTED:
                     setColor( icon, text_one, R.color.status_transmitting );
                     setColor( icon, text_two, R.color.status_transmitting );
+                    textColors[position][0] = this.res.getColor(R.color.status_transmitting);
+                    textColors[position][1] = this.res.getColor(R.color.status_transmitting);
                     break;
                 case INetChannel.BUSY:
                     setColor( icon, text_one, R.color.status_busy );
                     setColor( icon, text_two, R.color.status_busy );
+                    textColors[position][0] = this.res.getColor(R.color.status_busy);
+                    textColors[position][1] = this.res.getColor(R.color.status_busy);
                     break;
                 default:
                     setColor( icon, text_one, R.color.status_unknown );
                     setColor( icon, text_two, R.color.status_unknown );
+                    textColors[position][0] = this.res.getColor(R.color.status_unknown);
+                    textColors[position][1] = this.res.getColor(R.color.status_unknown);
                     break;
                 }
 
@@ -251,6 +264,7 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
                 errorString.append( "N:" ).append( ch.getSecondsSinceByteRead() );
                 text_two.setText( errorString.toString() );
                 text_two.setVisibility( TextView.VISIBLE );
+                textTwoVisible[position] = true;
 
                 if ( text_send != null )
                     text_send.setText( ch.getSendBitStats());
@@ -263,18 +277,22 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
                 case INetChannel.DISABLED:
                     setColor(icon, text, R.color.status_disabled);
                     text.setText(R.string.status_disabled);
+                    textColors[position][0] = this.res.getColor(R.color.status_disabled);
                     break;
                 case INetChannel.PENDING:
                     setColor(icon, text, R.color.status_pending);
                     text.setText(R.string.status_pending);
+                    textColors[position][0] = this.res.getColor(R.color.status_pending);
                     break;
                 case INetChannel.EXCEPTION:
                     setColor(icon, text, R.color.status_exception);
                     text.setText(R.string.status_exception);
+                    textColors[position][0] = this.res.getColor(R.color.status_exception);
                     break;
                 case INetChannel.CONNECTING:
                     setColor(icon, text, R.color.status_connecting);
                     text.setText(R.string.status_connecting);
+                    textColors[position][0] = this.res.getColor(R.color.status_connecting);
                     break;
                 case INetChannel.BUSY:
                 case INetChannel.CONNECTED:
@@ -284,52 +302,63 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
                     case INetChannel.SENDING:
                         setColor(icon, text, R.color.status_sending);
                         text.setText(R.string.status_sending);
+                        textColors[position][0] = this.res.getColor(R.color.status_sending);
                         break;
                     case INetChannel.TAKING:
                         setColor(icon, text, R.color.status_taking);
                         text.setText(R.string.status_taking);
+                        textColors[position][0] = this.res.getColor(R.color.status_taking);
                         break;
                     case INetChannel.WAIT_CONNECT:
                     case INetChannel.WAIT_RECONNECT:
                         setColor(icon, text, R.color.status_waiting_recv);
                         text.setText(R.string.status_waiting);
+                        textColors[position][0] = this.res.getColor(R.color.status_waiting_recv);
                         break;
                     default:
                         logger.error("missing sender status handling {}", status[1]);
                         setColor(icon, text, R.color.status_unknown);
                         text.setText(R.string.status_unknown);
+                        textColors[position][0] = this.res.getColor(R.color.status_unknown);
                     }
 
                     if (status.length < 2) break;
-                    text = text_two;
+                    text = text_two; //text switches to text_two here
                     text.setVisibility(TextView.VISIBLE);
+                    textTwoVisible[position] = true;
 
                     switch (status[2]) {
                     case INetChannel.SIZED:
                         text.setText(R.string.status_sized);
+                        textColors[position][1] = this.res.getColor(R.color.status_sized);
                         break;
                     case INetChannel.CHECKED:
                         setColor(icon, text, R.color.status_checked);
                         text.setText(R.string.status_checked);
+                        textColors[position][1] = this.res.getColor(R.color.status_checked);
                         break;
                     case INetChannel.DELIVER:
                         setColor(icon, text, R.color.status_deliver);
                         text.setText(R.string.status_deliver);
+                        textColors[position][1] = this.res.getColor(R.color.status_deliver);
                         break;
                     case INetChannel.WAIT_CONNECT:
                     case INetChannel.WAIT_RECONNECT:
                         setColor(icon, text, R.color.status_waiting_recv);
                         text.setText(R.string.status_waiting);
+                        textColors[position][1] = this.res.getColor(R.color.status_waiting_recv);
                         break;
                     case INetChannel.START:
                     case INetChannel.RESTART:
                         setColor(icon, text, R.color.status_start);
                         text.setText(R.string.status_start);
+                        textColors[position][1] = this.res.getColor(R.color.status_start);
                         break;
                     default:
                         logger.error("missing receiver status handling {}", status[2]);
                         setColor(icon, text, R.color.status_unknown);
                         text.setText(R.string.status_unknown);
+                        textColors[position][1] = this.res.getColor(R.color.status_unknown);
                     }
                     break;
                     //END INetChannel.CONNECTED
@@ -337,47 +366,57 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
                 case INetChannel.DISCONNECTED:
                     setColor(icon, text, R.color.status_disconnected);
                     text.setText(R.string.status_disconnected);
+                    textColors[position][0] = this.res.getColor(R.color.status_disconnected);
                     break;
                 case INetChannel.STALE:
                     setColor(icon, text, R.color.status_stale);
                     text.setText(R.string.status_stale);
+                    textColors[position][0] = this.res.getColor(R.color.status_stale);
                     break;
                 case INetChannel.LINK_WAIT:
                     setColor(icon, text, R.color.status_link_wait);
                     text.setText(R.string.status_link_wait);
+                    textColors[position][0] = this.res.getColor(R.color.status_link_wait);
                     break;
                 case INetChannel.LINK_ACTIVE:
                     setColor(icon, text, R.color.status_link_active);
                     text.setText(R.string.status_link_active);
+                    textColors[position][0] = this.res.getColor(R.color.status_link_active);
                     break;
                 case INetChannel.WAIT_CONNECT:
                 case INetChannel.WAIT_RECONNECT:
                     setColor(icon, text, R.color.status_waiting_conn);
                     text.setText(R.string.status_waiting);
+                    textColors[position][0] = this.res.getColor(R.color.status_waiting_conn);
                     break;
 
                 case INetChannel.INTERRUPTED:
                     setColor(icon, text, R.color.status_interrupted);
                     text.setText(R.string.status_interrupted);
+                    textColors[position][0] = this.res.getColor(R.color.status_interrupted);
                     break;
                 case INetChannel.SHUTDOWN:
                     setColor(icon, text, R.color.status_shutdown);
                     text.setText(R.string.status_shutdown);
+                    textColors[position][0] = this.res.getColor(R.color.status_shutdown);
                     break;
                 case INetChannel.START:
                 case INetChannel.RESTART:
                     setColor(icon, text, R.color.status_start);
                     text.setText(R.string.status_start);
+                    textColors[position][0] = this.res.getColor(R.color.status_start);
                     break;
                 case INetChannel.STARTED:
                     setColor(icon, text, R.color.status_started);
                     text.setText(R.string.status_started);
+                    textColors[position][0] = this.res.getColor(R.color.status_started);
                     break;
 
                 default:
                     setColor(icon, text, R.color.status_unknown);
                     // text.setText(R.string.status_unknown);
                     text.setText("unknown ["+status[0]+"]");
+                    textColors[position][0] = this.res.getColor(R.color.status_unknown);
                 }
                 // Display the send/receive counts on line one.
                 text_one.setText( channel.getNetChannel().getSendReceiveStats());
@@ -485,6 +524,14 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
         int color = this.res.getColor(resColor);
         if (icon != null) icon.setTextColor(R.color.togglebutton_default);
         if (text != null) text.setTextColor(color);
+    }
+    
+    public int getColor(int pos, int item){
+    	return textColors[pos][item];
+    }
+    
+    public boolean getTextTwoVisibility(int pos){
+    	return this.textTwoVisible[pos];
     }
     
     @Override

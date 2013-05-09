@@ -39,7 +39,7 @@ public class ChannelAdapter2 extends ArrayAdapter<AmmoListItem>
         private final Resources res;
         private final List<AmmoListItem> model;
         
-	public ChannelAdapter2( AmmoCore parent, List<AmmoListItem> model )
+    public ChannelAdapter2( AmmoCore parent, List<AmmoListItem> model )
     {
         super(parent, R.layout.multicast_item, model);
         this.parent = parent;
@@ -47,38 +47,53 @@ public class ChannelAdapter2 extends ArrayAdapter<AmmoListItem>
         this.model = model;
     }
 
-	
+    
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
-		if (convertView == null || convertView.getId()!=R.id.gateway_layout){
-			convertView = this.parent.getLayoutInflater().inflate(R.layout.ui_list_item, null);
-		}
-    	((TextView)convertView.findViewById(R.id.item_name)).setText(model.get(position).getName());
-    	((TextView)convertView.findViewById(R.id.item_formal)).setText(model.get(position).getFormal());
-    	((TextView)convertView.findViewById(R.id.item_status_one)).setText(model.get(position).getStatusOne());
-    	((TextView)convertView.findViewById(R.id.item_status_two)).setText(model.get(position).getStatusTwo());
-    	((TextView)convertView.findViewById(R.id.item_send_stats)).setText(model.get(position).getSendStats());
-    	((TextView)convertView.findViewById(R.id.item_receive_stats)).setText(model.get(position).getReceiveStats());
-    	return convertView;
+        if (convertView == null || convertView.getId()!=R.id.gateway_layout){
+            convertView = this.parent.getLayoutInflater().inflate(R.layout.ui_list_item, null);
+        }
+        ((TextView)convertView.findViewById(R.id.item_name)).setText(model.get(position).getName());
+        ((TextView)convertView.findViewById(R.id.item_formal)).setText(model.get(position).getFormal());
+        
+        String textStatusOne = model.get(position).getStatusOne();
+        TextView statusOne = ((TextView)convertView.findViewById(R.id.item_status_one));
+        statusOne.setText(textStatusOne);
+        statusOne.setTextColor(model.get(position).getColorOne());//setting the color
+        
+        String textStatusTwo = model.get(position).getStatusTwo();
+        TextView statusTwo = ((TextView)convertView.findViewById(R.id.item_status_two));
+        if (!textStatusTwo.equals("")){
+        	statusTwo.setText(textStatusTwo);
+        	statusTwo.setVisibility(TextView.VISIBLE);
+            statusTwo.setTextColor(model.get(position).getColorTwo());//setting the color
+        } else {
+        	statusTwo.setVisibility(TextView.INVISIBLE);
+        }
+        
+        
+        ((TextView)convertView.findViewById(R.id.item_send_stats)).setText(model.get(position).getSendStats());
+        ((TextView)convertView.findViewById(R.id.item_receive_stats)).setText(model.get(position).getReceiveStats());
+        return convertView;
     }
 
-	@Override
-	public boolean onFormalChange(View arg0, String arg1) {
-		// TODO Auto-generated method stub
-		return false;
-	}
+    @Override
+    public boolean onFormalChange(View arg0, String arg1) {
+        // TODO Auto-generated method stub
+        return false;
+    }
 
-	@Override
-	public boolean onNameChange(View arg0, String arg1) {
-		// TODO Auto-generated method stub
-		return false;
-	}
+    @Override
+    public boolean onNameChange(View arg0, String arg1) {
+        // TODO Auto-generated method stub
+        return false;
+    }
 
-	@Override
-	public boolean onTouch(View v, MotionEvent event) {
-		// TODO Auto-generated method stub
-		return false;
-	}
+    @Override
+    public boolean onTouch(View v, MotionEvent event) {
+        // TODO Auto-generated method stub
+        return false;
+    }
 
 }
 
