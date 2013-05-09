@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
@@ -47,8 +48,6 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
-import edu.vu.isis.ammo.util.UDPSendException;
-import edu.vu.isis.ammo.util.AmmoConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +55,9 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.AmmoConfigurator;
+import edu.vu.isis.ammo.util.InetHelper;
+import edu.vu.isis.ammo.util.UDPSendException;
 
 public class ReliableMulticastChannel extends NetChannel {
     private static final Logger logger = LoggerFactory.getLogger("net.rmcast");
@@ -159,11 +161,10 @@ public class ReliableMulticastChannel extends NetChannel {
 
         // Set up timer to trigger once per minute.
         TimerTask updateBps = new UpdateBpsTask();
-        mUpdateBpsTimer.scheduleAtFixedRate( updateBps, 0, BPS_STATS_UPDATE_INTERVAL * 1000 );
-        
-        System.setProperty("java.net.preferIPv4Stack" , "true");
-    }
+        mUpdateBpsTimer.scheduleAtFixedRate(updateBps, 0, BPS_STATS_UPDATE_INTERVAL * 1000);
 
+        System.setProperty("java.net.preferIPv4Stack", "true");
+    }
 
     private Timer mUpdateBpsTimer = new Timer();
 
@@ -171,7 +172,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
     class UpdateBpsTask extends TimerTask {
         public void run() {
-            logger.trace( "UpdateBpsTask fired" );
+            logger.trace("UpdateBpsTask fired");
 
             // Update the BPS stats for the sending and receiving.
             mBpsSent = (mBytesSent - mLastBytesSent) / BPS_STATS_UPDATE_INTERVAL;
@@ -181,7 +182,6 @@ public class ReliableMulticastChannel extends NetChannel {
             mLastBytesRead = mBytesRead;
         }
     };
-
 
     @Override
     public void init(Context context) {
@@ -318,18 +318,21 @@ public class ReliableMulticastChannel extends NetChannel {
         this.reset();
         return true;
     }
-    public boolean setFragDelay (int frag_delay) {
-      logger.trace("Thread <{}>::setFragDelay {}", Thread.currentThread().getId(),
-              frag_delay);
-      if (this.mFragDelay  == frag_delay)
-          return false;
-      this.mFragDelay = frag_delay;
-      
-      //we do not need to change the udp.xml since we are phasing out this feature 
-      //ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
-      this.reset();
-      return true;
-  }
+
+    public boolean setFragDelay(int frag_delay) {
+        logger.trace("Thread <{}>::setFragDelay {}", Thread.currentThread().getId(),
+                frag_delay);
+        if (this.mFragDelay == frag_delay)
+            return false;
+        this.mFragDelay = frag_delay;
+
+        // we do not need to change the udp.xml since we are phasing out this
+        // feature
+        // ReliableMulticastSettings.setPort(String.valueOf(port),
+        // this.context);
+        this.reset();
+        return true;
+    }
 
     public void setTTL(int ttl) {
         logger.trace("Thread <{}>::setTTL {}", Thread.currentThread().getId(),
@@ -377,9 +380,8 @@ public class ReliableMulticastChannel extends NetChannel {
         }
     }
 
-    
     private void statusChange() {
-    	int connState = this.connectorThread.state.value;
+        int connState = this.connectorThread.state.value;
         int senderState = (mSender != null) ? mSender.getSenderState()
                 : INetChannel.PENDING;
         int receiverState = (mReceiver != null) ? mReceiver.getReceiverState()
@@ -387,7 +389,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
         try {
             mChannelManager.statusChange(this,
-            		this.lastConnState, connState,
+                    this.lastConnState, connState,
                     this.lastSenderState, senderState,
                     this.lastReceiverState, receiverState);
         } catch (Exception ex) {
@@ -520,6 +522,9 @@ public class ReliableMulticastChannel extends NetChannel {
 
         private AtomicBoolean mIsConnected;
 
+        protected String acquiredInterfaceName = null;
+        private InetHelper inetHelper = InetHelper.INSTANCE;
+
         public void statusChange() {
             parent.statusChange();
         }
@@ -551,7 +556,6 @@ public class ReliableMulticastChannel extends NetChannel {
             this.state = new State();
             mIsConnected = new AtomicBoolean(false);
         }
-        
 
         private class State {
             private int value;
@@ -670,6 +674,7 @@ public class ReliableMulticastChannel extends NetChannel {
             this.state.failure(this.state.attempt);
         }
 
+
         /**
          * A value machine based. Most of the time this machine will be in a
          * CONNECTED value. In that CONNECTED value the machine wait for the
@@ -723,12 +728,11 @@ public class ReliableMulticastChannel extends NetChannel {
                             try {
                                 synchronized (this.state) {
                                     while (!parent.isAnyLinkUp()
-                                            && !this.state.isDisabled()) {
-                                      
-                                        this.state.wait(BURP_TIME); // wait for
-                                                                    // a
-                                                                    // link
-                                                                    // interface
+                                            && !this.state.isDisabled()
+                                            && !this.isInterfaceAcquired()) {
+
+                                        // wait for a link interface
+                                        this.state.wait(BURP_TIME);
                                     }
                                     this.state
                                             .setUnlessDisabled(NetChannel.DISCONNECTED);
@@ -743,6 +747,7 @@ public class ReliableMulticastChannel extends NetChannel {
                             // or else wait for link to come up, triggered
                             // through
                             // broadcast receiver
+
                             break;
 
                         case NetChannel.DISCONNECTED:
@@ -781,15 +786,11 @@ public class ReliableMulticastChannel extends NetChannel {
                             this.parent.statusChange();
                             try {
                                 synchronized (this.state) {
-                                    while (this.isConnected()) // this is
-                                                               // IMPORTANT
-                                                               // don't remove
-                                                               // it.
+                                    while (this.isConnected()) 
                                     {
-                                        if (HEARTBEAT_ENABLED)
-                                            ;
+                                        if (HEARTBEAT_ENABLED) {
                                         // parent.sendHeartbeatIfNeeded();
-
+                                        }
                                         // wait for somebody to change the
                                         // connection status
                                         this.state.wait(BURP_TIME);
@@ -839,6 +840,27 @@ public class ReliableMulticastChannel extends NetChannel {
             logger.error("channel closing");
         }
 
+        /**
+         * Prepare the socket to connect to the target interface.
+         * 
+         * @return
+         * @throws SocketException
+         */
+        private boolean isInterfaceAcquired() throws SocketException {
+            this.acquiredInterfaceName = this.inetHelper.acquireInterface();
+            if (this.acquiredInterfaceName == null) {
+                return false;
+            }
+            final NetworkInterface networkInterface = NetworkInterface
+                    .getByName(this.acquiredInterfaceName);
+            final List<InetAddress> networkAddresses = Collections.list(networkInterface.getInetAddresses()); 
+            for (InetAddress networkAddr : networkAddresses) {
+                System.setProperty("jgroups.bind_addr", networkAddr.getHostAddress());
+                return true;
+            }
+            return false;
+        }
+
         private boolean connect() {
             logger.trace("Thread <{}>ConnectorThread::connect", Thread
                     .currentThread().getId());
@@ -855,11 +877,11 @@ public class ReliableMulticastChannel extends NetChannel {
             if (parent.mJGroupChannel != null)
                 logger.error("Tried to create mJGroupChannel when we already had one.");
             try {
-              
-                AmmoConfigurator ammoConfigurator = 
-                    new AmmoConfigurator (parent.configFile, parent.context);
-                
-                //parent.mJGroupChannel = new JChannel(parent.configFile);
+
+                AmmoConfigurator ammoConfigurator =
+                        new AmmoConfigurator(parent.configFile, parent.context);
+
+                // parent.mJGroupChannel = new JChannel(parent.configFile);
                 parent.mJGroupChannel = new JChannel(ammoConfigurator);
                 // Put call to set operator ID here.
                 parent.mJGroupChannel.setName(mChannelManager.getOperatorId());
@@ -1108,8 +1130,9 @@ public class ReliableMulticastChannel extends NetChannel {
     //
     class SenderThread extends Thread {
 
-	// Asserted maximum useful size of trace logging message (e.g. size of PLI msg)
-	private static final int TRACE_CUTOFF_SIZE = 512;
+        // Asserted maximum useful size of trace logging message (e.g. size of
+        // PLI msg)
+        private static final int TRACE_CUTOFF_SIZE = 512;
 
         public SenderThread(ConnectorThread iParent,
                 ReliableMulticastChannel iChannel, SenderQueue iQueue,
@@ -1162,12 +1185,12 @@ public class ReliableMulticastChannel extends NetChannel {
                             mChannel.mMulticastPort);
                     logger.debug("Sending datagram packet. length={}",
                             packet.getLength());
-        
-        		    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
-        			logger.debug("...{}", buf.array());
-        		    } else {
-        			logger.debug("...buffer: {} bytes", buf.array().length);
-        		    }
+
+                    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
+                        logger.debug("...{}", buf.array());
+                    } else {
+                        logger.debug("...buffer: {} bytes", buf.array().length);
+                    }
                     logger.debug("...{}", buf.remaining());
                     logger.debug("...{}", mChannel.mMulticastGroup);
                     logger.debug("...{}", mChannel.mMulticastPort);
