@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/ssl_layout"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent" >
+
+    <!--
+       This seems to be used by the code for looking up the View
+       corresponding to a given channel.  It doesn't seem to factor
+       into the layout itself.
+    -->
+
+    <TextView
+        android:id="@+id/channel_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="invisible" />
+
+    <!--
+       These two TextViews are the leftmost items that contain the
+       ssl name and the IP address and port
+    -->
+
+    <TextView
+        android:id="@+id/ssl_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:hint="Name"
+        android:padding="3dip"
+        android:textSize="16dip" />
+
+    <TextView
+        android:id="@+id/ssl_formal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_below="@id/ssl_name"
+        android:hint="Formal Name (e.g. host:port)"
+        android:padding="3dip"
+        android:textSize="16dip" />
+
+    <!--
+       This TextView is in the upper right, and contains the count of
+       messages sent and received.
+    -->
+
+    <TextView
+        android:id="@+id/ssl_status_text_one"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:hint="Checking status..."
+        android:padding="3dip"
+        android:textSize="16dip" />
+
+    <!--
+       This TextView is in the lower right, and contains the status of
+       the channel.
+    -->
+
+    <TextView
+        android:id="@+id/s_status_text_two"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_below="@id/ssl_status_text_one"
+        android:padding="3dip"
+        android:textSize="16dip"
+        android:visibility="invisible" />
+
+    <!--
+       These two TextViews are in the middle, just to the left of the
+       right column.  They display the bytes send/received, and the
+       bps sent/received.
+    -->
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_toLeftOf="@id/ssl_status_text_one"
+        android:orientation="vertical"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp" >
+
+        <TextView
+            android:id="@+id/ssl_send_stats"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:hint="Collecting send stats..."
+            android:padding="3dip"
+            android:textSize="16dip" />
+
+        <TextView
+            android:id="@+id/ssl_receive_stats"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/ssl_send_stats"
+            android:hint="Collecting receive stats..."
+            android:padding="3dip"
+            android:textSize="16dip" />
+    </LinearLayout>
+
+</RelativeLayout>

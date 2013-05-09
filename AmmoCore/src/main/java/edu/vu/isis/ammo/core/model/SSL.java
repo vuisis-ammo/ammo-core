@@ -39,17 +39,17 @@ import edu.vu.isis.ammo.core.network.NetChannel;
  * effectively the core can satiate the application's data hunger.
  * 
  */
-public class Gateway extends ModelChannel {
+public class SSL extends ModelChannel {
     public static final Logger logger = LoggerFactory.getLogger("model.gateway");
     // does the operator wish to use this gateway?
-    public static String KEY = "GatewayUiChannel";
+    public static String KEY = "SSLUiChannel";
     private boolean election;
 
     // FIXME : Should this view only user interface be writing this value?
     private void setElection(boolean pred) {
         this.election = pred;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.GATEWAY_DISABLED, !this.election);
+        editor.putBoolean(INetPrefKeys.SSL_DISABLED, !this.election);
         editor.commit();
     }
 
@@ -96,16 +96,16 @@ public class Gateway extends ModelChannel {
         mStatus = status;
     }
 
-    private Gateway(Context context, String name, NetChannel channel) {
+    private SSL(Context context, String name, NetChannel channel) {
         super(context, name);
 
-        this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST,
-                INetPrefKeys.DEFAULT_GATEWAY_HOST);
-        this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.GATEWAY_PORT,
-                String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
-        this.election = !this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED,
-                INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
-        logger.trace("Gateway constructed with following from prefs: host={} port={} election={}",
+        this.host = this.prefs.getString(INetPrefKeys.SSL_HOST,
+                INetPrefKeys.DEFAULT_SSL_HOST);
+        this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.SSL_PORT,
+                String.valueOf(INetPrefKeys.DEFAULT_SSL_PORT)));
+        this.election = !this.prefs.getBoolean(INetPrefKeys.SSL_DISABLED,
+                INetPrefKeys.DEFAULT_SSL_ENABLED);
+        logger.trace("SSL constructed with following from prefs: host={} port={} election={}",
                 new Object[] {
                         host, port, election
                 });
@@ -113,18 +113,17 @@ public class Gateway extends ModelChannel {
         mNetChannel = channel;
     }
 
-    public static Gateway getInstance(Context context, NetChannel channel) {
-        // initialize the gateway from the shared preferences
-        logger.trace("{} asked for a new Gateway instance", new Throwable().getStackTrace()[1]);
-        return new Gateway(context, "Gateway Channel", channel);
+    public static SSL getInstance(Context context, NetChannel channel) {
+        // initialize the SSL from the shared preferences
+        logger.trace("{} asked for a new SSL instance", new Throwable().getStackTrace()[1]);
+        return new SSL(context, "SSL Channel", channel);
     }
     
-    public static Gateway getMediaInstance(Context context, NetChannel channel) {
-        // initialize the gateway media from the shared preferences
-        logger.trace("{} asked for a new Gateway Media instance", new Throwable().getStackTrace()[1]);
-        return new Gateway(context, "Gateway Media Channel", channel);
+    public static SSL getMediaInstance(Context context, NetChannel channel) {
+        // initialize the SSL media from the shared preferences
+        logger.trace("{} asked for a new SSL Media instance", new Throwable().getStackTrace()[1]);
+        return new SSL(context, "SSL Media Channel", channel);
     }    
-   
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -138,27 +137,27 @@ public class Gateway extends ModelChannel {
      */
     @Override
     public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
-        logger.trace("Gateway onSharedPreferenceChanged called with key={}", key);
-        if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
-            this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST,
-                    INetPrefKeys.DEFAULT_GATEWAY_HOST);
+        logger.trace("SSL onSharedPreferenceChanged called with key={}", key);
+        if (key.equals(INetPrefKeys.SSL_HOST)) {
+            this.host = this.prefs.getString(INetPrefKeys.SSL_HOST,
+                    INetPrefKeys.DEFAULT_SSL_HOST);
             callOnNameChange();
-            logger.trace("Gateway host updated to {}", host);
-            logger.trace("New gateway formal: {}", getFormal());
-        } else if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
-            this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.GATEWAY_PORT,
-                    String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
+            logger.trace("SSL host updated to {}", host);
+            logger.trace("New SSL formal: {}", getFormal());
+        } else if (key.equals(INetPrefKeys.SSL_PORT)) {
+            this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.SSL_PORT,
+                    String.valueOf(INetPrefKeys.DEFAULT_SSL_PORT)));
             callOnNameChange();
-            logger.trace("Gateway port updated to {}", port);
-            logger.trace("New gateway formal: {}", getFormal());
+            logger.trace("SSL port updated to {}", port);
+            logger.trace("New SSL formal: {}", getFormal());
         }
     }
 
     public View getView(View row, LayoutInflater inflater) {
-        row = inflater.inflate(R.layout.gateway_item, null);
+        row = inflater.inflate(R.layout.ssl_item, null);
 
         TextView gateway_name = ((TextView) row.findViewById(R.id.gateway_name));
-        ((TextView) row.findViewById(R.id.channel_type)).setText(Gateway.KEY);
+        ((TextView) row.findViewById(R.id.channel_type)).setText(SSL.KEY);
         gateway_name.setText(this.getName());
         ((TextView) row.findViewById(R.id.gateway_formal)).setText(this.getFormal());
         return row;

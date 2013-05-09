@@ -30,7 +30,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
@@ -57,6 +56,7 @@ import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.ReliableMulticast;
+import edu.vu.isis.ammo.core.model.SSL;
 import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
@@ -68,6 +68,7 @@ import edu.vu.isis.ammo.core.network.JournalChannel;
 import edu.vu.isis.ammo.core.network.MulticastChannel;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
+import edu.vu.isis.ammo.core.network.SSLChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -363,6 +364,7 @@ public enum NetworkManager  implements INetworkService,
         netChannelMap.put(reliableMulticastChannel.name, reliableMulticastChannel);
         netChannelMap.put(journalChannel.name, journalChannel);
         netChannelMap.put(serialChannel.name, serialChannel);
+        netChannelMap.put(sslChannel.name, sslChannel);
 
         modelChannelMap.put(tcpChannel.name,
                 Gateway.getInstance(this.context, tcpChannel));
@@ -374,6 +376,9 @@ public enum NetworkManager  implements INetworkService,
                 ReliableMulticast.getInstance(this.context, reliableMulticastChannel));
         modelChannelMap.put(serialChannel.name,
                 Serial.getInstance(this.context, serialChannel));
+        modelChannelMap.put(sslChannel.name, 
+        		SSL.getInstance(this.context, sslChannel));
+        
         /*
          * Does the mock channel need a UI ?
          * modelChannelMap.put(mockChannel.name,
@@ -1530,6 +1535,10 @@ public enum NetworkManager  implements INetworkService,
     final private TcpChannel tcpMediaChannel =
             TcpChannel.getInstance(ChannelFilter.GATEWAYMEDIA, this);
 
+    // added for SSL
+    final private SSLChannel sslChannel = SSLChannel.getInstance(ChannelFilter.SSL, this);
+    
+    
     final public List<NetChannel> registeredChannels =
             new ArrayList<NetChannel>();
 
