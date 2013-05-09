@@ -1,3 +1,6 @@
+// Some parts of the code in this file were written by the AMMO project.
+// Other parts of this code bear the following copyright notice:
+
 /*
  * Copyright 2009 Cedric Priscal
  *
@@ -68,6 +71,127 @@ getBaudrate( jint baudrate )
 	case 4000000: return B4000000;
 	default: return -1;
 	}
+}
+
+
+void
+closeserial( int fd, struct termios *oldterminfo )
+{
+    tcsetattr( fd, TCSANOW, oldterminfo );
+    if ( close( fd ) < 0 ) {
+        LOGE( strerror( errno ));
+    }
+}
+
+
+int
+openserial( char *devicename, struct termios *oldterminfo )
+{
+    int fd = open( devicename, O_RDWR | O_NOCTTY | O_SYNC );
+    LOGD("in openserial, open() fd = %d", fd);
+
+    if ( fd == -1 ) {
+        LOGE("openserial(): open()");
+        LOGE( strerror( errno ));
+        return 0;
+    }
+    if (tcgetattr(fd, oldterminfo) == -1) {
+        LOGE("openserial(): tcgetattr()");
+        LOGE( strerror( errno ));
+        return 0;
+    }
+    struct termios attr = *oldterminfo;
+    attr.c_cflag |= CRTSCTS | CLOCAL;
+    attr.c_oflag = 0;
+    if (tcflush(fd, TCIOFLUSH) == -1) {
+        LOGE("openserial(): tcflush()");
+        LOGE( strerror( errno ));
+        return 0;
+    }
+    if (tcsetattr(fd, TCSANOW, &attr) == -1) {
+        LOGE("initserial(): tcsetattr()");
+        LOGE( strerror( errno ));
+        return 0;
+    }
+    return fd;
+}
+
+
+JNIEXPORT jboolean JNICALL
+Java_edu_vu_isis_ammo_core_network_SerialPort_isCorrectTTY( JNIEnv *env,
+                                                            jobject thiz,
+                                                            jstring path )
+{
+    // If CTS is high, this is the correct port.
+    // If CTS is low, this is not the correct port.
+    // So, if we get an error, default to returning JNI_FALSE.
+
+    jboolean iscopy;
+    const char *path_utf = (*env)->GetStringUTFChars( env, path, &iscopy );
+    LOGE( "In JNI code to test TTY: %s", path_utf );
+
+    struct termios oldterminfo;
+
+    int fd = open( path_utf, O_RDWR | O_NOCTTY | O_SYNC );
+    LOGD("in openserial, open() fd = %d", fd);
+
+    if ( fd == -1 ) {
+        LOGE("isCorrectTTY(): open() failed");
+        LOGE( strerror( errno ));
+        return JNI_FALSE;
+    }
+
+    if (tcgetattr(fd, &oldterminfo) == -1) {
+        LOGE("isCorrectTTY(): tcgetattr() failed");
+        LOGE( strerror( errno ));
+        if ( close( fd ) < 0 ) {
+            LOGE( strerror( errno ));
+        }
+        return JNI_FALSE;
+    }
+
+
+    struct termios attr = oldterminfo;
+    attr.c_cflag |= CRTSCTS | CLOCAL;
+    attr.c_oflag = 0;
+    if (tcflush(fd, TCIOFLUSH) == -1) {
+        LOGE("openserial(): tcflush()");
+        LOGE( strerror( errno ));
+        if ( close( fd ) < 0 ) {
+            LOGE( strerror( errno ));
+        }
+        return JNI_FALSE;
+    }
+    if (tcsetattr(fd, TCSANOW, &attr) == -1) {
+        LOGE("initserial(): tcsetattr()");
+        LOGE( strerror( errno ));
+        if ( close( fd ) < 0 ) {
+            LOGE( strerror( errno ));
+        }
+        return JNI_FALSE;
+    }
+
+    // If we make it to this point, we have successfully opened the
+    // file and gotten a valid file descriptor.
+
+    int status;
+    if ( ioctl( fd, TIOCMGET, &status ) == -1 ) {
+        LOGE( "ioctl() call failed" );
+        LOGE( strerror( errno ));
+        closeserial( fd, &oldterminfo );
+        return JNI_FALSE;
+    }
+
+    closeserial( fd, &oldterminfo );
+
+    if ( status & TIOCM_CTS ) {
+        LOGE( "CTS was true" );
+        return JNI_TRUE;
+    } else {
+        LOGE( "CTS was false" );
+    }
+
+    return JNI_FALSE;
 }
 
 
