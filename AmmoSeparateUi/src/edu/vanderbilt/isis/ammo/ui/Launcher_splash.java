@@ -2,12 +2,12 @@ package edu.vanderbilt.isis.ammo.ui;
 
 
 import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
+import edu.vu.isis.ammo.ui.AmmoCore;
+import edu.vu.isis.ammo.ui.AmmoCoreCursorAdapter;
 
 public class Launcher_splash extends Activity{
 	public static int x = 0;
@@ -21,7 +21,7 @@ public class Launcher_splash extends Activity{
         ammo.setOnClickListener(new View.OnClickListener() {
 			
 			public void onClick(View v) {
-				Intent intenta = new Intent(getApplicationContext(), edu.vu.isis.ammo.ui.AmmoCoreCursorAdapter.class);
+				Intent intenta = new Intent(getApplicationContext(), AmmoCoreCursorAdapter.class);
 			    startActivity(intenta);
 			}
 		});
@@ -30,7 +30,7 @@ public class Launcher_splash extends Activity{
         ammo2.setOnClickListener(new View.OnClickListener() {
 			
 			public void onClick(View v) {
-				Intent intentb = new Intent(getApplicationContext(), edu.vu.isis.ammo.ui.AmmoCore.class);
+				Intent intentb = new Intent(getApplicationContext(), AmmoCore.class);
 			    startActivity(intentb);
 			}
 		});

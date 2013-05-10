@@ -3,7 +3,7 @@
 
     <string name="AMMO">AMMO</string>
     <string name="OTHER">OTHER</string>
-    <string name="app_name">Service_test</string>
+    <string name="app_name">Separate OMMA UI</string>
     <string name="remote_service_started">svc start</string>
     <string name="remote_service_label">label</string>
     <string name="remote_service_connected">rmt svc conn</string>

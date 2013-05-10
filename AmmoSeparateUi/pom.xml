@@ -20,12 +20,10 @@
 
   <dependencies>
     <dependency>
-      <groupId>edu.vu.isis.ammo.coredep.testing</groupId>
-      <artifactId>ammocorelibcombo</artifactId>
+      <groupId>edu.vu.isis.ammo.separatedep</groupId>
+      <artifactId>ammocorelib</artifactId>
       <version>1.6.0</version>
-      <scope>system</scope> 
-      <!-- using system scope is STRONGLY discouraged. This is a temporary hack -->
-      <systemPath>${project.basedir}/libs/ammocorelib-1.6.0.jar</systemPath>
+      <scope>compile</scope> 
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -65,11 +63,11 @@
       <groupId>org.jgroups</groupId>
       <artifactId>jgroups-android</artifactId>
     </dependency>
-    <dependency>
+    <!--<dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammolib</artifactId>
       <type>jar</type>
-    </dependency>
+    </dependency>-->
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammo-message</artifactId>
