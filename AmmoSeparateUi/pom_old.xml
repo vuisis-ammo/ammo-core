@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+  xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <parent>
+    <groupId>edu.vu.isis</groupId>
+    <artifactId>ammocore-parent</artifactId>
+    <version>1.8.0-SNAPSHOT</version>
+  </parent>
+
+  <modelVersion>4.0.0</modelVersion>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <artifactId>ammoseparateui</artifactId>
+  <packaging>apk</packaging>
+  <name>Ammo Separate UI Application</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-core</artifactId>
+      <version>1.0.7</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-core</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-classic</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>android-test</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>android</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jgroups</groupId>
+      <artifactId>jgroups-android</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammolib</artifactId>
+      <type>jar</type>
+    </dependency>
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammo-message</artifactId>
+      <classifier>protoc24</classifier>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>transapps</groupId>
+      <artifactId>tasettings-api</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+
+      <!-- clean up the ndk artifacts -->
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>libs</directory>
+            </fileset>
+            <fileset>
+              <directory>obj</directory>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+
+      <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <configuration>
+              <reportFormat>plain</reportFormat>
+              <redirectTestOutputToFile>true</redirectTestOutputToFile>
+              <systemPropertyVariables>
+                  <java.util.logging.config.file>${project.build.testOutputDirectory}/logging.properties</java.util.logging.config.file>
+                  <logback.configurationFile>${project.build.testOutputDirectory}/logback.xml</logback.configurationFile>
+              </systemPropertyVariables>
+          </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+        <artifactId>android-maven-plugin</artifactId>
+        <executions>
+          <!-- build the shared libraries -->
+         <!-- <execution>
+            <id>build-native-library</id>
+            <goals>
+              <goal>ndk-build</goal>
+            </goals>
+            <phase>compile</phase>
+            <configuration>
+              <target>ammocore</target>
+              <ndkFinalLibraryName>ammocore</ndkFinalLibraryName>
+              <ndk>
+                <path>${env.ANDROID_NDK_HOME}</path>
+              </ndk>
+              <attachNativeArtifacts>true</attachNativeArtifacts>
+              <clearNativeArtifacts>true</clearNativeArtifacts>
+              <deleteConflictingFiles>true</deleteConflictingFiles>
+              <sign>
+                <debug>false</debug>
+              </sign>
+              <proguard>
+                <skip>true</skip>
+              </proguard>
+            </configuration>
+          </execution> -->
+          <!-- update the manifest with version information -->
+          <execution>
+            <id>manifest-version</id>
+            <goals>
+              <goal>manifest-update</goal>
+            </goals>
+            <configuration>
+              <manifest>
+                <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
+              </manifest>
+            </configuration>
+          </execution>
+          <!-- build the android package -->
+          <execution>
+            <id>build-apk</id>
+            <goals>
+              <goal>apk</goal>
+            </goals>
+            <configuration>
+              <sdk>
+                <platform>8</platform>
+                <path>${env.ANDROID_SDK}</path>
+              </sdk>
+              <undeployBeforeDeploy>true</undeployBeforeDeploy>
+              <attachJar>true</attachJar>
+            </configuration>
+          </execution>
+        </executions>
+        <extensions>true</extensions>
+      </plugin>
+
+      <!-- compile the java -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+  <reporting>
+    <plugins>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>${maven.javadoc.plugin.version}</version>
+        <configuration>
+          <links>
+            <link>http://commons.apache.org/lang/api</link>
+            <link>http://java.sun.com/j2se/1.5.0/docs/api</link>
+          </links>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-plugin-plugin</artifactId>
+        <version>${maven.plugin.plugin.version}</version>
+      </plugin>
+
+      <plugin>
+        <groupId>net.sf.doodleproject</groupId>
+        <artifactId>doxygen-maven-plugin</artifactId>
+        <version>2.3-SNAPSHOT</version>
+        <configuration>
+          <executable>/usr/bin/doxygen</executable>
+          <alphabeticalIndex>true</alphabeticalIndex>
+          <generateHtml>true</generateHtml>
+          <inputDirectory>${basedir}/src/main/java</inputDirectory>
+          <filePatterns>*.java</filePatterns>
+          <recursive>true</recursive>
+          <dotGraphMaxNodes>20</dotGraphMaxNodes>
+          <maxDotGraphDepth>7</maxDotGraphDepth>
+        </configuration>
+      </plugin>
+
+    </plugins>
+  </reporting>
+
+<!--
+  <pluginRepositories>
+    <pluginRepository>
+      <id>doodleproject-repo</id>
+      <name>DoodleProject Maven 2 Repository</name>
+      <url>http://doodleproject.sourceforge.net/maven2/release</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+    </pluginRepository>
+  </pluginRepositories>
+-->
+
+</project>
