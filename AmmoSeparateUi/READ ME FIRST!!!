@@ -1,0 +1,21 @@
+The maven build for this app currently does NOT RUN. Build it in eclipse to get a properly functioning apk. The reason for this is currently unknown, but is related to the dependency on the ammocorelib-1.6.0.jar library. If this library is removed, the build will not work. The build SHOULD work simply with dependencies on both ammocore and ammolib, but does not at this time for unknown reasons. 
+
+Known bugs:
+-The UI locks up sometimes and will not allow you to click on channels to view the preferences. 
+-The intents for the logging buttons in AmmoCore are wrong; they should point at the separate LAUI application, NOT at logging classes in AmmoCore
+-If you attempt to start this app immediately after installing it, it will not correctly grab the cursor from the ChannelProvider. Interestingly, the error you get will be that the ChannelProvider is not done initializing, but that provider is in the AmmoCore package and this bug does not seem to depend on how recently AmmoCore has been installed. 
+
+
+Things not done yet:
+
+-Making this use CursorAdapter/CursorLoader to retrieve the data rather than a cursor and an ArrayAdapter. 
+-Implementing the logger stuff
+-Making serial channel update more often than the rest (mike would like serial to update 2-4 times per second rather than once per second)
+-refactoring the base package of the app to be something like edu.vu.isis.ammo.ui.launcher, or just making it edu.vu.isis.ammo.ui (it is currently edu.vanderbilt.isis.ammo.ui, which is long to type)
+-Fixing bugs... and cleaning up some of the crappy code I wrote (sorry!)
+-Removing a lot of the temporary debugging code I have in that writes loggers or toasts or stuff (I tried to put TODO comments near most of this, so eclipse can help find it)
+
+
+#####################
+Building this: right click your package/project explorer, select New, click other, select Android->Android Project from Existing Code, then navigate to the root directory of this project (the one this file is in) and click 'ok'. It should put a single entry into the "Projects" window, which has an empty checkbox which you must click to check. Click finish, ensuring that the checkboxes for copying into workspace and adding to working sets are NOT checked. 
+#####################
