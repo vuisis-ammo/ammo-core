@@ -20,9 +20,12 @@
 
   <dependencies>
     <dependency>
-      <groupId>edu.vu.isis</groupId>
-      <artifactId>ammocore</artifactId>
-      <version>1.8.0-SNAPSHOT</version>
+      <groupId>edu.vu.isis.ammo.coredep.testing</groupId>
+      <artifactId>ammocorelibcombo</artifactId>
+      <version>1.6.0</version>
+      <scope>system</scope> 
+      <!-- using system scope is STRONGLY discouraged. This is a temporary hack -->
+      <systemPath>${project.basedir}/libs/ammocorelib-1.6.0.jar</systemPath>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
