@@ -315,7 +315,7 @@ public class AmmoCore extends ActivityEx {
         AlertDialog.Builder bldr = new AlertDialog.Builder(this);
         bldr.setTitle("Select a Tool").setItems(tools, dialogListener);
         bldr.create().show();
-    };
+    }
 
     public void loggingToolsClick(View v) {
         startActivity(new Intent().setClass(this, LoggerEditor.class));

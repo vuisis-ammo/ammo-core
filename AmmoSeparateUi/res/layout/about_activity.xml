@@ -1,0 +1,788 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+android:id="@+id/scrllvwNo1"
+android:layout_width="fill_parent"
+android:layout_height="fill_parent">
+
+<LinearLayout 
+android:orientation="vertical"
+android:layout_width="fill_parent"
+android:layout_height="wrap_content"
+android:padding="5dp"
+android:scrollbars="vertical"
+android:scrollbarAlwaysDrawVerticalTrack="true">
+
+
+
+
+  <TableLayout
+     android:layout_width="fill_parent"
+     android:layout_height="wrap_content"
+     android:padding="5dp"
+      >
+
+
+
+	<!--
+	
+	
+	About AmmoCore
+	
+	
+	-->
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		>
+		
+			<TextView android:id="@+id/about_table_header"
+				android:text="About AmmoCore"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:textSize="24sp"
+				android:layout_span="2"
+				android:layout_weight="50"
+				 />
+				
+	</TableRow>
+    <TableRow android:layout_height="wrap_content"
+              android:layout_width="fill_parent" 
+              android:paddingTop="9sp">
+             
+ 
+      <TextView android:id="@+id/about_name"
+                android:textStyle="bold"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+                android:text="Ammo Core Version:"
+                />
+
+      <!-- android:textStyle="bold"  -->
+
+      <TextView android:id="@+id/about_version"
+
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text=""
+                />
+    </TableRow>
+
+
+<!-- 
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	>
+	
+		<TextView android:id="@+id/about_table_header"
+			android:text="@string/delay_explanation"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:textSize="18sp"
+			android:layout_span="2"
+			android:layout_weight="50"
+			 />
+				
+	</TableRow> -->
+	<!--
+	
+	
+	Gateway Help
+	
+	
+	-->
+	<!-- Gateway Help-->
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent" 
+	android:paddingTop="4sp">
+		
+		<TextView android:id="@+id/gw_table_header"
+			android:text="Message Status"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:textSize="20sp"
+			android:layout_span="2"
+			android:layout_weight="50"
+			 />
+				
+	</TableRow>
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_gw_t2_checked_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:textStyle="bold"
+		android:layout_toRightOf="@+id/help_gw_t2_checked_dsc"
+		android:text="Checked:"
+		/>
+
+
+      <TextView android:id="@id/help_gw_t2_checked_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/gw_t2_checked"
+                />
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_gw_t2_deliver_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:textStyle="bold"
+		android:layout_toRightOf="@+id/help_gw_t2_deliver_dsc"
+		android:text="Deliver:"
+		/>
+
+
+      <TextView android:id="@id/help_gw_t2_deliver_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/gw_t2_deliver"
+                />
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_gw_t2_waiting_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:textStyle="bold"
+		android:layout_toRightOf="@+id/help_gw_t2_waiting_dsc"
+		android:text="Waiting:"
+		/>
+
+
+      <TextView android:id="@id/help_gw_t2_waiting_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/gw_t2_waiting"
+                />
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_gw_t2_start_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:textStyle="bold"
+		android:layout_toRightOf="@+id/help_gw_t2_start_dsc"
+		android:text="Start:"
+		/>
+
+
+      <TextView android:id="@id/help_gw_t2_start_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/gw_t2_start"
+                />
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_gw_t2_sized_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:textStyle="bold"
+		android:layout_toRightOf="@+id/help_gw_t2_sized_dsc"
+		android:text="Sized:"
+		/>
+
+
+      <TextView android:id="@id/help_gw_t2_sized_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/gw_t2_sized"
+                />
+		
+	</TableRow>
+	
+	<!--
+	
+	
+	Netlink Help
+	
+	
+	-->
+	<!--  Commented out until Netlink is fixed 
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent" 
+		android:paddingTop="9sp">
+		
+			<TextView android:id="@+id/netlink_table_header"
+				android:text="Netlink Help"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:textSize="24sp"
+				android:layout_span="2"
+				android:layout_weight="50"
+				 />
+				
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_up_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_up"
+		android:textStyle="bold"
+		android:text="Up:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_up"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_up"
+		/>
+		
+	</TableRow>
+	
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_down_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_down"
+		android:textStyle="bold"
+		android:text="Down:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_down"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_down"
+		/>
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_disabled_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_disabled"
+		android:textStyle="bold"
+		android:text="Disabled:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_disabled"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_disabled"
+		/>
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_disconnected_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_disconnected"
+		android:textStyle="bold"
+		android:text="Disconnected:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_disconnected"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_disconnected"
+		/>
+		
+	</TableRow>
+	
+	
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_idle_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_idle"
+		android:textStyle="bold"
+		android:text="Idle:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_idle"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_idle"
+		/>
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_scanning_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_scanning"
+		android:textStyle="bold"
+		android:text="Scanning:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_scanning"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_scanning"
+		/>
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_connecting_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_connecting"
+		android:textStyle="bold"
+		android:text="Connecting:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_connecting"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_connecting"
+		/>
+		
+	</TableRow>
+	
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_auth_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_auth"
+		android:textStyle="bold"
+		android:text="Authorizing:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_auth"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_auth"
+		/>
+		
+	</TableRow>
+	
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_obt_ip_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_obt_ip"
+		android:textStyle="bold"
+		android:text="Obtaining IP:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_obt_ip"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_obt_ip"
+		/>
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_failed_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_failed"
+		android:textStyle="bold"
+		android:text="Failed:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_failed"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_failed"
+		/>
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_conn_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_conn"
+		android:textStyle="bold"
+		android:text="Connected:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_conn"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_conn"
+		/>
+		
+	</TableRow>
+	
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_susp_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_susp"
+		android:textStyle="bold"
+		android:text="Suspended:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_susp"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_susp"
+		/>
+		
+	</TableRow>
+	
+	
+
+	
+	
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_avail_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_avail"
+		android:textStyle="bold"
+		android:text="Available:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_avail"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_u_avail"
+		/>
+		
+	</TableRow>
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_lost_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_lost"
+		android:textStyle="bold"
+		android:text="Lost:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_lost"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_u_lost"
+		/>
+		
+	</TableRow>
+	
+	
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_nl_nsd_init_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_nl_nsd_init"
+		android:textStyle="bold"
+		android:text="Initializing:"
+		/>
+
+
+		<TextView android:id="@id/help_nl_nsd_init"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:text="@string/nsd_u_init"
+		/>
+		
+	</TableRow> -->
+	
+	<!--
+	
+	
+	Preferences Help
+	
+	
+	-->
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent" 
+	android:paddingTop="9sp">
+	
+		<TextView android:id="@+id/netlink_table_header"
+			android:text="Preferences Help"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:textSize="24sp"
+			android:layout_span="2"
+			android:layout_weight="50"
+			 />
+				
+	</TableRow>
+
+	<!-- Gateway IP -->
+	<TableRow android:layout_height="wrap_content"
+	android:layout_width="fill_parent"
+	android:paddingTop="9sp"
+	>
+	  <TextView android:id="@+id/help_pref_gw_ip_title"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_pref_gw_ip"
+		android:textStyle="bold"
+		android:text="Gateway IP Address:"
+		/>
+
+
+		<TextView android:id="@id/help_pref_gw_ip"
+		android:layout_alignParentRight="true"
+		android:layout_alignParentTop="true"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+
+		android:text="@string/prefs_gw_ip"
+		/>
+		
+	</TableRow>
+	
+	<!-- Gateway Port -->
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_pref_gw_port"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_weight="50"
+		android:textStyle="bold"
+		android:layout_toRightOf="@+id/help_pref_gw_port_dsc"
+		android:text="Gateway Port Number:"
+		/>
+
+
+      <TextView android:id="@id/help_pref_gw_port_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/prefs_gw_port"
+                />
+		
+	</TableRow>
+	
+	<!-- Network Connection Timeout -->
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_pref_ntwk_conn"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:textStyle="bold"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_pref_ntwk_conn_dsc"
+		android:text="Network Connection Timeout:"
+		/>
+
+
+      <TextView android:id="@id/help_pref_ntwk_conn_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/ntwk_conn_timeout"
+                />
+		
+	</TableRow>
+	
+	<!-- Connection Idle Timeout -->
+	<TableRow android:layout_height="wrap_content"
+		android:layout_width="fill_parent"
+		android:paddingTop="9sp"
+		>
+	  <TextView android:id="@+id/help_pref_conn_idle"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:textStyle="bold"
+		android:layout_weight="50"
+		android:layout_toRightOf="@+id/help_pref_conn_idle_dsc"
+		android:text="Connection Idle Timeout:"
+		/>
+
+
+      <TextView android:id="@id/help_pref_conn_idle_dsc"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="50"
+              
+                android:text="@string/conn_idle_timeout"
+                />
+		
+	</TableRow>
+
+	<!-- User Identifier -->
+
+
+  </TableLayout>
+
+</LinearLayout>
+
+</ScrollView>

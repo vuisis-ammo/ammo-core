@@ -57,6 +57,8 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
     private final List<ModelChannel> model;
     private SharedPreferences prefs = null;
     
+    private String operatorId;
+    
     private int[][] textColors;
     private boolean[] textTwoVisible;
 
@@ -66,6 +68,7 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
                android.R.layout.simple_list_item_1,
                model);
         this.context = parent;
+        this.setOperatorId("operator");
         this.res = this.context.getResources();
         this.model = model;
         textColors = new int[model.size()][2];
@@ -142,6 +145,8 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
     private boolean onStatusChange( View item, ModelChannel channel, int position )
     {
         int[] status = channel.getStatus();
+        
+        setOperatorId(prefs.getString(INetPrefKeys.CORE_OPERATOR_ID, "operator"));
         
         if ( status == null )
             return false;
@@ -534,7 +539,21 @@ public class ProviderAdapter extends ArrayAdapter<ModelChannel>
     	return this.textTwoVisible[pos];
     }
     
-    @Override
+    public String getOperatorId() {
+		return operatorId;
+	}
+
+
+	private void setOperatorId(String operatorId) {
+		this.operatorId = operatorId;
+	}
+	
+/*	public void updateModel(List<ModelChannel> newModel){
+		this.model = newModel;
+	}
+*/
+
+	@Override
     public boolean onNameChange() {
         //parent.refreshList();
         return false;

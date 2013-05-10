@@ -21,7 +21,6 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
@@ -74,7 +73,11 @@ public class ChannelProvider extends ContentProvider {
             final AmmoService.DistributorServiceAidl binder = (AmmoService.DistributorServiceAidl) service;
             parent.networkServiceBinder = binder.getService();
             getGatewayList();
+            
             isConnected = true;
+            
+            adapter = new ProviderAdapter(getContext(), _gatewayList);
+            
             mService = new Messenger(binder.getMessenger());
             
             try {
@@ -139,11 +142,19 @@ public class ChannelProvider extends ContentProvider {
             MatrixCursor mc = new MatrixCursor(cols);
 
             getGatewayList();
-            adapter = new ProviderAdapter(getContext(), _gatewayList);
             
             int count = adapter.getCount();
             
             RelativeLayout[] itemArray = new RelativeLayout[count];
+            
+            String[] operatorRow = new String[cols.length];
+            
+            operatorRow[0] = Integer.toString(0);
+            operatorRow[1] = adapter.getOperatorId();
+            logger.error("["+0+"]["+0+"]= {" + operatorRow[0]+"}"); //TODO change to trace
+            logger.error("["+0+"]["+1+"]= {" + operatorRow[1]+"}"); //TODO change to trace
+            
+            mc.addRow(operatorRow);
             
             for (int i = 0; i < count; i++){
                 itemArray[i] = (RelativeLayout) adapter.getView(i, null, null);
@@ -158,12 +169,12 @@ public class ChannelProvider extends ContentProvider {
             for (int i = 0; i < count; i++){
                 for (int j = 0; j < rowChildren[0].length; j++){
                     if (j == 0){
-                        rowChildren[i][j] = i+"";
+                        rowChildren[i][j] = Integer.toString(i+1); //the string form of the value "i+1"; we only send 0 as id if we are sending operator
                     } else if (j < 4){
-                        rowChildren[i][j] = ((TextView)(itemArray[i]).getChildAt(j)).getText().toString();
+                        rowChildren[i][j] = ((TextView) (itemArray[i]).getChildAt(j)).getText().toString();
                     } else if (j == 4) {  
                     	if (adapter.getTextTwoVisibility(i)){
-                    		rowChildren[i][j] = ((TextView)(itemArray[i]).getChildAt(j)).getText().toString();
+                    		rowChildren[i][j] = ((TextView) (itemArray[i]).getChildAt(j)).getText().toString();
                     	} else {
                     		rowChildren[i][j] = "";
                     	}
@@ -245,8 +256,6 @@ public class ChannelProvider extends ContentProvider {
     
     private int msgCount = 0;
     
-    Toast currentToast;
-    
     /**
      * Handler of incoming messages from service. This allows the service (or anyone, really) to initiate requeries from the separate process UI. 
      */
@@ -266,29 +275,6 @@ public class ChannelProvider extends ContentProvider {
                         Toast.makeText(getContext(), "Notification sent from provider " + msgCount, Toast.LENGTH_SHORT).show();
                     }
                     
-                    
-                    /*if (currentToast != null){
-                        currentToast.cancel();
-                        //currentToast.setText("");
-                    } else {
-                        currentToast = Toast.makeText(getContext(), "Notification sent from provider " + msgCount, Toast.LENGTH_SHORT);
-                        
-                    }
-                    
-                    
-                    currentToast.show();
-
-                    currentToast.setText("Notification sent from provider " + msgCount);
-                    */
-                    /*myHandler.postDelayed(
-                            new Runnable() {
-                        @Override
-                        public void run() {
-                            currentToast.cancel();
-                            currentToast.setText("CLOSING");
-                        }
-                    }, 600);*/
-                    
                     break;
                 default:
                     super.handleMessage(msg);
@@ -296,7 +282,14 @@ public class ChannelProvider extends ContentProvider {
         }
     }
     
+    
+    //TODO remove this (see below)
+    /**
+     * This is for TESTING PURPOSES ONLY. It unbinds and re-binds every 15 seconds. 
+     * This does not need to be in the final version (if the app works without it).
+     */
     private void updateLoop(){
+    	
         this.getContext().unbindService(networkServiceConnection);
         
         boolean status = this.getContext().bindService(AMMO_SERVICE, networkServiceConnection, Context.BIND_AUTO_CREATE);
@@ -314,6 +307,13 @@ public class ChannelProvider extends ContentProvider {
         }, 15000);
     }
     
+    
+    /**
+     * queryLoop is the loop function that runs to make the whole data transfer process work. 
+     * The channelProvider notifies the UI (through the cursor) that the data has changed. 
+     * The UI re-queries and gets a new version of data. 
+     * There is also a way to initiate this from AmmoService using message passing if desired. 
+     */
     private void queryLoop(){
     	getContext().getContentResolver().notifyChange(ChannelProvider.CONTENT_URI,null);
     	
