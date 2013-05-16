@@ -186,12 +186,12 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel> implements
 			text_receive = (TextView) row
 					.findViewById(R.id.serial_receive_stats);
 		}else if (channelType.equals(SSL.KEY)) {
-			text_one = (TextView) row.findViewById(R.id.serial_status_one);
-			text_two = (TextView) row.findViewById(R.id.serial_status_two);
+			text_one = (TextView) row.findViewById(R.id.ssl_status_text_one);
+			text_two = (TextView) row.findViewById(R.id.ssl_status_text_two);
 
-			text_send = (TextView) row.findViewById(R.id.serial_send_stats);
+			text_send = (TextView) row.findViewById(R.id.ssl_send_stats);
 			text_receive = (TextView) row
-					.findViewById(R.id.serial_receive_stats);
+					.findViewById(R.id.ssl_receive_stats);
 		}
 
 		if (text_one == null) {

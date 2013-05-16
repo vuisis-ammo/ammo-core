@@ -43,6 +43,7 @@
         <activity android:name=".ui.SubscriptionStatus"/>
         <activity android:name=".ui.GatewayPreferences"/>
         <activity android:name=".ui.SerialPreferences"/>
+        <activity android:name=".ui.SSLPreferences"/>
         <activity android:name=".ui.MulticastPreferences"/>
         <activity android:name=".ui.ReliableMulticastPreferences"/>
         <activity android:name=".ui.AboutActivity"/>

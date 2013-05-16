@@ -50,6 +50,7 @@ import edu.vu.isis.ammo.core.model.ModelChannel;
 import edu.vu.isis.ammo.core.model.Multicast;
 import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.ReliableMulticast;
+import edu.vu.isis.ammo.core.model.SSL;
 import edu.vu.isis.ammo.core.model.Serial;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.receiver.StartUpReceiver;
@@ -152,11 +153,14 @@ public class AmmoCore extends ActivityEx {
                     intent.setClass(AmmoCore.this, ReliableMulticastPreferences.class);
                 } else if (selectedChannel instanceof Multicast) {
                     intent.setClass(AmmoCore.this, MulticastPreferences.class);
-                } else {
+                } else if (selectedChannel instanceof SSL) {
+                    intent.setClass(AmmoCore.this, SSLPreferences.class);
+                }  else {
                     Toast.makeText(AmmoCore.this, "Did not recognize channel",
                             Toast.LENGTH_SHORT).show();
                     return;
                 }
+               logger.debug("intent was sent when clicking on row within channels",intent.toString());
                 AmmoCore.this.startActivity(intent);
             }
 

@@ -40,13 +40,14 @@ import edu.vu.isis.ammo.core.network.NetChannel;
  * 
  */
 public class SSL extends ModelChannel {
-    public static final Logger logger = LoggerFactory.getLogger("model.gateway");
+    public static final Logger logger = LoggerFactory.getLogger("model.ssl");
     // does the operator wish to use this gateway?
-    public static String KEY = "SSLUiChannel";
+    public static String KEY = "SSLChannel";
     private boolean election;
 
     // FIXME : Should this view only user interface be writing this value?
     private void setElection(boolean pred) {
+    	logger.debug("SSL setElection() called with {}", pred);
         this.election = pred;
         Editor editor = this.prefs.edit();
         editor.putBoolean(INetPrefKeys.SSL_DISABLED, !this.election);
@@ -55,21 +56,25 @@ public class SSL extends ModelChannel {
 
     @Override
     public void enable() {
+    	logger.debug("SSL Enable() called");
         this.setElection(true);
     }
 
     @Override
     public void disable() {
+    	logger.debug("SSL Disable() called");
         this.setElection(false);
     }
 
     @Override
     public void toggle() {
+    	logger.debug("SSL Toggle() called");
         this.setElection(!this.election);
     }
 
     @Override
     public boolean isEnabled() {
+    	logger.debug("SSL isEnabled() called");
         return this.election;
     }
 
@@ -105,7 +110,7 @@ public class SSL extends ModelChannel {
                 String.valueOf(INetPrefKeys.DEFAULT_SSL_PORT)));
         this.election = !this.prefs.getBoolean(INetPrefKeys.SSL_DISABLED,
                 INetPrefKeys.DEFAULT_SSL_ENABLED);
-        logger.trace("SSL constructed with following from prefs: host={} port={} election={}",
+        logger.info("SSL constructed with following from prefs: host={} port={} election={}",
                 new Object[] {
                         host, port, election
                 });
@@ -156,10 +161,10 @@ public class SSL extends ModelChannel {
     public View getView(View row, LayoutInflater inflater) {
         row = inflater.inflate(R.layout.ssl_item, null);
 
-        TextView gateway_name = ((TextView) row.findViewById(R.id.gateway_name));
+        TextView gateway_name = ((TextView) row.findViewById(R.id.ssl_name));
         ((TextView) row.findViewById(R.id.channel_type)).setText(SSL.KEY);
         gateway_name.setText(this.getName());
-        ((TextView) row.findViewById(R.id.gateway_formal)).setText(this.getFormal());
+        ((TextView) row.findViewById(R.id.ssl_formal)).setText(this.getFormal());
         return row;
     }
 }
