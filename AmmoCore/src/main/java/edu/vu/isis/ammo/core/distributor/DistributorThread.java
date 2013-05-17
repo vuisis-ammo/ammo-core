@@ -85,7 +85,6 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.provider.Relations;
-import edu.vu.isis.ammo.core.ui.AmmoCore;
 import edu.vu.isis.ammo.util.FullTopic;
 
 /**
@@ -331,13 +330,13 @@ public class DistributorThread extends Thread {
         Notification notification = new Notification(icon, tickerText, when);
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
 
-        Intent notificationIntent = new Intent(context, AmmoCore.class);
+        /*Intent notificationIntent = new Intent(context, AmmoCore.class);
 
         PendingIntent contentIntent = PendingIntent
                 .getActivity(context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         notification.setLatestEventInfo(context, contentTitle, contentText,
-                contentIntent);
+                contentIntent);*/
 
         mNotificationManager.notify(current_icon_id, notification);
     }
