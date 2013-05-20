@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+  xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <parent>
+    <groupId>edu.vu.isis</groupId>
+    <artifactId>ammocore-parent</artifactId>
+    <version>1.8.0-SNAPSHOT</version>
+  </parent>
+
+  <modelVersion>4.0.0</modelVersion>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <artifactId>ammoui</artifactId>
+  <packaging>apk</packaging>
+  <name>Ammo UI</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-core</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-classic</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>android</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammolib</artifactId>
+      <type>jar</type>
+    </dependency>
+    <dependency>
+      <groupId>transapps</groupId>
+      <artifactId>tasettings-api</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <finalName>${project.artifactId}</finalName>
+    <sourceDirectory>src</sourceDirectory>
+    <plugins>
+
+      <plugin>
+        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+        <artifactId>android-maven-plugin</artifactId>
+        <executions>
+          <!-- update the manifest with version information -->
+          <execution>
+            <id>manifest-version</id>
+            <goals>
+              <goal>manifest-update</goal>
+            </goals>
+            <configuration>
+              <manifest>
+                <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
+              </manifest>
+            </configuration>
+          </execution>
+          <!-- build the android package -->
+          <execution>
+            <id>build-apk</id>
+            <goals>
+              <goal>apk</goal>
+            </goals>
+            <configuration>
+              <sdk>
+                <platform>8</platform>
+                <path>${env.ANDROID_SDK}</path>
+              </sdk>
+              <undeployBeforeDeploy>true</undeployBeforeDeploy>
+              <attachJar>true</attachJar>
+            </configuration>
+          </execution>
+        </executions>
+        <extensions>true</extensions>
+      </plugin>
+
+    </plugins>
+  </build>
+
+</project>

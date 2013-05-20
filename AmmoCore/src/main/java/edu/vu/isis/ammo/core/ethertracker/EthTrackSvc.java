@@ -25,14 +25,14 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoIntents;
-import edu.vu.isis.ammo.core.AmmoCoreApp;
+import edu.vu.isis.ammo.core.AmmoEngine;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.ServiceEx;
 
 public class EthTrackSvc extends ServiceEx {
 
     private static final Logger logger = LoggerFactory.getLogger("net.ethermon");
-	private AmmoCoreApp application;
+	private AmmoEngine application;
 
     private boolean mIsLinkUp = false;
     private EtherStatReceiver mStatReceiver = null; // ether service thread
@@ -42,7 +42,7 @@ public class EthTrackSvc extends ServiceEx {
     
     @Override
     public void onCreate() {
-        this.application = (AmmoCoreApp)this.getApplication();
+        this.application = (AmmoEngine)this.getApplication();
     }
 
     @Override

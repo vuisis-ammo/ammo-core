@@ -27,16 +27,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Environment;
 
-public class AmmoCoreApp  extends Application {
+public class AmmoEngine  extends Application {
     // private static final Logger logger = LoggerFactory.getLogger("app");
 
-    private static AmmoCoreApp singleton;
+    private static AmmoEngine singleton;
 
-    public AmmoCoreApp() {
+    public AmmoEngine() {
         super();
     }
 
-    public static AmmoCoreApp getInstance() {
+    public static AmmoEngine getInstance() {
         return singleton;
     }
 
@@ -62,7 +62,7 @@ public class AmmoCoreApp  extends Application {
      * But that isn't available until APIv8
      */
     public File getPublicDirectory (String type) {
-        File base = new File(Environment.getExternalStorageDirectory(), AmmoCoreApp.class.toString());
+        File base = new File(Environment.getExternalStorageDirectory(), AmmoEngine.class.toString());
         return new File(base, type);
     }
 }

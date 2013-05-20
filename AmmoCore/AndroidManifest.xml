@@ -19,46 +19,11 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
-    <application android:icon="@drawable/appl_icon" android:label="@string/app_name" android:name=".AmmoCoreApp" android:theme="@android:style/Theme.NoTitleBar">
+    <application android:icon="@drawable/appl_icon" android:label="@string/app_name" android:name="AmmoEngine" android:theme="@android:style/Theme.NoTitleBar">
 
         <!-- ========== ACTIVITY SECTION ================= -->
 
-        <activity android:name=".ui.AmmoCore">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-        <activity android:name=".ui.MessageQueueActivity">
-            <intent-filter>
-                <action android:name="edu.vu.isis.ammo.core.ui.MessageQueueActivity.LAUNCH"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-            </intent-filter>
-        </activity>
-        <activity android:name=".ui.GatewayActivity"/>
-        <activity android:name=".ui.NetlinkActivity"/>
-        <activity android:name=".ui.NetlinkDetailActivity"/>
-        <activity android:name=".ui.CorePreferenceActivity"/>
-        <activity android:name=".ui.DeliveryStatus"/>
-        <activity android:name=".ui.SubscriptionStatus"/>
-        <activity android:name=".ui.GatewayPreferences"/>
-        <activity android:name=".ui.SerialPreferences"/>
-        <activity android:name=".ui.MulticastPreferences"/>
-        <activity android:name=".ui.ReliableMulticastPreferences"/>
-        <activity android:name=".ui.AboutActivity"/>
-        <activity android:name="edu.vu.isis.logger.ui.LoggerEditor"/>
-        <activity android:name="edu.vu.isis.logger.ui.AppenderSelector"/>
-        <activity android:name="edu.vu.isis.logger.ui.LogcatLogViewer"/>
-        <activity android:name="edu.vu.isis.logger.ui.FileLogViewer"/>
-        <activity android:name="edu.vu.isis.logger.ui.LogViewerPreferences"/>
-        <activity android:name="edu.vu.isis.logger.ui.LogbackReconfigureActivity"/>
-        <activity android:name=".distributor.ui.DistributorTableViewer"/>
-        <activity android:name=".distributor.ui.RetrievalTableViewer"/>
-        <activity android:name=".distributor.ui.SubscribeTableViewer"/>
-        <activity android:name=".distributor.ui.PostalTableViewer"/>
-        <activity android:name=".distributor.ui.PresenceTableViewer"/>
-        <activity android:name=".distributor.ui.CapabilityTableViewer"/>
-        <activity android:name=".distributor.ui.DistributorTabActivity"/>
+		<!-- This app has no activities -->
 
         <!-- ========== RECIEVER SECTION ================= -->
 
@@ -133,6 +98,7 @@
         </service>
 
         <!-- ========== PROVIDER SECTION ================= -->
+        <provider android:authorities="edu.vu.isis.ammo.core.provider.channel" android:name=".provider.ChannelProvider"/>
         <provider android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider" android:name=".provider.PreferenceProvider"/>
         <provider android:authorities="edu.vu.isis.ammo.core.provider.distributor" android:name=".provider.DistributorProvider"/>
     </application>
