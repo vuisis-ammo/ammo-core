@@ -292,6 +292,7 @@ public enum NetworkManager  implements INetworkService,
         this.journalChannel.init(context);
         this.tcpChannel.init(context);
         this.tcpMediaChannel.init(context);
+        this.sslChannel.init(context);
         this.reliableMulticastChannel.init(context);
         this.multicastChannel.init(context);
         for (NetChannel channel : this.registeredChannels) {
@@ -359,25 +360,28 @@ public enum NetworkManager  implements INetworkService,
 
         netChannelMap.put("default", tcpChannel);
         netChannelMap.put(tcpChannel.name, tcpChannel);
-        netChannelMap.put(tcpMediaChannel.name, tcpMediaChannel);        
+        netChannelMap.put(tcpMediaChannel.name, tcpMediaChannel); 
+        netChannelMap.put(sslChannel.name, sslChannel);
+        
         netChannelMap.put(multicastChannel.name, multicastChannel);
         netChannelMap.put(reliableMulticastChannel.name, reliableMulticastChannel);
         netChannelMap.put(journalChannel.name, journalChannel);
         netChannelMap.put(serialChannel.name, serialChannel);
-        netChannelMap.put(sslChannel.name, sslChannel);
 
         modelChannelMap.put(tcpChannel.name,
                 Gateway.getInstance(this.context, tcpChannel));
         modelChannelMap.put(tcpMediaChannel.name,
-                Gateway.getMediaInstance(this.context, tcpMediaChannel));        
+                Gateway.getMediaInstance(this.context, tcpMediaChannel));   
+        modelChannelMap.put(sslChannel.name, 
+                SSL.getInstance(this.context, sslChannel));
+        
         modelChannelMap.put(multicastChannel.name,
                 Multicast.getInstance(this.context, multicastChannel));
         modelChannelMap.put(reliableMulticastChannel.name,
                 ReliableMulticast.getInstance(this.context, reliableMulticastChannel));
         modelChannelMap.put(serialChannel.name,
                 Serial.getInstance(this.context, serialChannel));
-        modelChannelMap.put(sslChannel.name, 
-        		SSL.getInstance(this.context, sslChannel));
+       
         
         /*
          * Does the mock channel need a UI ?
@@ -398,11 +402,13 @@ public enum NetworkManager  implements INetworkService,
         logger.trace("...acquired multicast lock()");
 
         // no point in enabling the socket until the preferences have been read
-        this.tcpChannel.disable();
+        this.tcpChannel.disable();      
+        this.tcpMediaChannel.disable();
+        this.sslChannel.disable();
+        
         this.multicastChannel.disable();
         this.reliableMulticastChannel.disable();
-        this.tcpMediaChannel.disable();
-        serialChannel.disable(); // Unnecessary, but the UI needs an
+        this.serialChannel.disable(); // Unnecessary, but the UI needs an
                                  // update after the modelChannelMap
                                  // is initialized.
         // The serial channel is created in a disabled state.
@@ -413,6 +419,7 @@ public enum NetworkManager  implements INetworkService,
             if (!this.isGatewaySuppressed) {
                 this.tcpChannel.enable();
                 this.tcpMediaChannel.enable();
+                this.sslChannel.enable();
             }
             if (!this.isMulticastSuppressed) {
                 this.multicastChannel.enable();
@@ -489,6 +496,8 @@ public enum NetworkManager  implements INetworkService,
 
         this.tcpChannel.reset();
         this.tcpMediaChannel.reset();
+        this.sslChannel.reset();
+        
         this.multicastChannel.reset();
         this.reliableMulticastChannel.reset();
         this.serialChannel.reset();
@@ -507,6 +516,9 @@ public enum NetworkManager  implements INetworkService,
             this.tcpChannel.disable();
         if (tcpMediaChannel != null)
             this.tcpMediaChannel.disable();
+        if (sslChannel != null)
+            this.tcpChannel.disable();
+        
         if (multicastChannel != null)
             this.multicastChannel.disable();
         if (reliableMulticastChannel != null)
