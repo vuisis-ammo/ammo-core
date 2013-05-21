@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- version code template --><manifest xmlns:android="http://schemas.android.com/apk/res/android" android:sharedUserId="edu.vu.isis.ammo" android:versionCode="1008000" android:versionName="1.8.0-SNAPSHOT" package="edu.vu.isis.ammo.core.engine">
+<!-- version code template --><manifest xmlns:android="http://schemas.android.com/apk/res/android" android:sharedUserId="edu.vu.isis.ammo" android:versionCode="1008000" android:versionName="1.8.0-SNAPSHOT" package="edu.vu.isis.ammo.core">
 
     <permission android:description="@string/make_request_desc" android:label="@string/make_request_label" android:name="edu.vu.isis.ammo.permission.MAKE_REQUEST" android:protectionLevel="dangerous"/>
 
@@ -101,6 +101,7 @@
         <provider android:authorities="edu.vu.isis.ammo.core.provider.channel" android:name=".provider.ChannelProvider"/>
         <provider android:authorities="edu.vu.isis.ammo.core.provider.preferenceprovider" android:name=".provider.PreferenceProvider"/>
         <provider android:authorities="edu.vu.isis.ammo.core.provider.distributor" android:name=".provider.DistributorProvider"/>
+        <provider android:authorities="edu.vu.isis.ammo.core.LauiContentProvider" android:name="edu.vu.isis.logger.lib.LauiContentProvider"/>
     </application>
 
 </manifest>

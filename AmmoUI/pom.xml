@@ -47,6 +47,11 @@
       <groupId>transapps</groupId>
       <artifactId>tasettings-api</artifactId>
     </dependency>
+    <dependency>
+      <groupId>edu.vanderbilt.isis</groupId>
+      <artifactId>lauilib</artifactId>
+      <version>1.0.1</version>
+    </dependency>
   </dependencies>
 
   <build>

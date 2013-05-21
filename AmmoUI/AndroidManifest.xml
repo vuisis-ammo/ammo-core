@@ -11,6 +11,9 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        
+	    <provider android:authorities="edu.vu.isis.ammoui.LauiContentProvider" android:name="edu.vu.isis.logger.lib.LauiContentProvider"/>
     </application>
+    
 
 </manifest>
