@@ -22,19 +22,19 @@
         android:name="Port"
         android:defaultValue="33289"
         android:inputType="number"
-        android:key="@string/network_gw_port"
+        android:key="@string/network_ssl_port"
         android:title="Port" />
     <edu.vu.isis.ammo.core.MyEditIntegerPreference
         android:name="Network Connection Timeout (s)"
         android:defaultValue="1000"
         android:inputType="number"
-        android:key="@string/network_gw_timeout_flat_line"
+        android:key="network_ssl_timeout_flat_line"
         android:title="Network Connection Timeout (s)" />
     <edu.vu.isis.ammo.core.MyEditIntegerPreference
         android:name="Connection Idle Timeout (s)"
         android:defaultValue="3000"
         android:inputType="number"
-        android:key="@string/network_gw_timeout_connect"
+        android:key="network_ssl_timeout_connect"
         android:title="Connection Idle Timeout (s)" />
 
 </PreferenceScreen>

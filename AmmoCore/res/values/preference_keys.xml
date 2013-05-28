@@ -24,10 +24,9 @@
     <!-- Gateway SSL channel -->
 
     <string name="ssl_pref_screen">ssl_pref_screen</string>
-	<string name="network_ssl_disable">transapps_settings_network_ssl_disabled
-	</string>
+	<string name="network_ssl_disable">transapps_settings_network_ssl_disabled</string>
 	<string name="network_ssl_host">transapps_settings_network_ssl_host</string>
-	<string name="network_ssl_port">CORE_SSL_IP_PORT</string>
+	<string name="network_ssl_port">core_ssl_ip_port</string>
 	<string name="network_ssl_timeout_flat_line">CORE_SSL_FLAT_LINE_TIME</string>
 	<string name="network_ssl_timeout_connect">CORE_SSL_SOCKET_TIMEOUT</string>
 	

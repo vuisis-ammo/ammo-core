@@ -87,7 +87,7 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel> implements
 					c.disable();
 				else
 					c.enable();
-			} else if (SSLChannel.class.isInstance(c)) {
+			} else if (SSL.class.isInstance(c)) {
 				if (prefs.getBoolean(INetPrefKeys.SSL_DISABLED,
 						INetPrefKeys.DEFAULT_SSL_ENABLED))
 					c.disable();
@@ -185,13 +185,12 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel> implements
 			text_send = (TextView) row.findViewById(R.id.serial_send_stats);
 			text_receive = (TextView) row
 					.findViewById(R.id.serial_receive_stats);
-		}else if (channelType.equals(SSL.KEY)) {
+		} else if (channelType.equals(SSL.KEY)) {
 			text_one = (TextView) row.findViewById(R.id.ssl_status_text_one);
 			text_two = (TextView) row.findViewById(R.id.ssl_status_text_two);
 
 			text_send = (TextView) row.findViewById(R.id.ssl_send_stats);
-			text_receive = (TextView) row
-					.findViewById(R.id.ssl_receive_stats);
+			text_receive = (TextView) row.findViewById(R.id.ssl_receive_stats);
 		}
 
 		if (text_one == null) {

@@ -110,7 +110,7 @@ public class SSL extends ModelChannel {
                 String.valueOf(INetPrefKeys.DEFAULT_SSL_PORT)));
         this.election = !this.prefs.getBoolean(INetPrefKeys.SSL_DISABLED,
                 INetPrefKeys.DEFAULT_SSL_ENABLED);
-        logger.info("SSL constructed with following from prefs: host={} port={} election={}",
+        logger.debug("SSL constructed with following from prefs: host={} port={} election={}",
                 new Object[] {
                         host, port, election
                 });
