@@ -17,7 +17,6 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
@@ -37,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,8 +108,9 @@ public class SSLChannel extends TcpChannelBase {
     private boolean shouldBeDisabled = false;
     private long flatLineTime;
 
-    private Socket mSocket;
-
+    // TCP socket
+    // private Socket mSocket;
+    // SSL Socket
     private SSLSocket mSSLSocket;
 
     private DataInputStream mDataInputStream;
@@ -131,34 +132,45 @@ public class SSLChannel extends TcpChannelBase {
     public final IChannelManager mChannelManager;
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
+    private final AtomicLong mTimeOfLastGoodRead = new AtomicLong(0);
+
+    private final AtomicLong mTimeOfLastGoodSend = new AtomicLong(0);
+
+    // Heartbeat-related members.
+    private final long mHeartbeatInterval = 10 * 1000; // ms
+    private final AtomicLong mNextHeartbeatTime = new AtomicLong(0);
+
+    // timer for regular updates
+    private Timer mUpdateBpsTimer = new Timer();
+
+    /**
+     * Constructor for SSLChannel
+     * 
+     * @param name
+     * @param iChannelManager
+     */
     protected SSLChannel(String name, IChannelManager iChannelManager) {
+        // super:
         super(name);
-        // create the instance logger for instance methods
-        // store the channel name
+        // store values from parameters:
         channelName = name;
+        mChannelManager = iChannelManager;
+        // create the instance logger for instance methods:
         logger = LoggerFactory.getLogger("net.channel.tcp.base." + channelName);
         logger.trace("Thread <{}>SSLChannel::<constructor>", Thread
                 .currentThread().getId());
-
+        // internal use objects:
         this.syncObj = this;
-
         mIsAuthorized = new AtomicBoolean(false);
-
-        mChannelManager = iChannelManager;
-        this.connectorThread = new ConnectorThread(this);
-
-        this.flatLineTime = DEFAULT_WATCHDOG_TIMOUT * 1000; // seconds into
-                                                            // milliseconds
-
         mSenderQueue = new SenderQueue(this);
+        this.connectorThread = new ConnectorThread(this);
+        this.flatLineTime = DEFAULT_WATCHDOG_TIMOUT * 1000; // seconds to ms
 
         // Set up timer to trigger once per minute.
         TimerTask updateBps = new UpdateBpsTask();
         mUpdateBpsTimer.scheduleAtFixedRate(updateBps, 0,
                 BPS_STATS_UPDATE_INTERVAL * 1000);
     }
-
-    private Timer mUpdateBpsTimer = new Timer();
 
     class UpdateBpsTask extends TimerTask {
         public void run() {
@@ -404,10 +416,6 @@ public class SSLChannel extends TcpChannelBase {
         return mChannelManager.isAnyLinkUp();
     }
 
-    private final AtomicLong mTimeOfLastGoodRead = new AtomicLong(0);
-
-    private final AtomicLong mTimeOfLastGoodSend = new AtomicLong(0);
-
     // This should be called each time we successfully read data from the
     // socket.
     private void resetTimeoutWatchdog() {
@@ -432,10 +440,6 @@ public class SSLChannel extends TcpChannelBase {
         // return (System.currentTimeMillis() - mTimeOfLastGoodRead.get()) >
         // flatLineTime;
     }
-
-    // Heartbeat-related members.
-    private final long mHeartbeatInterval = 10 * 1000; // ms
-    private final AtomicLong mNextHeartbeatTime = new AtomicLong(0);
 
     // Send a heartbeat packet to the gateway if enough time has elapsed.
     // Note: the way this currently works, the heartbeat can only be sent
@@ -796,11 +800,11 @@ public class SSLChannel extends TcpChannelBase {
                 logger.error("channel exception", ex);
             }
             try {
-                if (this.parent.mSocket == null) {
+                if (this.parent.mSSLSocket == null) {
                     logger.error("channel closing without active socket}");
                     return;
                 }
-                this.parent.mSocket.close();
+                this.parent.mSSLSocket.close();
             } catch (IOException ex) {
                 logger.error("channel closing without proper socket", ex);
             }
@@ -827,44 +831,70 @@ public class SSLChannel extends TcpChannelBase {
             // Create the Socket
             InetSocketAddress sockAddr = new InetSocketAddress(ipaddr, port);
             try {
-                if (parent.mSocket != null)
+                if (parent.mSSLSocket != null) {
                     logger.error("Tried to create mSocket when we already had one.");
-
+                }
                 final long startConnectionMark = System.currentTimeMillis();
-                parent.mSocket = new Socket();
-                parent.mSocket.connect(sockAddr, parent.connectTimeout);
-                parent.mSocket.setSoTimeout(parent.socketTimeout);
+
+                /**
+                 * 
+                 */
+                // Security.addProvider(new
+                // com.sun.net.ssl.internal.ssl.Provider()); see if I have to
+                // add provider like this
+
+                // TODO here is SSL socket creation
+
+                SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory
+                        .getDefault();
+
+                parent.mSSLSocket = (SSLSocket) factory.createSocket();
+
+                // parent.mSSLSocket.connect(sockAddr);
+                if (parent.mSSLSocket == null) {
+                    logger.warn("mSSLSocket was null");
+
+                }
+
+                parent.mSSLSocket.connect(sockAddr);
+
+                // parent.mSocket = new Socket();
+                // parent.mSocket.connect(sockAddr, parent.connectTimeout);
+
+                parent.mSSLSocket.setSoTimeout(parent.socketTimeout);
                 final long finishConnectionMark = System.currentTimeMillis();
                 logger.info("connection time to establish={} ms",
                         finishConnectionMark - startConnectionMark);
 
+                // SSL "Should" be the exact same after Input & Output Streams
+                // are created.
                 parent.mDataInputStream = new DataInputStream(
-                        parent.mSocket.getInputStream());
+                        parent.mSSLSocket.getInputStream());
                 parent.mDataOutputStream = new DataOutputStream(
-                        parent.mSocket.getOutputStream());
+                        parent.mSSLSocket.getOutputStream());
 
             } catch (AsynchronousCloseException ex) {
                 logger.warn("connection async close failure to {}:{} ", ipaddr,
                         port, ex);
-                parent.mSocket = null;
+                parent.mSSLSocket = null;
                 return false;
             } catch (ClosedChannelException ex) {
                 logger.info("connection closed channel failure to {}:{} ",
                         ipaddr, port, ex);
-                parent.mSocket = null;
+                parent.mSSLSocket = null;
                 return false;
             } catch (ConnectException ex) {
                 logger.info("connection failed to {}:{}", ipaddr, port, ex);
-                parent.mSocket = null;
+                parent.mSSLSocket = null;
                 return false;
             } catch (SocketException ex) {
                 logger.warn("connection timeout={} sec, socket {}:{}",
                         parent.connectTimeout / 1000, ipaddr, port, ex);
-                parent.mSocket = null;
+                parent.mSSLSocket = null;
                 return false;
             } catch (Exception ex) {
                 logger.warn("connection failed to {}:{}", ipaddr, port, ex);
-                parent.mSocket = null;
+                parent.mSSLSocket = null;
                 return false;
             }
 
@@ -890,13 +920,14 @@ public class SSLChannel extends TcpChannelBase {
             if (parent.mSender != null)
                 logger.error("Tried to create Sender when we already had one.");
             parent.mSender = new SenderThread(this, parent,
-                    parent.mSenderQueue, parent.mSocket);
+                    parent.mSenderQueue, parent.mSSLSocket);
             parent.mSender.start();
 
             // Create the receiving thread.
             if (parent.mReceiver != null)
                 logger.error("Tried to create Receiver when we already had one.");
-            parent.mReceiver = new ReceiverThread(this, parent, parent.mSocket);
+            parent.mReceiver = new ReceiverThread(this, parent,
+                    parent.mSSLSocket);
             parent.mReceiver.start();
 
             // FIXME: don't pass in the result of buildAuthenticationRequest().
@@ -925,11 +956,11 @@ public class SSLChannel extends TcpChannelBase {
 
                 mSenderQueue.reset();
 
-                if (parent.mSocket != null) {
+                if (parent.mSSLSocket != null) {
                     logger.debug("Closing socket...");
-                    parent.mSocket.close();
+                    parent.mSSLSocket.close();
                     logger.debug("Done");
-                    parent.mSocket = null;
+                    parent.mSSLSocket = null;
                 }
 
                 setIsAuthorized(false);
@@ -1073,13 +1104,13 @@ public class SSLChannel extends TcpChannelBase {
     //
     class SenderThread extends Thread {
         public SenderThread(ConnectorThread iParent, SSLChannel iChannel,
-                SenderQueue iQueue, Socket iSocket) {
+                SenderQueue iQueue, SSLSocket iSSLSocket) {
             super(new StringBuilder("Tcp-Sender-").append(Thread.activeCount())
                     .toString());
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
-            mSocket = iSocket;
+            mSSLSocket = iSSLSocket;
             // create the logger
             logger = LoggerFactory.getLogger("net.channel.tcp.sender."
                     + channelName);
@@ -1169,12 +1200,12 @@ public class SSLChannel extends TcpChannelBase {
     //
     class ReceiverThread extends Thread {
         public ReceiverThread(ConnectorThread iParent, SSLChannel iDestination,
-                Socket iSocket) {
+                SSLSocket iSSLSocket) {
             super(new StringBuilder("Tcp-Receiver-").append(
                     Thread.activeCount()).toString());
             mParent = iParent;
             mDestination = iDestination;
-            mSocket = iSocket;
+            mSSLSocket = iSSLSocket;
             logger = LoggerFactory.getLogger("net.channel.tcp.receiver."
                     + channelName);
 
@@ -1361,7 +1392,7 @@ public class SSLChannel extends TcpChannelBase {
         private ConnectorThread mParent;
         private SSLChannel mDestination;
         @SuppressWarnings("unused")
-        private Socket mSocket;
+        private SSLSocket mSSLSocket;
 
         // private SSLSocket mSSLSocket;
 
