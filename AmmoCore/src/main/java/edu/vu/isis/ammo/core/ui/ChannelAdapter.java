@@ -88,8 +88,8 @@ public class ChannelAdapter extends ArrayAdapter<ModelChannel> implements
 				else
 					c.enable();
 			} else if (SSL.class.isInstance(c)) {
-				if (prefs.getBoolean(INetPrefKeys.SSL_DISABLED,
-						INetPrefKeys.DEFAULT_SSL_ENABLED))
+				if (prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED,
+						INetPrefKeys.DEFAULT_GATEWAY_ENABLED))
 					c.disable();
 				else
 					c.enable();

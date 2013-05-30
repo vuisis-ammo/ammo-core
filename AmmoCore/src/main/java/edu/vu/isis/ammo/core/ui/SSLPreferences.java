@@ -44,7 +44,7 @@ public class SSLPreferences extends AbstractAmmoPreference {
 
 		// Port Preference Setup
 		this.gwPortPref = (MyEditIntegerPreference) this
-				.findPreference("core_ssl_ip_port");
+				.findPreference(INetPrefKeys.SSL_PORT);
 		this.gwPortPref.setType(Type.PORT);
 
 		// Enabled Preference Setup
@@ -58,12 +58,12 @@ public class SSLPreferences extends AbstractAmmoPreference {
 
 				// Connection Idle Timeout
 				this.gwConnIdlePref = (MyEditIntegerPreference) this
-						.findPreference("network_ssl_timeout_connect");
+						.findPreference(INetPrefKeys.GATEWAY_TIMEOUT);
 				this.gwConnIdlePref.setType(Type.TIMEOUT);
 
 				// Network Connection Timeout
 				this.gwNetConnPref = (MyEditIntegerPreference) this
-						.findPreference("network_ssl_timeout_flat_line");
+						.findPreference(INetPrefKeys.GATEWAY_FLAT_LINE_TIME);
 				this.gwNetConnPref.setType(Type.TIMEOUT);
 
 	}

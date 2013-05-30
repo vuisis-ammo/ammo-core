@@ -28,13 +28,13 @@
         android:name="Network Connection Timeout (s)"
         android:defaultValue="1000"
         android:inputType="number"
-        android:key="network_ssl_timeout_flat_line"
+        android:key="@string/network_gw_timeout_connect"
         android:title="Network Connection Timeout (s)" />
     <edu.vu.isis.ammo.core.MyEditIntegerPreference
         android:name="Connection Idle Timeout (s)"
         android:defaultValue="3000"
         android:inputType="number"
-        android:key="network_ssl_timeout_connect"
+        android:key="@string/network_gw_timeout_flat_line"
         android:title="Connection Idle Timeout (s)" />
 
 </PreferenceScreen>

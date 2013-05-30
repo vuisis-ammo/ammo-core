@@ -36,6 +36,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.net.ssl.SSLSocket;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,6 +108,9 @@ public class SSLChannel extends TcpChannelBase {
   private long flatLineTime;
 
     private Socket mSocket;
+    
+    private SSLSocket mSSLSocket;
+    
     private DataInputStream mDataInputStream;
     private DataOutputStream mDataOutputStream;
 
@@ -1158,7 +1163,9 @@ public class SSLChannel extends TcpChannelBase {
 
     private int mState = INetChannel.TAKING;
     private ConnectorThread mParent;
+
     private SSLChannel mChannel;
+    
     private SenderQueue mQueue;
     @SuppressWarnings("unused")
     private Socket mSocket;
@@ -1337,6 +1344,9 @@ public class SSLChannel extends TcpChannelBase {
     private SSLChannel mDestination;
     @SuppressWarnings("unused")
     private Socket mSocket;
+    
+   // private SSLSocket mSSLSocket;
+    
     private Logger logger = null;
   }
 

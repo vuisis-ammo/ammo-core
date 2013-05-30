@@ -50,7 +50,7 @@ public class SSL extends ModelChannel {
     	logger.debug("SSL setElection() called with {}", pred);
         this.election = pred;
         Editor editor = this.prefs.edit();
-        editor.putBoolean(INetPrefKeys.SSL_DISABLED, !this.election);
+        editor.putBoolean(INetPrefKeys.GATEWAY_DISABLED, !this.election);
         editor.commit();
     }
 
@@ -108,8 +108,8 @@ public class SSL extends ModelChannel {
                 INetPrefKeys.DEFAULT_SSL_HOST);
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.SSL_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_SSL_PORT)));
-        this.election = !this.prefs.getBoolean(INetPrefKeys.SSL_DISABLED,
-                INetPrefKeys.DEFAULT_SSL_ENABLED);
+        this.election = !this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED,
+                INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
         logger.debug("SSL constructed with following from prefs: host={} port={} election={}",
                 new Object[] {
                         host, port, election
@@ -143,9 +143,9 @@ public class SSL extends ModelChannel {
     @Override
     public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
         logger.trace("SSL onSharedPreferenceChanged called with key={}", key);
-        if (key.equals(INetPrefKeys.SSL_HOST)) {
-            this.host = this.prefs.getString(INetPrefKeys.SSL_HOST,
-                    INetPrefKeys.DEFAULT_SSL_HOST);
+        if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
+            this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST,
+                    INetPrefKeys.DEFAULT_GATEWAY_HOST);
             callOnNameChange();
             logger.trace("SSL host updated to {}", host);
             logger.trace("New SSL formal: {}", getFormal());

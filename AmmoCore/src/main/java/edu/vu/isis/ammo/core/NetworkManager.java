@@ -538,7 +538,7 @@ public enum NetworkManager implements INetworkService,
 			this.tcpMediaChannel.disable();
 		}
 		if (sslChannel != null) {
-			this.tcpChannel.disable();
+			this.sslChannel.disable();
 		}
 		if (sslMediaChannel != null) {
 			this.sslMediaChannel.disable();
@@ -744,15 +744,16 @@ public enum NetworkManager implements INetworkService,
 		this.tcpChannel.toLog("acquire tcp ");
 
 		// SSL
-		this.isSSLSuppressed = this.aggregatePref(INetPrefKeys.SSL_DISABLED,
-				INetPrefKeys.DEFAULT_SSL_ENABLED);
+		this.isSSLSuppressed = this.aggregatePref(INetPrefKeys.GATEWAY_DISABLED,
+				INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
 
-		final String sslHostname = this.aggregatePref(INetPrefKeys.SSL_HOST,
-				INetPrefKeys.DEFAULT_SSL_HOST);
+		final String sslHostname = this.aggregatePref(INetPrefKeys.GATEWAY_HOST,
+				INetPrefKeys.DEFAULT_GATEWAY_HOST);
 
 		final String sslPortStr = this.localSettings.getString(
 				INetPrefKeys.SSL_PORT,
 				String.valueOf(INetPrefKeys.DEFAULT_SSL_PORT));
+		logger.debug("SSL PORT => [{}]",sslPortStr);
 		int sslPort = Integer.valueOf(sslPortStr);
 
 		final String sslFlatLineTimeStr = this.localSettings.getString(
@@ -1173,6 +1174,12 @@ public enum NetworkManager implements INetworkService,
 					parent.tcpMediaChannel
 							.setFlatLineTime(flatLineTime * 60 * 1000);
 					// convert from minutes to milliseconds
+					
+					
+				}else if (key.equals(INetPrefKeys.SSL_PORT)){
+					
+				logger.warn("********FOUND SSL PORT SHARED PREF.****** REMOVE");
+					
 				} else if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
 					//
 					// Multicast
@@ -1270,7 +1277,7 @@ public enum NetworkManager implements INetworkService,
 					else
 						parent.serialChannel.enable();
 				} else {
-					logger.warn("shared preference key {} is unknown", key);
+					logger.warn("shared preference key {} is unknown, {}", key, INetPrefKeys.SSL_PORT);
 				}
 			} catch (NumberFormatException ex) {
 				logger.error("invalid number value for {}", key);
