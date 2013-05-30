@@ -51,6 +51,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
+import edu.vu.isis.ammo.core.netlink.Netlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.IChannelManager;
 import edu.vu.isis.ammo.core.network.INetChannel;
@@ -1508,6 +1509,27 @@ public enum NetworkManager  implements INetworkService,
                 AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE);
         this.context.sendBroadcast(broadcastIntent);
     }
+    private final List<Netlink> mNetlinks = new ArrayList<Netlink>();
+    
+    public List<Netlink> getNetlinkList() {
+        return mNetlinks;
+    }
+    
+    public boolean isWiredLinkUp() {
+        return mNetlinks.get(linkTypes.WIRED.value).isLinkUp();
+    }
+
+    public boolean isWifiLinkUp() {
+        return mNetlinks.get(linkTypes.WIFI.value).isLinkUp();
+    }
+
+    public boolean is3GLinkUp() {
+        return mNetlinks.get(linkTypes.MOBILE_3G.value).isLinkUp();
+    }
+
+    public boolean isAnyLinkUp() {
+        return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
+    }
 
     // Network Channels
     final private TcpChannel tcpChannel =
@@ -1532,6 +1554,7 @@ public enum NetworkManager  implements INetworkService,
 
     final public List<NetChannel> registeredChannels =
             new ArrayList<NetChannel>();
+    
 
     /**
      * No channels can be registered until after onCreate() The channel must be
