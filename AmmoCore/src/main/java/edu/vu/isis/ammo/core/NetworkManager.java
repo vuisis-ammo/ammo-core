@@ -12,6 +12,7 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
@@ -51,15 +51,6 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
-import edu.vu.isis.ammo.core.model.Gateway;
-import edu.vu.isis.ammo.core.model.ModelChannel;
-import edu.vu.isis.ammo.core.model.Multicast;
-import edu.vu.isis.ammo.core.model.Netlink;
-import edu.vu.isis.ammo.core.model.PhoneNetlink;
-import edu.vu.isis.ammo.core.model.ReliableMulticast;
-import edu.vu.isis.ammo.core.model.Serial;
-import edu.vu.isis.ammo.core.model.WifiNetlink;
-import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.IChannelManager;
 import edu.vu.isis.ammo.core.network.INetChannel;
@@ -366,25 +357,6 @@ public enum NetworkManager  implements INetworkService,
         netChannelMap.put(journalChannel.name, journalChannel);
         netChannelMap.put(serialChannel.name, serialChannel);
 
-        modelChannelMap.put(tcpChannel.name,
-                Gateway.getInstance(this.context, tcpChannel));
-        modelChannelMap.put(tcpMediaChannel.name,
-                Gateway.getMediaInstance(this.context, tcpMediaChannel));        
-        modelChannelMap.put(multicastChannel.name,
-                Multicast.getInstance(this.context, multicastChannel));
-        modelChannelMap.put(reliableMulticastChannel.name,
-                ReliableMulticast.getInstance(this.context, reliableMulticastChannel));
-        modelChannelMap.put(serialChannel.name,
-                Serial.getInstance(this.context, serialChannel));
-        /*
-         * Does the mock channel need a UI ?
-         * modelChannelMap.put(mockChannel.name,
-         * MockChannel.getInstance(this.context, mockChannel));
-         */
-
-        mNetlinks.add(WifiNetlink.getInstance(this.context));
-        mNetlinks.add(WiredNetlink.getInstance(this.context));
-        mNetlinks.add(PhoneNetlink.getInstance(this.context));
 
         // FIXME: find the appropriate time to release() the multicast lock.
         logger.trace("Acquiring multicast lock()");
@@ -450,7 +422,6 @@ public enum NetworkManager  implements INetworkService,
         this.mListener = new PhoneStateListener() {
             public void onDataConnectionStateChanged(int state) {
                 logger.trace("PhoneReceive::onCallStateChanged() - 3G status change {}", state);
-                mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
                 netlinkStatusChanged();
             }
         };
@@ -1500,13 +1471,6 @@ public enum NetworkManager  implements INetworkService,
                     NetChannel.showState(connStatus));
         }
 
-        final ModelChannel modelChannel = modelChannelMap.get(channel.name);
-        if (modelChannel == null) {
-            logger.debug("no model for channel=[{}]", channel.name);
-        } else {
-			modelChannel.setStatus(new int[] { connStatus, sendStatus, recvStatus });
-		}
-
 		if (lastConnStatus != connStatus) {
 			final Intent broadcastIntent = new Intent(
 					AmmoIntents.AMMO_ACTION_CONNECTION_STATUS_CHANGE);
@@ -1538,29 +1502,13 @@ public enum NetworkManager  implements INetworkService,
         this.context.sendBroadcast(broadcastIntent);
     }
 
+    // XXX: This is an important method for getting information about the service
     private void netlinkStatusChanged() {
         final Intent broadcastIntent = new Intent(
                 AmmoIntents.AMMO_ACTION_NETLINK_STATUS_CHANGE);
         this.context.sendBroadcast(broadcastIntent);
     }
 
-    public boolean isWiredLinkUp() {
-        return mNetlinks.get(linkTypes.WIRED.value).isLinkUp();
-    }
-
-    public boolean isWifiLinkUp() {
-        return mNetlinks.get(linkTypes.WIFI.value).isLinkUp();
-    }
-
-    public boolean is3GLinkUp() {
-        return mNetlinks.get(linkTypes.MOBILE_3G.value).isLinkUp();
-    }
-
-    public boolean isAnyLinkUp() {
-        return isWiredLinkUp() || isWifiLinkUp() || is3GLinkUp();
-    }
-
-    static private final Map<String, ModelChannel> modelChannelMap;
     // Network Channels
     final private TcpChannel tcpChannel =
             TcpChannel.getInstance(ChannelFilter.GATEWAY, this);
@@ -1574,6 +1522,13 @@ public enum NetworkManager  implements INetworkService,
     
     final private TcpChannel tcpMediaChannel =
             TcpChannel.getInstance(ChannelFilter.GATEWAYMEDIA, this);
+    
+    public TcpChannel getTcpChannel() { return tcpChannel; }
+    public TcpChannel getTcpMedialChannel() { return tcpMediaChannel; }
+    public MulticastChannel getMulticastChannel() { return multicastChannel; }
+    public ReliableMulticastChannel getReliableMulticastChannel() { return reliableMulticastChannel; }
+    public JournalChannel getJournalChannel() { return journalChannel; }
+    public SerialChannel getSerialChannel() { return serialChannel; }
 
     final public List<NetChannel> registeredChannels =
             new ArrayList<NetChannel>();
@@ -1602,22 +1557,11 @@ public enum NetworkManager  implements INetworkService,
     static final private Map<String, NetChannel> netChannelMap;
 
     static {
-        modelChannelMap = new HashMap<String, ModelChannel>();
         netChannelMap = new HashMap<String, NetChannel>();
     }
 
     static void addChannel() {
 
-    }
-
-    private final List<Netlink> mNetlinks = new ArrayList<Netlink>();
-
-    public List<ModelChannel> getGatewayList() {
-        return new ArrayList<ModelChannel>(modelChannelMap.values());
-    }
-
-    public List<Netlink> getNetlinkList() {
-        return mNetlinks;
     }
 
     public DistributorDataStore store() {
@@ -1654,9 +1598,6 @@ public enum NetworkManager  implements INetworkService,
                     }
                 }
 
-                // sets the netlink status which channels monitor
-                updateNetLinkStatus(state);
-                
                 // broadcast intent about network change 
                 netlinkStatusChanged();
                 
@@ -1675,12 +1616,9 @@ public enum NetworkManager  implements INetworkService,
                     || WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
                     || WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action)) {
                 logger.trace("WIFI state changed");
-                mNetlinks.get(linkTypes.WIRED.value).updateStatus();
-                mNetlinks.get(linkTypes.WIFI.value).updateStatus();
                 netlinkStatusChanged();
             } else if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
                 logger.trace("3G state changed");
-                mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
                 netlinkStatusChanged();
             } else if (Intent.ACTION_TIME_CHANGED.equals(action)) {
                 serialChannel.systemTimeChange();
@@ -1722,21 +1660,6 @@ public enum NetworkManager  implements INetworkService,
           }
         }
 
-        private void updateNetLinkStatus(int networkState) {
-          // This intent comes in for both wired and wifi.
-          mNetlinks.get(linkTypes.WIRED.value).updateStatus();
-          mNetlinks.get(linkTypes.WIFI.value).updateStatus();
-          
-          if (networkState == AmmoIntents.LINK_UP) {
-            // if this is not for wifi it has to be wired .. bad logic maybe but no other choice now 
-            if (mNetlinks.get(linkTypes.WIFI.value).isLinkUp() == false) 
-              mNetlinks.get(linkTypes.WIRED.value).setLinkUp(true);
-            
-          }
-          else if (networkState == AmmoIntents.LINK_DOWN) 
-            mNetlinks.get(linkTypes.WIRED.value).setLinkUp(false);            
-          
-        }
     }
 
     /**

@@ -56,13 +56,6 @@ public interface IChannelManager
     		int lastSendStatus, int sendStatus,
     		int lastRecvStatus, int recvStatus );
 
-    /**
-     * @param void
-     *
-     * @return boolean
-     */
-    boolean isAnyLinkUp();
-
     void authorizationSucceeded( NetChannel channel, AmmoGatewayMessage agm );
 
     // FIXME: this is a temporary hack to get authentication working again,
@@ -71,5 +64,8 @@ public interface IChannelManager
     public AmmoMessages.MessageWrapper.Builder buildAuthenticationRequest();
     
     public String getOperatorId();
+
+
+    boolean isAnyLinkUp();
 
 }

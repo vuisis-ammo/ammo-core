@@ -52,7 +52,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * The sent messages are placed into a queue if the socket is connected.
  *
  */
-public class TcpChannel extends NetChannel {
+public class TcpChannel extends AddressedChannel {
   // a class based logger to be used by static methods ... 
   private static final Logger classlogger = LoggerFactory.getLogger("net.gateway");
   
@@ -96,9 +96,6 @@ public class TcpChannel extends NetChannel {
   private int connectTimeout = 30 * 1000; 
   private int socketTimeout = 30 * 1000;
 
-  private String gatewayHost = null;
-  private int gatewayPort = -1;
-
   private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
   private final Object syncObj;
 
@@ -127,13 +124,19 @@ public class TcpChannel extends NetChannel {
 
   private TcpChannel(String name, IChannelManager iChannelManager ) {
     super(name); 
- // create the instance logger for instance methods
     // store the channel name
     channelName = name;    
+     // create the instance logger for instance methods
     logger = LoggerFactory.getLogger("net.channel.tcp.base." + channelName);
     logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());    
     
     this.syncObj = this;
+    
+    // 5/23/13: gatewayPort used to be initialized to -1 by default, so
+    // as part of the refactoring, I initialize mPort (which replaces gatewayPort)
+    // to -1 here just to be safe
+    // - Nick
+    mPort = -1;
 
     mIsAuthorized = new AtomicBoolean( false );
 
@@ -239,23 +242,23 @@ public class TcpChannel extends NetChannel {
 
   public boolean setHost(String host) {
     logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
-    if ( gatewayHost != null && gatewayHost.equals(host) ) return false;
-    this.gatewayHost = host;
+    if ( mAddress != null && mAddress.equals(host) ) return false;
+    this.mAddress = host;
     this.reset();
     return true;
   }
   public boolean setPort(int port) {
     logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
-    if (gatewayPort == port) return false;
-    this.gatewayPort = port;
+    if (mPort == port) return false;
+    this.mPort = port;
     this.reset();
     return true;
   }
 
   public String toString() {
     return new StringBuilder().append("channel ").append(super.toString())
-        .append("socket: host[").append(this.gatewayHost).append("] ")
-        .append("port[").append(this.gatewayPort).append("]").toString();
+        .append("socket: host[").append(this.mAddress).append("] ")
+        .append("port[").append(this.mPort).append("]").toString();
   }
 
   @Override
@@ -781,8 +784,8 @@ public class TcpChannel extends NetChannel {
           Thread.currentThread().getId() );
 
       // Resolve the hostname to an IP address.
-      String host = (parent.gatewayHost != null) ? parent.gatewayHost : DEFAULT_HOST;
-      int port =  (parent.gatewayPort > 10) ? parent.gatewayPort : DEFAULT_PORT;
+      String host = (parent.mAddress != null) ? parent.mAddress : DEFAULT_HOST;
+      int port =  (parent.mPort > 10) ? parent.mPort : DEFAULT_PORT;
       InetAddress ipaddr = null;
       try
       {
@@ -1384,6 +1387,6 @@ public class TcpChannel extends NetChannel {
   @Override
   public void toLog(String context) {
     PLogger.SET_PANTHR_GW.debug(" {}:{} timeout={} sec", 
-        new Object[]{ gatewayHost, gatewayPort, flatLineTime});
+        new Object[]{ mAddress, mPort, flatLineTime});
   }
 }

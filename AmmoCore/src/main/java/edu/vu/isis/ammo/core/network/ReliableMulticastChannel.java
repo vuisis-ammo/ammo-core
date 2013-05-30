@@ -59,7 +59,7 @@ import edu.vu.isis.ammo.util.AmmoConfigurator;
 import edu.vu.isis.ammo.util.InetHelper;
 import edu.vu.isis.ammo.util.UDPSendException;
 
-public class ReliableMulticastChannel extends NetChannel {
+public class ReliableMulticastChannel extends AddressedChannel {
     private static final Logger logger = LoggerFactory.getLogger("net.rmcast");
 
     private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in
@@ -119,9 +119,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
     private JChannel mJGroupChannel;
     // private MulticastSocket mSocket;
-    private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
-    private int mMulticastPort;
     private AtomicInteger mMulticastTTL;
 
     private SenderQueue mSenderQueue;
@@ -299,10 +297,10 @@ public class ReliableMulticastChannel extends NetChannel {
     public boolean setHost(String host) {
         logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(),
                 host);
-        if (this.mMulticastAddress != null
-                && this.mMulticastAddress.equals(host))
+        if (this.mAddress != null
+                && this.mAddress.equals(host))
             return false;
-        this.mMulticastAddress = host;
+        this.mAddress = host;
         ReliableMulticastSettings.setIpAddress(host, context);
         this.reset();
         return true;
@@ -311,9 +309,9 @@ public class ReliableMulticastChannel extends NetChannel {
     public boolean setPort(int port) {
         logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(),
                 port);
-        if (this.mMulticastPort == port)
+        if (this.mPort == port)
             return false;
-        this.mMulticastPort = port;
+        this.mPort = port;
         ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
         this.reset();
         return true;
@@ -341,8 +339,8 @@ public class ReliableMulticastChannel extends NetChannel {
     }
 
     public String toString() {
-        return "socket: host[" + this.mMulticastAddress + "] port["
-                + this.mMulticastPort + "]";
+        return "socket: host[" + this.mAddress + "] port["
+                + this.mPort + "]";
     }
 
     @Override
@@ -867,7 +865,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
             try {
                 parent.mMulticastGroup = InetAddress
-                        .getByName(parent.mMulticastAddress);
+                        .getByName(parent.mAddress);
             } catch (UnknownHostException e) {
                 logger.warn("could not resolve host name");
                 return false;
@@ -891,7 +889,7 @@ public class ReliableMulticastChannel extends NetChannel {
                 parent.mJGroupChannel.connect("AmmoGroup");
             } catch (Exception ex) {
                 logger.warn("connection to {}:{} failed: ", new Object[] {
-                        parent.mMulticastGroup, parent.mMulticastPort
+                        parent.mMulticastGroup, parent.mPort
                 }, ex);
                 parent.mJGroupChannel.disconnect();
                 parent.mJGroupChannel.close();
@@ -900,7 +898,7 @@ public class ReliableMulticastChannel extends NetChannel {
             }
 
             logger.info("connection to {}:{} established ",
-                    parent.mMulticastGroup, parent.mMulticastPort);
+                    parent.mMulticastGroup, parent.mPort);
 
             mIsConnected.set(true);
             mBytesSent = 0;
@@ -1182,7 +1180,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
                     DatagramPacket packet = new DatagramPacket(buf.array(),
                             buf.remaining(), mChannel.mMulticastGroup,
-                            mChannel.mMulticastPort);
+                            mChannel.mPort);
                     logger.debug("Sending datagram packet. length={}",
                             packet.getLength());
 
@@ -1193,7 +1191,7 @@ public class ReliableMulticastChannel extends NetChannel {
                     }
                     logger.debug("...{}", buf.remaining());
                     logger.debug("...{}", mChannel.mMulticastGroup);
-                    logger.debug("...{}", mChannel.mMulticastPort);
+                    logger.debug("...{}", mChannel.mPort);
 
                     mJChannel.send(null, buf.array());
 
@@ -1410,7 +1408,7 @@ public class ReliableMulticastChannel extends NetChannel {
     public void toLog(String context) {
         PLogger.SET_PANTHR_RMC.debug("{} {}:{} ", new Object[] {
                 context,
-                mMulticastAddress, mMulticastPort
+                mAddress, mPort
         });
     }
 }

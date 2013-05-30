@@ -13,8 +13,6 @@ package edu.vu.isis.ammo.core.network;
 import java.util.List;
 
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.model.ModelChannel;
-import edu.vu.isis.ammo.core.model.Netlink;
 
 
 /**
@@ -39,9 +37,15 @@ public interface INetworkService {
     // methods
     public void teardown();
     public boolean isConnected();
-
+    
+    // Channel accessors
+    public TcpChannel getTcpChannel();
+    public TcpChannel getTcpMedialChannel();
+    public MulticastChannel getMulticastChannel();
+    public ReliableMulticastChannel getReliableMulticastChannel();
+    public JournalChannel getJournalChannel();
+    public SerialChannel getSerialChannel();
+    
     public DisposalState sendRequest(AmmoGatewayMessage agm, String channel);
 
-    public List<ModelChannel> getGatewayList();
-    public List<Netlink> getNetlinkList();
 }
