@@ -52,6 +52,9 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
 import edu.vu.isis.ammo.core.netlink.Netlink;
+import edu.vu.isis.ammo.core.netlink.WifiNetlink;
+import edu.vu.isis.ammo.core.netlink.WiredNetlink;
+import edu.vu.isis.ammo.core.netlink.PhoneNetlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.IChannelManager;
 import edu.vu.isis.ammo.core.network.INetChannel;
@@ -358,6 +361,9 @@ public enum NetworkManager  implements INetworkService,
         netChannelMap.put(journalChannel.name, journalChannel);
         netChannelMap.put(serialChannel.name, serialChannel);
 
+        mNetlinks.add(WifiNetlink.getInstance(this.context));
+        mNetlinks.add(WiredNetlink.getInstance(this.context));
+        mNetlinks.add(PhoneNetlink.getInstance(this.context));
 
         // FIXME: find the appropriate time to release() the multicast lock.
         logger.trace("Acquiring multicast lock()");
@@ -423,6 +429,7 @@ public enum NetworkManager  implements INetworkService,
         this.mListener = new PhoneStateListener() {
             public void onDataConnectionStateChanged(int state) {
                 logger.trace("PhoneReceive::onCallStateChanged() - 3G status change {}", state);
+                mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
                 netlinkStatusChanged();
             }
         };
@@ -1639,9 +1646,12 @@ public enum NetworkManager  implements INetworkService,
                     || WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
                     || WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action)) {
                 logger.trace("WIFI state changed");
+                mNetlinks.get(linkTypes.WIRED.value).updateStatus();
+                mNetlinks.get(linkTypes.WIFI.value).updateStatus();
                 netlinkStatusChanged();
             } else if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {
                 logger.trace("3G state changed");
+                mNetlinks.get(linkTypes.MOBILE_3G.value).updateStatus();
                 netlinkStatusChanged();
             } else if (Intent.ACTION_TIME_CHANGED.equals(action)) {
                 serialChannel.systemTimeChange();
@@ -1682,6 +1692,23 @@ public enum NetworkManager  implements INetworkService,
               channel.linkUp(null);
           }
         }
+
+        private void updateNetLinkStatus(int networkState) {
+          // This intent comes in for both wired and wifi.
+          mNetlinks.get(linkTypes.WIRED.value).updateStatus();
+          mNetlinks.get(linkTypes.WIFI.value).updateStatus();
+
+          if (networkState == AmmoIntents.LINK_UP) {
+            // if this is not for wifi it has to be wired .. bad logic maybe but no other choice now 
+            if (mNetlinks.get(linkTypes.WIFI.value).isLinkUp() == false) 
+              mNetlinks.get(linkTypes.WIRED.value).setLinkUp(true);
+
+          }
+          else if (networkState == AmmoIntents.LINK_DOWN) 
+            mNetlinks.get(linkTypes.WIRED.value).setLinkUp(false);            
+
+        }
+                          
 
     }
 
