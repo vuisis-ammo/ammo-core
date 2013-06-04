@@ -297,6 +297,7 @@ public enum NetworkManager implements INetworkService,
         this.tcpChannel.init(context);
         this.tcpMediaChannel.init(context);
         this.sslChannel.init(context);
+        this.sslMediaChannel.init(context);
         this.reliableMulticastChannel.init(context);
         this.multicastChannel.init(context);
 
@@ -375,7 +376,7 @@ public enum NetworkManager implements INetworkService,
         netChannelMap.put(tcpChannel.name, tcpChannel);
         netChannelMap.put(tcpMediaChannel.name, tcpMediaChannel);
         netChannelMap.put(sslChannel.name, sslChannel);
-        netChannelMap.put(sslMediaChannel.name, sslMediaChannel);
+   //     netChannelMap.put(sslMediaChannel.name, sslMediaChannel);
 
         netChannelMap.put(multicastChannel.name, multicastChannel);
         netChannelMap.put(reliableMulticastChannel.name,
@@ -389,8 +390,8 @@ public enum NetworkManager implements INetworkService,
                 Gateway.getMediaInstance(this.context, tcpMediaChannel));
         modelChannelMap.put(sslChannel.name,
                 SSL.getInstance(this.context, sslChannel));
-        modelChannelMap.put(sslMediaChannel.name,
-                SSL.getMediaInstance(this.context, sslMediaChannel));
+ //       modelChannelMap.put(sslMediaChannel.name,
+ //               SSL.getMediaInstance(this.context, sslMediaChannel));
 
         modelChannelMap.put(multicastChannel.name,
                 Multicast.getInstance(this.context, multicastChannel));

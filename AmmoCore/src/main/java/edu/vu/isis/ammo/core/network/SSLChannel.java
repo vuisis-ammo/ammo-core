@@ -13,16 +13,23 @@ package edu.vu.isis.ammo.core.network;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.Socket;
 import java.net.SocketException;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.Timer;
@@ -35,13 +42,25 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import javax.net.SocketFactory;
+import javax.net.ssl.HandshakeCompletedEvent;
+import javax.net.ssl.HandshakeCompletedListener;
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import android.util.Log;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -170,6 +189,50 @@ public class SSLChannel extends TcpChannelBase {
         TimerTask updateBps = new UpdateBpsTask();
         mUpdateBpsTimer.scheduleAtFixedRate(updateBps, 0,
                 BPS_STATS_UPDATE_INTERVAL * 1000);
+    }
+
+    // always verify the host - dont check for certificate
+    final static HostnameVerifier DO_NOT_VERIFY = new HostnameVerifier() {
+        public boolean verify(String hostname, SSLSession session) {
+            return true;
+        }
+    };
+
+    public static TrustManager[] GetTrustStore() {
+        // Create a trust manager that does not validate certificate chains
+        TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager() {
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+
+            public void checkClientTrusted(X509Certificate[] certs,
+                    String authType) {
+            }
+
+            public void checkServerTrusted(X509Certificate[] certs,
+                    String authType) {
+            }
+        } };
+        return trustAllCerts;
+    }
+
+    public static void disableCertificateValidation()
+            throws KeyManagementException, NoSuchAlgorithmException {
+
+        TrustManager[] trustAllCerts = GetTrustStore();
+        // Ignore differences between given hostname and certificate hostname
+        HostnameVerifier hv = new HostnameVerifier() {
+            public boolean verify(String hostname, SSLSession session) {
+                return true;
+            }
+        };
+
+        // Install the all-trusting trust manager
+        SSLContext sc = SSLContext.getInstance("TLS");
+        sc.init(null, trustAllCerts, new SecureRandom());
+        HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+        HttpsURLConnection.setDefaultHostnameVerifier(hv);
+
     }
 
     class UpdateBpsTask extends TimerTask {
@@ -642,6 +705,32 @@ public class SSLChannel extends TcpChannelBase {
             this.state.failure(this.state.attempt);
         }
 
+        //
+        // protected Socket getConnection(String ip, int port) throws
+        // IOException {
+        // try {
+        // KeyStore trustStore = KeyStore.getInstance("BKS");
+        // InputStream trustStoreStream =
+        // context.getResources().openRawResource(R.raw.server);
+        // trustStore.load(trustStoreStream, "keypass".toCharArray());
+        //
+        // TrustManagerFactory trustManagerFactory =
+        // TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        // trustManagerFactory.init(trustStore);
+        //
+        // SSLContext sslContext = SSLContext.getInstance("TLS");
+        // sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+        // SSLSocketFactory factory = sslContext.getSocketFactory();
+        // SSLSocket socket = (SSLSocket) factory.createSocket(ip, port);
+        // socket.setEnabledCipherSuites(SSLUtils.getCipherSuitesWhiteList(socket.getEnabledCipherSuites()));
+        // return socket;
+        // } catch (GeneralSecurityException e) {
+        // logger.error("Exception while creating context: ", e);
+        // throw new IOException("Could not connect to SSL Server", e);
+        // }
+        // }
+        //
+
         /**
          * A value machine based. Most of the time this machine will be in a
          * CONNECTED value. In that CONNECTED value the machine wait for the
@@ -836,43 +925,34 @@ public class SSLChannel extends TcpChannelBase {
                 }
                 final long startConnectionMark = System.currentTimeMillis();
 
-                /**
-                 * 
-                 */
-                // Security.addProvider(new
-                // com.sun.net.ssl.internal.ssl.Provider()); see if I have to
-                // add provider like this
+                // setup SSL context
+                SSLContext context = SSLContext.getInstance("TLS");
+                context.init(null, GetTrustStore(),
+                        new java.security.SecureRandom());
 
-                // TODO here is SSL socket creation
+                // create plain old socket
+                Socket originalSocket = SocketFactory.getDefault()
+                        .createSocket(host, port);
 
-                SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory
-                        .getDefault();
+                // use that socket to make SSL connection
+                EasySSLSocketFactory eFactory = new EasySSLSocketFactory();
+                Socket sslSocket = eFactory.createSocket(originalSocket, host,
+                        port, false);
 
-                parent.mSSLSocket = (SSLSocket) factory.createSocket();
-
-                // parent.mSSLSocket.connect(sockAddr);
-                if (parent.mSSLSocket == null) {
-                    logger.warn("mSSLSocket was null");
-
-                }
-
-                parent.mSSLSocket.connect(sockAddr);
-
-                // parent.mSocket = new Socket();
-                // parent.mSocket.connect(sockAddr, parent.connectTimeout);
-
-                parent.mSSLSocket.setSoTimeout(parent.socketTimeout);
+                // assign IO from that socket
+                parent.mDataInputStream = new DataInputStream(
+                        sslSocket.getInputStream());
+                parent.mDataOutputStream = new DataOutputStream(
+                        sslSocket.getOutputStream());
                 final long finishConnectionMark = System.currentTimeMillis();
                 logger.info("connection time to establish={} ms",
                         finishConnectionMark - startConnectionMark);
 
-                // SSL "Should" be the exact same after Input & Output Streams
-                // are created.
-                parent.mDataInputStream = new DataInputStream(
-                        parent.mSSLSocket.getInputStream());
-                parent.mDataOutputStream = new DataOutputStream(
-                        parent.mSSLSocket.getOutputStream());
-
+            } catch (SSLHandshakeException ex) {
+                logger.error("SSLHandshakeException Message: {}",
+                        ex.getMessage());
+            } catch (SSLException ex) {
+                logger.error("SSLException Message: {}", ex.getMessage());
             } catch (AsynchronousCloseException ex) {
                 logger.warn("connection async close failure to {}:{} ", ipaddr,
                         port, ex);
@@ -1192,7 +1272,7 @@ public class SSLChannel extends TcpChannelBase {
         private SSLChannel mChannel;
 
         private SenderQueue mQueue;
-        @SuppressWarnings("unused")
+        // @SuppressWarnings("unused")
         private Logger logger = null;
     }
 

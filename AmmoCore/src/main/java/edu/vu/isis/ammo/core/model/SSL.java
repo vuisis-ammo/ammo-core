@@ -167,4 +167,5 @@ public class SSL extends ModelChannel {
         ((TextView) row.findViewById(R.id.ssl_formal)).setText(this.getFormal());
         return row;
     }
+    
 }
