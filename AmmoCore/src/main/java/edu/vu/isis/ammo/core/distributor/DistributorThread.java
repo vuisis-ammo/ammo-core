@@ -55,6 +55,7 @@ import edu.vu.isis.ammo.api.type.Notice.Via;
 import edu.vu.isis.ammo.api.type.Order;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
+import edu.vu.isis.ammo.core.AmmoEngine;
 import edu.vu.isis.ammo.core.AmmoMimeTypes;
 import edu.vu.isis.ammo.core.ChannelChange;
 import edu.vu.isis.ammo.core.NetworkManager;
@@ -330,13 +331,13 @@ public class DistributorThread extends Thread {
         Notification notification = new Notification(icon, tickerText, when);
         notification.flags |= Notification.FLAG_ONGOING_EVENT;
 
-        /*Intent notificationIntent = new Intent(context, AmmoCore.class);
+        Intent notificationIntent = new Intent(context, AmmoEngine.class);
 
         PendingIntent contentIntent = PendingIntent
                 .getActivity(context, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
         notification.setLatestEventInfo(context, contentTitle, contentText,
-                contentIntent);*/
+                contentIntent);
 
         mNotificationManager.notify(current_icon_id, notification);
     }

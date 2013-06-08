@@ -19,7 +19,7 @@ public abstract class NetChannel implements INetChannel {
 	// The values in the INetChannel that we are translating here could
 	// probably be made into an enum and the translation to strings
 	// would be handled for us.
-	public static String showState(int state) {
+	public static String showState(INetChannel.State state) {
 
 		switch (state) {
 		case PENDING:
@@ -99,9 +99,9 @@ public abstract class NetChannel implements INetChannel {
 	}
 
 
-	protected int lastConnState = INetChannel.PENDING;
-	protected int lastSenderState = INetChannel.PENDING;
-	protected int lastReceiverState = INetChannel.PENDING;
+	protected INetChannel.State lastConnState = INetChannel.State.PENDING;
+	protected INetChannel.State lastSenderState = INetChannel.State.PENDING;
+	protected INetChannel.State lastReceiverState =  INetChannel.State.PENDING;
 
     protected volatile long mBytesSent = 0;
     protected volatile long mBytesRead = 0;

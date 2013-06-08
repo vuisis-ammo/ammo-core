@@ -203,7 +203,7 @@ public class TcpChannel extends AddressedChannel {
 
         logger.trace("::enable - Setting the state to STALE");
         this.shouldBeDisabled = false;
-        this.connectorThread.state.set(NetChannel.STALE);
+        this.connectorThread.state.set(INetChannel.State.STALE);
       }
     }
   }
@@ -215,7 +215,7 @@ public class TcpChannel extends AddressedChannel {
         this.isEnabled = false;
         logger.trace("::disable - Setting the state to DISABLED");
         this.shouldBeDisabled = true;
-        this.connectorThread.state.set(NetChannel.DISABLED);
+        this.connectorThread.state.set(INetChannel.State.DISABLED);
         // this.connectorThread.stop();
       }
     }
@@ -293,9 +293,9 @@ public class TcpChannel extends AddressedChannel {
 
   private void statusChange()
   {
-	int connState = this.connectorThread.state.value;
-    int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
-    int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
+	INetChannel.State connState = this.connectorThread.state.value;
+    INetChannel.State senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.State.PENDING;
+    INetChannel.State receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.State.PENDING;
 
     try {
       mChannelManager.statusChange(this,
@@ -518,13 +518,13 @@ public class TcpChannel extends AddressedChannel {
     }
 
     private class State {
-      private int value;
-      private int actual;
+      private INetChannel.State value;
+      private INetChannel.State actual;
 
       private long attempt; // used to uniquely name the connection
 
       public State() {
-        this.value = STALE;
+        this.value = INetChannel.State.STALE;
         this.attempt = Long.MIN_VALUE;
       }
       public synchronized void linkUp() {
@@ -534,10 +534,10 @@ public class TcpChannel extends AddressedChannel {
       public synchronized void linkDown() {
         this.reset();
       }
-      public synchronized void set(int state) {
+      public synchronized void set(INetChannel.State state) {
         logger.trace("Thread <{}>State::set", 
             Thread.currentThread().getId());
-        if ( state == STALE ) {
+        if ( state == INetChannel.State.STALE ) {
           this.reset();
         } else {
           this.value = state;
@@ -551,22 +551,22 @@ public class TcpChannel extends AddressedChannel {
        * @param state
        * @return false if disabled; true otherwise
        */
-      public synchronized boolean setUnlessDisabled(int state) {
+      public synchronized boolean setUnlessDisabled(INetChannel.State state) {
         logger.trace("Thread <{}>State::setUnlessDisabled", 
             Thread.currentThread().getId());
-        if (state == DISABLED) return false;
+        if (state == INetChannel.State.DISABLED) return false;
         this.set(state);
         return true;
       }
 
-      public synchronized int get() { return this.value; }
+      public synchronized INetChannel.State get() { return this.value; }
 
       public synchronized boolean isConnected() {
-        return this.value == INetChannel.CONNECTED;
+        return this.value == INetChannel.State.CONNECTED;
       }
 
       public synchronized boolean isDisabled() {
-        return this.value == INetChannel.DISABLED;
+        return this.value == INetChannel.State.DISABLED;
       }
 
       /**
@@ -585,12 +585,12 @@ public class TcpChannel extends AddressedChannel {
         return this.reset();
       }
       public synchronized boolean failureUnlessDisabled(long attempt) {
-        if (this.value == INetChannel.DISABLED) return false; 
+        if (this.value == INetChannel.State.DISABLED) return false; 
         return this.failure(attempt);
       }
       public synchronized boolean reset() {
         attempt++;
-        this.value = STALE;
+        this.value = INetChannel.State.STALE;
         this.notifyAll();
         return true;
       }
@@ -641,9 +641,9 @@ public class TcpChannel extends AddressedChannel {
         MAINTAIN_CONNECTION: while (true) {
           logger.trace("connector state: {}",this.showState());
 
-          if(this.parent.shouldBeDisabled) this.state.set(NetChannel.DISABLED);
+          if(this.parent.shouldBeDisabled) this.state.set(INetChannel.State.DISABLED);
           switch (this.state.get()) {
-            case NetChannel.DISABLED:
+            case DISABLED:
               try {
                 synchronized (this.state) {
                   logger.trace("this.state.get() = {}", this.state.get());
@@ -659,50 +659,50 @@ public class TcpChannel extends AddressedChannel {
                 }
               } catch (InterruptedException ex) {
                 logger.warn("connection intentionally disabled {}", this.state );
-                this.state.setUnlessDisabled(NetChannel.STALE);
+                this.state.setUnlessDisabled(INetChannel.State.STALE);
                 break MAINTAIN_CONNECTION;
               }
               break;
-            case NetChannel.STALE:
+            case STALE:
               disconnect();
-              this.state.setUnlessDisabled(NetChannel.LINK_WAIT);
+              this.state.setUnlessDisabled(INetChannel.State.LINK_WAIT);
               break;
 
-            case NetChannel.LINK_WAIT:
+            case LINK_WAIT:
               this.parent.statusChange();
               try {
                 synchronized (this.state) {
                   while (! parent.isAnyLinkUp()  && ! this.state.isDisabled()) {
                     this.state.wait(BURP_TIME);   // wait for a link interface
                   }   
-                  this.state.setUnlessDisabled(NetChannel.DISCONNECTED);
+                  this.state.setUnlessDisabled(INetChannel.State.DISCONNECTED);
                 }
               } catch (InterruptedException ex) {
                 logger.warn("connection intentionally disabled {}", this.state );
-                this.state.setUnlessDisabled(NetChannel.STALE);
+                this.state.setUnlessDisabled(INetChannel.State.STALE);
                 break MAINTAIN_CONNECTION;
               }
               this.parent.statusChange();
               // or else wait for link to come up, triggered through broadcast receiver
               break;
 
-            case NetChannel.DISCONNECTED:
+            case DISCONNECTED:
               this.parent.statusChange();
               if ( !this.connect() ) {
-                this.state.setUnlessDisabled(NetChannel.CONNECTING);
+                this.state.setUnlessDisabled(INetChannel.State.CONNECTING);
               } else {
-                this.state.setUnlessDisabled(NetChannel.CONNECTED);
+                this.state.setUnlessDisabled(INetChannel.State.CONNECTED);
               }
               break;
 
-            case NetChannel.CONNECTING: // keep trying
+            case CONNECTING: // keep trying
               try {
                 this.parent.statusChange();
                 long attempt = this.getAttempt();
                 synchronized (this.state) {
                   this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
                   if ( this.connect() ) {
-                    this.state.setUnlessDisabled(NetChannel.CONNECTED);
+                    this.state.setUnlessDisabled(INetChannel.State.CONNECTED);
                   } else {
                     this.state.failureUnlessDisabled(attempt);
                   }
@@ -715,7 +715,7 @@ public class TcpChannel extends AddressedChannel {
               }
               break;
 
-            case NetChannel.CONNECTED:
+            case CONNECTED:
             {
               this.parent.statusChange();
               try {
@@ -737,7 +737,7 @@ public class TcpChannel extends AddressedChannel {
                 }
               } catch (InterruptedException ex) {
                 logger.warn("connection intentionally disabled {}", this.state );
-                this.state.setUnlessDisabled(NetChannel.STALE);
+                this.state.setUnlessDisabled(INetChannel.State.STALE);
                 break MAINTAIN_CONNECTION;
               }
               this.parent.statusChange();
@@ -762,7 +762,7 @@ public class TcpChannel extends AddressedChannel {
         }
 
       } catch (Exception ex) {
-        this.state.setUnlessDisabled(NetChannel.EXCEPTION);
+        this.state.setUnlessDisabled(INetChannel.State.EXCEPTION);
         logger.error("channel exception", ex);
       }
       try {
@@ -1096,26 +1096,26 @@ public class TcpChannel extends AddressedChannel {
       // Then send it on the socket channel. Upon getting a socket error,
       // notify our parent and go into an error state.
 
-      while ( mState != INetChannel.INTERRUPTED && !isInterrupted() )
+      while ( mState != INetChannel.State.INTERRUPTED && !isInterrupted() )
       {
         AmmoGatewayMessage msg = null;
         try
         {
-          setSenderState( INetChannel.TAKING );
+          setSenderState( INetChannel.State.TAKING );
           msg = mQueue.take(); // The main blocking call
           logger.debug( "Took a message from the send queue" );
         }
         catch ( InterruptedException ex )
         {
           logger.debug( "interrupted taking messages from send queue", ex );
-          setSenderState( INetChannel.INTERRUPTED );
+          setSenderState( INetChannel.State.INTERRUPTED );
           break;
         }
 
         try
         {
           ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
-          setSenderState( INetChannel.SENDING );
+          setSenderState( INetChannel.State.SENDING );
           int bytesToSend = buf.remaining();
           mDataOutputStream.write( buf.array(), 0, bytesToSend );
           mBytesSent += bytesToSend;
@@ -1141,14 +1141,14 @@ public class TcpChannel extends AddressedChannel {
           logger.warn("sender threw exception", ex);
           if ( msg.handler != null )
             mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
-          setSenderState( INetChannel.INTERRUPTED );
+          setSenderState( INetChannel.State.INTERRUPTED );
           mParent.socketOperationFailed();
         }
       }
     }
 
 
-    private void setSenderState( int iState )
+    private void setSenderState( INetChannel.State iState )
     {
       synchronized ( this )
       {
@@ -1157,9 +1157,9 @@ public class TcpChannel extends AddressedChannel {
       mParent.statusChange();
     }
 
-    public synchronized int getSenderState() { return mState; }
+    public synchronized INetChannel.State getSenderState() { return mState; }
 
-    private int mState = INetChannel.TAKING;
+    private INetChannel.State mState = INetChannel.State.TAKING;
     private ConnectorThread mParent;
     private TcpChannel mChannel;
     private SenderQueue mQueue;
@@ -1201,7 +1201,7 @@ public class TcpChannel extends AddressedChannel {
       byte[] bbufArray = bbuf.array();
 
         threadWhile:
-      while ( mState != INetChannel.INTERRUPTED && !isInterrupted() )
+      while ( mState != INetChannel.State.INTERRUPTED && !isInterrupted() )
       {
         try {
             int position = bbuf.position();
@@ -1216,13 +1216,13 @@ public class TcpChannel extends AddressedChannel {
 
           if (bytesRead < 0) {
               logger.error("bytes read = {}, exiting", bytesRead);
-              setReceiverState( INetChannel.INTERRUPTED );
+              setReceiverState( INetChannel.State.INTERRUPTED );
               mParent.socketOperationFailed();
               return;
           }
 
           mBytesRead += bytesRead;
-          setReceiverState( INetChannel.START );
+          setReceiverState( INetChannel.State.START );
 
           // prepare to drain buffer
           bbuf.flip(); 
@@ -1253,7 +1253,7 @@ public class TcpChannel extends AddressedChannel {
                   bbuf.position( position + bytesRead );
                   if (bytesRead < 0) {
                       logger.error("bytes read = {}, exiting", bytesRead);
-                      setReceiverState( INetChannel.INTERRUPTED );
+                      setReceiverState( INetChannel.State.INTERRUPTED );
                       mParent.socketOperationFailed();
                       return;                      
                   }
@@ -1285,7 +1285,7 @@ public class TcpChannel extends AddressedChannel {
                 bbuf.position( position + bytesRead );
                 if (bytesRead < 0) {
                     logger.error("bytes read = {}, exiting", bytesRead);
-                    setReceiverState( INetChannel.INTERRUPTED );
+                    setReceiverState( INetChannel.State.INTERRUPTED );
                     mParent.socketOperationFailed();
                     return;                    
                 }                
@@ -1300,7 +1300,7 @@ public class TcpChannel extends AddressedChannel {
               logger.info( "Received a packet from gateway size({}) @{}, csum {}", 
                   new Object[]{agm.size, agm.buildTime, agm.payload_checksum}  );
 
-              setReceiverState( INetChannel.DELIVER );
+              setReceiverState( INetChannel.State.DELIVER );
               mDestination.deliverMessage( agm );
 
               // received a valid message, update status count .... 
@@ -1314,17 +1314,17 @@ public class TcpChannel extends AddressedChannel {
 
         } catch (ClosedChannelException ex) {
           logger.warn("receiver threw exception", ex);
-          setReceiverState( INetChannel.INTERRUPTED );
+          setReceiverState( INetChannel.State.INTERRUPTED );
           mParent.socketOperationFailed();
         } catch ( Exception ex ) {
           logger.warn("receiver threw exception", ex);
-          setReceiverState( INetChannel.INTERRUPTED );
+          setReceiverState( INetChannel.State.INTERRUPTED );
           mParent.socketOperationFailed();
         }
       }
     }
 
-    private void setReceiverState( int iState )
+    private void setReceiverState( INetChannel.State iState )
     {
       synchronized ( this )
       {
@@ -1333,9 +1333,9 @@ public class TcpChannel extends AddressedChannel {
       mParent.statusChange();
     }
 
-    public synchronized int getReceiverState() { return mState; }
+    public synchronized INetChannel.State getReceiverState() { return mState; }
 
-    private int mState = INetChannel.TAKING; // FIXME
+    private INetChannel.State mState = INetChannel.State.TAKING; // FIXME
     private ConnectorThread mParent;
     private TcpChannel mDestination;
     @SuppressWarnings("unused")

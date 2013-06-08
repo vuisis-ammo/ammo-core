@@ -52,9 +52,9 @@ public interface IChannelManager
      * @return boolean
      */
     void statusChange( NetChannel channel,
-    		int lastConnStatus, int connStatus,
-    		int lastSendStatus, int sendStatus,
-    		int lastRecvStatus, int recvStatus );
+    		INetChannel.State lastConnStatus, INetChannel.State connStatus,
+    		INetChannel.State lastSendStatus, INetChannel.State sendStatus,
+    		INetChannel.State lastRecvStatus, INetChannel.State recvStatus );
 
     void authorizationSucceeded( NetChannel channel, AmmoGatewayMessage agm );
 

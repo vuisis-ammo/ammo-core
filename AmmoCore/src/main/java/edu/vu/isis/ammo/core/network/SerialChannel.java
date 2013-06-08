@@ -62,10 +62,12 @@ public class SerialChannel extends NetChannel
 
 
     // Move these to the interface class later.
+    /*
     public static final int SERIAL_DISABLED        = INetChannel.DISABLED;
     public static final int SERIAL_WAITING_FOR_TTY = INetChannel.LINK_WAIT;
     public static final int SERIAL_CONNECTED       = INetChannel.CONNECTED;
     public static final int SERIAL_BUSY            = INetChannel.BUSY;
+    */
 
 
     /**
@@ -131,7 +133,7 @@ public class SerialChannel extends NetChannel
         mEnabled = false;
 
         stop();
-        setState( SERIAL_DISABLED );
+        setState( INetChannel.State.DISABLED );
     }
 
 
@@ -200,8 +202,8 @@ public class SerialChannel extends NetChannel
     private void start()
     {
         logger.debug( "SerialChannel::start()" );
-        if ( mState.compareAndSet( SERIAL_DISABLED, SERIAL_WAITING_FOR_TTY )) {
-            setState( SERIAL_WAITING_FOR_TTY ); // Need this to update the GUI.
+        if ( mState.compareAndSet( INetChannel.State.DISABLED, INetChannel.State.LINK_WAIT )) {
+            setState( INetChannel.State.LINK_WAIT ); // Need this to update the GUI.
             mConnector = new Connector();
             mConnector.start();
         } else {
@@ -216,7 +218,7 @@ public class SerialChannel extends NetChannel
     private void stop()
     {
         logger.debug( "SerialChannel::stop()" );
-        if ( mState.getAndSet(SERIAL_DISABLED) == SERIAL_DISABLED )
+        if ( mState.getAndSet(INetChannel.State.DISABLED) == INetChannel.State.DISABLED )
             logger.warn( "disable() called on an already disabled channel" );
         else {
             //disconnect();
@@ -248,7 +250,7 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
-    public boolean isConnected() { return getState() == SERIAL_CONNECTED; }
+    public boolean isConnected() { return getState() == INetChannel.State.CONNECTED; }
 
 
     // The following methods will require a disconnect and reconnect,
@@ -463,7 +465,7 @@ public class SerialChannel extends NetChannel
                             SerialChannel.this.wait( WAIT_TIME );
                         }
                         else if ( !isDisabled() ) {
-                            setState( SERIAL_CONNECTED );
+                            setState( INetChannel.State.CONNECTED );
                             break;
                         }
                     }
@@ -852,7 +854,7 @@ public class SerialChannel extends NetChannel
             // message while the channel is going down, and we don't want
             // the message to be stranded in the queue until the channel
             // comes back up.  Reject the packet in these cases.
-            if ( getState() != SERIAL_CONNECTED ) {
+            if ( getState() != INetChannel.State.CONNECTED ) {
                 return DisposalState.REJECTED;
             }
 
@@ -871,7 +873,7 @@ public class SerialChannel extends NetChannel
                 logger.trace( "Incrementing mDistQueueSize to {}", mDistQueueSize );
                 if ( mDistQueueSize == SENDQUEUE_MAX_SIZE ) {
                     mWasBusy = true;
-                    setState( SERIAL_BUSY );
+                    setState( INetChannel.State.BUSY );
                 }
             }
 
@@ -1048,7 +1050,7 @@ public class SerialChannel extends NetChannel
             long currentGpsTime = System.currentTimeMillis() - mDelta.get();
             long goalTakeTime = currentGpsTime; // initialize to now, will get recomputed
 
-            while ( mSenderState.get() != INetChannel.INTERRUPTED ) {
+            while ( mSenderState.get() != INetChannel.State.INTERRUPTED ) {
                 AmmoGatewayMessage msg = null;
                 try {
                     waitSlot: {
@@ -1088,7 +1090,7 @@ public class SerialChannel extends NetChannel
                         }
 
                         // else we are in slot, and should send
-                        setSenderState( INetChannel.TAKING );
+                        setSenderState( INetChannel.State.TAKING );
 
                         logger.debug( "Waking: hyperperiod={}, slotNumber={}, (time, ms)={}, jitter={}, cputime={}, mDelta={}",
                                       new Object[] {
@@ -1139,7 +1141,7 @@ public class SerialChannel extends NetChannel
                                         logger.trace( "Decrementing mDistQueueSize to {}", mDistQueueSize );
                                         if ( mDistQueueSize == SENDQUEUE_LOW_WATER && mWasBusy ) {
                                             mWasBusy = false;
-                                            setState( SERIAL_CONNECTED );
+                                            setState( INetChannel.State.CONNECTED );
                                         }
                                     }
 
@@ -1183,7 +1185,7 @@ public class SerialChannel extends NetChannel
                                     logger.trace( "Decrementing mDistQueueSize to {}", mDistQueueSize );
                                     if ( mDistQueueSize == SENDQUEUE_LOW_WATER && mWasBusy ) {
                                         mWasBusy = false;
-                                        setState( SERIAL_CONNECTED );
+                                        setState( INetChannel.State.CONNECTED );
                                     }
                                 }
 
@@ -1209,13 +1211,13 @@ public class SerialChannel extends NetChannel
                                 logger.warn("sender threw exception", e );
                                 if ( msg != null && msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.REJECTED );
-                                setSenderState( INetChannel.INTERRUPTED );
+                                setSenderState( INetChannel.State.INTERRUPTED );
                                 ioOperationFailed();
                             } catch ( Exception e ) {
                                 logger.warn("sender threw exception", e );
                                 if ( msg != null && msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.BAD );
-                                setSenderState( INetChannel.INTERRUPTED );
+                                setSenderState( INetChannel.State.INTERRUPTED );
                                 ioOperationFailed();
                                 break;
                             }
@@ -1226,7 +1228,7 @@ public class SerialChannel extends NetChannel
                         Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
                     logger.debug( "interrupted taking messages from send queue" );
-                    setSenderState( INetChannel.INTERRUPTED );
+                    setSenderState( INetChannel.State.INTERRUPTED );
                     break;
                 }
             }
@@ -1252,7 +1254,7 @@ public class SerialChannel extends NetChannel
                                             AmmoGatewayMessage.VERSION_1_TERSE,
                                             (byte) slotIndex );
 
-            setSenderState(INetChannel.SENDING);
+            setSenderState(INetChannel.State.SENDING);
 
             if ( mSenderEnabled.get() ) {
                 //FileOutputStream outputStream = mPort.getOutputStream();
@@ -1333,7 +1335,7 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        private void setSenderState( int state )
+        private void setSenderState( INetChannel.State state )
         {
             mSenderState.set( state );
             statusChange();
@@ -1342,11 +1344,11 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public int getSenderState() { return mSenderState.get(); }
+        public INetChannel.State getSenderState() { return mSenderState.get(); }
 
         private static final int RESERVE_FOR_ACK = 50;
 
-        private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
+        private AtomicReference<INetChannel.State> mSenderState = new AtomicReference<INetChannel.State>( INetChannel.State.TAKING );
         private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
     }
 
@@ -1399,8 +1401,8 @@ public class SerialChannel extends NetChannel
                 byte c = 0;
                 AmmoGatewayMessage.Builder agmb = null;
 
-                while ( mReceiverState.get() != INetChannel.INTERRUPTED ) {
-                    setReceiverState( INetChannel.START );
+                while ( mReceiverState.get() != INetChannel.State.INTERRUPTED ) {
+                    setReceiverState( INetChannel.State.START );
 
                     switch ( state ) {
                     case 0:
@@ -1536,16 +1538,16 @@ public class SerialChannel extends NetChannel
                                           agm.payload } );
 
                         if ( getRetransmitter() != null ) {
-                            setReceiverState( INetChannel.DELIVER );
+                            setReceiverState( INetChannel.State.DELIVER );
                             getRetransmitter().processReceivedMessage( agm,
                                                                        hyperperiod );
                         } else {
-                            setReceiverState( INetChannel.DELIVER );
+                            setReceiverState( INetChannel.State.DELIVER );
                             deliverMessage( agm );
                         }
 
                         header.clear();
-                        setReceiverState( INetChannel.START );
+                        setReceiverState( INetChannel.State.START );
                         state = 0;
                         mReceiverSubstate.set( state );
                     }
@@ -1557,11 +1559,11 @@ public class SerialChannel extends NetChannel
                 }
             } catch ( IOException ex ) {
                 logger.warn( "receiver threw an IOException", ex );
-                setReceiverState( INetChannel.INTERRUPTED );
+                setReceiverState( INetChannel.State.INTERRUPTED );
                 ioOperationFailed();
             } catch ( Exception ex ) {
                 logger.warn( "receiver threw an exception", ex );
-                setReceiverState( INetChannel.INTERRUPTED );
+                setReceiverState( INetChannel.State.INTERRUPTED );
                 ioOperationFailed();
             }
 
@@ -1576,7 +1578,7 @@ public class SerialChannel extends NetChannel
         {
             int val = -1;
             mSecondsSinceByteRead.set( 0 );
-            while ( val == -1 &&  mReceiverState.get() != INetChannel.INTERRUPTED ) {
+            while ( val == -1 &&  mReceiverState.get() != INetChannel.State.INTERRUPTED ) {
                 logger.trace( "SerialPort.read()" );
                 val = mInputStream.read();
                 if ( val == -1 )
@@ -1594,7 +1596,7 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        private void setReceiverState( int state )
+        private void setReceiverState( INetChannel.State state )
         {
             mReceiverState.set( state );
             statusChange();
@@ -1603,9 +1605,9 @@ public class SerialChannel extends NetChannel
         /**
          *
          */
-        public int getReceiverState() { return mReceiverState.get(); }
+        public INetChannel.State getReceiverState() { return mReceiverState.get(); }
 
-        private AtomicInteger mReceiverState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
+        private AtomicReference<INetChannel.State> mReceiverState = new AtomicReference<INetChannel.State>( INetChannel.State.TAKING ); // FIXME: better states
         private FileInputStream mInputStream;
         private final Logger logger
         = LoggerFactory.getLogger( "net.serial.receiver" );
@@ -1733,9 +1735,9 @@ public class SerialChannel extends NetChannel
     {
         // FIXME: make a better state than PENDING.  At this point
         // they have *no* state since they don't exist.
-    	int connState = this.getState();
-        int senderState = (mSender != null) ? mSender.getSenderState() : PENDING;
-        int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : PENDING;
+    	INetChannel.State connState = this.getState();
+        INetChannel.State senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.State.PENDING;
+        INetChannel.State receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.State.PENDING;
 
         try {
             mChannelManager.statusChange(this,
@@ -1804,9 +1806,9 @@ public class SerialChannel extends NetChannel
 
     private AtomicBoolean mSenderEnabled = new AtomicBoolean();
 
-    private AtomicInteger mState = new AtomicInteger( SERIAL_DISABLED );
-    private int getState() { return mState.get(); }
-    private void setState( int state )
+    private AtomicReference<INetChannel.State> mState = new AtomicReference<INetChannel.State>( INetChannel.State.DISABLED );
+    private INetChannel.State getState() { return mState.get(); }
+    private void setState( INetChannel.State state )
     {
         // Create a method is NetChannel to convert the numbers to strings.
         logger.debug( "changing state from {} to {}",
@@ -1815,7 +1817,7 @@ public class SerialChannel extends NetChannel
         mState.set( state );
         statusChange();
     }
-    private boolean isDisabled() { return (getState() == SERIAL_DISABLED); }
+    private boolean isDisabled() { return (getState() == INetChannel.State.DISABLED); }
 
     private Connector mConnector;
     private SerialPort mPort;

@@ -20,33 +20,40 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
  */
 
 public interface INetChannel {
-    int PENDING = 0; // the work is pending
-    int EXCEPTION = 1; // the run failed by some unhandled exception
-
-    int CONNECTING = 20; // trying to connect
-    int CONNECTED = 21; // the socket is good an active
-    int BUSY = 22; // the socket is busy and no new work should be queued
-    int READY = 23; // the socket can now take additional requests
-
-    int DISCONNECTED = 30; // the socket is disconnected
-    int STALE = 31; // indicating there is a message
-    int LINK_WAIT = 32; // indicating the underlying link is down
-    int LINK_ACTIVE = 33; // indicating the underlying link is down -- unused
-    int DISABLED = 34; // indicating the link is disabled
-
-    int WAIT_CONNECT = 40; // waiting for connection
-    int SENDING = 41; // indicating the next thing is the size
-    int TAKING = 42; // indicating the next thing is the size
-    int INTERRUPTED = 43; // the run was canceled via an interrupt
-
-    int SHUTDOWN = 51; // the run is being stopped -- unused
-    int START = 52; // indicating the next thing is the size
-    int RESTART = 53; // indicating the next thing is the size
-    int WAIT_RECONNECT = 54; // waiting for connection
-    int STARTED = 55; // indicating there is a message
-    int SIZED = 56; // indicating the next thing is a checksum
-    int CHECKED = 57; // indicating the bytes are being read
-    int DELIVER = 58; // indicating the message has been read
+    
+    public enum State {
+        PENDING, // the work is pending
+        EXCEPTION, // the run failed by some unhandled exception
+    
+        CONNECTING, // trying to connect
+        CONNECTED, // the socket is good an active
+        BUSY, // the socket is busy and no new work should be queued
+        READY, // the socket can now take additional requests
+    
+        DISCONNECTED, // the socket is disconnected
+        STALE, // indicating there is a message
+        LINK_WAIT, // indicating the underlying link is down
+        LINK_ACTIVE, // indicating the underlying link is down -- unused
+        DISABLED, // indicating the link is disabled
+    
+        WAIT_CONNECT, // waiting for connection
+        SENDING, // indicating the next thing is the size
+        TAKING, // indicating the next thing is the size
+        INTERRUPTED, // the run was canceled via an interrupt
+    
+        SHUTDOWN, // the run is being stopped -- unused
+        START, // indicating the next thing is the size
+        RESTART, // indicating the next thing is the size
+        WAIT_RECONNECT, // waiting for connection
+        STARTED, // indicating there is a message
+        SIZED, // indicating the next thing is a checksum
+        CHECKED, // indicating the bytes are being read
+        DELIVER, // indicating the message has been read
+        
+        State(int colorRes, int textRes) {
+            
+        }
+    }
 
     void reset();
 

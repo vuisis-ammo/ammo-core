@@ -1471,9 +1471,9 @@ public enum NetworkManager  implements INetworkService,
      * application who acts as a broker.
      */
     @Override
-	public void statusChange(NetChannel channel, int lastConnStatus,
-			int connStatus, int lastSendStatus, int sendStatus,
-			int lastRecvStatus, int recvStatus) {
+	public void statusChange(NetChannel channel, INetChannel.State lastConnStatus,
+			INetChannel.State connStatus, INetChannel.State lastSendStatus, INetChannel.State sendStatus,
+			INetChannel.State lastRecvStatus, INetChannel.State recvStatus) {
         if (logger.isDebugEnabled()) {
             logger.debug("change channel=[{}] status=[{}]", channel.name,
                     NetChannel.showState(connStatus));
@@ -1488,19 +1488,19 @@ public enum NetworkManager  implements INetworkService,
         }
 
         switch (connStatus) {
-            case NetChannel.CONNECTED:
+            case CONNECTED:
                 if (channel.isAuthenticatingChannel())
                     break;
-            case NetChannel.READY:
-            case NetChannel.SENDING:
-            case NetChannel.TAKING:
+            case READY:
+            case SENDING:
+            case TAKING:
                 this.distThread.onChannelChange(this.context, channel.name,
                         ChannelChange.ACTIVATE);
                 break;
 
-            case NetChannel.BUSY:
-            case NetChannel.DISCONNECTED:
-            case NetChannel.DISABLED:
+            case BUSY:
+            case DISCONNECTED:
+            case DISABLED:
             default:
                 this.distThread.onChannelChange(this.context, channel.name,
                         ChannelChange.DEACTIVATE);

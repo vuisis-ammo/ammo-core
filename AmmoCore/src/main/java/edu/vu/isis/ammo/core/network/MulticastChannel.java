@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.network.INetChannel.State;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.util.InetHelper;
 import edu.vu.isis.ammo.util.TTLUtil;
@@ -202,7 +203,7 @@ public class MulticastChannel extends AddressedChannel
 
                 logger.warn("::enable - Setting the state to STALE");
                 this.shouldBeDisabled = false;
-                this.connectorThread.state.set(NetChannel.STALE);
+                this.connectorThread.state.set(NetChannel.State.STALE);
             }
         }
     }
@@ -214,7 +215,7 @@ public class MulticastChannel extends AddressedChannel
                 this.isEnabled = false;
                 logger.warn("::disable - Setting the state to DISABLED");
                 this.shouldBeDisabled = true;
-                this.connectorThread.state.set(NetChannel.DISABLED);
+                this.connectorThread.state.set(NetChannel.State.DISABLED);
 
                 // this.connectorThread.stop();
             }
@@ -303,10 +304,10 @@ public class MulticastChannel extends AddressedChannel
 
     private synchronized void statusChange()
     {
-    	int connState = this.connectorThread.state.value;
-        int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
-        int receiverState = (mReceiver != null) ? mReceiver.getReceiverState()
-                : INetChannel.PENDING;
+    	INetChannel.State connState = this.connectorThread.state.value;
+        INetChannel.State senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.State.PENDING;
+        INetChannel.State receiverState = (mReceiver != null) ? mReceiver.getReceiverState()
+                : INetChannel.State.PENDING;
 
         try {
             mChannelManager.statusChange(this,
@@ -490,13 +491,13 @@ public class MulticastChannel extends AddressedChannel
         }
 
         private class State {
-            private int value;
-            private int actual;
+            private INetChannel.State value;
+            private INetChannel.State actual;
 
             private long attempt; // used to uniquely name the connection
 
             public State() {
-                this.value = STALE;
+                this.value = INetChannel.State.STALE;
                 this.attempt = Long.MIN_VALUE;
             }
 
@@ -510,10 +511,10 @@ public class MulticastChannel extends AddressedChannel
                 this.reset();
             }
 
-            public synchronized void set(int state) {
+            public synchronized void set(INetChannel.State state) {
                 logger.trace("Thread <{}>State::set",
                         Thread.currentThread().getId());
-                if (state == STALE) {
+                if (state == INetChannel.State.STALE) {
                     this.reset();
                 } else {
                     this.value = state;
@@ -528,25 +529,25 @@ public class MulticastChannel extends AddressedChannel
              * @param state
              * @return false if disabled; true otherwise
              */
-            public synchronized boolean setUnlessDisabled(int state) {
+            public synchronized boolean setUnlessDisabled(INetChannel.State state) {
                 logger.trace("Thread <{}>State::setUnlessDisabled",
                         Thread.currentThread().getId());
-                if (state == DISABLED)
+                if (state == INetChannel.State.DISABLED)
                     return false;
                 this.set(state);
                 return true;
             }
 
-            public synchronized int get() {
+            public synchronized INetChannel.State get() {
                 return this.value;
             }
 
             public synchronized boolean isConnected() {
-                return this.value == INetChannel.CONNECTED;
+                return this.value == INetChannel.State.CONNECTED;
             }
 
             public synchronized boolean isDisabled() {
-                return this.value == INetChannel.DISABLED;
+                return this.value == INetChannel.State.DISABLED;
             }
 
             /**
@@ -566,14 +567,14 @@ public class MulticastChannel extends AddressedChannel
             }
 
             public synchronized boolean failureUnlessDisabled(long attempt) {
-                if (this.value == INetChannel.DISABLED)
+                if (this.value == INetChannel.State.DISABLED)
                     return false;
                 return this.failure(attempt);
             }
 
             public synchronized boolean reset() {
                 attempt++;
-                this.value = STALE;
+                this.value = INetChannel.State.STALE;
                 this.notifyAll();
                 return true;
             }
@@ -628,9 +629,9 @@ public class MulticastChannel extends AddressedChannel
                     logger.trace("connector state: {}", this.showState());
 
                     if (this.parent.shouldBeDisabled)
-                        this.state.set(NetChannel.DISABLED);
+                        this.state.set(INetChannel.State.DISABLED);
                     switch (this.state.get()) {
-                        case NetChannel.DISABLED:
+                        case DISABLED:
                             try {
                                 synchronized (this.state) {
                                     logger.trace("this.state.get() = {}", this.state.get());
@@ -646,16 +647,16 @@ public class MulticastChannel extends AddressedChannel
                                 }
                             } catch (InterruptedException ex) {
                                 logger.warn("connection intentionally disabled {}", this.state);
-                                this.state.setUnlessDisabled(NetChannel.STALE);
+                                this.state.setUnlessDisabled(INetChannel.State.STALE);
                                 break MAINTAIN_CONNECTION;
                             }
                             break;
-                        case NetChannel.STALE:
+                        case STALE:
                             disconnect();
-                            this.state.setUnlessDisabled(NetChannel.LINK_WAIT);
+                            this.state.setUnlessDisabled(INetChannel.State.LINK_WAIT);
                             break;
 
-                        case NetChannel.LINK_WAIT:
+                        case LINK_WAIT:
                             this.parent.statusChange();
                             try {
                                 synchronized (this.state) {
@@ -665,11 +666,11 @@ public class MulticastChannel extends AddressedChannel
                                         // wait for a link interface
                                         this.state.wait(BURP_TIME); 
                                     }
-                                    this.state.setUnlessDisabled(NetChannel.DISCONNECTED);
+                                    this.state.setUnlessDisabled(INetChannel.State.DISCONNECTED);
                                 }
                             } catch (InterruptedException ex) {
                                 logger.warn("connection intentionally disabled {}", this.state);
-                                this.state.setUnlessDisabled(NetChannel.STALE);
+                                this.state.setUnlessDisabled(INetChannel.State.STALE);
                                 break MAINTAIN_CONNECTION;
                             }
                             this.parent.statusChange();
@@ -677,23 +678,23 @@ public class MulticastChannel extends AddressedChannel
                             // through broadcast receiver
                             break;
 
-                        case NetChannel.DISCONNECTED:
+                        case DISCONNECTED:
                             this.parent.statusChange();
                             if (!this.connect()) {
-                                this.state.setUnlessDisabled(NetChannel.CONNECTING);
+                                this.state.setUnlessDisabled(INetChannel.State.CONNECTING);
                             } else {
-                                this.state.setUnlessDisabled(NetChannel.CONNECTED);
+                                this.state.setUnlessDisabled(INetChannel.State.CONNECTED);
                             }
                             break;
 
-                        case NetChannel.CONNECTING: // keep trying
+                        case CONNECTING: // keep trying
                             try {
                                 this.parent.statusChange();
                                 long attempt = this.getAttempt();
                                 synchronized (this.state) {
                                     this.state.wait(NetChannel.CONNECTION_RETRY_DELAY);
                                     if (this.connect()) {
-                                        this.state.setUnlessDisabled(NetChannel.CONNECTED);
+                                        this.state.setUnlessDisabled(NetChannel.State.CONNECTED);
                                     } else {
                                         this.state.failureUnlessDisabled(attempt);
                                     }
@@ -708,7 +709,7 @@ public class MulticastChannel extends AddressedChannel
                             }
                             break;
 
-                        case NetChannel.CONNECTED: {
+                        case CONNECTED: {
                             this.parent.statusChange();
                             try {
                                 synchronized (this.state) {
@@ -727,7 +728,7 @@ public class MulticastChannel extends AddressedChannel
                                 }
                             } catch (InterruptedException ex) {
                                 logger.warn("connection intentionally disabled {}", this.state);
-                                this.state.setUnlessDisabled(NetChannel.STALE);
+                                this.state.setUnlessDisabled(INetChannel.State.STALE);
                                 break MAINTAIN_CONNECTION;
                             }
                             this.parent.statusChange();
@@ -754,7 +755,7 @@ public class MulticastChannel extends AddressedChannel
 
             } catch (Exception ex) {
                 logger.error("failed to run multicast", ex);
-                this.state.set(NetChannel.EXCEPTION);
+                this.state.set(INetChannel.State.EXCEPTION);
             }
             try {
                 if (this.parent.socket == null) {
@@ -1101,12 +1102,12 @@ public class MulticastChannel extends AddressedChannel
             // Then send it on the socket channel. Upon getting a socket error,
             // notify our parent and go into an error state.
 
-            while (mState != INetChannel.INTERRUPTED)
+            while (mState != INetChannel.State.INTERRUPTED)
             {
                 AmmoGatewayMessage msg = null;
                 try
                 {
-                    setSenderState(INetChannel.TAKING);
+                    setSenderState(INetChannel.State.TAKING);
                     msg = mQueue.take(); // The main blocking call
 
                     // logger.debug(
@@ -1115,13 +1116,13 @@ public class MulticastChannel extends AddressedChannel
                 } catch (InterruptedException ex)
                 {
                     logger.info("interrupted taking messages from send queue");
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(INetChannel.State.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 } catch (Exception ex)
                 {
                     logger.error("sender threw exception while take()ing", ex);
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(INetChannel.State.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 }
@@ -1130,7 +1131,7 @@ public class MulticastChannel extends AddressedChannel
                 {
                     ByteBuffer buf = msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,
                             (byte) 0);
-                    setSenderState(INetChannel.SENDING);
+                    setSenderState(INetChannel.State.SENDING);
 
                     DatagramPacket packet =
                             new DatagramPacket(buf.array(),
@@ -1163,7 +1164,7 @@ public class MulticastChannel extends AddressedChannel
                     logger.debug("sender caught SocketException");
                     if (msg.handler != null)
                         mChannel.ackToHandler(msg.handler, DisposalState.REJECTED);
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(INetChannel.State.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 } catch (Exception ex)
@@ -1171,7 +1172,7 @@ public class MulticastChannel extends AddressedChannel
                     logger.warn("sender threw exception", ex);
                     if (msg.handler != null)
                         mChannel.ackToHandler(msg.handler, DisposalState.BAD);
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(INetChannel.State.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 }
@@ -1179,7 +1180,7 @@ public class MulticastChannel extends AddressedChannel
             logger.info("Thread <{}>::run() exiting", Thread.currentThread().getId());
         }
 
-        private void setSenderState(int iState)
+        private void setSenderState(INetChannel.State iState)
         {
             synchronized (this)
             {
@@ -1188,11 +1189,11 @@ public class MulticastChannel extends AddressedChannel
             mParent.statusChange();
         }
 
-        public synchronized int getSenderState() {
+        public synchronized INetChannel.State getSenderState() {
             return mState;
         }
 
-        private int mState = INetChannel.TAKING;
+        private INetChannel.State mState = INetChannel.State.TAKING;
         private ConnectorThread mParent;
         private MulticastChannel mChannel;
         private SenderQueue mQueue;
@@ -1230,14 +1231,14 @@ public class MulticastChannel extends AddressedChannel
             List<InetAddress> addresses = getLocalIpAddresses();
 
             byte[] raw = new byte[100000]; // FIXME: What is max datagram size?
-            while (getReceiverState() != INetChannel.INTERRUPTED)
+            while (getReceiverState() != INetChannel.State.INTERRUPTED)
             {
                 try
                 {
                     DatagramPacket packet = new DatagramPacket(raw, raw.length);
                     logger.debug("Calling receive() on the MulticastSocket.");
 
-                    setReceiverState(INetChannel.START);
+                    setReceiverState(INetChannel.State.START);
 
                     mSocket.receive(packet);
                     mBytesRead += packet.getLength();
@@ -1274,7 +1275,7 @@ public class MulticastChannel extends AddressedChannel
                             .payload(payload)
                             .channel(this.mDestination)
                             .build();
-                    setReceiverState(INetChannel.DELIVER);
+                    setReceiverState(INetChannel.State.DELIVER);
                     mDestination.deliverMessage(agm);
                     logger.trace("received a message {}", payload.length);
                     
@@ -1283,24 +1284,24 @@ public class MulticastChannel extends AddressedChannel
                 } catch (ClosedChannelException ex)
                 {
                     logger.info("receiver threw ClosedChannelException");
-                    setReceiverState(INetChannel.INTERRUPTED);
+                    setReceiverState(INetChannel.State.INTERRUPTED);
                     mParent.socketOperationFailed();
                 } catch (SocketException ex)
                 {
                     logger.info("receiver threw exception");
-                    setReceiverState(INetChannel.INTERRUPTED);
+                    setReceiverState(INetChannel.State.INTERRUPTED);
                     mParent.socketOperationFailed();
                 } catch (Exception ex)
                 {
                     logger.warn("receiver threw exception", ex);
-                    setReceiverState(INetChannel.INTERRUPTED);
+                    setReceiverState(INetChannel.State.INTERRUPTED);
                     mParent.socketOperationFailed();
                 }
             }
             logger.info("Thread <{}>::run() exiting", Thread.currentThread().getId());
         }
 
-        private void setReceiverState(int iState)
+        private void setReceiverState(INetChannel.State iState)
         {
             synchronized (this)
             {
@@ -1309,11 +1310,11 @@ public class MulticastChannel extends AddressedChannel
             mParent.statusChange();
         }
 
-        public synchronized int getReceiverState() {
+        public synchronized INetChannel.State getReceiverState() {
             return mState;
         }
 
-        private int mState = INetChannel.TAKING; // fixme
+        private INetChannel.State mState = INetChannel.State.TAKING; // fixme
         private ConnectorThread mParent;
         private MulticastChannel mDestination;
         private MulticastSocket mSocket;
