@@ -30,9 +30,12 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,6 +51,7 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
+import org.jgroups.stack.ProtocolStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,7 +59,6 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.util.AmmoConfigurator;
 import edu.vu.isis.ammo.util.InetHelper;
 import edu.vu.isis.ammo.util.UDPSendException;
 
@@ -172,7 +175,7 @@ public class ReliableMulticastChannel extends NetChannel {
     }
 
     private Timer mUpdateBpsTimer = new Timer();
-
+    private int mFragDelay = 0;
 
     class UpdateBpsTask extends TimerTask {
         public void run() {
@@ -323,6 +326,25 @@ public class ReliableMulticastChannel extends NetChannel {
         return true;
     }
 
+    /**
+     * We do not need to change the udp.xml since we are phasing out this feature.
+     * 
+     * @param frag_delay
+     * @return
+     */
+    public boolean setFragDelay(final int frag_delay) {
+        logger.trace("Thread <{}>::setFragDelay {}",
+                Thread.currentThread().getId(),
+                frag_delay);
+        if (this.mFragDelay == frag_delay) {
+            return false;
+        }
+        this.mFragDelay = frag_delay;
+        //ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
+        this.reset();
+        return true;
+    }
+    
     public void setTTL(int ttl) {
         logger.trace("Thread <{}>::setTTL {}", Thread.currentThread().getId(),
                 ttl);
@@ -510,7 +532,9 @@ public class ReliableMulticastChannel extends NetChannel {
         private final State state;
 
         private AtomicBoolean mIsConnected;
-
+        
+        protected String acquiredInterfaceName = null;
+        private InetHelper inetHelper = InetHelper.INSTANCE;
 
         public void statusChange() {
             parent.statusChange();
