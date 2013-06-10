@@ -26,15 +26,13 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -50,7 +48,6 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
-import org.jgroups.stack.ProtocolStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +55,8 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.AmmoConfigurator;
+import edu.vu.isis.ammo.util.InetHelper;
 import edu.vu.isis.ammo.util.UDPSendException;
 
 public class ReliableMulticastChannel extends NetChannel {
@@ -172,12 +171,12 @@ public class ReliableMulticastChannel extends NetChannel {
         this.mJGroupChannelMap = new ConcurrentHashMap<String, JChannel>(8, 0.9f, 1);
     }
 
-
     private Timer mUpdateBpsTimer = new Timer();
+
 
     class UpdateBpsTask extends TimerTask {
         public void run() {
-            logger.trace( "UpdateBpsTask fired" );
+            logger.trace("UpdateBpsTask fired");
 
             // Update the BPS stats for the sending and receiving.
             mBpsSent = (mBytesSent - mLastBytesSent) / BPS_STATS_UPDATE_INTERVAL;
@@ -187,7 +186,6 @@ public class ReliableMulticastChannel extends NetChannel {
             mLastBytesRead = mBytesRead;
         }
     };
-
 
     @Override
     public void init(Context context) {
@@ -371,9 +369,8 @@ public class ReliableMulticastChannel extends NetChannel {
         }
     }
 
-    
     private void statusChange() {
-    	int connState = this.connectorThread.state.value;
+        int connState = this.connectorThread.state.value;
         int senderState = (mSender != null) ? mSender.getSenderState()
                 : INetChannel.PENDING;
         int receiverState = (mReceiver != null) ? mReceiver.getReceiverState()
@@ -381,7 +378,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
         try {
             mChannelManager.statusChange(this,
-            		this.lastConnState, connState,
+                    this.lastConnState, connState,
                     this.lastSenderState, senderState,
                     this.lastReceiverState, receiverState);
         } catch (Exception ex) {
@@ -514,6 +511,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
         private AtomicBoolean mIsConnected;
 
+
         public void statusChange() {
             parent.statusChange();
         }
@@ -543,7 +541,7 @@ public class ReliableMulticastChannel extends NetChannel {
                     .currentThread().getId());
             this.parent = parent;
             this.state = new State();
-            this.mIsConnected = new AtomicBoolean(false);
+            mIsConnected = new AtomicBoolean(false);
         }
 
         private class State {
@@ -663,6 +661,7 @@ public class ReliableMulticastChannel extends NetChannel {
             this.state.failure(this.state.attempt);
         }
 
+
         /**
          * A value machine based. Most of the time this machine will be in a
          * CONNECTED value. In that CONNECTED value the machine wait for the
@@ -716,12 +715,11 @@ public class ReliableMulticastChannel extends NetChannel {
                             try {
                                 synchronized (this.state) {
                                     while (!parent.isAnyLinkUp()
-                                            && !this.state.isDisabled()) {
-                                      
-                                        this.state.wait(BURP_TIME); // wait for
-                                                                    // a
-                                                                    // link
-                                                                    // interface
+                                            && !this.state.isDisabled()
+                                            && !this.isInterfaceAcquired()) {
+
+                                        // wait for a link interface
+                                        this.state.wait(BURP_TIME);
                                     }
                                     this.state
                                             .setUnlessDisabled(NetChannel.DISCONNECTED);
@@ -736,6 +734,7 @@ public class ReliableMulticastChannel extends NetChannel {
                             // or else wait for link to come up, triggered
                             // through
                             // broadcast receiver
+
                             break;
 
                         case NetChannel.DISCONNECTED:
@@ -774,15 +773,11 @@ public class ReliableMulticastChannel extends NetChannel {
                             this.parent.statusChange();
                             try {
                                 synchronized (this.state) {
-                                    while (this.isConnected()) // this is
-                                                               // IMPORTANT
-                                                               // don't remove
-                                                               // it.
+                                    while (this.isConnected()) 
                                     {
-                                        if (HEARTBEAT_ENABLED)
-                                            ;
+                                        if (HEARTBEAT_ENABLED) {
                                         // parent.sendHeartbeatIfNeeded();
-
+                                        }
                                         // wait for somebody to change the
                                         // connection status
                                         this.state.wait(BURP_TIME);
@@ -833,6 +828,26 @@ public class ReliableMulticastChannel extends NetChannel {
         }
 
         /**
+         * Prepare the socket to connect to the target interface.
+         * 
+         * @return
+         * @throws SocketException
+         */
+        private boolean isInterfaceAcquired() throws SocketException {
+            this.acquiredInterfaceName = this.inetHelper.acquireInterface();
+            if (this.acquiredInterfaceName == null) {
+                return false;
+            }
+            final NetworkInterface networkInterface = NetworkInterface
+                    .getByName(this.acquiredInterfaceName);
+            final List<InetAddress> networkAddresses = Collections.list(networkInterface.getInetAddresses()); 
+            for (InetAddress networkAddr : networkAddresses) {
+                System.setProperty("jgroups.bind_addr", networkAddr.getHostAddress());
+                return true;
+            }
+            return false;
+        }
+ /**
          * Construct a JGroup for each unique subtopic.
          * 
          * @return true when connection request succeeds.

@@ -42,6 +42,7 @@
 	<string name="network_rmc_timeout_connect">RELIABLE_MULTICAST_NET_CONN_TIMEOUT</string>
 	<string name="network_rmc_timeout_idle">RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT</string>
 	<string name="network_rmc_ttl">RELIABLE_MULTICAST_TTL</string>
+	<string name="network_rmc_frag_delay">RELIABLE_MULTICAST_FRAG_DELAY</string>
 
 	<!-- Serial channel -->
     
