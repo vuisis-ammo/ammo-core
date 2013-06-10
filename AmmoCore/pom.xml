@@ -127,9 +127,6 @@
                 <path>${env.ANDROID_NDK_HOME}</path>
               </ndk>
               <attachNativeArtifacts>true</attachNativeArtifacts>
-	      <!--
-              <clearNativeArtifacts>true</clearNativeArtifacts>
-	      -->
               <deleteConflictingFiles>true</deleteConflictingFiles>
               <sign>
                 <debug>false</debug>
