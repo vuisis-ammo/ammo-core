@@ -19,7 +19,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <name>ammocore parent project</name>
 
   <modules>
-    <module>ammo-core</module>
+    <module>AmmoCore</module>
     <module>ammo-test-tool-ics</module>
 <!--  <module>AmmoCoreTest</module> -->
   </modules>
