@@ -113,6 +113,10 @@
       <plugin>
         <groupId>com.jayway.maven.plugins.android.generation2</groupId>
         <artifactId>android-maven-plugin</artifactId>
+	<configuration>
+           <sdk><platform>8</platform></sdk>
+        </configuration>
+
         <executions>
           <!-- build the shared libraries -->
           <execution>
@@ -128,7 +132,6 @@
                 <path>${env.ANDROID_NDK_HOME}</path>
               </ndk>
               <attachNativeArtifacts>true</attachNativeArtifacts>
-              <clearNativeArtifacts>true</clearNativeArtifacts>
               <deleteConflictingFiles>true</deleteConflictingFiles>
               <sign>
                 <debug>false</debug>
