@@ -45,6 +45,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IntentNames;
 import edu.vu.isis.ammo.api.AmmoIntents;
 import edu.vu.isis.ammo.api.AmmoRequest;
+import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.api.type.ChannelFilter;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
@@ -1488,19 +1489,19 @@ public enum NetworkManager  implements INetworkService,
         }
 
         switch (connStatus) {
-            case NetChannel.CONNECTED:
+            case IAmmo.NetChannelState.CONNECTED:
                 if (channel.isAuthenticatingChannel())
                     break;
-            case NetChannel.READY:
-            case NetChannel.SENDING:
-            case NetChannel.TAKING:
+            case IAmmo.NetChannelState.READY:
+            case IAmmo.NetChannelState.SENDING:
+            case IAmmo.NetChannelState.TAKING:
                 this.distThread.onChannelChange(this.context, channel.name,
                         ChannelChange.ACTIVATE);
                 break;
 
-            case NetChannel.BUSY:
-            case NetChannel.DISCONNECTED:
-            case NetChannel.DISABLED:
+            case IAmmo.NetChannelState.BUSY:
+            case IAmmo.NetChannelState.DISCONNECTED:
+            case IAmmo.NetChannelState.DISABLED:
             default:
                 this.distThread.onChannelChange(this.context, channel.name,
                         ChannelChange.DEACTIVATE);

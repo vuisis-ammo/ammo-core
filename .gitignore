@@ -2,3 +2,5 @@ target/
 .*~
 *~
 lint.xml
+*.swp
+*.orig

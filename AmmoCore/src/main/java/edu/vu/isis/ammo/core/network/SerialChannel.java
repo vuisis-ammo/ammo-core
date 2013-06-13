@@ -46,6 +46,7 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import android.os.Process;
+import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
@@ -62,10 +63,10 @@ public class SerialChannel extends NetChannel
 
 
     // Move these to the interface class later.
-    public static final int SERIAL_DISABLED        = INetChannel.DISABLED;
-    public static final int SERIAL_WAITING_FOR_TTY = INetChannel.LINK_WAIT;
-    public static final int SERIAL_CONNECTED       = INetChannel.CONNECTED;
-    public static final int SERIAL_BUSY            = INetChannel.BUSY;
+    public static final int SERIAL_DISABLED        = IAmmo.NetChannelState.DISABLED;
+    public static final int SERIAL_WAITING_FOR_TTY = IAmmo.NetChannelState.LINK_WAIT;
+    public static final int SERIAL_CONNECTED       = IAmmo.NetChannelState.CONNECTED;
+    public static final int SERIAL_BUSY            = IAmmo.NetChannelState.BUSY;
 
 
     /**
@@ -1048,7 +1049,7 @@ public class SerialChannel extends NetChannel
             long currentGpsTime = System.currentTimeMillis() - mDelta.get();
             long goalTakeTime = currentGpsTime; // initialize to now, will get recomputed
 
-            while ( mSenderState.get() != INetChannel.INTERRUPTED ) {
+            while ( mSenderState.get() != IAmmo.NetChannelState.INTERRUPTED ) {
                 AmmoGatewayMessage msg = null;
                 try {
                     waitSlot: {
@@ -1088,7 +1089,7 @@ public class SerialChannel extends NetChannel
                         }
 
                         // else we are in slot, and should send
-                        setSenderState( INetChannel.TAKING );
+                        setSenderState( IAmmo.NetChannelState.TAKING );
 
                         logger.debug( "Waking: hyperperiod={}, slotNumber={}, (time, ms)={}, jitter={}, cputime={}, mDelta={}",
                                       new Object[] {
@@ -1209,13 +1210,13 @@ public class SerialChannel extends NetChannel
                                 logger.warn("sender threw exception", e );
                                 if ( msg != null && msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.REJECTED );
-                                setSenderState( INetChannel.INTERRUPTED );
+                                setSenderState( IAmmo.NetChannelState.INTERRUPTED );
                                 ioOperationFailed();
                             } catch ( Exception e ) {
                                 logger.warn("sender threw exception", e );
                                 if ( msg != null && msg.handler != null )
                                     ackToHandler( msg.handler, DisposalState.BAD );
-                                setSenderState( INetChannel.INTERRUPTED );
+                                setSenderState( IAmmo.NetChannelState.INTERRUPTED );
                                 ioOperationFailed();
                                 break;
                             }
@@ -1226,7 +1227,7 @@ public class SerialChannel extends NetChannel
                         Thread.sleep( goalTakeTime - currentGpsTime );
                 } catch ( InterruptedException ex ) {
                     logger.debug( "interrupted taking messages from send queue" );
-                    setSenderState( INetChannel.INTERRUPTED );
+                    setSenderState( IAmmo.NetChannelState.INTERRUPTED );
                     break;
                 }
             }
@@ -1252,7 +1253,7 @@ public class SerialChannel extends NetChannel
                                             AmmoGatewayMessage.VERSION_1_TERSE,
                                             (byte) slotIndex );
 
-            setSenderState(INetChannel.SENDING);
+            setSenderState(IAmmo.NetChannelState.SENDING);
 
             if ( mSenderEnabled.get() ) {
                 //FileOutputStream outputStream = mPort.getOutputStream();
@@ -1346,7 +1347,7 @@ public class SerialChannel extends NetChannel
 
         private static final int RESERVE_FOR_ACK = 50;
 
-        private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
+        private AtomicInteger mSenderState = new AtomicInteger( IAmmo.NetChannelState.TAKING );
         private final Logger logger = LoggerFactory.getLogger( "net.serial.sender" );
     }
 
@@ -1399,8 +1400,8 @@ public class SerialChannel extends NetChannel
                 byte c = 0;
                 AmmoGatewayMessage.Builder agmb = null;
 
-                while ( mReceiverState.get() != INetChannel.INTERRUPTED ) {
-                    setReceiverState( INetChannel.START );
+                while ( mReceiverState.get() != IAmmo.NetChannelState.INTERRUPTED ) {
+                    setReceiverState( IAmmo.NetChannelState.START );
 
                     switch ( state ) {
                     case 0:
@@ -1536,16 +1537,16 @@ public class SerialChannel extends NetChannel
                                           agm.payload } );
 
                         if ( getRetransmitter() != null ) {
-                            setReceiverState( INetChannel.DELIVER );
+                            setReceiverState( IAmmo.NetChannelState.DELIVER );
                             getRetransmitter().processReceivedMessage( agm,
                                                                        hyperperiod );
                         } else {
-                            setReceiverState( INetChannel.DELIVER );
+                            setReceiverState( IAmmo.NetChannelState.DELIVER );
                             deliverMessage( agm );
                         }
 
                         header.clear();
-                        setReceiverState( INetChannel.START );
+                        setReceiverState( IAmmo.NetChannelState.START );
                         state = 0;
                         mReceiverSubstate.set( state );
                     }
@@ -1557,11 +1558,11 @@ public class SerialChannel extends NetChannel
                 }
             } catch ( IOException ex ) {
                 logger.warn( "receiver threw an IOException", ex );
-                setReceiverState( INetChannel.INTERRUPTED );
+                setReceiverState( IAmmo.NetChannelState.INTERRUPTED );
                 ioOperationFailed();
             } catch ( Exception ex ) {
                 logger.warn( "receiver threw an exception", ex );
-                setReceiverState( INetChannel.INTERRUPTED );
+                setReceiverState( IAmmo.NetChannelState.INTERRUPTED );
                 ioOperationFailed();
             }
 
@@ -1576,7 +1577,7 @@ public class SerialChannel extends NetChannel
         {
             int val = -1;
             mSecondsSinceByteRead.set( 0 );
-            while ( val == -1 &&  mReceiverState.get() != INetChannel.INTERRUPTED ) {
+            while ( val == -1 &&  mReceiverState.get() != IAmmo.NetChannelState.INTERRUPTED ) {
                 logger.trace( "SerialPort.read()" );
                 val = mInputStream.read();
                 if ( val == -1 )
@@ -1605,7 +1606,7 @@ public class SerialChannel extends NetChannel
          */
         public int getReceiverState() { return mReceiverState.get(); }
 
-        private AtomicInteger mReceiverState = new AtomicInteger( INetChannel.TAKING ); // FIXME: better states
+        private AtomicInteger mReceiverState = new AtomicInteger( IAmmo.NetChannelState.TAKING ); // FIXME: better states
         private FileInputStream mInputStream;
         private final Logger logger
         = LoggerFactory.getLogger( "net.serial.receiver" );
@@ -1734,8 +1735,8 @@ public class SerialChannel extends NetChannel
         // FIXME: make a better state than PENDING.  At this point
         // they have *no* state since they don't exist.
     	int connState = this.getState();
-        int senderState = (mSender != null) ? mSender.getSenderState() : PENDING;
-        int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : PENDING;
+        int senderState = (mSender != null) ? mSender.getSenderState() : IAmmo.NetChannelState.PENDING;
+        int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : IAmmo.NetChannelState.PENDING;
 
         try {
             mChannelManager.statusChange(this,

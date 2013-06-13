@@ -52,6 +52,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -252,7 +253,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
 
                 logger.warn("::enable - Setting the state to STALE");
                 this.shouldBeDisabled = false;
-                this.connectorThread.state.set(NetChannel.STALE);
+                this.connectorThread.state.set(IAmmo.NetChannelState.STALE);
             }
         }
     }
@@ -264,7 +265,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                 this.isEnabled = false;
                 logger.warn("::disable - Setting the state to DISABLED");
                 this.shouldBeDisabled = true;
-                this.connectorThread.state.set(NetChannel.DISABLED);
+                this.connectorThread.state.set(IAmmo.NetChannelState.DISABLED);
 
                 // this.connectorThread.stop();
             }
@@ -381,9 +382,9 @@ public class ReliableMulticastChannel extends AddressedChannel {
     private void statusChange() {
         int connState = this.connectorThread.state.value;
         int senderState = (mSender != null) ? mSender.getSenderState()
-                : INetChannel.PENDING;
+                : IAmmo.NetChannelState.PENDING;
         int receiverState = (mReceiver != null) ? mReceiver.getReceiverState()
-                : INetChannel.PENDING;
+                : IAmmo.NetChannelState.PENDING;
 
         try {
             mChannelManager.statusChange(this,
@@ -562,7 +563,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
             private long attempt; // used to uniquely name the connection
 
             public State() {
-                this.value = STALE;
+                this.value = IAmmo.NetChannelState.STALE;
                 this.attempt = Long.MIN_VALUE;
             }
 
@@ -579,7 +580,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
             public synchronized void set(int state) {
                 logger.trace("Thread <{}>State::set", Thread.currentThread()
                         .getId());
-                if (state == STALE) {
+                if (state == IAmmo.NetChannelState.STALE) {
                     this.reset();
                 } else {
                     this.value = state;
@@ -597,7 +598,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
             public synchronized boolean setUnlessDisabled(int state) {
                 logger.trace("Thread <{}>State::setUnlessDisabled", Thread
                         .currentThread().getId());
-                if (state == DISABLED)
+                if (state == IAmmo.NetChannelState.DISABLED)
                     return false;
                 this.set(state);
                 return true;
@@ -608,11 +609,11 @@ public class ReliableMulticastChannel extends AddressedChannel {
             }
 
             public synchronized boolean isConnected() {
-                return this.value == INetChannel.CONNECTED;
+                return this.value == IAmmo.NetChannelState.CONNECTED;
             }
 
             public synchronized boolean isDisabled() {
-                return this.value == INetChannel.DISABLED;
+                return this.value == IAmmo.NetChannelState.DISABLED;
             }
 
             /**
@@ -632,14 +633,14 @@ public class ReliableMulticastChannel extends AddressedChannel {
             }
 
             public synchronized boolean failureUnlessDisabled(long attempt) {
-                if (this.value == INetChannel.DISABLED)
+                if (this.value == IAmmo.NetChannelState.DISABLED)
                     return false;
                 return this.failure(attempt);
             }
 
             public synchronized boolean reset() {
                 attempt++;
-                this.value = STALE;
+                this.value = IAmmo.NetChannelState.STALE;
                 this.notifyAll();
                 return true;
             }
@@ -693,9 +694,9 @@ public class ReliableMulticastChannel extends AddressedChannel {
                     logger.trace("connector state: {}", this.showState());
 
                     if (this.parent.shouldBeDisabled)
-                        this.state.set(NetChannel.DISABLED);
+                        this.state.set(IAmmo.NetChannelState.DISABLED);
                     switch (this.state.get()) {
-                        case NetChannel.DISABLED:
+                        case IAmmo.NetChannelState.DISABLED:
                             try {
                                 synchronized (this.state) {
                                     logger.trace("this.state.get() = {}",
@@ -712,16 +713,16 @@ public class ReliableMulticastChannel extends AddressedChannel {
                             } catch (InterruptedException ex) {
                                 logger.warn("connection intentionally disabled {}",
                                         this.state);
-                                this.state.setUnlessDisabled(NetChannel.STALE);
+                                this.state.setUnlessDisabled(IAmmo.NetChannelState.STALE);
                                 break MAINTAIN_CONNECTION;
                             }
                             break;
-                        case NetChannel.STALE:
+                        case IAmmo.NetChannelState.STALE:
                             disconnect();
-                            this.state.setUnlessDisabled(NetChannel.LINK_WAIT);
+                            this.state.setUnlessDisabled(IAmmo.NetChannelState.LINK_WAIT);
                             break;
 
-                        case NetChannel.LINK_WAIT:
+                        case IAmmo.NetChannelState.LINK_WAIT:
                             this.parent.statusChange();
                             try {
                                 synchronized (this.state) {
@@ -733,12 +734,12 @@ public class ReliableMulticastChannel extends AddressedChannel {
                                         this.state.wait(BURP_TIME);
                                     }
                                     this.state
-                                            .setUnlessDisabled(NetChannel.DISCONNECTED);
+                                            .setUnlessDisabled(IAmmo.NetChannelState.DISCONNECTED);
                                 }
                             } catch (InterruptedException ex) {
                                 logger.warn("connection intentionally disabled {}",
                                         this.state);
-                                this.state.setUnlessDisabled(NetChannel.STALE);
+                                this.state.setUnlessDisabled(IAmmo.NetChannelState.STALE);
                                 break MAINTAIN_CONNECTION;
                             }
                             this.parent.statusChange();
@@ -748,16 +749,16 @@ public class ReliableMulticastChannel extends AddressedChannel {
 
                             break;
 
-                        case NetChannel.DISCONNECTED:
+                        case IAmmo.NetChannelState.DISCONNECTED:
                             this.parent.statusChange();
                             if (!this.connect()) {
-                                this.state.setUnlessDisabled(NetChannel.CONNECTING);
+                                this.state.setUnlessDisabled(IAmmo.NetChannelState.CONNECTING);
                             } else {
-                                this.state.setUnlessDisabled(NetChannel.CONNECTED);
+                                this.state.setUnlessDisabled(IAmmo.NetChannelState.CONNECTED);
                             }
                             break;
 
-                        case NetChannel.CONNECTING: // keep trying
+                        case IAmmo.NetChannelState.CONNECTING: // keep trying
                             try {
                                 this.parent.statusChange();
                                 long attempt = this.getAttempt();
@@ -767,7 +768,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                                             .wait(NetChannel.CONNECTION_RETRY_DELAY);
                                     if (this.connect()) {
                                         this.state
-                                                .setUnlessDisabled(NetChannel.CONNECTED);
+                                                .setUnlessDisabled(IAmmo.NetChannelState.CONNECTED);
                                     } else {
                                         this.state.failureUnlessDisabled(attempt);
                                     }
@@ -780,7 +781,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                             }
                             break;
 
-                        case NetChannel.CONNECTED: {
+                        case IAmmo.NetChannelState.CONNECTED: {
                             this.parent.statusChange();
                             try {
                                 synchronized (this.state) {
@@ -797,7 +798,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                             } catch (InterruptedException ex) {
                                 logger.warn("connection intentionally disabled {}",
                                         this.state);
-                                this.state.setUnlessDisabled(NetChannel.STALE);
+                                this.state.setUnlessDisabled(IAmmo.NetChannelState.STALE);
                                 break MAINTAIN_CONNECTION;
                             }
                             this.parent.statusChange();
@@ -824,7 +825,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
 
             } catch (Exception ex) {
                 logger.warn("failed to run multicast", ex);
-                this.state.set(NetChannel.EXCEPTION);
+                this.state.set(IAmmo.NetChannelState.EXCEPTION);
             }
             try {
                 if (this.parent.socket == null) {
@@ -1153,22 +1154,22 @@ public class ReliableMulticastChannel extends AddressedChannel {
             // Then send it on the socket channel. Upon getting a socket error,
             // notify our parent and go into an error state.
 
-            while (mState != INetChannel.INTERRUPTED) {
+            while (mState != IAmmo.NetChannelState.INTERRUPTED) {
                 AmmoGatewayMessage msg = null;
                 try {
-                    setSenderState(INetChannel.TAKING);
+                    setSenderState(IAmmo.NetChannelState.TAKING);
                     msg = mQueue.take(); // The main blocking call
 
                     logger.debug("Took a message from the send queue");
                 } catch (InterruptedException ex) {
                     logger.debug("interrupted taking messages from send queue",
                             ex);
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(IAmmo.NetChannelState.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 } catch (Exception ex) {
                     logger.warn("sender threw exception while take()ing", ex);
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(IAmmo.NetChannelState.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 }
@@ -1176,7 +1177,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                 try {
                     ByteBuffer buf = msg.serialize(endian,
                             AmmoGatewayMessage.VERSION_1_FULL, (byte) 0);
-                    setSenderState(INetChannel.SENDING);
+                    setSenderState(IAmmo.NetChannelState.SENDING);
 
                     DatagramPacket packet = new DatagramPacket(buf.array(),
                             buf.remaining(), mChannel.mMulticastGroup,
@@ -1209,7 +1210,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                     if (msg.handler != null)
                         mChannel.ackToHandler(msg.handler,
                                 DisposalState.REJECTED);
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(IAmmo.NetChannelState.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 } catch (UDPSendException ex) {
@@ -1217,14 +1218,14 @@ public class ReliableMulticastChannel extends AddressedChannel {
                     if (msg.handler != null)
                         mChannel.ackToHandler(msg.handler,
                                 DisposalState.REJECTED);
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(IAmmo.NetChannelState.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 } catch (Exception ex) {
                     logger.warn("sender threw exception", ex);
                     if (msg.handler != null)
                         mChannel.ackToHandler(msg.handler, DisposalState.BAD);
-                    setSenderState(INetChannel.INTERRUPTED);
+                    setSenderState(IAmmo.NetChannelState.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
                 }
@@ -1243,7 +1244,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
             return mState;
         }
 
-        private int mState = INetChannel.TAKING;
+        private int mState = IAmmo.NetChannelState.TAKING;
         private ConnectorThread mParent;
         private ReliableMulticastChannel mChannel;
         private SenderQueue mQueue;
@@ -1259,7 +1260,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                 ReliableMulticastChannel iDestination) {
             mParent = iParent;
             mDestination = iDestination;
-            setReceiverState(INetChannel.START);
+            setReceiverState(IAmmo.NetChannelState.START);
         }
 
         @Override
@@ -1278,14 +1279,14 @@ public class ReliableMulticastChannel extends AddressedChannel {
 
             // byte[] raw = new byte[100000]; // FIXME: What is max datagram
             // size?
-            if (getReceiverState() != INetChannel.INTERRUPTED) {
+            if (getReceiverState() != IAmmo.NetChannelState.INTERRUPTED) {
                 try {
                     // DatagramPacket packet = new DatagramPacket( raw,
                     // raw.length );
                     // logger.debug( "Calling receive() on the MulticastSocket."
                     // );
 
-                    setReceiverState(INetChannel.START);
+                    setReceiverState(IAmmo.NetChannelState.START);
 
                     // mSocket.receive( packet );
                     // logger.debug( "Received a packet. length={}",
@@ -1328,7 +1329,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
 
                     AmmoGatewayMessage agm = agmb.payload(payload)
                             .channel(this.mDestination).build();
-                    setReceiverState(INetChannel.DELIVER);
+                    setReceiverState(IAmmo.NetChannelState.DELIVER);
                     mDestination.deliverMessage(agm);
                     logger.trace("received a message, size ({})",
                             payload.length);
@@ -1336,11 +1337,11 @@ public class ReliableMulticastChannel extends AddressedChannel {
                     mMessagesReceived.incrementAndGet(); // got another msg
                 } catch (ClosedChannelException ex) {
                     logger.warn("receiver threw ClosedChannelException", ex);
-                    setReceiverState(INetChannel.INTERRUPTED);
+                    setReceiverState(IAmmo.NetChannelState.INTERRUPTED);
                     mParent.socketOperationFailed();
                 } catch (Exception ex) {
                     logger.warn("receiver threw exception", ex);
-                    setReceiverState(INetChannel.INTERRUPTED);
+                    setReceiverState(IAmmo.NetChannelState.INTERRUPTED);
                     mParent.socketOperationFailed();
                 }
             }
@@ -1368,7 +1369,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
             return mState;
         }
 
-        private int mState = INetChannel.TAKING; // fixme
+        private int mState = IAmmo.NetChannelState.TAKING; // fixme
         private ConnectorThread mParent;
         private ReliableMulticastChannel mDestination;
         private final Logger logger = LoggerFactory

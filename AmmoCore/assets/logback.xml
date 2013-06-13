@@ -66,6 +66,8 @@
   
   <logger name="provider.channel" level="TRACE" />
   
+  <logger name="service" level="DEBUG" />
+  
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
     <appender-ref ref="STAT" />

@@ -10,66 +10,71 @@ purpose whatsoever, and to have or authorize others to do so.
  */
 package edu.vu.isis.ammo.core.network;
 
+import edu.vu.isis.ammo.api.IAmmo;
+
 public abstract class NetChannel implements INetChannel {
 
 	protected static final boolean HEARTBEAT_ENABLED = true;
 
 	protected static final int CONNECTION_RETRY_DELAY = 20 * 1000; // 20 seconds
 
-	// The values in the INetChannel that we are translating here could
-	// probably be made into an enum and the translation to strings
-	// would be handled for us.
+    /*
+     * The values that we are translating here could be made into an enum and
+     * the translation to strings would be handled for us. However, using enums
+     * introduces a large amount of overhead for packing states into parcels
+     * since they have to be serialized.
+     */
 	public static String showState(int state) {
 
 		switch (state) {
-		case PENDING:
+		case IAmmo.NetChannelState.PENDING:
 			return "PENDING";
-		case EXCEPTION:
+		case IAmmo.NetChannelState.EXCEPTION:
 			return "EXCEPTION";
 
-		case CONNECTING:
+		case IAmmo.NetChannelState.CONNECTING:
 			return "CONNECTING";
-		case CONNECTED:
+		case IAmmo.NetChannelState.CONNECTED:
 			return "CONNECTED";
 
-		case BUSY:
+		case IAmmo.NetChannelState.BUSY:
 			return "BUSY";
-		case READY:
+		case IAmmo.NetChannelState.READY:
 			return "READY";
 
-		case DISCONNECTED:
+		case IAmmo.NetChannelState.DISCONNECTED:
 			return "DISCONNECTED";
-		case STALE:
+		case IAmmo.NetChannelState.STALE:
 			return "STALE";
-		case LINK_WAIT:
+		case IAmmo.NetChannelState.LINK_WAIT:
 			return "LINK_WAIT";
 
-		case WAIT_CONNECT:
+		case IAmmo.NetChannelState.WAIT_CONNECT:
 			return "WAIT CONNECT";
-		case SENDING:
+		case IAmmo.NetChannelState.SENDING:
 			return "SENDING";
-		case TAKING:
+		case IAmmo.NetChannelState.TAKING:
 			return "TAKING";
-		case INTERRUPTED:
+		case IAmmo.NetChannelState.INTERRUPTED:
 			return "INTERRUPTED";
 
-		case SHUTDOWN:
+		case IAmmo.NetChannelState.SHUTDOWN:
 			return "SHUTDOWN";
-		case START:
+		case IAmmo.NetChannelState.START:
 			return "START";
-		case RESTART:
+		case IAmmo.NetChannelState.RESTART:
 			return "RESTART";
-		case WAIT_RECONNECT:
+		case IAmmo.NetChannelState.WAIT_RECONNECT:
 			return "WAIT_RECONNECT";
-		case STARTED:
+		case IAmmo.NetChannelState.STARTED:
 			return "STARTED";
-		case SIZED:
+		case IAmmo.NetChannelState.SIZED:
 			return "SIZED";
-		case CHECKED:
+		case IAmmo.NetChannelState.CHECKED:
 			return "CHECKED";
-		case DELIVER:
+		case IAmmo.NetChannelState.DELIVER:
 			return "DELIVER";
-		case DISABLED:
+		case IAmmo.NetChannelState.DISABLED:
 			return "DISABLED";
 		default:
 			return "Undefined State [" + state + "]";
@@ -99,9 +104,9 @@ public abstract class NetChannel implements INetChannel {
 	}
 
 
-	protected int lastConnState = INetChannel.PENDING;
-	protected int lastSenderState = INetChannel.PENDING;
-	protected int lastReceiverState = INetChannel.PENDING;
+	protected int lastConnState = IAmmo.NetChannelState.PENDING;
+	protected int lastSenderState = IAmmo.NetChannelState.PENDING;
+	protected int lastReceiverState = IAmmo.NetChannelState.PENDING;
 
     protected volatile long mBytesSent = 0;
     protected volatile long mBytesRead = 0;
@@ -121,7 +126,18 @@ public abstract class NetChannel implements INetChannel {
         result.append( ", BPS:" ).append( mBpsSent );
         return result.toString();
     }
-
+	
+	public int getConnState() {
+	    return lastConnState;
+	}
+	
+	public int getSenderState() {
+	    return lastSenderState;
+	}
+	
+	public int getReceiverState() {
+	    return lastReceiverState;
+	}
 
 	@Override
     public String getReceiveBitStats() {
