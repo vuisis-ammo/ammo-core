@@ -80,6 +80,56 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
     </dependency>
   </dependencies>
 
+<profiles>
+	<profile>
+		<id>skeleton</id>
+            <activation>
+               <property>
+                   <name>skeleton</name>
+               </property>
+            </activation>
+		<build>
+			<plugins>
+				<plugin>
+					<groupId>edu.vanderbilt.isis.druid</groupId>
+					<artifactId>druid-maven-plugin</artifactId>
+					<version>2.0.0</version>
+					<executions>
+						<execution>
+						<id>generate-ammo-provider-files</id>
+						<phase>generate-sources</phase>
+						<goals>
+						  <goal>generate</goal>
+						</goals>
+						<configuration>
+						  <templateFile>template-v1/ProviderSkelTemplate.stg</templateFile>
+						  <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
+						  <contractFile>${basedir}/contract/contract.xml</contractFile>
+						  <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>
+						</configuration>
+					  </execution>
+
+					  <execution>
+						<id>generate-ammo-schema-files</id>
+						<phase>generate-sources</phase>
+						<goals>
+						  <goal>generate</goal>
+						</goals>
+						<configuration>
+						  <templateFile>template-v1/SchemaSkelTemplate.stg</templateFile>
+						  <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
+						  <contractFile>${basedir}/contract/contract.xml</contractFile>
+						  <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>
+						</configuration>
+					  </execution>
+					</executions>
+				</plugin>
+			</plugins>
+		</build>
+	</profile>
+</profiles>
+
+
   <build>
     <sourceDirectory>src</sourceDirectory>
     <finalName>ammo-test</finalName>
@@ -121,34 +171,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
             </goals>
             <configuration>
               <templateFile>template-v1/SchemaBaseTemplate.stg</templateFile>
-              <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
-              <contractFile>${basedir}/contract/contract.xml</contractFile>
-              <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>
-            </configuration>
-          </execution>
-
-          <execution>
-            <id>generate-ammo-provider-files</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <configuration>
-              <templateFile>template-v1/ProviderSkelTemplate.stg</templateFile>
-              <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
-              <contractFile>${basedir}/contract/contract.xml</contractFile>
-              <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>
-            </configuration>
-          </execution>
-
-          <execution>
-            <id>generate-ammo-schema-files</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>generate</goal>
-            </goals>
-            <configuration>
-              <templateFile>template-v1/SchemaSkelTemplate.stg</templateFile>
               <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
               <contractFile>${basedir}/contract/contract.xml</contractFile>
               <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>

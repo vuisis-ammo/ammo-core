@@ -49,7 +49,7 @@
        right column.  They display the bytes send/received, and the
        bps sent/received. -->
 
-  <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  <LinearLayout 
 		android:layout_alignParentTop="true"
 		android:layout_toLeftOf="@id/serial_status_one"
 		android:layout_width="wrap_content"

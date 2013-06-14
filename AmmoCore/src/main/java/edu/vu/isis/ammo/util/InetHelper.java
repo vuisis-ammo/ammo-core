@@ -116,6 +116,9 @@ public enum InetHelper {
     static {
         prohibitedDevices = new HashMap<String, String>();
         prohibitedDevices.put("19a5:000c", "19a5:000c");
+        prohibitedDevices.put("1b6b:0002", "1b6b:0002");		// phone - usb adapter
+        prohibitedDevices.put("0b95:7720", "0b95:7720");		// usb - ethernet adapter
+        		
     }
 
     /**

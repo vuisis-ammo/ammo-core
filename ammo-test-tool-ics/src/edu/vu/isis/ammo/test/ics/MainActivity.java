@@ -33,13 +33,11 @@ import edu.vu.isis.ammo.api.AmmoRequest;
 import edu.vu.isis.ammo.test.ics.provider.AmmotestdriverSchema.BaselineTableSchema;
 
 /*
- * import android.support.v4.app.LoaderManager;
+import android.support.v4.app.LoaderManager;
 import android.support.v4.app.LoaderManager.LoaderCallbacks;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
-
- * 
- */
+*/
 
 public class MainActivity extends FragmentActivity implements
 		ActionBar.TabListener {
@@ -127,6 +125,7 @@ public class MainActivity extends FragmentActivity implements
 		    Log.e(TAG, "error creating subscription: " + e);
 		}
 	}
+
 
 	@Override
     protected void onDestroy() {
