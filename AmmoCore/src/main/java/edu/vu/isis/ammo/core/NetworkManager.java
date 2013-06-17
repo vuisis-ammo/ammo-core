@@ -784,6 +784,7 @@ public enum NetworkManager  implements INetworkService,
         this.reliableMulticastChannel.setFlatLineTime(reliableMulticastFlatLine);
         this.reliableMulticastChannel.setSocketTimeout(reliableMulticastIdleTime);
         this.reliableMulticastChannel.setTTL(reliableMulticastTTL);
+	this.reliableMulticastChannel.setFragDelay(reliableMulticastFragDelay);
         this.reliableMulticastChannel.toLog("acquire ");
 
         /*
@@ -973,7 +974,14 @@ public enum NetworkManager  implements INetworkService,
                         PLogger.SET_PANTHR_MC.debug("ttl[{} -> {}]",
                                 INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL, ttl);
                     }
-
+		    
+		    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY)) {
+			final String frag_delay = parent.updatePref(key,
+				INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY);
+			PLogger.SET_PANTHR_MC.debug("frag_delay[{} -> {}]",
+                                INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_FRAG_DELAY, frag_delay);
+		    }
+		    
                     //
                     // Serial port
                     //
@@ -1041,6 +1049,8 @@ public enum NetworkManager  implements INetworkService,
                 }
             };
 
+
+    // local settings listener
     final OnSharedPreferenceChangeListener ammoPreferenceChangeListener =
             new OnSharedPreferenceChangeListener()
             {
@@ -1675,7 +1685,6 @@ public enum NetworkManager  implements INetworkService,
                     || WifiManager.SUPPLICANT_CONNECTION_CHANGE_ACTION.equals(action)
                     || WifiManager.SUPPLICANT_STATE_CHANGED_ACTION.equals(action)) {
                 logger.trace("WIFI state changed");
-                mNetlinks.get(linkTypes.WIRED.value).updateStatus();
                 mNetlinks.get(linkTypes.WIFI.value).updateStatus();
                 netlinkStatusChanged();
             } else if (TelephonyManager.ACTION_PHONE_STATE_CHANGED.equals(action)) {

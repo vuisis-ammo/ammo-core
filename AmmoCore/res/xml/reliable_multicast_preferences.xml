@@ -49,5 +49,5 @@
         android:enabled="true"
         android:inputType="number"
         android:key="@string/network_rmc_frag_delay"
-        android:title="Fragmentation Delay (Frag Delay)" />
+        android:title="Fragmentation Delay (millisec)" />
 </PreferenceScreen>
