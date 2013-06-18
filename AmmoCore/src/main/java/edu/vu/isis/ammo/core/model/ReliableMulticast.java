@@ -49,6 +49,10 @@ public class ReliableMulticast extends ModelChannel {
             instance = new ReliableMulticast(context, "ReliableMulticast Channel", channel);
         return instance;
     }
+    public static ReliableMulticast getMediaInstance(Context context, NetChannel channel) {
+      // initialize the gateway media from the shared preferences
+      return new ReliableMulticast(context, "Reliable Multicast Media Channel", channel);
+    }    
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences,

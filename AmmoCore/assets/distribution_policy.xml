@@ -194,6 +194,62 @@ Such that if the prior channel succeeds the next channel is not attempted.
         </routing>
     </topic>
 
+    <topic type="ammo/transapps.chat.media" >
+
+        <description>
+Group chat to:
+- Serial channel first (terse encoding),
+- Reliable multicast channel next,
+- Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
+        </description>
+
+        <routing priority="normal" >
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gatewaymedia" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemcastmedia" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="multicast" />
+            </clause>
+        </routing>
+
+        <routing
+            category="subscribe"
+            lifespan="500000"
+            priority="high" > <!-- about a year -->
+
+            <clause>
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gatewaymedia" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemcastmedia" />
+            </clause>
+        </routing>
+                
+    </topic>
 
     <topic type="ammo/transapps.chat.media_groupAll" >
 
@@ -222,7 +278,7 @@ Such that if the prior channel succeeds the next channel is not attempted.
                 <literal
                     condition="success"
                     encoding="json"
-                    term="reliablemulticast" />
+                    term="reliablemcastmedia" />
 
                 <literal
                     condition="success"
@@ -246,7 +302,7 @@ Such that if the prior channel succeeds the next channel is not attempted.
                 <literal
                     condition="success"
                     encoding="json"
-                    term="reliablemulticast" />
+                    term="reliablemcastmedia" />
             </clause>
         </routing>
                 

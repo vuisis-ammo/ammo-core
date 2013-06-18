@@ -15,6 +15,7 @@ public class ReliableMulticastPreferences extends AbstractAmmoPreference {
 
 	private MyEditTextPreference rmcIpPref;
 	private MyEditIntegerPreference rmcPortPref;
+	private MyEditIntegerPreference rmcMediaPortPref;
 
 	private MyEditIntegerPreference rmcConnIdlePref;
 	private MyEditIntegerPreference rmcNetConnPref;
@@ -35,6 +36,11 @@ public class ReliableMulticastPreferences extends AbstractAmmoPreference {
 				.findPreference(INetPrefKeys.RELIABLE_MULTICAST_PORT);
 		this.rmcPortPref.setType(Type.PORT);
 
+		// Port Preference Setup
+		this.rmcMediaPortPref = (MyEditIntegerPreference) this
+				.findPreference(INetPrefKeys.RELIABLE_MULTICAST_MEDIA_PORT);
+		this.rmcMediaPortPref.setType(Type.PORT);
+		
 		// Enabled Preference Setup
 		this.rmcOpEnablePref = (MyCheckBoxPreference) this
 				.findPreference(INetPrefKeys.RELIABLE_MULTICAST_DISABLED);

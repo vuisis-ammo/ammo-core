@@ -58,8 +58,10 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
 public class ReliableMulticastChannel extends NetChannel {
-    private static final Logger logger = LoggerFactory.getLogger("net.rmcast");
+    private static final Logger sClasslogger = LoggerFactory.getLogger("net.rmcast");
 
+    private Logger logger = null;
+    
     private static final int BURP_TIME = 5 * 1000; // 5 seconds expressed in
                                                    // milliseconds
 
@@ -89,7 +91,7 @@ public class ReliableMulticastChannel extends NetChannel {
     private boolean isEnabled = true;
 
     public final static String config_dir = "config";
-    public final static String config_file = "udp.xml";
+    private String mConfigFile;
     private File configFile = null;
 
     private final Socket socket = null;
@@ -121,6 +123,7 @@ public class ReliableMulticastChannel extends NetChannel {
     private InetAddress mMulticastGroup = null;
     private int mMulticastPort;
     private AtomicInteger mMulticastTTL;
+    private String mMulticastGroupName = null;
 
     private SenderQueue mSenderQueue;
 
@@ -135,17 +138,29 @@ public class ReliableMulticastChannel extends NetChannel {
     public final IChannelManager mChannelManager;
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
     private Context context;
+    
+    String mChannelName = null;
+    
 
     private ReliableMulticastChannel(String name,
-            IChannelManager iChannelManager) {
+            IChannelManager iChannelManager,
+            String configFile,
+            String multicastGroupName) {
         super(name);
 
+        mChannelName = name;
+        logger = LoggerFactory.getLogger("net." + mChannelName);
         logger.trace("Thread <{}>ReliableMulticastChannel::<constructor>",
                 Thread.currentThread().getId());
         this.syncObj = this;
 
         mIsAuthorized = new AtomicBoolean(false);
         mMulticastTTL = new AtomicInteger(1);
+        
+        mMulticastGroupName = multicastGroupName;
+        
+        
+        mConfigFile = configFile;
 
         mChannelManager = iChannelManager;
 
@@ -194,10 +209,10 @@ public class ReliableMulticastChannel extends NetChannel {
     private void createReliableMulticastConfigFile(Context context) {
         final File dir = this.context.getDir(config_dir,
                 Context.MODE_WORLD_READABLE);
-        this.configFile = new File(dir, config_file);
+        this.configFile = new File(dir, mConfigFile);
         if (!this.configFile.exists()) {
             try {
-                InputStream inputStream = context.getAssets().open("udp.xml");
+                InputStream inputStream = context.getAssets().open(mConfigFile);
                 OutputStream out = new FileOutputStream(this.configFile);
 
                 byte[] buffer = new byte[4096];
@@ -222,12 +237,20 @@ public class ReliableMulticastChannel extends NetChannel {
     }
 
     public static ReliableMulticastChannel getInstance(String name,
-            IChannelManager iChannelManager, Context context) {
-        logger.trace("Thread <{}> ReliableMulticastChannel::getInstance()",
+            IChannelManager iChannelManager, String configFile, Context context, String multicastGroupName) {
+        sClasslogger.trace("Thread <{}> ReliableMulticastChannel::getInstance()",
                 Thread.currentThread().getId());
         ReliableMulticastChannel instance = new ReliableMulticastChannel(name,
-                iChannelManager);
+                iChannelManager, configFile, multicastGroupName);
         return instance;
+    }
+
+    public String getConfigFile() {
+      return mConfigFile;
+    }
+
+    public void setConfigFile(String mConfigFile) {
+      this.mConfigFile = mConfigFile;
     }
 
     public boolean isConnected() {
@@ -303,7 +326,7 @@ public class ReliableMulticastChannel extends NetChannel {
                 && this.mMulticastAddress.equals(host))
             return false;
         this.mMulticastAddress = host;
-        ReliableMulticastSettings.setIpAddress(host, context);
+        ReliableMulticastSettings.setIpAddress(host, context, mConfigFile);
         this.reset();
         return true;
     }
@@ -314,7 +337,7 @@ public class ReliableMulticastChannel extends NetChannel {
         if (this.mMulticastPort == port)
             return false;
         this.mMulticastPort = port;
-        ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
+        ReliableMulticastSettings.setPort(String.valueOf(port), this.context, mConfigFile);
         this.reset();
         return true;
     }
@@ -509,8 +532,7 @@ public class ReliableMulticastChannel extends NetChannel {
      * of the properties of the channel
      */
     private class ConnectorThread extends Thread implements ChannelListener {
-        private final Logger logger = LoggerFactory
-                .getLogger("net.rmcast.connector");
+        private Logger logger = null;
 
         // private final String DEFAULT_HOST = "192.168.1.100";
         // private final int DEFAULT_PORT = 33289;
@@ -544,7 +566,9 @@ public class ReliableMulticastChannel extends NetChannel {
         }
 
         private ConnectorThread(ReliableMulticastChannel parent) {
-            super(new StringBuilder("RMcast-Connect-").append(Thread.activeCount()).toString());
+            super(new StringBuilder("RMcastMedia-Connect-").append(Thread.activeCount()).toString());
+            
+            logger = LoggerFactory.getLogger("net." + mChannelName + ".connector");
             logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread
                     .currentThread().getId());
             this.parent = parent;
@@ -866,7 +890,7 @@ public class ReliableMulticastChannel extends NetChannel {
 
                 // parent.mJGroupChannel.setOpt( Channel.AUTO_RECONNECT,
                 // Boolean.TRUE ); // deprecated
-                parent.mJGroupChannel.connect("AmmoGroup");
+                parent.mJGroupChannel.connect(mMulticastGroupName);
             } catch (Exception ex) {
                 logger.warn("connection to {}:{} failed: ", new Object[] {
                         parent.mMulticastGroup, parent.mMulticastPort
@@ -1114,7 +1138,9 @@ public class ReliableMulticastChannel extends NetChannel {
         public SenderThread(ConnectorThread iParent,
                 ReliableMulticastChannel iChannel, SenderQueue iQueue,
                 JChannel iJChannel) {
-            super(new StringBuilder("RMcast-Sender-").append(Thread.activeCount()).toString());
+            super(new StringBuilder("RMcastMedia-Sender-").append(Thread.activeCount()).toString());
+            
+            logger = LoggerFactory.getLogger("net." + mChannelName + ".sender");
             mParent = iParent;
             mChannel = iChannel;
             mQueue = iQueue;
@@ -1227,8 +1253,7 @@ public class ReliableMulticastChannel extends NetChannel {
         private ReliableMulticastChannel mChannel;
         private SenderQueue mQueue;
         private JChannel mJChannel;
-        private final Logger logger = LoggerFactory
-                .getLogger("net.rmcast.sender");
+        private Logger logger = null;
     }
 
     // /////////////////////////////////////////////////////////////////////////
@@ -1239,6 +1264,7 @@ public class ReliableMulticastChannel extends NetChannel {
             mParent = iParent;
             mDestination = iDestination;
             setReceiverState(INetChannel.START);
+            logger = LoggerFactory.getLogger( "net." + mChannelName + ".receiver" );
         }
 
         @Override
@@ -1350,8 +1376,7 @@ public class ReliableMulticastChannel extends NetChannel {
         private int mState = INetChannel.TAKING; // fixme
         private ConnectorThread mParent;
         private ReliableMulticastChannel mDestination;
-        private final Logger logger = LoggerFactory
-                .getLogger("net.rmcast.receiver");
+        private Logger logger = null;
     }
 
     // ********** UTILITY METHODS ****************

@@ -25,6 +25,12 @@
         android:key="@string/network_rmc_port"
         android:title="Port" />
     <edu.vu.isis.ammo.core.MyEditIntegerPreference
+        android:name="MediaPort"
+        android:defaultValue="45590"
+        android:inputType="number"
+        android:key="@string/network_rmcM_port"
+        android:title="Media Port" />
+    <edu.vu.isis.ammo.core.MyEditIntegerPreference
         android:name="Network Connection Timeout (s)"
         android:defaultValue="1000"
         android:inputType="number"

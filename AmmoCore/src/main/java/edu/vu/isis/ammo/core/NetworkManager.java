@@ -292,6 +292,7 @@ public enum NetworkManager  implements INetworkService,
         this.tcpChannel.init(context);
         this.tcpMediaChannel.init(context);
         this.reliableMulticastChannel.init(context);
+        this.reliableMcastMediaChannel.init(context);
         this.multicastChannel.init(context);
         for (NetChannel channel : this.registeredChannels) {
             channel.init(context);
@@ -363,6 +364,7 @@ public enum NetworkManager  implements INetworkService,
         netChannelMap.put(tcpMediaChannel.name, tcpMediaChannel);        
         netChannelMap.put(multicastChannel.name, multicastChannel);
         netChannelMap.put(reliableMulticastChannel.name, reliableMulticastChannel);
+        netChannelMap.put(reliableMcastMediaChannel.name, reliableMcastMediaChannel);
         netChannelMap.put(journalChannel.name, journalChannel);
         netChannelMap.put(serialChannel.name, serialChannel);
 
@@ -374,6 +376,8 @@ public enum NetworkManager  implements INetworkService,
                 Multicast.getInstance(this.context, multicastChannel));
         modelChannelMap.put(reliableMulticastChannel.name,
                 ReliableMulticast.getInstance(this.context, reliableMulticastChannel));
+        modelChannelMap.put(reliableMcastMediaChannel.name,
+                ReliableMulticast.getMediaInstance(this.context, reliableMcastMediaChannel));
         modelChannelMap.put(serialChannel.name,
                 Serial.getInstance(this.context, serialChannel));
         /*
@@ -398,6 +402,7 @@ public enum NetworkManager  implements INetworkService,
         this.tcpChannel.disable();
         this.multicastChannel.disable();
         this.reliableMulticastChannel.disable();
+        this.reliableMcastMediaChannel.disable();
         this.tcpMediaChannel.disable();
         serialChannel.disable(); // Unnecessary, but the UI needs an
                                  // update after the modelChannelMap
@@ -419,6 +424,9 @@ public enum NetworkManager  implements INetworkService,
             if (!this.isReliableMulticastSuppressed) {
                 this.reliableMulticastChannel.enable();
                 this.reliableMulticastChannel.reset(); // This starts the
+
+                this.reliableMcastMediaChannel.enable();
+                this.reliableMcastMediaChannel.reset(); // This starts the
                                                        // connector thread.
             }
             if (!this.isSerialSuppressed) {
@@ -489,6 +497,7 @@ public enum NetworkManager  implements INetworkService,
         this.tcpMediaChannel.reset();
         this.multicastChannel.reset();
         this.reliableMulticastChannel.reset();
+        this.reliableMcastMediaChannel.reset();
         this.serialChannel.reset();
         for (NetChannel channel : this.registeredChannels) {
             channel.reset();
@@ -509,6 +518,8 @@ public enum NetworkManager  implements INetworkService,
             this.multicastChannel.disable();
         if (reliableMulticastChannel != null)
             this.reliableMulticastChannel.disable();
+        if (reliableMcastMediaChannel != null)
+            this.reliableMcastMediaChannel.disable();
         if (journalChannel != null)
             this.journalChannel.close();
         if (serialChannel != null)
@@ -763,6 +774,11 @@ public enum NetworkManager  implements INetworkService,
                 .getString(INetPrefKeys.RELIABLE_MULTICAST_PORT,
                         String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT)));
 
+        int reliableMcastMediaPort = Integer.parseInt(this.localSettings
+            .getString(INetPrefKeys.RELIABLE_MULTICAST_MEDIA_PORT,
+                    String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT)));
+        
+
         long reliableMulticastFlatLine = Long.parseLong(this.localSettings
                 .getString(INetPrefKeys.RELIABLE_MULTICAST_NET_CONN_TIMEOUT,
                         String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_NET_CONN)));
@@ -787,6 +803,12 @@ public enum NetworkManager  implements INetworkService,
 	this.reliableMulticastChannel.setFragDelay(reliableMulticastFragDelay);
         this.reliableMulticastChannel.toLog("acquire ");
 
+        this.reliableMcastMediaChannel.setHost(reliableMulticastHost);
+        this.reliableMcastMediaChannel.setPort(reliableMcastMediaPort);
+        this.reliableMcastMediaChannel.setFlatLineTime(reliableMulticastFlatLine);
+        this.reliableMcastMediaChannel.setSocketTimeout(reliableMulticastIdleTime);
+        this.reliableMcastMediaChannel.setTTL(reliableMulticastTTL);
+        this.reliableMcastMediaChannel.toLog("acquire ");
         /*
          * SerialChannel
          */
@@ -967,6 +989,12 @@ public enum NetworkManager  implements INetworkService,
                                 INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT);
                         PLogger.SET_PANTHR_RMC.debug("port[{} -> {}]",
                                 INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT, port);
+                    }
+                    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_MEDIA_PORT)) {
+                      final int media_port = parent.updatePref(key,
+                              INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MEDIA_PORT);
+                      PLogger.SET_PANTHR_RMC.debug("media port[{} -> {}]",
+                              INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MEDIA_PORT, media_port);
                     }
                     else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
                         final int ttl = parent.updatePref(key,
@@ -1149,6 +1177,7 @@ public enum NetworkManager  implements INetworkService,
                             parent.tcpMediaChannel.reset();
                             parent.multicastChannel.reset();
                             parent.reliableMulticastChannel.reset();
+                            parent.reliableMcastMediaChannel.reset();
                             parent.serialChannel.reset();
                         }
                         else if (key.equals(INetPrefKeys.GATEWAY_FLAT_LINE_TIME)) {
@@ -1191,14 +1220,17 @@ public enum NetworkManager  implements INetworkService,
                             if (prefs.getBoolean(key,
                                     INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_ENABLED)) {
                                 parent.reliableMulticastChannel.disable();
+                                parent.reliableMcastMediaChannel.disable();
                             } else {
                                 parent.reliableMulticastChannel.enable();
+                                parent.reliableMcastMediaChannel.enable();
                             }
                         }
                         else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_HOST)) {
                             String ipAddress = prefs.getString(
                                     key, INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
                             parent.reliableMulticastChannel.setHost(ipAddress);
+                            parent.reliableMcastMediaChannel.setHost(ipAddress);
                         }
                         else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
                             int port = Integer.parseInt(prefs.getString(
@@ -1206,17 +1238,26 @@ public enum NetworkManager  implements INetworkService,
                                     String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT)));
                             parent.reliableMulticastChannel.setPort(port);
                         }
+                        else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_MEDIA_PORT)) {
+                            int media_port = Integer.parseInt(prefs.getString(
+                                    key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MEDIA_PORT)));
+                            // this port is for the media channel
+                            parent.reliableMcastMediaChannel.setPort(media_port);
+                        }
                         else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_TTL)) {
                             int ttl = Integer.parseInt(prefs.getString(
                                     key,
                                     String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL)));
                             parent.reliableMulticastChannel.setTTL(ttl);
+                            parent.reliableMcastMediaChannel.setTTL(ttl);
                         }
                         else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY)) {
                             int frag_delay = Integer.parseInt(prefs.getString(
                                     key,
                                     String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_FRAG_DELAY)));
                             parent.reliableMulticastChannel.setFragDelay(frag_delay);
+                            parent.reliableMcastMediaChannel.setFragDelay(frag_delay);
                         }
 
                         //
@@ -1377,6 +1418,7 @@ public enum NetworkManager  implements INetworkService,
         this.tcpMediaChannel.disable();
         this.multicastChannel.disable();
         this.reliableMulticastChannel.disable();
+        this.reliableMcastMediaChannel.disable();
         this.serialChannel.disable();
 
         for (NetChannel channel : this.registeredChannels) {
@@ -1394,6 +1436,7 @@ public enum NetworkManager  implements INetworkService,
         		|| tcpMediaChannel.isConnected()
                 || multicastChannel.isConnected()
                 || reliableMulticastChannel.isConnected()
+                || reliableMcastMediaChannel.isConnected()
                 || ((serialChannel != null) && serialChannel.isConnected()));
 
         for (NetChannel channel : this.registeredChannels) {
@@ -1571,13 +1614,26 @@ public enum NetworkManager  implements INetworkService,
     }
 
     static private final Map<String, ModelChannel> modelChannelMap;
+    
+    final private String reliableMulticastConfigFile = "udp.xml";
+    final private String reliableMcastMediaConfigFile = "udpMedia.xml";
+    
     // Network Channels
     final private TcpChannel tcpChannel =
             TcpChannel.getInstance(ChannelFilter.GATEWAY, this);
     final private MulticastChannel multicastChannel =
             MulticastChannel.getInstance(ChannelFilter.MULTICAST, this);
     final private ReliableMulticastChannel reliableMulticastChannel =
-            ReliableMulticastChannel.getInstance(ChannelFilter.RELIABLE_MULTICAST, this, this.context);
+            ReliableMulticastChannel.getInstance(ChannelFilter.RELIABLE_MULTICAST, 
+                this, 
+                reliableMulticastConfigFile,
+                this.context,
+                "AmmoGroup");
+    
+    final private ReliableMulticastChannel reliableMcastMediaChannel =
+            ReliableMulticastChannel.getInstance(ChannelFilter.RELIABLE_MULTICAST_MEDIA, 
+                this, reliableMcastMediaConfigFile,this.context, "AmmoMedia");
+    
     final private JournalChannel journalChannel =
             JournalChannel.getInstance(ChannelFilter.JOURNAL, this);
     private SerialChannel serialChannel = null;
@@ -1713,6 +1769,7 @@ public enum NetworkManager  implements INetworkService,
           tcpMediaChannel.linkDown(null);
           multicastChannel.linkDown(null);
           reliableMulticastChannel.linkDown(null);
+          reliableMcastMediaChannel.linkDown(null);
           
           for (NetChannel channel : NetworkManager.this.registeredChannels) {
               channel.linkDown(null);
@@ -1724,6 +1781,7 @@ public enum NetworkManager  implements INetworkService,
           tcpChannel.linkUp(null);
           multicastChannel.linkUp(null);
           reliableMulticastChannel.linkUp(null);
+          reliableMcastMediaChannel.linkUp(null);
           tcpMediaChannel.linkUp(null);
           
           for (NetChannel channel : NetworkManager.this.registeredChannels) {
