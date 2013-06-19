@@ -11,8 +11,9 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.network;
 
 import edu.vu.isis.ammo.api.IAmmo;
+import edu.vu.isis.ammo.core.annotation.Monitored;
 
-public abstract class NetChannel implements INetChannel {
+public abstract class NetChannel implements INetChannel, IChannelObservable {
 
 	protected static final boolean HEARTBEAT_ENABLED = true;
 
@@ -103,9 +104,11 @@ public abstract class NetChannel implements INetChannel {
 		return "";
 	}
 
-
+    @Monitored
 	protected int lastConnState = IAmmo.NetChannelState.PENDING;
+    @Monitored
 	protected int lastSenderState = IAmmo.NetChannelState.PENDING;
+    @Monitored
 	protected int lastReceiverState = IAmmo.NetChannelState.PENDING;
 
     protected volatile long mBytesSent = 0;
@@ -117,6 +120,8 @@ public abstract class NetChannel implements INetChannel {
     protected static final int BPS_STATS_UPDATE_INTERVAL = 60; // seconds
     protected volatile long mBpsSent = 0;
     protected volatile long mBpsRead = 0;
+    
+    protected IChannelObserver mObserver;
 
 
 	@Override
@@ -146,7 +151,14 @@ public abstract class NetChannel implements INetChannel {
         result.append( ", BPS:" ).append( mBpsRead );
         return result.toString();
     }
-
+	
+	@Override
+	public void registerChannelObserver(IChannelObserver observer) {
+	    mObserver = observer;
+	}
+	
+	protected abstract void notifyObserver();
+	
 
     private static String humanReadableByteCount(long bytes, boolean si) {
         int unit = si ? 1000 : 1024;

@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.annotation.Monitored;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.util.AmmoConfigurator;
@@ -127,7 +128,9 @@ public class ReliableMulticastChannel extends AddressedChannel {
 
     private final AtomicBoolean mIsAuthorized;
 
+    @Monitored
     private final AtomicInteger mMessagesSent = new AtomicInteger();
+    @Monitored
     private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
     // I made this public to support the hack to get authentication
@@ -298,10 +301,10 @@ public class ReliableMulticastChannel extends AddressedChannel {
     public boolean setHost(String host) {
         logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(),
                 host);
-        if (this.mAddress != null
-                && this.mAddress.equals(host))
+        if (getAddress() != null
+                && getAddress().equals(host))
             return false;
-        this.mAddress = host;
+        setAddress(host);
         ReliableMulticastSettings.setIpAddress(host, context);
         this.reset();
         return true;
@@ -310,12 +313,13 @@ public class ReliableMulticastChannel extends AddressedChannel {
     public boolean setPort(int port) {
         logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(),
                 port);
-        if (this.mPort == port)
+        if (super.setPort(port)) {
+            ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
+            this.reset();
+            return true;
+        } else {
             return false;
-        this.mPort = port;
-        ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
-        this.reset();
-        return true;
+        }
     }
 
     public boolean setFragDelay(int frag_delay) {
@@ -340,8 +344,8 @@ public class ReliableMulticastChannel extends AddressedChannel {
     }
 
     public String toString() {
-        return "socket: host[" + this.mAddress + "] port["
-                + this.mPort + "]";
+        return "socket: host[" + getAddress() + "] port["
+                + getPort() + "]";
     }
 
     @Override
@@ -866,7 +870,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
 
             try {
                 parent.mMulticastGroup = InetAddress
-                        .getByName(parent.mAddress);
+                        .getByName(getAddress());
             } catch (UnknownHostException e) {
                 logger.warn("could not resolve host name");
                 return false;
@@ -890,7 +894,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                 parent.mJGroupChannel.connect("AmmoGroup");
             } catch (Exception ex) {
                 logger.warn("connection to {}:{} failed: ", new Object[] {
-                        parent.mMulticastGroup, parent.mPort
+                        parent.mMulticastGroup, getPort()
                 }, ex);
                 parent.mJGroupChannel.disconnect();
                 parent.mJGroupChannel.close();
@@ -899,7 +903,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
             }
 
             logger.info("connection to {}:{} established ",
-                    parent.mMulticastGroup, parent.mPort);
+                    parent.mMulticastGroup, getPort());
 
             mIsConnected.set(true);
             mBytesSent = 0;
@@ -1181,7 +1185,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
 
                     DatagramPacket packet = new DatagramPacket(buf.array(),
                             buf.remaining(), mChannel.mMulticastGroup,
-                            mChannel.mPort);
+                            mChannel.getPort());
                     logger.debug("Sending datagram packet. length={}",
                             packet.getLength());
 
@@ -1192,12 +1196,13 @@ public class ReliableMulticastChannel extends AddressedChannel {
                     }
                     logger.debug("...{}", buf.remaining());
                     logger.debug("...{}", mChannel.mMulticastGroup);
-                    logger.debug("...{}", mChannel.mPort);
+                    logger.debug("...{}", mChannel.getPort());
 
                     mJChannel.send(null, buf.array());
 
                     mMessagesSent.incrementAndGet();
                     mBytesSent += packet.getLength();
+                    notifyObserver();
 
                     logger.info("Send packet to Network, size ({})",
                             packet.getLength());
@@ -1335,6 +1340,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
                             payload.length);
 
                     mMessagesReceived.incrementAndGet(); // got another msg
+                    notifyObserver();
                 } catch (ClosedChannelException ex) {
                     logger.warn("receiver threw ClosedChannelException", ex);
                     setReceiverState(IAmmo.NetChannelState.INTERRUPTED);
@@ -1409,7 +1415,14 @@ public class ReliableMulticastChannel extends AddressedChannel {
     public void toLog(String context) {
         PLogger.SET_PANTHR_RMC.debug("{} {}:{} ", new Object[] {
                 context,
-                mAddress, mPort
+                getAddress(), getPort()
         });
+    }
+    
+    @Override
+    protected void notifyObserver() {
+        if (mObserver != null) {
+            mObserver.notifyUpdate(this);
+        }
     }
 }

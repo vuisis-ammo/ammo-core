@@ -48,6 +48,7 @@ import android.os.Looper;
 import android.os.Process;
 import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.annotation.Monitored;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 
 
@@ -357,7 +358,7 @@ public class SerialChannel extends NetChannel
     /**
      *
      */
-    public void receivedCorruptPacket() { mCorruptMessages.getAndIncrement(); }
+    public void receivedCorruptPacket() { mCorruptMessages.getAndIncrement(); notifyObserver();}
 
 
     /**
@@ -1555,6 +1556,7 @@ public class SerialChannel extends NetChannel
                     default:
                         logger.debug( "Unknown value for state variable" );
                     }
+                    notifyObserver();
                 }
             } catch ( IOException ex ) {
                 logger.warn( "receiver threw an IOException", ex );
@@ -1576,12 +1578,16 @@ public class SerialChannel extends NetChannel
         private byte readAByte() throws IOException
         {
             int val = -1;
+            // It is not necessary to notifyObservers in this method since
+            // every time this method is called, observers are notified by the
+            // caller.
             mSecondsSinceByteRead.set( 0 );
             while ( val == -1 &&  mReceiverState.get() != IAmmo.NetChannelState.INTERRUPTED ) {
                 logger.trace( "SerialPort.read()" );
                 val = mInputStream.read();
-                if ( val == -1 )
+                if ( val == -1 ) {
                     mSecondsSinceByteRead.getAndIncrement();
+                }
             }
 
             logger.trace( "val={}", (byte) val );
@@ -1749,6 +1755,7 @@ public class SerialChannel extends NetChannel
         this.lastConnState = connState;
         this.lastSenderState = senderState;
         this.lastReceiverState = receiverState;
+        notifyObserver();
     }
 
 
@@ -1776,6 +1783,18 @@ public class SerialChannel extends NetChannel
         else
             return "";
     }
+	
+	@Override
+	public String getSendReceiveStats() {
+	    return getSendBitStats() + " " + getReceiveBitStats();
+	}
+	
+	@Override
+	protected void notifyObserver() {
+	    if (mObserver != null) {
+    	    mObserver.notifyUpdate(this);
+	    }
+	}
 
 
     // I made this public to support the hack to get authentication
@@ -1840,13 +1859,18 @@ public class SerialChannel extends NetChannel
     private final int numSamples = 20;
     private AtomicLong mDelta = new AtomicLong( 0 );
     private long mDeltaSamples[] = new long[numSamples];
-
+    
+    @Monitored
     private final AtomicInteger mReceiverSubstate = new AtomicInteger( 0 );
 
     private final AtomicInteger mMessagesSent = new AtomicInteger();
     private final AtomicInteger mMessagesReceived = new AtomicInteger();
+    
+    @Monitored
     private final AtomicInteger mCorruptMessages = new AtomicInteger();
+    @Monitored
     private final AtomicInteger mBytesSinceMagic = new AtomicInteger();
+    @Monitored
     private final AtomicInteger mSecondsSinceByteRead = new AtomicInteger();
 
     private LocationManager mLocationManager;

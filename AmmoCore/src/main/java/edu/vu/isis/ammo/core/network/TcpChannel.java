@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.annotation.Monitored;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 
@@ -114,7 +115,9 @@ public class TcpChannel extends AddressedChannel {
   private String channelName = null;
 
   // status counts for gui
+  @Monitored
   private final AtomicInteger mMessagesSent = new AtomicInteger();
+  @Monitored
   private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
   // I made this public to support the hack to get authentication
@@ -133,16 +136,16 @@ public class TcpChannel extends AddressedChannel {
     
     this.syncObj = this;
     
-    // 5/23/13: gatewayPort used to be initialized to -1 by default, so
-    // as part of the refactoring, I initialize mPort (which replaces gatewayPort)
-    // to -1 here just to be safe
-    // - Nick
-    mPort = -1;
-
     mIsAuthorized = new AtomicBoolean( false );
 
     mChannelManager = iChannelManager;
     this.connectorThread = new ConnectorThread(this);
+    
+    // 5/23/13: gatewayPort used to be initialized to -1 by default, so
+    // as part of the refactoring, I initialize mPort (which replaces gatewayPort)
+    // to -1 here just to be safe
+    // - Nick
+    setPort(-1);
 
     this.flatLineTime = DEFAULT_WATCHDOG_TIMOUT * 1000; // seconds into milliseconds
 
@@ -243,23 +246,26 @@ public class TcpChannel extends AddressedChannel {
 
   public boolean setHost(String host) {
     logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
-    if ( mAddress != null && mAddress.equals(host) ) return false;
-    this.mAddress = host;
+    if ( getAddress() != null && getAddress().equals(host) ) return false;
+    setAddress(host);
     this.reset();
     return true;
   }
+  
   public boolean setPort(int port) {
     logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
-    if (mPort == port) return false;
-    this.mPort = port;
-    this.reset();
-    return true;
+    if (super.setPort(port)) {
+        this.reset();
+        return true;
+    } else {
+        return false;
+    }
   }
 
   public String toString() {
     return new StringBuilder().append("channel ").append(super.toString())
-        .append("socket: host[").append(this.mAddress).append("] ")
-        .append("port[").append(this.mPort).append("]").toString();
+        .append("socket: host[").append(getAddress()).append("] ")
+        .append("port[").append(getPort()).append("]").toString();
   }
 
   @Override
@@ -785,8 +791,8 @@ public class TcpChannel extends AddressedChannel {
           Thread.currentThread().getId() );
 
       // Resolve the hostname to an IP address.
-      String host = (parent.mAddress != null) ? parent.mAddress : DEFAULT_HOST;
-      int port =  (parent.mPort > 10) ? parent.mPort : DEFAULT_PORT;
+      String host = (getAddress() != null) ? getAddress() : DEFAULT_HOST;
+      int port =  (getPort() > 10) ? getPort() : DEFAULT_PORT;
       InetAddress ipaddr = null;
       try
       {
@@ -1132,6 +1138,7 @@ public class TcpChannel extends AddressedChannel {
 
           //update status count 
           mMessagesSent.incrementAndGet();
+          notifyObserver();
 
           // legitimately sent to gateway.
           if ( msg.handler != null )
@@ -1306,6 +1313,7 @@ public class TcpChannel extends AddressedChannel {
 
               // received a valid message, update status count .... 
               mMessagesReceived.incrementAndGet();
+              notifyObserver();
               break;
             }
           }
@@ -1388,6 +1396,13 @@ public class TcpChannel extends AddressedChannel {
   @Override
   public void toLog(String context) {
     PLogger.SET_PANTHR_GW.debug(" {}:{} timeout={} sec", 
-        new Object[]{ mAddress, mPort, flatLineTime});
+        new Object[]{ getAddress(), getPort(), flatLineTime});
+  }
+  
+  @Override
+  protected void notifyObserver() {
+      if (mObserver != null) {
+          mObserver.notifyUpdate(this);
+      }
   }
 }

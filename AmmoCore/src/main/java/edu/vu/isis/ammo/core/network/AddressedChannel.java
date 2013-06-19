@@ -3,8 +3,8 @@ package edu.vu.isis.ammo.core.network;
 
 public abstract class AddressedChannel extends NetChannel {
 
-    protected String mAddress;
-    protected int mPort;
+    private String mAddress;
+    private int mPort;
     
     protected AddressedChannel(String name) {
         super(name);
@@ -16,6 +16,18 @@ public abstract class AddressedChannel extends NetChannel {
     
     public int getPort() {
         return mPort;
+    }
+    
+    protected void setAddress(String address) {
+        mAddress = address;
+        notifyObserver();
+    }
+    
+    protected boolean setPort(int port) {
+        if (mPort == port) return false;
+        mPort = port;
+        notifyObserver();
+        return true;
     }
 
 }

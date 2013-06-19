@@ -20,6 +20,8 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.core.annotation.Monitored;
+
 
 
 /**
@@ -79,8 +81,11 @@ public class SerialRetransmitter
     // Only used for delivering messages
     private SerialChannel mChannel;
 
+    @Monitored
     private volatile int mNormalReceived = 0;
+    @Monitored
     private volatile int mResendReceived = 0;
+    @Monitored
     private volatile int mRelayReceived = 0;
 
     /**

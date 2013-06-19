@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import android.content.Context;
 import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.core.PLogger;
+import edu.vu.isis.ammo.core.annotation.Monitored;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.util.InetHelper;
@@ -119,7 +120,9 @@ public class MulticastChannel extends AddressedChannel
     public final IChannelManager mChannelManager;
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
 
+    @Monitored
     private final AtomicInteger mMessagesSent = new AtomicInteger();
+    @Monitored
     private final AtomicInteger mMessagesReceived = new AtomicInteger();
 
     private MulticastChannel(String name, IChannelManager iChannelManager) {
@@ -245,20 +248,21 @@ public class MulticastChannel extends AddressedChannel
 
     public boolean setHost(String host) {
         logger.trace("Thread <{}>::setHost {}", Thread.currentThread().getId(), host);
-        if (this.mAddress != null && this.mAddress.equals(host))
+        if (getAddress() != null && getAddress().equals(host))
             return false;
-        this.mAddress = host;
+        setAddress(host);
         this.reset();
         return true;
     }
 
     public boolean setPort(int port) {
         logger.trace("Thread <{}>::setPort {}", Thread.currentThread().getId(), port);
-        if (this.mPort == port)
+        if (super.setPort(port)) {
+            this.reset();
+            return true;
+        } else {
             return false;
-        this.mPort = port;
-        this.reset();
-        return true;
+        }
     }
 
     public void setTTL(int ttl) {
@@ -267,7 +271,7 @@ public class MulticastChannel extends AddressedChannel
     }
 
     public String toString() {
-        return "socket: host[" + this.mAddress + "] port[" + this.mPort + "]";
+        return "socket: host[" + getAddress() + "] port[" + getPort() + "]";
     }
 
     @Override
@@ -320,6 +324,7 @@ public class MulticastChannel extends AddressedChannel
         this.lastConnState = connState;
         this.lastSenderState = senderState;
         this.lastReceiverState = receiverState;
+        notifyObserver();
     }
 
     private void setSecurityObject(ISecurityObject iSecurityObject)
@@ -799,7 +804,7 @@ public class MulticastChannel extends AddressedChannel
 
             try
             {
-                parent.mMulticastGroup = InetAddress.getByName(parent.mAddress);
+                parent.mMulticastGroup = InetAddress.getByName(getAddress());
             } catch (UnknownHostException e)
             {
                 logger.warn("could not resolve host name");
@@ -811,7 +816,7 @@ public class MulticastChannel extends AddressedChannel
                 logger.error("Tried to create mSocket when we already had one.");
             try
             {
-                parent.mSocket = new MulticastSocket(parent.mPort);
+                parent.mSocket = new MulticastSocket(getPort());
                 if (this.acquiredInterfaceAddress != null) {
                     parent.mSocket.setInterface(this.acquiredInterfaceAddress);
                 }
@@ -819,7 +824,7 @@ public class MulticastChannel extends AddressedChannel
             } catch (IOException ex) {
                 logger.info("connection to {}:{} failed",
                         parent.mMulticastGroup,
-                        parent.mPort,
+                        getPort(),
                         ex);
                 parent.mSocket = null;
                 return false;
@@ -827,7 +832,7 @@ public class MulticastChannel extends AddressedChannel
             {
                 logger.warn("connection to {}:{} failed", 
                         parent.mMulticastGroup,
-                        parent.mPort,
+                        getPort(),
                         ex);
                 parent.mSocket = null;
                 return false;
@@ -835,7 +840,7 @@ public class MulticastChannel extends AddressedChannel
 
             logger.info("connection to {}:{} established ",
                     parent.mMulticastGroup,
-                    parent.mPort);
+                    getPort());
 
             mIsConnected.set(true);
             mBytesSent = 0;
@@ -1137,13 +1142,13 @@ public class MulticastChannel extends AddressedChannel
                             new DatagramPacket(buf.array(),
                                     buf.remaining(),
                                     mChannel.mMulticastGroup,
-                                    mChannel.mPort);
+                                    mChannel.getPort());
                     logger.debug("Sending datagram packet. length={}", packet.getLength());
 
                     logger.debug("...{}", buf.array());
                     logger.debug("...{}", buf.remaining());
                     logger.debug("...{}", mChannel.mMulticastGroup);
-                    logger.debug("...{}", mChannel.mPort);
+                    logger.debug("...{}", mChannel.getPort());
 
                     mSocket.setTimeToLive(mChannel.mMulticastTTL.get());
 
@@ -1153,6 +1158,7 @@ public class MulticastChannel extends AddressedChannel
                     // update send messages ...
                     mMessagesSent.incrementAndGet();
                     mBytesSent += packet.getLength();
+                    notifyObserver();
 
                     logger.info("Send packet to Network: size({})", packet.getLength());
 
@@ -1281,6 +1287,7 @@ public class MulticastChannel extends AddressedChannel
                     
                     // update received count ....
                     mMessagesReceived.incrementAndGet();
+                    notifyObserver();
                 } catch (ClosedChannelException ex)
                 {
                     logger.info("receiver threw ClosedChannelException");
@@ -1365,7 +1372,14 @@ public class MulticastChannel extends AddressedChannel
     public void toLog(String context) {
         PLogger.SET_PANTHR_MC.debug("{} {}:{} ",
                 new Object[] {
-                        context, mAddress, mPort
+                        context, getAddress(), getPort()
                 });
+    }
+    
+    @Override
+    protected void notifyObserver() {
+        if (mObserver != null) {
+            mObserver.notifyUpdate(this);
+        }
     }
 }

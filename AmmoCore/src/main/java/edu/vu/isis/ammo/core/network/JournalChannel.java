@@ -436,4 +436,6 @@ public class JournalChannel extends NetChannel {
                         context, this.journalFile
                 });
     }
+    
+    protected void notifyObserver() { }
 }
