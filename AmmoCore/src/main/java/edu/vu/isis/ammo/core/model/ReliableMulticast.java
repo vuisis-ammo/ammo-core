@@ -28,13 +28,24 @@ public class ReliableMulticast extends ModelChannel {
     int[] status = null;
     String formalIP = "formal ip";
     String port = "port";
+    private boolean isMediaChannel = false;
+    private String media_port;
 
+    public boolean isMediaChannel() {
+      return isMediaChannel;
+    }
+    public void setMediaChannel(boolean isMediaChannel) {
+      this.isMediaChannel = isMediaChannel;
+    }
+    
     protected ReliableMulticast(Context context, String name, NetChannel channel) {
         super(context, name);
         this.formalIP = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_HOST,
                 INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_HOST);
         this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
+        this.media_port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_MEDIA_PORT,
+                String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MEDIA_PORT));
         this.election = !this.prefs.getBoolean(INetPrefKeys.RELIABLE_MULTICAST_DISABLED,
                 INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_ENABLED);
 
@@ -50,8 +61,12 @@ public class ReliableMulticast extends ModelChannel {
         return instance;
     }
     public static ReliableMulticast getMediaInstance(Context context, NetChannel channel) {
+      // turn on the media channel flag 
       // initialize the gateway media from the shared preferences
-      return new ReliableMulticast(context, "Reliable Multicast Media Channel", channel);
+      
+      ReliableMulticast rm = new ReliableMulticast(context, "Reliable Multicast Media Channel", channel);
+      rm.setMediaChannel(true);
+      return rm;
     }    
 
     @Override
@@ -64,6 +79,10 @@ public class ReliableMulticast extends ModelChannel {
         } else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_PORT)) {
             this.port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_PORT,
                     String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT));
+            callOnNameChange();
+        } else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_MEDIA_PORT)) {
+            this.media_port = this.prefs.getString(INetPrefKeys.RELIABLE_MULTICAST_MEDIA_PORT,
+                String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MEDIA_PORT));
             callOnNameChange();
         }
     }
@@ -107,7 +126,11 @@ public class ReliableMulticast extends ModelChannel {
         ((TextView) row.findViewById(R.id.channel_type)).setText(ReliableMulticast.KEY);
 
         name.setText(this.name);
-        formal.setText(this.formalIP + ":" + this.port);
+        
+        if (isMediaChannel) 
+          formal.setText(this.formalIP + ":" + this.media_port);
+        else 
+          formal.setText(this.formalIP + ":" + this.port);
         // set vals
         return row;
     }
