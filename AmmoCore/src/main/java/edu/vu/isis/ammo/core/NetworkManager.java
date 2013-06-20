@@ -734,6 +734,9 @@ public enum NetworkManager implements INetworkService,
         this.isGatewaySuppressed = this.aggregatePref(
                 INetPrefKeys.GATEWAY_DISABLED,
                 INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
+        this.isSSLSuppressed = this.aggregatePref(
+                INetPrefKeys.GATEWAY_DISABLED,
+                INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
 
         final String gatewayHostname = this.aggregatePref(
                 INetPrefKeys.GATEWAY_HOST, INetPrefKeys.DEFAULT_GATEWAY_HOST);
