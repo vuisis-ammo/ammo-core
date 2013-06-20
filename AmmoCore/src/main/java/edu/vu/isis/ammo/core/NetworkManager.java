@@ -776,6 +776,11 @@ public enum NetworkManager implements INetworkService,
         this.sslChannel.setPort(sslPort);
         this.sslChannel.setFlatLineTime(sslFlatLineTime * 60 * 1000);
         this.sslChannel.toLog("acquire ssl ");
+        
+        this.sslMediaChannel.setHost(sslHostname);
+        this.sslMediaChannel.setPort(sslPort);
+        this.sslMediaChannel.setFlatLineTime(sslFlatLineTime * 60 * 1000);
+        this.sslMediaChannel.toLog("acquire ssl media ");
 
         // convert minutes into milliseconds
 
@@ -946,6 +951,14 @@ public enum NetworkManager implements INetworkService,
                         parent.isJournalUserDisabled, active);
             }
 
+            //
+            // SSL
+            //  
+            else if (key.equals(INetPrefKeys.SSL_PORT)){
+                
+                
+            }
+            
             //
             // Gateway
             //
@@ -1135,15 +1148,21 @@ public enum NetworkManager implements INetworkService,
                             INetPrefKeys.DEFAULT_GATEWAY_ENABLED)) {
                         parent.tcpChannel.disable();
                         parent.tcpMediaChannel.disable();
+                        parent.sslChannel.disable();
+                        parent.sslMediaChannel.disable();
                     } else {
                         parent.tcpChannel.enable();
                         parent.tcpMediaChannel.enable();
+                        parent.sslChannel.enable();
+                        parent.sslMediaChannel.enable();
                     }
                 } else if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
                     String gatewayHostname = prefs.getString(key,
                             INetPrefKeys.DEFAULT_GATEWAY_HOST);
-                    parent.tcpChannel.setHost(gatewayHostname);
+                    parent.tcpChannel.setHost(gatewayHostname);                    
                     parent.tcpMediaChannel.setHost(gatewayHostname);
+                    parent.sslChannel.setHost(gatewayHostname);                    
+                    parent.sslMediaChannel.setHost(gatewayHostname);
                 } else if (key.equals(INetPrefKeys.GATEWAY_PORT)) {
                     int gatewayPort = Integer.valueOf(prefs.getString(key,
                             String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
@@ -1190,7 +1209,12 @@ public enum NetworkManager implements INetworkService,
 
                 } else if (key.equals(INetPrefKeys.SSL_PORT)) {
 
-                    logger.warn("********FOUND SSL PORT SHARED PREF.****** REMOVE");
+                    int sslPort = Integer.valueOf(prefs.getString(key,
+                            String.valueOf(INetPrefKeys.SSL_PORT)));
+                    parent.sslChannel.setPort(sslPort);
+                    parent.sslMediaChannel.setPort(sslPort);
+                    
+                    logger.error("********FOUND SSL PORT SHARED PREF.****** REMOVE");
 
                 } else if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
                     //
