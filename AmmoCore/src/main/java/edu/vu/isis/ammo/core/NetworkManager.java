@@ -376,7 +376,7 @@ public enum NetworkManager implements INetworkService,
         netChannelMap.put(tcpChannel.name, tcpChannel);
         netChannelMap.put(tcpMediaChannel.name, tcpMediaChannel);
         netChannelMap.put(sslChannel.name, sslChannel);
-   //     netChannelMap.put(sslMediaChannel.name, sslMediaChannel);
+        netChannelMap.put(sslMediaChannel.name, sslMediaChannel);
 
         netChannelMap.put(multicastChannel.name, multicastChannel);
         netChannelMap.put(reliableMulticastChannel.name,
@@ -390,8 +390,8 @@ public enum NetworkManager implements INetworkService,
                 Gateway.getMediaInstance(this.context, tcpMediaChannel));
         modelChannelMap.put(sslChannel.name,
                 SSL.getInstance(this.context, sslChannel));
- //       modelChannelMap.put(sslMediaChannel.name,
- //               SSL.getMediaInstance(this.context, sslMediaChannel));
+        modelChannelMap.put(sslMediaChannel.name,
+                SSL.getMediaInstance(this.context, sslMediaChannel));
 
         modelChannelMap.put(multicastChannel.name,
                 Multicast.getInstance(this.context, multicastChannel));
@@ -771,7 +771,7 @@ public enum NetworkManager implements INetworkService,
                 INetPrefKeys.SSL_FLAT_LINE_TIME,
                 String.valueOf(INetPrefKeys.DEFAULT_SSL_FLAT_LINE_TIME));
         final long sslFlatLineTime = Integer.valueOf(sslFlatLineTimeStr);
-
+        logger.trace("SSL Host:Port => {}:{}",sslHostname, sslPort);
         this.sslChannel.setHost(sslHostname);
         this.sslChannel.setPort(sslPort);
         this.sslChannel.setFlatLineTime(sslFlatLineTime * 60 * 1000);
@@ -1173,6 +1173,8 @@ public enum NetworkManager implements INetworkService,
 
                     parent.tcpChannel.reset();
                     parent.tcpMediaChannel.reset();
+                    parent.sslChannel.reset();
+                    parent.sslMediaChannel.reset();
                     parent.multicastChannel.reset();
                     parent.reliableMulticastChannel.reset();
                     parent.serialChannel.reset();

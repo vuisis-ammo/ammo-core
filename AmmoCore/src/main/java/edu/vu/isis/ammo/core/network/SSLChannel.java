@@ -12,23 +12,26 @@ package edu.vu.isis.ammo.core.network;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.ClosedChannelException;
 import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.LinkedList;
@@ -43,8 +46,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.SocketFactory;
-import javax.net.ssl.HandshakeCompletedEvent;
-import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
@@ -52,7 +53,6 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
@@ -60,7 +60,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
-import android.util.Log;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -918,32 +917,45 @@ public class SSLChannel extends TcpChannelBase {
             }
 
             // Create the Socket
-            InetSocketAddress sockAddr = new InetSocketAddress(ipaddr, port);
+     //       InetSocketAddress sockAddr = new InetSocketAddress(ipaddr, port);
             try {
                 if (parent.mSSLSocket != null) {
                     logger.error("Tried to create mSocket when we already had one.");
                 }
+                
                 final long startConnectionMark = System.currentTimeMillis();
-
+                logger.debug("Begin Creation of SSL Socket Steps: Get SSLContext: start time:{}",startConnectionMark);
+                
                 // setup SSL context
                 SSLContext context = SSLContext.getInstance("TLS");
                 context.init(null, GetTrustStore(),
                         new java.security.SecureRandom());
 
+                logger.debug("Try Creation of TCP Socket Factory, start time:{}",System.currentTimeMillis());
+                // get socket factory
+                SocketFactory socketFactory = SocketFactory.getDefault();
                 // create plain old socket
-                Socket originalSocket = SocketFactory.getDefault()
-                        .createSocket(host, port);
-
+                logger.debug("Try Creation of TCP Socket, start time:{}, host:port: {}:{}",System.currentTimeMillis(),host,port);
+                Socket originalSocket = socketFactory.createSocket(host, port);
                 // use that socket to make SSL connection
+                logger.debug("Try Creation of SSL Socket Factory, start time:{}",System.currentTimeMillis());
                 EasySSLSocketFactory eFactory = new EasySSLSocketFactory();
-                Socket sslSocket = eFactory.createSocket(originalSocket, host,
-                        port, false);
-
+                logger.debug("Try Creation of SSL Socket, start time:{}",System.currentTimeMillis());
+                parent.mSSLSocket = (SSLSocket) eFactory.createSocket(
+                        originalSocket, host, port, true);
+                // do SSL Handshake
+                // it has a DNS host name lookup in it for NO reason, causes
+                // delay when no DNS
+                // that DNS host name lookup takes 40 seconds to time out,
+                // delaying channel
+                logger.debug("Begining of SSL Handshake, start time:{}",System.currentTimeMillis());
+                parent.mSSLSocket.startHandshake();
+                logger.debug("End of SSL Handshake, start time:{}",System.currentTimeMillis());
                 // assign IO from that socket
                 parent.mDataInputStream = new DataInputStream(
-                        sslSocket.getInputStream());
+                        parent.mSSLSocket.getInputStream());
                 parent.mDataOutputStream = new DataOutputStream(
-                        sslSocket.getOutputStream());
+                        parent.mSSLSocket.getOutputStream());
                 final long finishConnectionMark = System.currentTimeMillis();
                 logger.info("connection time to establish={} ms",
                         finishConnectionMark - startConnectionMark);
@@ -964,21 +976,21 @@ public class SSLChannel extends TcpChannelBase {
                 parent.mSSLSocket = null;
                 return false;
             } catch (ConnectException ex) {
-                logger.info("connection failed to {}:{}", ipaddr, port, ex);
+                logger.info("connection failed to {}:{}", host, port, ex);
                 parent.mSSLSocket = null;
                 return false;
             } catch (SocketException ex) {
                 logger.warn("connection timeout={} sec, socket {}:{}",
-                        parent.connectTimeout / 1000, ipaddr, port, ex);
+                        parent.connectTimeout / 1000, host, port, ex);
                 parent.mSSLSocket = null;
                 return false;
             } catch (Exception ex) {
-                logger.warn("connection failed to {}:{}", ipaddr, port, ex);
+                logger.warn("connection failed to {}:{}", host, port, ex);
                 parent.mSSLSocket = null;
                 return false;
             }
 
-            logger.info("connection established to {}:{}", ipaddr, port);
+            logger.info("connection established to {}:{}, Timestamp: {}", ipaddr, port, System.currentTimeMillis());
 
             mIsConnected.set(true);
             mBytesSent = 0;
@@ -1517,9 +1529,27 @@ public class SSLChannel extends TcpChannelBase {
         return true;
     }
 
+    Context mContext;
+
     @Override
     public void init(Context context) {
-        // TODO Auto-generated method stub
+        mContext = context;
+    }
+
+    public static void createKeystore(Context context, String keystoreFileName,
+            char[] password) throws KeyStoreException,
+            NoSuchAlgorithmException, CertificateException, IOException {
+
+        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+
+        File filesDir = context.getFilesDir();
+        // char[] password = "some password".toCharArray();
+        ks.load(null, password);
+
+        File file = new File(filesDir, keystoreFileName);
+        FileOutputStream fos = new FileOutputStream(file);
+        // store the new keystore to the phone's internal directory w/password
+        ks.store(fos, password);
 
     }
 

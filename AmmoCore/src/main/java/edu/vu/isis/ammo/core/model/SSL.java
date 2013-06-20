@@ -104,13 +104,13 @@ public class SSL extends ModelChannel {
     private SSL(Context context, String name, NetChannel channel) {
         super(context, name);
 
-        this.host = this.prefs.getString(INetPrefKeys.SSL_HOST,
-                INetPrefKeys.DEFAULT_SSL_HOST);
+        this.host = this.prefs.getString(INetPrefKeys.GATEWAY_HOST,
+                INetPrefKeys.DEFAULT_GATEWAY_HOST);
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.SSL_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_SSL_PORT)));
         this.election = !this.prefs.getBoolean(INetPrefKeys.GATEWAY_DISABLED,
                 INetPrefKeys.DEFAULT_GATEWAY_ENABLED);
-        logger.debug("SSL constructed with following from prefs: host={} port={} election={}",
+        logger.error("SSL constructed with following from prefs: host={} port={} election={}",
                 new Object[] {
                         host, port, election
                 });
@@ -120,13 +120,13 @@ public class SSL extends ModelChannel {
 
     public static SSL getInstance(Context context, NetChannel channel) {
         // initialize the SSL from the shared preferences
-        logger.trace("{} asked for a new SSL instance", new Throwable().getStackTrace()[1]);
+        logger.debug("{} asked for a new SSL instance", new Throwable().getStackTrace()[1]);
         return new SSL(context, "SSL Channel", channel);
     }
     
     public static SSL getMediaInstance(Context context, NetChannel channel) {
         // initialize the SSL media from the shared preferences
-        logger.trace("{} asked for a new SSL Media instance", new Throwable().getStackTrace()[1]);
+        logger.debug("{} asked for a new SSL Media instance", new Throwable().getStackTrace()[1]);
         return new SSL(context, "SSL Media Channel", channel);
     }    
 
