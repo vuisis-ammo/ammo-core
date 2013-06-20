@@ -776,7 +776,7 @@ public enum NetworkManager  implements INetworkService,
 
         int reliableMcastMediaPort = Integer.parseInt(this.localSettings
             .getString(INetPrefKeys.RELIABLE_MULTICAST_MEDIA_PORT,
-                    String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_PORT)));
+                    String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MEDIA_PORT)));
         
 
         long reliableMulticastFlatLine = Long.parseLong(this.localSettings
