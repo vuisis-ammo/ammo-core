@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
@@ -43,6 +44,7 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.InetHelper;
 import edu.vu.isis.ammo.util.TTLUtil;
 
 public class MulticastChannel extends NetChannel
@@ -460,6 +462,9 @@ public class MulticastChannel extends NetChannel
 
         private AtomicBoolean mIsConnected;
 
+        private InetHelper inetHelper = InetHelper.INSTANCE;
+        protected String acquiredInterfaceName = null;
+        private InetAddress acquiredInterfaceAddress = null;
         public void statusChange()
         {
             parent.statusChange();
@@ -655,10 +660,11 @@ public class MulticastChannel extends NetChannel
                             this.parent.statusChange();
                             try {
                                 synchronized (this.state) {
-                                    while (!parent.isAnyLinkUp() && !this.state.isDisabled()) {
-                                        this.state.wait(BURP_TIME); // wait for
-                                                                    // a link
-                                                                    // interface
+                                    while (!parent.isAnyLinkUp() 
+                                            && !this.state.isDisabled()
+                                            && !this.isInterfaceAcquired()) {
+                                        // wait for a link interface
+                                        this.state.wait(BURP_TIME); 
                                     }
                                     this.state.setUnlessDisabled(NetChannel.DISCONNECTED);
                                 }
@@ -763,6 +769,28 @@ public class MulticastChannel extends NetChannel
             }
             logger.error("channel closing");
         }
+        
+        /**
+         * Prepare the socket to connect to the target interface.
+         * 
+         * @return
+         * @throws SocketException
+         */
+        private boolean isInterfaceAcquired() throws SocketException {
+            this.acquiredInterfaceName = this.inetHelper.acquireInterface();
+            logger.debug("interface acquired: <{}>", this.acquiredInterfaceName);
+            if (this.acquiredInterfaceName == null) {
+                return false;
+            }
+            final NetworkInterface networkInterface = NetworkInterface
+                    .getByName(this.acquiredInterfaceName);
+            final List<InetAddress> networkAddresses = Collections.list(networkInterface.getInetAddresses()); 
+            for (InetAddress networkAddr : networkAddresses) {
+                this.acquiredInterfaceAddress = networkAddr;
+                return true;
+            }
+            return false;
+        }
 
         private boolean connect()
         {
@@ -784,21 +812,22 @@ public class MulticastChannel extends NetChannel
             try
             {
                 parent.mSocket = new MulticastSocket(parent.mMulticastPort);
+                if (this.acquiredInterfaceAddress != null) {
+                    parent.mSocket.setInterface(this.acquiredInterfaceAddress);
+                }
                 parent.mSocket.joinGroup(parent.mMulticastGroup);
             } catch (IOException ex) {
-                logger.info("connection to {}:{} failed", new Object[] {
+                logger.info("connection to {}:{} failed",
                         parent.mMulticastGroup,
-                        parent.mMulticastPort
-                },
+                        parent.mMulticastPort,
                         ex);
                 parent.mSocket = null;
                 return false;
             } catch (Exception ex)
             {
-                logger.warn("connection to {}:{} failed", new Object[] {
+                logger.warn("connection to {}:{} failed", 
                         parent.mMulticastGroup,
-                        parent.mMulticastPort
-                },
+                        parent.mMulticastPort,
                         ex);
                 parent.mSocket = null;
                 return false;

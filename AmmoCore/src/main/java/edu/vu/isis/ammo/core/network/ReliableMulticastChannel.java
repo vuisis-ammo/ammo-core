@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
@@ -56,6 +57,8 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.AmmoConfigurator;
+import edu.vu.isis.ammo.util.InetHelper;
 
 public class ReliableMulticastChannel extends NetChannel {
     private static final Logger sClasslogger = LoggerFactory.getLogger("net.rmcast");
@@ -542,6 +545,9 @@ public class ReliableMulticastChannel extends NetChannel {
 
         private AtomicBoolean mIsConnected;
 
+        protected String acquiredInterfaceName = null;
+        private InetHelper inetHelper = InetHelper.INSTANCE;
+
         public void statusChange() {
             parent.statusChange();
         }
@@ -747,12 +753,11 @@ public class ReliableMulticastChannel extends NetChannel {
                             try {
                                 synchronized (this.state) {
                                     while (!parent.isAnyLinkUp()
-                                            && !this.state.isDisabled()) {
+                                            && !this.state.isDisabled()
+                                            && !this.isInterfaceAcquired()) {
                                       
-                                        this.state.wait(BURP_TIME); // wait for
-                                                                    // a
-                                                                    // link
-                                                                    // interface
+                                        // wait for a link interface
+                                        this.state.wait(BURP_TIME);
                                     }
                                     this.state
                                             .setUnlessDisabled(NetChannel.DISCONNECTED);
@@ -861,6 +866,27 @@ public class ReliableMulticastChannel extends NetChannel {
                 logger.error("channel closing without proper socket", ex);
             }
             logger.error("channel closing");
+        }
+
+        /**
+         * Prepare the socket to connect to the target interface.
+         * 
+         * @return
+         * @throws SocketException
+         */
+        private boolean isInterfaceAcquired() throws SocketException {
+            this.acquiredInterfaceName = this.inetHelper.acquireInterface();
+            if (this.acquiredInterfaceName == null) {
+                return false;
+            }
+            final NetworkInterface networkInterface = NetworkInterface
+                    .getByName(this.acquiredInterfaceName);
+            final List<InetAddress> networkAddresses = Collections.list(networkInterface.getInetAddresses()); 
+            for (InetAddress networkAddr : networkAddresses) {
+                System.setProperty("jgroups.bind_addr", networkAddr.getHostAddress());
+                return true;
+            }
+            return false;
         }
 
         private boolean connect() {
