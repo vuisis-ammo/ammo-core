@@ -1790,7 +1790,7 @@ public class SerialChannel extends NetChannel
 	}
 	
 	@Override
-	protected void notifyObserver() {
+	public void notifyObserver() {
 	    if (mObserver != null) {
     	    mObserver.notifyUpdate(this);
 	    }

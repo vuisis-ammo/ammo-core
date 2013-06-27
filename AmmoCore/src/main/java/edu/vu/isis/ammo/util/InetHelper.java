@@ -141,7 +141,7 @@ public enum InetHelper {
             final String operState;
             try {
                 final FileReader operStateFileReader = new FileReader(operStatePath);
-                operStateReader = new BufferedReader(operStateFileReader);
+                operStateReader = new BufferedReader(operStateFileReader, 8192);
                 final StringBuilder sb = new StringBuilder();
                 String str;
                 while(( str = operStateReader.readLine()) != null) {

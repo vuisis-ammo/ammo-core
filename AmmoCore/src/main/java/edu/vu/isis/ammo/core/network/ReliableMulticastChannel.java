@@ -1420,7 +1420,7 @@ public class ReliableMulticastChannel extends AddressedChannel {
     }
     
     @Override
-    protected void notifyObserver() {
+    public void notifyObserver() {
         if (mObserver != null) {
             mObserver.notifyUpdate(this);
         }

@@ -1509,6 +1509,7 @@ public enum NetworkManager  implements INetworkService,
 
         final Intent broadcastIntent = new Intent(AmmoIntents.AMMO_ACTION_GATEWAY_STATUS_CHANGE);
         this.context.sendBroadcast(broadcastIntent);
+        channel.notifyObserver();
     }
 
     // XXX: This is an important method for getting information about the service

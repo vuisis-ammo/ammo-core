@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="content_of_interest_prompt">Choose Content of Interest</string>
+ 
+    <string-array name="content_of_interest_array">
+        <item>content://edu.vu.isis.ammo.dash.provider.incidentprovider/event</item>
+        <item>content://edu.vu.isis.ammo.battlespace.provider.battle_spaceprovider/control_measure</item>
+    </string-array>
+    
+    <string name="submit_content_label">Subscribe</string>
+</resources>

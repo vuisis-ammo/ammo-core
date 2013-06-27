@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="well_known_port">Attempting to use a well known port; select a value greater than 49151 </string>
+<string name="reserved_port">Attempting to use a reserved port; select a value greater than 49151 </string>
+<string name="no_log_config_file">no configuration file for logging </string>
+</resources>

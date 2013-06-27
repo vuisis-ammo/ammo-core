@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<!-- These control the prefixes on the summaries for the preferences 
+tab. I left them in here just in case we need them in the future.-->
+<string name="port_label"></string>
+<string name="ipaddr_label"></string>
+<string name="channel_journal"></string>
+
+<string name="device_id_label"></string>
+<string name="operator_id_label"></string>
+<string name="operator_key_label"></string>
+
+<string name="socket_timeout_label"></string>
+<string name="net_conn_flat_line_label"></string>
+
+<string name="log_level_label"></string>
+</resources>

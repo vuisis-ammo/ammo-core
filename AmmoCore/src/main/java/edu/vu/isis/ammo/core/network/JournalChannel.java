@@ -437,5 +437,5 @@ public class JournalChannel extends NetChannel {
                 });
     }
     
-    protected void notifyObserver() { }
+    public void notifyObserver() { }
 }

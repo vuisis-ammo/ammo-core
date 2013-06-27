@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/gateway_background" >
+
+    <TextView
+        android:id="@+id/gateway_label"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:gravity="center"
+        android:text="@string/gateway_title"
+        android:textColor="@color/branding"
+        android:textSize="20sp" />
+
+    <TextView
+        android:id="@+id/version_label"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/gateway_label"
+        android:gravity="center"
+        android:text=""
+        android:textSize="12sp" />
+
+    <ScrollView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/version_label" >
+        
+        <LinearLayout
+            android:layout_height="wrap_content"
+            android:layout_width="fill_parent"
+            android:id="@+id/channel_container"
+            android:orientation="vertical"
+            />
+        
+    </ScrollView>
+
+</RelativeLayout>

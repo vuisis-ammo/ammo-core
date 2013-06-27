@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- 
+  Common status values are in "status.xml"
+  -->
+  
+    <string name="status_unknown">unknown</string>
+    <color name="status_unknown">#F2003C</color>
+    
+    <string name="status_up">Up</string>
+    <color name="status_up">#008000</color>
+    
+    <string name="status_down">Down</string>
+    <color name="status_down">#FFBF00</color>
+    
+    <string name="status_disconnected">Disconnected</string>
+    <color name="status_disconnected">#F2003C</color>
+    
+    <string name="status_idle">Idle</string>  
+    <color name="status_idle">#FFBF00</color>
+    
+    <string name="status_scanning">Scanning</string>
+    <color name="status_scanning">#FFBF00</color>
+    
+    <string name="status_connecting">Connecting</string>
+    <color name="status_connecting">#FFBF00</color>
+    
+    <string name="status_authenticating">Authenticating</string>
+    <color name="status_authenticating">#FFBF00</color>
+    
+    <string name="status_obtaining_ipaddr">Obtaining IP Addr</string>
+    <color name="status_obtaining_ipaddr">#008000</color>
+    
+    <string name="status_failed">Failed</string>
+    <color name="status_failed">#F2003C</color>
+  
+    <string name="status_suspended">Suspended</string>
+    <color name="status_suspended">#FFBF00</color>
+  
+    <string name="advanced_view">Debug Mode</string>
+    <string name="simple_view">User Mode</string>
+    
+    <string name="status_unavailable">Lost</string>
+    <string name="status_init">Initializing</string>
+    <string name="status_avail">Available</string>
+</resources>

@@ -41,7 +41,7 @@
 
   <root level="TRACE">
     <appender-ref ref="LOGCAT" />
-    <appender-ref ref="STAT" />
+    <appender-ref ref="STATS" />
   </root>
 
 </configuration>

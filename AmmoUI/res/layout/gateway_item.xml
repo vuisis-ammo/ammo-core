@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/gateway_layout"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent" >
+
+    <!--
+       These two TextViews are the leftmost items that contain the
+       gateway name and the IP address and port
+    -->
+
+    <TextView
+        android:id="@+id/gateway_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:hint="Name"
+        android:padding="3dip"
+        android:textSize="16sp" />
+
+    <TextView
+        android:id="@+id/gateway_formal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_below="@id/gateway_name"
+        android:hint="Formal Name (e.g. host:port)"
+        android:padding="3dip"
+        android:textSize="16sp" />
+
+    <!--
+       This TextView is in the upper right, and contains the count of
+       messages sent and received.
+    -->
+
+    <TextView
+        android:id="@+id/gateway_send_receive"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:hint="Checking status..."
+        android:padding="3dip"
+        android:textSize="16sp" />
+
+    <!--
+       This TextView is in the lower right, and contains the status of
+       the channel.
+    -->
+
+    <TextView
+        android:id="@+id/gateway_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_below="@id/gateway_send_receive"
+        android:padding="3dip" />
+
+    <!--
+    gateway_send_stats and gateway_receive_stats are invisible but in this layout so that
+    the Java code doesn't have to worry about whether or not these views should be updated
+    based on the orientation of the device
+    -->
+
+    <TextView
+        android:id="@+id/gateway_send_stats"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:hint="Collecting send stats..."
+        android:padding="3dip"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/gateway_receive_stats"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/gateway_send_stats"
+        android:hint="Collecting receive stats..."
+        android:padding="3dip"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+</RelativeLayout>

@@ -1,6 +1,10 @@
 
 package edu.vu.isis.ammo.core.provider;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +25,7 @@ import edu.vu.isis.ammo.core.network.AddressedChannel;
 import edu.vu.isis.ammo.core.network.IChannelObserver;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.MulticastChannel;
+import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
@@ -36,6 +41,8 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
     private static final int GATEWAY_MATCH = 3;
     private static final int GATEWAY_MEDIA_MATCH = 4;
     private static final int SERIAL_MATCH = 5;
+
+    private static final int BPS_UPDATE_INTERVAL = 30; // seconds
 
     static {
         logger.trace("ChannelProvider class constructed");
@@ -57,6 +64,7 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
 
     private INetworkService mNetService;
     private boolean mIsConnected = false;
+    private ScheduledExecutorService mEx;
 
     // The network channels
     private MulticastChannel mMulticastChannel;
@@ -65,8 +73,36 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
     private TcpChannel mTcpChannel;
     private TcpChannel mTcpMediaChannel;
 
-    private ServiceConnection networkServiceConnection = new ServiceConnection() {
+    private BpsCache mMulBpsCache, mRelMulBpsCache, mSerBpsCache, mTcpBpsCache,
+            mTcpMediaBpsCache;
 
+    private Runnable mUpdateBpsRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (mMulBpsCache != null && mMulBpsCache.update()) {
+                notifyUpdate(mMulticastChannel);
+            }
+
+            if (mRelMulBpsCache != null && mRelMulBpsCache.update()) {
+                notifyUpdate(mReliableMulticastChannel);
+            }
+
+            if (mSerBpsCache != null && mSerBpsCache.update()) {
+                notifyUpdate(mSerialChannel);
+            }
+
+            if (mTcpBpsCache != null && mTcpBpsCache.update()) {
+                notifyUpdate(mTcpChannel);
+            }
+
+            if (mTcpMediaBpsCache != null && mTcpMediaBpsCache.update()) {
+                notifyUpdate(mTcpMediaChannel);
+            }
+        }
+
+    };
+
+    private ServiceConnection networkServiceConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName name, IBinder service) {
             logger.debug("Service connected.");
             final AmmoService.DistributorServiceAidl binder = (AmmoService.DistributorServiceAidl) service;
@@ -77,12 +113,18 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
             mReliableMulticastChannel = mNetService.getReliableMulticastChannel();
             mTcpChannel = mNetService.getTcpChannel();
             mTcpMediaChannel = mNetService.getTcpMedialChannel();
-            
+
             // Register observer
             mMulticastChannel.registerChannelObserver(ChannelProvider.this);
             mReliableMulticastChannel.registerChannelObserver(ChannelProvider.this);
             mTcpChannel.registerChannelObserver(ChannelProvider.this);
             mTcpMediaChannel.registerChannelObserver(ChannelProvider.this);
+            
+            // Build caches
+            mMulBpsCache = new BpsCache(mMulticastChannel);
+            mRelMulBpsCache = new BpsCache(mReliableMulticastChannel);
+            mTcpBpsCache = new BpsCache(mTcpChannel);
+            mTcpMediaBpsCache = new BpsCache(mTcpMediaChannel);
 
             logger.trace("mNetService: {}", mNetService);
             mIsConnected = true;
@@ -104,6 +146,9 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
                 (successful ? "successfully bound"
                         : "failed to bind"), mIsConnected);
 
+        mEx = Executors.newSingleThreadScheduledExecutor();
+        mEx.scheduleWithFixedDelay(mUpdateBpsRunnable, BPS_UPDATE_INTERVAL, BPS_UPDATE_INTERVAL, TimeUnit.SECONDS);
+
         return successful;
     }
 
@@ -119,18 +164,23 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
         }
 
         /*
-         * Get the serial channel at query time to ensure that
-         * NetworkManager has enough time to initialize it before we get a
-         * reference to it
+         * Get the serial channel at query time to ensure that NetworkManager
+         * has enough time to initialize it before we get a reference to it
          */
         if (mSerialChannel == null) {
             mSerialChannel = mNetService.getSerialChannel();
             mSerialChannel.registerChannelObserver(this);
+            mSerBpsCache = new BpsCache(mSerialChannel);
         }
 
         MatrixCursor c = new MatrixCursor(new String[] {
-                "name", "formalIP", "connState", "senderState",
-                "receiverState", "sendReceive"
+                ChannelColumns.NAME, ChannelColumns.FORMAL_IP,
+                ChannelColumns.CONNECTION_STATE,
+                ChannelColumns.SENDER_STATE,
+                ChannelColumns.RECEIVER_STATE,
+                ChannelColumns.SEND_RECEIVE_COUNTS,
+                ChannelColumns.SEND_BIT_STATS,
+                ChannelColumns.RECEIVE_BIT_STATS
         });
 
         switch (MATCHER.match(uri)) {
@@ -159,17 +209,6 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
                 addSerialRow(c);
                 c.setNotificationUri(getContext().getContentResolver(), SERIAL_URI);
                 break;
-                /*
-            case ALL_MATCH:
-                logger.trace("Query matched all");
-                addAddressedChannelRow(c, "Multicast", mMulticastChannel);
-                addAddressedChannelRow(c, "ReliableMulticast", mReliableMulticastChannel);
-                addAddressedChannelRow(c, "Gateway", mTcpChannel);
-                addAddressedChannelRow(c, "Gateway Media", mTcpMediaChannel);
-                addSerialRow(c);
-                c.setNotificationUri(getContext().getContentResolver(), ALL_URI);
-                break;
-                */
             default:
                 logger.warn("Received an invalid Uri");
                 return null;
@@ -185,7 +224,7 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
         c.addRow(new Object[] {
                 channelName, channel.getAddress() + ":" + channel.getPort(),
                 channel.getConnState(), channel.getSenderState(), channel.getReceiverState(),
-                channel.getSendReceiveStats()
+                channel.getSendReceiveStats(), channel.getSendBitStats(), channel.getReceiveBitStats()
         });
     }
 
@@ -194,7 +233,7 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
             logger.error("Serial channel is null");
             return;
         }
-        
+
         // Since the Serial channel doesn't have a formal IP, we send
         // the error string in the formalIP field
         StringBuilder errorString = new StringBuilder();
@@ -206,17 +245,14 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
         c.addRow(new Object[] {
                 "Serial", errorString.toString(), mSerialChannel.getConnState(),
                 mSerialChannel.getSenderState(), mSerialChannel.getReceiverState(),
-                mSerialChannel.getSendReceiveStats()
+                mSerialChannel.getSendReceiveStats(), mSerialChannel.getSendBitStats(),
+                mSerialChannel.getReceiveBitStats()
         });
     }
 
     @Override
     public String getType(Uri uri) {
         switch (MATCHER.match(uri)) {
-            /*
-            case ALL_MATCH:
-                return MULTIPLE_CHANNELS_TYPE;
-                */
             case MULTICAST_MATCH:
             case RELIABLE_MULTICAST_MATCH:
             case GATEWAY_MATCH:
@@ -254,19 +290,23 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
 
     @Override
     public void notifyUpdate(ReliableMulticastChannel channel) {
+        logger.trace("Update for ReliableMulticast");
         getContext().getContentResolver().notifyChange(RELIABLE_MULTICAST_URI, null);
     }
 
     @Override
     public void notifyUpdate(MulticastChannel channel) {
+        logger.trace("Update for Multicast");
         getContext().getContentResolver().notifyChange(MULTICAST_URI, null);
     }
 
     @Override
     public void notifyUpdate(TcpChannel channel) {
         if (channel == mTcpChannel) {
+            logger.trace("Update for Gateway");
             getContext().getContentResolver().notifyChange(GATEWAY_URI, null);
         } else if (channel == mTcpMediaChannel) {
+            logger.trace("Update for GatewayMedia");
             getContext().getContentResolver().notifyChange(GATEWAY_MEDIA_URI, null);
         } else {
             logger.warn("Unknown TCP channel {}", channel);
@@ -275,7 +315,44 @@ public class ChannelProvider extends ContentProvider implements ChannelSchema, I
 
     @Override
     public void notifyUpdate(SerialChannel channel) {
+        logger.trace("Update for Serial");
         getContext().getContentResolver().notifyChange(SERIAL_URI, null);
+    }
+
+    public class BpsCache {
+
+        NetChannel mChannel;
+        public String mLastSendBits, mLastReceiveBits;
+
+        public BpsCache(NetChannel channel) {
+            mChannel = channel;
+            mLastSendBits = mChannel.getSendBitStats();
+            mLastReceiveBits = mChannel.getReceiveBitStats();
+        }
+
+        /**
+         * Get new data from the NetChannel and update the cache if necessary
+         * 
+         * @return true if the cache was updated
+         */
+        public boolean update() {
+            boolean updated = false;
+            String receive = mChannel.getReceiveBitStats();
+            String send = mChannel.getSendBitStats();
+
+            if (!receive.equals(mLastReceiveBits)) {
+                mLastReceiveBits = receive;
+                updated = true;
+            }
+
+            if (!send.equals(mLastSendBits)) {
+                mLastSendBits = send;
+                updated = true;
+            }
+
+            return updated;
+        }
+
     }
 
 }

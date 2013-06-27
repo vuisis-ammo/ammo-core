@@ -157,7 +157,11 @@ public abstract class NetChannel implements INetChannel, IChannelObservable {
 	    mObserver = observer;
 	}
 	
-	protected abstract void notifyObserver();
+	/**
+	 * Causes this channel to notify its observer that a monitored value in its
+	 * state has changed.
+	 */
+	public abstract void notifyObserver();
 	
 
     private static String humanReadableByteCount(long bytes, boolean si) {

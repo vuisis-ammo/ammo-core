@@ -1377,7 +1377,7 @@ public class MulticastChannel extends AddressedChannel
     }
     
     @Override
-    protected void notifyObserver() {
+    public void notifyObserver() {
         if (mObserver != null) {
             mObserver.notifyUpdate(this);
         }
