@@ -40,11 +40,11 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
     private static final String GATEWAY_FRAGMENT_TAG = "GatewayFrag";
     private static final String GATEWAY_MEDIA_FRAGMENT_TAG = "GatewayMediaFrag";
     private static final String SERIAL_FRAGMENT_TAG = "SerialFrag";
-    
+
     private TextView mOperatorTv;
     private Button mViewTablesButton, mDebuggingToolsButton, mLoggingToolsButton,
-                    mHardResetButton, mHelpAboutButton;
-    
+            mHardResetButton, mHelpAboutButton;
+
     private SharedPreferences mPrefs;
 
     @Override
@@ -73,7 +73,7 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
                 .add(R.id.channel_container, gatewayMediaFrag, GATEWAY_MEDIA_FRAGMENT_TAG)
                 .add(R.id.channel_container, serialFrag, SERIAL_FRAGMENT_TAG)
                 .commit();
-        
+
         // Get view references
         mOperatorTv = (TextView) findViewById(R.id.operator_id_tv_ref);
         mViewTablesButton = (Button) findViewById(R.id.view_tables_button);
@@ -81,10 +81,10 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
         mLoggingToolsButton = (Button) findViewById(R.id.loggers_button);
         mHardResetButton = (Button) findViewById(R.id.hard_reset_button);
         mHelpAboutButton = (Button) findViewById(R.id.help_button);
-        
+
         mPrefs = getSharedPreferences("edu.vu.isis.ammo.core_preferences", MODE_PRIVATE);
     }
-    
+
     @Override
     public void onResume() {
         super.onResume();
@@ -108,10 +108,7 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
 
         Uri mChannelUri;
         String mLogId;
-        TextView mNameTv;
-        TextView mFormalTv;
-        TextView mCountTv;
-        TextView mStatusTv;
+        TextView mNameTv, mFormalTv, mCountTv, mStatusTv, mSendStatsTv, mReceiveStatsTv;
 
         public ChannelFragment() {
         }
@@ -152,6 +149,8 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
             mCountTv = (TextView) layout.findViewById(R.id.gateway_send_receive);
             mNameTv = (TextView) layout.findViewById(R.id.gateway_name);
             mStatusTv = (TextView) layout.findViewById(R.id.gateway_status);
+            mSendStatsTv = (TextView) layout.findViewById(R.id.gateway_send_stats);
+            mReceiveStatsTv = (TextView) layout.findViewById(R.id.gateway_receive_stats);
             return layout;
         }
 
@@ -170,13 +169,14 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
                 logger.trace("{} finished loading: {}", mLogId,
                         DatabaseUtils.dumpCursorToString(cursor));
             }
-            
-            if(!cursor.moveToFirst()) {
+
+            if (!cursor.moveToFirst()) {
                 logger.error("Received a cursor with no rows");
                 mStatusTv.setText("Display Error");
             }
-            
-            int nameIx, formalIx, cStateIx, sStateIx, rStateIx, sendReceiveIx;
+
+            int nameIx, formalIx, cStateIx, sStateIx, rStateIx, sendReceiveIx,
+                sendStatsIx, receiveStatsIx;
 
             try {
                 nameIx = cursor.getColumnIndexOrThrow(ChannelColumns.NAME);
@@ -185,6 +185,8 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
                 sStateIx = cursor.getColumnIndexOrThrow(ChannelColumns.SENDER_STATE);
                 rStateIx = cursor.getColumnIndexOrThrow(ChannelColumns.RECEIVER_STATE);
                 sendReceiveIx = cursor.getColumnIndexOrThrow(ChannelColumns.SEND_RECEIVE_COUNTS);
+                sendStatsIx = cursor.getColumnIndexOrThrow(ChannelColumns.SEND_BIT_STATS);
+                receiveStatsIx = cursor.getColumnIndexOrThrow(ChannelColumns.RECEIVE_BIT_STATS);
             } catch (IllegalArgumentException e) {
                 logger.error("{} received a cursor missing an index", mLogId);
                 logger.error("{}", e);
@@ -195,15 +197,17 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
             int cState = cursor.getInt(cStateIx);
             int sState = cursor.getInt(sStateIx);
             int rState = cursor.getInt(rStateIx);
-            
+
             ChannelState effectiveState = UiUtils.getEffectiveChannelState(cState, sState, rState);
             Resources res = getActivity().getResources();
-            
+
             mNameTv.setText(cursor.getString(nameIx));
             mFormalTv.setText(cursor.getString(formalIx));
             mCountTv.setText(cursor.getString(sendReceiveIx));
             mStatusTv.setText(res.getString(effectiveState.getStringResId()));
-            
+            mSendStatsTv.setText(cursor.getString(sendStatsIx));
+            mReceiveStatsTv.setText(cursor.getString(receiveStatsIx));
+
             int color = res.getColor(effectiveState.getColorResId());
             mCountTv.setTextColor(color);
             mStatusTv.setTextColor(color);
