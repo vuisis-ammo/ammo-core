@@ -57,7 +57,6 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
-import edu.vu.isis.ammo.util.AmmoConfigurator;
 import edu.vu.isis.ammo.util.InetHelper;
 
 public class ReliableMulticastChannel extends NetChannel {

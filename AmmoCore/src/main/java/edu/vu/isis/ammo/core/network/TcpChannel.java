@@ -92,9 +92,7 @@ public class TcpChannel extends NetChannel {
   private SenderThread mSender;
   private ReceiverThread mReceiver;
 
-  @SuppressWarnings("unused")
   private int connectTimeout = 5 * 1000; // this should come from network preferences
-  @SuppressWarnings("unused")
   private int socketTimeout = 30 * 1000; // milliseconds.
 
   private String gatewayHost = null;
