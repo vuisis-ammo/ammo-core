@@ -44,6 +44,8 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
     private TextView mOperatorTv;
     private Button mViewTablesButton, mDebuggingToolsButton, mLoggingToolsButton,
             mHardResetButton, mHelpAboutButton;
+    private ChannelFragment mMulticastFrag, mRelMulticastFrag, mGatewayFrag, mGatewayMediaFrag,
+            mSerialFrag;
 
     private SharedPreferences mPrefs;
 
@@ -52,27 +54,43 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.ammo_activity);
 
-        ChannelFragment multicastFrag = ChannelFragment.newInstance(
-                MULTICAST_URI.toString(), MULTICAST_LOADER_ID, MULTICAST_FRAGMENT_TAG);
-        ChannelFragment relMulticastFrag = ChannelFragment.newInstance(
-                RELIABLE_MULTICAST_URI.toString(), RELIABLE_MULTICAST_LOADER_ID,
-                RELIABLE_MULTICAST_FRAGMENT_TAG);
-        ChannelFragment gatewayFrag = ChannelFragment.newInstance(
-                GATEWAY_URI.toString(), GATEWAY_LOADER_ID, GATEWAY_FRAGMENT_TAG);
-        ChannelFragment gatewayMediaFrag = ChannelFragment.newInstance(
-                GATEWAY_MEDIA_URI.toString(), GATEWAY_MEDIA_LOADER_ID, GATEWAY_MEDIA_FRAGMENT_TAG);
-        ChannelFragment serialFrag = ChannelFragment.newInstance(SERIAL_URI.toString(),
-                SERIAL_LOADER_ID, SERIAL_FRAGMENT_TAG);
-
-        // Add the fragments to our view hierarchy
         FragmentManager fm =
                 getSupportFragmentManager();
-        fm.beginTransaction().add(R.id.channel_container, multicastFrag, MULTICAST_FRAGMENT_TAG)
-                .add(R.id.channel_container, relMulticastFrag, RELIABLE_MULTICAST_FRAGMENT_TAG)
-                .add(R.id.channel_container, gatewayFrag, GATEWAY_FRAGMENT_TAG)
-                .add(R.id.channel_container, gatewayMediaFrag, GATEWAY_MEDIA_FRAGMENT_TAG)
-                .add(R.id.channel_container, serialFrag, SERIAL_FRAGMENT_TAG)
-                .commit();
+        if (savedInstanceState == null) {
+            mMulticastFrag = ChannelFragment.newInstance(
+                    MULTICAST_URI.toString(), MULTICAST_LOADER_ID, MULTICAST_FRAGMENT_TAG);
+            mRelMulticastFrag = ChannelFragment.newInstance(
+                    RELIABLE_MULTICAST_URI.toString(), RELIABLE_MULTICAST_LOADER_ID,
+                    RELIABLE_MULTICAST_FRAGMENT_TAG);
+            mGatewayFrag = ChannelFragment.newInstance(
+                    GATEWAY_URI.toString(), GATEWAY_LOADER_ID, GATEWAY_FRAGMENT_TAG);
+            mGatewayMediaFrag = ChannelFragment.newInstance(
+                    GATEWAY_MEDIA_URI.toString(), GATEWAY_MEDIA_LOADER_ID,
+                    GATEWAY_MEDIA_FRAGMENT_TAG);
+            mSerialFrag = ChannelFragment.newInstance(SERIAL_URI.toString(),
+                    SERIAL_LOADER_ID, SERIAL_FRAGMENT_TAG);
+
+            mMulticastFrag.setRetainInstance(true);
+            mRelMulticastFrag.setRetainInstance(true);
+            mGatewayFrag.setRetainInstance(true);
+            mGatewayMediaFrag.setRetainInstance(true);
+            mSerialFrag.setRetainInstance(true);
+
+            // Add the fragments to our view hierarchy
+            fm.beginTransaction()
+                    .add(R.id.channel_container, mMulticastFrag, MULTICAST_FRAGMENT_TAG)
+                    .add(R.id.channel_container, mRelMulticastFrag, RELIABLE_MULTICAST_FRAGMENT_TAG)
+                    .add(R.id.channel_container, mGatewayFrag, GATEWAY_FRAGMENT_TAG)
+                    .add(R.id.channel_container, mGatewayMediaFrag, GATEWAY_MEDIA_FRAGMENT_TAG)
+                    .add(R.id.channel_container, mSerialFrag, SERIAL_FRAGMENT_TAG)
+                    .commit();
+        } else {
+            mMulticastFrag = (ChannelFragment) fm.findFragmentByTag(MULTICAST_FRAGMENT_TAG);
+            mRelMulticastFrag = (ChannelFragment) fm.findFragmentByTag(RELIABLE_MULTICAST_FRAGMENT_TAG);
+            mGatewayFrag = (ChannelFragment) fm.findFragmentByTag(GATEWAY_FRAGMENT_TAG);
+            mGatewayMediaFrag = (ChannelFragment) fm.findFragmentByTag(GATEWAY_MEDIA_FRAGMENT_TAG);
+            mSerialFrag = (ChannelFragment) fm.findFragmentByTag(SERIAL_FRAGMENT_TAG);
+        }
 
         // Get view references
         mOperatorTv = (TextView) findViewById(R.id.operator_id_tv_ref);
@@ -109,6 +127,7 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
         Uri mChannelUri;
         String mLogId;
         TextView mNameTv, mFormalTv, mCountTv, mStatusTv, mSendStatsTv, mReceiveStatsTv;
+        int mLoaderId;
 
         public ChannelFragment() {
         }
@@ -138,7 +157,8 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
                 throw new IllegalArgumentException("Fragment created without proper arguments");
             mChannelUri = Uri.parse(args.getString(BUN_CHANNEL_URI_KEY));
             mLogId = args.getString(BUN_LOG_ID_KEY);
-            getLoaderManager().initLoader(args.getInt(BUN_LOADER_ID_KEY), null, this);
+            mLoaderId = args.getInt(BUN_LOADER_ID_KEY);
+            getLoaderManager().initLoader(mLoaderId, null, this);
             logger.trace("{} created", mLogId);
         }
 
@@ -152,6 +172,12 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
             mSendStatsTv = (TextView) layout.findViewById(R.id.gateway_send_stats);
             mReceiveStatsTv = (TextView) layout.findViewById(R.id.gateway_receive_stats);
             return layout;
+        }
+        
+        @Override
+        public void onActivityCreated(Bundle icicle) {
+            super.onActivityCreated(icicle);
+            getLoaderManager().restartLoader(mLoaderId, null, this);
         }
 
         @Override
@@ -175,8 +201,7 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
                 mStatusTv.setText("Display Error");
             }
 
-            int nameIx, formalIx, cStateIx, sStateIx, rStateIx, sendReceiveIx,
-                sendStatsIx, receiveStatsIx;
+            int nameIx, formalIx, cStateIx, sStateIx, rStateIx, sendReceiveIx, sendStatsIx, receiveStatsIx;
 
             try {
                 nameIx = cursor.getColumnIndexOrThrow(ChannelColumns.NAME);
