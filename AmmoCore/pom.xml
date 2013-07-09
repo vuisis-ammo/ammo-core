@@ -6,7 +6,7 @@
   <parent>
     <groupId>edu.vu.isis</groupId>
     <artifactId>ammocore-parent</artifactId>
-    <version>1.8.0-SNAPSHOT</version>
+    <version>1.8.1-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
@@ -127,7 +127,7 @@
               <ndk>
                 <path>${env.ANDROID_NDK_HOME}</path>
               </ndk>
-              <attachNativeArtifacts>false</attachNativeArtifacts>
+              <attachNativeArtifacts>true</attachNativeArtifacts>
               <clearNativeArtifacts>true</clearNativeArtifacts>
               <sign>
                 <debug>false</debug>
@@ -162,6 +162,7 @@
               </sdk>
               <undeployBeforeDeploy>true</undeployBeforeDeploy>
               <attachJar>true</attachJar>
+              <generateApk>true</generateApk>
             </configuration>
           </execution>
         </executions>
