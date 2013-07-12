@@ -58,42 +58,64 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
 public class AmmoGatewayMessage implements Comparable<Object> {
     private static final Logger logger = LoggerFactory.getLogger("net.message");
 
+    // Magic sequence used by non-terse and terse encodings
     private static final byte[] MAGIC = {
             (byte) 0xed, (byte) 0xbe, (byte) 0xef
     };
+
+    // Magic sequence used by the SATCOM channel
+    private static final byte[] SATCOM_MAGIC = {
+            (byte) 0xab, (byte) 0xad, (byte) 0x1d, (byte) 0xea
+    };
+
     public static final byte VERSION_1_FULL = (byte) 0xfe;
     public static final byte VERSION_1_TERSE = (byte) 0x01;
+    public static final byte VERSION_1_SATCOM = (byte) 0x02;
 
     @SuppressWarnings("unused")
     private static final long INT_MASK = 0x0FFFFFFFFL; //
     private static final int BYTE_MASK = 0x0FF;
     private static final long BYTE_MASK_LONG = 0x0FFL;
 
+    //
+    // Normal header lengths
+    //
+
     public static final int HEADER_DATA_LENGTH =
-            4 // magic length
-                    + 4 // message size
-                    + 1 // priority byte
-                    + 3 // reserved bytes
-                    + 4; // payload checksum
+          4 // magic length
+        + 4 // message size
+        + 1 // priority byte
+        + 3 // reserved bytes
+        + 4; // payload checksum
 
     public static final int HEADER_LENGTH =
-            HEADER_DATA_LENGTH
-            + 4; // header checksum
+        HEADER_DATA_LENGTH + 4; // header checksum
 
-    // public static final int HEADER_DATA_LENGTH_TERSE =
-    //       4  // magic (3.5 bytes) and slot number (4 bits)
-    //     + 2  // payload size
-    //     + 2  // payload checksum
-    //     + 4  // timestamp
-    //     + 1  //   index in slot: 4 bits
-    //          //   <reserved>:    2 bits
-    //          //   packet type:   2 bits
-    //     + 1  // <reserved>
-    //     + 2; // header checksum
-    // // ------
-    // //   16 bytes
+    //
+    // Terse header lengths
+    //
 
     public static final int HEADER_DATA_LENGTH_TERSE =
+          4  // magic (3.5 bytes) and slot number (4 bits)
+        + 2  // payload size
+        + 2  // payload checksum
+        + 4  // UID (info about what we think that we're sending in)
+             //   hyperperiod:   2 bytes
+             //   slot number:   1 byte
+             //   index in slot: 1 byte
+        + 1  // packet type
+        + 1; // <reserved>
+    // ------
+    //   14 bytes
+
+    // These are equal because the terse form doesn't use a header checksum.
+    public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH + 2;
+
+    //
+    // SATCOM header lengths
+    //
+
+    public static final int HEADER_DATA_LENGTH_SATCOM =
           4  // magic (3.5 bytes) and slot number (4 bits)
         + 2  // payload size
         + 2  // payload checksum
@@ -108,7 +130,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     //   16 bytes
 
     // These are equal because the terse form doesn't use a header checksum.
-    public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH;
+    public static final int HEADER_LENGTH_SATCOM = HEADER_DATA_LENGTH_SATCOM;
+
+    //
+    //
+    //
 
     public int size;
     public final byte priority;
@@ -683,7 +709,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         // Put two-byte header checksum here. The checksum covers the
         // magic sequence and everything up to and including the six
         // zero bytes just written.
-        CheckSum crc32 = CheckSum.newInstance(buf.array(), 0, HEADER_LENGTH_TERSE - 2);
+        CheckSum crc32 = CheckSum.newInstance( buf.array(), 0, HEADER_DATA_LENGTH_TERSE );
         byte[] headerChecksum = crc32.asByteArray();
         buf.put(headerChecksum[0]);
         buf.put(headerChecksum[1]);
@@ -794,7 +820,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                      * magic sequence out of this function, since it should be
                      * channel-specific.
                      */
-                    CheckSum terseHeaderCrc32 = CheckSum.newInstance(drain.array(), start, HEADER_DATA_LENGTH_TERSE - 2);
+                    CheckSum terseHeaderCrc32 = CheckSum.newInstance( drain.array(), start, HEADER_DATA_LENGTH_TERSE );
                     byte[] computedChecksum = terseHeaderCrc32.asByteArray();
 
                     // Return null if the header checksum fails.
