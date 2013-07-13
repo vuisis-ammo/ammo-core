@@ -62,13 +62,10 @@ import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.R;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalTotalState;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.PostalTableSchema;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.RetrievalTableSchema;
+import edu.vu.isis.ammo.core.internal.PostalTableSchema;
+import edu.vu.isis.ammo.core.internal.RetrievalTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SerializeMode;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.SubscribeTableSchema;
+import edu.vu.isis.ammo.core.internal.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.serializer.ContentProviderContentItem;
 import edu.vu.isis.ammo.core.distributor.serializer.CustomAdaptorCache;
@@ -77,6 +74,9 @@ import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
 import edu.vu.isis.ammo.core.distributor.store.Presence;
+import edu.vu.isis.ammo.core.internal.DisposalState;
+import edu.vu.isis.ammo.core.internal.DisposalTableSchema;
+import edu.vu.isis.ammo.core.internal.DisposalTotalState;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetChannel;
@@ -1508,7 +1508,7 @@ public class DistributorThread extends Thread {
         // generate an intent if it was requested
 
         final Cursor postalReq = this.store.queryPostal(null, new StringBuilder().
-                append(DistributorDataStore.PostalTableSchema.UUID.cv()).append("=?").toString(),
+                append(PostalTableSchema.UUID.cv()).append("=?").toString(),
                 new String[] {
                     pushResp.getUri()
                 }, null);
@@ -1532,14 +1532,14 @@ public class DistributorThread extends Thread {
             final AcknowledgementThresholds thresholds = pushResp.getThreshold();
 
             byte[] noticeBytes = postalReq.getBlob(postalReq
-                    .getColumnIndex(DistributorDataStore.PostalTableSchema.NOTICE.cv()));
+                    .getColumnIndex(PostalTableSchema.NOTICE.cv()));
             logger.debug("notice bytes {}", noticeBytes);
             final Notice notice = Notice.unpickle(noticeBytes);
             
             final String topic = postalReq.getString(postalReq
-                    .getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv()));
+                    .getColumnIndex(PostalTableSchema.TOPIC.cv()));
             final String auid = postalReq.getString(postalReq
-                    .getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv()));
+                    .getColumnIndex(PostalTableSchema.AUID.cv()));
 
             postalReq.close();
 

@@ -37,6 +37,12 @@ import android.text.TextUtils;
 import edu.vu.isis.ammo.core.distributor.store.Capability;
 import edu.vu.isis.ammo.core.distributor.store.Presence;
 import edu.vu.isis.ammo.core.distributor.store.RelationsHelper;
+import edu.vu.isis.ammo.core.internal.DisposalState;
+import edu.vu.isis.ammo.core.internal.PostalTableSchema;
+import edu.vu.isis.ammo.core.internal.DisposalTableSchema;
+import edu.vu.isis.ammo.core.internal.RetrievalTableSchema;
+import edu.vu.isis.ammo.core.internal.PriorityType;
+import edu.vu.isis.ammo.core.internal.SubscribeTableSchema;
 import edu.vu.isis.ammo.core.provider.CapabilitySchema;
 import edu.vu.isis.ammo.core.provider.PresenceSchema;
 import edu.vu.isis.ammo.core.provider.Relations;
@@ -174,54 +180,6 @@ public class DistributorDataStore {
         }
     }
 
-    /**
-     * The states of a request. The DISTRIBUTE state indicates that the total
-     * state is an aggregate of the distribution of the request across the
-     * relevant channels. see the ChannelDisposal
-     */
-    public enum DisposalTotalState {
-        /** either all pending or none */
-        NEW(0x01, "new"),
-        /** the request is being actively processed */
-        DISTRIBUTE(0x02, "distribute"),
-        /** the expiration time of the request has arrived */
-        EXPIRED(0x04, "expired"),
-        /** the distribution rule has been fulfilled */
-        COMPLETE(0x08, "complete"),
-        /** the distribution rule cannot be completely fulfilled */
-        INCOMPLETE(0x10, "incomplete"),
-        /** the request failed */
-        FAILED(0x20, "failed");
-
-        final public int o;
-        final public String t;
-
-        private DisposalTotalState(int ordinal, String title) {
-            this.o = ordinal;
-            this.t = title;
-        }
-
-        public String q() {
-            return new StringBuilder().append("'").append(this.o).append("'").toString();
-        }
-
-        public String cv() {
-            return String.valueOf(this.o);
-        }
-
-        static public DisposalTotalState getInstance(String ordinal) {
-            return DisposalTotalState.values()[Integer.parseInt(ordinal)];
-        }
-
-        static public DisposalTotalState getInstanceById(int o) {
-            for (DisposalTotalState candidate : DisposalTotalState.values()) {
-                if (candidate.o == o)
-                    return candidate;
-            }
-            return null;
-        }
-
-    };
 
     /**
      * The states of a request over a particular channel. The DISTRIBUTE
@@ -264,108 +222,7 @@ public class DistributorDataStore {
 
     };
 
-    /**
-     * The states of a request over a particular channel. The DISTRIBUTE
-     * RequestDisposal indicates that the total state is an aggregate of the
-     * distribution of the request across the relevant channels.
-     */
-    public enum DisposalState {
-        /** an initial transient state */
-        NEW(0x0001, "new"),
-        /** channel is temporarily rejecting req (probably down) */
-        REJECTED(0x0002, "rejected"),
-        /** message is problematic, don't try again */
-        BAD(0x0080, "bad"),
-        /** cannot send, channel unavailable, but not because the message is bad */
-        PENDING(0x0004, "pending"),
-        /** message in channel queue */
-        QUEUED(0x0008, "queued"),
-        /** channel queue was busy (full channel queue) */
-        BUSY(0x0100, "full"),
-        /** message has been sent synchronously */
-        SENT(0x0010, "sent"),
-        /**
-         * message sent asynchronously, with an expectation of an acknowledgment
-         */
-        TOLD(0x0020, "told"),
-        /** async (told) message acknowledged */
-        DELIVERED(0x0040, "delivered"), ;
-
-        final public int o;
-        final public String t;
-
-        private DisposalState(int ordinal, String title) {
-            this.o = ordinal;
-            this.t = title;
-        }
-
-        @Override
-        public String toString() {
-            return this.t;
-        }
-
-        public String q() {
-            return new StringBuilder().append("'").append(this.o).append("'").toString();
-        }
-
-        public String cv() {
-            return String.valueOf(this.o);
-        }
-
-        static public DisposalState getInstance(String ordinal) {
-            return DisposalState.values()[Integer.parseInt(ordinal)];
-        }
-
-        /**
-         * This method indicates if the goal has been met. Note that false does
-         * not mean the goal will not be reachable it only means that it has not
-         * yet been reached.
-         */
-        public boolean goalReached(boolean goalCondition) {
-            switch (this) {
-                case QUEUED:
-                case SENT:
-                case DELIVERED:
-                    if (goalCondition == true)
-                        return true;
-                    break;
-                case PENDING:
-                case REJECTED:
-                case BUSY:
-                case BAD:
-                    if (goalCondition == false)
-                        return true;
-                    break;
-                case NEW:
-                case TOLD:
-                default:
-                    break;
-            }
-            return false;
-        }
-
-        public DisposalState and(boolean clauseSuccess) {
-            if (clauseSuccess)
-                return this;
-            return DisposalState.DELIVERED;
-        }
-
-        public int checkAggregate(final int aggregate) {
-            return this.o & aggregate;
-        }
-
-        public int aggregate(final int aggregate) {
-            return this.o | aggregate;
-        }
-
-        static public DisposalState getInstanceById(int o) {
-            for (DisposalState candidate : DisposalState.values()) {
-                if (candidate.o == o)
-                    return candidate;
-            }
-            return null;
-        }
-    };
+    
 
     /**
      * Indicates how delayed messages are to be prioritized.
@@ -402,64 +259,6 @@ public class DistributorDataStore {
         }
     };
 
-    /**
-     * Indicates message priority.
-     */
-    public enum PriorityType {
-        /** Gets sent immediately */
-        FLASH(0x80, "FLASH"),
-        /** Time critical */
-        URGENT(0x40, "URGENT"),
-        /** Should be sent but not timing critical */
-        IMPORTANT(0x20, "IMPORTANT"),
-        /** Not particularly time critical, but may be of interest generally */
-        NORMAL(0x10, "NORMAL"),
-        /**
-         * Large and should not be allowed to interfere, processed in background
-         */
-        BACKGROUND(0x08, "BACKGROUND");
-
-        final public int o;
-        final public String t;
-
-        private PriorityType(int ordinal, String title) {
-            this.o = ordinal;
-            this.t = title;
-        }
-
-        /**
-         * Produce string of the form... '<field-ordinal-value>';
-         */
-        public String quote() {
-            return new StringBuilder().append("'").append(this.o).append("'").toString();
-        }
-
-        public String cv() {
-            return String.valueOf(this.o);
-        }
-
-        static public PriorityType getInstance(String ordinal) {
-            return PriorityType.values()[Integer.parseInt(ordinal)];
-        }
-
-        static public PriorityType getInstanceById(int o) {
-            for (PriorityType candidate : PriorityType.values()) {
-                final int lower = candidate.o;
-                final int upper = lower << 1;
-                if (upper > o && lower >= o)
-                    return candidate;
-            }
-            return null;
-        }
-
-        public CharSequence toString(int priorityId) {
-            final StringBuilder sb = new StringBuilder().append(this.o);
-            if (priorityId > this.o) {
-                sb.append("+").append(priorityId - this.o);
-            }
-            return sb.toString();
-        }
-    };
 
     /**
      * Description: Indicates if the uri indicates a table or whether the data
@@ -528,118 +327,6 @@ public class DistributorDataStore {
         }
     };
 
-    public enum PostalTableSchema {
-        _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-        /** This is a unique identifier for the request */
-        UUID("uuid", "TEXT"),
-
-        /** When the request was made */
-        CREATED("created", "INTEGER"),
-
-        /** When the request was last modified */
-        MODIFIED("modified", "INTEGER"),
-
-        /**
-         * This along with the cost is used to decide how to deliver the
-         * specific object.
-         */
-        TOPIC("topic", "TEXT"),
-
-        /**
-         * This specifies a forced channel be used and no other. NULL indicates
-         * that the normal processing to select a channel be used.
-         */
-        CHANNEL("channel", "TEXT"),
-
-        /**
-         * (optional) The appplication specific unique identifier This is used
-         * in notice intents so the application can relate.
-         */
-        AUID("auid", "TEXT"),
-
-        /** The uri of the content provider */
-        PROVIDER("provider", "TEXT"),
-
-        /**
-         * The payload instead of content provider Very similar to DATA maybe
-         * these should be combined.
-         */
-        PAYLOAD("payload", "BLOB"),
-
-        /**
-         * If null then the data file corresponding to the column name and
-         * record id should be used. This is done when the data size is larger
-         * than that allowed for a field contents.
-         */
-        DATA("data", "BLOB"),
-
-        /** The current best guess of the status of the request. */
-        DISPOSITION("disposition", "INTEGER"),
-
-        /**
-         * A description of what is to be done when various state-transition
-         * occur.
-         */
-        NOTICE("notice", "BLOB"),
-
-        /**
-         * Controls the order this message be sent. Negative priorities
-         * indicated less than normal.
-         */
-        PRIORITY("priority", "INTEGER"),
-
-        /** ? */
-        ORDER("serialize_type", "INTEGER"),
-
-        /** Time-stamp at which point entry becomes stale. */
-        EXPIRATION("expiration", "INTEGER"),
-
-        /**
-         * Units associated with {@link #VALUE}. Used to determine whether
-         * should occur.
-         */
-        UNIT("unit", "TEXT"),
-
-        /**
-         * Arbitrary value linked to importance that entry is transmitted and
-         * battery drain.
-         */
-        WORTH("value", "INTEGER");
-
-        /** the well known name */
-        final public String n;
-        /** the data type */
-        final public String t;
-
-        private PostalTableSchema(String n, String t) {
-            this.n = n;
-            this.t = t;
-        }
-
-        /**
-         * Produce string of the form... "<field-name>" <field-type> e.g. "dog"
-         * TEXT
-         */
-        public String addfield() {
-            return new StringBuilder()
-                    .append('"').append(this.n).append('"').append(' ').append(this.t)
-                    .toString();
-        }
-
-        /**
-         * Produce string of the form... "<field-name>"
-         */
-        public String q() {
-            return new StringBuilder()
-                    .append('"').append(this.n).append('"')
-                    .toString();
-        }
-
-        public String cv() {
-            return String.valueOf(this.n);
-        }
-    };
 
     /**
      * The retrieval table is for holding retrieval requests.
@@ -662,129 +349,6 @@ public class DistributorDataStore {
         }
     };
 
-    public enum RetrievalTableSchema {
-        _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-        /** This is a unique identifier for the request */
-        UUID("uuid", "TEXT"),
-
-        /** When the request was made */
-        CREATED("created", "INTEGER"),
-
-        /** When the request was last modified */
-        MODIFIED("modified", "INTEGER"),
-
-        /** This is the data type */
-        TOPIC("topic", "TEXT"),
-
-        /**
-         * This is a unique identifier for the request as specified by the
-         * application
-         */
-        AUID("auid", "TEXT"),
-
-        /** The uri of the content provider */
-        PROVIDER("provider", "TEXT"),
-
-        /**
-         * A description of what is to be done when various state-transition
-         * occur.
-         */
-        NOTICE("notice", "BLOB"),
-
-        /**
-         * What order should this message be sent. Negative priorities indicated
-         * less than normal.
-         */
-        PRIORITY("priority", "INTEGER"),
-
-        /** The fields/columns wanted. */
-        PROJECTION("projection", "TEXT"),
-
-        /** The rows/tuples wanted. */
-        SELECTION("selection", "TEXT"),
-
-        /** The values using in the selection. */
-        ARGS("args", "TEXT"),
-
-        /** The order the values are to be returned in. */
-        ORDERING("ordering", "TEXT"),
-
-        /**
-         * The maximum number of items to retrieve as items are obtained the
-         * count should be decremented
-         */
-        LIMIT("maxrows", "INTEGER"),
-
-        /** The current best guess of the status of the request. */
-        DISPOSITION("disposition", "INTEGER"),
-
-        /** Time-stamp at which request entry becomes stale. */
-        EXPIRATION("expiration", "INTEGER"),
-
-        /**
-         * Units associated with {@link #VALUE}. Used to determine whether
-         * should occur.
-         */
-        UNIT("unit", "TEXT"),
-
-        /**
-         * Arbitrary value linked to importance that entry is transmitted and
-         * battery drain.
-         */
-        VALUE("value", "INTEGER"),
-
-        /**
-         * If the If null then the data file corresponding to the column name
-         * and record id should be used. This is done when the data size is
-         * larger than that allowed for a field contents.
-         */
-        DATA("data", "TEXT"),
-
-        /**
-         * The meaning changes based on the continuity type.
-         * <ul>
-         * <li>ONCE : undefined
-         * <li>TEMPORAL : chronic, this differs slightly from the expiration
-         * which deals with the request this deals with the time stamps of the
-         * requested objects.
-         * <li>QUANTITY : the maximum number of objects to return
-         * </ul>
-         */
-        CONTINUITY_TYPE("continuity_type", "INTEGER"),
-        CONTINUITY_VALUE("continuity_value", "INTEGER");
-
-        final public String n; // name
-        final public String t; // type
-
-        private RetrievalTableSchema(String name, String type) {
-            this.n = name;
-            this.t = type;
-        }
-
-        /**
-         * Produce string of the form... "<field-name>" <field-type> e.g. "dog"
-         * TEXT
-         */
-        public String addfield() {
-            return new StringBuilder()
-                    .append('"').append(this.n).append('"').append(' ').append(this.t)
-                    .toString();
-        }
-
-        /**
-         * Produce string of the form... "<field-name>"
-         */
-        public String q() {
-            return new StringBuilder()
-                    .append('"').append(this.n).append('"')
-                    .toString();
-        }
-
-        public String cv() {
-            return String.valueOf(this.n);
-        }
-    };
 
     /**
      * The subscription table is for holding subscription requests.
@@ -807,80 +371,6 @@ public class DistributorDataStore {
         }
     }
 
-    public enum SubscribeTableSchema {
-        _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-        /** This is a unique identifier for the request */
-        UUID("uuid", "TEXT"),
-
-        /** When the request was made */
-        CREATED("created", "INTEGER"),
-
-        /** When the request was last modified */
-        MODIFIED("modified", "INTEGER"),
-
-        /** The data type of the objects being subscribed to */
-        TOPIC("topic", "TEXT"),
-
-        /** The application UUID for the request */
-        AUID("auid", "TEXT"),
-
-        /** The uri of the content provider */
-        PROVIDER("provider", "TEXT"),
-
-        /** The current best guess of the status of the request. */
-        DISPOSITION("disposition", "INTEGER"),
-
-        /** Time-stamp at which request entry becomes stale. */
-        EXPIRATION("expiration", "INTEGER"),
-
-        /** The rows/tuples wanted. */
-        SELECTION("selection", "TEXT"),
-
-        /**
-         * A description of what is to be done when various state-transition
-         * occur.
-         */
-        NOTICE("notice", "BLOB"),
-
-        /**
-         * What order should this message be sent. Negative priorities indicated
-         * less than normal.
-         */
-        PRIORITY("priority", "INTEGER");
-
-        final public String n; // name
-        final public String t; // type
-
-        private SubscribeTableSchema(String name, String type) {
-            this.n = name;
-            this.t = type;
-        }
-
-        /**
-         * Produce string of the form... "<field-name>" <field-type> e.g. "dog"
-         * TEXT
-         */
-
-        public String addfield() {
-            return new StringBuilder()
-                    .append('"').append(this.n).append('"').append(' ').append(this.t)
-                    .toString();
-        }
-
-        /**
-         * Produce string of the form... "<field-name>"
-         */
-        public String q() {
-            return new StringBuilder()
-                    .append('"').append(this.n).append('"')
-                    .toString();
-        }
-
-        public String cv() {
-            return String.valueOf(this.n);
-        }
-    }
 
     /**
      * The disposal table is for holding request disposition status.
@@ -903,54 +393,6 @@ public class DistributorDataStore {
         }
     }
 
-    public enum DisposalTableSchema {
-        _ID(BaseColumns._ID, "INTEGER PRIMARY KEY AUTOINCREMENT"),
-
-        /** Meaning the parent type: subscribe, retrieval, postal */
-        TYPE("type", "INTEGER"),
-
-        /** The _id of the parent */
-        PARENT("parent", "INTEGER"),
-
-        /** The name of the channel over which the message could be sent */
-        CHANNEL("channel", "TEXT"),
-
-        /** Where the request is on the channel */
-        STATE("state", "INTEGER");
-
-        /** the well known name */
-        final public String n;
-        /** the data type */
-        final public String t;
-
-        private DisposalTableSchema(String name, String type) {
-            this.n = name;
-            this.t = type;
-        }
-
-        /**
-         * Produce string of the form... "<field-name>" <field-type> e.g. "dog"
-         * TEXT
-         */
-        public String addfield() {
-            return new StringBuilder()
-                    .append('"').append(this.n).append('"').append(' ').append(this.t)
-                    .toString();
-        }
-
-        /**
-         * Produce string of the form... "<field-name>"
-         */
-        public String q() {
-            return new StringBuilder()
-                    .append('"').append(this.n).append('"')
-                    .toString();
-        }
-
-        public String cv() {
-            return String.valueOf(this.n);
-        }
-    }
 
     /**
      * The channel table is for holding current channel status. This could be

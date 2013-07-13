@@ -35,7 +35,7 @@ import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.internal.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.distributor.serializer.ContentValuesContentItem;
 import edu.vu.isis.ammo.core.distributor.serializer.CustomAdaptorCache;

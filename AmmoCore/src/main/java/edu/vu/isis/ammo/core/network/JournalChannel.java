@@ -31,7 +31,7 @@ import android.os.AsyncTask;
 import android.os.Environment;
 import edu.vu.isis.ammo.core.NetworkManager;
 import edu.vu.isis.ammo.core.PLogger;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.internal.DisposalState;
 
 /**
  * Two long running threads and one short. The long threads are for sending and

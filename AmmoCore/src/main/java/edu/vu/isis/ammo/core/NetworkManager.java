@@ -49,7 +49,7 @@ import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.api.type.ChannelFilter;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.ChannelStatus;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.internal.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy;
 import edu.vu.isis.ammo.core.distributor.DistributorThread;
 import edu.vu.isis.ammo.core.netlink.Netlink;

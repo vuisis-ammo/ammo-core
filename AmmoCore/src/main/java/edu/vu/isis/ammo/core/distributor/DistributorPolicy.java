@@ -42,7 +42,7 @@ import android.content.res.AssetManager;
 import android.content.res.Resources.NotFoundException;
 import android.net.Uri;
 import edu.vu.isis.ammo.api.IAmmoRequest;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.internal.DisposalState;
 import edu.vu.isis.ammo.pretrie.PrefixList;
 import edu.vu.isis.ammo.util.HashBuilder;
 

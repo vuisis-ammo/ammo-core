@@ -4,7 +4,12 @@ package edu.vu.isis.ammoui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import android.content.SharedPreferences;
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnClickListener;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.DatabaseUtils;
@@ -17,12 +22,16 @@ import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.provider.ChannelSchema;
+import edu.vu.isis.ammo.core.provider.PreferenceSchema;
+import edu.vu.isis.ammoui.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammoui.util.UiUtils;
 
 public class MainActivity extends FragmentActivity implements ChannelSchema {
@@ -42,12 +51,8 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
     private static final String SERIAL_FRAGMENT_TAG = "SerialFrag";
 
     private TextView mOperatorTv;
-    private Button mViewTablesButton, mDebuggingToolsButton, mLoggingToolsButton,
-            mHardResetButton, mHelpAboutButton;
     private ChannelFragment mMulticastFrag, mRelMulticastFrag, mGatewayFrag, mGatewayMediaFrag,
             mSerialFrag;
-
-    private SharedPreferences mPrefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,12 +74,19 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
                     GATEWAY_MEDIA_FRAGMENT_TAG);
             mSerialFrag = ChannelFragment.newInstance(SERIAL_URI.toString(),
                     SERIAL_LOADER_ID, SERIAL_FRAGMENT_TAG);
+            
+            mMulticastFrag.setTargetClass(MulticastPreferenceActivity.class);
+            mRelMulticastFrag.setTargetClass(ReliableMulticastPreferenceActivity.class);
+            mGatewayFrag.setTargetClass(GatewayPreferenceActivity.class);
+            mGatewayMediaFrag.setTargetClass(GatewayPreferenceActivity.class);
+            mSerialFrag.setTargetClass(SerialPreferenceActivity.class);
 
             mMulticastFrag.setRetainInstance(true);
             mRelMulticastFrag.setRetainInstance(true);
             mGatewayFrag.setRetainInstance(true);
             mGatewayMediaFrag.setRetainInstance(true);
             mSerialFrag.setRetainInstance(true);
+            
 
             // Add the fragments to our view hierarchy
             fm.beginTransaction()
@@ -86,7 +98,8 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
                     .commit();
         } else {
             mMulticastFrag = (ChannelFragment) fm.findFragmentByTag(MULTICAST_FRAGMENT_TAG);
-            mRelMulticastFrag = (ChannelFragment) fm.findFragmentByTag(RELIABLE_MULTICAST_FRAGMENT_TAG);
+            mRelMulticastFrag = (ChannelFragment) fm
+                    .findFragmentByTag(RELIABLE_MULTICAST_FRAGMENT_TAG);
             mGatewayFrag = (ChannelFragment) fm.findFragmentByTag(GATEWAY_FRAGMENT_TAG);
             mGatewayMediaFrag = (ChannelFragment) fm.findFragmentByTag(GATEWAY_MEDIA_FRAGMENT_TAG);
             mSerialFrag = (ChannelFragment) fm.findFragmentByTag(SERIAL_FRAGMENT_TAG);
@@ -94,20 +107,106 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
 
         // Get view references
         mOperatorTv = (TextView) findViewById(R.id.operator_id_tv_ref);
-        mViewTablesButton = (Button) findViewById(R.id.view_tables_button);
-        mDebuggingToolsButton = (Button) findViewById(R.id.debugging_tools_button);
-        mLoggingToolsButton = (Button) findViewById(R.id.loggers_button);
-        mHardResetButton = (Button) findViewById(R.id.hard_reset_button);
-        mHelpAboutButton = (Button) findViewById(R.id.help_button);
 
-        mPrefs = getSharedPreferences("edu.vu.isis.ammo.core_preferences", MODE_PRIVATE);
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        String operatorId = mPrefs.getString(INetPrefKeys.CORE_OPERATOR_ID, "operator");
-        mOperatorTv.setText("Operator ID: " + (operatorId == null ? "Unknown" : operatorId));
+        
+        // TODO: This should be asynchronous
+        Cursor cursor = getContentResolver().query(PreferenceSchema.CONTENT_URI, new String[] {
+            INetPrefKeys.CORE_OPERATOR_ID
+        }, PreferenceSchema.AMMO_PREF_TYPE_STRING, new String[] {
+            "Unknown"
+        }, null);
+        cursor.moveToFirst();
+        String operatorId = cursor.getString(0);
+        mOperatorTv.setText("Operator ID: " + operatorId);
+    }
+
+    public void viewTablesClick(View v) {
+        startActivity(new Intent().setClass(this, DistributorTabActivity.class));
+    }
+
+    public void debugModeClick(View v) {
+        String[] tools = {
+                "Logcat Viewer", "Shell Command Buttons"
+        };
+        OnClickListener dialogListener = new OnClickListener() {
+            private final int LOGCAT = 0;
+            private final int AUTOBOT = 1;
+
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Intent intent = new Intent();
+                switch (which) {
+                    case LOGCAT:
+                        // intent.setClass(MainActivity.this,
+                        // LogcatLogViewer.class);
+                        // TODO: Start LAUI log viewer
+                        break;
+                    case AUTOBOT:
+                        intent.setAction("edu.vu.isis.tools.autobot.action.LAUNCH_AUTOBOT");
+                        break;
+                    default:
+                        logger.warn("Invalid choice selected in debugging tools dialog");
+                }
+                try {
+                    startActivity(intent);
+                } catch (ActivityNotFoundException e) {
+                    Toast.makeText(MainActivity.this, "Tool not found on this device",
+                            Toast.LENGTH_LONG).show();
+                    logger.warn("Activity not found for debugging tools", e);
+                }
+            }
+        };
+
+        AlertDialog.Builder bldr = new AlertDialog.Builder(this);
+        bldr.setTitle("Select a Tool").setItems(tools, dialogListener);
+        bldr.create().show();
+    };
+
+    public void loggingToolsClick(View v) {
+        // startActivity(new Intent().setClass(this, LoggerEditor.class));
+        // TODO: Start LAUI
+    }
+
+    public void hardResetClick(View v) {
+        DialogInterface.OnClickListener listener = new DialogInterface.OnClickListener() {
+
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                switch (which) {
+                    case DialogInterface.BUTTON_POSITIVE:
+                        /*
+                         * Intent intent = new Intent();
+                         * intent.setAction("edu.vu.isis.ammo.AMMO_HARD_RESET");
+                         * intent.setClass(MainActivity.this,
+                         * AmmoService.class); startService(intent);
+                         */
+                        // TODO: Restart the Service (AIDL call?)
+                        break;
+                    case DialogInterface.BUTTON_NEGATIVE:
+                        break;
+                }
+
+            }
+        };
+        AlertDialog.Builder bldr = new AlertDialog.Builder(this);
+        bldr.setMessage("Are you sure you want to reset the service?")
+                .setPositiveButton("Yes", listener)
+                .setNegativeButton("No", listener).show();
+    }
+
+    public void helpClick(View v) {
+        startActivity(new Intent().setClass(this, AboutActivity.class));
+    }
+
+    public void operatorIdClick(View v) {
+        startActivity(new Intent()
+                .setComponent(new ComponentName("transapps.settings",
+                        "transapps.settings.SettingsActivity")));
     }
 
     public static class ChannelFragment extends Fragment implements
@@ -127,6 +226,8 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
         Uri mChannelUri;
         String mLogId;
         TextView mNameTv, mFormalTv, mCountTv, mStatusTv, mSendStatsTv, mReceiveStatsTv;
+        RelativeLayout mRelativeLayout;
+        Class<?> mTargetClass;
         int mLoaderId;
 
         public ChannelFragment() {
@@ -165,15 +266,28 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle icicle) {
             View layout = inflater.inflate(R.layout.gateway_item, container, false);
+            
             mFormalTv = (TextView) layout.findViewById(R.id.gateway_formal);
             mCountTv = (TextView) layout.findViewById(R.id.gateway_send_receive);
             mNameTv = (TextView) layout.findViewById(R.id.gateway_name);
             mStatusTv = (TextView) layout.findViewById(R.id.gateway_status);
             mSendStatsTv = (TextView) layout.findViewById(R.id.gateway_send_stats);
             mReceiveStatsTv = (TextView) layout.findViewById(R.id.gateway_receive_stats);
+            mRelativeLayout = (RelativeLayout) layout.findViewById(R.id.gateway_layout);
+            
+            layout.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mTargetClass != null) {
+                        startActivity(new Intent().setClass(getActivity(), mTargetClass));
+                    }
+                }
+            });
+            
+            
             return layout;
         }
-        
+
         @Override
         public void onActivityCreated(Bundle icicle) {
             super.onActivityCreated(icicle);
@@ -241,6 +355,10 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
         @Override
         public void onLoaderReset(Loader<Cursor> loader) {
             logger.trace("{} loader reset");
+        }
+        
+        public void setTargetClass(Class<?> targetClass) {
+            mTargetClass = targetClass;
         }
 
     }

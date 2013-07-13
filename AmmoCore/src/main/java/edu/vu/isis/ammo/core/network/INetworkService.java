@@ -10,9 +10,7 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.network;
 
-import java.util.List;
-
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.internal.DisposalState;
 
 
 /**

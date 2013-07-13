@@ -42,6 +42,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="right"
         android:layout_margin="15dp"
+        android:onClick="operatorIdClick"
         layout="@layout/operator_id_tv" />
 
     <LinearLayout
@@ -54,6 +55,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:onClick="viewTablesClick"
             android:text="@string/view_tables_label" />
 
         <Button
@@ -61,6 +63,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:onClick="debuggingToolsClick"
             android:text="@string/debug_label" />
     </LinearLayout>
 
@@ -74,6 +77,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:onClick="loggingToolsClick"
             android:text="Logging Tools" />
 
         <Button
@@ -81,6 +85,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:onClick="hardResetClick"
             android:text="@string/hard_reset_label" />
 
         <Button
@@ -88,6 +93,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:onClick="helpClick"
             android:text="@string/about_label" />
     </LinearLayout>
 

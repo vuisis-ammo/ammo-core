@@ -44,7 +44,7 @@ import android.content.Context;
 import edu.vu.isis.ammo.api.IAmmo;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.annotation.Monitored;
-import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.core.internal.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.util.InetHelper;
 import edu.vu.isis.ammo.util.TTLUtil;
