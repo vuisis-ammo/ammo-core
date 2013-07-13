@@ -29,6 +29,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammo.api.AmmoPreference;
 import edu.vu.isis.ammo.core.provider.ChannelSchema;
 import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammoui.distributor.ui.DistributorTabActivity;
@@ -114,15 +115,7 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
     public void onResume() {
         super.onResume();
         
-        // TODO: This should be asynchronous
-        Cursor cursor = getContentResolver().query(PreferenceSchema.CONTENT_URI, new String[] {
-            INetPrefKeys.CORE_OPERATOR_ID
-        }, PreferenceSchema.AMMO_PREF_TYPE_STRING, new String[] {
-            "Unknown"
-        }, null);
-        cursor.moveToFirst();
-        String operatorId = cursor.getString(0);
-        mOperatorTv.setText("Operator ID: " + operatorId);
+        mOperatorTv.setText("Operator ID: " + AmmoPreference.getInstance(this).getString(INetPrefKeys.CORE_OPERATOR_ID, "Unknown"));
     }
 
     public void viewTablesClick(View v) {
