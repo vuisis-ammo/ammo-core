@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<content-provider name="ammotestdriver">
+  <description>
+    Data schema for Ammo test driver messages.
+  </description>
+
+  <sponsor name="edu.vu.isis.ammo.test.ics"/>
+
+  <relation name="baseline">
+    <field type="TEXT" name="test name" default="">
+      <description>
+	A text label for a given test, for convenience of a human user.
+      </description>
+    </field>
+    <field type="INTEGER" name="test item" default="0">
+      <description>
+	A numerical index in a given test, for convenience of a human user.
+      </description>
+    </field>
+    
+    <field type="FK" name="foreign key ref" default="-1"/>
+    
+    <field type="INTEGER" name="integer" default="0"/>
+
+    <field type="SHORT" name="short integer" default="0"/>
+
+    <field type="LONG" name="long integer" default="0">
+      <description>
+      </description>
+    </field>
+
+    <field type="BOOL" name="boolean" default="false"/>
+
+    <field type="TIMESTAMP" name="timestamp value" default="now">
+      <description>
+      </description>
+    </field>
+
+    <field type="REAL" name="floating point number" default="0.0"/>
+
+    <field type="GUID" name="globally unique id" default=""/>
+
+    <field type="TEXT" name="text value" default=""/>
+    
+
+    <field type="EXCLUSIVE" name="exclusive enumeration" default="MEDIUM">
+      <description>
+        An exclusive enumeration list means that 
+        only one value is allowed
+      </description>
+      <enum key="HIGH" value="1"/>
+      <enum key="MEDIUM" value="2"/>
+      <enum key="LOW" value="3"/>
+    </field>
+
+    <field type="INCLUSIVE" name="inclusive enumeration" default="APPLE">
+      <description>
+        An inclusive enumeration list means that 
+        any number of the values is allowed in a list.
+      </description>
+      <enum key="APPLE" value="1"/>
+      <enum key="ORANGE" value="2"/>
+      <enum key="PEAR" value="3"/>
+    </field>
+
+    <field type="LONG" name="content_checksum" default="0">
+      <description>
+	For purposes of testing, a checksum of all the other fields.
+      </description>
+    </field>
+
+    <field type="BLOB" name="a blob" default=""/>
+
+    <field type="FILE" name="a file" default=""/>
+    <key name="update">
+       <ref field="globally unique id"/>
+    </key>
+
+  </relation>
+ 
+</content-provider>

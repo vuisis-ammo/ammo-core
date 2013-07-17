@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <android.sdk.platform>11</android.sdk.platform>
+  </properties>
+
+  <parent>
+    <groupId>edu.vu.isis</groupId>
+    <artifactId>ammocore-parent</artifactId>
+    <version>1.8.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>ammo-test-tool-ics</artifactId>
+  <packaging>apk</packaging>
+  <name>ammo test tool ICS</name>
+
+  <dependencies>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-core</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.tony19</groupId>
+      <artifactId>logback-android-classic</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>edu.vanderbilt.isis</groupId>
+      <artifactId>lauilib</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <scope>compile</scope>
+      <type>jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>android</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.android</groupId>
+      <artifactId>support-v4</artifactId>
+      <!--<scope>provided</scope> -->
+    </dependency>
+
+    <dependency>
+      <groupId>edu.vu.isis</groupId>
+      <artifactId>ammolib</artifactId>
+      <type>jar</type>
+      <scope>compile</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>transapps</groupId>
+      <artifactId>tagallery-api</artifactId>
+      <version>1.3.1</version>
+      <type>jar</type>
+    </dependency>
+  </dependencies>
+
+<profiles>
+	<profile>
+		<id>skeleton</id>
+            <activation>
+               <property>
+                   <name>skeleton</name>
+               </property>
+            </activation>
+		<build>
+			<plugins>
+				<plugin>
+					<groupId>edu.vanderbilt.isis.druid</groupId>
+					<artifactId>druid-maven-plugin</artifactId>
+					<version>2.0.0</version>
+					<executions>
+						<execution>
+						<id>generate-ammo-provider-files</id>
+						<phase>generate-sources</phase>
+						<goals>
+						  <goal>generate</goal>
+						</goals>
+						<configuration>
+						  <templateFile>template-v1/ProviderSkelTemplate.stg</templateFile>
+						  <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
+						  <contractFile>${basedir}/contract/contract.xml</contractFile>
+						  <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>
+						</configuration>
+					  </execution>
+
+					  <execution>
+						<id>generate-ammo-schema-files</id>
+						<phase>generate-sources</phase>
+						<goals>
+						  <goal>generate</goal>
+						</goals>
+						<configuration>
+						  <templateFile>template-v1/SchemaSkelTemplate.stg</templateFile>
+						  <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
+						  <contractFile>${basedir}/contract/contract.xml</contractFile>
+						  <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>
+						</configuration>
+					  </execution>
+					</executions>
+				</plugin>
+			</plugins>
+		</build>
+	</profile>
+</profiles>
+
+
+  <build>
+    <sourceDirectory>src</sourceDirectory>
+    <finalName>ammo-test</finalName>
+     
+    <plugins>
+      <!-- Bug in release plugin prevents other plugin configurations from carrying 
+         through to child from parent, and forked maven process to create release 
+         POM will not use source 1.5 unless specified here. Lame... -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+      </plugin>
+
+      <plugin>
+        <groupId>edu.vanderbilt.isis.druid</groupId>
+        <artifactId>druid-maven-plugin</artifactId>
+        <version>2.0.0</version>
+        <executions>
+
+          <execution>
+            <id>generate-ammo-base-provider-files</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <templateFile>template-v1/ProviderBaseTemplate.stg</templateFile>
+              <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
+              <contractFile>${basedir}/contract/contract.xml</contractFile>
+              <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>generate-ammo-base-schema-files</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>generate</goal>
+            </goals>
+            <configuration>
+              <templateFile>template-v1/SchemaBaseTemplate.stg</templateFile>
+              <artifactCoords>edu.vanderbilt.isis.druid:druid-template:2.0.0</artifactCoords>
+              <contractFile>${basedir}/contract/contract.xml</contractFile>
+              <baseOutputDirectory>${basedir}/target/generated-sources/druid</baseOutputDirectory>
+            </configuration>
+          </execution>
+
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${basedir}/target/generated-sources/druid/src/main/java</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>parse-version</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>parse-version</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+        <artifactId>android-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>run-aapt</id>
+            <goals>
+              <goal>generate-sources</goal>
+            </goals>
+            <configuration>
+              <sdk>
+                <platform>17</platform>
+              </sdk>
+            </configuration>
+          </execution>
+
+          <execution>
+            <id>manifest-version</id>
+            <goals>
+              <goal>manifest-update</goal>
+            </goals>
+            <configuration>
+              <manifest>
+                <versionCodeUpdateFromVersion>true</versionCodeUpdateFromVersion>
+              </manifest>
+            </configuration>
+          </execution>
+          <execution>
+            <id>build-apk</id>
+            <configuration>
+              <sdk>
+                <platform>11</platform>
+              </sdk>
+<!--
+              <emulator>
+                <avd>22</avd>
+              </emulator>
+-->
+              <deleteConflictingFiles>true</deleteConflictingFiles>
+              <undeployBeforeDeploy>true</undeployBeforeDeploy>
+              <!-- attachJar false required because deploying both jar and apk to 
+                   Nexus appears to make APK inaccessible via search -->
+              <attachJar>false</attachJar>
+              <jvmArguments>
+                <argument>-Xms1500m</argument>
+                <argument>-Xmx1500m</argument>
+              </jvmArguments>
+            </configuration>
+          </execution>
+        </executions>
+        <extensions>true</extensions>
+      </plugin>
+       
+    </plugins>
+  </build>
+</project>

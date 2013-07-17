@@ -1,0 +1,21 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <CheckBoxPreference
+        android:defaultValue="false"
+        android:key="some_checkbox"
+        android:summary="Check to enable in-memory database"
+        android:title="In-memory database" android:enabled="false"/><EditTextPreference android:capitalize="words" android:inputType="textCapWords" android:key="flap_text" android:maxLines="1" android:selectAllOnFocus="true" android:singleLine="true" android:title="A setting" android:defaultValue="flip flap" android:summary="Enter some text"/><Preference android:title="Ammo Settings" android:summary="Go to OMMA preferences" android:enabled="false">
+        <intent android:action="edu.vu.isis.ammo.core.ui.AmmoCore" />
+    </Preference>
+
+    <!-- NOTE: EditTextPreference accepts EditText attributes. -->
+    <!-- NOTE: EditTextPreference's summary should be set to its value by the activity code. -->
+    
+
+    <!--
+         NOTE: Hide buttons to simplify the UI. Users can touch outside the dialog to
+         dismiss it.
+    -->
+    <!-- NOTE: ListPreference's summary should be set to its value by the activity code. -->
+
+</PreferenceScreen>
