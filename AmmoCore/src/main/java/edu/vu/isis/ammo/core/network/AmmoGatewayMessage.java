@@ -514,7 +514,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.version = VERSION_1_FULL;
             this.checksum = 0;
             this.handler = null;
-            this.subtopic = null;
+            this.subtopic = new String[0];
             mPacketType = PACKETTYPE_NORMAL;
             mHyperperiod = -1;  // default to an invalid hyperperiod
             mSlotID = -1;       // default to an invalid slot
