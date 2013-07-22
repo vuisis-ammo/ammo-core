@@ -107,7 +107,7 @@ public class WifiNetlink extends Netlink {
 				this.mContext).edit();
 		editor.putInt(INetDerivedKeys.WIFI_PREF_IS_ACTIVE, state[0]).commit();
 
-		logger.error("Wifi: updating status to {}", state);
+		logger.info("Wifi: updating status to {}", state);
 		setStatus(state);
 	}
 

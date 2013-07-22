@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -52,7 +53,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * The sent messages are placed into a queue if the socket is connected.
  *
  */
-public class TcpChannel extends NetChannel {
+public class TcpChannel extends TcpChannelAbstract {
   // a class based logger to be used by static methods ... 
   private static final Logger classlogger = LoggerFactory.getLogger("net.gateway");
   
@@ -130,7 +131,7 @@ public class TcpChannel extends NetChannel {
  // create the instance logger for instance methods
     // store the channel name
     channelName = name;    
-    logger = LoggerFactory.getLogger("net.channel.tcp.base." + channelName);
+    logger = LoggerFactory.getLogger("net." + channelName);
     logger.trace("Thread <{}>TcpChannel::<constructor>", Thread.currentThread().getId());    
     
     this.syncObj = this;
@@ -479,8 +480,8 @@ public class TcpChannel extends NetChannel {
   private class ConnectorThread extends Thread {
     private Logger logger = null;
 
-    private final String DEFAULT_HOST = "192.168.1.100";
-    private final int DEFAULT_PORT = 33289;
+    private final String DEFAULT_HOST = INetPrefKeys.DEFAULT_GATEWAY_HOST;
+    private final int DEFAULT_PORT = INetPrefKeys.DEFAULT_GATEWAY_PORT;
 
     private TcpChannel parent;
     private final State state;
@@ -525,10 +526,11 @@ public class TcpChannel extends NetChannel {
         this.attempt = Long.MIN_VALUE;
       }
       public synchronized void linkUp() {
-          logger.debug("link status {} {}", this.value, this.actual);
+        logger.debug("link up request {} {}", this.value, this.actual);
         this.notifyAll();
       }
       public synchronized void linkDown() {
+        logger.debug("link down request {} {}", this.value, this.actual);
         this.reset();
       }
       public synchronized void set(int state) {
@@ -1087,7 +1089,7 @@ public class TcpChannel extends NetChannel {
     @Override
     public void run()
     {
-      logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
+      logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
       // Block on reading from the queue until we get a message to send.
       // Then send it on the socket channel. Upon getting a socket error,
@@ -1142,6 +1144,7 @@ public class TcpChannel extends NetChannel {
           mParent.socketOperationFailed();
         }
       }
+      logger.info( "Thread <{}>::run() exiting", Thread.currentThread().getId() );
     }
 
 
@@ -1190,7 +1193,7 @@ public class TcpChannel extends NetChannel {
     @Override
     public void run()
     {
-      logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
+      logger.info( "Thread <{}>::run()", Thread.currentThread().getId() );
 
 
       ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
@@ -1319,6 +1322,7 @@ public class TcpChannel extends NetChannel {
           mParent.socketOperationFailed();
         }
       }
+      logger.info( "Thread <{}>::run() exiting", Thread.currentThread().getId() );
     }
 
     private void setReceiverState( int iState )

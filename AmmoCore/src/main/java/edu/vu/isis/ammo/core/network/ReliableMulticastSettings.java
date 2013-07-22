@@ -35,21 +35,22 @@ public class ReliableMulticastSettings {
 
     private final static Object lock = new Object();
 
-    public static void setIpAddress(String ipaddress, Context context) {
+    public static void setIpAddress(String ipaddress, Context context, String configFile) {
 
         String value = "${jgroups.udp.mcast_addr:" + ipaddress + "}";
-        setAttribute("mcast_addr", value, context);
+        setAttribute("mcast_addr", value, context, configFile);
     }
 
-    public static void setPort(String port, Context context) {
+    public static void setPort(String port, Context context, String configFile) {
 
         String value = "${jgroups.udp.mcast_port:" + port + "}";
-        setAttribute("mcast_port", value, context);
+        setAttribute("mcast_port", value, context, configFile);
     }
 
     private static void setAttribute(String itemName,
             String itemValue,
-            Context context) {
+            Context context,
+            String filename) {
 
         synchronized (lock) {
             final File dir =
@@ -58,7 +59,7 @@ public class ReliableMulticastSettings {
                             Context.MODE_WORLD_READABLE);
 
             final File configFile =
-                    new File(dir, ReliableMulticastChannel.config_file);
+                    new File(dir, filename);
 
             logger.trace("File name is " + configFile.getAbsolutePath());
 

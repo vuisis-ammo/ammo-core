@@ -39,6 +39,7 @@
 	</string>
 	<string name="network_rmc_host">RELIABLE_MULTICAST_IP_ADDRESS</string>
 	<string name="network_rmc_port">RELIABLE_MULTICAST_PORT</string>
+	<string name="network_rmcM_port">RELIABLE_MULTICAST_MEDIA_PORT</string>
 	<string name="network_rmc_timeout_connect">RELIABLE_MULTICAST_NET_CONN_TIMEOUT</string>
 	<string name="network_rmc_timeout_idle">RELIABLE_MULTICAST_CONN_IDLE_TIMEOUT</string>
 	<string name="network_rmc_ttl">RELIABLE_MULTICAST_TTL</string>
