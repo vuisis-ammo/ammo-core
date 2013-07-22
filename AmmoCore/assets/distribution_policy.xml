@@ -36,7 +36,11 @@ available then local multicast delivery should be used.
             priority="normal" >
 
             <clause>
-
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
                 <literal
                     condition="success"
                     encoding="json"
@@ -60,6 +64,11 @@ available then local multicast delivery should be used.
             priority="high" > <!-- about a year -->
 
             <clause>
+                
+				<literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
 
                 <literal
                     condition="success"
@@ -80,6 +89,11 @@ available then local multicast delivery should be used.
 
             <clause>
 
+				<literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
                 <literal
                     condition="success"
                     encoding="json"
@@ -108,7 +122,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
             priority="normal" >
 
             <clause>
-
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
                 <literal
                     condition="success"
                     encoding="json"
@@ -118,6 +136,7 @@ Such that if the prior channel succeeds the next channel is not attempted.
                     condition="success"
                     encoding="json"
                     term="gateway" />
+                
             </clause>
         </routing>
     </topic>
@@ -138,7 +157,12 @@ Such that if the prior channel succeeds the next channel is not attempted.
             priority="normal" >
 
             <clause>
-
+                
+				<literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
                 <literal
                     condition="success"
                     encoding="terse"
@@ -171,6 +195,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
 
             <clause>
 
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
+                
                 <literal
                     condition="success"
                     encoding="terse"
@@ -208,6 +237,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
         <routing priority="normal" >
 
             <clause>
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
 
                 <literal
                     condition="success"
@@ -237,6 +271,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
             priority="high" > <!-- about a year -->
 
             <clause>
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
 
                 <literal
                     condition="success"
@@ -266,6 +305,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
         <routing priority="normal" >
 
             <clause>
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
 
                 <literal
                     condition="success"
@@ -297,6 +341,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
                 <literal
                     condition="success"
                     encoding="json"
+                    term="usb" />                
+
+                <literal
+                    condition="success"
+                    encoding="json"
                     term="gateway" />
             </clause>
         </routing>
@@ -315,6 +364,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
         <routing priority="normal" >
 
             <clause>
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
 
                 <literal
                     condition="success"
@@ -348,6 +402,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
 
             <clause>
 
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
+                
                 <literal
                     condition="success"
                     encoding="terse"

@@ -30,7 +30,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.Environment;
 import android.os.Handler;
@@ -58,6 +57,7 @@ import edu.vu.isis.ammo.core.model.Netlink;
 import edu.vu.isis.ammo.core.model.PhoneNetlink;
 import edu.vu.isis.ammo.core.model.ReliableMulticast;
 import edu.vu.isis.ammo.core.model.Serial;
+import edu.vu.isis.ammo.core.model.Usb;
 import edu.vu.isis.ammo.core.model.WifiNetlink;
 import edu.vu.isis.ammo.core.model.WiredNetlink;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
@@ -68,6 +68,7 @@ import edu.vu.isis.ammo.core.network.JournalChannel;
 import edu.vu.isis.ammo.core.network.MulticastChannel;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
+import edu.vu.isis.ammo.core.network.ReverseTcpChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -288,6 +289,7 @@ public enum NetworkManager  implements INetworkService,
         logger.info("ammo service on create {}",
                 Integer.toHexString(System.identityHashCode(this)));
 
+        this.reverseTcpChannel.init(context);
         this.journalChannel.init(context);
         this.tcpChannel.init(context);
         this.tcpMediaChannel.init(context);
@@ -365,6 +367,7 @@ public enum NetworkManager  implements INetworkService,
         netChannelMap.put(reliableMulticastChannel.name, reliableMulticastChannel);
         netChannelMap.put(journalChannel.name, journalChannel);
         netChannelMap.put(serialChannel.name, serialChannel);
+        netChannelMap.put(reverseTcpChannel.name, reverseTcpChannel);
 
         modelChannelMap.put(tcpChannel.name,
                 Gateway.getInstance(this.context, tcpChannel));
@@ -376,6 +379,8 @@ public enum NetworkManager  implements INetworkService,
                 ReliableMulticast.getInstance(this.context, reliableMulticastChannel));
         modelChannelMap.put(serialChannel.name,
                 Serial.getInstance(this.context, serialChannel));
+        modelChannelMap.put(reverseTcpChannel.name,
+                Usb.getInstance(this.context, reverseTcpChannel));
         /*
          * Does the mock channel need a UI ?
          * modelChannelMap.put(mockChannel.name,
@@ -395,6 +400,7 @@ public enum NetworkManager  implements INetworkService,
         logger.trace("...acquired multicast lock()");
 
         // no point in enabling the socket until the preferences have been read
+        this.reverseTcpChannel.disable();
         this.tcpChannel.disable();
         this.multicastChannel.disable();
         this.reliableMulticastChannel.disable();
@@ -408,6 +414,7 @@ public enum NetworkManager  implements INetworkService,
 
         if (this.networkingSwitch) {
             if (!this.isGatewaySuppressed) {
+            	this.reverseTcpChannel.enable();
                 this.tcpChannel.enable();
                 this.tcpMediaChannel.enable();
             }
@@ -485,6 +492,7 @@ public enum NetworkManager  implements INetworkService,
         final Intent loginIntent = new Intent(IntentNames.AMMO_READY);
         loginIntent.addCategory(IntentNames.RESET_CATEGORY);
 
+        this.reverseTcpChannel.reset();
         this.tcpChannel.reset();
         this.tcpMediaChannel.reset();
         this.multicastChannel.reset();
@@ -501,6 +509,8 @@ public enum NetworkManager  implements INetworkService,
    
     public void onDestroy() {
         logger.warn("::onDestroy - NetworkManager");
+        if( reverseTcpChannel != null )
+        	reverseTcpChannel.disable();
         if (tcpChannel != null)
             this.tcpChannel.disable();
         if (tcpMediaChannel != null)
@@ -1096,9 +1106,11 @@ public enum NetworkManager  implements INetworkService,
                              * GATEWAY
                              */
                             if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_ENABLED)) {
+                            	parent.reverseTcpChannel.disable();
                                 parent.tcpChannel.disable();
                                 parent.tcpMediaChannel.disable();
                             } else {
+                            	parent.reverseTcpChannel.enable();
                                 parent.tcpChannel.enable();
                                 parent.tcpMediaChannel.enable();
                             }
@@ -1135,6 +1147,7 @@ public enum NetworkManager  implements INetworkService,
                             logger.trace("explicit opererator reset on channel");
                             parent.networkingSwitch = true;
 
+                            parent.reverseTcpChannel.reset();
                             parent.tcpChannel.reset();
                             parent.tcpMediaChannel.reset();
                             parent.multicastChannel.reset();
@@ -1363,6 +1376,7 @@ public enum NetworkManager  implements INetworkService,
      */
     public void teardown() {
         logger.trace("Tearing down NPS");
+        this.reverseTcpChannel.disable();
         this.tcpChannel.disable();
         this.tcpMediaChannel.disable();
         this.multicastChannel.disable();
@@ -1384,6 +1398,7 @@ public enum NetworkManager  implements INetworkService,
         		|| tcpMediaChannel.isConnected()
                 || multicastChannel.isConnected()
                 || reliableMulticastChannel.isConnected()
+                || reverseTcpChannel.isConnected()
                 || ((serialChannel != null) && serialChannel.isConnected()));
 
         for (NetChannel channel : this.registeredChannels) {
@@ -1573,7 +1588,9 @@ public enum NetworkManager  implements INetworkService,
     private SerialChannel serialChannel = null;
     
     final private TcpChannel tcpMediaChannel =
-            TcpChannel.getInstance(ChannelFilter.GATEWAYMEDIA, this);
+            TcpChannel.getInstance(ChannelFilter.GATEWAYMEDIA, this);    
+    final private ReverseTcpChannel reverseTcpChannel =
+            ReverseTcpChannel.getInstance("usb", this);
 
     final public List<NetChannel> registeredChannels =
             new ArrayList<NetChannel>();
@@ -1700,6 +1717,7 @@ public enum NetworkManager  implements INetworkService,
 
         private void stopChannels() {
           
+        	reverseTcpChannel.linkDown(null);
           tcpChannel.linkDown(null);
           tcpMediaChannel.linkDown(null);
           multicastChannel.linkDown(null);
@@ -1711,7 +1729,7 @@ public enum NetworkManager  implements INetworkService,
         }
 
         private void startChannels() {
-          
+          reverseTcpChannel.linkUp(null);
           tcpChannel.linkUp(null);
           multicastChannel.linkUp(null);
           reliableMulticastChannel.linkUp(null);
