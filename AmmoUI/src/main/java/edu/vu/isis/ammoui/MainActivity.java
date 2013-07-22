@@ -22,7 +22,6 @@ import android.support.v4.app.LoaderManager;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
@@ -31,7 +30,6 @@ import android.widget.Toast;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.api.AmmoPreference;
 import edu.vu.isis.ammo.core.provider.ChannelSchema;
-import edu.vu.isis.ammo.core.provider.PreferenceSchema;
 import edu.vu.isis.ammoui.distributor.ui.DistributorTabActivity;
 import edu.vu.isis.ammoui.util.UiUtils;
 
@@ -298,6 +296,10 @@ public class MainActivity extends FragmentActivity implements ChannelSchema {
 
         @Override
         public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
+            if (cursor == null) {
+                logger.error("{} got a null cursor", mLogId);
+                return;
+            }
             if (logger.isTraceEnabled()) {
                 logger.trace("{} finished loading: {}", mLogId,
                         DatabaseUtils.dumpCursorToString(cursor));

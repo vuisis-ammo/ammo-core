@@ -1,10 +1,9 @@
 package edu.vu.isis.ammoui;
 
-import android.app.Activity;
 import android.os.Bundle;
-import android.widget.LinearLayout;
+import android.support.v4.app.FragmentActivity;
 
-public class AmmoPreferenceActivity extends Activity {
+public class AmmoPreferenceActivity extends FragmentActivity {
 
     @Override
     public void onCreate(Bundle args) {
