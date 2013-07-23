@@ -69,7 +69,7 @@ import edu.vu.isis.ammo.core.network.MulticastChannel;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
-import edu.vu.isis.ammo.core.network.TcpChannel;
+import edu.vu.isis.ammo.core.network.TcpChannelClient;
 import edu.vu.isis.ammo.core.network.TcpChannelServer;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
@@ -1698,10 +1698,10 @@ public enum NetworkManager  implements INetworkService,
     final private String reliableMcastMediaConfigFile = "udpMedia.xml";
     
     // Network Channels
-    final private TcpChannel tcpChannel =
-            TcpChannel.getInstance(ChannelFilter.GATEWAY, this);
-    final private TcpChannel tcpMediaChannel =
-            TcpChannel.getInstance(ChannelFilter.GATEWAYMEDIA, this);
+    final private TcpChannelClient tcpChannel =
+            TcpChannelClient.getInstance(ChannelFilter.GATEWAY, this);
+    final private TcpChannelClient tcpMediaChannel =
+            TcpChannelClient.getInstance(ChannelFilter.GATEWAYMEDIA, this);
     final private TcpChannelServer reverseTcpChannel =
             TcpChannelServer.getInstance(ChannelFilter.SERVER, this);
     
