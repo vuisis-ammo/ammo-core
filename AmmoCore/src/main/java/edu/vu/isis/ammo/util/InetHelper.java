@@ -115,6 +115,7 @@ public enum InetHelper {
     private static final Map<String, String> prohibitedDevices;
     static {
         prohibitedDevices = new HashMap<String, String>();
+        /** Harris 7800T radio */
         prohibitedDevices.put("19a5:000c", "19a5:000c");
         prohibitedDevices.put("1b6b:0002", "1b6b:0002");		// phone - usb adapter
         prohibitedDevices.put("0b95:7720", "0b95:7720");		// usb - ethernet adapter

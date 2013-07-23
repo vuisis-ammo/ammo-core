@@ -40,7 +40,7 @@ public class WiredNetlink extends Netlink
         if ( !result )
             logger.error( "WiredNetlink failed to bind to the EthTrackSvc!" );
         else
-            logger.error( "WiredNetlink binding to EthTrackSvc!" );
+            logger.info( "WiredNetlink binding to EthTrackSvc!" );
     }
 
 
@@ -67,7 +67,7 @@ public class WiredNetlink extends Netlink
     {
         public void onServiceConnected( ComponentName name, IBinder service )
         {
-            logger.error( "::onServiceConnected - Ethernet tracking service" );
+            logger.info( "::onServiceConnected - Ethernet tracking service" );
             ethernetServiceBinder = ((EthTrackSvc.MyBinder) service).getService();
             updateStatus();
         }
@@ -82,7 +82,7 @@ public class WiredNetlink extends Netlink
 
     public void updateStatus()
     {
-        logger.error( "::updateStatus" );
+        logger.info( "::updateStatus" );
 
         if ( ethernetServiceBinder == null )
             return;
@@ -90,7 +90,7 @@ public class WiredNetlink extends Netlink
         final int[] state = new int[1];
 
         final boolean status = ethernetServiceBinder.isLinkUp();
-        logger.error( "wired state={}", status );
+        logger.info( "wired state={}", status );
 
         state[0] = (status) ?  Netlink.NETLINK_UP : Netlink.NETLINK_DOWN;
         setLinkUp( status );

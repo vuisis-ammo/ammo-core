@@ -36,7 +36,11 @@ available then local multicast delivery should be used.
             priority="normal" >
 
             <clause>
-
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
                 <literal
                     condition="success"
                     encoding="json"
@@ -60,6 +64,11 @@ available then local multicast delivery should be used.
             priority="high" > <!-- about a year -->
 
             <clause>
+                
+				<literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
 
                 <literal
                     condition="success"
@@ -80,6 +89,11 @@ available then local multicast delivery should be used.
 
             <clause>
 
+				<literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
                 <literal
                     condition="success"
                     encoding="json"
@@ -108,7 +122,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
             priority="normal" >
 
             <clause>
-
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
                 <literal
                     condition="success"
                     encoding="json"
@@ -118,6 +136,7 @@ Such that if the prior channel succeeds the next channel is not attempted.
                     condition="success"
                     encoding="json"
                     term="gateway" />
+                
             </clause>
         </routing>
     </topic>
@@ -138,7 +157,12 @@ Such that if the prior channel succeeds the next channel is not attempted.
             priority="normal" >
 
             <clause>
-
+                
+				<literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
                 <literal
                     condition="success"
                     encoding="terse"
@@ -173,6 +197,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
 
                 <literal
                     condition="success"
+                    encoding="json"
+                    term="usb" />                
+                
+                <literal
+                    condition="success"
                     encoding="terse"
                     term="serial" />
 
@@ -194,8 +223,7 @@ Such that if the prior channel succeeds the next channel is not attempted.
         </routing>
     </topic>
 
-
-    <topic type="ammo/transapps.chat.media_groupAll" >
+    <topic type="ammo/transapps.chat.media" >
 
         <description>
 Group chat to:
@@ -208,6 +236,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
         <routing priority="normal" >
 
             <clause>
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
 
                 <literal
                     condition="success"
@@ -222,7 +255,74 @@ Such that if the prior channel succeeds the next channel is not attempted.
                 <literal
                     condition="success"
                     encoding="json"
-                    term="reliablemulticast" />
+                    term="reliablemcastmedia" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="multicast" />
+            </clause>
+        </routing>
+
+        <routing
+            category="subscribe"
+            lifespan="500000"
+            priority="high" > <!-- about a year -->
+
+            <clause>
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gatewaymedia" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemcastmedia" />
+            </clause>
+        </routing>
+                
+    </topic>
+
+    <topic type="ammo/transapps.chat.media_groupAll" >
+
+        <description>
+Group chat to:
+- Serial channel first (terse encoding),
+- Reliable multicast channel next,
+- Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
+        </description>
+
+        <routing priority="normal" >
+
+            <clause>
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
+
+                <literal
+                    condition="success"
+                    encoding="terse"
+                    term="serial" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gatewaymedia" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="reliablemcastmedia" />
 
                 <literal
                     condition="success"
@@ -246,7 +346,7 @@ Such that if the prior channel succeeds the next channel is not attempted.
                 <literal
                     condition="success"
                     encoding="json"
-                    term="reliablemulticast" />
+                    term="reliablemcastmedia" />
             </clause>
         </routing>
                 
@@ -266,6 +366,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
         <routing priority="normal" >
 
             <clause>
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
 
                 <literal
                     condition="success"
@@ -276,6 +381,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
                     condition="success"
                     encoding="json"
                     term="reliablemulticast" />
+
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
 
                 <literal
                     condition="success"
@@ -316,6 +426,11 @@ Such that if the prior channel succeeds the next channel is not attempted.
 
             <clause>
 
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />                
+                
                 <literal
                     condition="success"
                     encoding="terse"

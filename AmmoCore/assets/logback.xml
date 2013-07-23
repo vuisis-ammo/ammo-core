@@ -48,6 +48,7 @@
   <logger name="dist.serializer" level="TRACE"/>
   <logger name="dist.deserializer" level="TRACE"/>
   <!-- 
+  <logger name="api" level="INFO"/>
   <logger name="net.gateway.receiver" level="TRACE"/>
   <logger name="provider.dist" level="TRACE"/>
   <logger name="class.temporal" level="TRACE"/>
@@ -56,17 +57,21 @@
   <logger name="net.journal" level="DEBUG"/> 
   <logger name="net.serial" level="DEBUG"/>
   <logger name="net.rmcast" level="DEBUG"/>
-  <logger name="net.mcast" level="TRACE"/>
-  <logger name="net.mcast.connector" level="TRACE"/>
-  
+  <logger name="net.mcast" level="DEBUG"/>
+  -->
+  <logger name="net.server" level="TRACE"/>
+  <logger name="net.channel.server" level="TRACE"/>
+  <logger name="network.manager" level="TRACE"/>
+  <logger name="pref.panthr" level="TRACE"/>
+  <!--
   <logger name="net.gateway" level="DEBUG"/>
-  <logger name="net.ethermon" level="TRACE"/>
+  <logger name="net.ethermon" level="DEBUG"/>
   <logger name="network.manager" level="DEBUG"/>
   <logger name="util.inetinfo" level="TRACE" />
   
   <root level="WARN">
     <appender-ref ref="LOGCAT" />
-    <appender-ref ref="STAT" />
+     <appender-ref ref="STAT" />
   </root>
 
 </configuration>

@@ -109,10 +109,9 @@
       <plugin>
         <groupId>com.jayway.maven.plugins.android.generation2</groupId>
         <artifactId>android-maven-plugin</artifactId>
-	<configuration>
+	    <configuration>
            <sdk><platform>8</platform></sdk>
         </configuration>
-
         <executions>
           <!-- build the shared libraries -->
           <execution>

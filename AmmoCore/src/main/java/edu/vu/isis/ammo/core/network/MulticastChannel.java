@@ -461,11 +461,10 @@ public class MulticastChannel extends NetChannel
         private final State state;
 
         private AtomicBoolean mIsConnected;
-        
+
         private InetHelper inetHelper = InetHelper.INSTANCE;
         protected String acquiredInterfaceName = null;
         private InetAddress acquiredInterfaceAddress = null;
-
         public void statusChange()
         {
             parent.statusChange();
