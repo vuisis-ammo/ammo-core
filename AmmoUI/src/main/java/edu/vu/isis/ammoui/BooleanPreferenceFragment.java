@@ -3,6 +3,8 @@ package edu.vu.isis.ammoui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammoui.util.SendToPanthrPrefsListener;
+
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,6 +14,8 @@ import android.view.ViewGroup;
 public class BooleanPreferenceFragment extends AmmoPreferenceFragment<Boolean> {
     
     private static final Logger logger = LoggerFactory.getLogger("fragment.pref.boolean");
+    
+    protected String mTrueName, mFalseName;
     
     public static BooleanPreferenceFragment newInstance(String prefName, String prefKey, boolean defaultVal) {
         if (prefKey == null) {
@@ -24,6 +28,8 @@ public class BooleanPreferenceFragment extends AmmoPreferenceFragment<Boolean> {
         f.setArguments(args);
         f.setSendToPP(true);
         f.mDefault = defaultVal;
+        f.mTrueName = prefName + " is enabled.";
+        f.mFalseName = prefName + " is disabled.";
         return f;
     }
     
@@ -31,19 +37,20 @@ public class BooleanPreferenceFragment extends AmmoPreferenceFragment<Boolean> {
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle icicle) {
         View view = super.onCreateView(inflater, container, icicle);
         this.setPrefHint("Tap to change in Panthr Prefs");
-        setViews(!mValue);
+        this.setOnClickListener(new SendToPanthrPrefsListener(getActivity()));
         return view;
     }
     
-    protected void setViews(boolean value) {
+    @Override
+    protected void refreshViews() {
         // This has to be negated because the preference stores whether
         // the channel is disabled, so when the preference is true, the 
         // channel is disabled.
         if (!mValue) {
-            this.setPrefName(mPrefName + " is enabled.");
+            this.setPrefName(mTrueName);
             this.setImageResource(R.drawable.green_dot);
         } else {
-            this.setPrefName(mPrefName + " is disabled.");
+            this.setPrefName(mFalseName);
             this.setImageResource(R.drawable.red_dot);
         }
     }

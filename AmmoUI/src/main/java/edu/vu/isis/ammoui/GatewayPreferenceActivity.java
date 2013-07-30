@@ -4,6 +4,7 @@ package edu.vu.isis.ammoui;
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammoui.util.DefaultPrefs;
 
 public class GatewayPreferenceActivity extends AmmoPreferenceActivity {
 
@@ -30,15 +31,15 @@ public class GatewayPreferenceActivity extends AmmoPreferenceActivity {
             BooleanPreferenceFragment enableFrag = BooleanPreferenceFragment.newInstance("Gateway",
                     INetPrefKeys.GATEWAY_DISABLED, false);
             ipFrag = AmmoPreferenceFragment.newInstance("IP Address", INetPrefKeys.GATEWAY_HOST,
-                    "Unknown");
-            portFrag = AmmoPreferenceFragment.newInstance("Port", INetPrefKeys.GATEWAY_PORT, -1);
+                    DefaultPrefs.GATEWAY_IP);
+            portFrag = AmmoPreferenceFragment.newInstance("Port", INetPrefKeys.GATEWAY_PORT, DefaultPrefs.GATEWAY_PORT);
 
             // XXX: Check on these pref keys, they don't match the names of the
             // prefs
             netTimeoutFrag = AmmoPreferenceFragment.newInstance("Network Connection Timeout (s)",
-                    INetPrefKeys.GATEWAY_TIMEOUT, -1);
+                    INetPrefKeys.GATEWAY_TIMEOUT, DefaultPrefs.GATEWAY_NET_CONN_TIMEOUT);
             connectionIdleFrag = AmmoPreferenceFragment.newInstance("Connection Idle Timeout (s)",
-                    INetPrefKeys.GATEWAY_FLAT_LINE_TIME, -1);
+                    INetPrefKeys.GATEWAY_FLAT_LINE_TIME, DefaultPrefs.GATEWAY_CONN_IDLE_TIMEOUT);
 
             ipFrag.setRetainInstance(true);
             portFrag.setRetainInstance(true);

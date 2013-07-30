@@ -2,6 +2,7 @@
 package edu.vu.isis.ammoui;
 
 import edu.vu.isis.ammo.INetPrefKeys;
+import edu.vu.isis.ammoui.util.DefaultPrefs;
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
 
@@ -30,14 +31,14 @@ public class MulticastPreferenceActivity extends AmmoPreferenceActivity {
             BooleanPreferenceFragment enableFrag = BooleanPreferenceFragment.newInstance(
                     "Multicast", INetPrefKeys.MULTICAST_DISABLED, false);
             ipFrag = AmmoPreferenceFragment.newInstance("IP Address", INetPrefKeys.MULTICAST_HOST,
-                    "Unknown");
-            portFrag = AmmoPreferenceFragment.newInstance("Port", INetPrefKeys.MULTICAST_PORT, -1);
+                    DefaultPrefs.MULTICAST_IP);
+            portFrag = AmmoPreferenceFragment.newInstance("Port", INetPrefKeys.MULTICAST_PORT, DefaultPrefs.MULTICAST_PORT);
             netTimeoutFrag = AmmoPreferenceFragment.newInstance("Network Connection Timeout (s)",
-                    INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT, -1);
+                    INetPrefKeys.MULTICAST_NET_CONN_TIMEOUT, DefaultPrefs.MULTICAST_NET_TIMEOUT);
             connectionIdleFrag = AmmoPreferenceFragment.newInstance("Connection Idle Timeout (s)",
-                    INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT, -1);
+                    INetPrefKeys.MULTICAST_CONN_IDLE_TIMEOUT, DefaultPrefs.MULTICAST_CONN_IDLE_TIMEOUT);
             timeToLiveFrag = AmmoPreferenceFragment.newInstance("Time To Live (s)",
-                    INetPrefKeys.MULTICAST_TTL, -1);
+                    INetPrefKeys.MULTICAST_TTL, DefaultPrefs.MULTICAST_TIME_TO_LIVE);
 
             ipFrag.setRetainInstance(true);
             portFrag.setRetainInstance(true);

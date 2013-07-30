@@ -15,20 +15,17 @@ import edu.vu.isis.ammo.api.AmmoPreference;
 
 public class SerialEnableFragment extends BooleanPreferenceFragment {
 
-    private static final Logger logger = LoggerFactory.getLogger("fragment.pref.boolean");
+    private static final Logger logger = LoggerFactory.getLogger("fragment.pref.serialenable");
 
-    public static SerialEnableFragment newInstance(String prefName, String prefKey,
-            boolean defaultVal) {
-        if (prefKey == null) {
-            throw new IllegalArgumentException("You must provide a key");
-        }
+    public static SerialEnableFragment newInstance() {
         SerialEnableFragment f = new SerialEnableFragment();
         Bundle args = new Bundle();
-        args.putString(PREF_KEY_KEY, prefKey);
-        args.putString(PREF_NAME_KEY, prefName);
+        args.putString(PREF_KEY_KEY, INetPrefKeys.SERIAL_DISABLED);
+        args.putString(PREF_NAME_KEY, "Serial");
         f.setArguments(args);
-        f.setSendToPP(true);
-        f.mDefault = defaultVal;
+        f.mDefault = false;
+        f.mTrueName = "Serial is enabled.";
+        f.mFalseName = "Serial is disabled.";
         return f;
     }
 
@@ -40,14 +37,14 @@ public class SerialEnableFragment extends BooleanPreferenceFragment {
 
             @Override
             public void onClick(View v) {
-                AmmoPreference pref = AmmoPreference.getInstance(getActivity());
-                boolean setting = !pref.getBoolean(INetPrefKeys.SERIAL_DISABLED, true);
+                boolean setting = !mAmmoPref.getBoolean(INetPrefKeys.SERIAL_DISABLED, true);
                 try {
-                    pref.putBoolean(INetPrefKeys.SERIAL_DISABLED, setting);
+                    mAmmoPref.putBoolean(INetPrefKeys.SERIAL_DISABLED, setting);
                 } catch (AmmoPreferenceReadOnlyAccess e) {
                     e.printStackTrace();
                 }
-                setViews(setting);
+                readPref();
+                refreshViews();
             }
         });
 

@@ -4,6 +4,7 @@ package edu.vu.isis.ammoui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
 import edu.vu.isis.ammo.api.AmmoPreference;
 import edu.vu.isis.ammoui.util.SendToPanthrPrefsListener;
 
@@ -19,6 +20,7 @@ import android.view.ViewGroup.LayoutParams;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class AmmoPreferenceFragment<T> extends Fragment {
     private static final Logger logger = LoggerFactory.getLogger("fragment.pref.ammo");
@@ -49,7 +51,11 @@ public class AmmoPreferenceFragment<T> extends Fragment {
      */
     protected boolean mSendToPP = false;
 
+    protected boolean mEnabled = true;
+
     protected View.OnClickListener mClickListener;
+    
+    protected AmmoPreference mAmmoPref;
 
     public AmmoPreferenceFragment() {
     }
@@ -83,12 +89,12 @@ public class AmmoPreferenceFragment<T> extends Fragment {
         mView = inflater.inflate(R.layout.ammo_preference_fragment, container, false);
         logger.trace("mView: {}", mView);
 
-        mPrefHintTv = (TextView)mView.findViewById(R.id.preference_hint_tv);
-        mPrefNameTv = (TextView)mView.findViewById(R.id.preference_name_tv);
-        mPrefIv = (ImageView)mView.findViewById(R.id.preference_image);
+        mPrefHintTv = (TextView) mView.findViewById(R.id.preference_hint_tv);
+        mPrefNameTv = (TextView) mView.findViewById(R.id.preference_name_tv);
+        mPrefIv = (ImageView) mView.findViewById(R.id.preference_image);
 
-        final AmmoPreference ammoPref = AmmoPreference.getInstance(getActivity());
-        readPref(ammoPref);
+        mAmmoPref = AmmoPreference.getInstance(getActivity());
+        readPref();
 
         mPrefNameTv.setText(mPrefName);
         if (mImageResId != null) {
@@ -106,34 +112,46 @@ public class AmmoPreferenceFragment<T> extends Fragment {
                 @Override
                 public void onClick(View v) {
                     final EditText input = new EditText(getActivity());
-                    input.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-                    
+                    input.setLayoutParams(new LayoutParams(LayoutParams.MATCH_PARENT,
+                            LayoutParams.WRAP_CONTENT));
+
                     AlertDialog.Builder bldr = new AlertDialog.Builder(getActivity());
                     bldr.setMessage("Enter a value for this preference").setTitle(mPrefName);
                     bldr.setView(input);
                     bldr.setPositiveButton("OK", new OnClickListener() {
-                        
+
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            setPref(input.getText().toString(), ammoPref);
-                            readPref(ammoPref);
+                            setPref(input.getText().toString(), mAmmoPref);
+                            readPref();
+                            refreshViews();
                             dialog.dismiss();
                         }
                     });
                     bldr.setNegativeButton("Cancel", new OnClickListener() {
-                        
+
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             // close the dialog
                             dialog.cancel();
                         }
                     });
-                    
+
                     bldr.create().show();
                 }
             });
         }
+
+        mView.setEnabled(mEnabled);
         return mView;
+    }
+    
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh preference display
+        readPref();
+        refreshViews();
     }
 
     @Override
@@ -169,36 +187,83 @@ public class AmmoPreferenceFragment<T> extends Fragment {
     }
 
     public void disable() {
-        mView.setEnabled(false);
+        mEnabled = false;
+        toggleViews();
     }
 
     public void enable() {
-        mView.setEnabled(true);
+        mEnabled = true;
+        toggleViews();
     }
-    
+
+    private void toggleViews() {
+        if (mView != null) {
+            mView.setEnabled(mEnabled);
+        }
+        if (mPrefNameTv != null) {
+            mPrefNameTv.setEnabled(mEnabled);
+        }
+        if (mPrefHintTv != null) {
+            mPrefHintTv.setEnabled(mEnabled);
+        }
+    }
+
     public void setSendToPP(boolean val) {
         mSendToPP = val;
     }
 
     @SuppressWarnings("unchecked")
-    private void readPref(AmmoPreference ammoPref) {
+    protected void readPref() {
+        // All numbers are stored as strings, so care has to be taken
+        // upon reading numeric values
         if (mDefault instanceof String) {
-            mValue = (T)ammoPref.getString(mPrefKey, (String)mDefault);
+            mValue = (T) mAmmoPref.getString(mPrefKey, (String) mDefault);
         } else if (mDefault instanceof Boolean) {
-            mValue = (T)Boolean.valueOf(ammoPref.getBoolean(mPrefKey, (Boolean)mDefault));
+            mValue = (T) Boolean.valueOf(mAmmoPref.getBoolean(mPrefKey, (Boolean) mDefault));
         } else if (mDefault instanceof Long) {
-            mValue = (T)Long.valueOf(ammoPref.getLong(mPrefKey, (Long)mDefault));
+            mValue = (T) Long.valueOf(mAmmoPref.getString(mPrefKey, mDefault.toString()));
         } else if (mDefault instanceof Integer) {
-            mValue = (T)Integer.valueOf(ammoPref.getInt(mPrefKey, (Integer)mDefault));
+            mValue = (T) Integer.valueOf(mAmmoPref.getString(mPrefKey, mDefault.toString()));
         } else if (mDefault instanceof Float) {
-            mValue = (T)Float.valueOf(ammoPref.getFloat(mPrefKey, (Float)mDefault));
+            mValue = (T) Float.valueOf(mAmmoPref.getString(mPrefKey, mDefault.toString()));
         } else {
             throw new IllegalArgumentException(
                     "Default value must be a String, Boolean, Long, Integer, or Float");
         }
-        mPrefHintTv.setText(mValue.toString() + (mSendToPP ? "  (Set in Panthr Prefs)" : ""));
     }
     
-    private void setPref(String prefVal, AmmoPreference ammoPref) {}
+    protected void refreshViews() {
+        mPrefHintTv.setText(mValue.toString() + (mSendToPP ? "  (Set in Panthr Prefs)" : ""));
+    }
+
+    private void setPref(String prefVal, AmmoPreference ammoPref) {
+        try {
+            // Store numbers as Strings since that's what AmmoEngine currently expects
+            // Storing them as ints/longs/etc will cause it to crash upon reading
+            // preferences due to cast exceptions
+            if (mDefault instanceof Boolean) {
+                ammoPref.putBoolean(mPrefKey, Boolean.parseBoolean(prefVal));
+            } else {
+                // We will just set the preference as a String, but parse the
+                // number first to verify that it's in a good format
+                if (mDefault instanceof Integer) {
+                    Integer.parseInt(prefVal);
+                } else if (mDefault instanceof Long) {
+                    Long.parseLong(prefVal);
+                } else if (mDefault instanceof Float) {
+                    Float.parseFloat(prefVal);
+                }
+                // an exception will have been thrown before this point if the format
+                // is bad
+                ammoPref.putString(mPrefKey, prefVal);
+            }
+        } catch (AmmoPreferenceReadOnlyAccess e) {
+            logger.error("App has read-only access to preference {}", mPrefKey);
+        } catch (NumberFormatException e) {
+            logger.warn("NumberFormatException for input {} for pref {}", prefVal, mPrefKey);
+            Toast.makeText(getActivity(), "Input is not valid for this preference",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
 
 }

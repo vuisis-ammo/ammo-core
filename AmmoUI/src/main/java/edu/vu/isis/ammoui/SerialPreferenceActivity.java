@@ -2,11 +2,8 @@ package edu.vu.isis.ammoui;
 
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
-import android.view.View;
-import android.view.View.OnClickListener;
-import edu.vu.isis.ammo.AmmoPreferenceReadOnlyAccess;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.api.AmmoPreference;
+import edu.vu.isis.ammoui.util.DefaultPrefs;
 
 
 public class SerialPreferenceActivity extends AmmoPreferenceActivity {
@@ -33,20 +30,19 @@ public class SerialPreferenceActivity extends AmmoPreferenceActivity {
         if (args == null) {
             AmmoPreferenceFragment<String> deviceFrag;
             AmmoPreferenceFragment<Integer> baudRateFrag, slotNumberFrag, connectionIdleFrag, slotDurationFrag, transmitDurationFrag;
-            BooleanPreferenceFragment enableFrag = BooleanPreferenceFragment.newInstance(
-                    "Serial", INetPrefKeys.SERIAL_DISABLED, false);
+            SerialEnableFragment enableFrag = SerialEnableFragment.newInstance();
             deviceFrag = AmmoPreferenceFragment.newInstance("Device",
-                    INetPrefKeys.SERIAL_DEVICE, "Unknown");
+                    INetPrefKeys.SERIAL_DEVICE, DefaultPrefs.SERIAL_DEVICE);
             baudRateFrag = AmmoPreferenceFragment.newInstance("Baud Rate",
-                    INetPrefKeys.SERIAL_BAUD_RATE, -1);
+                    INetPrefKeys.SERIAL_BAUD_RATE, DefaultPrefs.SERIAL_BAUD_RATE);
             slotNumberFrag = AmmoPreferenceFragment.newInstance("Slot Number",
-                    INetPrefKeys.SERIAL_SLOT_NUMBER, -1);
+                    INetPrefKeys.SERIAL_SLOT_NUMBER, DefaultPrefs.SERIAL_SLOT_NUMBER);
             connectionIdleFrag = AmmoPreferenceFragment.newInstance("Radios in Group",
-                    INetPrefKeys.SERIAL_RADIOS_IN_GROUP, -1);
+                    INetPrefKeys.SERIAL_RADIOS_IN_GROUP, DefaultPrefs.SERIAL_RADIOS_IN_GROUP);
             slotDurationFrag = AmmoPreferenceFragment.newInstance("Slot Duration (ms)",
-                    INetPrefKeys.SERIAL_SLOT_DURATION, -1);
+                    INetPrefKeys.SERIAL_SLOT_DURATION, DefaultPrefs.SERIAL_SLOT_DURATION);
             transmitDurationFrag = AmmoPreferenceFragment.newInstance("Transmit Duration (ms)",
-                    INetPrefKeys.SERIAL_TRANSMIT_DURATION, -1);
+                    INetPrefKeys.SERIAL_TRANSMIT_DURATION, DefaultPrefs.SERIAL_TRANSMIT_DURATION);
 
             deviceFrag.setRetainInstance(true);
             baudRateFrag.setRetainInstance(true);
@@ -60,14 +56,6 @@ public class SerialPreferenceActivity extends AmmoPreferenceActivity {
             slotDurationFrag.setSendToPP(true);
             transmitDurationFrag.setSendToPP(true);
             
-            enableFrag.setOnClickListener(new OnClickListener() {
-                
-                @Override
-                public void onClick(View v) {
-                    
-                }
-            });
-
             fm.beginTransaction().add(R.id.ammo_pref_container, enableFrag, ENABLE_FRAG_TAG)
                     .add(R.id.ammo_pref_container, deviceFrag, IP_FRAG_TAG)
                     .add(R.id.ammo_pref_container, baudRateFrag, PORT_FRAG_TAG)

@@ -42,7 +42,6 @@
         android:layout_height="wrap_content"
         android:layout_gravity="right"
         android:layout_margin="15dp"
-        android:onClick="operatorIdClick"
         layout="@layout/operator_id_tv" />
 
     <LinearLayout

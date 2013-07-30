@@ -58,4 +58,13 @@
 <string name="ntwk_conn_timeout">When attempting to connect, on a slow network, you may need a larger timeout. If you are having connection problems, try increasing this value.</string>
 <string name="conn_idle_timeout">Heartbeat timeout. If a connection is idle for this time period, then it will disconnect and attempt to reconnect.</string>
 <string name="user_id">The ID of the device\'s user.</string>
+<string name="ammo_license">Copyright (C) 2010-2013 Institute for Software Integrated Systems (ISIS)
+This software was developed by the Institute for Software Integrated
+Systems (ISIS) at Vanderbilt University, Tennessee, USA for the 
+Transformative Apps program under DARPA, Contract # HR011-10-C-0175.
+The United States Government has unlimited rights to this software. 
+The US government has the right to use, modify, reproduce, release, 
+perform, display, or disclose computer software or computer software 
+documentation in whole or in part, in any manner and for any 
+purpose whatsoever, and to have or authorize others to do so.</string>
 </resources>
