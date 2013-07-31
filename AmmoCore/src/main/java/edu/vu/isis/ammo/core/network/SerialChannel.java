@@ -515,7 +515,17 @@ public class SerialChannel extends NetChannel
                                "/dev/ttyUSB6",
                                "/dev/ttyUSB7",
                                "/dev/ttyUSB8",
-                               "/dev/ttyUSB9" };
+                               "/dev/ttyUSB9",
+                               "/dev/ttyACM0",
+                               "/dev/ttyACM1",
+                               "/dev/ttyACM2",
+                               "/dev/ttyACM3",
+                               "/dev/ttyACM4",
+                               "/dev/ttyACM5",
+                               "/dev/ttyACM6",
+                               "/dev/ttyACM7",
+                               "/dev/ttyACM8",
+                               "/dev/ttyACM9" };
             
             List<String> result = new ArrayList<String>();
             for ( String n : names ) {
