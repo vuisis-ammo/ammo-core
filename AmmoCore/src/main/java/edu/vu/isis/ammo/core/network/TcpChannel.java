@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -52,7 +53,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages;
  * The sent messages are placed into a queue if the socket is connected.
  *
  */
-public class TcpChannel extends NetChannel {
+public class TcpChannel extends TcpChannelAbstract {
   // a class based logger to be used by static methods ... 
   private static final Logger classlogger = LoggerFactory.getLogger("net.gateway");
   
@@ -488,8 +489,8 @@ public class TcpChannel extends NetChannel {
   private class ConnectorThread extends Thread {
     private Logger logger = null;
 
-    private final String DEFAULT_HOST = "192.168.1.100";
-    private final int DEFAULT_PORT = 33289;
+    private final String DEFAULT_HOST = INetPrefKeys.DEFAULT_GATEWAY_HOST;
+    private final int DEFAULT_PORT = INetPrefKeys.DEFAULT_GATEWAY_PORT;
 
     private TcpChannel parent;
     private final State state;

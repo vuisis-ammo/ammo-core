@@ -42,25 +42,34 @@
 
   
   <!-- set the connector to INFO to show connect, disconnect info in nominal logs -->
-  <logger name="net.gateway.connector" level="INFO"/> 
   <!-- 
+  <logger name="net.gateway.connector" level="INFO"/> 
+
   <logger name="api" level="INFO"/>
   <logger name="net.gateway.receiver" level="TRACE"/>
   <logger name="provider.dist" level="TRACE"/>
   <logger name="class.temporal" level="TRACE"/>
   <logger name="class.store.presence" level="TRACE"/>
-   -->
+   
   <logger name="net.journal" level="DEBUG"/> 
   <logger name="net.serial" level="DEBUG"/>
   <logger name="net.rmcast" level="DEBUG"/>
   <logger name="net.mcast" level="DEBUG"/>
+  -->
+  <logger name="net.server" level="TRACE"/>
+  <logger name="net.channel.server" level="TRACE"/>
+  <logger name="network.manager" level="TRACE"/>
+  <logger name="pref.panthr" level="TRACE"/>
+  <!--
   <logger name="net.gateway" level="DEBUG"/>
   <logger name="net.ethermon" level="DEBUG"/>
-  <logger name="network.manager" level="DEBUG"/>
+  -->
   
   <root level="WARN">
-    <appender-ref ref="LOGCAT" />
+     <appender-ref ref="LOGCAT" />
+     <!-- 
      <appender-ref ref="STAT" />
+      -->
   </root>
 
 </configuration>
