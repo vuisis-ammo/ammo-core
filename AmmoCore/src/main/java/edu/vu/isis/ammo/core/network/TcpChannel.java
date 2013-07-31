@@ -97,6 +97,8 @@ public class TcpChannel extends NetChannel {
 
   private String gatewayHost = null;
   private int gatewayPort = -1;
+  
+  private int mMaxMessageSize = 0x100000;
 
   private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
   private final Object syncObj;
@@ -251,6 +253,14 @@ public class TcpChannel extends NetChannel {
     return true;
   }
 
+  public boolean setMaxMsgSize (int size) {
+    logger.trace("Thread <{}>::setMaxMsgSize {}", Thread.currentThread().getId(), size);
+    if (mMaxMessageSize  == (size*0x100000)) return false;
+    this.mMaxMessageSize = size*0x100000;
+    this.reset();
+    return true;
+  }
+  
   public String toString() {
     return new StringBuilder().append("channel ").append(super.toString())
         .append("socket: host[").append(this.gatewayHost).append("] ")
@@ -1103,6 +1113,13 @@ public class TcpChannel extends NetChannel {
 
         try
         {
+          if (msg.size  > mMaxMessageSize) {
+            logger.info("Large Message, Rejecting: Message Size [" + msg.size + "]");
+            if ( msg.handler != null )
+              mChannel.ackToHandler( msg.handler, DisposalState.BAD);            
+            continue;
+          }
+          
           ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
           setSenderState( INetChannel.SENDING );
           int bytesToSend = buf.remaining();
@@ -1226,7 +1243,7 @@ public class TcpChannel extends NetChannel {
               continue;
             }
             // if the message is TOO BIG then throw away the message
-            if (agmb.size() > MAX_MESSAGE_SIZE) {
+            if (agmb.size() > mMaxMessageSize) {
               logger.warn("discarding message of size {} with checksum {}", 
                   agmb.size(), Long.toHexString(agmb.checksum()));
               int size = agmb.size();

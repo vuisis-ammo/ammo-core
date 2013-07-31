@@ -223,10 +223,6 @@ Such that if the prior channel succeeds the next channel is not attempted.
                     encoding="json"
                     term="reliablemcastmedia" />
 
-                <literal
-                    condition="success"
-                    encoding="json"
-                    term="multicast" />
             </clause>
         </routing>
 
@@ -280,10 +276,6 @@ Such that if the prior channel succeeds the next channel is not attempted.
                     encoding="json"
                     term="reliablemcastmedia" />
 
-                <literal
-                    condition="success"
-                    encoding="json"
-                    term="multicast" />
             </clause>
         </routing>
 
