@@ -237,11 +237,26 @@ public class SerialChannel extends NetChannel
 
 
     /**
-     * Rename this to send() once the merge is done.
+     *
      */
     public DisposalState sendRequest( AmmoGatewayMessage message )
     {
-        return mSenderQueue.putFromDistributor( message );
+        // There is a chance that the Distributor could try to send a
+        // message while the channel is going down, and we don't want
+        // the message to be stranded in the queue until the channel
+        // comes back up.  Reject the packet in these cases.
+        if ( getState() != SERIAL_CONNECTED ) {
+            return DisposalState.REJECTED;
+        }
+
+        synchronized ( mFragmenter ) {
+            SerialFragmenter f = getFragmenter();
+            if ( f != null ) {
+                return f.putFromDistributor( message );
+            } else {
+                return mSenderQueue.putFromDistributor( message );
+            }
+        }
     }
 
 
@@ -332,6 +347,17 @@ public class SerialChannel extends NetChannel
     {
         logger.info( "Sender enabled set to {}", enabled );
         mSenderEnabled.set( enabled );
+    }
+
+
+    /**
+     * Sets whether SATCOM functionality is enabled/disabled.
+     * Will not take effect until the channel is disabled and then reenabled.
+     */
+    public void setSatcomEnabled( boolean enabled )
+    {
+        logger.info( "SATCOM enabled set to {}", enabled );
+        mSatcomEnabled = enabled;
     }
 
 
@@ -490,14 +516,14 @@ public class SerialChannel extends NetChannel
 
 
         /**
-         *
+         * I'm not sure this is used anymore, if it ever was.
          */
-        @SuppressWarnings("unused")
-		public void terminate()
-        {
-            logger.debug( "SerialChannel.Connector::terminate()" );
-            this.interrupt();
-        }
+        // @SuppressWarnings("unused")
+		// public void terminate()
+        // {
+        //     logger.debug( "SerialChannel.Connector::terminate()" );
+        //     this.interrupt();
+        // }
 
 
         // Because of the permissions on the Notes's dev directory,
@@ -594,23 +620,47 @@ public class SerialChannel extends NetChannel
                 logger.warn( "Tried to create SecurityObject when we already had one." );
             setSecurityObject( new SerialSecurityObject( SerialChannel.this ));
 
-            // Create the retransmitter.
-            if ( getRetransmitter() != null )
-                logger.warn( "Tried to create SerialRetransmitter when we already had one." );
-            setRetransmitter( new SerialRetransmitter( SerialChannel.this, mChannelManager, mSlotNumber.get() ));
+            // If SATCOM functionality is enabled, create the SerialFragmenter and
+            // no retransmitter.  Otherwise, create the retransmitter but no fragmenter.
+            if ( mSatcomEnabled ) {
+                logger.debug( "SATCOM enabled. Creating SATCOM sender and receiver threads" );
+                if ( getFragmenter() != null )
+                    logger.warn( "Tried to create SerialFragmenter when we already had one." );
+                setFragmenter( new SerialFragmenter( SerialChannel.this, mChannelManager ));
 
-            // Create the sending thread.
-            if ( mSender != null )
-                logger.warn( "Tried to create Sender when we already had one." );
-            mSender = new SenderThread();
-            setIsAuthorized( true );
-            mSender.start();
+                // Create the sending thread.
+                if ( mSatcomSender != null )
+                    logger.warn( "Tried to create SatcomSender when we already had one." );
+                mSatcomSender = new SatcomSenderThread();
+                setIsAuthorized( true );
+                mSatcomSender.start();
 
-            // Create the receiving thread.
-            if ( mReceiver != null )
-                logger.warn( "Tried to create Receiver when we already had one." );
-            mReceiver = new ReceiverThread();
-            mReceiver.start();
+                // Create the receiving thread.
+                if ( mSatcomReceiver != null )
+                    logger.warn( "Tried to create SatcomReceiver when we already had one." );
+                mSatcomReceiver = new SatcomReceiverThread();
+                mSatcomReceiver.start();
+
+                getFragmenter().startSending();
+            } else {
+                if ( getRetransmitter() != null )
+                    logger.warn( "Tried to create SerialRetransmitter when we already had one." );
+                setRetransmitter( new SerialRetransmitter( SerialChannel.this, mChannelManager,
+                                                           mSlotNumber.get() ));
+                // Create the sending thread.
+                if ( mSender != null )
+                    logger.warn( "Tried to create Sender when we already had one." );
+                mSender = new SenderThread();
+                setIsAuthorized( true );
+                mSender.start();
+
+                // Create the receiving thread.
+                if ( mReceiver != null )
+                    logger.warn( "Tried to create Receiver when we already had one." );
+                mReceiver = new ReceiverThread();
+                mReceiver.start();
+            }
+
 
             // FIXME: don't pass in the result of buildAuthenticationRequest(). This is
             // just a temporary hack.
@@ -633,7 +683,7 @@ public class SerialChannel extends NetChannel
             return true;
         }
     }
-
+        
 
     /**
      *
@@ -651,6 +701,10 @@ public class SerialChannel extends NetChannel
                 mSender.interrupt();
             if ( mReceiver != null )
                 mReceiver.interrupt();
+            if ( mSatcomSender != null )
+                mSatcomSender.interrupt();
+            if ( mSatcomReceiver != null )
+                mSatcomReceiver.interrupt();
 
             mSenderQueue.reset();
 
@@ -671,15 +725,26 @@ public class SerialChannel extends NetChannel
 
             setSecurityObject( null );
             setRetransmitter( null );
+            setFragmenter( null );
 
-            // Need to do a join here
+            // We've interrupted the threads, so wait for them to finish here
+            // before continuing.
             try {
-                if ( mSender != null
-                     && Thread.currentThread().getId() != mSender.getId() )
-                    mSender.join();
-                if ( mReceiver != null
-                     && Thread.currentThread().getId() != mReceiver.getId() )
-                    mReceiver.join();
+                if ( mSatcomEnabled ) {
+                    if ( mSatcomSender != null
+                         && Thread.currentThread().getId() != mSatcomSender.getId() )
+                        mSatcomSender.join();
+                    if ( mSatcomReceiver != null
+                         && Thread.currentThread().getId() != mSatcomReceiver.getId() )
+                        mSatcomReceiver.join();
+                } else {
+                    if ( mSender != null
+                         && Thread.currentThread().getId() != mSender.getId() )
+                        mSender.join();
+                    if ( mReceiver != null
+                         && Thread.currentThread().getId() != mReceiver.getId() )
+                        mReceiver.join();
+                }
             } catch ( java.lang.InterruptedException ex ) {
                 logger.warn( "disconnect: interrupted exception while waiting for threads to die",
                              ex );
@@ -687,6 +752,8 @@ public class SerialChannel extends NetChannel
 
             mSender = null;
             mReceiver = null;
+            mSatcomSender = null;
+            mSatcomReceiver = null;
         } catch ( Exception e ) {
             logger.warn( "Caught exception while closing serial port", e );
             // Do this here, too, since if we exited early because
@@ -847,14 +914,6 @@ public class SerialChannel extends NetChannel
         public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
         {
             logger.debug( "putFromDistributor()" );
-
-            // There is a chance that the Distributor could try to send a
-            // message while the channel is going down, and we don't want
-            // the message to be stranded in the queue until the channel
-            // comes back up.  Reject the packet in these cases.
-            if ( getState() != SERIAL_CONNECTED ) {
-                return DisposalState.REJECTED;
-            }
 
             try {
                 if ( !mDistQueue.offer( iMessage, 1, TimeUnit.SECONDS )) {
@@ -1612,6 +1671,356 @@ public class SerialChannel extends NetChannel
     }
 
 
+
+
+
+
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    private class SatcomSenderThread extends Thread
+    {
+        /**
+         * 
+         */
+        public SatcomSenderThread()
+        {
+            super( new StringBuilder("Tcp-Sender-").append( Thread.activeCount() ).toString() );
+        }
+
+
+        /**
+         * 
+         */
+        @Override
+        public void run()
+        {
+            logger.trace( "SatcomSenderThread <{}>::run()", Thread.currentThread().getId() );
+
+            // Block on reading from the queue until we get a message to send.
+            // Then send it on the socket channel. Upon getting a socket error,
+            // notify our parent and go into an error state.
+
+            while ( mSenderState.get() != INetChannel.INTERRUPTED ) {
+                AmmoGatewayMessage msg = null;
+                try
+                {
+                    setSenderState( INetChannel.TAKING );
+                    msg = mSenderQueue.take(); // The main blocking call
+
+                    logger.debug( "Took a message from the send queue" );
+                }
+                catch ( InterruptedException ex )
+                {
+                    logger.debug( "interrupted taking messages from send queue", ex );
+                    setSenderState( INetChannel.INTERRUPTED );
+                    break;
+                }
+
+                try
+                {
+                    ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_SATCOM, (byte) 0 );
+
+                    if ( mSenderEnabled.get() ) {
+                        setSenderState( INetChannel.SENDING );
+
+                        int result = mPort.write( buf.array() );
+                        if ( result < 0 ) {
+                            // If we got a negative number from the write(),
+                            // we are in an error state, so throw an exception
+                            // and shut down.
+                            throw new IOException( "write on serial port returned: " + result );
+                        }
+                        mMessagesSent.getAndIncrement();
+                        mBytesSent += buf.array().length;
+
+                        logger.debug( "sent message size={}, checksum={}, data:{}",
+                                      new Object[] { msg.size,
+                                                     msg.payload_checksum.toHexString(),
+                                                     msg.payload });
+                    }
+
+                    // legitimately sent to gateway.
+                    if ( msg.handler != null )
+                        ackToHandler( msg.handler, DisposalState.SENT );
+
+                } catch ( Exception ex ) {
+                    logger.warn( "sender threw exception", ex );
+                    if ( msg != null && msg.handler != null )
+                        ackToHandler( msg.handler, DisposalState.BAD );
+                    setSenderState( INetChannel.INTERRUPTED );
+                    ioOperationFailed();
+                }
+            }
+        }
+
+
+        private void setSenderState( int state )
+        {
+            mSenderState.set( state );
+            statusChange();
+        }
+
+        public int getSenderState() { return mSenderState.get(); }
+
+        private AtomicInteger mSenderState = new AtomicInteger( INetChannel.TAKING );
+        private final Logger logger = LoggerFactory.getLogger( "net.serial.satcom.sender" );
+    }
+
+
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    /**
+     *
+     */
+    private class SatcomReceiverThread extends Thread
+    {
+        /**
+         *
+         */
+        public SatcomReceiverThread()
+        {
+            super( new StringBuilder("SATCOM-Reciever-").append( Thread.activeCount() ).toString() );
+            logger.debug( "SatcomReceiverThread::SatcomReceiverThread()",
+                          Thread.currentThread().getId() );
+            mInputStream = mPort.getInputStream();
+        }
+
+
+        /**
+         *
+         */
+        @Override
+        public void run()
+        {
+            logger.info( "SatcomReceiverThread <{}>::run()", Thread.currentThread().getId() );
+
+            // Block on reading from the SerialPort until we get some data.
+            // If we get an error, notify our parent and go into an error state.
+
+            // NOTE: We found that our reads were less reliable when reading more than
+            // one byte at a time using the standard stream and ByteBuffer patterns.
+            // Reading one byte at a time in the code below is intentional.
+
+            try {
+                // These have to be hardcoded here in order to be seen as compile-time constants
+                // by the Java compile.  Otherwise, they can't be used in the switch statement below.
+                final byte first  = (byte) 0xea;
+                final byte second = (byte) 0x1d;
+                final byte third  = (byte) 0xad;
+                final byte fourth = (byte) 0xab;
+
+                // See note about length=16 below.
+                byte[] buf_header = new byte[ 32 ];// AmmoGatewayMessage.HEADER_DATA_LENGTH_SATCOM;
+                ByteBuffer header = ByteBuffer.wrap( buf_header );
+                header.order( endian );
+
+                int state = 0;
+                byte c = 0;
+                AmmoGatewayMessage.Builder agmb = null;
+
+                while ( mReceiverState.get() != INetChannel.INTERRUPTED ) {
+                    setReceiverState( INetChannel.START );
+
+                    switch ( state ) {
+                    case 0:
+                        logger.trace( "Waiting for magic sequence." );
+                        c = readAByte();
+                        if ( c == first ) {
+                            state = first;
+                            mReceiverSubstate.set( 11 );
+                        }
+                        break;
+
+                    case first:
+                        c = readAByte();
+                        if ( c == first ) {
+                            state = first;
+                            mReceiverSubstate.set( 11 );
+                        } else if ( c == second ) {
+                            state = second;
+                            mReceiverSubstate.set( 12 );
+                        } else {
+                            state = 0;
+                            mReceiverSubstate.set( 0 );
+                        }
+                        break;
+
+                    case second:
+                        c = readAByte();
+                        if ( c == third ) {
+                            state = third;
+                            mReceiverSubstate.set( 13 );
+                        } else if ( c == first ) {
+                            state = first;
+                            mReceiverSubstate.set( 11 );
+                        } else {
+                            state = 0;
+                            mReceiverSubstate.set( 0 );
+                        }
+                        break;
+
+                    case third:
+                        c = readAByte();
+                        if ( c == fourth ) {
+                            state = 1;
+                            mReceiverSubstate.set( 1 );
+                        } else if ( c == first ) {
+                            state = first;
+                            mReceiverSubstate.set( 11 );
+                        } else {
+                            state = 0;
+                            mReceiverSubstate.set( 0 );
+                        }
+                        break;
+
+                    case 1: // 1 == reading header
+                    {
+                        logger.debug( "Read magic sequence in SATCOM channel" );
+
+                        mBytesSinceMagic.set( 0 );
+
+                        header.clear();
+
+                        // Set these in buf_header, since extractHeader() expects them.
+                        buf_header[0] = first;
+                        buf_header[1] = second;
+                        buf_header[2] = third;
+                        buf_header[3] = fourth;
+
+                        // For some unknown reason, this was writing past the end of the
+                        // array when length = 16.
+                        int headerBytesLeft = AmmoGatewayMessage.HEADER_LENGTH_SATCOM - 4;
+                        for ( int i = 0; i < headerBytesLeft; ++i ) {
+                            c = readAByte();
+                            buf_header[i+4] = c;
+                        }
+                        logger.debug( " Received SATCOM header, reading payload " );
+
+                        agmb = AmmoGatewayMessage.extractHeaderSatcom( header );
+                        if ( agmb == null ) {
+                            logger.debug( "Deserialization failure." );
+                            mCorruptMessages.getAndIncrement();
+                            state = 0;
+                        } else {
+                            state = 2;
+                        }
+                        mReceiverSubstate.set( state );
+                    }
+                    break;
+
+                    case 2: // 2 == reading payload
+                    {
+                        int payload_size = agmb.size();
+                        if ( payload_size > MAX_RECEIVE_PAYLOAD_SIZE ) {
+                            logger.warn( "Discarding packet of size {}. Maximum payload size exceeded.",
+                                         payload_size );
+                            state = 0;
+                            mReceiverSubstate.set( 0 );
+                            break;
+                        }
+                        byte[] buf_payload = new byte[ payload_size ];
+
+                        for ( int i = 0; i < payload_size; ++i ) {
+                            c = readAByte();
+                            buf_payload[i] = c;
+                        }
+
+                        agmb.isSerialChannel( true );
+                        AmmoGatewayMessage agm = agmb
+                            .payload( buf_payload )
+                            .channel( SerialChannel.this )
+                            .build();
+
+                        mMessagesReceived.getAndIncrement();
+                        logger.debug( "received message size={}, checksum={}, data:{}",
+                                      new Object[] {
+                                          agm.size,
+                                          agm.payload_checksum.toHexString(),
+                                          agm.payload } );
+
+                        setReceiverState( INetChannel.DELIVER );
+                        deliverMessage( agm );
+
+                        header.clear();
+                        setReceiverState( INetChannel.START );
+                        state = 0;
+                        mReceiverSubstate.set( 0 );
+                    }
+                    break;
+
+                    default:
+                        logger.debug( "Unknown value for state variable" );
+                    }
+                }
+            } catch ( IOException ex ) {
+                logger.warn( "receiver threw an IOException", ex );
+                setReceiverState( INetChannel.INTERRUPTED );
+                ioOperationFailed();
+            } catch ( Exception ex ) {
+                logger.warn( "receiver threw an exception", ex );
+                setReceiverState( INetChannel.INTERRUPTED );
+                ioOperationFailed();
+            }
+
+            logger.info( "ReceiverThread <{}>::run() exiting.", Thread.currentThread().getId() );
+        }
+
+
+        /**
+         *
+         */
+        private byte readAByte() throws IOException
+        {
+            int val = -1;
+            mSecondsSinceByteRead.set( 0 );
+            while ( val == -1 &&  mReceiverState.get() != INetChannel.INTERRUPTED ) {
+                logger.trace( "SerialPort.read()" );
+                val = mInputStream.read();
+                if ( val == -1 )
+                    mSecondsSinceByteRead.getAndIncrement();
+            }
+
+            logger.trace( "val={}", (byte) val );
+            mBytesSinceMagic.getAndIncrement();
+            mBytesRead += 1;
+
+            return (byte) val;
+        }
+
+
+        /**
+         *
+         */
+        private void setReceiverState( int state )
+        {
+            mReceiverState.set( state );
+            statusChange();
+        }
+
+        /**
+         *
+         */
+        public int getReceiverState() { return mReceiverState.get(); }
+
+        private AtomicInteger mReceiverState = new AtomicInteger( INetChannel.TAKING );
+        private FileInputStream mInputStream;
+        private final Logger logger = LoggerFactory.getLogger( "net.serial.satcom.receiver" );
+    }
+
+
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+
+
     // Called by ReceiverThread to send an incoming message to the appropriate
     // destination.  This method really should be private, but the
     // SerialRetransmitter needs to use it.  Is there a better Java way to
@@ -1623,15 +2032,39 @@ public class SerialChannel extends NetChannel
     {
         logger.debug( "In deliverMessage()" );
 
-        boolean result;
+        boolean result = false;
         if ( mIsAuthorized.get() ) {
-            logger.debug( " delivering to channel manager" );
-            result = mChannelManager.deliver( agm );
+            if ( mSatcomEnabled ) {
+                logger.debug( " delivering to SerialFragmenter" );
+                synchronized ( mFragmenter ) {
+                    SerialFragmenter f = getFragmenter();
+                    if ( f != null ) {
+                        result = f.deliver( agm );
+                    } else {
+                        logger.error( "  In SATCOM mode, but there is no fragmenter" );
+                    }
+                }
+            } else {
+                logger.debug( " delivering to channel manager" );
+                result = mChannelManager.deliver( agm );
+            }
         } else {
             logger.debug( " delivering to security object" );
             result = getSecurityObject().deliverMessage( agm );
         }
         return result;
+    }
+
+
+    /**
+     *
+     */
+    public DisposalState addMessageToSenderQueue( AmmoGatewayMessage agm )
+    {
+        // We shouldn't expose the sender queue this way, but the
+        // SerialFragmenter needs to be able to add things to it.
+        // Java doesn't really have good support for things like this.
+        return mSenderQueue.putFromDistributor( agm );
     }
 
 
@@ -1650,6 +2083,26 @@ public class SerialChannel extends NetChannel
     private SerialRetransmitter getRetransmitter()
     {
         return mRetransmitter.get();
+    }
+
+
+    /**
+     *
+     */
+    private void setFragmenter( SerialFragmenter fragmenter )
+    {
+        synchronized ( mFragmenter ) {
+            mFragmenter.set( fragmenter );
+        }
+    }
+
+
+    /**
+     *
+     */
+    private SerialFragmenter getFragmenter()
+    {
+        return mFragmenter.get();
     }
 
 
@@ -1786,6 +2239,7 @@ public class SerialChannel extends NetChannel
 
     private final AtomicReference<ISecurityObject> mSecurityObject = new AtomicReference<ISecurityObject>();
     private final AtomicReference<SerialRetransmitter> mRetransmitter = new AtomicReference<SerialRetransmitter>();
+    private final AtomicReference<SerialFragmenter> mFragmenter = new AtomicReference<SerialFragmenter>();
 
     private static final int WAIT_TIME = 5 * 1000; // 5 s
     private static final int MAX_RECEIVE_PAYLOAD_SIZE = 2000; // Should this be set based on baud and slot duration?
@@ -1823,8 +2277,15 @@ public class SerialChannel extends NetChannel
 
     private AtomicBoolean mIsAuthorized = new AtomicBoolean( false );
 
+    // FIXME: MCJ: I'm hardcoding this to true during development.
+    // It should default to false;
+    private volatile boolean mSatcomEnabled = true;
+
     private SenderThread mSender;
     private ReceiverThread mReceiver;
+
+    private SatcomSenderThread mSatcomSender;
+    private SatcomReceiverThread mSatcomReceiver;
 
     private static final int SENDQUEUE_MAX_SIZE = 20;
     private static final int SENDQUEUE_LOW_WATER = 5;

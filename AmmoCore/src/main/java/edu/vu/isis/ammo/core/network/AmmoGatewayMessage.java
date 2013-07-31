@@ -87,9 +87,12 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         + 1 // priority byte
         + 3 // reserved bytes
         + 4; // payload checksum
+    // ------
+    //   16 bytes
 
-    public static final int HEADER_LENGTH =
-        HEADER_DATA_LENGTH + 4; // header checksum
+    // 4 byte checksum
+    public static final int HEADER_LENGTH = HEADER_DATA_LENGTH + 4;
+
 
     //
     // Terse header lengths
@@ -108,29 +111,26 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     // ------
     //   14 bytes
 
-    // These are equal because the terse form doesn't use a header checksum.
-    public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH + 2;
+    // 2 byte checksum
+    public static final int HEADER_LENGTH_TERSE = HEADER_DATA_LENGTH_TERSE + 2;
+
 
     //
     // SATCOM header lengths
     //
+    // Note: there is more data that would normally be considered header, but the data
+    // differ between the ack/token packet and the data packet.
 
     public static final int HEADER_DATA_LENGTH_SATCOM =
-          4  // magic (3.5 bytes) and slot number (4 bits)
+          4  // magic (4 bytes: 0xabad1dea)
         + 2  // payload size
-        + 2  // payload checksum
-        + 4  // UID (info about what we think that we're sending in)
-             //   hyperperiod:   2 bytes
-             //   slot number:   1 byte
-             //   index in slot: 1 byte
-        + 1  // packet type
-        + 1  // <reserved>
-        + 2; // header checksum
+        + 2  // reserved (should be set to zero)
+        + 2; // payload checksum
     // ------
-    //   16 bytes
+    //   10 bytes
 
-    // These are equal because the terse form doesn't use a header checksum.
-    public static final int HEADER_LENGTH_SATCOM = HEADER_DATA_LENGTH_SATCOM;
+    // 2 byte checksum
+    public static final int HEADER_LENGTH_SATCOM = HEADER_DATA_LENGTH_SATCOM + 2;
 
     //
     //
@@ -192,8 +192,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
     // Hop count for Harris 152 resend/retransmit mechanism
     public int mHopCount;
-
-
 
 
     /**
@@ -593,6 +591,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             return serializeTerse_V1(endian, phone_id,
                     this.size, this.payload, this.payload_checksum, this.gpsOffset);
 
+        } else if (version == VERSION_1_SATCOM) {
+            return serializeSatcom_V1( endian, phone_id,
+                    this.size, this.payload, this.payload_checksum, this.gpsOffset);
+
         } else {
             logger.error("invalid version supplied {}", version);
             return null;
@@ -650,6 +652,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         buf.flip();
         return buf;
     }
+
 
     /**
      * Serialize the AmmoMessage for transmission using the terse header
@@ -720,6 +723,61 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         buf.flip();
         return buf;
     }
+
+
+    /**
+     * Serialize the AmmoMessage for transmission using the satcom header
+     * encoding.
+     * <p>
+     * The byte buffer returned is already flip()ped.
+     * 
+     * @return
+     */
+    public ByteBuffer serializeSatcom_V1( ByteOrder endian, byte phone_id,
+            int size, byte[] payload, CheckSum checksum, long gpsOffset)
+    {
+        int total_length = HEADER_LENGTH_SATCOM + payload.length;
+        ByteBuffer buf = ByteBuffer.allocate(total_length);
+        buf.order(endian);
+
+        // 1. SATCOM magic number (4 bytes)
+        buf.put( SATCOM_MAGIC[3] );
+        buf.put( SATCOM_MAGIC[2] );
+        buf.put( SATCOM_MAGIC[1] );
+        buf.put( SATCOM_MAGIC[0] );
+
+        // 2. Size of payload, not including header (2 bytes)
+        short sizeAsShort = (short) size;
+        buf.putShort( sizeAsShort );
+        logger.debug( "   size={}", sizeAsShort );
+
+        // 3. Reserved (2 bytes)
+        buf.putShort( (short) 0 );
+
+        // 4. Payload checksum (2 bytes)
+        // Only output [0] and [1] of the four byte checksum.
+        byte[] payloadCheckSum = checksum.asByteArray();
+        logger.debug( "   payload_checksum as bytes={}", payloadCheckSum );
+        buf.put( payloadCheckSum[0] );
+        buf.put( payloadCheckSum[1] );
+
+        // 5. Header checksum (2 bytes)
+        // The checksum covers the magic sequence and everything up to and
+        // including payload checksum.
+        // Only output [0] and [1] of the four byte checksum.
+        CheckSum crc32 = CheckSum.newInstance( buf.array(), 0, HEADER_DATA_LENGTH_SATCOM );
+        byte[] headerChecksum = crc32.asByteArray();
+        buf.put( headerChecksum[0] );
+        buf.put( headerChecksum[1] );
+
+        // 6. Payload
+        buf.put( payload );
+        logger.debug( "   payload={}", payload );
+
+        buf.flip();
+        return buf;
+    }
+
 
     /**
      * Must leave the position of drain pointing at the first byte which might
@@ -857,6 +915,106 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
         return null;
     }
+
+
+    /**
+     * Must leave the position of drain pointing at the first byte which might
+     * be the first byte in a header.
+     * 
+     * @param drain
+     * @return
+     * @throws IOException
+     */
+    static public AmmoGatewayMessage.Builder extractHeaderSatcom( ByteBuffer drain ) throws IOException
+    {
+        // The mark is used to indicate the position where a header may start.
+        try {
+            while ( drain.remaining() > 0 ) {
+                drain.mark();
+                int start = drain.arrayOffset() + drain.position();
+
+                StringBuilder sb = new StringBuilder();
+                byte[] drain_array = drain.array();
+                int position = drain.position();
+                for ( int i = position; i < drain.limit(); ++i ) {
+                    sb.append( String.format( "%02X ", drain_array[i] ));
+                }
+                logger.trace( "extractHeaderSatcom: {}", sb.toString() );
+
+                // 1. Search for the magic sequence
+                if ( drain.get() != SATCOM_MAGIC[3] )
+                    continue;
+                if ( drain.get() != SATCOM_MAGIC[2] )
+                    continue;
+                if ( drain.get() != SATCOM_MAGIC[1] )
+                    continue;
+                if ( drain.get() != SATCOM_MAGIC[0] )
+                    continue;
+
+                // 2. Size of payload, not including header (2 bytes)
+                int size = drain.getShort();
+
+                // 3. Reserved (2 bytes)
+                drain.getShort();
+
+                // 4. Payload checksum (2 bytes)
+                // [0] and [1] of the four byte checksum.
+                byte[] checkPayloadBytes = new byte[4];
+                checkPayloadBytes[0] = drain.get();
+                checkPayloadBytes[1] = drain.get();
+                checkPayloadBytes[2] = 0;
+                checkPayloadBytes[3] = 0;
+                CheckSum csum = new CheckSum( checkPayloadBytes );
+                long payload_checksum = csum.asLong();
+                logger.debug( "   payload check={}, asLong={}", checkPayloadBytes,
+                              Long.toHexString(payload_checksum) );
+
+                // 5. Header checksum (2 bytes)
+                // The checksum covers the magic sequence and everything up to and
+                // including payload checksum.
+                // Only [0] and [1] of the four byte checksum.
+                CheckSum terseHeaderCrc32 = CheckSum.newInstance( drain.array(),
+                                                                  start,
+                                                                  HEADER_DATA_LENGTH_SATCOM );
+                byte[] computedChecksum = terseHeaderCrc32.asByteArray();
+
+                // Return null if the header checksum fails.
+                byte first = drain.get();
+                byte second = drain.get();
+                // HACK: why does first/second need to be reversed versus the terse header?
+                // It's the same code here and the same code on the Gateway.
+                if ( first != computedChecksum[0] || second != computedChecksum[1] ) {
+                    logger.warn( "  Computed [0]={}, [1]={}", Long.toHexString(computedChecksum[0]),
+                                 Long.toHexString(computedChecksum[1]) );
+                    logger.warn( "  Received [0]={}, [1]={}", Long.toHexString(first),
+                                 Long.toHexString(second) );
+
+                    logger.warn( "Corrupt terse header; packet discarded." );
+                    return null;
+                }
+
+                return AmmoGatewayMessage.newBuilder()
+                    .version( VERSION_1_SATCOM )
+                    .size( size )
+                    .checksum( payload_checksum );
+            }
+        } catch ( BufferUnderflowException ex ) {
+            // the data was looking like a header as far as it went
+            drain.reset();
+        } catch ( Exception ex ) {
+            /**
+             * If we did not have enough data to do the header checksum, we
+             * won't get a BufferUnderflowException, but the CRC32 library will
+             * throw when we try to compute the checksum. Go ahead and let the
+             * function return null, and the SerialChannel will clear the
+             * buffer.
+             */
+            // MCJ: Why is drain.reset() not called here?
+        }
+
+        return null;
+    }
+
 
     /**
      * <dl>
