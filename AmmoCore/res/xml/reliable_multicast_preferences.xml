@@ -49,11 +49,4 @@
         android:inputType="number"
         android:key="@string/network_rmc_ttl"
         android:title="Time To Live (s)" />
-    <edu.vu.isis.ammo.core.MyEditIntegerPreference
-        android:name="Frag Delay"
-        android:defaultValue="0"
-        android:enabled="true"
-        android:inputType="number"
-        android:key="@string/network_rmc_frag_delay"
-        android:title="Fragmentation Delay (millisec)" />
 </PreferenceScreen>

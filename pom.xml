@@ -41,6 +41,12 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
       </dependency>
 
       <dependency>
+        <groupId>transapps</groupId>
+        <artifactId>tasettings-api</artifactId>
+        <version>1.0.26</version>
+      </dependency>
+
+      <dependency>
         <groupId>edu.vu.isis</groupId>
         <artifactId>ammo-message</artifactId>
         <version>1.7.0</version>

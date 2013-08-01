@@ -743,16 +743,23 @@ public enum NetworkManager  implements INetworkService,
         
         PLogger.SET_PANTHR.debug("acquire gateway Hostname={}, port={}, flatline={}",
                 gatewayHostname, gatewayPort, flatLineTime);
+        
+        int gatewayMaxMsgSize = Integer.parseInt(this.localSettings
+            .getString(INetPrefKeys.GATEWAY_MAX_MESSAGE_SIZE, 
+                String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_MAX_MESSAGE_SIZE)));
+        logger.trace("Setting gateway max message size to {}", gatewayMaxMsgSize); 
 
         this.tcpChannel.setHost(gatewayHostname);
         this.tcpChannel.setPort(gatewayPort);
         this.tcpChannel.setFlatLineTime(flatLineTime * 60 * 1000);
+        this.tcpChannel.setMaxMsgSize(gatewayMaxMsgSize);
         this.tcpChannel.toLog("acquire ");
 
         // tcp media channel
         this.tcpMediaChannel.setHost(gatewayHostname);
         this.tcpMediaChannel.setPort(gatewayPort);
         this.tcpMediaChannel.setFlatLineTime(flatLineTime * 60 * 1000);
+        this.tcpMediaChannel.setMaxMsgSize(gatewayMaxMsgSize);        
         this.tcpMediaChannel.toLog("acquire ");
         
         // tcp server channel
@@ -846,13 +853,19 @@ public enum NetworkManager  implements INetworkService,
         int reliableMulticastFragDelay = Integer.parseInt(this.localSettings
                 .getString(INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY,
                         String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_FRAG_DELAY)));
+        
+        int reliableMulticastMaxMsgSize = Integer.parseInt(this.localSettings
+            .getString(INetPrefKeys.RELIABLE_MULTICAST_MAX_MESSAGE_SIZE, 
+                String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MAX_MESSAGE_SIZE)));
+        logger.trace("Setting rmcast max message size to {}", reliableMulticastMaxMsgSize);
 
         this.reliableMulticastChannel.setHost(reliableMulticastHost);
         this.reliableMulticastChannel.setPort(reliableMulticastPort);
         this.reliableMulticastChannel.setFlatLineTime(reliableMulticastFlatLine);
         this.reliableMulticastChannel.setSocketTimeout(reliableMulticastIdleTime);
         this.reliableMulticastChannel.setTTL(reliableMulticastTTL);
-	    this.reliableMulticastChannel.setFragDelay(reliableMulticastFragDelay);
+        this.reliableMulticastChannel.setFragDelay(reliableMulticastFragDelay);
+        this.reliableMulticastChannel.setMaxMsgSize(reliableMulticastMaxMsgSize);
         this.reliableMulticastChannel.toLog("acquire ");
 
         this.reliableMcastMediaChannel.setHost(reliableMulticastHost);
@@ -860,6 +873,8 @@ public enum NetworkManager  implements INetworkService,
         this.reliableMcastMediaChannel.setFlatLineTime(reliableMulticastFlatLine);
         this.reliableMcastMediaChannel.setSocketTimeout(reliableMulticastIdleTime);
         this.reliableMcastMediaChannel.setTTL(reliableMulticastTTL);
+        this.reliableMulticastChannel.setFragDelay(reliableMulticastFragDelay);
+        this.reliableMcastMediaChannel.setMaxMsgSize(reliableMulticastMaxMsgSize);
         this.reliableMcastMediaChannel.toLog("acquire ");
         /*
          * SerialChannel
@@ -905,7 +920,12 @@ public enum NetworkManager  implements INetworkService,
         serialChannel.setSenderEnabled(this.localSettings
                 .getBoolean(INetPrefKeys.SERIAL_SEND_ENABLED,
                         INetPrefKeys.DEFAULT_SERIAL_SEND_ENABLED));
-
+        
+        logger.trace( "serial: setting max message size" );
+        serialChannel.setMaxMsgSize(Integer.parseInt(this.localSettings
+                .getString(INetPrefKeys.SERIAL_MAX_MESSAGE_SIZE,
+                        String.valueOf(INetPrefKeys.DEFAULT_SERIAL_MAX_MESSAGE_SIZE))));
+        
         this.serialChannel.toLog("acquire ");
 
         for (NetChannel channel : this.registeredChannels) {
@@ -1031,7 +1051,12 @@ public enum NetworkManager  implements INetworkService,
                                 INetPrefKeys.DEFAULT_MULTICAST_TTL,
                                 ttl);
                     }
-
+                    else if (key.equals(INetPrefKeys.GATEWAY_MAX_MESSAGE_SIZE)) {
+                      final String max_msg_sz = parent.updatePref(key,
+                          INetPrefKeys.DEFAULT_GATEWAY_MAX_MESSAGE_SIZE);
+                      PLogger.SET_PANTHR_MC.debug("Gateway Max Msg Size[{} -> {}]",
+                          INetPrefKeys.DEFAULT_GATEWAY_MAX_MESSAGE_SIZE, max_msg_sz);
+                    }
                     //
                     // Reliable Multicast
                     //
@@ -1068,14 +1093,19 @@ public enum NetworkManager  implements INetworkService,
                         PLogger.SET_PANTHR_MC.debug("ttl[{} -> {}]",
                                 INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_TTL, ttl);
                     }
-		    
-		    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY)) {
-			final String frag_delay = parent.updatePref(key,
-				INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY);
-			PLogger.SET_PANTHR_MC.debug("frag_delay[{} -> {}]",
-                                INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_FRAG_DELAY, frag_delay);
-		    }
-		    
+                    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_FRAG_DELAY)) {
+                      final String frag_delay = parent.updatePref(key,
+                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_FRAG_DELAY);
+                      PLogger.SET_PANTHR_MC.debug("frag_delay[{} -> {}]",
+                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_FRAG_DELAY, frag_delay);
+                    }
+                    else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_MAX_MESSAGE_SIZE)) {
+                      final String max_msg_sz = parent.updatePref(key,
+                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MAX_MESSAGE_SIZE);
+                      PLogger.SET_PANTHR_MC.debug("RMCast Max Msg Size[{} -> {}]",
+                          INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MAX_MESSAGE_SIZE, max_msg_sz);
+                    }
+
                     //
                     // Serial port
                     //
@@ -1120,6 +1150,12 @@ public enum NetworkManager  implements INetworkService,
                         final int prev = INetPrefKeys.DEFAULT_SERIAL_TRANSMIT_DURATION;
                         final int xmit = parent.updatePref(key, prev);
                         PLogger.SET_PANTHR_SERIAL.debug("slots%[{} -> {}]", prev, xmit);
+                    }
+                    else if (key.equals(INetPrefKeys.SERIAL_MAX_MESSAGE_SIZE)) {
+                      final String max_msg_sz = parent.updatePref(key,
+                          INetPrefKeys.DEFAULT_SERIAL_MAX_MESSAGE_SIZE);
+                      PLogger.SET_PANTHR_MC.debug("Serial Max Msg Size[{} -> {}]",
+                          INetPrefKeys.DEFAULT_SERIAL_MAX_MESSAGE_SIZE, max_msg_sz);
                     }
                     else if (key.equals(Keys.UserKeys.UNIT)) {
                         logger.trace("global preference {} is not used", key);
@@ -1263,6 +1299,15 @@ public enum NetworkManager  implements INetworkService,
                             parent.tcpMediaChannel.setFlatLineTime(flatLineTime * 60 * 1000); 
                             // parent.reverseTcpChannel.setFlatLineTime(flatLineTime * 60 * 1000);                         
                         }
+                        else if (key.equals(INetPrefKeys.GATEWAY_MAX_MESSAGE_SIZE)) {
+                          int max_msg_sz = Integer.parseInt(prefs.getString(
+                                  key,
+                                  String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_MAX_MESSAGE_SIZE)));
+                          logger.trace("Setting gateway max message size to {}", max_msg_sz);
+                          parent.tcpChannel.setMaxMsgSize(max_msg_sz);
+                          parent.tcpMediaChannel.setMaxMsgSize(max_msg_sz);
+                        }
+                        
                         else if (key.equals(INetPrefKeys.MULTICAST_DISABLED)) {
                             //
                             // Multicast
@@ -1335,7 +1380,15 @@ public enum NetworkManager  implements INetworkService,
                             parent.reliableMulticastChannel.setFragDelay(frag_delay);
                             parent.reliableMcastMediaChannel.setFragDelay(frag_delay);
                         }
-
+                        else if (key.equals(INetPrefKeys.RELIABLE_MULTICAST_MAX_MESSAGE_SIZE)) {
+                            int max_msg_sz = Integer.parseInt(prefs.getString(
+                                    key,
+                                    String.valueOf(INetPrefKeys.DEFAULT_RELIABLE_MULTICAST_MAX_MESSAGE_SIZE)));
+                            logger.trace("Setting rmcast max message size to {}", max_msg_sz);
+                            parent.reliableMulticastChannel.setMaxMsgSize(max_msg_sz);
+                            parent.reliableMcastMediaChannel.setMaxMsgSize(max_msg_sz);
+                        }
+                        
                         //
                         // Serial port
                         //
@@ -1386,6 +1439,12 @@ public enum NetworkManager  implements INetworkService,
                                 parent.serialChannel.enable();
                             }
                         }
+                        else if (key.equals(INetPrefKeys.SERIAL_MAX_MESSAGE_SIZE)) {
+                          int max_msg_sz = Integer.parseInt(prefs.getString(
+                                  key,
+                                  String.valueOf(INetPrefKeys.DEFAULT_SERIAL_MAX_MESSAGE_SIZE)));
+                          parent.serialChannel.setMaxMsgSize(max_msg_sz);
+                      }
                         else {
                             logger.warn("shared preference key {} is unknown", key);
                         }

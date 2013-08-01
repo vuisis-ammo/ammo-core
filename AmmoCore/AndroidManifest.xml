@@ -112,10 +112,10 @@
                 <action android:name="edu.vu.isis.ammo.core.network.NetworkService.ACTION"/>
                 <action android:name="edu.vu.isis.ammo.core.network.NetworkService.PREPARE_FOR_STOP"/>
                 <action android:name="edu.vu.isis.ammo.core.network.NetworkService.UPDATE_IP"/>
-                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.LAUNCH"/>
-                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.BIND"/>
-                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.PREPARE_FOR_STOP"/>
-                <action android:name="edu.vu.isis.ammo.core.distributor.DistributorService.SEND_SERIALIZED"/>
+                <action android:name="edu.vu.isis.ammo.core.distributor.AmmoService.LAUNCH"/>
+                <action android:name="edu.vu.isis.ammo.core.distributor.AmmoService.BIND"/>
+                <action android:name="edu.vu.isis.ammo.core.distributor.AmmoService.PREPARE_FOR_STOP"/>
+                <action android:name="edu.vu.isis.ammo.core.distributor.AmmoService.SEND_SERIALIZED"/>
                 <action android:name="edu.vu.isis.ammo.api.MAKE_REQUEST"/>
                 <action android:name="edu.vu.isis.ammo.AMMO_HARD_RESET"/>
             </intent-filter>
