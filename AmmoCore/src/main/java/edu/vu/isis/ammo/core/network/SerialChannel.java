@@ -242,19 +242,23 @@ public class SerialChannel extends NetChannel
      */
     public DisposalState sendRequest( AmmoGatewayMessage message )
     {
+        logger.debug( "sendRequest()" );
         // There is a chance that the Distributor could try to send a
         // message while the channel is going down, and we don't want
         // the message to be stranded in the queue until the channel
         // comes back up.  Reject the packet in these cases.
         if ( getState() != SERIAL_CONNECTED ) {
+            logger.debug( "...1" );
             return DisposalState.REJECTED;
         }
 
         synchronized ( mFragmenter ) {
             SerialFragmenter f = getFragmenter();
             if ( f != null ) {
+                logger.debug( "...2" );
                 return f.putFromDistributor( message );
             } else {
+                logger.debug( "...3" );
                 return mSenderQueue.putFromDistributor( message );
             }
         }
@@ -1718,6 +1722,14 @@ public class SerialChannel extends NetChannel
                 {
                     setSenderState( INetChannel.TAKING );
                     msg = mSenderQueue.take(); // The main blocking call
+                    synchronized ( mDistQueueSize ) {
+                        --mDistQueueSize;
+                        logger.trace( "Decrementing mDistQueueSize to {}", mDistQueueSize );
+                        if ( mDistQueueSize == SENDQUEUE_LOW_WATER && mWasBusy ) {
+                            mWasBusy = false;
+                            setState( SERIAL_CONNECTED );
+                        }
+                    }
 
                     logger.debug( "Took a message from the send queue" );
                 }
