@@ -13,6 +13,9 @@ purpose whatsoever, and to have or authorize others to do so.
 
 package edu.vu.isis.ammo.core.network;
 
+import java.lang.Short;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -170,6 +173,7 @@ public class SerialFragmenter {
      */
     public boolean deliver( AmmoGatewayMessage agm )
     {
+        logger.debug( "  deliver()" );
         boolean result = false;
 
 
@@ -178,7 +182,10 @@ public class SerialFragmenter {
         // timeout again.
 
         byte[] payload = agm.payload; 
-        byte messageType = payload[0];
+
+        ByteBuffer payloadBuffer = ByteBuffer.wrap( payload );
+        payloadBuffer.order( ByteOrder.LITTLE_ENDIAN );
+        byte messageType = payloadBuffer.get();
 
         byte packetType = (byte) (messageType & 0x80);
         boolean resetPacket = (messageType & 0x40) != 0;
@@ -190,26 +197,94 @@ public class SerialFragmenter {
             logger.debug( " delivering to channel manager" );
             result = mChannelManager.deliver( agm );
         } else {
-            // For ack packets, check off the fragments that were received, if
-            // the packets being acked were fragment.
+            short count = payloadBuffer.getShort();
 
-            // When an ack packet is received (which gives us the token):
-            //   1. Disable the timer if it is set,
-            //   2. Move all the messages in mSmallQueue to
-            //   mSenderQueue. (This isn't public, so I may need to add a
-            //   method to add some way to let it be put directly in the
-            //   queue, rather that going through the normal mechanism.
-            AmmoGatewayMessage message = mSmallQueue.poll();
-            while ( message != null ) {
-                mChannel.addMessageToSenderQueue( message );
-                message = mSmallQueue.poll();
+            boolean isToken = (count & 0x00008000) != 0;
+
+            if ( !isToken ) {
+                logger.debug( "  ack packet received.  Doing nothing for now." );
+
+            } else {
+                logger.debug( "  token packet received." );
+                // For ack packets, check off the fragments that were received, if
+                // the packets being acked were fragment.
+
+                // When an ack packet is received (which gives us the token):
+                //   1. Disable the timer if it is set,
+                //   2. Move all the messages in mSmallQueue to
+                //   mSenderQueue. (This isn't public, so I may need to add a
+                //   method to add some way to let it be put directly in the
+                //   queue, rather that going through the normal mechanism.
+                AmmoGatewayMessage message = mSmallQueue.poll();
+                while ( message != null ) {
+                    logger.debug( "  moving message from small queue to sender queue." );
+                    logger.debug( "mSmallQueue.size() = {}", mSmallQueue.size() );
+                    AmmoGatewayMessage wrappedAgm = wrapAgm( message );
+                    mChannel.addMessageToSenderQueue( wrappedAgm );
+                    message = mSmallQueue.poll();
+                }
+
+                //   3. After that, add a token packet to the queue, too.
+                logger.debug( "  adding token packet to sender queue." );
+                mChannel.addMessageToSenderQueue( createTokenPacket() );
             }
-
-            //   3. After that, add a token packet to the queue, too.
-            mChannel.addMessageToSenderQueue( createTokenPacket() );
         }
 
         return result;
+    }
+
+
+    private short mSequenceNumber = 0;
+
+    private void incrementSequenceNumber()
+    {
+        if (mSequenceNumber == Short.MAX_VALUE) {
+            mSequenceNumber = 0;
+        } else {
+            ++mSequenceNumber;
+        }
+    }
+
+
+    /**
+     * This function takes an AmmoGatewayMessage that came from the distributor
+     * and wraps is with additional SATCOM channel information.
+     */
+    private AmmoGatewayMessage wrapAgm( AmmoGatewayMessage orig )
+    {
+        byte[] old_payload = orig.payload; 
+        byte[] new_payload = new byte[orig.payload.length + 7];
+
+        ByteBuffer buf = ByteBuffer.wrap( new_payload );
+        buf.order( ByteOrder.LITTLE_ENDIAN );
+
+        // For wrapped packets, messageType should be 0x00. (1 byte)
+        buf.put( (byte) 0x00 );
+        
+        // Sequence number (2 bytes)
+        buf.putShort( mSequenceNumber );
+        incrementSequenceNumber();
+
+        // Index of packet in multi-packet sequence (0 for wrapped packets) (2 bytes)
+        buf.putShort( (short) 0 );
+
+        // Total number of packets in multi-packet sequence (1 for wrapped packets) (2 bytes)
+        buf.putShort( (short) 1 );
+
+        // Now put old_payload in
+        buf.put( old_payload );
+
+        // Compute the checksum of the new payload.
+        AmmoGatewayMessage.CheckSum csum = AmmoGatewayMessage.CheckSum.newInstance( new_payload );
+        long payload_checksum = csum.asLong();
+
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder();
+        agmb.version( AmmoGatewayMessage.VERSION_1_SATCOM )
+            .payload( new_payload )
+            .size( new_payload.length )
+            .checksum( payload_checksum );
+
+        return agmb.build();
     }
 
 
