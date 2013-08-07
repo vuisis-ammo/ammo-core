@@ -656,7 +656,7 @@ public class SerialChannel extends NetChannel
                 mSatcomReceiver = new SatcomReceiverThread();
                 mSatcomReceiver.start();
 
-                getFragmenter().startSending();
+                getFragmenter().startSending( RESET_PACKET_INTERVAL );
             } else {
                 if ( getRetransmitter() != null )
                     logger.warn( "Tried to create SerialRetransmitter when we already had one." );
