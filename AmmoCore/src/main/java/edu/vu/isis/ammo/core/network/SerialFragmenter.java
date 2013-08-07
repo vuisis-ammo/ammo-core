@@ -309,6 +309,28 @@ public class SerialFragmenter {
         return agmb.build();
     }
 
+
+    private AmmoGatewayMessage createResetPacket()
+    {
+        final int payloadSize = 2;
+        byte[] payload = new byte[payloadSize];
+
+        payload[0] = (byte) 0x60;
+        payload[1] = (byte) 0x00;
+
+        AmmoGatewayMessage.CheckSum csum = AmmoGatewayMessage.CheckSum.newInstance( payload );
+        long payload_checksum = csum.asLong();
+
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder();
+        agmb.version( AmmoGatewayMessage.VERSION_1_SATCOM )
+            .payload( payload )
+            .size( payloadSize )
+            .checksum( payload_checksum );
+
+        return agmb.build();
+    }
+
+
     // Need a queue here, to hold the same things that the SenderQueue holds.
     // Make this one less than the size of mSendQueue, since we'll need room
     // for the token packet.
@@ -316,6 +338,10 @@ public class SerialFragmenter {
 
     private BlockingQueue<AmmoGatewayMessage> mSmallQueue
         = new LinkedBlockingQueue<AmmoGatewayMessage>( FRAGMENTER_SENDQUEUE_MAX_SIZE );
+
+    // False when we initially start (and are sending reset packets to the gateway), but
+    // True once we have received an ack to a reset packet.
+    private boolean mSynced = false;
 
     private SerialChannel mChannel;
     private IChannelManager mChannelManager;
