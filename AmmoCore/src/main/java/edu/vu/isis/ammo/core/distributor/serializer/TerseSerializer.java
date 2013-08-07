@@ -1,9 +1,12 @@
 package edu.vu.isis.ammo.core.distributor.serializer;
 
-import java.io.IOException;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import android.content.res.AssetFileDescriptor;
+import android.os.ParcelFileDescriptor;
+import edu.vu.isis.ammo.core.distributor.RequestSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,7 +19,9 @@ public class TerseSerializer implements ISerializer {
 
     @Override
     public byte[] serialize(final IContentItem item) throws IOException {
-        final ByteBuffer tuple = ByteBuffer.allocate(2048);
+        //final ByteBuffer tuple = ByteBuffer.allocate(2048);
+        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+        DataOutputStream tuple = new DataOutputStream(byteBuffer);
 
         // For the new serialization for the 152s, write the data we want to
         // tuple.
@@ -28,7 +33,7 @@ public class TerseSerializer implements ISerializer {
                 case LONG:
                 case FK: {
                     final long longValue = item.getAsLong(key);
-                    tuple.putLong(longValue);
+                    tuple.writeLong(longValue);
                     break;
                 }
                 case TIMESTAMP: {
@@ -38,7 +43,7 @@ public class TerseSerializer implements ISerializer {
                                                                    // seconds
                                                                    // only on
                                                                    // serial
-                    tuple.putInt(intValue);
+                    tuple.writeInt(intValue);
                     break;
                 }
                 case TEXT:
@@ -53,21 +58,21 @@ public class TerseSerializer implements ISerializer {
                         byte[] serializedString = svalue.getBytes("UTF8");
                         int length = serializedString.length;
                         if(length <= Short.MAX_VALUE) { 
-                            tuple.putShort((short) length);
-                            tuple.put(serializedString);
+                            tuple.writeShort((short) length);
+                            tuple.write(serializedString, 0, (short) length);
                         } else {
-                            tuple.putShort((short) 0);
+                            tuple.writeShort((short) 0);
                             logger.warn("Omitting too-long string of length {}", length);
                         }
                     } else {
-                        tuple.putShort((short) 0);
+                        tuple.writeShort((short) 0);
                     }
                     
                     break;
                 }
                 case SHORT: {
                     final short shortValue = item.getAsShort(key);
-                    tuple.putShort(shortValue);
+                    tuple.writeShort(shortValue);
                     break;
                 }
                 case BOOL: {
@@ -78,30 +83,63 @@ public class TerseSerializer implements ISerializer {
                     } else {
                         byteValue = 0;
                     }
-                    tuple.put(byteValue);
+                    tuple.writeByte(byteValue);
                     break;
                 }
                 case INTEGER:
                 case EXCLUSIVE:
                 case INCLUSIVE: {
                     final int intValue = item.getAsInteger(key);
-                    tuple.putInt(intValue);
+                    tuple.writeInt(intValue);
                     break;
                 }
                 case REAL:
                 case FLOAT: {
                     final double doubleValue = item.getAsDouble(key);
-                    tuple.putDouble(doubleValue);
+                    tuple.writeDouble(doubleValue);
                     break;
                 }
                 case BLOB: {
                     final byte[] bytesValue = item.getAsByteArray(key);
                     if(bytesValue != null) {
-                    // check that bytes count does not exceed our buffer size
-                    tuple.putShort((short) bytesValue.length);
-                    tuple.put(bytesValue);
+                        // check that bytes count does not exceed our buffer size
+                        tuple.writeShort((short) bytesValue.length);
+                        tuple.write(bytesValue, 0, (short) bytesValue.length);
                     } else {
-                        tuple.putShort((short) 0);
+                        tuple.writeShort((short) 0);
+                    }
+                    break;
+                }
+                case FILE: {
+                    final AssetFileDescriptor afd = item.getAssetFileDescriptor(key);
+                    if(afd != null) {
+                        final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+                        final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                        final ByteBuffer fieldBlobBuffer;
+                        ByteArrayOutputStream fieldBlob = null;
+                        BufferedInputStream bis = null;
+
+                        try {
+                            bis = new BufferedInputStream(instream);
+                            fieldBlob = new ByteArrayOutputStream();
+
+                            byte[] buffer = new byte[1024];
+                            for(int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+                                fieldBlob.write(buffer, 0, bytesRead);
+                            }
+                        } finally {
+                            if(bis != null) {
+                                bis.close();
+                            }
+                            if(fieldBlob != null) {
+                                fieldBlob.close();
+                            }
+                        }
+
+                        //write the file out to the terse-encoded message
+                        byte[] fieldBlobData = fieldBlob.toByteArray();
+                        tuple.writeInt(fieldBlobData.length);
+                        tuple.write(fieldBlobData, 0, fieldBlobData.length);
                     }
                     break;
                 }
@@ -110,10 +148,9 @@ public class TerseSerializer implements ISerializer {
             }
         }
         // we only process one
-        tuple.flip();
-        final byte[] tupleBytes = new byte[tuple.limit()];
-        tuple.get(tupleBytes);
-        PLogger.API_STORE.debug("terse tuple=[{}]", tuple);
+        final byte[] tupleBytes = byteBuffer.toByteArray();
+
+        PLogger.API_STORE.debug("serialized terse message of length {}", tupleBytes.length);
         return tupleBytes;
     }
 
@@ -196,7 +233,14 @@ public class TerseSerializer implements ISerializer {
                     break;
                 }
                 case FILE: {
-                	throw new UnsupportedOperationException("no file");
+                    final int bytesLength = tuple.getInt();
+                    if(bytesLength > 0) {
+                        final byte[] bytesValue = new byte[bytesLength];
+                        tuple.get(bytesValue, 0, bytesLength);
+                        decodedObject.blobs.put(key, new RequestSerializer.BlobData(RequestSerializer.BlobTypeEnum.LARGE, bytesValue));
+                    } else {
+                        logger.warn("Tuple contained zero-length file");
+                    }
                 }
                 default:
                     logger.warn("unhandled data type {}", type);
