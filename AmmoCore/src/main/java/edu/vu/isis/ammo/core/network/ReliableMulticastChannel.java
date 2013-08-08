@@ -48,6 +48,8 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
+
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.UDPSendException;
 import edu.vu.isis.ammo.util.AmmoConfigurator;
 import org.slf4j.Logger;
@@ -1204,7 +1206,7 @@ public class ReliableMulticastChannel extends NetChannel {
                 }
 
                 try {
-                    ByteBuffer buf = msg.serialize(endian,
+                    ByteBufferAdapter buf = msg.serialize(endian,
                             AmmoGatewayMessage.VERSION_1_FULL, (byte) 0);
                     setSenderState(INetChannel.SENDING);
 

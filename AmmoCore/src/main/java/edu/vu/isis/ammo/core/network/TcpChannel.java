@@ -44,6 +44,7 @@ import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 
 
 /**
@@ -1104,7 +1105,7 @@ public class TcpChannel extends TcpChannelAbstract {
 
         try
         {
-          ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
+          ByteBufferAdapter buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
           setSenderState( INetChannel.SENDING );
           int bytesToSend = buf.remaining();
           mDataOutputStream.write( buf.array(), 0, bytesToSend );

@@ -71,6 +71,7 @@
     <dependency>
       <groupId>transapps</groupId>
       <artifactId>tasettings-api</artifactId>
+	  <version>1.0.27</version>
     </dependency>
   </dependencies>
 
@@ -108,6 +109,8 @@
       <plugin>
         <groupId>com.jayway.maven.plugins.android.generation2</groupId>
         <artifactId>android-maven-plugin</artifactId>
+		<version>3.6.2-SNAPSHOT</version>
+		<configuration><sdk><platform>8</platform></sdk></configuration>
         <executions>
           <!-- build the shared libraries -->
           <execution>

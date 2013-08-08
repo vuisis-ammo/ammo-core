@@ -12,6 +12,9 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
@@ -46,7 +49,10 @@ import android.os.Process;
 import android.preference.PreferenceManager;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.CodedInputStream;
+import com.google.protobuf.GeneratedMessage;
+import com.google.protobuf.WireFormat;
+import com.google.protobuf.WireFormatUtils;
 
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
@@ -76,12 +82,17 @@ import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
+import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
+import edu.vu.isis.ammo.util.ByteBufferInputStream;
 import edu.vu.isis.ammo.util.FullTopic;
+import edu.vu.isis.ammo.util.NioByteBufferAdapter;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -830,26 +841,31 @@ public class DistributorThread extends Thread {
             if (agm.isSerialChannel)
                 networkManager.receivedCorruptPacketOnSerialChannel();
 
+            agm.payload.release();
             return false;
         }
 
         total_recv.incrementAndGet();
-
+        
         final AmmoMessages.MessageWrapper mw;
         try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
-        } catch (InvalidProtocolBufferException ex) {
+            mw = deserialize(agm.payload);
+            logger.error("***************** Message deserialized in " + agm.payload.time());
+        } catch (Exception ex) {
             logger.error("parsing gateway message", ex);
+            agm.payload.release();
             return false;
         }
         if (mw == null) {
             logger.error("mw was null!");
+            agm.payload.release();
             return false; // TBD SKN: this was true, why? if we can't parse it
             // then its bad
         }
         final MessageType mtype = mw.getType();
         if (mtype == MessageType.HEARTBEAT) {
             logger.trace("heartbeat");
+            agm.payload.release();
             return true;
         }
 
@@ -857,7 +873,7 @@ public class DistributorThread extends Thread {
             case DATA_MESSAGE:
             case TERSE_MESSAGE:
                 final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel,
-                        agm.priority);
+                        agm.priority, agm.payload);
                 logger.debug("subscribe reply {}", subscribeResult);
                 if (mw.hasDataMessage()) {
                     final AmmoMessages.DataMessage dm = mw.getDataMessage();
@@ -868,22 +884,30 @@ public class DistributorThread extends Thread {
                                 .upsert();
                     }
                 }
+                if( !subscribeResult ) {
+                	agm.payload.release();
+                }
                 break;
 
             case AUTHENTICATION_RESULT:
                 final boolean result = receiveAuthenticateResponse(context, mw);
                 logger.debug("authentication result={}", result);
+                agm.payload.release();
                 break;
 
             case PUSH_ACKNOWLEDGEMENT:
                 final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
                 logger.debug("post acknowledgement {}", postalResult);
+                agm.payload.release();
                 break;
 
             case PULL_RESPONSE:
                 final boolean retrieveResult = receiveRetrievalResponse(context, mw, agm.channel,
-                        agm.priority);
+                        agm.priority, agm.payload);
                 logger.debug("retrieve response {}", retrieveResult);
+                if( !retrieveResult ) {
+                	agm.payload.release();
+                }
                 break;
 
             case SUBSCRIBE_MESSAGE:
@@ -908,15 +932,18 @@ public class DistributorThread extends Thread {
                                 .upsert();
                     }
                 }
+                agm.payload.release();
                 break;
 
             case AUTHENTICATION_MESSAGE:
             case PULL_REQUEST:
             case UNSUBSCRIBE_MESSAGE:
                 logger.debug("{} message, no processing", mw.getType());
+                agm.payload.release();
                 break;
             default:
                 logger.error("unexpected reply type. {}", mw.getType());
+                agm.payload.release();
         }
 
         return true;
@@ -1762,7 +1789,7 @@ public class DistributorThread extends Thread {
      * @return
      */
     private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw,
-            NetChannel channel, int priority) {
+            NetChannel channel, int priority, ByteBufferAdapter payload) {
         if (mw == null)
             return false;
         if (!mw.hasPullResponse())
@@ -1791,10 +1818,9 @@ public class DistributorThread extends Thread {
         final Uri provider = Uri.parse(uriString);
 
         // update the actual provider
-
         final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
         final boolean queued = this.deserialThread.toProvider(priority, context, channel.name,
-                provider, encoding, resp.getData().toByteArray());
+                provider, encoding, getDataBuffer(payload, resp.getData()));
         logger.debug("tuple upserted {}", queued);
 
         return true;
@@ -2044,7 +2070,7 @@ public class DistributorThread extends Thread {
      * the subscription table.
      */
     private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw,
-            NetChannel channel, int priority) {
+            NetChannel channel, int priority, ByteBufferAdapter payload) {
         if (mw == null) {
             logger.warn("no message");
             return false;
@@ -2150,11 +2176,11 @@ public class DistributorThread extends Thread {
             }
         }
 
-        final Encoding encoding = Encoding.getInstanceByName(encode);
+        final Encoding encoding = Encoding.getInstanceByName(encode);        
         this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
-                data.toByteArray());
+        		getDataBuffer(payload, data));
 
-        logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
+        logger.warn("Ammo received message on topic: {} for provider: {}", mime, uriString);
 
         return true;
     }
@@ -2169,5 +2195,176 @@ public class DistributorThread extends Thread {
     }
 
     // =============== UTILITY METHODS ======================== //
+    
+    
+    // ===========================================================
+	// GROSS protobuf hacks
+	// ===========================================================
+    
+    private static final int DATA_MESSAGE_DATA_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.DataMessage.DATA_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+    private static final int PULL_RESPONSE_DATA_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.PullResponse.DATA_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+    private static final int DATA_MESSAGE_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.MessageWrapper.DATA_MESSAGE_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+    private static final int PULL_RESPONSE_MESSAGE_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.MessageWrapper.PULL_RESPONSE_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+    private static final int EOF = 0;
+    private static Field bufferField = null; 
+    
+    private static ByteBufferAdapter getDataBuffer( ByteBufferAdapter payload, ByteString data ) {
+        if( data == null || data == ByteString.EMPTY ) {
+        	return payload;
+        } else {
+        	return new NioByteBufferAdapter(ByteBuffer.wrap(data.toByteArray()));
+        }
+    }
+    
+    /**
+     * This is crap.
+     * 
+     * We don't want a message that contains a large "data" portion to be read onto the heap
+     * into a ByteString.  Sometimes that part of the message can be huge and the device will
+     * run out of memory.  
+     * 
+     * With a little work we might be able to generalize this a little.
+     * 
+     * @param payload
+     * @return
+     */
+    private static AmmoMessages.MessageWrapper deserialize( ByteBufferAdapter payload ) throws IOException {
+    	// mark here so we can rewind
+    	int initialPosition = payload.position();
+    	
+    	// first, check the type of message.  If this is a pull response or data message
+    	// (ie, a message with a potentially large payload) make sure to deserialize it
+    	// so that we skip the large payload and adjust the buffer so that the position
+    	// is at the start of the payload and the limit is at the end of the payload
+    	CodedInputStream codedStream = createUnbufferedCodedInputStream(
+    			new ByteBufferInputStream(payload));    	
+    	for( ;; ) {
+    		int tag = codedStream.readTag();
+    		if( tag == EOF ) {
+    			break;
+    			
+    		} else if( tag == PULL_RESPONSE_MESSAGE_FIELD_TAG ) {
+    			
+    			PullResponse pullMessage = deserializeMessage(payload, 
+    					PULL_RESPONSE_DATA_FIELD_TAG, PullResponse.newBuilder());
+    			
+    			return AmmoMessages.MessageWrapper.newBuilder()
+    					.setType(MessageType.PULL_RESPONSE)
+    					.setPullResponse(pullMessage).buildPartial();
+    			
+    		} else if( tag == DATA_MESSAGE_FIELD_TAG ) {
+    			
+    			DataMessage dataMessage = deserializeMessage(payload, 
+    					DATA_MESSAGE_DATA_FIELD_TAG, DataMessage.newBuilder());
+    			
+    			return AmmoMessages.MessageWrapper.newBuilder()
+    					.setType(MessageType.DATA_MESSAGE)
+    					.setDataMessage(dataMessage).buildPartial();
+    		}
+    		
+    		codedStream.skipField(tag);
+    	}
 
+    	
+    	// otherwise, we deserialize the normal way
+    	payload.position(initialPosition);
+    	return AmmoMessages.MessageWrapper.parseFrom(new ByteBufferInputStream(payload));
+    }
+    
+    /**
+     * Deserializes a message with a "data" tag, skipping the data tag and positioning
+     * the buffer so that it's position() is at the begining of the data and it's limit()
+     * is at the end of the data.
+     * 
+     * 
+     * @param payload
+     * @param messageStart
+     * @param dataFieldTag
+     * @param builder
+     * @return
+     * @throws IOException
+     */
+    @SuppressWarnings("unchecked")
+	private static <T extends GeneratedMessage> T deserializeMessage( 
+    		ByteBufferAdapter payload, int dataFieldTag,
+    		GeneratedMessage.Builder<?> builder ) throws IOException {
+		
+		// position the stream at the start of the message
+		CodedInputStream codedStream = createUnbufferedCodedInputStream(new ByteBufferInputStream(payload));
+		int length = codedStream.readRawVarint32();
+		int messageStart = payload.position();
+		int messageEnd = messageStart + length;
+		int dataMessageDataStart = -1;
+		int dataMessageDataEnd = -1;
+		
+		// search through the payload until we find the tag that
+		// marks the start of the data.  The length of the data will
+		// be written to the stream as a varint32.  We use the length
+		// to determine the end of the data field.  Note that this
+		// skips some internal protobuf checks but is allot more
+		// efficient.
+		for( ;; ) {
+			int position = payload.position();
+			int tag = codedStream.readTag();
+			if( tag == EOF ) {
+				break;
+			} else if( tag == dataFieldTag ) {
+				dataMessageDataStart = position;
+				int len = codedStream.readRawVarint32();
+				dataMessageDataEnd = payload.position() + len;
+				break;
+			}
+			codedStream.skipField(tag);
+		}
+		
+		// make a head slice
+		payload.position(messageStart);
+		ByteBufferAdapter head = payload.slice();
+		head.limit(dataMessageDataStart-messageStart);        		
+		
+		// make a tail slice
+		payload.position(dataMessageDataEnd);
+		ByteBufferAdapter tail = payload.slice();
+		tail.limit(messageEnd-dataMessageDataEnd);
+		
+		// now make a message from those parts
+		builder.mergeFrom(new ByteBufferInputStream(head));
+		builder.mergeFrom(new ByteBufferInputStream(tail));
+		T ret = (T) builder.buildPartial();
+		
+		// now position the payload so that it wraps the data portion
+		payload.position(dataMessageDataStart);
+		codedStream = createUnbufferedCodedInputStream(new ByteBufferInputStream(payload));
+		codedStream.readTag(); // read the tag to advance past that
+		codedStream.readRawVarint32(); // read the size to advance past that
+		payload.limit(dataMessageDataEnd);
+		
+		return ret;
+    }
+    
+    /**
+     * Because we use the position() of the ByteBuffer allot, we can't have the {@link CodedInputStream}
+     * buffering data internally.  So we replace the buffer with a 1-byte version.
+     * 
+     * @param in
+     * @return
+     */
+    private static CodedInputStream createUnbufferedCodedInputStream( InputStream in ) {
+    	if( bufferField == null ) {
+    		try {
+    			bufferField = CodedInputStream.class.getDeclaredField("buffer");
+    			bufferField.setAccessible(true);
+    		} catch ( Exception e ) {
+    			throw new RuntimeException("Failed to find 'buffer' field in " + CodedInputStream.class + ".  " +
+    					"Did the protobuf version change?");
+    		}
+    	}
+    	CodedInputStream codedStream = CodedInputStream.newInstance(in);
+    	try {
+			bufferField.set(codedStream, new byte[1]);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to change the buffer field in " + CodedInputStream.class, e);
+		}
+    	return codedStream;
+    }
 }

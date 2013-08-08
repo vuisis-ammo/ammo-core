@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -50,6 +51,7 @@ import android.database.sqlite.SQLiteException;
 import android.net.Uri;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
+import android.os.ParcelFileDescriptor.AutoCloseOutputStream;
 import android.os.RemoteException;
 import android.util.SparseArray;
 import edu.vu.isis.ammo.api.IDistributorAdaptor;
@@ -60,6 +62,8 @@ import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
+import edu.vu.isis.ammo.util.ByteBufferInputStream;
 
 /**
  * The purpose of these objects is lazily serialize an object. Once it has been
@@ -417,42 +421,43 @@ public class RequestSerializer {
      * @see serializeFromProvider with which this method is symmetric.
      */
     public static Uri deserializeToProvider(final Context context, final ContentResolver resolver,
-            final String channelName,
-            final Uri provider, final Encoding encoding, final byte[] data) {
+    		final String channelName,
+    		final Uri provider, final Encoding encoding, final ByteBufferAdapter data) {
 
-        logger.debug("deserialize message type=<{}>", encoding.getType());
+    	logger.debug("deserialize message type=<{}>", encoding.getType());
 
-        final UriFuture uri;
-        switch (encoding.getType()) {
-            case CUSTOM:
-                uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
-                        provider, encoding, data);
-                break;
-            case JSON:
-                uri = RequestSerializer.deserializeJsonToProvider(context, resolver, channelName,
-                        provider, encoding, data);
-                break;
-            case TERSE:
-                uri = RequestSerializer.deserializeTerseToProvider(context, resolver, channelName,
-                        provider, encoding, data);
-                break;
-            default:
-                uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
-                        provider, encoding, data);
-        }
-        if (uri == null) {
-            logger.warn("provider update produced no result");
-            return null;
-        }
-        try {
-            return uri.get();
-        } catch (InterruptedException ex) {
-            logger.error("interrupted thread ", ex);
-            return null;
-        } catch (ExecutionException ex) {
-            logger.error("execution error thread ", ex);
-            return null;
-        }
+    	final UriFuture uri;
+    	switch (encoding.getType()) {
+    	case CUSTOM:
+    		uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
+    				provider, encoding, data);
+    		break;
+    	case JSON:
+    		uri = RequestSerializer.deserializeJsonToProvider(context, resolver, channelName,
+    				provider, encoding, data);
+    		break;
+    	case TERSE:
+    		uri = RequestSerializer.deserializeTerseToProvider(context, resolver, channelName,
+    				provider, encoding, data);
+    		break;
+    	default:
+    		uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
+    				provider, encoding, data);
+    	}
+    	logger.error("***************** deserialize in " + data.time());
+    	if (uri == null) {
+    		logger.warn("provider update produced no result");
+    		return null;
+    	}
+    	try {
+    		return uri.get();
+    	} catch (InterruptedException ex) {
+    		logger.error("interrupted thread ", ex);
+    		return null;
+    	} catch (ExecutionException ex) {
+    		logger.error("execution error thread ", ex);
+    		return null;
+    	}
     }
 
     /**
@@ -503,14 +508,23 @@ public class RequestSerializer {
      */
     public static UriFuture deserializeCustomToProvider(final Context context,
             final ContentResolver resolver,
-            final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
+            final String channelName, final Uri provider, final Encoding encoding, final ByteBufferAdapter data) {
         logger.debug("deserialize custom to provider");
-
+        // blerg....we can't pass the ByteBuffer between processes
+        byte[] bufferData = null;
+        if( data.isDirect() || data.isReadOnly() ) {        	
+        	bufferData = new byte[data.limit()-data.position()];
+        	data.get(bufferData);
+        } else {
+        	bufferData = data.array();
+        }
+        
+        final byte[] finalBufferData = bufferData;
         final String key = provider.toString();
         if (RequestSerializer.remoteServiceMap.containsKey(key)) {
             final IDistributorAdaptor adaptor = RequestSerializer.remoteServiceMap.get(key);
             try {
-                final String uriString = adaptor.deserialize(encoding.name(), key, data);
+                final String uriString = adaptor.deserialize(encoding.name(), key, finalBufferData);
                 Uri.parse(uriString);
 
             } catch (RemoteException ex) {
@@ -530,7 +544,7 @@ public class RequestSerializer {
 
                 // call the deserialize function here ....
                 try {
-                    adaptor.deserialize(encoding.name(), key, data);
+                    adaptor.deserialize(encoding.name(), key, finalBufferData);
                 } catch (RemoteException ex) {
                     ex.printStackTrace();
                 }
@@ -1055,18 +1069,22 @@ public class RequestSerializer {
      */
     public static UriFuture deserializeJsonToProvider(final Context context,
             final ContentResolver resolver,
-            final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
+            final String channelName, final Uri provider, final Encoding encoding, final ByteBufferAdapter buf) {
         logger.debug("deserialize json to provider");
 
-        final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
+        final ByteBufferAdapter dataBuff = buf.order(ByteOrder.BIG_ENDIAN);
         // find the end of the json portion of the data
-        int position = 0;
-        for (; position < data.length && data[position] != (byte) 0x0; position++) {
+        int position = dataBuff.position();
+        for (; position < dataBuff.limit() && dataBuff.get(position) != (byte) 0x0; position++) {
         }
+        logger.error("***************** found json end in " + buf.time());
 
-        final int length = position;
+        final int length = position - dataBuff.position();
         final byte[] payload = new byte[length];
-        System.arraycopy(data, 0, payload, 0, length);
+        dataBuff.get(payload);
+        logger.error("***************** read json portion in " + buf.time());
+        
+        
         final JSONObject input;
         try {
             final String parsePayload = new String(payload);
@@ -1107,6 +1125,8 @@ public class RequestSerializer {
             PLogger.API_STORE.warn("invalid JSON content", ex);
             return null;
         }
+        logger.error("***************** parsed json in " + buf.time());
+        
         final ContentValues cv = new ContentValues();
         cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
         final StringBuilder sb = new StringBuilder()
@@ -1159,6 +1179,8 @@ public class RequestSerializer {
                 PLogger.API_STORE.error("invalid JSON key=[{}]", keyObj);
             }
         }
+        
+        logger.error("***************** build cv in " + buf.time());
 
         final Uri tupleUri;
         try {
@@ -1179,8 +1201,10 @@ public class RequestSerializer {
             logger.warn("bad provider or values", ex);
             return null;
         }
-        if (position == data.length)
+        if (position == dataBuff.limit())
             return new UriFuture(tupleUri);
+        
+        logger.error("***************** upserted json part in " + buf.time());
 
         // process the blobs
         final long tupleId = ContentUris.parseId(tupleUri);
@@ -1190,15 +1214,16 @@ public class RequestSerializer {
         position++; // move past the null terminator
         dataBuff.position(position);
         int blobCount = 0;
-        while (dataBuff.position() < data.length) {
+        while (dataBuff.remaining() > 0) {
             // get the field name
-            final int nameStart = dataBuff.position();
             int nameLength;
-            for (nameLength = 0; position < data.length; nameLength++, position++) {
-                if (data[position] == 0x0)
+            for (nameLength = 0; position < dataBuff.limit(); nameLength++, position++) {
+                if (dataBuff.get(position) == 0x0)
                     break;
             }
-            final String fieldName = new String(data, nameStart, nameLength);
+            byte[] nameBytes = new byte[nameLength];
+            dataBuff.get(nameBytes);
+            final String fieldName = new String(nameBytes);
             position++; // move past the null
 
             // get the last three bytes of the length, to be used as a simple
@@ -1214,13 +1239,13 @@ public class RequestSerializer {
 
             if (dataLength > dataBuff.remaining()) {
                 logger.error("payload size is wrong {} {}",
-                        dataLength, data.length);
+                        dataLength, dataBuff.limit());
                 return null;
             }
             // get the blob data
-            final byte[] blob = new byte[dataLength];
             final int blobStart = dataBuff.position();
-            System.arraycopy(data, blobStart, blob, 0, dataLength);
+            ByteBufferAdapter blob = dataBuff.slice();
+            blob.limit(dataLength);
             dataBuff.position(blobStart + dataLength);
 
             // check for storage type
@@ -1239,20 +1264,27 @@ public class RequestSerializer {
             switch (storageMarker) {
                 case BLOB_MARKER_FIELD:
                     blobCount++;
-                    cv.put(fieldName, blob);
+                    byte[] bytes = new byte[dataLength];
+                    blob.get(bytes);
+                    cv.put(fieldName, bytes);
                     break;
                 default:
+                	ByteBufferInputStream in = null;
+                	AutoCloseOutputStream out = null;
                     final Uri fieldUri = updateTuple.appendPath(fieldName).build();
                     try {
                         PLogger.API_STORE.debug("write blob uri=[{}]", fieldUri);
-                        final OutputStream outstream = resolver.openOutputStream(fieldUri);
-                        if (outstream == null) {
+                        ParcelFileDescriptor descriptor = resolver.openFileDescriptor(fieldUri, "w");
+                        if (descriptor == null) {
                             logger.error("failed to open output stream to content provider: {} ",
                                     fieldUri);
                             return null;
                         }
-                        outstream.write(blob);
-                        outstream.close();
+                        out = new AutoCloseOutputStream(descriptor);
+                        FileChannel channel = out.getChannel();
+                        while( blob.remaining() > 0 ) {
+                        	blob.write(channel);
+                        }
                     } catch (SQLiteException ex) {
                         logger.error("in provider {} could not open output stream {}",
                                 fieldUri, ex.getLocalizedMessage());
@@ -1260,8 +1292,13 @@ public class RequestSerializer {
                         logger.error("blob file not found: {}", fieldUri, ex);
                     } catch (IOException ex) {
                         logger.error("error writing blob file: {}", fieldUri, ex);
+                    } finally {
+                    	if( in != null ) try { in.close(); } catch ( Exception ignored ) {}
+                    	if( out != null ) try { out.close(); } catch ( Exception ignored ) {}
                     }
             }
+            
+            logger.error("***************** deserialized blob "+fieldName+" in " + buf.time());
         }
         if (blobCount > 0) {
             try {
@@ -1565,7 +1602,7 @@ public class RequestSerializer {
      */
     private static UriFuture deserializeTerseToProvider(final Context context,
             final ContentResolver resolver,
-            final String channelName, final Uri provider, final Encoding encoding, final byte[] data) {
+            final String channelName, final Uri provider, final Encoding encoding, final ByteBufferAdapter dataBuf) {
         {
             /**
              * 1) perform a query to get the field: names, types. 2) parse the
@@ -1595,7 +1632,7 @@ public class RequestSerializer {
                 return null;
             }
 
-            final ByteBuffer tuple = ByteBuffer.wrap(data);
+            final ByteBufferAdapter tuple = dataBuf;
             final ContentValues wrap = new ContentValues();
 
             final HashMap<String, byte[]> fileMap = new HashMap<String, byte[]>(2);

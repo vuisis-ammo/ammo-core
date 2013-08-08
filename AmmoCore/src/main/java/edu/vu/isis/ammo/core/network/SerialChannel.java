@@ -48,6 +48,7 @@ import android.os.Looper;
 import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 
 
 /**
@@ -1122,7 +1123,7 @@ public class SerialChannel extends NetChannel
                                 }
 
                                 AmmoGatewayMessage peekedMsg = mSenderQueue.peek();
-                                int peekedMsgLength = peekedMsg.payload.length
+                                int peekedMsgLength = peekedMsg.payload.limit()
                                                       + AmmoGatewayMessage.HEADER_DATA_LENGTH_TERSE;
 
                                 if ( peekedMsgLength > MAX_SEND_PAYLOAD_SIZE ) {
@@ -1248,7 +1249,7 @@ public class SerialChannel extends NetChannel
             logger.trace( "hyperperiod={}, msg.mHyperperiod={}", hyperperiod, msg.mHyperperiod );
             msg.mSlotID = slotIndex;
             msg.mIndexInSlot = indexInSlot;
-            ByteBuffer buf = msg.serialize( endian,
+            ByteBufferAdapter buf = msg.serialize( endian,
                                             AmmoGatewayMessage.VERSION_1_TERSE,
                                             (byte) slotIndex );
 

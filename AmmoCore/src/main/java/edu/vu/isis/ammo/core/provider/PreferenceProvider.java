@@ -14,6 +14,7 @@ package edu.vu.isis.ammo.core.provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import transapps.settings.UniqueIdentifiers;
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.Context;
@@ -26,7 +27,6 @@ import android.net.Uri;
 import android.preference.PreferenceManager;
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.INetPrefKeys;
-import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 public class PreferenceProvider extends ContentProvider {
 

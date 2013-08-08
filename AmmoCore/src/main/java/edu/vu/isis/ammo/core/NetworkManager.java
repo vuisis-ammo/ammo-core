@@ -36,9 +36,6 @@ import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-
-import com.google.protobuf.InvalidProtocolBufferException;
-
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IntentNames;
@@ -74,8 +71,8 @@ import edu.vu.isis.ammo.core.network.TcpChannelServer;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
+import edu.vu.isis.ammo.util.ByteBufferInputStream;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
-import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
  * <p>
@@ -217,8 +214,7 @@ public enum NetworkManager  implements INetworkService,
 
     public String getDeviceId() {
         if (this.deviceId == null) {
-            this.deviceId = UniqueIdentifiers.device(this.context);
-            this.updatePref(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
+            this.deviceId = aggregatePref(Keys.HardwareKeys.DEVICE_ID, this.deviceId);
             logger.warn("no device specified, generating: [{}]", this.deviceId);
         }
         return deviceId;
@@ -697,8 +693,8 @@ public enum NetworkManager  implements INetworkService,
                         this.networkingSwitch);
         logger.trace("acquired networkingSwitch {}", this.networkingSwitch);
 
-        this.deviceId = this.localSettings
-                .getString(INetPrefKeys.CORE_DEVICE_ID,
+        this.deviceId = this
+                .aggregatePref(Keys.HardwareKeys.DEVICE_ID,
                         this.deviceId);
 
         this.operatorId = this
@@ -1417,8 +1413,7 @@ public enum NetworkManager  implements INetworkService,
 
         final AmmoMessages.AuthenticationMessage.Builder authreq =
                 AmmoMessages.AuthenticationMessage.newBuilder();
-        authreq.setDeviceId(
-                UniqueIdentifiers.device(this.context))
+        authreq.setDeviceId(getDeviceId())
                 .setUserId(this.operatorId).setUserKey(this.operatorKey);
 
         mw.setAuthenticationMessage(authreq);
@@ -1580,8 +1575,9 @@ public enum NetworkManager  implements INetworkService,
         // HACK! Fixme
         final AmmoMessages.MessageWrapper mw;
         try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
-        } catch (InvalidProtocolBufferException ex) {
+            mw = AmmoMessages.MessageWrapper.parseFrom(
+            		new ByteBufferInputStream(agm.payload));
+        } catch (Exception ex) {
             logger.error("parsing payload failed", ex);
             return;
         }

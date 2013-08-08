@@ -17,12 +17,13 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Comparator;
 import java.util.UUID;
-import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
+import edu.vu.isis.ammo.util.CRC32;
 
 /**
  * see /opt/ammo/Gateway/AndroidGatewayPlugin/
@@ -114,7 +115,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public final byte priority;
     public final byte version;
     public CheckSum payload_checksum;
-    public byte[] payload;
+    public ByteBufferAdapter payload;
     public final INetworkService.OnSendMessageHandler handler;
 
     public final boolean isMulticast;
@@ -429,14 +430,26 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public Builder isHeartbeat(boolean val) { this.isHeartbeat = val; return this; }
  
        private byte[] payload_serialized;
+       private ByteBufferAdapter payload_serializedBuf;
         public byte[] payload() {
             return this.payload_serialized;
+        }
+        
+        public ByteBufferAdapter payloadBuffer() {
+        	return payload_serializedBuf;
         }
 
         public Builder payload(byte[] val) {
             // if (this.size != val.length)
             // throw new IllegalArgumentException("payload size incorrect");
             this.payload_serialized = val;
+            return this;
+        }
+        
+        public Builder payload(ByteBufferAdapter val) {
+            // if (this.size != val.length)
+            // throw new IllegalArgumentException("payload size incorrect");
+            this.payload_serializedBuf = val;
             return this;
         }
 
@@ -466,8 +479,15 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         }
 
         public AmmoGatewayMessage build() {
+        	if( this.payload_serialized == null && this.payload_serializedBuf == null ) {
+        		throw new IllegalStateException("No payload!");
+        	} else if( this.payload_serializedBuf != null ) {
+        		if( this.size != this.payload_serializedBuf.remaining() )
+        			throw new IllegalStateException("payload size incorrect");
+        		return new AmmoGatewayMessage(this, payload_serializedBuf);
+        	}
             if (this.size != this.payload_serialized.length)
-                throw new IllegalArgumentException("payload size incorrect");
+                throw new IllegalStateException("payload size incorrect");
             return new AmmoGatewayMessage(this, this.payload_serialized);
         }
 
@@ -489,9 +509,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         }
     }
 
-    private AmmoGatewayMessage(Builder builder, byte[] payload) {
+    private AmmoGatewayMessage(Builder builder, ByteBufferAdapter payload) {
         this.size = builder.size;
-        if (this.size != payload.length)
+        if (this.size != payload.limit())
             throw new IllegalArgumentException("payload size incorrect");
         this.priority = builder.priority;
         this.version = builder.version;
@@ -517,7 +537,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
          * record the time when the message is built so we can sort it by time
          * if the priority is same
          */
-        this.buildTime = System.currentTimeMillis();
+        this.buildTime = System.currentTimeMillis();    	
+    }
+    
+    private AmmoGatewayMessage(Builder builder, byte[] payload) {
+    	this(builder, ByteBufferAdapter.obtain(payload));
     }
 
     public static AmmoGatewayMessage.Builder newBuilder(AmmoMessages.MessageWrapper.Builder mwb,
@@ -557,7 +581,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * 
      * @return
      */
-    public ByteBuffer serialize(ByteOrder endian, byte version, byte phone_id) {
+    public ByteBufferAdapter serialize(ByteOrder endian, byte version, byte phone_id) {
 
         if (version == VERSION_1_FULL) {
             return serializeFull_V1(endian, phone_id,
@@ -581,11 +605,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * 
      * @return
      */
-    static public ByteBuffer serializeFull_V1(ByteOrder endian, byte phone_id, int size,
-            byte[] payload, CheckSum checksum, byte priority)
+    static public ByteBufferAdapter serializeFull_V1(ByteOrder endian, byte phone_id, int size,
+            ByteBufferAdapter payload, CheckSum checksum, byte priority)
     {
-        int total_length = HEADER_LENGTH + payload.length;
-        ByteBuffer buf = ByteBuffer.allocate(total_length);
+        int total_length = HEADER_LENGTH + payload.limit();
+        ByteBufferAdapter buf = ByteBufferAdapter.obtain(ByteBuffer.allocate(total_length));
         buf.order(endian);
 
         buf.put(MAGIC[2]);
@@ -613,9 +637,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         buf.put(payload);
         if (logger.isDebugEnabled()) {
 
-            if (payload.length > 450) {
+            if (payload.limit() > 450) {
                 // ByteBuffer tmp = ByteBuffer.wrap(payload, 0, 450);
-                logger.debug("  payload length={} ", payload.length);
+                logger.debug("  payload length={} ", payload.limit());
             }
             else
                 logger.debug("   payload={}", payload);
@@ -633,11 +657,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * 
      * @return
      */
-    public ByteBuffer serializeTerse_V1(ByteOrder endian, byte phone_id,
-            int size, byte[] payload, CheckSum checksum, long gpsOffset)
+    public ByteBufferAdapter serializeTerse_V1(ByteOrder endian, byte phone_id,
+            int size, ByteBufferAdapter payload, CheckSum checksum, long gpsOffset)
     {
-        int total_length = HEADER_LENGTH_TERSE + payload.length;
-        ByteBuffer buf = ByteBuffer.allocate(total_length);
+        int total_length = HEADER_LENGTH_TERSE + payload.limit();
+        ByteBufferAdapter buf = ByteBufferAdapter.obtain(ByteBuffer.allocate(total_length));
         buf.order(endian);
 
         buf.put(MAGIC[2]);
@@ -907,17 +931,39 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             if (lhs.cs < rhs.cs) return -1;
             return 1;
         }
+        
+        static public CheckSum newInstance(ByteBufferAdapter adapter) {
+        	ByteBuffer buffer = adapter.buffer();
+        	if( buffer != null ) {
+        		return newInstance(buffer);
+        	}
+        	byte[] array = adapter.array();
+        	if( array != null ) {
+        		return newInstance(array);
+        	}
+        	
+        	long crc = 0;
+        	byte[] tmp = new byte[1024*4];
+        	int currentpos = adapter.position();
+        	while( adapter.remaining() > 0 ) {
+        		int len = Math.min(adapter.remaining(), tmp.length);
+        		adapter.get(tmp, 0, len);
+        		CRC32.update(crc, tmp, 0, len);
+        	}
+        	adapter.position(currentpos);
+        	return new CheckSum(crc);
+        }
        
         static public CheckSum newInstance(byte[] target) {
-            final CRC32 crc32 = new CRC32();
-            crc32.update(target, 0, target.length);
-            return new CheckSum( crc32.getValue() );
+            return new CheckSum( CRC32.update(0, target) );
         }
         
         static public CheckSum newInstance(byte[] target, int start, int length) {
-            final CRC32 crc32 = new CRC32();
-            crc32.update(target, start, length);
-            return new CheckSum( crc32.getValue() );
+            return new CheckSum( CRC32.update(0, target, start, length) );
+        }
+        
+        static public CheckSum newInstance(ByteBuffer buffer) {
+            return new CheckSum( CRC32.update(0, buffer) );
         }
         /**
          * The four least significant bytes of a long make the checksum array.
@@ -958,7 +1004,13 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             final CheckSum that = (CheckSum)obj;
             return (this.cs == that.cs);
         }
-        public Object toHexString() {
+        
+        @Override
+        public String toString() {
+        	return toHexString();
+        }
+        
+        public String toHexString() {
             return Long.toHexString(this.cs);
         }
     }
@@ -1005,6 +1057,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             logger.error("attempting to verify payload checksum but version invalid");
         }
 
+        logger.warn("Message checksum verified {}", crc32);
         return true;
     }
 }

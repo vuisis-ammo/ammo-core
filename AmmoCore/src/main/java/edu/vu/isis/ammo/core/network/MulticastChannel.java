@@ -44,6 +44,7 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.InetHelper;
 import edu.vu.isis.ammo.util.TTLUtil;
 
@@ -1129,7 +1130,7 @@ public class MulticastChannel extends NetChannel
 
                 try
                 {
-                    ByteBuffer buf = msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,
+                    ByteBufferAdapter buf = msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,
                             (byte) 0);
                     setSenderState(INetChannel.SENDING);
 
