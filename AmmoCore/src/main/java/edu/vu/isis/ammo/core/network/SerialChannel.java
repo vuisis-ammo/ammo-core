@@ -2296,6 +2296,8 @@ public class SerialChannel extends NetChannel
     private SenderThread mSender;
     private ReceiverThread mReceiver;
 
+
+    private int RESET_PACKET_INTERVAL = 5000; // Make this configurable
     private SatcomSenderThread mSatcomSender;
     private SatcomReceiverThread mSatcomReceiver;
 

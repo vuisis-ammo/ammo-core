@@ -18,6 +18,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -137,9 +142,39 @@ public class SerialFragmenter {
     }
 
 
-    public void startSending()
+    public void startSending( int resetPacketInterval )
     {
-        mChannel.addMessageToSenderQueue( createTokenPacket() );
+        // We used to just send a token using the above line.
+        // mChannel.addMessageToSenderQueue( createResetPacket() );
+
+        // Now, send a reset packet and set a timer.
+
+        final Runnable resetter = new Runnable() {
+                public void run() {
+                    logger.debug( "Sending a reset packet" );
+                    mChannel.addMessageToSenderQueue( createResetPacket() );
+                }
+            };
+
+        if ( resetter != null ) {
+            logger.error( "Tried to create reset timer when we already had one." );
+        }
+        resetterHandle = mScheduler.scheduleAtFixedRate( resetter, 
+                                                         0, // initial delay
+                                                         resetPacketInterval,
+                                                         TimeUnit.MILLISECONDS );
+    }
+
+
+    public void resetAcked()
+    {
+        // We received an acknowledgement for an ack, so disable the timer.
+        if ( resetterHandle != null ) {
+            resetterHandle.cancel( true );
+            resetterHandle = null;
+
+            mSynced = true;
+        }
     }
 
 
@@ -169,6 +204,7 @@ public class SerialFragmenter {
 
 
     /**
+
      * Called when the SatcomReceiverThread receives a message from the network
      */
     public boolean deliver( AmmoGatewayMessage agm )
@@ -194,6 +230,7 @@ public class SerialFragmenter {
 
         if ( packetType == 0 ) {
             // For normal packets, send them up to the distributor.
+            // Process the fragment packets here, though.
             logger.debug( " delivering to channel manager" );
             result = mChannelManager.deliver( agm );
         } else {
@@ -202,7 +239,14 @@ public class SerialFragmenter {
             boolean isToken = (count & 0x00008000) != 0;
 
             if ( !isToken ) {
-                logger.debug( "  ack packet received.  Doing nothing for now." );
+                // Ack packet
+                if ( !mSynced ) {
+                    logger.debug( "  ack packet received. Stopping the reset timer." );
+                    resetAcked();
+                    mChannel.addMessageToSenderQueue( createTokenPacket() );
+                } else {
+                    logger.debug( "  ack packet received.  Doing nothing for now." );
+                }
 
             } else {
                 logger.debug( "  token packet received." );
@@ -215,6 +259,12 @@ public class SerialFragmenter {
                 //   mSenderQueue. (This isn't public, so I may need to add a
                 //   method to add some way to let it be put directly in the
                 //   queue, rather that going through the normal mechanism.
+
+                // First send an empty ack packet.
+                logger.debug( "  adding ack packet to sender queue." );
+                mChannel.addMessageToSenderQueue( createEmptyAckPacket() );
+
+                // Now send all the packets in the small queue.
                 AmmoGatewayMessage message = mSmallQueue.poll();
                 while ( message != null ) {
                     logger.debug( "  moving message from small queue to sender queue." );
@@ -224,7 +274,7 @@ public class SerialFragmenter {
                     message = mSmallQueue.poll();
                 }
 
-                //   3. After that, add a token packet to the queue, too.
+                // After that, add a token packet to the queue, too.
                 logger.debug( "  adding token packet to sender queue." );
                 mChannel.addMessageToSenderQueue( createTokenPacket() );
             }
@@ -312,11 +362,34 @@ public class SerialFragmenter {
 
     private AmmoGatewayMessage createResetPacket()
     {
-        final int payloadSize = 2;
+        final int payloadSize = 3;
         byte[] payload = new byte[payloadSize];
 
         payload[0] = (byte) 0x60;
         payload[1] = (byte) 0x00;
+        payload[2] = (byte) 0x00;
+
+        AmmoGatewayMessage.CheckSum csum = AmmoGatewayMessage.CheckSum.newInstance( payload );
+        long payload_checksum = csum.asLong();
+
+        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder();
+        agmb.version( AmmoGatewayMessage.VERSION_1_SATCOM )
+            .payload( payload )
+            .size( payloadSize )
+            .checksum( payload_checksum );
+
+        return agmb.build();
+    }
+
+
+    private AmmoGatewayMessage createEmptyAckPacket()
+    {
+        final int payloadSize = 3;
+        byte[] payload = new byte[payloadSize];
+
+        payload[0] = (byte) 0x80;
+        payload[1] = (byte) 0x00;
+        payload[2] = (byte) 0x00;
 
         AmmoGatewayMessage.CheckSum csum = AmmoGatewayMessage.CheckSum.newInstance( payload );
         long payload_checksum = csum.asLong();
@@ -342,6 +415,10 @@ public class SerialFragmenter {
     // False when we initially start (and are sending reset packets to the gateway), but
     // True once we have received an ack to a reset packet.
     private boolean mSynced = false;
+
+    private final ScheduledExecutorService mScheduler =
+        Executors.newScheduledThreadPool( 1 );
+    private ScheduledFuture<?> resetterHandle = null;
 
     private SerialChannel mChannel;
     private IChannelManager mChannelManager;
