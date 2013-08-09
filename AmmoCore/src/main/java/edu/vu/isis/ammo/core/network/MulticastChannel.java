@@ -303,7 +303,7 @@ public class MulticastChannel extends NetChannel
         }
     }
 
-    private synchronized void statusChange()
+    private void statusChange()
     {
     	int connState = this.connectorThread.state.value;
         int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
