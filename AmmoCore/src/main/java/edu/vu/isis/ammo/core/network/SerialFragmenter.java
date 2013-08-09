@@ -133,6 +133,14 @@ public class SerialFragmenter {
     // I think that I can just make the connect() and disconnect() methods
     // instantiate the Fragmenter and hook things up differently.
 
+    private static final int DATA  = 1;
+    private static final int ACK   = 2;
+    private static final int TOKEN = 3;
+
+    private static final int RESET_PACKET_INTERVAL = 5000; // Make this configurable
+    private static final int TOKEN_PACKET_INTERVAL = 5000; // Make this configurable
+
+
     public SerialFragmenter( SerialChannel channel, IChannelManager channelManager )
     {
         logger.debug( "Constructor" );
@@ -142,7 +150,7 @@ public class SerialFragmenter {
     }
 
 
-    public void startSending( int resetPacketInterval )
+    public void startSending()
     {
         // We used to just send a token using the above line.
         // mChannel.addMessageToSenderQueue( createResetPacket() );
@@ -156,17 +164,17 @@ public class SerialFragmenter {
                 }
             };
 
-        if ( resetter != null ) {
+        if ( resetterHandle != null ) {
             logger.error( "Tried to create reset timer when we already had one." );
         }
         resetterHandle = mScheduler.scheduleAtFixedRate( resetter, 
                                                          0, // initial delay
-                                                         resetPacketInterval,
+                                                         RESET_PACKET_INTERVAL,
                                                          TimeUnit.MILLISECONDS );
     }
 
 
-    public void resetAcked()
+    public void resetAckedTimer()
     {
         // We received an acknowledgement for an ack, so disable the timer.
         if ( resetterHandle != null ) {
@@ -228,24 +236,46 @@ public class SerialFragmenter {
         boolean shouldAck = (messageType & 0x20) != 0;
         byte identifier = (byte) (messageType & 0x1F);
 
+        // Classify the type of the packet
+        int type = -1;
+        short count = -1;
         if ( packetType == 0 ) {
+            type = DATA;
+        } else {
+            // Token or ack
+            count = payloadBuffer.getShort();
+
+            if ( (count & 0x00008000) != 0 ) {
+                type = TOKEN;
+            } else {
+                type = ACK;
+            }
+        }
+
+        // For an ack or data packet, disable the token timer if it's enabled.
+        if ( mTokenSent == true && (type == ACK || type == DATA) ) {
+            resetTokenTimer();
+        }
+
+        if ( type == DATA ) {
             // For normal packets, send them up to the distributor.
             // Process the fragment packets here, though.
             logger.debug( " delivering to channel manager" );
             result = mChannelManager.deliver( agm );
         } else {
-            short count = payloadBuffer.getShort();
-
-            boolean isToken = (count & 0x00008000) != 0;
-
-            if ( !isToken ) {
+            if ( type == ACK ) {
                 // Ack packet
                 if ( !mSynced ) {
-                    logger.debug( "  ack packet received. Stopping the reset timer." );
-                    resetAcked();
-                    mChannel.addMessageToSenderQueue( createTokenPacket() );
+                    logger.debug( "  ack packet received. Stopping the reset packet timer." );
+                    resetAckedTimer();
+
+                    // We're connected and we have the token.  Start off the token
+                    // passing process by sending the token to the other side.
+                    sendToken();
                 } else {
                     logger.debug( "  ack packet received.  Doing nothing for now." );
+                    // Received an ack packet.  That means that the token was received
+                    // on the other side.
                 }
 
             } else {
@@ -275,12 +305,62 @@ public class SerialFragmenter {
                 }
 
                 // After that, add a token packet to the queue, too.
-                logger.debug( "  adding token packet to sender queue." );
-                mChannel.addMessageToSenderQueue( createTokenPacket() );
+                sendToken();
             }
         }
 
         return result;
+    }
+
+
+    //
+    // Token-related memebers.
+    //
+    private volatile boolean mTokenSent = false;
+
+    private final ScheduledExecutorService mTokenScheduler =
+        Executors.newScheduledThreadPool( 1 );
+    private ScheduledFuture<?> mTokenTimerHandle = null;
+
+
+
+    private void sendToken()
+    {
+        logger.debug( "  adding token packet to sender queue." );
+
+        // Note: we are putting the token in the send queue, but since we
+        // don't know when it actually gets sent, we have to make the timer
+        // duration long enough to take that into account.  We may want to
+        // do some sort of callback later on for when the send queue becomes
+        // empty.
+        mChannel.addMessageToSenderQueue( createTokenPacket() );
+
+        if ( resetterHandle != null ) {
+            logger.error( "Tried to create reset timer when we already had one." );
+        }
+        final Runnable resetter = new Runnable() {
+                public void run() {
+                    logger.debug( "Sending a token packet" );
+                    mChannel.addMessageToSenderQueue( createTokenPacket() );
+                }
+            };
+
+        mTokenTimerHandle = mScheduler.scheduleAtFixedRate( resetter, 
+                                                            0, // initial delay
+                                                            TOKEN_PACKET_INTERVAL,
+                                                            TimeUnit.MILLISECONDS );
+    }
+
+
+    private void resetTokenTimer()
+    {
+        // We received an acknowledgement for an ack, so disable the timer.
+        if ( mTokenTimerHandle != null ) {
+            mTokenTimerHandle.cancel( true );
+            mTokenTimerHandle = null;
+
+            mTokenSent = false;
+        }
     }
 
 
