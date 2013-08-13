@@ -1944,21 +1944,27 @@ public class SerialChannel extends NetChannel
                             buf_payload[i] = c;
                         }
 
-                        agmb.isSerialChannel( true );
-                        AmmoGatewayMessage agm = agmb
-                            .payload( buf_payload )
-                            .channel( SerialChannel.this )
-                            .build();
+                        if ( (buf_payload[0] & 0x10) != 0 ) {
+                            logger.debug( "Received packet from self, size={}. Discarding...",
+                                          payload_size );
+                            break;
+                        } else {
+                            agmb.isSerialChannel( true );
+                            AmmoGatewayMessage agm = agmb
+                                .payload( buf_payload )
+                                .channel( SerialChannel.this )
+                                .build();
 
-                        mMessagesReceived.getAndIncrement();
-                        logger.debug( "received message size={}, checksum={}, data:{}",
-                                      new Object[] {
-                                          agm.size,
-                                          agm.payload_checksum.toHexString(),
-                                          agm.payload } );
+                            mMessagesReceived.getAndIncrement();
+                            logger.debug( "received message size={}, checksum={}, data:{}",
+                                          new Object[] {
+                                              agm.size,
+                                              agm.payload_checksum.toHexString(),
+                                              agm.payload } );
 
-                        setReceiverState( INetChannel.DELIVER );
-                        deliverMessage( agm );
+                            setReceiverState( INetChannel.DELIVER );
+                            deliverMessage( agm );
+                        }
 
                         header.clear();
                         setReceiverState( INetChannel.START );

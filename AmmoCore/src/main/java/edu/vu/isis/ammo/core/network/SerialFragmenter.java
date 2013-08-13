@@ -16,6 +16,7 @@ package edu.vu.isis.ammo.core.network;
 import java.lang.Short;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.BitSet;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
@@ -174,7 +175,7 @@ public class SerialFragmenter {
     }
 
 
-    public void resetAckedTimer()
+    public void stopResetTimer()
     {
         // We received an acknowledgement for an ack, so disable the timer.
         if ( resetterHandle != null ) {
@@ -189,26 +190,149 @@ public class SerialFragmenter {
     /**
      *
      */
-    public DisposalState putFromDistributor( AmmoGatewayMessage iMessage )
+    public DisposalState putFromDistributor( AmmoGatewayMessage agm )
     {
         logger.debug( "putFromDistributor()" );
 
-        // WRT payload size:
-        // Put packets larger than a certain size in the large queue,
-        // and packets smaller than a certain size in the normal queue.
+        // FIXME: Disabling for sending an interim build to Brad.
+        if ( false /* agm.payload.length > MAX_PACKET_SIZE */ ) {
+            // It's a large packet and needs to be fragmented.
+            // Put it in the queue for large packets.
 
-        // For now, put all packets in the mSmallQueue
-        if ( !mSmallQueue.offer( iMessage )) {
-            logger.debug( "serial channel not taking messages {}",
-                          DisposalState.BUSY );
-            return DisposalState.BUSY;
+            if ( !mLargeQueue.offer( agm )) {
+                logger.debug( "serial channel not taking messages {}",
+                              DisposalState.BUSY );
+                return DisposalState.BUSY;
+            } else {
+                if ( mCurrentLarge == null ) {
+                    startSendingLargePacket();
+                }
+            }
+
+            return DisposalState.QUEUED;
+        } else {
+            // Small packet
+            if ( !mSmallQueue.offer( agm )) {
+                logger.debug( "serial channel not taking messages {}",
+                              DisposalState.BUSY );
+                return DisposalState.BUSY;
+            }
+
+            // We may want to add the busy and low water code here, like we have
+            // in the normal DistQueue.  I'm leaving it out for now.
+
+            return DisposalState.QUEUED;
+        }
+    }
+
+
+    /**
+     *
+     */
+    private synchronized void startSendingLargePacket()
+    {
+        if ( mLargeQueue.size() > 0 ) {
+            mCurrentLarge = mLargeQueue.poll();
+
+            // Figure out how many bits we need in the BitSet.
+            mNumberOfFragments = mCurrentLarge.payload.length % MAX_PACKET_SIZE;
+            if ( mCurrentLarge.payload.length - (mNumberOfFragments * MAX_PACKET_SIZE) > 0 ) {
+                ++mNumberOfFragments;
+            }
+
+            mAckedPackets = new BitSet( mNumberOfFragments );
+        }
+    }
+
+
+    /**
+     * FIXME: Not used; sending an interim build to Brad.
+     */
+    private synchronized void sendFragments()
+    {
+        for ( int i = 0; i < FRAGMENTS_PER_TOKEN; ++i ) {
+            // Find lowest bit in BitSet that is false
+            int index = mAckedPackets.nextClearBit( 0 );
+            
+            // The last fragment's length may be a fraction of MAX_PACKET_SIZE.
+            // Figure out what it should be.
+            int lengthOfFragment = MAX_PACKET_SIZE;
+            if ( index == mAckedPackets.size() ) {
+                lengthOfFragment = mCurrentLarge.payload.length - (mNumberOfFragments * MAX_PACKET_SIZE);
+            }
+
+            // Create the AGM for the fragment
+            byte[] new_payload = new byte[lengthOfFragment + 7];
+            ByteBuffer buf = ByteBuffer.wrap( new_payload );
+            buf.order( ByteOrder.LITTLE_ENDIAN );
+
+            // Message type
+            buf.put( (byte) 0x31 );
+            
+            // Sequence number (2 bytes)
+            int sequenceNumber = (mCurrentLargeBaseSequence + index) % Short.MAX_VALUE;
+            buf.putShort( (short) sequenceNumber );
+
+            // Index of packet in multi-packet sequence (2 bytes)
+            buf.putShort( (short) index );
+
+            // Total number of packets in multi-packet sequence (2 bytes)
+            buf.putShort( (short) mAckedPackets.size() );
+
+            // Now put old_payload in
+            buf.put( mCurrentLarge.payload, index * MAX_PACKET_SIZE, lengthOfFragment );
+
+            // Compute the checksum of the new payload.
+            AmmoGatewayMessage.CheckSum csum = AmmoGatewayMessage.CheckSum.newInstance( new_payload );
+            long payload_checksum = csum.asLong();
+
+            AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder();
+            agmb.version( AmmoGatewayMessage.VERSION_1_SATCOM )
+                .payload( new_payload )
+                .size( new_payload.length )
+                .checksum( payload_checksum );
+
+            mChannel.addMessageToSenderQueue( agmb.build() );
+        }
+    }
+
+
+    /**
+     *
+     */
+    private synchronized void processAck( int count, ByteBuffer buf )
+    {
+        for ( int i = 0; i < count; ++i ) {
+            // Unset the bits with the numbers in the ack.
+            short sequenceNumber = buf.getShort();
+
+            short index = (short) (sequenceNumber - mCurrentLargeBaseSequence);
+            if ( index < 0 ) {
+                index += Short.MAX_VALUE;
+            }
+
+            mAckedPackets.set( index );
         }
 
-        // We may want to add the busy and low water code here, like we have
-        // in the normal DistQueue.  I'm leaving it out for now.
+        // Test the BitSet to see if all are true. If so, start
+        // sending the next packet if there is one in the queue.
+        if ( mAckedPackets.cardinality() == mAckedPackets.size() ) {
+            // FIXME: remove teh packet from the queue and tell the distributor.
+            // Reset the relevent member variables.
 
-        return DisposalState.QUEUED;
+
+            // FIXME: disabling for sending an interim build for Brad
+            // startSendingLargePacket();
+        }
     }
+
+
+
+
+
+
+
+
 
 
     /**
@@ -234,7 +358,8 @@ public class SerialFragmenter {
         byte packetType = (byte) (messageType & 0x80);
         boolean resetPacket = (messageType & 0x40) != 0;
         boolean shouldAck = (messageType & 0x20) != 0;
-        byte identifier = (byte) (messageType & 0x1F);
+        boolean sentFromHandheld = (messageType & 0x10) != 0;
+        byte identifier = (byte) (messageType & 0x0F);
 
         // Classify the type of the packet
         int type = -1;
@@ -253,8 +378,10 @@ public class SerialFragmenter {
         }
 
         // For an ack or data packet, disable the token timer if it's enabled.
-        if ( mTokenSent == true && (type == ACK || type == DATA) ) {
-            resetTokenTimer();
+        // Actually, we probably want to disable it even if we receive a token
+        // packet, too.
+        if ( mTokenSent == true ) { //&& (type == ACK || type == DATA) ) {
+            stopTokenTimer();
         }
 
         if ( type == DATA ) {
@@ -267,7 +394,7 @@ public class SerialFragmenter {
                 // Ack packet
                 if ( !mSynced ) {
                     logger.debug( "  ack packet received. Stopping the reset packet timer." );
-                    resetAckedTimer();
+                    stopResetTimer();
 
                     // We're connected and we have the token.  Start off the token
                     // passing process by sending the token to the other side.
@@ -276,6 +403,9 @@ public class SerialFragmenter {
                     logger.debug( "  ack packet received.  Doing nothing for now." );
                     // Received an ack packet.  That means that the token was received
                     // on the other side.
+
+                    // FIXME: Disabled for sending an interim build to Brad.
+                    //processAck( count, payloadBuffer );
                 }
 
             } else {
@@ -352,7 +482,7 @@ public class SerialFragmenter {
     }
 
 
-    private void resetTokenTimer()
+    private void stopTokenTimer()
     {
         // We received an acknowledgement for an ack, so disable the timer.
         if ( mTokenTimerHandle != null ) {
@@ -366,13 +496,9 @@ public class SerialFragmenter {
 
     private short mSequenceNumber = 0;
 
-    private void incrementSequenceNumber()
+    private void incrementSequenceNumber( int amount )
     {
-        if (mSequenceNumber == Short.MAX_VALUE) {
-            mSequenceNumber = 0;
-        } else {
-            ++mSequenceNumber;
-        }
+        mSequenceNumber = (short) ((mSequenceNumber + amount) % Short.MAX_VALUE);
     }
 
 
@@ -388,12 +514,12 @@ public class SerialFragmenter {
         ByteBuffer buf = ByteBuffer.wrap( new_payload );
         buf.order( ByteOrder.LITTLE_ENDIAN );
 
-        // For wrapped packets, messageType should be 0x00. (1 byte)
-        buf.put( (byte) 0x00 );
+        // For wrapped packets, messageType should be 0x10. (1 byte)
+        buf.put( (byte) 0x10 );
         
         // Sequence number (2 bytes)
         buf.putShort( mSequenceNumber );
-        incrementSequenceNumber();
+        incrementSequenceNumber( 1 );
 
         // Index of packet in multi-packet sequence (0 for wrapped packets) (2 bytes)
         buf.putShort( (short) 0 );
@@ -420,69 +546,42 @@ public class SerialFragmenter {
 
     private AmmoGatewayMessage createTokenPacket()
     {
-        final int payloadSize = 3;
-        byte[] payload = new byte[payloadSize];
-
-        payload[0] = (byte) 0xA0;
-        payload[1] = (byte) 0x00;
-        payload[2] = (byte) 0x80;
-
-        AmmoGatewayMessage.CheckSum csum = AmmoGatewayMessage.CheckSum.newInstance( payload );
-        long payload_checksum = csum.asLong();
-
-        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder();
-        agmb.version( AmmoGatewayMessage.VERSION_1_SATCOM )
-            .payload( payload )
-            .size( payloadSize )
-            .checksum( payload_checksum );
-
-        return agmb.build();
+        byte[] payload = { (byte) 0xB0, (byte) 0x00, (byte) 0x80 };
+        return createPacket( payload );
     }
 
 
     private AmmoGatewayMessage createResetPacket()
     {
-        final int payloadSize = 3;
-        byte[] payload = new byte[payloadSize];
-
-        payload[0] = (byte) 0x60;
-        payload[1] = (byte) 0x00;
-        payload[2] = (byte) 0x00;
-
-        AmmoGatewayMessage.CheckSum csum = AmmoGatewayMessage.CheckSum.newInstance( payload );
-        long payload_checksum = csum.asLong();
-
-        AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder();
-        agmb.version( AmmoGatewayMessage.VERSION_1_SATCOM )
-            .payload( payload )
-            .size( payloadSize )
-            .checksum( payload_checksum );
-
-        return agmb.build();
+        byte[] payload = { (byte) 0x70, (byte) 0x00, (byte) 0x00 };
+        return createPacket( payload );
     }
 
 
     private AmmoGatewayMessage createEmptyAckPacket()
     {
-        final int payloadSize = 3;
-        byte[] payload = new byte[payloadSize];
+        byte[] payload = { (byte) 0x90, (byte) 0x00, (byte) 0x00 };
+        return createPacket( payload );
+    }
 
-        payload[0] = (byte) 0x80;
-        payload[1] = (byte) 0x00;
-        payload[2] = (byte) 0x00;
 
+    private AmmoGatewayMessage createPacket( byte[] payload )
+    {
         AmmoGatewayMessage.CheckSum csum = AmmoGatewayMessage.CheckSum.newInstance( payload );
         long payload_checksum = csum.asLong();
 
         AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder();
         agmb.version( AmmoGatewayMessage.VERSION_1_SATCOM )
             .payload( payload )
-            .size( payloadSize )
+            .size( payload.length )
             .checksum( payload_checksum );
 
         return agmb.build();
     }
 
+    private static final int MAX_PACKET_SIZE = 1000;
+
+    private static final int FRAGMENTS_PER_TOKEN = 5;
 
     // Need a queue here, to hold the same things that the SenderQueue holds.
     // Make this one less than the size of mSendQueue, since we'll need room
@@ -491,6 +590,17 @@ public class SerialFragmenter {
 
     private BlockingQueue<AmmoGatewayMessage> mSmallQueue
         = new LinkedBlockingQueue<AmmoGatewayMessage>( FRAGMENTER_SENDQUEUE_MAX_SIZE );
+
+    private BlockingQueue<AmmoGatewayMessage> mLargeQueue
+        = new LinkedBlockingQueue<AmmoGatewayMessage>( FRAGMENTER_SENDQUEUE_MAX_SIZE );
+
+    // Reference to the current large packet we're sending.
+    private volatile AmmoGatewayMessage mCurrentLarge = null;
+    private volatile int mCurrentLargeBaseSequence = 0;
+    private volatile int mNumberOfFragments = 0;
+
+    // BitSet to tell what parts have been acknowledged
+    private BitSet mAckedPackets = null;
 
     // False when we initially start (and are sending reset packets to the gateway), but
     // True once we have received an ack to a reset packet.
