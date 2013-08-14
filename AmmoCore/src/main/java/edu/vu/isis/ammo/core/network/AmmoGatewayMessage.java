@@ -1057,7 +1057,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             logger.error("attempting to verify payload checksum but version invalid");
         }
 
-        logger.warn("Message checksum verified {}", crc32);
         return true;
     }
 }
