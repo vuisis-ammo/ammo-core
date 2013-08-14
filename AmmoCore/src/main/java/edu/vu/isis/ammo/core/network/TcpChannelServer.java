@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
-import android.util.Log;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -1062,7 +1061,6 @@ public class TcpChannelServer extends TcpChannelAbstract {
 
 			ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
 			bbuf.order( endian ); // mParent.endian
-			long messageCount = 0;
 			ByteBufferAdapter payload = null;
 			
 			threadWhile:
@@ -1157,8 +1155,10 @@ public class TcpChannelServer extends TcpChannelAbstract {
 								// flip to prepare for read
 								payload.flip();
 								AmmoGatewayMessage agm = agmb.payload(payload).channel(this.mDestination).build();
-								Log.d("edu.vu.isis.ammo","Received a packet["+(++messageCount)+"] in "+payload.time()+
-										" from gateway size("+agm.size+") @{"+agm.buildTime+"}, csum {"+agm.payload_checksum+"}");
+								if( logger.isDebugEnabled() ) {
+									logger.debug("Received a packet in {} from gateway size({}) @{"+agm.buildTime+"}, csum({})",
+											payload.time(), agm.size, agm.payload_checksum);
+								}
 
 								setReceiverState( INetChannel.DELIVER );
 								mDestination.deliverMessage( agm );
