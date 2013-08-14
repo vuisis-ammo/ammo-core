@@ -444,7 +444,6 @@ public class RequestSerializer {
     		uri = RequestSerializer.deserializeCustomToProvider(context, resolver, channelName,
     				provider, encoding, data);
     	}
-    	logger.error("***************** deserialize in " + data.time());
     	if (uri == null) {
     		logger.warn("provider update produced no result");
     		return null;
@@ -1077,12 +1076,10 @@ public class RequestSerializer {
         int position = dataBuff.position();
         for (; position < dataBuff.limit() && dataBuff.get(position) != (byte) 0x0; position++) {
         }
-        logger.error("***************** found json end in " + buf.time());
 
         final int length = position - dataBuff.position();
         final byte[] payload = new byte[length];
         dataBuff.get(payload);
-        logger.error("***************** read json portion in " + buf.time());
         
         
         final JSONObject input;
@@ -1125,7 +1122,6 @@ public class RequestSerializer {
             PLogger.API_STORE.warn("invalid JSON content", ex);
             return null;
         }
-        logger.error("***************** parsed json in " + buf.time());
         
         final ContentValues cv = new ContentValues();
         cv.put(AmmoProviderSchema._RECEIVED_DATE, System.currentTimeMillis());
@@ -1180,7 +1176,6 @@ public class RequestSerializer {
             }
         }
         
-        logger.error("***************** build cv in " + buf.time());
 
         final Uri tupleUri;
         try {
@@ -1204,7 +1199,6 @@ public class RequestSerializer {
         if (position == dataBuff.limit())
             return new UriFuture(tupleUri);
         
-        logger.error("***************** upserted json part in " + buf.time());
 
         // process the blobs
         final long tupleId = ContentUris.parseId(tupleUri);
@@ -1298,7 +1292,6 @@ public class RequestSerializer {
                     }
             }
             
-            logger.error("***************** deserialized blob "+fieldName+" in " + buf.time());
         }
         if (blobCount > 0) {
             try {

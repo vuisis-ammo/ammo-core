@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
+import org.xml.sax.InputSource;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -850,7 +851,6 @@ public class DistributorThread extends Thread {
         final AmmoMessages.MessageWrapper mw;
         try {
             mw = deserialize(agm.payload);
-            logger.error("***************** Message deserialized in " + agm.payload.time());
         } catch (Exception ex) {
             logger.error("parsing gateway message", ex);
             agm.payload.release();
@@ -2180,7 +2180,7 @@ public class DistributorThread extends Thread {
         this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
         		getDataBuffer(payload, data));
 
-        logger.warn("Ammo received message on topic: {} for provider: {}", mime, uriString);
+        logger.debug("Ammo received message on topic: {} for provider: {}", mime, uriString);
 
         return true;
     }
@@ -2205,8 +2205,14 @@ public class DistributorThread extends Thread {
     private static final int PULL_RESPONSE_DATA_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.PullResponse.DATA_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
     private static final int DATA_MESSAGE_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.MessageWrapper.DATA_MESSAGE_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
     private static final int PULL_RESPONSE_MESSAGE_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.MessageWrapper.PULL_RESPONSE_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
+    private static final int TYPE_MESSAGE_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.MessageWrapper.TYPE_FIELD_NUMBER, WireFormat.WIRETYPE_VARINT);
     private static final int EOF = 0;
-    private static Field bufferField = null; 
+    
+    private static CodedInputStream stream;
+    private static Field bufferSizeField;
+    private static Field bufferPosField;
+    private static Field totalBytesRetiredField;
+    private static Field inputField;
     
     private static ByteBufferAdapter getDataBuffer( ByteBufferAdapter payload, ByteString data ) {
         if( data == null || data == ByteString.EMPTY ) {
@@ -2236,14 +2242,22 @@ public class DistributorThread extends Thread {
     	// (ie, a message with a potentially large payload) make sure to deserialize it
     	// so that we skip the large payload and adjust the buffer so that the position
     	// is at the start of the payload and the limit is at the end of the payload
-    	CodedInputStream codedStream = createUnbufferedCodedInputStream(
-    			new ByteBufferInputStream(payload));    	
+    	CodedInputStream codedStream = 
+    			CodedInputStream.newInstance(new ByteBufferInputStream(payload));
     	for( ;; ) {
     		int tag = codedStream.readTag();
     		if( tag == EOF ) {
     			break;
     			
+    		} else if( tag == TYPE_MESSAGE_FIELD_TAG ) {
+    			int readEnum = codedStream.readEnum();    			
+    			MessageType value = MessageType.valueOf(readEnum);
+    			if( value != MessageType.PULL_RESPONSE && value != MessageType.DATA_MESSAGE ) {
+    				break;
+    			}	
+    			
     		} else if( tag == PULL_RESPONSE_MESSAGE_FIELD_TAG ) {
+    			payload.position(getPosition(codedStream, initialPosition));
     			
     			PullResponse pullMessage = deserializeMessage(payload, 
     					PULL_RESPONSE_DATA_FIELD_TAG, PullResponse.newBuilder());
@@ -2253,6 +2267,7 @@ public class DistributorThread extends Thread {
     					.setPullResponse(pullMessage).buildPartial();
     			
     		} else if( tag == DATA_MESSAGE_FIELD_TAG ) {
+    			payload.position(getPosition(codedStream, initialPosition));
     			
     			DataMessage dataMessage = deserializeMessage(payload, 
     					DATA_MESSAGE_DATA_FIELD_TAG, DataMessage.newBuilder());
@@ -2260,9 +2275,9 @@ public class DistributorThread extends Thread {
     			return AmmoMessages.MessageWrapper.newBuilder()
     					.setType(MessageType.DATA_MESSAGE)
     					.setDataMessage(dataMessage).buildPartial();
+    		} else {
+    			codedStream.skipField(tag);
     		}
-    		
-    		codedStream.skipField(tag);
     	}
 
     	
@@ -2290,9 +2305,10 @@ public class DistributorThread extends Thread {
     		GeneratedMessage.Builder<?> builder ) throws IOException {
 		
 		// position the stream at the start of the message
-		CodedInputStream codedStream = createUnbufferedCodedInputStream(new ByteBufferInputStream(payload));
+    	int start = payload.position();
+		CodedInputStream codedStream = CodedInputStream.newInstance(new ByteBufferInputStream(payload));
 		int length = codedStream.readRawVarint32();
-		int messageStart = payload.position();
+		int messageStart = getPosition(codedStream, start);
 		int messageEnd = messageStart + length;
 		int dataMessageDataStart = -1;
 		int dataMessageDataEnd = -1;
@@ -2301,20 +2317,21 @@ public class DistributorThread extends Thread {
 		// marks the start of the data.  The length of the data will
 		// be written to the stream as a varint32.  We use the length
 		// to determine the end of the data field.  Note that this
-		// skips some internal protobuf checks but is allot more
+		// skips some internal protobuf checks but should be a bit more
 		// efficient.
 		for( ;; ) {
-			int position = payload.position();
+			int position = getPosition(codedStream, start);
 			int tag = codedStream.readTag();
 			if( tag == EOF ) {
 				break;
 			} else if( tag == dataFieldTag ) {
 				dataMessageDataStart = position;
 				int len = codedStream.readRawVarint32();
-				dataMessageDataEnd = payload.position() + len;
+				dataMessageDataEnd = getPosition(codedStream, start) + len;
 				break;
+			} else {
+				codedStream.skipField(tag);
 			}
-			codedStream.skipField(tag);
 		}
 		
 		// make a head slice
@@ -2334,37 +2351,52 @@ public class DistributorThread extends Thread {
 		
 		// now position the payload so that it wraps the data portion
 		payload.position(dataMessageDataStart);
-		codedStream = createUnbufferedCodedInputStream(new ByteBufferInputStream(payload));
+		codedStream = CodedInputStream.newInstance(new ByteBufferInputStream(payload));
 		codedStream.readTag(); // read the tag to advance past that
 		codedStream.readRawVarint32(); // read the size to advance past that
+		payload.position(getPosition(codedStream, dataMessageDataStart));
 		payload.limit(dataMessageDataEnd);
 		
 		return ret;
     }
     
     /**
-     * Because we use the position() of the ByteBuffer allot, we can't have the {@link CodedInputStream}
-     * buffering data internally.  So we replace the buffer with a 1-byte version.
+     * Get the actual position that the byte buffer would be on if the coded stream were not buffered.  
      * 
-     * @param in
+     * @param stream
+     * @param start
      * @return
      */
-    private static CodedInputStream createUnbufferedCodedInputStream( InputStream in ) {
-    	if( bufferField == null ) {
-    		try {
-    			bufferField = CodedInputStream.class.getDeclaredField("buffer");
-    			bufferField.setAccessible(true);
-    		} catch ( Exception e ) {
-    			throw new RuntimeException("Failed to find 'buffer' field in " + CodedInputStream.class + ".  " +
-    					"Did the protobuf version change?");
-    		}
-    	}
-    	CodedInputStream codedStream = CodedInputStream.newInstance(in);
-    	try {
-			bufferField.set(codedStream, new byte[1]);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to change the buffer field in " + CodedInputStream.class, e);
-		}
-    	return codedStream;
+    private static int getPosition( CodedInputStream stream, int start ) {
+    	return start + stream.getTotalBytesRead();
     }
+    
+//    /**
+//     * 
+//     * @param in
+//     * @return
+//     */
+//    private static CodedInputStream createStream( InputStream in ) {
+//    	try {
+//    		if( stream == null ) {
+//    			stream = CodedInputStream.newInstance(in);
+//    			bufferSizeField = stream.getClass().getDeclaredField("bufferSize");
+//    			bufferPosField = stream.getClass().getDeclaredField("bufferPos");
+//    			totalBytesRetiredField = stream.getClass().getDeclaredField("totalBytesRetired");
+//    			inputField = stream.getClass().getDeclaredField("input");
+//    			bufferSizeField.setAccessible(true);
+//    			bufferPosField.setAccessible(true);
+//    			totalBytesRetiredField.setAccessible(true);
+//    			inputField.setAccessible(true);
+//    		} else {
+//    			bufferSizeField.set(stream, 0);
+//    			bufferPosField.set(stream, 0);
+//    			totalBytesRetiredField.set(stream, 0);
+//    			inputField.set(stream, stream);
+//    		}
+//    	} catch ( Exception e ) {
+//    		return CodedInputStream.newInstance(in);
+//    	}
+//    	return stream;
+//    }
 }

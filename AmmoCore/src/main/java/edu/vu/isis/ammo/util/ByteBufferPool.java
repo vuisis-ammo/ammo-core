@@ -22,7 +22,7 @@ public final class ByteBufferPool {
 
 	private static final Logger logger = LoggerFactory.getLogger("util.bufferpool");
 	private static final ByteBufferPool instance = new ByteBufferPool();
-	private static final int MIN_BUFFER_SIZE = 10*1024;
+	private static final int MIN_BUFFER_SIZE = 100*1024;
 	private static final int MAX_POOL_SIZE = 100;
 	private static final int MIN_POOL_SIZE = 20;
 	private static final int MAX_NODE_AGE = 60 * 1000 * 10;
@@ -36,7 +36,7 @@ public final class ByteBufferPool {
 	private int poolHit;
 	private int poolMiss;
 	Node head;
-	
+
 	public ByteBufferPool() {
 		File externalStorageDirectory = Environment.getExternalStorageDirectory();
 		File memDir = new File(externalStorageDirectory,"support/edu.vu.isis.ammo.core/mem/");
@@ -62,8 +62,8 @@ public final class ByteBufferPool {
 		try {
 			MMapByteBufferAdapter adapter = 
 					new MMapByteBufferAdapter(new RandomAccessFile(file, "rw"), file, cap);
-//			ByteBufferAdapter adapter = new ByteBufferAdapter(ByteBuffer.allocateDirect(cap));
-//			ByteBufferAdapter adapter = new ByteBufferAdapter(ByteBuffer.allocate(cap));
+			//			ByteBufferAdapter adapter = new NioByteBufferAdapter(ByteBuffer.allocateDirect(cap));
+			//			ByteBufferAdapter adapter = new NioByteBufferAdapter(ByteBuffer.allocate(cap));
 			adapter.position(0);
 			adapter.limit(size);
 			adapter.time();
@@ -76,7 +76,6 @@ public final class ByteBufferPool {
 	public synchronized boolean release( ByteBufferAdapter buffer ) {
 		if( buffer.isPoolable() ) {
 			Node.release(buffer, this);
-			dumpStats();
 			return true;
 		}
 		return false;
@@ -146,6 +145,17 @@ public final class ByteBufferPool {
 		}
 
 		/**
+		 * Return tre if the adapter is already in the pool.  This helps us ensure
+		 * that we can't double free a buffer.
+		 * 
+		 * @param adapter
+		 * @return
+		 */
+		public boolean isInPool( ByteBufferAdapter adapter ) {
+			return adapter == byteBuffer || (next != null && next.isInPool(adapter));
+		}
+
+		/**
 		 * Releases the buffer back into the pool and returns the
 		 * new head.  If there is no more room in the pool, attempts to
 		 * replace a node with a smaller capacity (a node with a 
@@ -156,17 +166,19 @@ public final class ByteBufferPool {
 		 * @return
 		 */
 		public static void release( ByteBufferAdapter buffer, ByteBufferPool pool ) {
-			if( nodeCount < MAX_POOL_SIZE ) {
-				Node next = new Node(buffer);
-				next.next = pool.head;
-				if( pool.head != null ) {
-					pool.head.previous = next;
+			if( pool.head == null || !pool.head.isInPool(buffer) ) {
+				if( nodeCount < MAX_POOL_SIZE ) {
+					Node next = new Node(buffer);
+					next.next = pool.head;
+					if( pool.head != null ) {
+						pool.head.previous = next;
+					}
+					pool.head = next;
+					pool.head.reap(SystemClock.elapsedRealtime(), pool);
+				} else {
+					pool.head.reap(SystemClock.elapsedRealtime(), pool);
+					free(buffer, pool);
 				}
-				pool.head = next;
-				pool.head.reap(SystemClock.elapsedRealtime(), pool);
-			} else {
-				pool.head.reap(SystemClock.elapsedRealtime(), pool);
-				free(buffer, pool);
 			}
 		}
 
@@ -234,7 +246,7 @@ public final class ByteBufferPool {
 			}
 		}
 	}
-	
+
 	private static void clean( File dir ) {
 		if( dir.isDirectory() ) {
 			File[] children = dir.listFiles();

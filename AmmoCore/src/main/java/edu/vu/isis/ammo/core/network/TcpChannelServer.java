@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import android.util.Log;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -400,7 +401,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 			return;
 
 		// Send the heartbeat here.
-		logger.warn( "Sending a heartbeat. t={}", nowInMillis );
+		logger.debug( "Sending a heartbeat. t={}", nowInMillis );
 
 		// Create a heartbeat message and call the method to send it.
 		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
@@ -590,28 +591,28 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		public void run() {
 
 			// start the server and wait for a client connect
-			logger.warn("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+			logger.debug("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
 			for( ;; ) {
-				logger.warn("channel goal {}", (parent.shouldBeEnabled) ? "enable" : "disable");
+				logger.debug("channel goal {}", (parent.shouldBeEnabled) ? "enable" : "disable");
 				if(! parent.shouldBeEnabled) {
-					logger.warn("disabling channel... {}", parent.shouldBeEnabled);
+					logger.debug("disabling channel... {}", parent.shouldBeEnabled);
 					state.set(NetChannel.DISABLED);
 				}
 
 				// if disabled, wait till we're enabled again				
 				synchronized (state) {
-					logger.warn("channel is {}", state.get());
+					logger.debug("channel is {}", state.get());
 					while( state.get() == DISABLED ) {
 						try {
 							state.wait(BURP_TIME);
-							logger.warn("burp {}", state);
+							logger.debug("burp {}", state);
 						} catch ( InterruptedException ex ) {
 							logger.trace("interrupting channel wait.");
 						}
 					}
 				}
 
-				logger.warn("set to disconnected state");
+				logger.debug("set to disconnected state");
 				state.setUnlessDisabled(NetChannel.DISCONNECTED);
 				final int port =  (parent.serverPort > 10) ? parent.serverPort : DEFAULT_PORT;
 				
@@ -620,21 +621,21 @@ public class TcpChannelServer extends TcpChannelAbstract {
 					server = ServerSocketChannel.open();
 					server.configureBlocking(true);
 					server.socket().bind(new InetSocketAddress(port));
-					logger.warn("Opened server socket {}", server.socket().getLocalSocketAddress());					
+					logger.info("Opened server socket {}", server.socket().getLocalSocketAddress());					
 
 					// got a socket, wait for a client connection
 					while( server != null && !server.socket().isClosed() ) {
 						Socket client = null;
 						try {
 							state.setUnlessDisabled(NetChannel.WAIT_CONNECT);
-							logger.warn("Awaiting client connection...");
+							logger.info("Awaiting client connection...");
 							client = server.accept().socket();
 							state.setUnlessDisabled(NetChannel.CONNECTING);
 
-							logger.warn("Received client connection, send GTG...");
+							logger.info("Received client connection, send GTG...");
 							client.getOutputStream().write(1);
 
-							logger.warn("Prepare socket and threads");
+							logger.info("Prepare socket and threads");
 							initSocket(client);
 							
 							// I think we're good
@@ -647,7 +648,6 @@ public class TcpChannelServer extends TcpChannelAbstract {
 									logger.warn("dropped connection {}", s);
 									disconnect();
 								} else {
-									logger.warn("Send HB");
 									sendHeartbeatIfNeeded();
 									synchronized (state) {
 										state.wait(mHeartbeatInterval);
@@ -1062,8 +1062,9 @@ public class TcpChannelServer extends TcpChannelAbstract {
 
 			ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
 			bbuf.order( endian ); // mParent.endian
-//			byte[] bbufArray = bbuf.array();
-
+			long messageCount = 0;
+			ByteBufferAdapter payload = null;
+			
 			threadWhile:
 				while ( mState != INetChannel.INTERRUPTED && !isInterrupted() )
 				{
@@ -1101,7 +1102,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 							}
 
 							// extract the payload
-							ByteBufferAdapter payload = ByteBufferAdapter.obtain(size);
+							payload = ByteBufferAdapter.obtain(size);
 							int bytesToRead = size;
 							while (true) {
 								// we done with this payload?
@@ -1156,14 +1157,17 @@ public class TcpChannelServer extends TcpChannelAbstract {
 								// flip to prepare for read
 								payload.flip();
 								AmmoGatewayMessage agm = agmb.payload(payload).channel(this.mDestination).build();
-								logger.info( "Received a packet from gateway size({}) @{}, csum {}", 
-										new Object[]{agm.size, agm.buildTime, agm.payload_checksum}  );
+								Log.d("edu.vu.isis.ammo","Received a packet["+(++messageCount)+"] in "+payload.time()+
+										" from gateway size("+agm.size+") @{"+agm.buildTime+"}, csum {"+agm.payload_checksum+"}");
 
 								setReceiverState( INetChannel.DELIVER );
 								mDestination.deliverMessage( agm );
 
 								// received a valid message, update status count .... 
 								mMessagesReceived.incrementAndGet();
+								
+								// unset payload
+								payload = null;
 								break;
 							}
 						}
@@ -1179,6 +1183,8 @@ public class TcpChannelServer extends TcpChannelAbstract {
 						logger.warn("receiver threw exception", ex);
 						setReceiverState( INetChannel.INTERRUPTED );
 						mParent.socketOperationFailed();
+					} finally {
+						if( payload != null ) payload.release();
 					}
 				}
 		}

@@ -89,7 +89,6 @@ public class RequestDeserializerThread extends Thread {
             Uri provider, Encoding encoding, ByteBufferAdapter data) 
     {
         this.queue.offer(new Item(priority, context, channelName, provider, encoding, data));
-        logger.error("***************** toProvider in " + data.time());
         return true;
     }
 
@@ -105,7 +104,6 @@ public class RequestDeserializerThread extends Thread {
                 final Item item = this.queue.take();
 
                 try {
-                	logger.error("***************** fromProvider in " + item.data.time());
                     final Uri tuple = RequestSerializer.deserializeToProvider(
                             item.context, item.context.getContentResolver(),
                             item.channelName, item.provider, item.encoding, item.data);

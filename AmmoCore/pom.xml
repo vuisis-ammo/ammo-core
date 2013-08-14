@@ -17,6 +17,7 @@
   <artifactId>ammocore</artifactId>
   <packaging>apk</packaging>
   <name>Ammo Core Application</name>
+  <version>1.7.8.1</version>
 
   <dependencies>
     <dependency>

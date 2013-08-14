@@ -12,24 +12,16 @@ import java.nio.ShortBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-import android.os.SystemClock;
+import android.os.Build;
 
 public class NioByteBufferAdapter extends ByteBufferAdapter {
 
-	private ByteBuffer adaptee;
-	private long time;
-	
+	private final ByteBuffer adaptee;
+
 	public NioByteBufferAdapter(ByteBuffer adaptee) {
 		this.adaptee = adaptee;
 	}
-	
-	public long time() {
-		long now = SystemClock.elapsedRealtime();
-		long t = time;
-		time = SystemClock.elapsedRealtime();
-		return now - t;
-	}
-	
+
 	@Override
 	public ByteBuffer buffer() {
 		return adaptee;
@@ -231,14 +223,20 @@ public class NioByteBufferAdapter extends ByteBufferAdapter {
 		return this;
 	}
 
+	@Override
 	public ByteBufferAdapter put(ByteBuffer src) {
-		adaptee.put(src);
+		// froyo and maybe honeycomb put(ByteBuffer) allocates an array causing lots of gc.
+		if( src.hasArray() && Build.VERSION.SDK_INT < 14 ) {			
+			put(src.array(), src.arrayOffset() + src.position(), src.remaining());
+		} else {
+			adaptee.put(src);
+		}
 		return this;
 	}
-	
+
 	public ByteBufferAdapter put(ByteBufferAdapter src) {
 		if( src instanceof NioByteBufferAdapter ) {
-			adaptee.put(((NioByteBufferAdapter)src).adaptee);
+			put(((NioByteBufferAdapter)src).adaptee);
 		} else {
 			throw new RuntimeException("Not done yet");
 		}
@@ -327,12 +325,12 @@ public class NioByteBufferAdapter extends ByteBufferAdapter {
 	public ByteBufferAdapter slice() {
 		return new NioByteBufferAdapter(adaptee.slice());
 	}
-	
+
 	@Override
 	public int read(ReadableByteChannel channel) throws IOException {
 		return channel.read(adaptee);
 	}
-	
+
 	@Override
 	public int write(WritableByteChannel channel) throws IOException {
 		return channel.write(adaptee);
