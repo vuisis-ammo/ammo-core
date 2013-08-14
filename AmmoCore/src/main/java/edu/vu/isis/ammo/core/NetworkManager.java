@@ -1640,7 +1640,7 @@ public enum NetworkManager  implements INetworkService,
 					AmmoIntents.AMMO_ACTION_CONNECTION_STATUS_CHANGE);
 			broadcastIntent.putExtra(AmmoIntents.EXTRA_CHANNEL, channel.name);
 			broadcastIntent.putExtra(AmmoIntents.EXTRA_CONNECT_STATUS, connStatus);
-			this.context.sendBroadcast(broadcastIntent);
+			this.context.sendStickyBroadcast(broadcastIntent);
         }
 
         switch (connStatus) {
