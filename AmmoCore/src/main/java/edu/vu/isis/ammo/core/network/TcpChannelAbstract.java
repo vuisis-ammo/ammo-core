@@ -842,7 +842,7 @@ abstract public class TcpChannelAbstract extends NetChannel {
 				}
 
 				try {
-				    if (msg.size  > mMaxMessageSize) {
+				    if (msg.size  > TcpChannelAbstract.this.mMaxMessageSize) {
 			            logger.info("Large Message, Rejecting: Message Size [" + msg.size + "]");
 			            if ( msg.handler != null )
 			                mChannel.ackToHandler( msg.handler, DisposalState.BAD);            
@@ -930,7 +930,8 @@ abstract public class TcpChannelAbstract extends NetChannel {
 			bbuf.order(endian); // mParent.endian
 			byte[] bbufArray = bbuf.array();
 
-			threadWhile: while (mState != INetChannel.INTERRUPTED
+			threadWhile: 
+				while (mState != INetChannel.INTERRUPTED
 					&& !isInterrupted()) {
 				try {
 					int position = bbuf.position();
@@ -971,7 +972,7 @@ abstract public class TcpChannelAbstract extends NetChannel {
 							continue;
 						}
 						// if the message is TOO BIG then throw away the message
-						if (agmb.size() > MAX_MESSAGE_SIZE) {
+						if (agmb.size() > TcpChannelAbstract.this.mMaxMessageSize) {
 							logger.warn(
 									"discarding message of size {} with checksum {}",
 									agmb.size(),

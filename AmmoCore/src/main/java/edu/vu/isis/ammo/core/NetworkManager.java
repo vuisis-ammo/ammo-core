@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import transapps.settings.Keys;
 import transapps.settings.Settings;
+import android.annotation.TargetApi;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -31,6 +32,7 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.net.ConnectivityManager;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -284,8 +286,8 @@ public enum NetworkManager  implements INetworkService,
      * When the service is first created, we should grab the IP and Port values
      * from the SystemPreferences.
      */
-   
-    private void onCreate() {
+    @TargetApi(Build.VERSION_CODES.DONUT)
+	private void onCreate() {
         logger.info("ammo service on create {}",
                 Integer.toHexString(System.identityHashCode(this)));
 
@@ -777,6 +779,8 @@ public enum NetworkManager  implements INetworkService,
         		serverPort);
         
         this.reverseTcpChannel.setPort(serverPort);
+        // this.reverseTcpChannel.setFlatLineTime(flatLineTime * 60 * 1000);
+        this.reverseTcpChannel.setMaxMsgSize(gatewayMaxMsgSize);
         
         // convert minutes into milliseconds
 
