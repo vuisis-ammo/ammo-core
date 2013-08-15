@@ -246,7 +246,7 @@ static char* process_msg (struct nlmsghdr* nl_msg)
 		sprintf (buffer, "Interface %s Down DELLINK", iface);
 		__android_log_print(
 				ANDROID_LOG_INFO, 
-				LOG_TAG,
+				LOG_TAG, "%s",
 				buffer);
 
 

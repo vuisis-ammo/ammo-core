@@ -83,6 +83,8 @@ abstract public class TcpChannelAbstract extends NetChannel {
 	protected int connectTimeout = 30 * 1000;
 	protected int socketTimeout = 30 * 1000;
 
+	private int mMaxMessageSize = MAX_MESSAGE_SIZE;
+	
 	private ByteOrder endian = ByteOrder.LITTLE_ENDIAN;
 	private final Object syncObj;
 
@@ -217,6 +219,14 @@ abstract public class TcpChannelAbstract extends NetChannel {
 		return true;
 	}
 
+	 public boolean setMaxMsgSize (int size) {
+	    logger.trace("Thread <{}>::setMaxMsgSize {}", Thread.currentThread().getId(), size);
+	    if (mMaxMessageSize  == (size * 0x100000)) return false;
+	    this.mMaxMessageSize = size * 0x100000;
+	    this.reset();
+	    return true;
+	  }
+	 
 	@Override
 	public String toString() {
 		return super.toString();
@@ -810,16 +820,13 @@ abstract public class TcpChannelAbstract extends NetChannel {
 		}
 
 		/**
-		 * the message format is
-		 * 
+		 * Block on reading from the queue until we get a message to send.
+		 * Then send it on the socket channel. Upon getting a socket error,
+		 *  notify our parent and go into an error state.
 		 */
 		@Override
 		public void run() {
 			logger.trace("Thread <{}>::run()", Thread.currentThread().getId());
-
-			// Block on reading from the queue until we get a message to send.
-			// Then send it on the socket channel. Upon getting a socket error,
-			// notify our parent and go into an error state.
 
 			while (mState != INetChannel.INTERRUPTED && !isInterrupted()) {
 				AmmoGatewayMessage msg = null;
@@ -835,6 +842,13 @@ abstract public class TcpChannelAbstract extends NetChannel {
 				}
 
 				try {
+				    if (msg.size  > mMaxMessageSize) {
+			            logger.info("Large Message, Rejecting: Message Size [" + msg.size + "]");
+			            if ( msg.handler != null )
+			                mChannel.ackToHandler( msg.handler, DisposalState.BAD);            
+			            continue;
+			        }
+					
 					ByteBuffer buf = msg.serialize(endian,
 							AmmoGatewayMessage.VERSION_1_FULL, (byte) 0);
 					setSenderState(INetChannel.SENDING);
