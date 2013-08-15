@@ -79,7 +79,7 @@ closeserial( int fd, struct termios *oldterminfo )
 {
     tcsetattr( fd, TCSANOW, oldterminfo );
     if ( close( fd ) < 0 ) {
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ) );
     }
 }
 
@@ -92,12 +92,12 @@ openserial( char *devicename, struct termios *oldterminfo )
 
     if ( fd == -1 ) {
         LOGE("openserial(): open()");
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         return 0;
     }
     if (tcgetattr(fd, oldterminfo) == -1) {
         LOGE("openserial(): tcgetattr()");
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         return 0;
     }
     struct termios attr = *oldterminfo;
@@ -105,12 +105,12 @@ openserial( char *devicename, struct termios *oldterminfo )
     attr.c_oflag = 0;
     if (tcflush(fd, TCIOFLUSH) == -1) {
         LOGE("openserial(): tcflush()");
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         return 0;
     }
     if (tcsetattr(fd, TCSANOW, &attr) == -1) {
         LOGE("initserial(): tcsetattr()");
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         return 0;
     }
     return fd;
@@ -137,15 +137,15 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_isCorrectTTY( JNIEnv *env,
 
     if ( fd == -1 ) {
         LOGE("isCorrectTTY(): open() failed");
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         return JNI_FALSE;
     }
 
     if (tcgetattr(fd, &oldterminfo) == -1) {
         LOGE("isCorrectTTY(): tcgetattr() failed");
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         if ( close( fd ) < 0 ) {
-            LOGE( strerror( errno ));
+            LOGE( "%s", strerror( errno ));
         }
         return JNI_FALSE;
     }
@@ -156,17 +156,17 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_isCorrectTTY( JNIEnv *env,
     attr.c_oflag = 0;
     if (tcflush(fd, TCIOFLUSH) == -1) {
         LOGE("openserial(): tcflush()");
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         if ( close( fd ) < 0 ) {
-            LOGE( strerror( errno ));
+            LOGE( "%s", strerror( errno ));
         }
         return JNI_FALSE;
     }
     if (tcsetattr(fd, TCSANOW, &attr) == -1) {
         LOGE("initserial(): tcsetattr()");
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         if ( close( fd ) < 0 ) {
-            LOGE( strerror( errno ));
+            LOGE( "%s", strerror( errno ));
         }
         return JNI_FALSE;
     }
@@ -177,7 +177,7 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_isCorrectTTY( JNIEnv *env,
     int status;
     if ( ioctl( fd, TIOCMGET, &status ) == -1 ) {
         LOGE( "ioctl() call failed" );
-        LOGE( strerror( errno ));
+        LOGE( "%s", strerror( errno ));
         closeserial( fd, &oldterminfo );
         return JNI_FALSE;
     }
@@ -240,7 +240,7 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 		if ( fd == -1 )
 		{
 			LOGE("Cannot open port");
-			LOGE( strerror(errnum) );
+			LOGE( "%s", strerror(errnum) );
 			return NULL;
 		}
 	}
@@ -498,7 +498,7 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_write( JNIEnv *env,
     // call but now does, since the Java code needs to know if there
     // was an error.
     ssize_t result = write( descriptor, elems, length );
-	LOGD( "JNI: wrote bytes = %d, at time=%lu", result, tv.tv_sec * 1000 + tv.tv_usec / 1000 );
+	LOGD( "JNI: wrote bytes = %ld, at time=%lu", (long)result, tv.tv_sec * 1000 + tv.tv_usec / 1000 );
 
     (*env)->ReleaseByteArrayElements( env, data, elems, 0 );
     return result;

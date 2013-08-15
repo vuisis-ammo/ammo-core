@@ -90,6 +90,7 @@ public class SerialChannel extends NetChannel
     }
 
     private Timer mUpdateBpsTimer = new Timer();
+    private int mMaxMessageSize = 0x100000;
 
     class UpdateBpsTask extends TimerTask {
         public void run() {
@@ -334,6 +335,16 @@ public class SerialChannel extends NetChannel
         mSenderEnabled.set( enabled );
     }
 
+    /**
+     *
+     */
+    public boolean setMaxMsgSize (int size) {
+      logger.trace("Thread <{}>::setMaxMsgSize {}", Thread.currentThread().getId(), size);
+      if (mMaxMessageSize   == (size*0x100000)) return false;
+      this.mMaxMessageSize = size*0x100000;
+      this.reset();
+      return true;
+    }
 
     /**
      *
@@ -515,7 +526,17 @@ public class SerialChannel extends NetChannel
                                "/dev/ttyUSB6",
                                "/dev/ttyUSB7",
                                "/dev/ttyUSB8",
-                               "/dev/ttyUSB9" };
+                               "/dev/ttyUSB9",
+                               "/dev/ttyACM0",
+                               "/dev/ttyACM1",
+                               "/dev/ttyACM2",
+                               "/dev/ttyACM3",
+                               "/dev/ttyACM4",
+                               "/dev/ttyACM5",
+                               "/dev/ttyACM6",
+                               "/dev/ttyACM7",
+                               "/dev/ttyACM8",
+                               "/dev/ttyACM9" };
             
             List<String> result = new ArrayList<String>();
             for ( String n : names ) {

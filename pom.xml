@@ -14,7 +14,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <groupId>edu.vu.isis</groupId>
   <artifactId>ammocore-parent</artifactId>
   <packaging>pom</packaging>
-  
   <version>1.8.1-SNAPSHOT</version>
   <name>ammocore parent project</name>
 
@@ -39,6 +38,12 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
         <artifactId>ammolib</artifactId>
         <version>1.8.1-SNAPSHOT</version>
         <type>apklib</type>
+      </dependency>
+
+      <dependency>
+        <groupId>transapps</groupId>
+        <artifactId>tasettings-api</artifactId>
+        <version>1.0.28</version>
       </dependency>
 
       <dependency>

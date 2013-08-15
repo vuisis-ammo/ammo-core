@@ -185,6 +185,8 @@ public class ReliableMulticastChannel extends NetChannel {
     private Timer mUpdateBpsTimer = new Timer();
 
     private int mFragDelay = 0;
+    
+    private int mMaxMessageSize = 0x100000;
 
     class UpdateBpsTask extends TimerTask {
         public void run() {
@@ -342,20 +344,26 @@ public class ReliableMulticastChannel extends NetChannel {
         this.reset();
         return true;
     }
-
-    public boolean setFragDelay(int frag_delay) {
-        logger.trace("Thread <{}>::setFragDelay {}", 
-                Thread.currentThread().getId(),
-                frag_delay);
-        if (this.mFragDelay == frag_delay) {
-            return false;
-        }
-        this.mFragDelay = frag_delay;
-
-        this.reset();
-        return true;
+    public boolean setFragDelay (int frag_delay) {
+      logger.trace("Thread <{}>::setFragDelay {}", Thread.currentThread().getId(),
+              frag_delay);
+      if (this.mFragDelay  == frag_delay)
+          return false;
+      this.mFragDelay = frag_delay;
+      
+      //we do not need to change the udp.xml since we are phasing out this feature 
+      //ReliableMulticastSettings.setPort(String.valueOf(port), this.context);
+      this.reset();
+      return true;
+  }
+    
+    public boolean setMaxMsgSize (int size) {
+      logger.trace("Thread <{}>::setMaxMsgSize {}", Thread.currentThread().getId(), size);
+      if (mMaxMessageSize  == (size*0x100000)) return false;
+      this.mMaxMessageSize = size*0x100000;
+      this.reset();
+      return true;
     }
-
     public void setTTL(int ttl) {
         logger.trace("Thread <{}>::setTTL {}", Thread.currentThread().getId(),
                 ttl);
@@ -1209,7 +1217,15 @@ public class ReliableMulticastChannel extends NetChannel {
                     mParent.socketOperationFailed();
                     break;
                 }
-
+                
+                // checking for max message size
+                if (msg.size  > mMaxMessageSize) {
+                  logger.info("Large Message, Rejecting: Message Size [" + msg.size + "]");
+                  if ( msg.handler != null )
+                    mChannel.ackToHandler( msg.handler, DisposalState.BAD);            
+                  continue;
+                }
+                
                 try {
                     final ByteBuffer buf = msg.serialize(endian,
                             AmmoGatewayMessage.VERSION_1_FULL, (byte) 0);
@@ -1350,6 +1366,12 @@ public class ReliableMulticastChannel extends NetChannel {
                     logger.info("Received a packet from ({}) size({})",
                             msg.getSrc(), msg.getLength());
                     mBytesRead += msg.getLength();
+                    
+                    logger.info("Max Message Size is [" + mMaxMessageSize + "]");
+                    if (msg.getLength() > mMaxMessageSize) {
+                      logger.info("Received too large a message, discarding");
+                      return;              
+                    }
 
                     if (msg.getSrc().toString()
                             .equals(mChannelManager.getOperatorId())) {
