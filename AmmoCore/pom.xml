@@ -127,7 +127,6 @@
                 <path>${env.ANDROID_NDK_HOME}</path>
               </ndk>
               <attachNativeArtifacts>true</attachNativeArtifacts>
-              <clearNativeArtifacts>true</clearNativeArtifacts>
               <sign>
                 <debug>false</debug>
               </sign>
@@ -196,7 +195,6 @@
         <artifactId>maven-plugin-plugin</artifactId>
         <version>${maven.plugin.plugin.version}</version>
       </plugin>
-
       <plugin>
         <groupId>net.sf.doodleproject</groupId>
         <artifactId>doxygen-maven-plugin</artifactId>
