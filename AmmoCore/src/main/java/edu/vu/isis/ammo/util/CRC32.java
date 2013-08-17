@@ -10,6 +10,10 @@ import java.nio.ByteBuffer;
  * @author mriley
  */
 public final class CRC32 {
+	
+	static {
+		System.loadLibrary( "ammocore" );
+	}
 
 	/**
 	 * Update the crc with the data in the given {@link ByteBuffer}
@@ -58,7 +62,7 @@ public final class CRC32 {
 		}
 		return updateBytes(crc, off, len, buf);
 	}
-	
+
 	private static native long updateBuffer( long crc, int off, int len, ByteBuffer buf );
 	private static native long updateBytes( long crc, int off, int len, byte[] buf );
 	
