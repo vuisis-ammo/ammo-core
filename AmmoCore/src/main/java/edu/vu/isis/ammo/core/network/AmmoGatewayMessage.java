@@ -21,6 +21,8 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.util.Log;
+
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.CRC32;
@@ -544,14 +546,18 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     	this(builder, ByteBufferAdapter.obtain(payload));
     }
 
-    public static AmmoGatewayMessage.Builder newBuilder(AmmoMessages.MessageWrapper.Builder mwb,
+    public static AmmoGatewayMessage.Builder newBuilder(byte[] payload,
             INetworkService.OnSendMessageHandler handler) {
-        byte[] payload = mwb.build().toByteArray();
+    	return newBuilder(ByteBufferAdapter.obtain(payload), handler);
+    }
+    
+    public static AmmoGatewayMessage.Builder newBuilder(ByteBufferAdapter payload,
+            INetworkService.OnSendMessageHandler handler) {
 
         final CheckSum crc32 = CheckSum.newInstance(payload);
 
         return AmmoGatewayMessage.newBuilder()
-                .size(payload.length)
+                .size(payload.limit())
                 .payload(payload)
                 .checksum(crc32.asLong())
                 .priority(PriorityLevel.NORMAL.v)
@@ -572,7 +578,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 .version(version)
                 .handler(handler);
     }
-
+    
+    public void releasePayload() {
+    	if( payload != null ) payload.release();
+    	payload = null;
+    }
 
     /**
      * Serialize the AmmoMessage for transmission.
@@ -608,8 +618,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     static public ByteBufferAdapter serializeFull_V1(ByteOrder endian, byte phone_id, int size,
             ByteBufferAdapter payload, CheckSum checksum, byte priority)
     {
-        int total_length = HEADER_LENGTH + payload.limit();
-        ByteBufferAdapter buf = ByteBufferAdapter.obtain(ByteBuffer.allocate(total_length));
+        int total_length = HEADER_LENGTH + payload.remaining();
+        ByteBufferAdapter buf = ByteBufferAdapter.obtain(total_length);
         buf.order(endian);
 
         buf.put(MAGIC[2]);
@@ -628,9 +638,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         buf.put(checksum.asByteArray(), 0, 4);
 
         // checksum of header
-        int pos = buf.position();
-        byte[] base = buf.array();
-        final CheckSum crc32 = CheckSum.newInstance(base, 0, pos);
+        int position = buf.position();
+        buf.position(0).limit(position);
+        final CheckSum crc32 = CheckSum.newInstance(buf);
+        buf.limit(total_length).position(position);
         buf.put(crc32.asByteArray());
 
         // payload
@@ -660,8 +671,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public ByteBufferAdapter serializeTerse_V1(ByteOrder endian, byte phone_id,
             int size, ByteBufferAdapter payload, CheckSum checksum, long gpsOffset)
     {
-        int total_length = HEADER_LENGTH_TERSE + payload.limit();
-        ByteBufferAdapter buf = ByteBufferAdapter.obtain(ByteBuffer.allocate(total_length));
+        int total_length = HEADER_LENGTH_TERSE + payload.remaining();
+        ByteBufferAdapter buf = ByteBufferAdapter.obtain(total_length);
         buf.order(endian);
 
         buf.put(MAGIC[2]);
@@ -707,14 +718,16 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         // Put two-byte header checksum here. The checksum covers the
         // magic sequence and everything up to and including the six
         // zero bytes just written.
-        CheckSum crc32 = CheckSum.newInstance(buf.array(), 0, HEADER_LENGTH_TERSE - 2);
+        int pos = buf.position();
+        buf.position(0).limit(HEADER_LENGTH_TERSE - 2);
+        CheckSum crc32 = CheckSum.newInstance(buf);
         byte[] headerChecksum = crc32.asByteArray();
+        buf.limit(total_length).position(pos);
         buf.put(headerChecksum[0]);
         buf.put(headerChecksum[1]);
 
         // payload
         buf.put(payload);
-        logger.debug("   payload={}", payload);
         buf.flip();
         return buf;
     }

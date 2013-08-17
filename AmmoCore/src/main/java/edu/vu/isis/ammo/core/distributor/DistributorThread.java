@@ -12,9 +12,6 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.distributor;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
@@ -34,7 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Marker;
 import org.slf4j.MarkerFactory;
-import org.xml.sax.InputSource;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -50,10 +46,6 @@ import android.os.Process;
 import android.preference.PreferenceManager;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.CodedInputStream;
-import com.google.protobuf.GeneratedMessage;
-import com.google.protobuf.WireFormat;
-import com.google.protobuf.WireFormatUtils;
 
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
@@ -83,17 +75,13 @@ import edu.vu.isis.ammo.core.network.INetworkService;
 import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.AcknowledgementThresholds;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.DataMessage;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.MessageWrapper.MessageType;
-import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
 import edu.vu.isis.ammo.util.ByteBufferAdapter;
-import edu.vu.isis.ammo.util.ByteBufferInputStream;
 import edu.vu.isis.ammo.util.FullTopic;
-import edu.vu.isis.ammo.util.NioByteBufferAdapter;
 
 /**
  * The distributor service runs in the ui thread. This establishes a new thread
@@ -104,7 +92,7 @@ public class DistributorThread extends Thread {
     // ===========================================================
     // Constants
     // ===========================================================
-    public static final Logger logger = LoggerFactory.getLogger("dist.thread");
+    private static final Logger logger = LoggerFactory.getLogger("dist.thread");
     private static final Logger resLogger = LoggerFactory.getLogger("test.queue.response");
     private static final Logger reqLogger = LoggerFactory.getLogger("test.queue.request");
     private static final boolean RUN_TRACE = false;
@@ -842,7 +830,7 @@ public class DistributorThread extends Thread {
             if (agm.isSerialChannel)
                 networkManager.receivedCorruptPacketOnSerialChannel();
 
-            agm.payload.release();
+            agm.releasePayload();
             return false;
         }
 
@@ -850,22 +838,22 @@ public class DistributorThread extends Thread {
         
         final AmmoMessages.MessageWrapper mw;
         try {
-            mw = deserialize(agm.payload);
+            mw = AmmoMessageSerializer.deserialize(agm.payload);
         } catch (Exception ex) {
             logger.error("parsing gateway message", ex);
-            agm.payload.release();
+            agm.releasePayload();
             return false;
         }
         if (mw == null) {
             logger.error("mw was null!");
-            agm.payload.release();
+            agm.releasePayload();
             return false; // TBD SKN: this was true, why? if we can't parse it
             // then its bad
         }
         final MessageType mtype = mw.getType();
         if (mtype == MessageType.HEARTBEAT) {
             logger.trace("heartbeat");
-            agm.payload.release();
+            agm.releasePayload();
             return true;
         }
 
@@ -884,29 +872,33 @@ public class DistributorThread extends Thread {
                                 .upsert();
                     }
                 }
-                if( !subscribeResult ) {
-                	agm.payload.release();
+                if( subscribeResult ) {
+                	agm.payload = null;
+                } else {
+                	agm.releasePayload();
                 }
                 break;
 
             case AUTHENTICATION_RESULT:
                 final boolean result = receiveAuthenticateResponse(context, mw);
                 logger.debug("authentication result={}", result);
-                agm.payload.release();
+                agm.releasePayload();
                 break;
 
             case PUSH_ACKNOWLEDGEMENT:
                 final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
                 logger.debug("post acknowledgement {}", postalResult);
-                agm.payload.release();
+                agm.releasePayload();
                 break;
 
             case PULL_RESPONSE:
                 final boolean retrieveResult = receiveRetrievalResponse(context, mw, agm.channel,
                         agm.priority, agm.payload);
                 logger.debug("retrieve response {}", retrieveResult);
-                if( !retrieveResult ) {
-                	agm.payload.release();
+                if( retrieveResult ) {
+                	agm.payload = null;
+                } else {
+                	agm.releasePayload();
                 }
                 break;
 
@@ -932,18 +924,18 @@ public class DistributorThread extends Thread {
                                 .upsert();
                     }
                 }
-                agm.payload.release();
+                agm.releasePayload();
                 break;
 
             case AUTHENTICATION_MESSAGE:
             case PULL_REQUEST:
             case UNSUBSCRIBE_MESSAGE:
                 logger.debug("{} message, no processing", mw.getType());
-                agm.payload.release();
+                agm.releasePayload();
                 break;
             default:
                 logger.error("unexpected reply type. {}", mw.getType());
-                agm.payload.release();
+                agm.releasePayload();
         }
 
         return true;
@@ -1044,10 +1036,10 @@ public class DistributorThread extends Thread {
                 final DistributorThread parent = DistributorThread.this;
 
                 @Override
-                public byte[] run(Encoding encode) {
+                public ByteBufferAdapter run(Encoding encode) {
                     // TODO FPE handle payload with data types
                     if (serializer_.payload.whatContent() != Payload.Type.NONE) {
-                        final byte[] result =
+                        final ByteBufferAdapter result =
                                 RequestSerializer.serializeFromContentValues(
                                         serializer_.payload.getCV(),
                                         encode);
@@ -1061,7 +1053,7 @@ public class DistributorThread extends Thread {
                         // return serializer_.payload.asBytes();
                     } else {
                         try {
-                            final byte[] result = RequestSerializer.serializeFromProvider(
+                            final ByteBufferAdapter result = RequestSerializer.serializeFromProvider(
                                     that_.getContext().getContentResolver(), serializer_.provider.asUri(),
                                     encode);
 
@@ -1232,11 +1224,10 @@ public class DistributorThread extends Thread {
                 final String data_ = data;
 
                 @Override
-                public byte[] run(Encoding encode) {
+                public ByteBufferAdapter run(Encoding encode) {
                     switch (serialType_) {
                         case DIRECT:
-                            return (data_.length() > 0) ? data_.getBytes() : null;
-
+                            return (data.length() > 0) ? ByteBufferAdapter.obtain(data.getBytes()) : null;
                         case INDIRECT:
                         case DEFERRED:
                         default:
@@ -1358,7 +1349,7 @@ public class DistributorThread extends Thread {
 
         serializer.setAction(new RequestSerializer.OnReady() {
             @Override
-            public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+            public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter serialized) {
 
                 if (serialized == null) {
                     logger.error("No Payload");
@@ -1367,6 +1358,7 @@ public class DistributorThread extends Thread {
 
                 final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                         .newBuilder();
+                AmmoGatewayMessage.Builder agmb = null; 
                 if (encode.getType() != Encoding.Type.TERSE) {
                     final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
                             .newBuilder()
@@ -1374,8 +1366,7 @@ public class DistributorThread extends Thread {
                             .setMimeType(msgType)
                             .setEncoding(encode.getType().name())
                             .setUserId(networkManager.getOperatorId())
-                            .setOriginDevice(networkManager.getDeviceId())
-                            .setData(ByteString.copyFrom(serialized));
+                            .setOriginDevice(networkManager.getDeviceId());
 
                     if (notice != null) {
                         final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds
@@ -1390,7 +1381,12 @@ public class DistributorThread extends Thread {
 
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
                     mw.setDataMessage(pushReq);
-
+                    try {
+                    	agmb = AmmoGatewayMessage.newBuilder(
+                    			AmmoMessageSerializer.serialize(mw, serialized), handler);
+                    } catch ( Exception e ) {
+                    	throw new RuntimeException(e.getMessage(), e);
+                    }
                 } else {
                     final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
                     if (mimeId == null) {
@@ -1400,14 +1396,14 @@ public class DistributorThread extends Thread {
                     final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
                             .newBuilder()
                             .setMimeType(mimeId)
-                            .setData(ByteString.copyFrom(serialized));
+                            .setData(ByteString.copyFrom(serialized.array()));
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
                     mw.setTerseMessage(pushReq);
+                    agmb = AmmoGatewayMessage.newBuilder(mw.build().toByteArray(), handler);
                 }
 
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
-                        System.currentTimeMillis() - now, serialized.length);
-                final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                        System.currentTimeMillis() - now, serialized.limit());
                 agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
 			      notice.atGatewayDelivered.getVia().isActive() ||
 			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
@@ -1764,13 +1760,13 @@ public class DistributorThread extends Thread {
                 private AmmoMessages.PullRequest.Builder retrieveReq_ = retrieveReq;
 
                 @Override
-                public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+                public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter adapter) {
                     final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                             .newBuilder();
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
                     mw.setPullRequest(retrieveReq_);
-                    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw,
-                            handler);
+                    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+                    		mw.build().toByteArray(), handler);
                     return agmb.build();
                 }
             });
@@ -1820,7 +1816,7 @@ public class DistributorThread extends Thread {
         // update the actual provider
         final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
         final boolean queued = this.deserialThread.toProvider(priority, context, channel.name,
-                provider, encoding, getDataBuffer(payload, resp.getData()));
+                provider, encoding, AmmoMessageSerializer.getDataBuffer(payload, resp.getData()));
         logger.debug("tuple upserted {}", queued);
 
         return true;
@@ -2050,12 +2046,13 @@ public class DistributorThread extends Thread {
             final AmmoMessages.SubscribeMessage.Builder subscribeReq_ = subscribeReq;
 
             @Override
-            public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+            public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter serialized) {
                 final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                         .newBuilder();
                 mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
                 mw.setSubscribeMessage(subscribeReq_);
-                final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+                		mw.build().toByteArray(), handler);
                 return agmb.build();
             }
         });
@@ -2160,7 +2157,8 @@ public class DistributorThread extends Thread {
                     .setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
                     .setPushAcknowledgement(pushAck);
 
-            final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb,
+            final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(
+            		mwb.build().toByteArray(),
                     new INetworkService.OnSendMessageHandler() {
                         // final AmmoMessages.PushAcknowledgement.Builder ack_ =
                         // pushAck;
@@ -2178,8 +2176,8 @@ public class DistributorThread extends Thread {
 
         final Encoding encoding = Encoding.getInstanceByName(encode);        
         this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
-        		getDataBuffer(payload, data));
-
+        		AmmoMessageSerializer.getDataBuffer(payload, data));
+        
         logger.debug("Ammo received message on topic: {} for provider: {}", mime, uriString);
 
         return true;
@@ -2196,207 +2194,4 @@ public class DistributorThread extends Thread {
 
     // =============== UTILITY METHODS ======================== //
     
-    
-    // ===========================================================
-	// GROSS protobuf hacks
-	// ===========================================================
-    
-    private static final int DATA_MESSAGE_DATA_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.DataMessage.DATA_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
-    private static final int PULL_RESPONSE_DATA_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.PullResponse.DATA_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
-    private static final int DATA_MESSAGE_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.MessageWrapper.DATA_MESSAGE_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
-    private static final int PULL_RESPONSE_MESSAGE_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.MessageWrapper.PULL_RESPONSE_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
-    private static final int TYPE_MESSAGE_FIELD_TAG = WireFormatUtils.makeTag(AmmoMessages.MessageWrapper.TYPE_FIELD_NUMBER, WireFormat.WIRETYPE_VARINT);
-    private static final int EOF = 0;
-    
-    private static CodedInputStream stream;
-    private static Field bufferSizeField;
-    private static Field bufferPosField;
-    private static Field totalBytesRetiredField;
-    private static Field inputField;
-    
-    private static ByteBufferAdapter getDataBuffer( ByteBufferAdapter payload, ByteString data ) {
-        if( data == null || data == ByteString.EMPTY ) {
-        	return payload;
-        } else {
-        	return new NioByteBufferAdapter(ByteBuffer.wrap(data.toByteArray()));
-        }
-    }
-    
-    /**
-     * This is crap.
-     * 
-     * We don't want a message that contains a large "data" portion to be read onto the heap
-     * into a ByteString.  Sometimes that part of the message can be huge and the device will
-     * run out of memory.  
-     * 
-     * With a little work we might be able to generalize this a little.
-     * 
-     * @param payload
-     * @return
-     */
-    private static AmmoMessages.MessageWrapper deserialize( ByteBufferAdapter payload ) throws IOException {
-    	// mark here so we can rewind
-    	int initialPosition = payload.position();
-    	
-    	// first, check the type of message.  If this is a pull response or data message
-    	// (ie, a message with a potentially large payload) make sure to deserialize it
-    	// so that we skip the large payload and adjust the buffer so that the position
-    	// is at the start of the payload and the limit is at the end of the payload
-    	CodedInputStream codedStream = 
-    			CodedInputStream.newInstance(new ByteBufferInputStream(payload));
-    	for( ;; ) {
-    		int tag = codedStream.readTag();
-    		if( tag == EOF ) {
-    			break;
-    			
-    		} else if( tag == TYPE_MESSAGE_FIELD_TAG ) {
-    			int readEnum = codedStream.readEnum();    			
-    			MessageType value = MessageType.valueOf(readEnum);
-    			if( value != MessageType.PULL_RESPONSE && value != MessageType.DATA_MESSAGE ) {
-    				break;
-    			}	
-    			
-    		} else if( tag == PULL_RESPONSE_MESSAGE_FIELD_TAG ) {
-    			payload.position(getPosition(codedStream, initialPosition));
-    			
-    			PullResponse pullMessage = deserializeMessage(payload, 
-    					PULL_RESPONSE_DATA_FIELD_TAG, PullResponse.newBuilder());
-    			
-    			return AmmoMessages.MessageWrapper.newBuilder()
-    					.setType(MessageType.PULL_RESPONSE)
-    					.setPullResponse(pullMessage).buildPartial();
-    			
-    		} else if( tag == DATA_MESSAGE_FIELD_TAG ) {
-    			payload.position(getPosition(codedStream, initialPosition));
-    			
-    			DataMessage dataMessage = deserializeMessage(payload, 
-    					DATA_MESSAGE_DATA_FIELD_TAG, DataMessage.newBuilder());
-    			
-    			return AmmoMessages.MessageWrapper.newBuilder()
-    					.setType(MessageType.DATA_MESSAGE)
-    					.setDataMessage(dataMessage).buildPartial();
-    		} else {
-    			codedStream.skipField(tag);
-    		}
-    	}
-
-    	
-    	// otherwise, we deserialize the normal way
-    	payload.position(initialPosition);
-    	return AmmoMessages.MessageWrapper.parseFrom(new ByteBufferInputStream(payload));
-    }
-    
-    /**
-     * Deserializes a message with a "data" tag, skipping the data tag and positioning
-     * the buffer so that it's position() is at the begining of the data and it's limit()
-     * is at the end of the data.
-     * 
-     * 
-     * @param payload
-     * @param messageStart
-     * @param dataFieldTag
-     * @param builder
-     * @return
-     * @throws IOException
-     */
-    @SuppressWarnings("unchecked")
-	private static <T extends GeneratedMessage> T deserializeMessage( 
-    		ByteBufferAdapter payload, int dataFieldTag,
-    		GeneratedMessage.Builder<?> builder ) throws IOException {
-		
-		// position the stream at the start of the message
-    	int start = payload.position();
-		CodedInputStream codedStream = CodedInputStream.newInstance(new ByteBufferInputStream(payload));
-		int length = codedStream.readRawVarint32();
-		int messageStart = getPosition(codedStream, start);
-		int messageEnd = messageStart + length;
-		int dataMessageDataStart = -1;
-		int dataMessageDataEnd = -1;
-		
-		// search through the payload until we find the tag that
-		// marks the start of the data.  The length of the data will
-		// be written to the stream as a varint32.  We use the length
-		// to determine the end of the data field.  Note that this
-		// skips some internal protobuf checks but should be a bit more
-		// efficient.
-		for( ;; ) {
-			int position = getPosition(codedStream, start);
-			int tag = codedStream.readTag();
-			if( tag == EOF ) {
-				break;
-			} else if( tag == dataFieldTag ) {
-				dataMessageDataStart = position;
-				int len = codedStream.readRawVarint32();
-				dataMessageDataEnd = getPosition(codedStream, start) + len;
-				break;
-			} else {
-				codedStream.skipField(tag);
-			}
-		}
-		
-		// make a head slice
-		payload.position(messageStart);
-		ByteBufferAdapter head = payload.slice();
-		head.limit(dataMessageDataStart-messageStart);        		
-		
-		// make a tail slice
-		payload.position(dataMessageDataEnd);
-		ByteBufferAdapter tail = payload.slice();
-		tail.limit(messageEnd-dataMessageDataEnd);
-		
-		// now make a message from those parts
-		builder.mergeFrom(new ByteBufferInputStream(head));
-		builder.mergeFrom(new ByteBufferInputStream(tail));
-		T ret = (T) builder.buildPartial();
-		
-		// now position the payload so that it wraps the data portion
-		payload.position(dataMessageDataStart);
-		codedStream = CodedInputStream.newInstance(new ByteBufferInputStream(payload));
-		codedStream.readTag(); // read the tag to advance past that
-		codedStream.readRawVarint32(); // read the size to advance past that
-		payload.position(getPosition(codedStream, dataMessageDataStart));
-		payload.limit(dataMessageDataEnd);
-		
-		return ret;
-    }
-    
-    /**
-     * Get the actual position that the byte buffer would be on if the coded stream were not buffered.  
-     * 
-     * @param stream
-     * @param start
-     * @return
-     */
-    private static int getPosition( CodedInputStream stream, int start ) {
-    	return start + stream.getTotalBytesRead();
-    }
-    
-//    /**
-//     * 
-//     * @param in
-//     * @return
-//     */
-//    private static CodedInputStream createStream( InputStream in ) {
-//    	try {
-//    		if( stream == null ) {
-//    			stream = CodedInputStream.newInstance(in);
-//    			bufferSizeField = stream.getClass().getDeclaredField("bufferSize");
-//    			bufferPosField = stream.getClass().getDeclaredField("bufferPos");
-//    			totalBytesRetiredField = stream.getClass().getDeclaredField("totalBytesRetired");
-//    			inputField = stream.getClass().getDeclaredField("input");
-//    			bufferSizeField.setAccessible(true);
-//    			bufferPosField.setAccessible(true);
-//    			totalBytesRetiredField.setAccessible(true);
-//    			inputField.setAccessible(true);
-//    		} else {
-//    			bufferSizeField.set(stream, 0);
-//    			bufferPosField.set(stream, 0);
-//    			totalBytesRetiredField.set(stream, 0);
-//    			inputField.set(stream, stream);
-//    		}
-//    	} catch ( Exception e ) {
-//    		return CodedInputStream.newInstance(in);
-//    	}
-//    	return stream;
-//    }
 }

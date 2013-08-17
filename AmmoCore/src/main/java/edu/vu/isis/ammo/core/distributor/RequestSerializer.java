@@ -20,9 +20,11 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -49,10 +51,13 @@ import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
+import android.os.Debug;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
+import android.os.SystemClock;
 import android.os.ParcelFileDescriptor.AutoCloseOutputStream;
 import android.os.RemoteException;
+import android.util.Log;
 import android.util.SparseArray;
 import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
@@ -169,11 +174,11 @@ public class RequestSerializer {
     }
 
     public interface OnReady {
-        public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
+        public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter serialized);
     }
 
     public interface OnSerialize {
-        public byte[] run(Encoding encode);
+        public ByteBufferAdapter run(Encoding encode);
     }
 
     public final Provider provider;
@@ -198,14 +203,14 @@ public class RequestSerializer {
 
         this.readyActor = new RequestSerializer.OnReady() {
             @Override
-            public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+            public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter serialized) {
                 logger.trace("ready actor not defined {}", encode);
                 return null;
             }
         };
         this.serializeActor = new RequestSerializer.OnSerialize() {
             @Override
-            public byte[] run(Encoding encode) {
+            public ByteBufferAdapter run(Encoding encode) {
                 logger.trace("serialize actor not defined {}", encode);
                 return null;
             }
@@ -225,7 +230,7 @@ public class RequestSerializer {
         final Encoding local_encode = encode;
         final String local_channel = channel;
         if (parent.agm == null) {
-            final byte[] agmBytes = parent.serializeActor.run(local_encode);
+            final ByteBufferAdapter agmBytes = parent.serializeActor.run(local_encode);
             parent.agm = parent.readyActor.run(local_encode, agmBytes);
         }
         if (parent.agm == null)
@@ -242,13 +247,13 @@ public class RequestSerializer {
         this.serializeActor = onSerialize;
     }
 
-    public static byte[] serializeFromContentValues(ContentValues cv,
+    public static ByteBufferAdapter serializeFromContentValues(ContentValues cv,
             final DistributorPolicy.Encoding encoding) {
 
         logger.trace("serializing using content values and encoding {}", encoding);
         switch (encoding.getType()) {
             case JSON: {
-                return encodeAsJson(cv);
+                return ByteBufferAdapter.obtain(encodeAsJson(cv));
             }
 
             case TERSE: {
@@ -351,18 +356,18 @@ public class RequestSerializer {
     /**
      * All serializer methods return this dataflow variable.
      */
-    public static class ByteBufferFuture extends DataFlow<ByteBuffer> {
+    public static class ByteBufferFuture extends DataFlow<ByteBufferAdapter> {
 
         public ByteBufferFuture() {
             super();
         }
 
-        public ByteBufferFuture(ByteBuffer value) {
+        public ByteBufferFuture(ByteBufferAdapter value) {
             super(value);
         }
 
-        public static ByteBufferFuture wrap(byte[] value) {
-            return new ByteBufferFuture(ByteBuffer.wrap(value));
+        public static ByteBufferFuture wrap(ByteBufferAdapter value) {
+            return new ByteBufferFuture(value);
         }
     }
 
@@ -370,7 +375,7 @@ public class RequestSerializer {
      *
      */
 
-    public static byte[] serializeFromProvider(final ContentResolver resolver,
+    public static ByteBufferAdapter serializeFromProvider(final ContentResolver resolver,
             final Uri tupleUri, final DistributorPolicy.Encoding encoding)
             throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
@@ -393,7 +398,7 @@ public class RequestSerializer {
                         .serializeCustomFromProvider(resolver, tupleUri, encoding);
         }
         try {
-            return result.get().array();
+            return result.get();
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         } catch (ExecutionException ex) {
@@ -492,7 +497,7 @@ public class RequestSerializer {
 
         final String tupleString = tupleCursor.getString(0);
         tupleCursor.close();
-        return ByteBufferFuture.wrap(tupleString.getBytes());
+        return ByteBufferFuture.wrap(ByteBufferAdapter.obtain(tupleString.getBytes()));
     }
 
     /**
@@ -592,467 +597,516 @@ public class RequestSerializer {
      * any change to one will necessitate a corresponding change to the other.
      */
     public static ByteBufferFuture serializeJsonFromProvider(final ContentResolver resolver,
-            final Uri tupleUri, final DistributorPolicy.Encoding encoding)
-            throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
+    		final Uri tupleUri, final DistributorPolicy.Encoding encoding)
+    				throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
-        logger.trace("Serialize the non-blob data");
+    	logger.trace("Serialize the non-blob data");
 
-        // Asserted maximum useful size of trace logging message (e.g. size of
-        // PLI msg)
-        final int TRACE_CUTOFF_SIZE = 512;
+    	// Asserted maximum useful size of trace logging message (e.g. size of
+    	// PLI msg)
 
-        final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
-        Cursor tupleCursor = null;
-        final byte[] tuple;
-        final JSONObject json;
-        try {
-            try {
-                tupleCursor = resolver.query(serialUri, null, null, null, null);
-            } catch (IllegalArgumentException ex) {
-                logger.warn("unknown content provider {}", ex.getLocalizedMessage());
-                return null;
-            }
-            if (tupleCursor == null) {
-                throw new TupleNotFoundException("while serializing from provider", tupleUri);
-            }
-            if (tupleCursor.getCount() < 1) {
-                logger.warn("tuple no longe present {}", tupleUri);
-                return null;
-            }
-            if (!tupleCursor.moveToFirst()) {
-                return null;
-            }
-            if (tupleCursor.getColumnCount() < 1) {
-                return null;
-            }
+    	final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
+    	Cursor tupleCursor = null;
+    	final List<ByteBufferAdapter> parts = new ArrayList<ByteBufferAdapter>();
+    	final JSONObject json;
+    	try {
+    		try {
+    			tupleCursor = resolver.query(serialUri, null, null, null, null);
+    		} catch (IllegalArgumentException ex) {
+    			logger.warn("unknown content provider {}", ex.getLocalizedMessage());
+    			return null;
+    		}
+    		if (tupleCursor == null) {
+    			throw new TupleNotFoundException("while serializing from provider", tupleUri);
+    		}
+    		if (tupleCursor.getCount() < 1) {
+    			logger.warn("tuple no longe present {}", tupleUri);
+    			return null;
+    		}
+    		if (!tupleCursor.moveToFirst()) {
+    			return null;
+    		}
+    		if (tupleCursor.getColumnCount() < 1) {
+    			return null;
+    		}
 
-            json = new JSONObject();
-            tupleCursor.moveToFirst();
+    		json = new JSONObject();
+    		tupleCursor.moveToFirst();
 
-            for (final String name : tupleCursor.getColumnNames()) {
-                if (name.startsWith("_"))
-                    continue; // don't send the local fields
+    		for (final String name : tupleCursor.getColumnNames()) {
+    			if (name.startsWith("_"))
+    				continue; // don't send the local fields
 
-                final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
-                if (value == null || value.length() < 1)
-                    continue;
-                try {
-                    json.put(name, value);
-                } catch (JSONException ex) {
-                    logger.warn("invalid content provider", ex);
-                }
-            }
-        } finally {
-            if (tupleCursor != null)
-                tupleCursor.close();
-        }
-        // FIXME FPE final Writer can we be more efficient? not copy bytes so
-        // often?
-        tuple = json.toString().getBytes();
+    			final String value = tupleCursor.getString(tupleCursor.getColumnIndex(name));
+    			if (value == null || value.length() < 1)
+    				continue;
+    			try {
+    				json.put(name, value);
+    			} catch (JSONException ex) {
+    				logger.warn("invalid content provider", ex);
+    			}
+    		}
+    	} finally {
+    		if (tupleCursor != null)
+    			tupleCursor.close();
+    	}
+    	// FIXME FPE final Writer can we be more efficient? not copy bytes so
+    	// often?
+    	parts.add(ByteBufferAdapter.obtain(json.toString().getBytes()));
 
-        logger.info("Serialized message, content {}", json.toString());
+    	logger.debug("Serialized message, content {}", json.toString());
+    	logger.trace("Serialize the blob data (if any)");
 
-        logger.trace("loading larger tuple buffer");
-        final ByteArrayOutputStream bigTuple = new ByteArrayOutputStream();
+    	final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
+    	Cursor blobCursor = null;
+    	final int blobCount;
+    	try {
+    		PLogger.API_STORE.debug("get blobs uri=[{}]", blobUri);
+    		blobCursor = resolver.query(blobUri, null, null, null, null);
 
-        bigTuple.write(tuple);
-        bigTuple.write(0x0);
 
-        logger.trace("Serialize the blob data (if any)");
+    		if( blobCursor != null && blobCursor.moveToFirst() ) {
+    			blobCount = blobCursor.getColumnCount();
+    			if( blobCount > 0 ) {
+    				logger.trace("getting the blob fields");
+    				for (int ix = 0; ix < blobCount; ix++) {
 
-        final Uri blobUri = Uri.withAppendedPath(tupleUri, "_blob");
-        Cursor blobCursor = null;
-        final int blobCount;
-        try {
-            try {
-                PLogger.API_STORE.debug("get blobs uri=[{}]", blobUri);
-                blobCursor = resolver.query(blobUri, null, null, null, null);
-            } catch (IllegalArgumentException ex) {
-                logger.warn("unknown content provider", ex);
-                return null;
-            }
-            if (blobCursor == null) {
-                PLogger.API_STORE.debug("null blob json tuple=[{}]", tuple);
-                return ByteBufferFuture.wrap(tuple);
-            }
-            if (!blobCursor.moveToFirst()) {
-                PLogger.API_STORE.debug("no blob json tuple=[{}]", tuple);
-                return ByteBufferFuture.wrap(tuple);
-            }
-            blobCount = blobCursor.getColumnCount();
-            if (blobCount < 1) {
-                PLogger.API_STORE.debug("empty blob json tuple=[{}]", tuple);
-                return ByteBufferFuture.wrap(tuple);
-            }
+    					final String fieldName = blobCursor.getColumnName(ix);
+    					final byte[] fieldNameBytes = fieldName.getBytes();
+    					
+    					// "Manual merge" of fix for blob/file handling
+    					/*
+    					 * If it is a file field type the value is a string, If a blob
+    					 * then the field type is a blob, but you can not check the
+    					 * field type directly so we let the exception happen if we try
+    					 * the wrong type.
+    					 */
+    					@SuppressWarnings("unused")
+    					final String fileName;
+    					final byte[] blob;
+    					final BlobTypeEnum dataType;
+    					try {
+    						String tempFileName = null;
+    						byte[] tempBlob = null;
+    						BlobTypeEnum tempDataType = null;
+    						try {
+    							tempFileName = blobCursor.getString(ix);
+    							if (tempFileName == null || tempFileName.length() < 1) {
+    								tempDataType = BlobTypeEnum.SMALL;
+    							} else {
+    								tempDataType = BlobTypeEnum.LARGE;
+    							}
+    						} catch (Exception ex) {
+    							tempBlob = blobCursor.getBlob(ix);
+    							tempDataType = BlobTypeEnum.infer(fieldName, tempBlob);
+    						}
+    						fileName = tempFileName;
+    						blob = tempBlob;
+    						dataType = tempDataType;
+    					} catch (Exception ex) {
+    						logger.error("something bad happened reading the field value", ex);
+    						continue;
+    					}
 
-            logger.trace("getting the blob fields");
-            final byte[] buffer = new byte[1024];
-            for (int ix = 0; ix < blobCursor.getColumnCount(); ix++) {
+    					switch (dataType) {
+    					case SMALL:
+    						addSmallBlob(parts, fieldNameBytes, blob);
+    						break;
+    					case LARGE:
+    						PLogger.API_STORE.trace("large blob field name=[{}]", fieldName);
+    						logger.trace("field name=[{}] ", fieldName);
+    						final Uri fieldUri = Uri.withAppendedPath(tupleUri, fieldName);
+    						try {
+    							final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(
+    									fieldUri, "r");
+    							if (afd == null) {
+    								logger.warn("could not acquire file descriptor {}", fieldUri);
+    								throw new IOException("could not acquire file descriptor "
+    										+ fieldUri);
+    							}
+    							final int size = (int) afd.getLength();
+    							final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+    							
+    							if( size == AssetFileDescriptor.UNKNOWN_LENGTH ) {
+    								addLargeBlobOfUnknownSize(parts, fieldNameBytes, pfd);    					    		
+    							} else {
+    								addLargeBlobOfKnownSize(parts, fieldNameBytes, size, pfd);
+    							}
+    						} catch (SQLiteException ex) {
+    							logger.error("unable to create stream {}", serialUri, ex);
+    							continue;
 
-                final String fieldName = blobCursor.getColumnName(ix);
-                bigTuple.write(fieldName.getBytes());
-                bigTuple.write(0x0);
+    						} catch (IOException ex) {
+    							logger.trace("unable to create stream {}", serialUri, ex);
+    							throw new FileNotFoundException("Unable to create stream");
+    						} catch (Exception ex) {
+    							logger.error("content provider unable to create stream {}", serialUri,
+    									ex);
+    							continue;
+    						}
+    						break;
+    					default:
+    						logger.warn("not a known data type {}", dataType);
+    					}
+    				}
+    			}
+    		}
+    	} catch (IllegalArgumentException ex) {
+    		logger.warn("unknown content provider", ex);
+    		return null;                    
+    	} finally {
+    		if (blobCursor != null)
+    			blobCursor.close();
+    	}
 
-                // "Manual merge" of fix for blob/file handling
-                /*
-                 * If it is a file field type the value is a string, If a blob
-                 * then the field type is a blob, but you can not check the
-                 * field type directly so we let the exception happen if we try
-                 * the wrong type.
-                 */
-                @SuppressWarnings("unused")
-                final String fileName;
-                final byte[] blob;
-                final BlobTypeEnum dataType;
-                try {
-                    String tempFileName = null;
-                    byte[] tempBlob = null;
-                    BlobTypeEnum tempDataType = null;
-                    try {
-                        tempFileName = blobCursor.getString(ix);
-                        if (tempFileName == null || tempFileName.length() < 1) {
-                            tempDataType = BlobTypeEnum.SMALL;
-                        } else {
-                            tempDataType = BlobTypeEnum.LARGE;
-                        }
-                    } catch (Exception ex) {
-                        tempBlob = blobCursor.getBlob(ix);
-                        tempDataType = BlobTypeEnum.infer(fieldName, tempBlob);
-                    }
-                    fileName = tempFileName;
-                    blob = tempBlob;
-                    dataType = tempDataType;
-                } catch (Exception ex) {
-                    logger.error("something bad happened reading the field value", ex);
-                    continue;
-                }
-
-                switch (dataType) {
-                    case SMALL:
-                        try {
-                            PLogger.API_STORE.trace("small blob field name=[{}]", fieldName);
-                            logger.trace("field name=[{}] blob=[{}]", fieldName, blob);
-
-                            final ByteBuffer bb = ByteBuffer.allocate(4);
-                            bb.order(ByteOrder.BIG_ENDIAN);
-                            final int size = (blob == null) ? 0 : blob.length;
-                            bb.putInt(size);
-                            bigTuple.write(bb.array());
-                            if (blob != null) {
-                                bigTuple.write(blob);
-                            }
-                            bigTuple.write(BLOB_MARKER_FIELD);
-                            bigTuple.write(bb.array(), 1, bb.array().length - 1);
-                        } finally {
-                        }
-                        break;
-                    case LARGE:
-                        PLogger.API_STORE.trace("large blob field name=[{}]", fieldName);
-                        logger.trace("field name=[{}] ", fieldName);
-                        final Uri fieldUri = Uri.withAppendedPath(tupleUri, fieldName);
-                        try {
-                            final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(
-                                    fieldUri, "r");
-                            if (afd == null) {
-                                logger.warn("could not acquire file descriptor {}", fieldUri);
-                                throw new IOException("could not acquire file descriptor "
-                                        + fieldUri);
-                            }
-                            final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-                            final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(
-                                    pfd);
-                            final BufferedInputStream bis = new BufferedInputStream(instream);
-                            final ByteArrayOutputStream fieldBlob = new ByteArrayOutputStream();
-                            for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-                                fieldBlob.write(buffer, 0, bytesRead);
-                            }
-                            bis.close();
-                            final ByteBuffer fieldBlobBuffer = ByteBuffer.wrap(fieldBlob
-                                    .toByteArray());
-
-                            // write it out
-                            final ByteBuffer bb = ByteBuffer.allocate(4);
-                            bb.order(ByteOrder.BIG_ENDIAN);
-                            final int size = fieldBlobBuffer.capacity();
-                            bb.putInt(size);
-                            bigTuple.write(bb.array());
-
-                            bigTuple.write(fieldBlobBuffer.array());
-                            bigTuple.write(bb.array());
-                        } catch (SQLiteException ex) {
-                            logger.error("unable to create stream {}", serialUri, ex);
-                            continue;
-
-                        } catch (IOException ex) {
-                            logger.trace("unable to create stream {}", serialUri, ex);
-                            throw new FileNotFoundException("Unable to create stream");
-                        } catch (Exception ex) {
-                            logger.error("content provider unable to create stream {}", serialUri,
-                                    ex);
-                            continue;
-                        }
-                        break;
-                    default:
-                        logger.warn("not a known data type {}", dataType);
-                }
-            }
-        } finally {
-            if (blobCursor != null)
-                blobCursor.close();
-        }
-
-        final byte[] finalTuple = bigTuple.toByteArray();
-        bigTuple.close();
-        PLogger.API_STORE.debug("json tuple=[{}] size=[{}]",
-                tuple, finalTuple.length);
-        if (finalTuple.length <= TRACE_CUTOFF_SIZE) {
-            PLogger.API_STORE.trace("json finalTuple=[{}]", finalTuple);
-        } else {
-            PLogger.API_STORE.trace("json tuple=[{}] size=[{}]", tuple, finalTuple.length);
-        }
-        return ByteBufferFuture.wrap(finalTuple);
+    	// now we have a bunch of buffers to append to a big buffer
+    	int totalSize = 0;
+    	int numParts = parts.size();
+		for( int i = 0; i < numParts; i++ ) {
+    		totalSize += parts.get(i).remaining();
+    	}
+		ByteBufferAdapter bigBuffer = ByteBufferAdapter.obtain(totalSize + numParts - 1);
+		for( int i = 0; i < numParts; i++ ) {
+			if( i > 0 ) bigBuffer.put((byte) 0x0);
+			ByteBufferAdapter src = parts.get(i);
+			bigBuffer.put(src);
+			src.release();
+    	}
+		bigBuffer.flip();
+    	return ByteBufferFuture.wrap(bigBuffer);
     }
 
-    /**
-     * This is the improved version of JSON encoding. It requests the meta data
-     * about the relation explicitly rather than trying to infer it from the
-     * returned data.
-     */
-    public static ByteBufferFuture serializeJsonFromProvider2(final ContentResolver resolver,
-            final Uri tupleUri, final DistributorPolicy.Encoding encoding)
-            throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
-
-        /**
-         * 1) query to find out about the fields to send: name, position, type
-         * 2) serialize the fields
-         */
-        logger.debug("Using json serialization");
-
-        Cursor serialMetaCursor = null;
-        final Map<String, FieldType> serialMap;
-        final String[] serialOrder;
-        try {
-            try {
-                final Uri dUri = Uri.withAppendedPath(tupleUri, "_data_type");
-                serialMetaCursor = resolver.query(dUri, null, null, null, null);
-            } catch (IllegalArgumentException ex) {
-                logger.warn("unknown content provider ", ex);
-                return null;
-            }
-            if (serialMetaCursor == null) {
-                throw new NonConformingAmmoContentProvider("while getting metadata from provider",
-                        tupleUri);
-            }
-
-            if (!serialMetaCursor.moveToFirst()) {
-                return null;
-            }
-            final int columnCount = serialMetaCursor.getColumnCount();
-            if (columnCount < 1) {
-                return null;
-            }
-
-            serialMap = new HashMap<String, FieldType>(columnCount);
-            serialOrder = new String[columnCount];
-            int ix = 0;
-            for (final String key : serialMetaCursor.getColumnNames()) {
-                if (key.startsWith("_"))
-                    continue; // don't send any local fields
-                final int value = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
-                serialMap.put(key, FieldType.fromCode(value));
-                serialOrder[ix] = key;
-                ix++;
-            }
-        } finally {
-            if (serialMetaCursor != null)
-                serialMetaCursor.close();
-        }
-
-        logger.trace("Serialize the non-binary data");
-        Cursor tupleCursor = null;
-        final byte[] tuple;
-        try {
-            try {
-                tupleCursor = resolver.query(tupleUri, null, null, null, null);
-            } catch (IllegalArgumentException ex) {
-                logger.warn("unknown content provider ", ex);
-                return null;
-            }
-            if (tupleCursor == null) {
-                throw new TupleNotFoundException("while serializing from provider", tupleUri);
-            }
-
-            if (!tupleCursor.moveToFirst()) {
-                return null;
-            }
-            if (tupleCursor.getColumnCount() < 1) {
-                logger.warn("tuple no longe present {}", tupleUri);
-                return null;
-            }
-
-            logger.trace("Serialize the non-blob data");
-
-            final JSONObject json = new JSONObject();
-            int countBinaryFields = 0;
-            for (final Map.Entry<String, FieldType> entry : serialMap.entrySet()) {
-                final String name = entry.getKey();
-                final FieldType type = entry.getValue();
-                switch (type) {
-                    case BLOB:
-                        countBinaryFields++;
-                        break;
-                    case FILE: {
-                        countBinaryFields++;
-                        final String value = tupleCursor
-                                .getString(tupleCursor.getColumnIndex(name));
-                        try {
-                            json.put(name, value);
-                        } catch (JSONException ex) {
-                            logger.warn("invalid content provider", ex);
-                        }
-                    }
-                        break;
-                    default: {
-                        final String value = tupleCursor
-                                .getString(tupleCursor.getColumnIndex(name));
-                        if (value == null || value.length() < 1)
-                            continue;
-                        try {
-                            json.put(name, value);
-                        } catch (JSONException ex) {
-                            logger.warn("invalid content provider", ex);
-                        }
-                    }
-                }
-            }
-            tuple = json.toString().getBytes();
-            if (countBinaryFields < 1)
-                return ByteBufferFuture.wrap(tuple);
-
-            logger.trace("loading larger tuple buffer");
-            ByteArrayOutputStream bigTuple = null;
-            try {
-                bigTuple = new ByteArrayOutputStream();
-
-                bigTuple.write(tuple);
-                bigTuple.write(0x0);
-
-                logger.trace("Serialize the blob data (if any)");
-                final byte[] buffer = new byte[1024];
-                for (final Map.Entry<String, FieldType> entry : serialMap.entrySet()) {
-                    final String fieldName = entry.getKey();
-                    final FieldType type = entry.getValue();
-                    switch (type) {
-                        case BLOB:
-                        case FILE:
-                            break;
-                        default:
-                            continue;
-                    }
-                    bigTuple.write(fieldName.getBytes());
-                    bigTuple.write(0x0);
-
-                    switch (type) {
-                        case BLOB:
-                            final byte[] tempBlob = tupleCursor.getBlob(tupleCursor
-                                    .getColumnIndex(entry.getKey()));
-                            final BlobTypeEnum tempBlobType = BlobTypeEnum.infer(fieldName,
-                                    tempBlob);
-                            switch (tempBlobType) {
-                                case SMALL:
-                                    try {
-                                        logger.trace("field name=[{}] blob=[{}]", fieldName,
-                                                tempBlob);
-                                        final ByteBuffer fieldBlobBuffer = ByteBuffer
-                                                .wrap(tempBlob);
-
-                                        final ByteBuffer bb = ByteBuffer.allocate(4);
-                                        bb.order(ByteOrder.BIG_ENDIAN);
-                                        final int size = fieldBlobBuffer.capacity();
-                                        bb.putInt(size);
-                                        bigTuple.write(bb.array());
-
-                                        bigTuple.write(fieldBlobBuffer.array());
-
-                                        bigTuple.write(BLOB_MARKER_FIELD);
-                                        bigTuple.write(bb.array(), 1, bb.array().length - 1);
-                                    } finally {
-                                    }
-                                    break;
-                                case LARGE:
-                                default:
-                                    break;
-                            }
-                            continue;
-                        default:
-                            break;
-                    }
-
-                    logger.trace("field name=[{}] ", fieldName);
-                    final Uri fieldUri = Uri.withAppendedPath(tupleUri, fieldName);
-                    try {
-                        final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri,
-                                "r");
-                        if (afd == null) {
-                            logger.warn("could not acquire file descriptor {}", fieldUri);
-                            throw new IOException("could not acquire file descriptor " + fieldUri);
-                        }
-                        final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-
-                        final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(
-                                pfd);
-                        final ByteBuffer fieldBlobBuffer;
-                        ByteArrayOutputStream fieldBlob = null;
-                        BufferedInputStream bis = null;
-                        try {
-                            bis = new BufferedInputStream(instream);
-                            fieldBlob = new ByteArrayOutputStream();
-                            for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-                                fieldBlob.write(buffer, 0, bytesRead);
-                            }
-                            fieldBlobBuffer = ByteBuffer.wrap(fieldBlob.toByteArray());
-                        } finally {
-                            if (bis != null)
-                                bis.close();
-                            if (fieldBlob != null)
-                                fieldBlob.close();
-                        }
-
-                        // write it out
-                        final ByteBuffer bb = ByteBuffer.allocate(4);
-                        bb.order(ByteOrder.BIG_ENDIAN);
-                        final int size = fieldBlobBuffer.capacity();
-                        bb.putInt(size);
-                        bigTuple.write(bb.array());
-
-                        bigTuple.write(fieldBlobBuffer.array());
-                        bigTuple.write(bb.array());
-
-                    } catch (IOException ex) {
-                        logger.trace("unable to create stream {}", tupleUri, ex);
-                        throw new FileNotFoundException("Unable to create stream");
-                    }
-
-                }
-                final byte[] finalTuple = bigTuple.toByteArray();
-                bigTuple.close();
-                PLogger.API_STORE.debug("json tuple=[{}] size=[{}]",
-                        tuple, finalTuple.length);
-                PLogger.API_STORE.trace("json finalTuple=[{}]",
-                        finalTuple);
-                return ByteBufferFuture.wrap(finalTuple);
-
-            } finally {
-                if (bigTuple != null)
-                    bigTuple.close();
-            }
-
-        } finally {
-            if (tupleCursor != null)
-                tupleCursor.close();
-        }
+    private static void addLargeBlobOfUnknownSize(final List<ByteBufferAdapter> parts,
+    		final byte[] fieldNameBytes, final ParcelFileDescriptor pfd)
+    				throws IOException {
+    	ParcelFileDescriptor.AutoCloseInputStream out = null;
+    	try {
+    		final int size;
+    		logger.warn("Sending large blob of unknown size!");
+    		final int estimate = 10 * 1024;
+    		ByteBufferAdapter adapter = ByteBufferAdapter.obtain(estimate);
+    		out = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+    		FileChannel channel = out.getChannel();
+    		for( ;; ) {
+    			int read = adapter.read(channel);
+    			if( read < 0 ) {
+    				// channel has no more bytes.
+    				adapter.flip();
+    				break;
+    			} else if( adapter.remaining() <= 0 ) {
+    				// buffer wasn't big enough :(
+    				adapter.flip();
+    				ByteBufferAdapter bigger = ByteBufferAdapter.obtain(adapter.capacity()*2);
+    				bigger.put(adapter);
+    				adapter.release();
+    				adapter = bigger;
+    			}
+    		}
+    		// now we should have buffer with all of the data
+    		size = adapter.limit();
+    		ByteBufferAdapter buffer = ByteBufferAdapter.obtain(calcSize(fieldNameBytes, size));
+    		ByteBuffer sizeBytes = writeHeader(fieldNameBytes, size, buffer);
+    		buffer.put(adapter);
+    		buffer.put(sizeBytes);
+    		buffer.flip();
+    		parts.add(buffer);
+    	} finally {
+    		if( out != null ) out.close();
+    	}
     }
+
+    private static void addLargeBlobOfKnownSize(final List<ByteBufferAdapter> parts,
+    		final byte[] fieldNameBytes, final int size,
+    		final ParcelFileDescriptor pfd) throws IOException {
+    	ParcelFileDescriptor.AutoCloseInputStream out = null;
+    	try {
+    		ByteBufferAdapter buffer = ByteBufferAdapter.obtain(calcSize(fieldNameBytes, size));
+    		ByteBuffer sizeBytes = writeHeader(fieldNameBytes, size, buffer);    								
+    		out = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+    		FileChannel channel = out.getChannel();
+    		while( channel.position() < size ) {
+    			buffer.read(channel);
+    		}
+    		buffer.put(sizeBytes);
+    		buffer.flip();
+    		parts.add(buffer);
+    	} finally {
+    		if( out != null ) out.close();
+    	}
+    }
+
+	private static int calcSize(final byte[] fieldNameBytes, int size) {
+		return fieldNameBytes.length + 1 + 4 + size + 4;
+	}
+
+	private static void addSmallBlob(final List<ByteBufferAdapter> parts,
+			final byte[] fieldNameBytes,
+			final byte[] blob) {
+		final int size = (blob == null) ? 0 : blob.length;
+		ByteBufferAdapter bb = ByteBufferAdapter.obtain(calcSize(fieldNameBytes, size));
+		
+		final ByteBuffer sizeBytes = writeHeader(fieldNameBytes, size, bb);
+		if( blob != null ) {
+			bb.put(blob);
+		}
+		bb.put(BLOB_MARKER_FIELD);
+		bb.put(sizeBytes.array(), 1, sizeBytes.array().length - 1);
+		bb.flip();
+		parts.add(bb);
+	}
+
+	private static ByteBuffer writeHeader(final byte[] fieldNameBytes,
+			final int size, ByteBufferAdapter bb) {
+		final ByteBuffer sizeBytes = ByteBuffer.allocate(4);
+		sizeBytes.order(ByteOrder.BIG_ENDIAN);
+		sizeBytes.putInt(size);
+		sizeBytes.flip();
+		bb.put(fieldNameBytes);
+		bb.put((byte)0x0);
+		bb.put(sizeBytes);
+		sizeBytes.flip();
+		return sizeBytes;
+	}
+
+//    /**
+//     * This is the improved version of JSON encoding. It requests the meta data
+//     * about the relation explicitly rather than trying to infer it from the
+//     * returned data.
+//     */
+//    public static ByteBufferFuture serializeJsonFromProvider2(final ContentResolver resolver,
+//            final Uri tupleUri, final DistributorPolicy.Encoding encoding)
+//            throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
+//
+//        /**
+//         * 1) query to find out about the fields to send: name, position, type
+//         * 2) serialize the fields
+//         */
+//        logger.debug("Using json serialization");
+//
+//        Cursor serialMetaCursor = null;
+//        final Map<String, FieldType> serialMap;
+//        final String[] serialOrder;
+//        try {
+//            try {
+//                final Uri dUri = Uri.withAppendedPath(tupleUri, "_data_type");
+//                serialMetaCursor = resolver.query(dUri, null, null, null, null);
+//            } catch (IllegalArgumentException ex) {
+//                logger.warn("unknown content provider ", ex);
+//                return null;
+//            }
+//            if (serialMetaCursor == null) {
+//                throw new NonConformingAmmoContentProvider("while getting metadata from provider",
+//                        tupleUri);
+//            }
+//
+//            if (!serialMetaCursor.moveToFirst()) {
+//                return null;
+//            }
+//            final int columnCount = serialMetaCursor.getColumnCount();
+//            if (columnCount < 1) {
+//                return null;
+//            }
+//
+//            serialMap = new HashMap<String, FieldType>(columnCount);
+//            serialOrder = new String[columnCount];
+//            int ix = 0;
+//            for (final String key : serialMetaCursor.getColumnNames()) {
+//                if (key.startsWith("_"))
+//                    continue; // don't send any local fields
+//                final int value = serialMetaCursor.getInt(serialMetaCursor.getColumnIndex(key));
+//                serialMap.put(key, FieldType.fromCode(value));
+//                serialOrder[ix] = key;
+//                ix++;
+//            }
+//        } finally {
+//            if (serialMetaCursor != null)
+//                serialMetaCursor.close();
+//        }
+//
+//        logger.trace("Serialize the non-binary data");
+//        Cursor tupleCursor = null;
+//        final byte[] tuple;
+//        try {
+//            try {
+//                tupleCursor = resolver.query(tupleUri, null, null, null, null);
+//            } catch (IllegalArgumentException ex) {
+//                logger.warn("unknown content provider ", ex);
+//                return null;
+//            }
+//            if (tupleCursor == null) {
+//                throw new TupleNotFoundException("while serializing from provider", tupleUri);
+//            }
+//
+//            if (!tupleCursor.moveToFirst()) {
+//                return null;
+//            }
+//            if (tupleCursor.getColumnCount() < 1) {
+//                logger.warn("tuple no longe present {}", tupleUri);
+//                return null;
+//            }
+//
+//            logger.trace("Serialize the non-blob data");
+//
+//            final JSONObject json = new JSONObject();
+//            int countBinaryFields = 0;
+//            for (final Map.Entry<String, FieldType> entry : serialMap.entrySet()) {
+//                final String name = entry.getKey();
+//                final FieldType type = entry.getValue();
+//                switch (type) {
+//                    case BLOB:
+//                        countBinaryFields++;
+//                        break;
+//                    case FILE: {
+//                        countBinaryFields++;
+//                        final String value = tupleCursor
+//                                .getString(tupleCursor.getColumnIndex(name));
+//                        try {
+//                            json.put(name, value);
+//                        } catch (JSONException ex) {
+//                            logger.warn("invalid content provider", ex);
+//                        }
+//                    }
+//                        break;
+//                    default: {
+//                        final String value = tupleCursor
+//                                .getString(tupleCursor.getColumnIndex(name));
+//                        if (value == null || value.length() < 1)
+//                            continue;
+//                        try {
+//                            json.put(name, value);
+//                        } catch (JSONException ex) {
+//                            logger.warn("invalid content provider", ex);
+//                        }
+//                    }
+//                }
+//            }
+//            tuple = json.toString().getBytes();
+//            if (countBinaryFields < 1)
+//                return ByteBufferFuture.wrap(tuple);
+//
+//            logger.trace("loading larger tuple buffer");
+//            ByteArrayOutputStream bigTuple = null;
+//            try {
+//                bigTuple = new ByteArrayOutputStream();
+//
+//                bigTuple.write(tuple);
+//                bigTuple.write(0x0);
+//
+//                logger.trace("Serialize the blob data (if any)");
+//                final byte[] buffer = new byte[1024];
+//                for (final Map.Entry<String, FieldType> entry : serialMap.entrySet()) {
+//                    final String fieldName = entry.getKey();
+//                    final FieldType type = entry.getValue();
+//                    switch (type) {
+//                        case BLOB:
+//                        case FILE:
+//                            break;
+//                        default:
+//                            continue;
+//                    }
+//                    bigTuple.write(fieldName.getBytes());
+//                    bigTuple.write(0x0);
+//
+//                    switch (type) {
+//                        case BLOB:
+//                            final byte[] tempBlob = tupleCursor.getBlob(tupleCursor
+//                                    .getColumnIndex(entry.getKey()));
+//                            final BlobTypeEnum tempBlobType = BlobTypeEnum.infer(fieldName,
+//                                    tempBlob);
+//                            switch (tempBlobType) {
+//                                case SMALL:
+//                                    try {
+//                                        logger.trace("field name=[{}] blob=[{}]", fieldName,
+//                                                tempBlob);
+//                                        final ByteBuffer fieldBlobBuffer = ByteBuffer
+//                                                .wrap(tempBlob);
+//
+//                                        final ByteBuffer bb = ByteBuffer.allocate(4);
+//                                        bb.order(ByteOrder.BIG_ENDIAN);
+//                                        final int size = fieldBlobBuffer.capacity();
+//                                        bb.putInt(size);
+//                                        bigTuple.write(bb.array());
+//
+//                                        bigTuple.write(fieldBlobBuffer.array());
+//
+//                                        bigTuple.write(BLOB_MARKER_FIELD);
+//                                        bigTuple.write(bb.array(), 1, bb.array().length - 1);
+//                                    } finally {
+//                                    }
+//                                    break;
+//                                case LARGE:
+//                                default:
+//                                    break;
+//                            }
+//                            continue;
+//                        default:
+//                            break;
+//                    }
+//
+//                    logger.trace("field name=[{}] ", fieldName);
+//                    final Uri fieldUri = Uri.withAppendedPath(tupleUri, fieldName);
+//                    try {
+//                        final AssetFileDescriptor afd = resolver.openAssetFileDescriptor(fieldUri,
+//                                "r");
+//                        if (afd == null) {
+//                            logger.warn("could not acquire file descriptor {}", fieldUri);
+//                            throw new IOException("could not acquire file descriptor " + fieldUri);
+//                        }
+//                        final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+//
+//                        final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(
+//                                pfd);
+//                        final ByteBuffer fieldBlobBuffer;
+//                        ByteArrayOutputStream fieldBlob = null;
+//                        BufferedInputStream bis = null;
+//                        try {
+//                            bis = new BufferedInputStream(instream);
+//                            fieldBlob = new ByteArrayOutputStream();
+//                            for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
+//                                fieldBlob.write(buffer, 0, bytesRead);
+//                            }
+//                            fieldBlobBuffer = ByteBuffer.wrap(fieldBlob.toByteArray());
+//                        } finally {
+//                            if (bis != null)
+//                                bis.close();
+//                            if (fieldBlob != null)
+//                                fieldBlob.close();
+//                        }
+//
+//                        // write it out
+//                        final ByteBuffer bb = ByteBuffer.allocate(4);
+//                        bb.order(ByteOrder.BIG_ENDIAN);
+//                        final int size = fieldBlobBuffer.capacity();
+//                        bb.putInt(size);
+//                        bigTuple.write(bb.array());
+//
+//                        bigTuple.write(fieldBlobBuffer.array());
+//                        bigTuple.write(bb.array());
+//
+//                    } catch (IOException ex) {
+//                        logger.trace("unable to create stream {}", tupleUri, ex);
+//                        throw new FileNotFoundException("Unable to create stream");
+//                    }
+//
+//                }
+//                final byte[] finalTuple = bigTuple.toByteArray();
+//                bigTuple.close();
+//                PLogger.API_STORE.debug("json tuple=[{}] size=[{}]",
+//                        tuple, finalTuple.length);
+//                PLogger.API_STORE.trace("json finalTuple=[{}]",
+//                        finalTuple);
+//                return ByteBufferFuture.wrap(finalTuple);
+//
+//            } finally {
+//                if (bigTuple != null)
+//                    bigTuple.close();
+//            }
+//
+//        } finally {
+//            if (tupleCursor != null)
+//                tupleCursor.close();
+//        }
+//    }
 
     /**
      * JSON encoding
@@ -1582,7 +1636,7 @@ public class RequestSerializer {
         final byte[] tupleBytes = new byte[tuple.limit()];
         tuple.get(tupleBytes);
         PLogger.API_STORE.debug("terse tuple=[{}]", tuple);
-        return ByteBufferFuture.wrap(tupleBytes);
+        return ByteBufferFuture.wrap(ByteBufferAdapter.obtain(tupleBytes));
 
     }
 

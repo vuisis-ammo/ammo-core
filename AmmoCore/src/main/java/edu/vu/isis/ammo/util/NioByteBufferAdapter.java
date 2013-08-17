@@ -1,6 +1,7 @@
 package edu.vu.isis.ammo.util;
 
 import java.io.IOException;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.CharBuffer;
@@ -225,9 +226,32 @@ public class NioByteBufferAdapter extends ByteBufferAdapter {
 
 	@Override
 	public ByteBufferAdapter put(ByteBuffer src) {
-		// froyo and maybe honeycomb put(ByteBuffer) allocates an array causing lots of gc.
-		if( src.hasArray() && Build.VERSION.SDK_INT < 14 ) {			
-			put(src.array(), src.arrayOffset() + src.position(), src.remaining());
+		// froyo and maybe honeycomb put(ByteBuffer) is crappy so I jacked this
+		// code from newer androidsses
+		if( Build.VERSION.SDK_INT < 14 ) {
+	        int srcByteCount = src.remaining();
+	        if (srcByteCount > remaining()) {
+	            throw new BufferOverflowException();
+	        } else if( srcByteCount <= 0 ) {
+	        	return this;
+	        }
+
+	        Object srcObject = src.isDirect() ? src : src.array();
+	        int srcOffset = src.position();
+	        if (!src.isDirect()) {
+	            srcOffset += src.arrayOffset();
+	        }
+
+	        ByteBuffer dst = adaptee;
+	        Object dstObject = dst.isDirect() ? dst : adaptee.array();
+	        int dstOffset = dst.position();
+	        if (!dst.isDirect()) {
+	            dstOffset += adaptee.arrayOffset();
+	        }
+	        
+	        Memory.memmove(dstObject, dstOffset, srcObject, srcOffset, srcByteCount);
+	        src.position(src.limit());
+	        dst.position(dst.position() + srcByteCount);
 		} else {
 			adaptee.put(src);
 		}

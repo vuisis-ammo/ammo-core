@@ -479,6 +479,7 @@ public class SerialRetransmitter
                 logger.trace( "...packets sent this slot={}", mSlotRecords.getCurrentSendCount() );
             } else {
                 logger.error("... number of packets in this slot={} >= MAX_PACKET_PERSLOT .. NOT adding to the slot record", mSlotRecords.getCurrentSendCount() );
+                agm.releasePayload();
             }
         } else {
             // Resend packets have an existing PacketRecord, which we reuse.

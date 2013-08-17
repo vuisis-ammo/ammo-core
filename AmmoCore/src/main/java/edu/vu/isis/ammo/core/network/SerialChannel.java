@@ -1259,8 +1259,12 @@ public class SerialChannel extends NetChannel
                 //FileOutputStream outputStream = mPort.getOutputStream();
                 //outputStream.write( buf.array() );
                 //outputStream.flush();
-
-                int result = mPort.write( buf.array() );
+                // this isn't very efficient but I don't feel like 
+                // picking through jgroups right now.
+                // TODO: make jgroups use ByteBuffers
+                byte[] tmp = new byte[buf.remaining()];
+                buf.get(tmp);                
+                int result = mPort.write( tmp );
                 if ( result < 0 ) {
                     // If we got a negative number from the write(),
                     // we are in an error state, so throw an exception
@@ -1268,12 +1272,13 @@ public class SerialChannel extends NetChannel
                     throw new IOException( "write on serial port returned: " + result );
                 }
                 mMessagesSent.getAndIncrement();
-                mBytesSent += buf.array().length;
+                mBytesSent += tmp.length;
 
                 logger.debug( "sent message size={}, checksum={}, data:{}",
                               new Object[] { msg.size,
                                              msg.payload_checksum.toHexString(),
                                              msg.payload });
+                tmp = null;
                 if ( getRetransmitter() != null ) {
                     getRetransmitter().sendingPacket( msg,
                                                       hyperperiod,
@@ -1285,6 +1290,8 @@ public class SerialChannel extends NetChannel
             // legitimately sent to gateway.
             if ( msg.handler != null )
                 ackToHandler(msg.handler, DisposalState.SENT);
+            
+            buf.release();
         }
 
 

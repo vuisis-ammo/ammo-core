@@ -12,16 +12,21 @@ purpose whatsoever, and to have or authorize others to do so.
 package edu.vu.isis.ammo.core.network;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.MulticastSocket;
+import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.DatagramChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -46,7 +51,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.InetHelper;
-import edu.vu.isis.ammo.util.TTLUtil;
+import edu.vu.isis.ammo.util.TTLUtil2;
 
 public class MulticastChannel extends NetChannel
 {
@@ -105,7 +110,7 @@ public class MulticastChannel extends NetChannel
     @SuppressWarnings("unused")
     private final long flatLineTime;
 
-    private MulticastSocket mSocket;
+    private DatagramSocket mSocket;
     private String mMulticastAddress;
     private InetAddress mMulticastGroup = null;
     private int mMulticastPort;
@@ -439,7 +444,7 @@ public class MulticastChannel extends NetChannel
 
         mw.setHeartbeat(message);
 
-        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
+        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw.build().toByteArray(), null);
         agmb.isGateway(true);
         sendRequest(agmb.build());
 
@@ -812,11 +817,18 @@ public class MulticastChannel extends NetChannel
                 logger.error("Tried to create mSocket when we already had one.");
             try
             {
-                parent.mSocket = new MulticastSocket(parent.mMulticastPort);
-                if (this.acquiredInterfaceAddress != null) {
-                    parent.mSocket.setInterface(this.acquiredInterfaceAddress);
-                }
-                parent.mSocket.joinGroup(parent.mMulticastGroup);
+            	DatagramChannel channel = DatagramChannel.open();
+            	DatagramSocket socket = channel.socket();
+            	socket.bind(new InetSocketAddress(acquiredInterfaceAddress, parent.mMulticastPort));
+            	
+            	Field declaredField = socket.getClass().getDeclaredField("impl");
+            	declaredField.setAccessible(true);
+            	Object socketImpl = declaredField.get(socket);
+            	Method joinMethod = socketImpl.getClass().getMethod("joinGroup", SocketAddress.class, NetworkInterface.class);
+            	joinMethod.invoke(socketImpl, new InetSocketAddress(parent.mMulticastGroup, parent.mMulticastPort), 
+            			acquiredInterfaceAddress == null ? null : NetworkInterface.getByInetAddress(acquiredInterfaceAddress));
+            	
+            	parent.mSocket = socket;
             } catch (IOException ex) {
                 logger.info("connection to {}:{} failed",
                         parent.mMulticastGroup,
@@ -1082,7 +1094,7 @@ public class MulticastChannel extends NetChannel
         public SenderThread(ConnectorThread iParent,
                 MulticastChannel iChannel,
                 SenderQueue iQueue,
-                MulticastSocket iSocket)
+                DatagramSocket iSocket)
         {
             super(new StringBuilder("Mcast-Sender-").append(Thread.activeCount()).toString());
             mParent = iParent;
@@ -1128,34 +1140,31 @@ public class MulticastChannel extends NetChannel
                     break;
                 }
 
+                ByteBufferAdapter buf = null;
                 try
                 {
-                    ByteBufferAdapter buf = msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,
+                    buf = msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,
                             (byte) 0);
                     setSenderState(INetChannel.SENDING);
 
-                    DatagramPacket packet =
-                            new DatagramPacket(buf.array(),
-                                    buf.remaining(),
-                                    mChannel.mMulticastGroup,
-                                    mChannel.mMulticastPort);
-                    logger.debug("Sending datagram packet. length={}", packet.getLength());
+                    if( logger.isDebugEnabled() ) {
+                    	logger.debug("...{}", buf.remaining());
+                    	logger.debug("...{}", mChannel.mMulticastGroup);
+                    	logger.debug("...{}", mChannel.mMulticastPort);
+                    }
+                    int size = buf.remaining();
 
-                    logger.debug("...{}", buf.array());
-                    logger.debug("...{}", buf.remaining());
-                    logger.debug("...{}", mChannel.mMulticastGroup);
-                    logger.debug("...{}", mChannel.mMulticastPort);
-
-                    mSocket.setTimeToLive(mChannel.mMulticastTTL.get());
-
-                    TTLUtil.setTTLValue(mSocket, mChannel.mMulticastTTL.get());
-                    mSocket.send(packet);
+                    TTLUtil2.setTTLValue(mSocket, mChannel.mMulticastTTL.get());
+                    while( buf.remaining() > 0 ) {
+                    	buf.write(mSocket.getChannel());
+                    }
+//                    mSocket.send(packet);
 
                     // update send messages ...
                     mMessagesSent.incrementAndGet();
-                    mBytesSent += packet.getLength();
+                    mBytesSent += size;
 
-                    logger.info("Send packet to Network: size({})", packet.getLength());
+                    logger.info("Send packet to Network: size({})", size);
 
                     // legitimately sent to gateway.
                     if (msg.handler != null)
@@ -1176,6 +1185,11 @@ public class MulticastChannel extends NetChannel
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
+                }
+                finally
+                {
+                	if( buf != null ) buf.release();
+                	if( msg != null ) msg.releasePayload();
                 }
             }
             logger.info("Thread <{}>::run() exiting", Thread.currentThread().getId());
@@ -1198,7 +1212,7 @@ public class MulticastChannel extends NetChannel
         private ConnectorThread mParent;
         private MulticastChannel mChannel;
         private SenderQueue mQueue;
-        private MulticastSocket mSocket;
+        private DatagramSocket mSocket;
         private final Logger logger = LoggerFactory.getLogger("net.mcast.sender");
     }
 
@@ -1208,7 +1222,7 @@ public class MulticastChannel extends NetChannel
     {
         public ReceiverThread(ConnectorThread iParent,
                 MulticastChannel iDestination,
-                MulticastSocket iSocket)
+                DatagramSocket iSocket)
         {
             super(new StringBuilder("Mcast-Receiver-").append(Thread.activeCount()).toString());
             mParent = iParent;
@@ -1318,7 +1332,7 @@ public class MulticastChannel extends NetChannel
         private int mState = INetChannel.TAKING; // fixme
         private ConnectorThread mParent;
         private MulticastChannel mDestination;
-        private MulticastSocket mSocket;
+        private DatagramSocket mSocket;
         private final Logger logger = LoggerFactory.getLogger("net.mcast.receiver");
     }
 

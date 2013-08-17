@@ -1545,7 +1545,8 @@ public enum NetworkManager  implements INetworkService,
 
         /** Message Building */
         final AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
+        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+        		mwb.build().toByteArray(), this);
         agmb.isGateway(true);
         switch (sendRequest(agmb.build(), DistributorPolicy.DEFAULT)) {
             case SENT:

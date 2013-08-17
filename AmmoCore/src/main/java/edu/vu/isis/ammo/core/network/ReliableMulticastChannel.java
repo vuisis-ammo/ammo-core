@@ -522,7 +522,7 @@ public class ReliableMulticastChannel extends NetChannel {
         mw.setHeartbeat(message);
 
         final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
-                mw, null);
+                mw.build().toByteArray(), null);
         agmb.isGateway(true);
         sendRequest(agmb.build());
 
@@ -1205,33 +1205,31 @@ public class ReliableMulticastChannel extends NetChannel {
                     break;
                 }
 
+                ByteBufferAdapter buf = null;
                 try {
-                    ByteBufferAdapter buf = msg.serialize(endian,
+                    buf = msg.serialize(endian,
                             AmmoGatewayMessage.VERSION_1_FULL, (byte) 0);
                     setSenderState(INetChannel.SENDING);
+                    int size = buf.remaining();
+                    
+                    if( logger.isDebugEnabled() ) {
+                    	logger.debug("...{}", size);
+                    	logger.debug("...{}", mChannel.mMulticastGroup);
+                    	logger.debug("...{}", mChannel.mMulticastPort);
+                    }
 
-                    DatagramPacket packet = new DatagramPacket(buf.array(),
-                            buf.remaining(), mChannel.mMulticastGroup,
-                            mChannel.mMulticastPort);
-                    logger.debug("Sending datagram packet. length={}",
-                            packet.getLength());
-        
-        		    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
-        			logger.debug("...{}", buf.array());
-        		    } else {
-        			logger.debug("...buffer: {} bytes", buf.array().length);
-        		    }
-                    logger.debug("...{}", buf.remaining());
-                    logger.debug("...{}", mChannel.mMulticastGroup);
-                    logger.debug("...{}", mChannel.mMulticastPort);
-
-                    mJChannel.send(null, buf.array());
+                    // this isn't very efficient but I don't feel like 
+                    // picking through jgroups right now.
+                    // TODO: make jgroups use ByteBuffers
+                    byte[] tmp = new byte[buf.remaining()];
+                    buf.get(tmp);
+                    mJChannel.send(null, tmp);
+                    tmp = null;
 
                     mMessagesSent.incrementAndGet();
-                    mBytesSent += packet.getLength();
+                    mBytesSent += size;
 
-                    logger.info("Send packet to Network, size ({})",
-                            packet.getLength());
+                    logger.info("Send packet to Network, size ({})", size);
 
                     // legitimately sent to gateway.
                     if (msg.handler != null)
@@ -1259,6 +1257,9 @@ public class ReliableMulticastChannel extends NetChannel {
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
+                } finally {
+                	if( buf != null ) buf.release();
+                	if( msg != null ) msg.releasePayload();
                 }
             }
             logger.info("Thread <{}>::end()", Thread.currentThread().getId());

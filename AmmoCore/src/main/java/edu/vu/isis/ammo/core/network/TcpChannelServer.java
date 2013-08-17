@@ -412,7 +412,8 @@ public class TcpChannelServer extends TcpChannelAbstract {
 
 		mw.setHeartbeat( message );
 
-		final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
+		final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+				mw.build().toByteArray(), null);
 		agmb.isGateway(true);
 		agmb.isHeartbeat(true);
 		this.sendRequest( agmb.build() );
@@ -972,14 +973,14 @@ public class TcpChannelServer extends TcpChannelAbstract {
 					break;
 				}
 
+				ByteBufferAdapter buf = null;
 				try
 				{
-					ByteBufferAdapter buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
+					buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
 					setSenderState( INetChannel.SENDING );
-					int bytesToSend = buf.limit();
 					int bytesSent = 0;
-					while( bytesSent < bytesToSend ) {
-						bytesSent += buf.write(mSocketChannel);
+					while( buf.remaining() > 0 ) {
+						bytesSent = buf.write(mSocketChannel);
 						mBytesSent += bytesSent;
 
 						logger.info( "Send packet to Network, size ({})", bytesSent );
@@ -1006,6 +1007,9 @@ public class TcpChannelServer extends TcpChannelAbstract {
 						mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
 					setSenderState( INetChannel.INTERRUPTED );
 					mParent.socketOperationFailed();
+				} finally {
+					if( buf != null ) buf.release();
+					if( msg != null ) msg.releasePayload();
 				}
 			}
 		}
@@ -1062,7 +1066,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 			ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
 			bbuf.order( endian ); // mParent.endian
 			ByteBufferAdapter payload = null;
-			
+
 			threadWhile:
 				while ( mState != INetChannel.INTERRUPTED && !isInterrupted() )
 				{
@@ -1105,7 +1109,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 							while (true) {
 								// we done with this payload?
 								if (bytesToRead > 0) {
-									
+
 									// if we have some of the payload on the buffer
 									// after the header, make sure to grab it first
 									if( bbuf.remaining() > 0 ) {
@@ -1125,18 +1129,18 @@ public class TcpChannelServer extends TcpChannelAbstract {
 										// keep track so we know when we have all of the payload
 										bytesToRead -= slice.limit();
 										bytesRead = 0;
-										
-																		
+
+
 									} else {
 										// otherwise get the rest of the bytes from the channel
 										bytesRead = payload.read(mSocketChannel);
 										bytesToRead -= bytesRead;
 									}
-									
-									
+
+
 									if ( isInterrupted() )
 										break threadWhile; // exit thread
-									
+
 									// something aint right
 									if (bytesRead < 0) {
 										logger.error("bytes read = {}, exiting", bytesRead);
@@ -1144,7 +1148,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 										mParent.socketOperationFailed();
 										return;                    
 									}                
-									
+
 									// a successful read should reset the timer
 									mDestination.resetTimeoutWatchdog();
 									// also keep the count of the bytes that we've read
@@ -1165,7 +1169,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 
 								// received a valid message, update status count .... 
 								mMessagesReceived.incrementAndGet();
-								
+
 								// unset payload
 								payload = null;
 								break;
