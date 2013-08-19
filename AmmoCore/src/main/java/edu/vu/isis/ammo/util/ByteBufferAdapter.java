@@ -1,6 +1,8 @@
 package edu.vu.isis.ammo.util;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
@@ -37,7 +39,11 @@ public abstract class ByteBufferAdapter {
 	 * @return
 	 */
 	public static ByteBufferAdapter obtain( int size ) {
-		return ByteBufferPool.getInstance().allocate(size);
+		ByteBufferAdapter allocate = ByteBufferPool.getInstance().allocate(size);
+		StringWriter stack = new StringWriter();
+		new Exception().printStackTrace(new PrintWriter(stack));
+		allocate.allocStack = stack.toString();
+		return allocate;
 	}
 	
 	/**
@@ -60,6 +66,7 @@ public abstract class ByteBufferAdapter {
 		return new NioByteBufferAdapter(data);
 	}
 	
+	private String allocStack;
 	
 	// ===========================================================
 	// temp timing stuff
@@ -364,6 +371,7 @@ public abstract class ByteBufferAdapter {
 	protected void finalize() throws Throwable {
 		if( free() ) {
 			Log.w(TAG, "WARNING: Buffer allocated but never freed!");
+			Log.w(TAG, allocStack);
 		}
 		super.finalize();
 	}

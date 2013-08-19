@@ -44,6 +44,7 @@ import android.net.Uri;
 import android.os.Debug;
 import android.os.Process;
 import android.preference.PreferenceManager;
+import android.util.Log;
 
 import com.google.protobuf.ByteString;
 
@@ -1356,6 +1357,7 @@ public class DistributorThread extends Thread {
                     return null;
                 }
 
+                long time = System.currentTimeMillis();
                 final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                         .newBuilder();
                 AmmoGatewayMessage.Builder agmb = null; 
@@ -1408,6 +1410,8 @@ public class DistributorThread extends Thread {
 			      notice.atGatewayDelivered.getVia().isActive() ||
 			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
                     .uuid( uuid );
+                time = System.currentTimeMillis() - time;
+                Log.e("XXXXXXXXXXXXXXXXXXXXXX", "Built AGM of " + agmb.payloadBuffer().remaining() + " in " + time);
                 return agmb.build();
             }
         });

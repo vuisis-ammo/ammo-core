@@ -101,6 +101,7 @@ public final class AmmoMessageSerializer {
 		fullMessage.put(payload);
 		
 		// done?
+		payload.release();
 		fullMessage.flip();
 		return fullMessage;
 	}

@@ -377,8 +377,7 @@ public class RequestSerializer {
 
     public static ByteBufferAdapter serializeFromProvider(final ContentResolver resolver,
             final Uri tupleUri, final DistributorPolicy.Encoding encoding)
-            throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
-
+            throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {    	
         logger.trace("serializing using encoding {}", encoding);
         final ByteBufferFuture result;
         final Encoding.Type encodingType = encoding.getType();
@@ -600,6 +599,7 @@ public class RequestSerializer {
     		final Uri tupleUri, final DistributorPolicy.Encoding encoding)
     				throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
+    	long time = System.currentTimeMillis();
     	logger.trace("Serialize the non-blob data");
 
     	// Asserted maximum useful size of trace logging message (e.g. size of
@@ -773,6 +773,8 @@ public class RequestSerializer {
 			src.release();
     	}
 		bigBuffer.flip();
+        time = System.currentTimeMillis() - time;
+        Log.e("XXXXXXXXXXXXXXXXXXXXXX", "Built provider buffer of " + bigBuffer.remaining() + " in " + time);
     	return ByteBufferFuture.wrap(bigBuffer);
     }
 

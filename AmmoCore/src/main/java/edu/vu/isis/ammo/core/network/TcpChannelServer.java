@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
+import android.util.Log;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -976,9 +977,11 @@ public class TcpChannelServer extends TcpChannelAbstract {
 				ByteBufferAdapter buf = null;
 				try
 				{
+					long time = System.currentTimeMillis();
 					buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
 					setSenderState( INetChannel.SENDING );
 					int bytesSent = 0;
+					int messageSize = buf.remaining();
 					while( buf.remaining() > 0 ) {
 						bytesSent = buf.write(mSocketChannel);
 						mBytesSent += bytesSent;
@@ -986,10 +989,11 @@ public class TcpChannelServer extends TcpChannelAbstract {
 						logger.info( "Send packet to Network, size ({})", bytesSent );
 
 						//set time of heartbeat sent 
-						if (msg.isHeartbeat()) {
-							if (mTimeOfLastGoodSend.get() == 0)
-								mTimeOfLastGoodSend.set( System.currentTimeMillis() );
-						}
+//						if (msg.isHeartbeat()) {
+//							if (mTimeOfLastGoodSend.get() == 0)
+//								mTimeOfLastGoodSend.set( System.currentTimeMillis() );
+//						}
+						mTimeOfLastGoodSend.set( System.currentTimeMillis() );
 					}
 
 
@@ -999,6 +1003,11 @@ public class TcpChannelServer extends TcpChannelAbstract {
 					// legitimately sent to gateway.
 					if ( msg.handler != null )
 						mChannel.ackToHandler( msg.handler, DisposalState.SENT );
+					
+					if( !msg.isHeartbeat() ) {
+						time = System.currentTimeMillis() - time;
+						Log.e("XXXXXXXXXXXXXXXXXXXXXX", "Sent " + messageSize + " in " + time);
+					}
 				}
 				catch ( Exception ex )
 				{
