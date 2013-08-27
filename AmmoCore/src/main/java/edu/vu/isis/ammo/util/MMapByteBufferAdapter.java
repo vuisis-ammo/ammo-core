@@ -7,11 +7,12 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel.MapMode;
 
-import android.util.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MMapByteBufferAdapter extends NioByteBufferAdapter {
 
-	private static final String TAG = NioByteBufferAdapter.class.getName();
+	private static final Logger logger = LoggerFactory.getLogger("util.bufferadapter.mmap");
 	
 	/**
 	 * The MappedByteBufferAdapter on some android versions is junk.  It doesn't
@@ -28,7 +29,7 @@ public class MMapByteBufferAdapter extends NioByteBufferAdapter {
 			declaredField.setAccessible(true);
 			return (ByteBuffer) declaredField.get(buffer);
 		} catch (Exception e) {
-			Log.d(TAG, "I guess this isn't a MappedByteBufferAdapter " + buffer.getClass().getName() + ".  " + e);
+			logger.error("I guess this isn't a MappedByteBufferAdapter " + buffer.getClass().getName() + ".  " + e);
 		}
 		return buffer;
 	}

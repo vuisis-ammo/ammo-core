@@ -8,7 +8,6 @@ typedef struct {
 } JniCache;
 static JniCache jniCache;
 
-
 JNIEXPORT void JNICALL
 Java_edu_vu_isis_ammo_util_Memory_nativeInit(
 		JNIEnv* env)
@@ -58,8 +57,8 @@ Java_edu_vu_isis_ammo_util_Memory_memmove(
 		dst = (jbyte*) (*env)->GetDirectBufferAddress(env, dstObject);
 		
 
-	// do the move
-    memmove(dst + dstOffset, src + srcOffset, length);
+	// do the cpy (faster than memmove)
+	memcpy(dst + dstOffset, src + srcOffset, length);
 
 	// now make sure to release if these are java byte[]
 	if( dstByteArray != NULL )

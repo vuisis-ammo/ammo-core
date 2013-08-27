@@ -23,6 +23,11 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 public class AshMemByteBufferAdapter extends ByteBufferAdapter {
 
 	@Override
+	public boolean hasBuffer() {
+		return false;
+	}
+	
+	@Override
 	public byte[] array() {
 		// TODO Auto-generated method stub
 		return null;
@@ -362,6 +367,11 @@ public class AshMemByteBufferAdapter extends ByteBufferAdapter {
 	public ByteBuffer buffer() {
 		// TODO Auto-generated method stub
 		return null;
+	}
+	
+	@Override
+	public CheckSum checksum(CheckSum checksum) {
+		return checksum;
 	}
 
 	@Override

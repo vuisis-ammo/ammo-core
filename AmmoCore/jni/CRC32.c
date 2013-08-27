@@ -4,7 +4,7 @@
 #include "zlib.h"
 
 JNIEXPORT jlong JNICALL
-Java_edu_vu_isis_ammo_util_CRC32_updateBuffer( 
+Java_edu_vu_isis_ammo_util_ZlibCRC32_updateBuffer( 
 	JNIEnv *env,
 	jclass c,
 	jlong crc,
@@ -21,7 +21,7 @@ Java_edu_vu_isis_ammo_util_CRC32_updateBuffer(
 }
 
 JNIEXPORT jlong JNICALL
-Java_edu_vu_isis_ammo_util_CRC32_updateBytes( 
+Java_edu_vu_isis_ammo_util_ZlibCRC32_updateBytes( 
 	JNIEnv *env,
 	jclass c,
 	jlong crc,

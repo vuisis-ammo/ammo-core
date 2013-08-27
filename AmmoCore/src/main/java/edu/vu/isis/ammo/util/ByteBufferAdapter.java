@@ -8,8 +8,8 @@ import java.nio.ByteOrder;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
-import android.os.SystemClock;
-import android.util.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * You might be asking, "Why is this a copy of {@link java.nio.ByteBuffer}?".  Well, I'll tell
@@ -26,11 +26,20 @@ import android.util.Log;
  */
 public abstract class ByteBufferAdapter {
 	
-	private static final String TAG = ByteBufferAdapter.class.getName();
+	private static final Logger logger = LoggerFactory.getLogger("util.bufferadapter");
 
 	// ===========================================================
 	// Create methods
 	// ===========================================================
+	
+	/**
+	 * Get a {@link ExpandoByteBufferAdapter} to contain data of unknown size.
+	 * It's cool to call {@link #release()} when you are finished.
+	 * @return
+	 */
+	public static ExpandoByteBufferAdapter obtain() {
+		return new ExpandoByteBufferAdapter();
+	}
 	
 	/**
 	 * Get a {@link ByteBufferAdapter}.  It's cool to call {@link #release()}
@@ -39,11 +48,9 @@ public abstract class ByteBufferAdapter {
 	 * @return
 	 */
 	public static ByteBufferAdapter obtain( int size ) {
-		ByteBufferAdapter allocate = ByteBufferPool.getInstance().allocate(size);
-		StringWriter stack = new StringWriter();
-		new Exception().printStackTrace(new PrintWriter(stack));
-		allocate.allocStack = stack.toString();
-		return allocate;
+		ByteBufferAdapter adapter = ByteBufferPool.getInstance().allocate(size);
+		adapter.initAllocStack();
+		return adapter;
 	}
 	
 	/**
@@ -66,19 +73,20 @@ public abstract class ByteBufferAdapter {
 		return new NioByteBufferAdapter(data);
 	}
 	
+	// ===========================================================
+	// Members
+	// ===========================================================
+	
 	private String allocStack;
 	
-	// ===========================================================
-	// temp timing stuff
-	// ===========================================================
-	
-	private long time;
-	
-	public long time() {
-		long now = SystemClock.elapsedRealtime();
-		long t = time;
-		time = SystemClock.elapsedRealtime();
-		return now - t;
+	public ByteBufferAdapter() {
+		initAllocStack();
+	}
+
+	private final void initAllocStack() {
+		StringWriter stack = new StringWriter();
+		new Exception().printStackTrace(new PrintWriter(stack));
+		allocStack = stack.toString();
 	}
 	
 	
@@ -315,10 +323,31 @@ public abstract class ByteBufferAdapter {
 	 */
 	public abstract ByteBufferAdapter putShort(short value);
 
-
+	// ===========================================================
+	// Utils
+	// ===========================================================
+	
+	/**
+	 * @return A checksum for this data
+	 */
+	public CheckSum checksum() {
+		return checksum(CheckSum.newInstance());
+	}
+	
+	/**
+	 * Update the checksum with data from this 
+	 * @param checksum
+	 * @return this
+	 */
+	public abstract CheckSum checksum( CheckSum checksum );
+	
 	// ===========================================================
 	// nio buffer access
 	// ===========================================================
+	/**
+	 * @return true if there is a backing buffer
+	 */
+	public abstract boolean hasBuffer();
 	/**
 	 * @return The backing {@link ByteBuffer} if there is one
 	 */
@@ -370,8 +399,8 @@ public abstract class ByteBufferAdapter {
 	@Override
 	protected void finalize() throws Throwable {
 		if( free() ) {
-			Log.w(TAG, "WARNING: Buffer allocated but never freed!");
-			Log.w(TAG, allocStack);
+			logger.warn("WARNING: Buffer allocated but never freed!");
+			logger.warn("Alloc trace: " + allocStack);
 		}
 		super.finalize();
 	}

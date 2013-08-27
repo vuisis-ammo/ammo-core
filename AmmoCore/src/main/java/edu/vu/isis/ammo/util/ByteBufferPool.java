@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.os.Environment;
-import android.os.SystemClock;
 
 /**
  * Helps cut down on the time to allocate byte buffers
@@ -21,11 +20,25 @@ import android.os.SystemClock;
 public final class ByteBufferPool {
 
 	private static final Logger logger = LoggerFactory.getLogger("util.bufferpool");
-	private static final ByteBufferPool instance = new ByteBufferPool();
 	private static final int MIN_BUFFER_SIZE = 100*1024;
 	private static final int MAX_POOL_SIZE = 100;
 	private static final int MIN_POOL_SIZE = 20;
-	private static final int MAX_NODE_AGE = 60 * 1000 * 10;
+	private static final int MAX_NODE_AGE = 60 * 1000 * 10;	
+	private static final File MEMCACHE_DIR;	
+	
+	static {
+		if( System.getProperty("android.vm.dexfile") != null ) {
+			File externalStorageDirectory = Environment.getExternalStorageDirectory();
+			MEMCACHE_DIR = new File(externalStorageDirectory,"support/edu.vu.isis.ammo.core/mem/");
+		} else {
+			MEMCACHE_DIR = new File(System.getProperty("java.io.tmpdir"),"support/edu.vu.isis.ammo.core/mem/");
+		}
+		if( !MEMCACHE_DIR.exists() && !MEMCACHE_DIR.mkdirs() ) {
+			throw new RuntimeException("Failed to create cache dir " + MEMCACHE_DIR);
+		}
+	}
+	
+	private static final ByteBufferPool instance = new ByteBufferPool();
 
 	public static ByteBufferPool getInstance() {
 		return instance;
@@ -33,30 +46,57 @@ public final class ByteBufferPool {
 
 	private final AtomicLong count = new AtomicLong();
 	private final File rootDir;
-	private int poolHit;
-	private int poolMiss;
+	private int hitCount;
+	private int missCount;
 	Node head;
 
 	public ByteBufferPool() {
-		File externalStorageDirectory = Environment.getExternalStorageDirectory();
-		File memDir = new File(externalStorageDirectory,"support/edu.vu.isis.ammo.core/mem/");
-		clean(memDir);
-		File sessionDir = new File(memDir, UUID.randomUUID().toString());
+		clean(MEMCACHE_DIR);
+		File sessionDir = new File(MEMCACHE_DIR, UUID.randomUUID().toString());
 		if( !sessionDir.exists() && !sessionDir.mkdirs() ) {
-			throw new RuntimeException("Failed to create root dir " + sessionDir);
+			throw new RuntimeException("Failed to create session dir " + sessionDir);
 		}
 		rootDir = sessionDir;
+	}
+	
+	public int getMinBufferSize() {
+		return MIN_BUFFER_SIZE;
+	}
+	
+	public int getHitCount() {
+		return hitCount;
+	}
+	
+	public int getMissCount() {
+		return missCount;
+	}
+	
+	public int getNodeCount() {
+		return Node.nodeCount;
+	}
+	
+	public int getByteSize() {
+		return Node.poolSize;
+	}
+	
+	public void dispose() {
+		if( head != null ) {
+			head.dispose(this);
+		}
+		head = null;
+		hitCount = 0;
+		missCount = 0;
 	}
 
 	public synchronized ByteBufferAdapter allocate( int size ) {
 		if( head != null ) {
 			ByteBufferAdapter reuse = head.obtain(size, this);
 			if( reuse != null ) {
-				poolHit++;
+				hitCount++;
 				return reuse;
 			}
 		}
-		poolMiss++;
+		missCount++;
 		File file = new File(rootDir, count.incrementAndGet() + ".mem");
 		int cap = (size / MIN_BUFFER_SIZE + 1) * MIN_BUFFER_SIZE;
 		try {
@@ -66,7 +106,6 @@ public final class ByteBufferPool {
 			//			ByteBufferAdapter adapter = new NioByteBufferAdapter(ByteBuffer.allocate(cap));
 			adapter.position(0);
 			adapter.limit(size);
-			adapter.time();
 			return adapter;
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to allocate " + file + " of size " + size, e);			
@@ -82,7 +121,7 @@ public final class ByteBufferPool {
 	}
 
 	public void dumpStats() {
-		logger.error("BufferPool: hits=" + poolHit + ", misses=" + poolMiss 
+		logger.error("BufferPool: hits=" + hitCount + ", misses=" + missCount 
 				+ ", nodes_total=" + Node.nodeCount
 				+ ", size=" + Node.poolSize);
 	}
@@ -91,7 +130,7 @@ public final class ByteBufferPool {
 		static int nodeCount;
 		static int poolSize;
 
-		private long useTime = SystemClock.elapsedRealtime();
+		private long useTime = System.currentTimeMillis();
 		private Node next;
 		private Node previous;
 		private ByteBufferAdapter byteBuffer;
@@ -114,7 +153,6 @@ public final class ByteBufferPool {
 				unlink(pool);
 				byteBuffer.clear();
 				byteBuffer.limit(size);
-				byteBuffer.time();
 				return byteBuffer;
 			} else if( next != null ) {
 				return next.obtain(size, pool);
@@ -135,7 +173,7 @@ public final class ByteBufferPool {
 				ByteBufferAdapter old = byteBuffer;
 				poolSize -= byteBuffer.capacity();
 				byteBuffer = buffer;
-				useTime = SystemClock.elapsedRealtime();
+				useTime = System.currentTimeMillis();
 				poolSize += byteBuffer.capacity();
 				return old;
 			} else if( next != null ) {
@@ -174,9 +212,9 @@ public final class ByteBufferPool {
 						pool.head.previous = next;
 					}
 					pool.head = next;
-					pool.head.reap(SystemClock.elapsedRealtime(), pool);
+					pool.head.reap(System.currentTimeMillis(), pool);
 				} else {
-					pool.head.reap(SystemClock.elapsedRealtime(), pool);
+					pool.head.reap(System.currentTimeMillis(), pool);
 					free(buffer, pool);
 				}
 			}
@@ -189,7 +227,7 @@ public final class ByteBufferPool {
 		 * @param buffer
 		 * @param pool
 		 */
-		private static void free( ByteBufferAdapter buffer, ByteBufferPool pool) {
+		static void free( ByteBufferAdapter buffer, ByteBufferPool pool) {
 			ByteBufferAdapter replaced = null;
 			for( ;; ) {
 				replaced = pool.head.replace(buffer);
@@ -214,7 +252,7 @@ public final class ByteBufferPool {
 		 * used but never released.  This way, we keep no reference to
 		 * buffers in use and will never leak memory.
 		 */
-		private void unlink( ByteBufferPool pool ) {
+		void unlink( ByteBufferPool pool ) {
 			nodeCount--;
 			poolSize -= byteBuffer.capacity();
 
@@ -232,7 +270,7 @@ public final class ByteBufferPool {
 		/**
 		 * Delete nodes we no longer need
 		 */
-		private void reap( long now, ByteBufferPool pool ) {
+		void reap( long now, ByteBufferPool pool ) {
 			if( next != null ) {
 				next.reap(now, pool);
 			}
@@ -245,9 +283,20 @@ public final class ByteBufferPool {
 				}
 			}
 		}
+		
+		/**
+		 * Delete all nodes
+		 */
+		void dispose( ByteBufferPool pool ) {
+			if( next != null ) {
+				next.dispose( pool);
+			}
+			unlink(pool);
+			byteBuffer.free();
+		}
 	}
 
-	private static void clean( File dir ) {
+	static void clean( File dir ) {
 		if( dir.isDirectory() ) {
 			File[] children = dir.listFiles();
 			if( children != null ) {

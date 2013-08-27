@@ -9,7 +9,10 @@ import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.ShortBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileChannel.MapMode;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
@@ -21,6 +24,11 @@ public class NioByteBufferAdapter extends ByteBufferAdapter {
 
 	public NioByteBufferAdapter(ByteBuffer adaptee) {
 		this.adaptee = adaptee;
+	}
+	
+	@Override
+	public boolean hasBuffer() {
+		return true;
 	}
 
 	@Override
@@ -349,9 +357,23 @@ public class NioByteBufferAdapter extends ByteBufferAdapter {
 	public ByteBufferAdapter slice() {
 		return new NioByteBufferAdapter(adaptee.slice());
 	}
+	
+	@Override
+	public CheckSum checksum(CheckSum checksum) {
+		checksum.update(adaptee);
+		return checksum;
+	}
 
 	@Override
 	public int read(ReadableByteChannel channel) throws IOException {
+		if( channel instanceof FileChannel ) {	
+			// this is significantly faster than reading a file
+			FileChannel fc = (FileChannel) channel;
+			long size = fc.size();
+			MappedByteBuffer map = fc.map(MapMode.READ_ONLY, 0, size);
+			put(map);
+			return (int) size;
+		}
 		return channel.read(adaptee);
 	}
 
