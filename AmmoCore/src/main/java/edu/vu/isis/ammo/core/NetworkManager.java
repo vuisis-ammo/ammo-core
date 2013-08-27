@@ -296,7 +296,7 @@ public enum NetworkManager  implements INetworkService,
         
         this.multicastChannel.init(context);
         
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             channel.init(context);
         }
 
@@ -364,7 +364,7 @@ public enum NetworkManager  implements INetworkService,
         netChannelMap.put("default", tcpChannel);
         netChannelMap.put(tcpChannel.name, tcpChannel);
         netChannelMap.put(tcpMediaChannel.name, tcpMediaChannel); 
-        netChannelMap.put(reverseTcpChannel.name, reverseTcpChannel); 
+        netChannelMap.put(ChannelFilter.SERVER, reverseTcpChannel); 
         
         netChannelMap.put(multicastChannel.name, multicastChannel);
         netChannelMap.put(reliableMulticastChannel.name, reliableMulticastChannel);
@@ -376,7 +376,7 @@ public enum NetworkManager  implements INetworkService,
                 Gateway.getInstance(this.context, tcpChannel));
         modelChannelMap.put(tcpMediaChannel.name,
                 Gateway.getMediaInstance(this.context, tcpMediaChannel)); 
-        modelChannelMap.put(reverseTcpChannel.name,
+        modelChannelMap.put(ChannelFilter.SERVER,
                 Usb.getInstance(this.context, reverseTcpChannel));
         
         modelChannelMap.put(multicastChannel.name,
@@ -515,7 +515,7 @@ public enum NetworkManager  implements INetworkService,
         this.reliableMulticastChannel.reset();
         this.reliableMcastMediaChannel.reset();
         this.serialChannel.reset();
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             channel.reset();
         }
 
@@ -543,7 +543,7 @@ public enum NetworkManager  implements INetworkService,
             this.journalChannel.close();
         if (serialChannel != null)
             this.serialChannel.disable();
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             if (channel != null) {
                 channel.disable();
             }
@@ -761,7 +761,7 @@ public enum NetworkManager  implements INetworkService,
         final String serverPortStr = this.localSettings
                 .getString(INetPrefKeys.SERVER_PORT,
                         String.valueOf(INetPrefKeys.DEFAULT_SERVER_PORT));
-        int serverPort = Integer.valueOf(serverPortStr);
+        final int serverPort = Integer.valueOf(serverPortStr);
         PLogger.SET_PANTHR.debug("acquire server port={}",
         		serverPort);
         
@@ -904,7 +904,7 @@ public enum NetworkManager  implements INetworkService,
 
         this.serialChannel.toLog("acquire ");
 
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             channel.toLog("acquire");
         }
 
@@ -1225,7 +1225,7 @@ public enum NetworkManager  implements INetworkService,
                             // convert seconds into milliseconds
                         }
                         else if (key.equals(INetPrefKeys.SERVER_PORT)) {
-                            int serverPort = Integer.valueOf(prefs.getString(
+                            final int serverPort = Integer.valueOf(prefs.getString(
                                     key, String.valueOf(INetPrefKeys.DEFAULT_SERVER_PORT)));
                             parent.reverseTcpChannel.setPort(serverPort);
                         }
@@ -1444,7 +1444,7 @@ public enum NetworkManager  implements INetworkService,
         // agm.setSessionUuid( sessionId );
         if (!netChannelMap.containsKey(channelName))
             return DisposalState.REJECTED;
-        final NetChannel channel = netChannelMap.get(channelName);
+        final INetChannel channel = netChannelMap.get(channelName);
         if (!channel.isConnected())
             return DisposalState.PENDING;
         return channel.sendRequest(agm);
@@ -1454,7 +1454,7 @@ public enum NetworkManager  implements INetworkService,
         if (!netChannelMap.containsKey(channelName))
             return ChannelStatus.DOWN;
 
-        final NetChannel channel = netChannelMap.get(channelName);
+        final INetChannel channel = netChannelMap.get(channelName);
         if (channel.isBusy()) // this is to improve performance
             return ChannelStatus.FULL;
         if (!channel.isConnected())
@@ -1494,7 +1494,7 @@ public enum NetworkManager  implements INetworkService,
         this.reliableMcastMediaChannel.disable();
         this.serialChannel.disable();
 
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             channel.disable();
         }
     }
@@ -1513,7 +1513,7 @@ public enum NetworkManager  implements INetworkService,
                 || reliableMcastMediaChannel.isConnected()
                 || ((serialChannel != null) && serialChannel.isConnected()));
 
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             any = any || channel.isConnected();
         }
         logger.debug("::isConnected ? {}", any);
@@ -1699,8 +1699,8 @@ public enum NetworkManager  implements INetworkService,
             TcpChannel.getInstance(ChannelFilter.GATEWAY, this);
     final private TcpChannel tcpMediaChannel =
             TcpChannel.getInstance(ChannelFilter.GATEWAYMEDIA, this);
-    final private TcpChannelServer reverseTcpChannel =
-            TcpChannelServer.getInstance(ChannelFilter.SERVER, this);
+    final private TcpChannelServer reverseTcpChannel = 
+    		TcpChannelServer.getInstance(ChannelFilter.SERVER, this);
     
     final private MulticastChannel multicastChannel =
             MulticastChannel.getInstance(ChannelFilter.MULTICAST, this);
@@ -1720,8 +1720,8 @@ public enum NetworkManager  implements INetworkService,
     private SerialChannel serialChannel = null;
     
    
-    final public List<NetChannel> registeredChannels =
-            new ArrayList<NetChannel>();
+    final public List<INetChannel> registeredChannels =
+            new ArrayList<INetChannel>();
 
     /**
      * No channels can be registered until after onCreate() The channel must be
@@ -1734,9 +1734,9 @@ public enum NetworkManager  implements INetworkService,
      * 
      * @param channel
      */
-    public void registerChannel(NetChannel channel) {
+    public void registerChannel(INetChannel channel) {
         this.registeredChannels.add(channel);
-        NetworkManager.netChannelMap.put(channel.name, channel);
+        NetworkManager.netChannelMap.put(channel.getName(), channel);
 
         // TODO load any preferences here.
 
@@ -1744,11 +1744,11 @@ public enum NetworkManager  implements INetworkService,
         channel.enable();
     }
 
-    static final private Map<String, NetChannel> netChannelMap;
+    static final private Map<String, INetChannel> netChannelMap;
 
     static {
         modelChannelMap = new HashMap<String, ModelChannel>();
-        netChannelMap = new HashMap<String, NetChannel>();
+        netChannelMap = new HashMap<String, INetChannel>();
     }
 
     static void addChannel() {
@@ -1852,7 +1852,7 @@ public enum NetworkManager  implements INetworkService,
           reliableMulticastChannel.linkDown(null);
           reliableMcastMediaChannel.linkDown(null);
           
-          for (NetChannel channel : NetworkManager.this.registeredChannels) {
+          for (INetChannel channel : NetworkManager.this.registeredChannels) {
               channel.linkDown(null);
           }
         }
@@ -1867,7 +1867,7 @@ public enum NetworkManager  implements INetworkService,
           reliableMulticastChannel.linkUp(null);
           reliableMcastMediaChannel.linkUp(null);        
           
-          for (NetChannel channel : NetworkManager.this.registeredChannels) {
+          for (INetChannel channel : NetworkManager.this.registeredChannels) {
               channel.linkUp(null);
           }
         }
