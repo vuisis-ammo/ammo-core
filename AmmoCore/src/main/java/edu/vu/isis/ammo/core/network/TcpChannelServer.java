@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
-import android.util.Log;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
@@ -1011,11 +1010,9 @@ public class TcpChannelServer extends TcpChannelAbstract {
 				ByteBufferAdapter buf = null;
 				try
 				{
-					long time = System.currentTimeMillis();
 					buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
 					setSenderState( INetChannel.SENDING );
 					int bytesSent = 0;
-					int messageSize = buf.remaining();
 					while( buf.remaining() > 0 ) {
 						bytesSent = buf.write(channel);
 						mBytesSent += bytesSent;
