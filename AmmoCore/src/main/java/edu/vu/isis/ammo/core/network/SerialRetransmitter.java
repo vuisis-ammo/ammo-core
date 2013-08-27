@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.util.ByteBufferAdapter;
+import edu.vu.isis.ammo.util.CheckSum;
 import edu.vu.isis.ammo.util.NioByteBufferAdapter;
 
 
@@ -384,7 +385,7 @@ public class SerialRetransmitter
 
                         CRC32 crc32 = new CRC32();
                         crc32.update( newPayload );
-                        agm.payload_checksum = new AmmoGatewayMessage.CheckSum(crc32.getValue());
+                        agm.payload_checksum = CheckSum.newInstance(crc32.getValue());
 
                         // Add this for further relay if union of connectivity
                         // vector of original sender (originalSlot) and relayer

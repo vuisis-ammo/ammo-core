@@ -19,6 +19,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.PullResponse;
 import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.ByteBufferInputStream;
 import edu.vu.isis.ammo.util.ByteBufferOutputStream;
+import edu.vu.isis.ammo.util.ExpandoByteBufferAdapter;
 import edu.vu.isis.ammo.util.NioByteBufferAdapter;
 
 /**
@@ -74,17 +75,19 @@ public final class AmmoMessageSerializer {
 		mw.clearDataMessage();
 		MessageWrapper messageWrapper = mw.buildPartial();	
 		
-		int fullSize = payload.remaining(); // data chunk
-		fullSize += messageWrapper.getSerializedSize(); // mw stuff
-		fullSize += dataMessage.getSerializedSize(); // data message
-		fullSize += 4; // at most 4 bytes for payload size
-		fullSize += 4; // at most 4 bytes for payload tag
-		fullSize += 4; // at most 4 bytes for data message size
-		fullSize += 4; // at most 4 bytes for data message tag
+		int headSize = 0;//payloadSize; // data chunk
+		headSize += messageWrapper.getSerializedSize(); // mw stuff
+		headSize += dataMessage.getSerializedSize(); // data message
+		headSize += 4; // at most 4 bytes for payload size
+		headSize += 4; // at most 4 bytes for payload tag
+		headSize += 4; // at most 4 bytes for data message size
+		headSize += 4; // at most 4 bytes for data message tag
 		
 		// write message wrapper
-		ByteBufferAdapter fullMessage = ByteBufferAdapter.obtain(fullSize);
-		CodedOutputStream writer = CodedOutputStream.newInstance(new ByteBufferOutputStream(fullMessage));
+		ExpandoByteBufferAdapter fullMessage = ByteBufferAdapter.obtain();
+		ByteBufferAdapter headMessage = ByteBufferAdapter.obtain(new byte[headSize]);
+		
+		CodedOutputStream writer = CodedOutputStream.newInstance(new ByteBufferOutputStream(headMessage));
 		messageWrapper.writeTo(writer);
 		
 		// write data message
@@ -98,12 +101,9 @@ public final class AmmoMessageSerializer {
 	    writer.writeTag(DataMessage.DATA_FIELD_NUMBER, WireFormat.WIRETYPE_LENGTH_DELIMITED);
 		writer.writeInt32NoTag(payload.remaining());
 		writer.flush();
-		fullMessage.put(payload);
-		
-		// done?
-		payload.release();
-		fullMessage.flip();
-		return fullMessage;
+		fullMessage.add(headMessage.flip());
+		fullMessage.add(payload);
+		return fullMessage.flip();
 	}
 	
 	/**

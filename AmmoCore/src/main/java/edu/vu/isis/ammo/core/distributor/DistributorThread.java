@@ -604,6 +604,7 @@ public class DistributorThread extends Thread {
                 // condition wait, is there something to process?
                 synchronized (this) {
                     while (!this.isReady()) {
+                        logger.info("No data to process");
                         this.wait(BURP_TIME);
 
                         final long currentTime = System.currentTimeMillis();
@@ -623,7 +624,7 @@ public class DistributorThread extends Thread {
                     }
 
                     if (!this.channelAck.isEmpty()) {
-                        logger.trace("processing channel acks, remaining {}",
+                        logger.info("processing channel acks, remaining {}",
                                 this.channelAck.size());
                         try {
                             final ChannelAck ack = this.channelAck.take();
@@ -1088,7 +1089,7 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
             // We synchronize on the store to avoid a race between dispatch and
             // queuing
-            synchronized (this.store) {
+            synchronized (this.store) {            	
                 final long id = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 
                 final Dispersal dispatchResult = this.dispatchPostalRequest(that, ar.notice,
@@ -1357,7 +1358,6 @@ public class DistributorThread extends Thread {
                     return null;
                 }
 
-                long time = System.currentTimeMillis();
                 final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                         .newBuilder();
                 AmmoGatewayMessage.Builder agmb = null; 
@@ -1410,8 +1410,6 @@ public class DistributorThread extends Thread {
 			      notice.atGatewayDelivered.getVia().isActive() ||
 			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
                     .uuid( uuid );
-                time = System.currentTimeMillis() - time;
-                Log.e("XXXXXXXXXXXXXXXXXXXXXX", "Built AGM of " + agmb.payloadBuffer().remaining() + " in " + time);
                 return agmb.build();
             }
         });

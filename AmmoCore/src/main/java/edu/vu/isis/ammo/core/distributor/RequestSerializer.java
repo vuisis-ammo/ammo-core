@@ -20,11 +20,9 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -51,13 +49,10 @@ import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
-import android.os.Debug;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
-import android.os.SystemClock;
 import android.os.ParcelFileDescriptor.AutoCloseOutputStream;
 import android.os.RemoteException;
-import android.util.Log;
 import android.util.SparseArray;
 import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
@@ -69,6 +64,7 @@ import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
 import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.ByteBufferInputStream;
+import edu.vu.isis.ammo.util.ExpandoByteBufferAdapter;
 
 /**
  * The purpose of these objects is lazily serialize an object. Once it has been
@@ -599,7 +595,6 @@ public class RequestSerializer {
     		final Uri tupleUri, final DistributorPolicy.Encoding encoding)
     				throws TupleNotFoundException, NonConformingAmmoContentProvider, IOException {
 
-    	long time = System.currentTimeMillis();
     	logger.trace("Serialize the non-blob data");
 
     	// Asserted maximum useful size of trace logging message (e.g. size of
@@ -607,7 +602,7 @@ public class RequestSerializer {
 
     	final Uri serialUri = Uri.withAppendedPath(tupleUri, encoding.getPayloadSuffix());
     	Cursor tupleCursor = null;
-    	final List<ByteBufferAdapter> parts = new ArrayList<ByteBufferAdapter>();
+    	final ExpandoByteBufferAdapter parts = ByteBufferAdapter.obtain();
     	final JSONObject json;
     	try {
     		try {
@@ -760,33 +755,16 @@ public class RequestSerializer {
     	}
 
     	// now we have a bunch of buffers to append to a big buffer
-    	int totalSize = 0;
-    	int numParts = parts.size();
-		for( int i = 0; i < numParts; i++ ) {
-    		totalSize += parts.get(i).remaining();
-    	}
-		ByteBufferAdapter bigBuffer = ByteBufferAdapter.obtain(totalSize + numParts - 1);
-		for( int i = 0; i < numParts; i++ ) {
-			if( i > 0 ) bigBuffer.put((byte) 0x0);
-			ByteBufferAdapter src = parts.get(i);
-			bigBuffer.put(src);
-			src.release();
-    	}
-		bigBuffer.flip();
-        time = System.currentTimeMillis() - time;
-        Log.e("XXXXXXXXXXXXXXXXXXXXXX", "Built provider buffer of " + bigBuffer.remaining() + " in " + time);
-    	return ByteBufferFuture.wrap(bigBuffer);
+    	return ByteBufferFuture.wrap(parts.flip());
     }
 
-    private static void addLargeBlobOfUnknownSize(final List<ByteBufferAdapter> parts,
+    private static void addLargeBlobOfUnknownSize(ExpandoByteBufferAdapter parts,
     		final byte[] fieldNameBytes, final ParcelFileDescriptor pfd)
     				throws IOException {
     	ParcelFileDescriptor.AutoCloseInputStream out = null;
     	try {
-    		final int size;
     		logger.warn("Sending large blob of unknown size!");
-    		final int estimate = 10 * 1024;
-    		ByteBufferAdapter adapter = ByteBufferAdapter.obtain(estimate);
+    		ByteBufferAdapter adapter = ByteBufferAdapter.obtain();
     		out = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
     		FileChannel channel = out.getChannel();
     		for( ;; ) {
@@ -795,29 +773,21 @@ public class RequestSerializer {
     				// channel has no more bytes.
     				adapter.flip();
     				break;
-    			} else if( adapter.remaining() <= 0 ) {
-    				// buffer wasn't big enough :(
-    				adapter.flip();
-    				ByteBufferAdapter bigger = ByteBufferAdapter.obtain(adapter.capacity()*2);
-    				bigger.put(adapter);
-    				adapter.release();
-    				adapter = bigger;
     			}
     		}
     		// now we should have buffer with all of the data
-    		size = adapter.limit();
-    		ByteBufferAdapter buffer = ByteBufferAdapter.obtain(calcSize(fieldNameBytes, size));
-    		ByteBuffer sizeBytes = writeHeader(fieldNameBytes, size, buffer);
-    		buffer.put(adapter);
-    		buffer.put(sizeBytes);
-    		buffer.flip();
-    		parts.add(buffer);
+    		final int size = adapter.remaining();
+    		ByteBufferAdapter header = ByteBufferAdapter.obtain(new byte[calcSize(fieldNameBytes, 0)]);
+    		ByteBuffer sizeBytes = writeHeader(fieldNameBytes, size, header);
+    		parts.add(header);
+    		parts.add(adapter.flip());
+    		parts.put(sizeBytes);
     	} finally {
     		if( out != null ) out.close();
     	}
     }
 
-    private static void addLargeBlobOfKnownSize(final List<ByteBufferAdapter> parts,
+    private static void addLargeBlobOfKnownSize(final ExpandoByteBufferAdapter parts,
     		final byte[] fieldNameBytes, final int size,
     		final ParcelFileDescriptor pfd) throws IOException {
     	ParcelFileDescriptor.AutoCloseInputStream out = null;
@@ -825,23 +795,23 @@ public class RequestSerializer {
     		ByteBufferAdapter buffer = ByteBufferAdapter.obtain(calcSize(fieldNameBytes, size));
     		ByteBuffer sizeBytes = writeHeader(fieldNameBytes, size, buffer);    								
     		out = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-    		FileChannel channel = out.getChannel();
-    		while( channel.position() < size ) {
-    			buffer.read(channel);
+    		int read = 0;
+    		FileChannel channel = out.getChannel();    		
+    		while( read < size ) {
+    			read += buffer.read(channel);
     		}
     		buffer.put(sizeBytes);
-    		buffer.flip();
-    		parts.add(buffer);
+    		parts.add(buffer.flip());
     	} finally {
     		if( out != null ) out.close();
     	}
     }
 
 	private static int calcSize(final byte[] fieldNameBytes, int size) {
-		return fieldNameBytes.length + 1 + 4 + size + 4;
+		return 1 + fieldNameBytes.length + 1 + 4 + size + 4;
 	}
 
-	private static void addSmallBlob(final List<ByteBufferAdapter> parts,
+	private static void addSmallBlob(final ExpandoByteBufferAdapter parts,
 			final byte[] fieldNameBytes,
 			final byte[] blob) {
 		final int size = (blob == null) ? 0 : blob.length;
@@ -853,8 +823,7 @@ public class RequestSerializer {
 		}
 		bb.put(BLOB_MARKER_FIELD);
 		bb.put(sizeBytes.array(), 1, sizeBytes.array().length - 1);
-		bb.flip();
-		parts.add(bb);
+		parts.add(bb.flip());
 	}
 
 	private static ByteBuffer writeHeader(final byte[] fieldNameBytes,
@@ -863,6 +832,7 @@ public class RequestSerializer {
 		sizeBytes.order(ByteOrder.BIG_ENDIAN);
 		sizeBytes.putInt(size);
 		sizeBytes.flip();
+		bb.put((byte)0x0);
 		bb.put(fieldNameBytes);
 		bb.put((byte)0x0);
 		bb.put(sizeBytes);
