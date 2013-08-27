@@ -1288,8 +1288,8 @@ public class TcpChannel extends TcpChannelAbstract {
 							payload.flip();
 							AmmoGatewayMessage agm = agmb.payload(payload).channel(this.mDestination).build();
 							if( logger.isDebugEnabled() ) {
-								logger.debug("Received a packet in {} from gateway size({}) @{"+agm.buildTime+"}, csum({})",
-										payload.time(), agm.size, agm.payload_checksum);
+								logger.debug("Received a packet from gateway size({}) @{"+agm.buildTime+"}, csum({})",
+										agm.size, agm.payload_checksum);
 							}
 
 							setReceiverState( INetChannel.DELIVER );
