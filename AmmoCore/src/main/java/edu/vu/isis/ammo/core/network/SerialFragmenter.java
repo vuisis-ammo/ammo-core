@@ -148,6 +148,10 @@ public class SerialFragmenter {
 
         mChannel = channel;
         mChannelManager = channelManager;
+
+        String operatorId = mChannelManager.getOperatorId();
+
+        // CRC this and put the bytes in mOperatorIdCrc.
     }
 
 
@@ -553,7 +557,22 @@ public class SerialFragmenter {
 
     private AmmoGatewayMessage createResetPacket()
     {
-        byte[] payload = { (byte) 0x70, (byte) 0x00, (byte) 0x00 };
+        // The current reset packet is the following:
+        // byte[] payload = { (byte) 0x70, (byte) 0x00, (byte) 0x00 };
+        // However, to do handheld to handheld, we have to add a 32-bit
+        // number to the end, which will be the CRC32 of the operator_id.
+
+        byte[] payload = new byte[7];
+
+        payload[0] = (byte) 0x70;
+        payload[1] = (byte) 0x00;
+        payload[2] = (byte) 0x00;
+
+        payload[3] = mOperatorIdCrc[3];
+        payload[4] = mOperatorIdCrc[2];
+        payload[5] = mOperatorIdCrc[1];
+        payload[6] = mOperatorIdCrc[0];
+
         return createPacket( payload );
     }
 
