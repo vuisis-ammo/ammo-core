@@ -545,7 +545,8 @@ public class SerialChannel extends NetChannel
                                "/dev/ttyUSB6",
                                "/dev/ttyUSB7",
                                "/dev/ttyUSB8",
-                               "/dev/ttyUSB9" };
+                               "/dev/ttyUSB9",
+                               "/dev/ttyACM1" }; // For the sidehat
             
             List<String> result = new ArrayList<String>();
             for ( String n : names ) {
