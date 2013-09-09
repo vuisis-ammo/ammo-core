@@ -67,7 +67,7 @@ import edu.vu.isis.ammo.core.network.NetChannel;
 import edu.vu.isis.ammo.core.network.ReliableMulticastChannel;
 import edu.vu.isis.ammo.core.network.SerialChannel;
 import edu.vu.isis.ammo.core.network.TcpChannel;
-import edu.vu.isis.ammo.core.network.TcpChannelServer;
+import edu.vu.isis.ammo.core.network.TcpChannel;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
@@ -952,6 +952,10 @@ public enum NetworkManager  implements INetworkService,
                         PLogger.SET_PANTHR_JOURNAL.debug("suppress[{} -> {}]",
                                 parent.isJournalUserDisabled, active);
                     }
+                    
+                    else if( key.equals(INetPrefKeys.SERVER_ENABLED)) {
+                    	
+                    }
 
                     //
                     // Gateway
@@ -1198,11 +1202,9 @@ public enum NetworkManager  implements INetworkService,
                             if (prefs.getBoolean(key, INetPrefKeys.DEFAULT_GATEWAY_ENABLED)) {
                                 parent.tcpChannel.disable();
                                 parent.tcpMediaChannel.disable();
-                                parent.reverseTcpChannel.disable();
                             } else {
                                 parent.tcpChannel.enable();
                                 parent.tcpMediaChannel.enable();
-                                parent.reverseTcpChannel.enable();
                             }
                         }
                         else if (key.equals(INetPrefKeys.GATEWAY_HOST)) {
