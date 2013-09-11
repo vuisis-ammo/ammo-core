@@ -16,7 +16,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
@@ -48,10 +47,6 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
-
-import edu.vu.isis.ammo.util.ByteBufferAdapter;
-import edu.vu.isis.ammo.util.UDPSendException;
-import edu.vu.isis.ammo.util.AmmoConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +54,10 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.AmmoConfigurator;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.InetHelper;
+import edu.vu.isis.ammo.util.UDPSendException;
 
 public class ReliableMulticastChannel extends NetChannel {
     private static final Logger sClasslogger = LoggerFactory.getLogger("net.rmcast");
@@ -922,8 +920,10 @@ public class ReliableMulticastChannel extends NetChannel {
                 logger.warn("connection to {}:{} failed: ", new Object[] {
                         parent.mMulticastGroup, parent.mMulticastPort
                 }, ex);
-                parent.mJGroupChannel.disconnect();
-                parent.mJGroupChannel.close();
+                if( parent.mJGroupChannel != null ) {
+                	parent.mJGroupChannel.disconnect();
+                	parent.mJGroupChannel.close();
+                }
                 parent.mJGroupChannel = null;
                 return false;
             }
