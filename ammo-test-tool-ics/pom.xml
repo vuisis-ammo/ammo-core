@@ -211,18 +211,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
         <artifactId>android-maven-plugin</artifactId>
         <executions>
           <execution>
-            <id>run-aapt</id>
-            <goals>
-              <goal>generate-sources</goal>
-            </goals>
-            <configuration>
-              <sdk>
-                <platform>17</platform>
-              </sdk>
-            </configuration>
-          </execution>
-
-          <execution>
             <id>manifest-version</id>
             <goals>
               <goal>manifest-update</goal>
@@ -236,14 +224,6 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
           <execution>
             <id>build-apk</id>
             <configuration>
-              <sdk>
-                <platform>11</platform>
-              </sdk>
-<!--
-              <emulator>
-                <avd>22</avd>
-              </emulator>
--->
               <deleteConflictingFiles>true</deleteConflictingFiles>
               <undeployBeforeDeploy>true</undeployBeforeDeploy>
               <!-- attachJar false required because deploying both jar and apk to 
