@@ -371,8 +371,7 @@ public class DistributorThread extends Thread {
         public final Relations type;
         public final long id;
 
-        public final String topic;
-        public final String[] subtopic;
+        public final String[] topic;
         public final UUID uuid;
         public final String auid;
         public final Notice notice;
@@ -381,15 +380,13 @@ public class DistributorThread extends Thread {
         public final DisposalState status;
 
         public ChannelAck(final Relations type, final long id, final UUID uuid,
-                final String topic, final String[] subtopic, final String auid,
-                final Notice notice,
+                final String[] topic, final String auid, final Notice notice,
                 final String channel, final DisposalState status)
         {
             this.type = type;
             this.id = id;
             this.uuid = uuid;
             this.topic = topic;
-            this.subtopic = subtopic;
             this.auid = auid;
             this.notice = notice;
 
@@ -404,7 +401,6 @@ public class DistributorThread extends Thread {
                     .append(" id ").append(this.id)
                     .append(" uuid ").append(this.uuid)
                     .append(" topic ").append(this.topic)
-                    .append(" subtopic ").append(this.subtopic)
                     .append(" aid ").append(this.auid)
                     .append(" channel ").append(this.channel)
                     .append(" status ").append(this.status)
@@ -471,8 +467,7 @@ public class DistributorThread extends Thread {
             if (via.isActive()) {
 
                 final Notice.IntentBuilder noteBuilder = Notice.getIntentBuilder(ack.notice)
-                        .topic(ack.topic)
-                        .subtopic(ack.subtopic)
+                        .topic(ack.topic[0])
                         .auid(ack.auid)
                         .channel(ack.channel);
 
@@ -534,8 +529,8 @@ public class DistributorThread extends Thread {
 
     public String distributeRequest(AmmoRequest request) {
         try {
-            logger.info("From AIDL into AMMO type:{}+{} uuid:{}", request.topic, request.subtopic,
-                    request.uuid);
+            logger.info("From AIDL into AMMO type:{} uuid:{}",
+                    request.topic, request.uuid);
 
             PLogger.QUEUE_REQ_ENTER.trace("\"action\":\"offer\" \"request\":\"{}\"", request);
             if (!this.requestQueue.offer(request, 1, TimeUnit.SECONDS)) {
@@ -652,9 +647,7 @@ public class DistributorThread extends Thread {
                         try {
                             final ChannelAck ack = this.channelAck.take();
                             PLogger.QUEUE_ACK_EXIT.trace(PLogger.QUEUE_FORMAT,
-                                    new Object[] {
-                                            this.channelAck.size(), ack.uuid, 0, ack
-                                    });
+                                            this.channelAck.size(), ack.uuid, 0, ack );
 
                             this.doChannelAck(this.context, ack);
                         } catch (ClassCastException ex) {
@@ -727,7 +720,8 @@ public class DistributorThread extends Thread {
      * <li>Receive the message
      * </ol>
      * 
-     * @param instream
+     * @param that
+     * @param agm
      * @return was the message clean (true) or garbled (false).
      */
     private boolean doRequest(NetworkManager that, AmmoRequest agm) {
@@ -844,7 +838,8 @@ public class DistributorThread extends Thread {
      * <li>Receive the message
      * </ol>
      * 
-     * @param instream
+     * @param context
+     * @param agm
      * @return was the message clean (true) or garbled (false).
      */
     private boolean doResponse(Context context, AmmoGatewayMessage agm) {
@@ -977,10 +972,7 @@ public class DistributorThread extends Thread {
      * request is recorded for later use.
      * 
      * @param that
-     * @param uri
-     * @param mimeType
-     * @param data
-     * @param handler
+     * @param ar
      * @return
      */
     private void doPostalRequest(final NetworkManager that, final AmmoRequest ar) {
@@ -989,9 +981,8 @@ public class DistributorThread extends Thread {
         try {
             final UUID uuid = UUID.fromString(ar.uuid); // UUID.randomUUID();
             final String auid = ar.uid;
-            final String topic = ar.topic.asString();
-            final String[] subtopic = Topic.asString(ar.subtopic);
-            final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
+            final String[] topic = Topic.asString(ar.topic);
+            final DistributorPolicy.Topic policy = that.policy().matchPostal(topic[0]);
             final String channel = (ar.channelFilter == null) ? null : ar.channelFilter.cv();
 
             logger.debug("process request topic {}, uuid {}", ar.topic, uuid);
@@ -1000,9 +991,9 @@ public class DistributorThread extends Thread {
             final ContentValues values = new ContentValues();
             values.put(PostalTableSchema.UUID.cv(), uuid.toString());
             values.put(PostalTableSchema.AUID.cv(), auid);
-            values.put(PostalTableSchema.TOPIC.cv(), topic);
+            values.put(PostalTableSchema.TOPIC.cv(), ar.topic[0].asString());
             values.put(PostalTableSchema.SUBTOPIC.cv(),
-                    DistributorDataStore.encodeFromArray(ar.subtopic));
+                    DistributorDataStore.encodeTopic(ar.topic));
             if (ar.provider != null) {
                 values.put(PostalTableSchema.PROVIDER.cv(), ar.provider.cv());
             }
@@ -1055,7 +1046,7 @@ public class DistributorThread extends Thread {
                         this.bytes =
                                 RequestSerializer.serializeFromContentValues(
                                         serializer_.payload.getCV(),
-                                        encode, ar.topic.asString(), contractStore);
+                                        encode, ar.topic[0].asString(), contractStore);
 
                         if (this.bytes == null) {
                             logger.error(
@@ -1113,7 +1104,7 @@ public class DistributorThread extends Thread {
                                     .append(PostalTableSchema.TOPIC.q()).append("=?")
                                     .toString(),
                                     new String[] {
-                                            e.missingTupleUri.getPath(), topic
+                                            e.missingTupleUri.getPath(), topic[0]
                                     });
                             return;
                         } catch (NonConformingAmmoContentProvider ex) {
@@ -1131,13 +1122,12 @@ public class DistributorThread extends Thread {
                 final long id = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 
                 final Dispersal dispatchResult = this.dispatchPostalRequest(that, ar.notice,
-                        uuid, topic, subtopic, dispersal, serializer,
+                        uuid, topic, dispersal, serializer,
                         new INetworkService.OnSendMessageHandler() {
                             final DistributorThread parent = DistributorThread.this;
                             final long id_ = id;
                             final UUID uuid_ = uuid;
-                            final String topic_ = topic;
-                            final String[] subtopic_ = subtopic;
+                            final String[] topic_ = topic;
                             final String auid_ = ar.uid;
                             final Notice notice_ = ar.notice;
 
@@ -1145,7 +1135,7 @@ public class DistributorThread extends Thread {
                             public boolean ack(String channel, DisposalState status) {
                                 final ChannelAck chack = new ChannelAck(Relations.POSTAL,
                                         id_, uuid_,
-                                        topic_, subtopic_, auid_, notice_,
+                                        topic_, auid_, notice_,
                                         channel, status);
                                 return parent.announceChannelAck(chack);
                             }
@@ -1165,15 +1155,19 @@ public class DistributorThread extends Thread {
         try {
             // final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
             // final String auid = ar.uid;
-            final String topic = ar.topic.asString();
+            final String topic = ar.topic[0].asString();
+            final String subtopic = DistributorDataStore.encodeTopic(ar.topic);
             final String provider = ar.provider.cv();
 
             this.store().deletePostal(new StringBuilder()
                     .append(PostalTableSchema.PROVIDER.q()).append("=?")
                     .append(" AND ")
-                    .append(PostalTableSchema.TOPIC.q()).append("=?").toString(),
+                    .append(PostalTableSchema.TOPIC.q()).append("=?")
+                    .append(" AND ")
+                    .append(PostalTableSchema.SUBTOPIC.q()).append("=?")
+                    .toString(),
                     new String[] {
-                            provider, topic
+                            provider, topic, subtopic
                     });
         } finally {
 
@@ -1219,11 +1213,9 @@ public class DistributorThread extends Thread {
                 payload = null;
             }
             logger.trace("payload=[{}]", payload);
-            final String topic = pending.getString(pending
-                    .getColumnIndex(PostalTableSchema.TOPIC.n));
-            final String[] subtopic = DistributorDataStore.decodeToStringArray(pending
-                    .getString(pending
-                            .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
+            final String[] topic = DistributorDataStore.decodeTopicToStringArray(pending
+                        .getString(pending.getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
+
             final String channelFilter = pending.getString(pending
                     .getColumnIndex(PostalTableSchema.CHANNEL.n));
 
@@ -1295,7 +1287,7 @@ public class DistributorThread extends Thread {
                                         return;
                                     }
                                     this.bytes = RequestSerializer.serializeFromContentValues(
-                                            payload.getCV(), encode, topic, contractStore);
+                                            payload.getCV(), encode, topic[0], contractStore);
                                     return;
                                 } else {
 
@@ -1342,7 +1334,7 @@ public class DistributorThread extends Thread {
                                                 .append(PostalTableSchema.TOPIC.q()).append("=?")
                                                 .toString(),
                                         new String[] {
-                                                ex.missingTupleUri.getPath(), topic
+                                                ex.missingTupleUri.getPath(), topic[0]
                                         });
                             } catch (NonConformingAmmoContentProvider ex) {
                                 ex.printStackTrace();
@@ -1352,7 +1344,7 @@ public class DistributorThread extends Thread {
                 }
             });
 
-            final DistributorPolicy.Topic policy = that.policy().matchPostal(topic);
+            final DistributorPolicy.Topic policy = that.policy().matchPostal(topic[0]);
             final Dispersal dispersal = policy.makeRouteMap(channelFilter);
             {
                 final Cursor channelCursor = this.store.queryDisposalByParent(
@@ -1385,22 +1377,21 @@ public class DistributorThread extends Thread {
 
                     final Dispersal dispatchResult =
                             this.dispatchPostalRequest(that, notice,
-                                    uuid, topic, subtopic,
+                                    uuid, topic,
                                     dispersal, serializer,
                                     new INetworkService.OnSendMessageHandler() {
                                         final DistributorThread parent = DistributorThread.this;
                                         final int id_ = id;
                                         final UUID uuid_ = uuid;
                                         final String auid_ = auid;
-                                        final String topic_ = topic;
-                                        final String[] subtopic_ = subtopic;
+                                        final String[] topic_ = topic;
                                         final Notice notice_ = notice;
 
                                         @Override
                                         public boolean ack(String channel, DisposalState status) {
                                             final ChannelAck chack = new ChannelAck(
                                                     Relations.POSTAL, id_, uuid_,
-                                                    topic_, subtopic_, auid_, notice_,
+                                                    topic_, auid_, notice_,
                                                     channel, status);
                                             return parent.announceChannelAck(chack);
                                         }
@@ -1420,15 +1411,16 @@ public class DistributorThread extends Thread {
      * connection to the network service exists before this method is called.
      * 
      * @param that
-     * @param provider
-     * @param msgType
-     * @param data
+     * @param notice
+     * @param uuid
+     * @param topic
+     * @param dispersal
+     * @param serializer
      * @param handler
      * @return
      */
     private Dispersal dispatchPostalRequest(final NetworkManager that,
-            final Notice notice, final UUID uuid,
-            final String topic, final String[] subtopic,
+            final Notice notice, final UUID uuid, final String[] topic,
             final Dispersal dispersal, final RequestSerializer serializer,
             final INetworkService.OnSendMessageHandler handler)
     {
@@ -1452,8 +1444,8 @@ public class DistributorThread extends Thread {
                     final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
                             .newBuilder()
                             .setUri(uuid.toString())
-                            .setMimeType(topic)
-                            .addAllSubtopics(Arrays.asList(subtopic))
+                            .setMimeType(topic[0])
+                            .addAllSubtopics(Arrays.asList(topic))
                             .setEncoding(encode.getType().name())
                             .setUserId(networkManager.getOperatorId())
                             .setOriginDevice(networkManager.getDeviceId())
@@ -1496,7 +1488,6 @@ public class DistributorThread extends Thread {
                         notice.atPluginDelivered.getVia().isActive())
                         .uuid(uuid);
                 agmb.topic(topic);
-                agmb.subtopic(subtopic);
 
                 return agmb.build();
             }
@@ -1571,7 +1562,7 @@ public class DistributorThread extends Thread {
         final String topic = mime;
         final Cursor cursor = this.store.querySubscribeByKey(new String[] {
                 SubscribeTableSchema.PROVIDER.n
-        }, topic, subtopic, null);
+        }, topic, DistributorDataStore.encodeTopic(subtopic), null);
         if (cursor.getCount() < 1) {
             logger.warn("received a message for which there is no subscription {}", topic);
             cursor.close();
@@ -1696,7 +1687,7 @@ public class DistributorThread extends Thread {
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.TOPIC.cv()));
             final String subtopicStr = postalReq.getString(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.SUBTOPIC.cv()));
-            final String[] subtopic = DistributorDataStore.decodeToStringArray(subtopicStr);
+            final String[] subtopic = DistributorDataStore.decodeTopicToStringArray(subtopicStr);
             final String auid = postalReq.getString(postalReq
                     .getColumnIndex(DistributorDataStore.PostalTableSchema.AUID.cv()));
 
@@ -1765,10 +1756,7 @@ public class DistributorThread extends Thread {
      * request is recorded for later use.
      * 
      * @param that
-     * @param uri
-     * @param mimeType
-     * @param data
-     * @param handler
+     * @param ar
      * @return
      */
     private void doInviteRequest(final NetworkManager that, final AmmoRequest ar) {
@@ -1777,8 +1765,8 @@ public class DistributorThread extends Thread {
         try {
             final UUID uuid = UUID.fromString(ar.uuid); // UUID.randomUUID();
             final String auid = ar.uid;
-            final String topic = ar.topic.asString();
-            final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
+            final String mainTopic = ar.topic[0].asString();
+            final DistributorPolicy.Topic policy = that.policy().matchSubscribe(mainTopic);
             final String channel = (ar.channelFilter == null) ? null : ar.channelFilter.cv();
 
             logger.debug("process request topic {}, uuid {}", ar.topic, uuid);
@@ -1786,8 +1774,7 @@ public class DistributorThread extends Thread {
 
             final InvitationMap.Builder builder = InvitationMap.newBuilder();
             builder
-                    .topic(topic)
-                    .subtopic(ar.subtopic)
+                    .topic(ar.topic)
                     .uuid(uuid)
                     .auid(auid)
                     .expiration(policy.routing.getExpiration(ar.expire.cv()));
@@ -1818,10 +1805,9 @@ public class DistributorThread extends Thread {
         try {
             // final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
             // final String auid = ar.uid;
-            final String topic = ar.topic.asString();
-            final String[] subtopic = Topic.asString(ar.subtopic);
+            final String[] topic = Topic.asString(ar.topic);
 
-            this.store().deleteInvite(InvitationMap.Select.BY_SUBTOPIC, topic, subtopic);
+            this.store().deleteInvite(InvitationMap.Select.BY_SUBTOPIC, topic);
         } finally {
 
         }
@@ -1853,7 +1839,7 @@ public class DistributorThread extends Thread {
 
         for (final Invitation it : InvitationMap.INSTANCE.toSendQueue()) {
             final Dispersal dispatchResult = this.dispatchInviteRequest(that, it.notice,
-                    it.key.uuid, it.key.topic, it.key.subtopic, it.route, serializer,
+                    it.key.uuid, it.key.topic, it.route, serializer,
                     new INetworkService.OnSendMessageHandler() {
                         final DistributorThread parent = DistributorThread.this;
                         final Invitation it_ = it;
@@ -1862,7 +1848,7 @@ public class DistributorThread extends Thread {
                         public boolean ack(final String channel, final DisposalState status) {
                             final ChannelAck chack = new ChannelAck(Relations.INVITE,
                                     it_.key.id, it_.key.uuid,
-                                    it_.key.topic, it_.key.subtopic,
+                                    it_.key.topic,
                                     "", it_.notice,
                                     channel, status);
                             return parent.announceChannelAck(chack);
@@ -1881,16 +1867,17 @@ public class DistributorThread extends Thread {
      * connection to the network service exists before this method is called.
      * 
      * @param that
-     * @param provider
+     * @param notice
+     * @param uuid
      * @param topic
-     * @param subtopic
-     * @param data
+     * @param dispersal
+     * @param serializer
      * @param handler
      * @return
      */
     private Dispersal dispatchInviteRequest(final NetworkManager that,
-            final Notice notice, final UUID uuid, final String topic,
-            final String[] subtopic, final Dispersal dispersal, final RequestSerializer serializer,
+            final Notice notice, final UUID uuid, final String[] topic,
+            final Dispersal dispersal, final RequestSerializer serializer,
             final INetworkService.OnSendMessageHandler handler)
     {
         logger.trace("::dispatchInviteRequest");
@@ -1913,8 +1900,8 @@ public class DistributorThread extends Thread {
                     final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
                             .newBuilder()
                             .setUri(uuid.toString())
-                            .setMimeType(topic)
-                            .addAllSubtopics(Arrays.asList(subtopic))
+                            .setMimeType(topic[0])
+                            .addAllSubtopics(Arrays.asList(topic))
                             .setEncoding(encode.getType().name())
                             .setUserId(networkManager.getOperatorId())
                             .setOriginDevice(networkManager.getDeviceId())
@@ -1958,8 +1945,6 @@ public class DistributorThread extends Thread {
                         .uuid(uuid);
 
                 agmb.topic(topic);
-                agmb.subtopic(subtopic);
-
                 return agmb.build();
             }
         });
@@ -1985,20 +1970,22 @@ public class DistributorThread extends Thread {
         }
 
         final SubtopicInvitation sm = mw.getSubtopicInvitation();
-        final String topic = sm.getMimeType();
+        final String mainTopic = sm.getMimeType();
         final String[] subtopic = sm.getSubtopicsList().toArray(
                 new String[sm.getSubtopicsCount()]);
+        final String[] topic = new String[subtopic.length + 1];
+        topic[0] = mainTopic;
+        for (int ix=0; ix < subtopic.length; ++ix) {
+            topic[ix+1] = topic[ix];
+        }
         final List<Invitee> invitee = sm.getInviteesList();
 
         final InvitationMap.Worker worker = InvitationMap.getWorker();
-        worker.topic(topic)
-                .subtopic(subtopic);
+        worker.topic(topic);
 
         worker.invitee(invitee).upsert();
 
-        final Topic.IntentBuilder builder = Topic.getIntentBuilder()
-                .topic(topic)
-                .subtopic(subtopic);
+        final Topic.IntentBuilder builder = Topic.getIntentBuilder().topic(topic);
         final Intent intent = builder.build(this.context, Topic.ACTION_INVITATION);
         context.sendBroadcast(intent);
         return true;
@@ -2015,7 +2002,6 @@ public class DistributorThread extends Thread {
      * 
      * @param that
      * @param ar
-     * @param st
      */
     private void doRetrievalRequest(NetworkManager that, AmmoRequest ar) {
         logger.trace("process request RETRIEVAL {} {}", ar.topic.toString(), ar.provider.toString());
@@ -2024,16 +2010,16 @@ public class DistributorThread extends Thread {
         try {
             final UUID uuid = UUID.randomUUID();
             final String auid = ar.uid;
-            final String topic = ar.topic.asString();
-            final String[] subtopic = Topic.asString(ar.subtopic);
+            final String mainTopic = ar.topic[0].asString();
+            final String[] topic = Topic.asString(ar.topic);
             final String select = ar.select.toString();
             final Integer limit = (ar.limit == null) ? null : ar.limit.asInteger();
-            final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
+            final DistributorPolicy.Topic policy = that.policy().matchRetrieval(mainTopic);
 
             final ContentValues values = new ContentValues();
             values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
             values.put(RetrievalTableSchema.AUID.cv(), auid);
-            values.put(RetrievalTableSchema.TOPIC.cv(), topic);
+            values.put(RetrievalTableSchema.TOPIC.cv(), mainTopic);
 
             values.put(RetrievalTableSchema.SELECTION.cv(), select);
             if (limit != null)
@@ -2063,21 +2049,20 @@ public class DistributorThread extends Thread {
                 final long id = this.store.upsertRetrieval(values, policy.makeRouteMap(null));
 
                 final Dispersal dispatchResult = this.dispatchRetrievalRequest(that,
-                        uuid, topic, subtopic, select, limit, dispersal,
+                        uuid, topic,  select, limit, dispersal,
                         new INetworkService.OnSendMessageHandler() {
                             final DistributorThread parent = DistributorThread.this;
                             final long id_ = id;
                             final UUID uuid_ = uuid;
                             final String auid_ = auid;
-                            final String topic_ = topic;
-                            final String[] subtopic_ = subtopic;
+                            final String[] topic_ = topic;
                             final Notice notice_ = new Notice();
 
                             @Override
                             public boolean ack(String channel, DisposalState status) {
                                 final ChannelAck chack = new ChannelAck(Relations.RETRIEVAL,
                                         id_, uuid_,
-                                        topic_, subtopic_, auid_, notice_,
+                                        topic_,  auid_, notice_,
                                         channel, status);
                                 return parent.announceChannelAck(chack);
                             }
@@ -2096,7 +2081,7 @@ public class DistributorThread extends Thread {
         try {
             // final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
             // final String auid = ar.uid;
-            final String topic = ar.topic.asString();
+            final String mainTopic = ar.topic[0].asString();
             final String provider = ar.provider.cv();
             final String selection = new StringBuilder()
                     .append(RetrievalTableSchema.PROVIDER.q()).append("=?")
@@ -2105,7 +2090,7 @@ public class DistributorThread extends Thread {
                     .toString();
 
             final String[] selectionArgs = new String[] {
-                    provider, topic
+                    provider, mainTopic
             };
 
             this.store().deleteRetrieval(selection, selectionArgs);
@@ -2132,13 +2117,21 @@ public class DistributorThread extends Thread {
             // For each item in the cursor, ask the content provider to
             // serialize it, then pass it off to the NPS.
             final int id = pending.getInt(pending.getColumnIndex(RetrievalTableSchema._ID.n));
-            final String topic = pending.getString(pending
-                    .getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
-            final String[] subtopic = DistributorDataStore.decodeToStringArray(pending
-                    .getString(pending
-                            .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
+            final String[] topic;
+            {
+                final String mainTopic = pending.getString(pending
+                        .getColumnIndex(RetrievalTableSchema.TOPIC.cv()));
+                final String[] subtopic = DistributorDataStore.decodeTopicToStringArray(pending
+                        .getString(pending
+                                .getColumnIndex(PostalTableSchema.SUBTOPIC.n)));
+                topic = new String[subtopic.length+1];
+                topic[0] = mainTopic;
+                for (int ix=0; ix < subtopic.length; ++ix) {
+                    topic[ix+1] = subtopic[ix];
+                }
+            }
 
-            final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic);
+            final DistributorPolicy.Topic policy = that.policy().matchRetrieval(topic[0]);
             final Dispersal dispersal = policy.makeRouteMap(null);
             {
                 final Cursor channelCursor = this.store.queryDisposalByParent(
@@ -2178,20 +2171,18 @@ public class DistributorThread extends Thread {
                     final long numUpdated = this.store.updateRetrievalByKey(id, values, null);
 
                     final Dispersal dispatchResult = this.dispatchRetrievalRequest(that,
-                            uuid, topic, subtopic, selection, limit, dispersal,
+                            uuid, topic, selection, limit, dispersal,
                             new INetworkService.OnSendMessageHandler() {
                                 final DistributorThread parent = DistributorThread.this;
                                 final String auid_ = auid;
                                 final UUID uuid_ = uuid;
-                                final String topic_ = topic;
-                                final String[] subtopic_ = subtopic;
+                                final String[] topic_ = topic;
                                 final Notice notice_ = new Notice();
 
                                 @Override
                                 public boolean ack(String channel, DisposalState status) {
                                     final ChannelAck chack = new ChannelAck(Relations.RETRIEVAL,
-                                            id, uuid_,
-                                            topic_, subtopic_, auid_, notice_,
+                                            id, uuid_, topic_, auid_, notice_,
                                             channel, status);
                                     return parent.announceChannelAck(chack);
                                 }
@@ -2217,7 +2208,7 @@ public class DistributorThread extends Thread {
      */
 
     private Dispersal dispatchRetrievalRequest(final NetworkManager that,
-            final UUID retrievalId, final String topic, final String[] subtopic,
+            final UUID retrievalId, final String[] topic,
             final String selection, final Integer limit, final Dispersal dispersal,
             final INetworkService.OnSendMessageHandler handler)
     {
@@ -2230,8 +2221,8 @@ public class DistributorThread extends Thread {
         final AmmoMessages.PullRequest.Builder retrieveReq = AmmoMessages.PullRequest
                 .newBuilder()
                 .setRequestUid(retrievalId.toString())
-                .setMimeType(topic)
-                .addAllSubtopics(Arrays.asList(subtopic));
+                .setMimeType(topic[0])
+                .addAllSubtopics(Arrays.asList(topic));
 
         if (selection != null)
             retrieveReq.setQuery(selection);
@@ -2257,7 +2248,6 @@ public class DistributorThread extends Thread {
                     final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw,
                             handler);
                     agmb.topic(topic);
-                    agmb.subtopic(subtopic);
                     return agmb.build();
                 }
             });
@@ -2289,8 +2279,9 @@ public class DistributorThread extends Thread {
         // find the provider to use
         final String uuidString = resp.getRequestUid();
         final String topic = resp.getMimeType();
-        final String[] subtopic = resp.getSubtopicsList().toArray(
-                new String[resp.getSubtopicsCount()]);
+        final String subtopic =
+                DistributorDataStore.encodeTopic(resp.getSubtopicsList().toArray(
+                new String[resp.getSubtopicsCount()]));
 
         final Cursor cursor = this.store
                 .queryRetrievalByKey(new String[] {
@@ -2337,26 +2328,26 @@ public class DistributorThread extends Thread {
      * here.
      * 
      * @param that
-     * @param agm
+     * @param ar
      * @param st
      */
     private void doSubscribeRequest(final NetworkManager that, final AmmoRequest ar, int st) {
-        logger.trace("process request SUBSCRIBE {} {}", ar.topic, ar.subtopic);
+        logger.trace("process request SUBSCRIBE {} ", ar.topic);
 
         // Dispatch the message.
         try {
             final UUID uuid = UUID.randomUUID();
             final String auid = ar.uid;
-            final String topic = ar.topic.asString();
-            final String[] subtopic = Topic.asString(ar.subtopic);
-            final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
+            final String mainTopic = ar.topic[0].asString();
+            final String[] subtopic = Topic.asString(ar.topic);
+            final DistributorPolicy.Topic policy = that.policy().matchSubscribe(mainTopic);
 
             final ContentValues values = new ContentValues();
             values.put(RetrievalTableSchema.UUID.cv(), uuid.toString());
             values.put(RetrievalTableSchema.AUID.cv(), auid);
-            values.put(SubscribeTableSchema.TOPIC.cv(), topic);
+            values.put(SubscribeTableSchema.TOPIC.cv(), mainTopic);
             values.put(SubscribeTableSchema.SUBTOPIC.cv(),
-                    DistributorDataStore.encodeFromStringArray(subtopic));
+                    DistributorDataStore.encodeTopic(subtopic));
 
             values.put(SubscribeTableSchema.PROVIDER.cv(), ar.provider.cv());
             values.put(SubscribeTableSchema.SELECTION.cv(), ar.select.toString());
@@ -2380,21 +2371,19 @@ public class DistributorThread extends Thread {
             synchronized (this.store) {
                 final long id = this.store.upsertSubscribe(values, dispersal);
                 final Dispersal dispatchResult = this.dispatchSubscribeRequest(that,
-                        topic, subtopic, ar.select.toString(), dispersal,
+                        subtopic, ar.select.toString(), dispersal,
                         new INetworkService.OnSendMessageHandler() {
                             final DistributorThread parent = DistributorThread.this;
                             final long id_ = id;
                             final UUID uuid_ = uuid;
                             final String auid_ = auid;
-                            final String topic_ = topic;
                             final String[] subtopic_ = subtopic;
                             final Notice notice_ = new Notice();
 
                             @Override
                             public boolean ack(String channel, DisposalState status) {
                                 final ChannelAck chack = new ChannelAck(Relations.SUBSCRIBE,
-                                        id_, uuid_,
-                                        topic_, subtopic_, auid_, notice_,
+                                        id_, uuid_, subtopic_,  auid_, notice_,
                                         channel, status);
                                 return parent.announceChannelAck(chack);
                             }
@@ -2413,12 +2402,12 @@ public class DistributorThread extends Thread {
         try {
             // final UUID uuid = UUID.fromString(ar.uuid); //UUID.randomUUID();
             // final String auid = ar.uid;
-            final String topic = ar.topic.asString();
-            final String[] subtopic = Topic.asString(ar.subtopic);
+            final String mainTopic = ar.topic[0].asString();
+            final String[] topic = Topic.asString(ar.topic);
             final String provider = ar.provider.cv();
 
             final String[] selectionArgs = new String[] {
-                    provider, topic, DistributorDataStore.encodeFromStringArray(subtopic)
+                    provider, mainTopic, DistributorDataStore.encodeTopic(topic)
             };
 
             this.store().deleteSubscribe(CANCEL_SUBSCRIBE_BY_KEY, selectionArgs);
@@ -2462,11 +2451,14 @@ public class DistributorThread extends Thread {
                     .getColumnIndex(SubscribeTableSchema.UUID.n));
             final UUID uuid = UUID.fromString(uuidString);
 
-            final String topic = pending.getString(pending
-                    .getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
-            final String[] subtopic = DistributorDataStore.decodeToStringArray(pending
-                    .getString(pending
-                            .getColumnIndex(SubscribeTableSchema.SUBTOPIC.n)));
+            final String[] topic;
+            {
+                final String mainTopic = pending.getString(pending
+                        .getColumnIndex(SubscribeTableSchema.TOPIC.cv()));
+                topic = DistributorDataStore.decodeTopicToStringArray(pending
+                        .getString(pending
+                                .getColumnIndex(SubscribeTableSchema.SUBTOPIC.n)));
+            }
 
             final String auid = pending.getString(pending.getColumnIndex(SubscribeTableSchema.AUID
                     .cv()));
@@ -2474,11 +2466,10 @@ public class DistributorThread extends Thread {
             final String selection = pending.getString(pending
                     .getColumnIndex(SubscribeTableSchema.SELECTION.n));
 
-            logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] {
-                    id, topic, selection
-            });
+            logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}",
+                    id, topic, selection );
 
-            final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
+            final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic[0]);
             final Dispersal dispersal = policy.makeRouteMap(null);
             {
                 final Cursor channelCursor = this.store.queryDisposalByParent(
@@ -2508,21 +2499,20 @@ public class DistributorThread extends Thread {
                     long numUpdated = this.store.updateSubscribeByKey(id, values, null);
 
                     final Dispersal dispatchResult = this.dispatchSubscribeRequest(that,
-                            topic, subtopic, selection, dispersal,
+                            topic, selection, dispersal,
                             new INetworkService.OnSendMessageHandler() {
                                 final DistributorThread parent = DistributorThread.this;
                                 final int id_ = id;
                                 final UUID uuid_ = uuid;
                                 final String auid_ = auid;
-                                final String topic_ = topic;
-                                final String[] subtopic_ = subtopic;
+                                final String[] topic_ = topic;
                                 final Notice notice_ = new Notice();
 
                                 @Override
                                 public boolean ack(String channel, DisposalState status) {
                                     final ChannelAck chack = new ChannelAck(Relations.SUBSCRIBE,
                                             id_, uuid_,
-                                            topic_, subtopic_, auid_, notice_,
+                                            topic_, auid_, notice_,
                                             channel, status);
                                     return parent.announceChannelAck(chack);
                                 }
@@ -2540,8 +2530,7 @@ public class DistributorThread extends Thread {
      * Deliver the subscription request to the network service for processing.
      */
     private Dispersal dispatchSubscribeRequest(final NetworkManager that,
-            final String topic, final String[] subtopic,
-            final String selection, final Dispersal dispersal,
+            final String[] topic, final String selection, final Dispersal dispersal,
             final INetworkService.OnSendMessageHandler handler)
     {
         logger.trace("::dispatchSubscribeRequest {}", topic);
@@ -2550,8 +2539,8 @@ public class DistributorThread extends Thread {
 
         final AmmoMessages.SubscribeMessage.Builder subscribeReq = AmmoMessages.SubscribeMessage
                 .newBuilder()
-                .setMimeType(topic)
-                .addAllSubtopics(Arrays.asList(subtopic))
+                .setMimeType(topic[0])
+                .addAllSubtopics(Arrays.asList(topic))
                 .setOriginDevice(this.networkManager.getDeviceId())
                 .setOriginUser(this.networkManager.getOperatorId());
 
@@ -2572,7 +2561,6 @@ public class DistributorThread extends Thread {
                 mw.setSubscribeMessage(subscribeReq_);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
                 agmb.topic(topic);
-                agmb.subtopic(subtopic);
                 return agmb.build();
             }
         });

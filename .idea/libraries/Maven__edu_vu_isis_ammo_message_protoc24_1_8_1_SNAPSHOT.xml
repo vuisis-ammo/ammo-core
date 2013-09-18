@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: edu.vu.isis:ammo-message:protoc24:1.8.1-SNAPSHOT">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/edu/vu/isis/ammo-message/1.8.1-SNAPSHOT/ammo-message-1.8.1-SNAPSHOT-protoc24.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/edu/vu/isis/ammo-message/1.8.1-SNAPSHOT/ammo-message-1.8.1-SNAPSHOT-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/edu/vu/isis/ammo-message/1.8.1-SNAPSHOT/ammo-message-1.8.1-SNAPSHOT-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

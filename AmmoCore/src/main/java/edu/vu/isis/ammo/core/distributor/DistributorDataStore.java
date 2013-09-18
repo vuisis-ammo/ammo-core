@@ -552,11 +552,13 @@ public class DistributorDataStore {
 
         /**
          * This extends the topic. Subtopics which are lists are serialized
-         * using the first letter is the delimiter scheme. Thus the list
-         * {'foo','bar','baz'} would serialize as ' foo bar baz' the first
-         * character, and subsequent delimiters, being the blank. The blank is
-         * the only allowed delimiter, thus all alternatives are immediately
-         * rejected.
+         * using a magic delimiter scheme. Thus the list
+         * {'foo','bar','baz'} would serialize as 'foo[|]bar[|]baz' the magic
+         * delimeter being '[|]'.
+         * The subtopic contains the main-topic as its first element.
+         * There are functions to help with encoding and decoding the SUBTOPIC.
+         *     encodeTopicFromStringArray()
+         *     decodeFromStringArray
          */
         SUBTOPIC("subtopic", "TEXT"),
 
@@ -610,8 +612,8 @@ public class DistributorDataStore {
         EXPIRATION("expiration", "INTEGER"),
 
         /**
-         * Units associated with {@link #VALUE}. Used to determine whether
-         * should occur.
+         * Units associated with {@link #WORTH }. Used to determine
+         * the base unit (e.g. $).
          */
         UNIT("unit", "TEXT"),
 
@@ -655,6 +657,7 @@ public class DistributorDataStore {
         }
     };
 
+
     /**
      * The retrieval table is for holding retrieval requests.
      */
@@ -693,11 +696,13 @@ public class DistributorDataStore {
 
         /**
          * This extends the topic. Subtopics which are lists are serialized
-         * using the first letter is the delimiter scheme. Thus the list
-         * {'foo','bar','baz'} would serialize as ' foo bar baz' the first
-         * character, and subsequent delimiters, being the blank. The blank is
-         * the only allowed delimiter, thus all alternatives are immediately
-         * rejected.
+         * using a magic delimiter scheme. Thus the list
+         * {'foo','bar','baz'} would serialize as 'foo[|]bar[|]baz' the magic
+         * delimeter being '[|]'.
+         * The subtopic contains the main-topic as its first element.
+         * There are functions to help with encoding and decoding the SUBTOPIC.
+         *     encodeTopicFromStringArray()
+         *     decodeFromStringArray
          */
         SUBTOPIC("subtopic", "TEXT"),
 
@@ -848,11 +853,13 @@ public class DistributorDataStore {
 
         /**
          * This extends the topic. Subtopics which are lists are serialized
-         * using the first letter is the delimiter scheme. Thus the list
-         * {'foo','bar','baz'} would serialize as ' foo bar baz' the first
-         * character, and subsequent delimiters, being the blank. The blank is
-         * the only allowed delimiter, thus all alternatives are immediately
-         * rejected.
+         * using a magic delimiter scheme. Thus the list
+         * {'foo','bar','baz'} would serialize as 'foo[|]bar[|]baz' the magic
+         * delimeter being '[|]'.
+         * The subtopic contains the main-topic as its first element.
+         * There are functions to help with encoding and decoding the SUBTOPIC.
+         *     encodeTopicFromStringArray()
+         *     decodeFromStringArray
          */
         SUBTOPIC("subtopic", "TEXT"),
 
@@ -1238,7 +1245,7 @@ public class DistributorDataStore {
     }
 
     public synchronized Cursor queryRetrievalByKey(final String[] projection, final String uuid, 
-            final String topic, final String[] subtopic, final String sortOrder) {
+            final String topic, final String subtopic, final String sortOrder) {
         try {
             final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
@@ -1248,14 +1255,13 @@ public class DistributorDataStore {
             // Get the database and run the query.
             final SQLiteDatabase db = this.helper.getReadableDatabase();
             return qb.query(db, projection, RETRIEVAL_QUERY, new String[] {
-                    uuid, topic, 
+                    uuid, topic, subtopic
             }, null, null,
                     (!TextUtils.isEmpty(sortOrder)) ? sortOrder
                             : RetrievalTable.DEFAULT_SORT_ORDER);
         } catch (IllegalArgumentException ex) {
-            logger.error("query retrieval by key {} {} {}", new Object[] {
-                    projection, uuid, topic
-            });
+            logger.error("query retrieval by key {} {} {}",
+                    projection, uuid, topic );
         }
         return null;
     }
@@ -1264,6 +1270,8 @@ public class DistributorDataStore {
             .append(RetrievalTableSchema.UUID.q()).append("=?")
             .append(" AND ")
             .append(RetrievalTableSchema.TOPIC.q()).append("=?")
+            .append(" AND ")
+            .append(RetrievalTableSchema.SUBTOPIC.q()).append("=?")
             .toString();
 
     public synchronized Cursor queryRetrievalReady() {
@@ -1326,7 +1334,7 @@ public class DistributorDataStore {
     }
 
     public synchronized Cursor querySubscribeByKey(final String[] projection,
-            final String topic, final String[] subtopic, final String sortOrder) {
+            final String topic, final String subtopic, final String sortOrder) {
         try {
             final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
 
@@ -1336,7 +1344,7 @@ public class DistributorDataStore {
             // Get the database and run the query.
             final SQLiteDatabase db = this.helper.getReadableDatabase();
             return qb.query(db, projection, SUSCRIBE_QUERY, new String[] {
-                    topic
+                    topic, subtopic
             }, null, null,
                     (!TextUtils.isEmpty(sortOrder)) ? sortOrder
                             : SubscribeTable.DEFAULT_SORT_ORDER);
@@ -1418,9 +1426,8 @@ public class DistributorDataStore {
      */
     public synchronized Cursor queryDisposalByParent(int type, int parent) {
         try {
-            logger.trace("disposal ready {} {} {}", new Object[] {
-                    DISPOSAL_STATUS_QUERY, type, parent
-            });
+            logger.trace("disposal ready {} {} {}",
+                    DISPOSAL_STATUS_QUERY, type, parent );
             return db.rawQuery(DISPOSAL_STATUS_QUERY, new String[] {
                     String.valueOf(type), String.valueOf(parent)
             });
@@ -1467,11 +1474,12 @@ public class DistributorDataStore {
         try {
             logger.trace("upsert postal status=[{}] cv=[{}]", status, cv);
             final String topic = cv.getAsString(PostalTableSchema.TOPIC.cv());
+            final String subtopic = cv.getAsString(PostalTableSchema.SUBTOPIC.cv());
             final String provider = cv.getAsString(PostalTableSchema.PROVIDER.cv());
 
             final long key;
             final String[] updateArgs = new String[] {
-                    topic, provider
+                    topic, subtopic, provider
             };
             if (0 < this.db.update(Relations.POSTAL.n, cv, POSTAL_UPDATE_CLAUSE, updateArgs)) {
                 final Cursor cursor = this.db.query(Relations.POSTAL.n,
@@ -1531,9 +1539,8 @@ public class DistributorDataStore {
             for (Entry<String, DisposalState> entry : status.entrySet()) {
                 final String entityChannel = entry.getKey();
                 final DisposalState entityStatus = entry.getValue();
-                logger.trace("upsert retrieval {} {} {}", new Object[] {
-                        key, entityChannel, entityStatus
-                });
+                logger.trace("upsert retrieval {} {} {}",
+                        key, entityChannel, entityStatus );
                 upsertDisposalByParent(Relations.RETRIEVAL, key, entityChannel, entityStatus);
             }
             return key;
@@ -1608,9 +1615,8 @@ public class DistributorDataStore {
             }
             return idArray;
         } catch (IllegalArgumentException ex) {
-            logger.error("upsert disposal by parent {} {} {}", new Object[] {
-                    id, type, status
-            });
+            logger.error("upsert disposal by parent {} {} {}",
+                    id, type, status );
         }
         return null;
     }
@@ -1651,9 +1657,8 @@ public class DistributorDataStore {
             }
             return this.db.insert(Relations.DISPOSAL.n, DisposalTableSchema.TYPE.n, cv);
         } catch (IllegalArgumentException ex) {
-            logger.error("upsert disposal {} {} {} {}", new Object[] {
-                    id, type, channel, status
-            });
+            logger.error("upsert disposal {} {} {} {}",
+                    id, type, channel, status );
         }
         return 0;
     }
@@ -2158,21 +2163,20 @@ public class DistributorDataStore {
 
     // ========= INVITATION : DELETE ================
 
-    public synchronized int deleteInvite(final InvitationMap.Select selection, final String topic,
-            final String[] subtopic) {
+    public synchronized int deleteInvite(final InvitationMap.Select selection, final String[] topic) {
         try {
             switch (selection) {
                 case BY_SUBTOPIC:
                     final Worker worker = InvitationMap.getWorker();
-                    worker.topic(topic).subtopic(subtopic);
+                    worker.topic(topic);
                     final int count = worker.delete();
                     logger.trace("Subscribe delete {} {}", count);
                     return count;
                 default:
-                    logger.error("delete invitation: unknown selection {} {} {}", selection, topic, subtopic);
+                    logger.error("delete invitation: unknown selection {} {} {}", selection, topic);
             }
         } catch (IllegalArgumentException ex) {
-            logger.error("delete invitation {} {} {}", selection, topic, subtopic);
+            logger.error("delete invitation {} {} {}", selection, topic);
         }
         return 0;
     }
@@ -2216,9 +2220,7 @@ public class DistributorDataStore {
             final int disposalCount = db.delete(Relations.DISPOSAL.n,
                     DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION, null);
             logger.trace("Subscribe garbage {} {} {}",
-                    new Object[] {
-                            expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION
-                    });
+                            expireCount, disposalCount, DISPOSAL_SUBSCRIBE_ORPHAN_CONDITION );
             return expireCount;
         } catch (IllegalArgumentException ex) {
             logger.error("deleteSubscribeGarbage", ex);
@@ -2599,18 +2601,18 @@ public class DistributorDataStore {
     }
 
     public int deletePresence() {
-        // TODO Auto-generated method stub
+        //  Auto-generated method stub
         return 0;
     }
 
     public int deleteCapability() {
-        // TODO Auto-generated method stub
+        //  Auto-generated method stub
         return 0;
     }
     
     static final String SUBTOPIC_DELIMITER = "[|]";
 
-    public static String encodeFromStringArray(final String[] subtopic) {
+    public static String encodeTopic(final String[] subtopic) {
 
         final StringBuilder sb = new StringBuilder();
         for (final String sub : subtopic) {
@@ -2619,21 +2621,21 @@ public class DistributorDataStore {
         return sb.toString();
     }
 
-    public static String encodeFromArray(final Topic[] subtopic) {
+    public static String encodeTopic(final Topic[] subtopic) {
 
         final StringBuilder sb = new StringBuilder();
         for (final Topic sub : subtopic) {
-            sb.append(SUBTOPIC_DELIMITER).append(sub);
+            sb.append(SUBTOPIC_DELIMITER).append(sub.asString());
         }
         return sb.toString();
     }
 
-    public static String[] decodeToStringArray(final String subtopic) {
+    public static String[] decodeTopicToStringArray(final String subtopic) {
         if (subtopic.length() < 3)
             return null;
 
         final String delimiter = subtopic.substring(0, 3);
-        return subtopic.split(delimiter);
+        return subtopic.split(SUBTOPIC_DELIMITER);
     }
 
 }

@@ -167,8 +167,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     // Hop count for Harris 152 resend/retransmit mechanism
     public int mHopCount;
 
-    public final String topic;
-    public final String[] subtopic;
+    public final String[] topic;
     public final String channelKey;
 
 
@@ -472,25 +471,14 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         /**
          * topic specification.
          */
-        private String topic;
+        private String[] topic;
         
-        public String topic() {
+        public String[] topic() {
             return this.topic;
         }
 
-        public Builder topic(final String val) {
+        public Builder topic(final String[] val) {
             this.topic = val;
-            return this;
-        }
-
-        private String[] subtopic;
-        
-        public String[] subtopic() {
-            return this.subtopic;
-        }
-
-        public Builder subtopic(final String[] val) {
-            this.subtopic = val;
             return this;
         }
 
@@ -514,7 +502,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             this.version = VERSION_1_FULL;
             this.checksum = 0;
             this.handler = null;
-            this.subtopic = new String[0];
+            this.topic = new String[1];
             mPacketType = PACKETTYPE_NORMAL;
             mHyperperiod = -1;  // default to an invalid hyperperiod
             mSlotID = -1;       // default to an invalid slot
@@ -529,10 +517,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         if (this.size != payload.length)
             throw new IllegalArgumentException("payload size incorrect");
         this.topic = builder.topic;
-        this.subtopic = builder.subtopic;
         final StringBuilder channelKeyBuilder = new StringBuilder("[ammo-key");
-        channelKeyBuilder.append("][").append(builder.topic);
-        for (final String st : builder.subtopic) {
+        channelKeyBuilder.append("][").append(builder.topic[0]);
+        for (final String st : builder.topic) {
             channelKeyBuilder.append("][").append(st);
         }
         channelKeyBuilder.append("]");
@@ -966,8 +953,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         }
         /**
          * The four least significant bytes of a long make the checksum array.
-         * 
-         * @param cvalue
+         *
          * @return
          */
         public byte[] asByteArray() {

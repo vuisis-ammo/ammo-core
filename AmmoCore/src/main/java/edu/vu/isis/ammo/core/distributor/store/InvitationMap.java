@@ -79,8 +79,7 @@ public enum InvitationMap {
         private final static Logger logger = LoggerFactory
                 .getLogger("class.store.invitation.builder");
 
-        protected String topic = "default topic";
-        protected String[] subtopic = null;
+        protected String[] topic = new String[]{ "default topic" };
         protected List<String> invitee = null;
 
         protected Object expiration;
@@ -94,21 +93,16 @@ public enum InvitationMap {
         private Builder() {
         }
 
-        public Builder topic(String value) {
-            this.topic = value;
-            return this;
-        }
-
-        public Builder subtopic(final Topic[] value) {
-            this.subtopic = new String[value.length];
+        public Builder topic(final Topic[] value) {
+            this.topic = new String[value.length];
             for (int ix = 0; ix < value.length; ++ix) {
-                this.subtopic[ix] = value[ix].asString();
+                this.topic[ix] = value[ix].asString();
             }
             return this;
         }
 
-        public Builder subtopic(final String[] value) {
-            this.subtopic = value;
+        public Builder topic(final String[] value) {
+            this.topic = value;
             return this;
         }
 
@@ -198,7 +192,6 @@ public enum InvitationMap {
         public String toString() {
             return new StringBuilder().
                     append("topic=\"").append(this.topic).append("\",").
-                    append("subtopic=\"").append(this.subtopic).append("\"").
                     append("invitee=\"").append(this.invitee).append("\"").
                     toString();
         }
@@ -229,8 +222,7 @@ public enum InvitationMap {
             synchronized (relation) {
 
                 final Builder builder = newBuilder()
-                        .topic(this.topic)
-                        .subtopic(this.subtopic);
+                        .topic(this.topic);
                 try {
                     final Invitation.Key key = builder.buildKey();
 
@@ -256,8 +248,7 @@ public enum InvitationMap {
 
         /**
          * delete the tuple indicated
-         * 
-         * @param tupleId
+         *
          * @return
          */
         public int delete() {
@@ -269,7 +260,6 @@ public enum InvitationMap {
                 try {
                     final Invitation.Key key = newBuilder()
                             .topic(this.topic)
-                            .subtopic(this.subtopic)
                             .buildKey();
 
                     final Invitation invitation = relation.mapTopic.remove(key);
@@ -299,8 +289,7 @@ public enum InvitationMap {
         public static final class Key {
             public final long id;
             public final UUID uuid;
-            public final String topic;
-            public final String[] subtopic;
+            public final String[] topic;
             public final long created;
 
             final private int hashCode;
@@ -316,17 +305,12 @@ public enum InvitationMap {
                 this.id = InvitationMap._id_seq;
                 this.uuid = that.uuid;
                 this.topic = that.topic;
-                this.subtopic = that.subtopic;
 
                 int hc = 17;
                 /* don't include id in hash code */
                 hc *= 31;
                 if (this.topic != null) {
                     hc += this.topic.hashCode();
-                }
-                hc *= 31;
-                if (this.subtopic != null) {
-                    hc += this.subtopic.hashCode();
                 }
                 this.hashCode = hc;
             }
@@ -336,18 +320,17 @@ public enum InvitationMap {
                 if (!(o instanceof Key))
                     return false;
                 final Key that = (Key) o;
-                if (!TextUtils.equals(this.topic, that.topic))
-                    return false;
-                if (this.subtopic == null) {
-                    if (that.subtopic == null)
+
+                if (this.topic == null) {
+                    if (that.topic == null)
                         return true;
                     return false;
                 }
-                if (this.subtopic.length != that.subtopic.length) {
+                if (this.topic.length != that.topic.length) {
                     return false;
                 }
-                for (int ix = 0; ix < this.subtopic.length; ++ix) {
-                    if (!TextUtils.equals(this.subtopic[ix], that.subtopic[ix]))
+                for (int ix = 0; ix < this.topic.length; ++ix) {
+                    if (!TextUtils.equals(this.topic[ix], that.topic[ix]))
                         return false;
                 }
                 return true;
@@ -357,7 +340,6 @@ public enum InvitationMap {
             public String toString() {
                 return new StringBuilder().
                         append("topic=\"").append(this.topic).append("\",").
-                        append("subtopic=\"").append(this.subtopic).append("\"").
                         toString();
             }
 
@@ -461,12 +443,6 @@ public enum InvitationMap {
                 @Override
                 public Object getValue(final Invitation invitation) {
                     return invitation.key.topic;
-                }
-            });
-            getters.put(InviteSchema.SUBTOPIC, new Getter() {
-                @Override
-                public Object getValue(final Invitation invitation) {
-                    return invitation.key.subtopic;
                 }
             });
 
