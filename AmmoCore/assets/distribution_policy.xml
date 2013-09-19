@@ -107,6 +107,64 @@ available then local multicast delivery should be used.
         </routing>
     </topic>
 
+    <topic type="ammo/transapps.sync.sync_message" >
+
+        <description>
+Sync to:
+- usb
+- Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
+        </description>
+
+        <routing
+            category="postal"
+            lifespan="30"
+            priority="normal" >
+
+            <clause>
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+                
+            </clause>
+        </routing>
+   </topic>
+
+    <topic type="ammo/transapps.sync.sync_control_message" >
+
+        <description>
+Sync to:
+- usb
+- Gateway channel last
+Such that if the prior channel succeeds the next channel is not attempted.
+        </description>
+
+        <routing
+            category="postal"
+            lifespan="30"
+            priority="normal" >
+
+            <clause>
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="usb" />
+                
+                <literal
+                    condition="success"
+                    encoding="json"
+                    term="gateway" />
+                
+            </clause>
+        </routing>
+    </topic>
+
     <topic type="ammo/edu.vu.isis.ammo.dash" >
 
         <description>
