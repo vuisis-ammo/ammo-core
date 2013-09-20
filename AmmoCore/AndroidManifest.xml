@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- version code template --><manifest xmlns:android="http://schemas.android.com/apk/res/android" android:sharedUserId="edu.vu.isis.ammo" android:versionCode="1785000" android:versionName="1.7.8.5" package="edu.vu.isis.ammo.core">
+<!-- version code template --><manifest xmlns:android="http://schemas.android.com/apk/res/android" android:sharedUserId="edu.vu.isis.ammo" android:versionCode="1786000" android:versionName="1.7.8.6" package="edu.vu.isis.ammo.core">
 
     <permission android:description="@string/make_request_desc" android:label="@string/make_request_label" android:name="edu.vu.isis.ammo.permission.MAKE_REQUEST" android:protectionLevel="dangerous"/>
 
