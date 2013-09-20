@@ -23,6 +23,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
+import java.util.zip.CRC32;
+import java.util.zip.Checksum;
 
 
 import org.slf4j.Logger;
@@ -152,6 +154,19 @@ public class SerialFragmenter {
         String operatorId = mChannelManager.getOperatorId();
 
         // CRC this and put the bytes in mOperatorIdCrc.
+        byte bytes[] = operatorId.getBytes();
+        Checksum checksum = new CRC32();
+        checksum.update( bytes, 0, bytes.length );
+        long checksumValue = checksum.getValue();
+
+        mOperatorIdAsInt = (int) checksumValue;
+
+        mOperatorIdCrc[0] = (byte) checksumValue;
+        mOperatorIdCrc[1] = (byte) (checksumValue >>> 8);
+        mOperatorIdCrc[2] = (byte) (checksumValue >>> 16);
+        mOperatorIdCrc[3] = (byte) (checksumValue >>> 24);
+
+        logger.debug( "Created Fragmenter for operatorID={}", operatorId );
     }
 
 
@@ -389,58 +404,65 @@ public class SerialFragmenter {
         }
 
         if ( type == DATA ) {
-            // For normal packets, send them up to the distributor.
-            // Process the fragment packets here, though.
-            logger.debug( " delivering to channel manager" );
-            result = mChannelManager.deliver( agm );
-        } else {
-            if ( type == ACK ) {
-                // Ack packet
-                if ( !mSynced ) {
-                    logger.debug( "  ack packet received. Stopping the reset packet timer." );
-                    stopResetTimer();
+            // Data packets can be either reset packets or things
+            // destined for the distributor.  For normal packets, send
+            // them up to the distributor.  Process the fragment
+            // packets here, though.
 
-                    // We're connected and we have the token.  Start off the token
-                    // passing process by sending the token to the other side.
-                    sendToken();
-                } else {
-                    logger.debug( "  ack packet received.  Doing nothing for now." );
-                    // Received an ack packet.  That means that the token was received
-                    // on the other side.
-
-                    // FIXME: Disabled for sending an interim build to Brad.
-                    //processAck( count, payloadBuffer );
-                }
-
+            if ( resetPacket ) {
+                logger.debug( " received a reset packet" );
+                receivedResetPacket( payloadBuffer );
             } else {
-                logger.debug( "  token packet received." );
-                // For ack packets, check off the fragments that were received, if
-                // the packets being acked were fragment.
-
-                // When an ack packet is received (which gives us the token):
-                //   1. Disable the timer if it is set,
-                //   2. Move all the messages in mSmallQueue to
-                //   mSenderQueue. (This isn't public, so I may need to add a
-                //   method to add some way to let it be put directly in the
-                //   queue, rather that going through the normal mechanism.
-
-                // First send an empty ack packet.
-                logger.debug( "  adding ack packet to sender queue." );
-                mChannel.addMessageToSenderQueue( createEmptyAckPacket() );
-
-                // Now send all the packets in the small queue.
-                AmmoGatewayMessage message = mSmallQueue.poll();
-                while ( message != null ) {
-                    logger.debug( "  moving message from small queue to sender queue." );
-                    logger.debug( "mSmallQueue.size() = {}", mSmallQueue.size() );
-                    AmmoGatewayMessage wrappedAgm = wrapAgm( message );
-                    mChannel.addMessageToSenderQueue( wrappedAgm );
-                    message = mSmallQueue.poll();
-                }
-
-                // After that, add a token packet to the queue, too.
-                sendToken();
+                logger.debug( " delivering to channel manager" );
+                result = mChannelManager.deliver( agm );
             }
+        } else if ( type == ACK ) {
+            // Ack packet
+            if ( !mSynced ) {
+                logger.debug( "  ack packet received. Stopping the reset packet timer." );
+                stopResetTimer();
+
+                // We're connected and we have the token.  Start off the token
+                // passing process by sending the token to the other side.
+                sendToken();
+            } else {
+                logger.debug( "  ack packet received.  Doing nothing for now." );
+                // Received an ack packet.  That means that the token was received
+                // on the other side.
+
+                // FIXME: Disabled for sending an interim build to Brad.
+                //processAck( count, payloadBuffer );
+            }
+        } else if ( type == TOKEN ) {
+            logger.debug( "  token packet received." );
+            // For ack packets, check off the fragments that were received, if
+            // the packets being acked were fragment.
+
+            // When an ack packet is received (which gives us the token):
+            //   1. Disable the timer if it is set,
+            //   2. Move all the messages in mSmallQueue to
+            //   mSenderQueue. (This isn't public, so I may need to add a
+            //   method to add some way to let it be put directly in the
+            //   queue, rather that going through the normal mechanism.
+
+            // First send an empty ack packet.
+            logger.debug( "  adding ack packet to sender queue." );
+            mChannel.addMessageToSenderQueue( createEmptyAckPacket() );
+
+            // Now send all the packets in the small queue.
+            AmmoGatewayMessage message = mSmallQueue.poll();
+            while ( message != null ) {
+                logger.debug( "  moving message from small queue to sender queue." );
+                logger.debug( "mSmallQueue.size() = {}", mSmallQueue.size() );
+                AmmoGatewayMessage wrappedAgm = wrapAgm( message );
+                mChannel.addMessageToSenderQueue( wrappedAgm );
+                message = mSmallQueue.poll();
+            }
+
+            // After that, add a token packet to the queue, too.
+            sendToken();
+        } else {
+            logger.debug( "  Invalid packet type received. Discarding..." );
         }
 
         return result;
@@ -564,16 +586,36 @@ public class SerialFragmenter {
 
         byte[] payload = new byte[7];
 
-        payload[0] = (byte) 0x70;
-        payload[1] = (byte) 0x00;
+        payload[0] = (byte) 0x70;  // messageType
+        payload[1] = (byte) 0x00;  // 2-byte count of acks
         payload[2] = (byte) 0x00;
 
+        // Four-byte crc of operator id
         payload[3] = mOperatorIdCrc[3];
         payload[4] = mOperatorIdCrc[2];
         payload[5] = mOperatorIdCrc[1];
         payload[6] = mOperatorIdCrc[0];
 
         return createPacket( payload );
+    }
+
+
+    private void receivedResetPacket( ByteBuffer buf )
+    {
+        byte[] crcBuf = new byte[4];
+
+        crcBuf[3] = buf.get();
+        crcBuf[2] = buf.get();
+        crcBuf[1] = buf.get();
+        crcBuf[0] = buf.get();
+
+        // Now create an int so we can compare it.
+        int theirs = (crcBuf[3] <<  24)
+                   | (crcBuf[2] <<  16)
+                   | (crcBuf[1] <<   8)
+                   |  crcBuf[0];
+
+        logger.error( "Their id={}, My id={}", mOperatorIdAsInt, theirs );
     }
 
 
@@ -624,6 +666,9 @@ public class SerialFragmenter {
     // False when we initially start (and are sending reset packets to the gateway), but
     // True once we have received an ack to a reset packet.
     private boolean mSynced = false;
+
+    private static final byte[] mOperatorIdCrc = new byte[4];
+    private int mOperatorIdAsInt = 0;
 
     private final ScheduledExecutorService mScheduler =
         Executors.newScheduledThreadPool( 1 );
