@@ -10,17 +10,17 @@ purpose whatsoever, and to have or authorize others to do so.
 */
 package edu.vu.isis.ammo.core.model;
 
+import android.app.TabActivity;
 import android.content.SharedPreferences;
-import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 
 public class JournalNetlink extends Netlink {
 
-    private JournalNetlink(TabActivityEx context) {
+    private JournalNetlink(TabActivity context) {
         super(context, "Journal Netlink", "file");
     }
 
-    public static Netlink getInstance(TabActivityEx context) {
+    public static Netlink getInstance(TabActivity context) {
         // initialize the gateway from the shared preferences
         return new JournalNetlink(context);
     }

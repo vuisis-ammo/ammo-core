@@ -10,6 +10,7 @@ purpose whatsoever, and to have or authorize others to do so.
  */
 package edu.vu.isis.ammo.core.distributor.ui;
 
+import android.app.TabActivity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,14 +19,13 @@ import android.content.res.Resources;
 import android.os.Bundle;
 import android.widget.TabHost;
 import edu.vu.isis.ammo.core.R;
-import edu.vu.isis.ammo.core.ui.util.TabActivityEx;
 
 /**
  * View that presents buttons users may select to view different tables
  * in distributor.
  *
  */
-public class DistributorTabActivity extends TabActivityEx  {
+public class DistributorTabActivity extends TabActivity {
 	public static final Logger logger = LoggerFactory.getLogger("ui.dist.tab");
 
 	@Override

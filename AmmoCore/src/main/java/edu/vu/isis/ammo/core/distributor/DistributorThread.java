@@ -1468,7 +1468,7 @@ public class DistributorThread extends Thread {
                 } else {
                     final Integer mimeId = AmmoMimeTypes.mimeIds.get(topic);
                     if (mimeId == null) {
-                        logger.error("no integer mapping for this mime type {}", topic);
+                        logger.error("no integer mapping for this mime type {}", (Object)topic);
                         return null;
                     }
                     final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
@@ -1924,7 +1924,7 @@ public class DistributorThread extends Thread {
                 } else {
                     final Integer mimeId = AmmoMimeTypes.mimeIds.get(topic);
                     if (mimeId == null) {
-                        logger.error("no integer mapping for this mime type {}", topic);
+                        logger.error("no integer mapping for this mime type {}", (Object)topic);
                         return null;
                     }
                     final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
@@ -2212,7 +2212,7 @@ public class DistributorThread extends Thread {
             final String selection, final Integer limit, final Dispersal dispersal,
             final INetworkService.OnSendMessageHandler handler)
     {
-        logger.trace("dispatch request RETRIEVAL {}", topic);
+        logger.trace("dispatch request RETRIEVAL {}", (Object)topic);
 
         /** Message Building */
 
@@ -2332,7 +2332,7 @@ public class DistributorThread extends Thread {
      * @param st
      */
     private void doSubscribeRequest(final NetworkManager that, final AmmoRequest ar, int st) {
-        logger.trace("process request SUBSCRIBE {} ", ar.topic);
+        logger.trace("process request SUBSCRIBE {} ", (Object)ar.topic);
 
         // Dispatch the message.
         try {
@@ -2533,7 +2533,7 @@ public class DistributorThread extends Thread {
             final String[] topic, final String selection, final Dispersal dispersal,
             final INetworkService.OnSendMessageHandler handler)
     {
-        logger.trace("::dispatchSubscribeRequest {}", topic);
+        logger.trace("::dispatchSubscribeRequest {}", (Object)topic);
 
         /** Message Building */
 
