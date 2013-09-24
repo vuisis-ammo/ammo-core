@@ -260,30 +260,35 @@ public class SerialFragmenter {
             mCurrentLarge = mLargeQueue.poll();
 
             // Figure out how many bits we need in the BitSet.
-            mNumberOfFragments = mCurrentLarge.payload.length % MAX_PACKET_SIZE;
-            if ( mCurrentLarge.payload.length - (mNumberOfFragments * MAX_PACKET_SIZE) > 0 ) {
+            mNumberOfFragments = mCurrentLarge.payload.length / MAX_PACKET_SIZE;
+            if ( mCurrentLarge.payload.length % MAX_PACKET_SIZE > 0 ) {
                 ++mNumberOfFragments;
             }
 
+            // Create a BitSet and default to true, so we can test for all
+            // falses to tell if we're done.
             mAckedPackets = new BitSet( mNumberOfFragments );
+            for ( int i = 0; i < mNumberOfFragments; ++i ) {
+                mAckedPackets.set( i );
+            }
         }
     }
 
 
     /**
-     * FIXME: Not used; sending an interim build to Brad.
+     *
      */
     private synchronized void sendFragments()
     {
         for ( int i = 0; i < FRAGMENTS_PER_TOKEN; ++i ) {
-            // Find lowest bit in BitSet that is false
-            int index = mAckedPackets.nextClearBit( 0 );
+            // Find lowest bit in BitSet that is true
+            int index = mAckedPackets.nextSetBit( 0 ); // FIXME: zero is wrong. Keep last found
             
             // The last fragment's length may be a fraction of MAX_PACKET_SIZE.
             // Figure out what it should be.
             int lengthOfFragment = MAX_PACKET_SIZE;
-            if ( index == mAckedPackets.size() ) {
-                lengthOfFragment = mCurrentLarge.payload.length - (mNumberOfFragments * MAX_PACKET_SIZE);
+            if ( index == mNumberOfFragments ) {
+                lengthOfFragment = mCurrentLarge.payload.length % MAX_PACKET_SIZE;
             }
 
             // Create the AGM for the fragment
@@ -302,7 +307,7 @@ public class SerialFragmenter {
             buf.putShort( (short) index );
 
             // Total number of packets in multi-packet sequence (2 bytes)
-            buf.putShort( (short) mAckedPackets.size() );
+            buf.putShort( (short) mNumberOfFragments );
 
             // Now put old_payload in
             buf.put( mCurrentLarge.payload, index * MAX_PACKET_SIZE, lengthOfFragment );
@@ -336,28 +341,18 @@ public class SerialFragmenter {
                 index += Short.MAX_VALUE;
             }
 
-            mAckedPackets.set( index );
+            mAckedPackets.clear( index );
         }
 
         // Test the BitSet to see if all are true. If so, start
         // sending the next packet if there is one in the queue.
-        if ( mAckedPackets.cardinality() == mAckedPackets.size() ) {
-            // FIXME: remove teh packet from the queue and tell the distributor.
+        if ( mAckedPackets.cardinality() == 0 ) {
+            // FIXME: remove the packet from the queue and tell the distributor.
             // Reset the relevent member variables.
 
-
-            // FIXME: disabling for sending an interim build for Brad
-            // startSendingLargePacket();
+            startSendingLargePacket();
         }
     }
-
-
-
-
-
-
-
-
 
 
     /**
@@ -437,7 +432,7 @@ public class SerialFragmenter {
                 // on the other side.
 
                 // FIXME: Disabled for sending an interim build to Brad.
-                //processAck( count, payloadBuffer );
+                processAck( count, payloadBuffer );
             }
         } else if ( type == TOKEN ) {
             logger.debug( "  token packet received." );
@@ -464,6 +459,8 @@ public class SerialFragmenter {
                 mChannel.addMessageToSenderQueue( wrappedAgm );
                 message = mSmallQueue.poll();
             }
+
+            sendFragments();
 
             // After that, add a token packet to the queue, too.
             sendToken();
