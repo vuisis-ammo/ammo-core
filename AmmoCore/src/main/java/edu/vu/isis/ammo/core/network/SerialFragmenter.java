@@ -280,10 +280,10 @@ public class SerialFragmenter {
      */
     private synchronized void sendFragments()
     {
-        for ( int i = 0; i < FRAGMENTS_PER_TOKEN; ++i ) {
-            // Find lowest bit in BitSet that is true
-            int index = mAckedPackets.nextSetBit( 0 ); // FIXME: zero is wrong. Keep last found
-            
+        // Find lowest bit in BitSet that is true, starting from zero.
+        int index = mAckedPackets.nextSetBit( 0 );
+
+        for ( int i = 0; i < FRAGMENTS_PER_TOKEN && index != -1; ++i ) {
             // The last fragment's length may be a fraction of MAX_PACKET_SIZE.
             // Figure out what it should be.
             int lengthOfFragment = MAX_PACKET_SIZE;
@@ -323,6 +323,8 @@ public class SerialFragmenter {
                 .checksum( payload_checksum );
 
             mChannel.addMessageToSenderQueue( agmb.build() );
+
+            index = mAckedPackets.nextSetBit( index + 1 );
         }
     }
 
@@ -332,8 +334,8 @@ public class SerialFragmenter {
      */
     private synchronized void processAck( int count, ByteBuffer buf )
     {
+        // Unset the bits with the numbers in the ack.
         for ( int i = 0; i < count; ++i ) {
-            // Unset the bits with the numbers in the ack.
             short sequenceNumber = buf.getShort();
 
             short index = (short) (sequenceNumber - mCurrentLargeBaseSequence);
@@ -347,8 +349,8 @@ public class SerialFragmenter {
         // Test the BitSet to see if all are true. If so, start
         // sending the next packet if there is one in the queue.
         if ( mAckedPackets.cardinality() == 0 ) {
-            // FIXME: remove the packet from the queue and tell the distributor.
-            // Reset the relevent member variables.
+            // FIXME: Tell the distributor that mCurrentLarge was sent.
+            //        Reset the relevent member variables.
 
             startSendingLargePacket();
         }
@@ -427,11 +429,9 @@ public class SerialFragmenter {
                 // passing process by sending the token to the other side.
                 sendToken();
             } else {
-                logger.debug( "  ack packet received.  Doing nothing for now." );
+                logger.debug( "  ack packet received." );
                 // Received an ack packet.  That means that the token was received
                 // on the other side.
-
-                // FIXME: Disabled for sending an interim build to Brad.
                 processAck( count, payloadBuffer );
             }
         } else if ( type == TOKEN ) {
