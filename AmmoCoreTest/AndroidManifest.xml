@@ -40,11 +40,11 @@
     <instrumentation android:name="android.test.InstrumentationTestRunner"
                      android:targetPackage="edu.vu.isis.ammo.core"
                      android:label="Tests for edu.vu.isis.ammo.core"/>
-    <!--
+    
     <instrumentation
         android:name="pl.polidea.instrumentation.PolideaInstrumentationTestRunner"
         android:label="Tests for edu.vu.isis.ammo.core"
         android:targetPackage="edu.vu.isis.ammo.core" />
-    -->
+    
 
 </manifest>
