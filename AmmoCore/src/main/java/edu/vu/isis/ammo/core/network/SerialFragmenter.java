@@ -151,22 +151,29 @@ public class SerialFragmenter {
         mChannel = channel;
         mChannelManager = channelManager;
 
-        String operatorId = mChannelManager.getOperatorId();
+        // String operatorId = mChannelManager.getOperatorId();
 
-        // CRC this and put the bytes in mOperatorIdCrc.
-        byte bytes[] = operatorId.getBytes();
-        Checksum checksum = new CRC32();
-        checksum.update( bytes, 0, bytes.length );
-        long checksumValue = checksum.getValue();
+        // // CRC this and put the bytes in mOperatorIdCrc.
+        // byte bytes[] = operatorId.getBytes();
+        // Checksum checksum = new CRC32();
+        // checksum.update( bytes, 0, bytes.length );
+        // long checksumValue = checksum.getValue();
 
-        mOperatorIdAsInt = (int) checksumValue;
+        // mOperatorIdAsInt = (int) checksumValue;
 
-        mOperatorIdCrc[0] = (byte) checksumValue;
-        mOperatorIdCrc[1] = (byte) (checksumValue >>> 8);
-        mOperatorIdCrc[2] = (byte) (checksumValue >>> 16);
-        mOperatorIdCrc[3] = (byte) (checksumValue >>> 24);
+        // mOperatorIdCrc[0] = (byte) checksumValue;
+        // mOperatorIdCrc[1] = (byte) (checksumValue >>> 8);
+        // mOperatorIdCrc[2] = (byte) (checksumValue >>> 16);
+        // mOperatorIdCrc[3] = (byte) (checksumValue >>> 24);
 
-        logger.debug( "Created Fragmenter for operatorID={}", operatorId );
+        //logger.debug( "Created Fragmenter for operatorID={}", operatorId );
+    }
+
+
+    public void destroy()
+    {
+        stopResetTimer();
+        stopTokenTimer();
     }
 
 
@@ -213,8 +220,7 @@ public class SerialFragmenter {
     {
         logger.debug( "putFromDistributor()" );
 
-        // FIXME: Disabling for sending an interim build to Brad.
-        if ( false /* agm.payload.length > MAX_PACKET_SIZE */ ) {
+        if ( agm.payload.length > MAX_PACKET_SIZE ) {
             // It's a large packet and needs to be fragmented.
             // Put it in the queue for large packets.
 
@@ -411,7 +417,7 @@ public class SerialFragmenter {
 
             if ( resetPacket ) {
                 logger.debug( " received a reset packet" );
-                receivedResetPacket( payloadBuffer );
+                //receivedResetPacket( payloadBuffer );
             } else {
                 logger.debug( " delivering to channel manager" );
                 result = mChannelManager.deliver( agm );
@@ -584,39 +590,40 @@ public class SerialFragmenter {
         // However, to do handheld to handheld, we have to add a 32-bit
         // number to the end, which will be the CRC32 of the operator_id.
 
-        byte[] payload = new byte[7];
+        //byte[] payload = new byte[7];
+        byte[] payload = new byte[3];
 
         payload[0] = (byte) 0x70;  // messageType
         payload[1] = (byte) 0x00;  // 2-byte count of acks
         payload[2] = (byte) 0x00;
 
         // Four-byte crc of operator id
-        payload[3] = mOperatorIdCrc[3];
-        payload[4] = mOperatorIdCrc[2];
-        payload[5] = mOperatorIdCrc[1];
-        payload[6] = mOperatorIdCrc[0];
+        // payload[3] = mOperatorIdCrc[3];
+        // payload[4] = mOperatorIdCrc[2];
+        // payload[5] = mOperatorIdCrc[1];
+        // payload[6] = mOperatorIdCrc[0];
 
         return createPacket( payload );
     }
 
 
-    private void receivedResetPacket( ByteBuffer buf )
-    {
-        byte[] crcBuf = new byte[4];
+    // private void receivedResetPacket( ByteBuffer buf )
+    // {
+    //     byte[] crcBuf = new byte[4];
 
-        crcBuf[3] = buf.get();
-        crcBuf[2] = buf.get();
-        crcBuf[1] = buf.get();
-        crcBuf[0] = buf.get();
+    //     crcBuf[3] = buf.get();
+    //     crcBuf[2] = buf.get();
+    //     crcBuf[1] = buf.get();
+    //     crcBuf[0] = buf.get();
 
-        // Now create an int so we can compare it.
-        int theirs = (crcBuf[3] <<  24)
-                   | (crcBuf[2] <<  16)
-                   | (crcBuf[1] <<   8)
-                   |  crcBuf[0];
+    //     // Now create an int so we can compare it.
+    //     int theirs = (crcBuf[3] <<  24)
+    //                | (crcBuf[2] <<  16)
+    //                | (crcBuf[1] <<   8)
+    //                |  crcBuf[0];
 
-        logger.error( "Their id={}, My id={}", mOperatorIdAsInt, theirs );
-    }
+    //     logger.error( "Their id={}, My id={}", mOperatorIdAsInt, theirs );
+    // }
 
 
     private AmmoGatewayMessage createEmptyAckPacket()
@@ -667,8 +674,8 @@ public class SerialFragmenter {
     // True once we have received an ack to a reset packet.
     private boolean mSynced = false;
 
-    private static final byte[] mOperatorIdCrc = new byte[4];
-    private int mOperatorIdAsInt = 0;
+    //private static final byte[] mOperatorIdCrc = new byte[4];
+    //private int mOperatorIdAsInt = 0;
 
     private final ScheduledExecutorService mScheduler =
         Executors.newScheduledThreadPool( 1 );

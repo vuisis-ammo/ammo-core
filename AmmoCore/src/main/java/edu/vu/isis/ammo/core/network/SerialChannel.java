@@ -730,6 +730,7 @@ public class SerialChannel extends NetChannel
 
             setSecurityObject( null );
             setRetransmitter( null );
+            mFragmenter.get().destroy();
             setFragmenter( null );
 
             // We've interrupted the threads, so wait for them to finish here
