@@ -44,6 +44,7 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.InetHelper;
 import edu.vu.isis.ammo.util.TTLUtil;
 
@@ -438,7 +439,7 @@ public class MulticastChannel extends NetChannel
 
         mw.setHeartbeat(message);
 
-        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
+        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw.build().toByteArray(), null);
         agmb.isGateway(true);
         sendRequest(agmb.build());
 
@@ -1127,23 +1128,26 @@ public class MulticastChannel extends NetChannel
                     break;
                 }
 
+                ByteBufferAdapter buf = null;
                 try
                 {
-                    ByteBuffer buf = msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,
-                            (byte) 0);
+                    buf = msg.serialize(endian, AmmoGatewayMessage.VERSION_1_FULL,(byte) 0);
                     setSenderState(INetChannel.SENDING);
+                    byte[] data = new byte[buf.remaining()];
+                    buf.get(data);                    
 
                     DatagramPacket packet =
-                            new DatagramPacket(buf.array(),
-                                    buf.remaining(),
+                            new DatagramPacket(data,
+                                    data.length,
                                     mChannel.mMulticastGroup,
                                     mChannel.mMulticastPort);
-                    logger.debug("Sending datagram packet. length={}", packet.getLength());
-
-                    logger.debug("...{}", buf.array());
-                    logger.debug("...{}", buf.remaining());
-                    logger.debug("...{}", mChannel.mMulticastGroup);
-                    logger.debug("...{}", mChannel.mMulticastPort);
+                    
+                    if( logger.isDebugEnabled() ) {
+                    	logger.debug("Sending datagram packet. length={}", packet.getLength());
+                    	logger.debug("...{}", data.length);
+                    	logger.debug("...{}", mChannel.mMulticastGroup);
+                    	logger.debug("...{}", mChannel.mMulticastPort);
+                    }
 
                     mSocket.setTimeToLive(mChannel.mMulticastTTL.get());
 
@@ -1175,6 +1179,11 @@ public class MulticastChannel extends NetChannel
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
+                }
+                finally
+                {
+                	if( buf != null ) buf.release();
+                	msg.releasePayload();
                 }
             }
             logger.info("Thread <{}>::run() exiting", Thread.currentThread().getId());

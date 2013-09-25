@@ -48,8 +48,6 @@ import org.jgroups.MembershipListener;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
-import edu.vu.isis.ammo.util.UDPSendException;
-import edu.vu.isis.ammo.util.AmmoConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +55,10 @@ import android.content.Context;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.AmmoConfigurator;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.InetHelper;
+import edu.vu.isis.ammo.util.UDPSendException;
 
 public class ReliableMulticastChannel extends NetChannel {
     private static final Logger sClasslogger = LoggerFactory.getLogger("net.rmcast");
@@ -530,7 +531,7 @@ public class ReliableMulticastChannel extends NetChannel {
         mw.setHeartbeat(message);
 
         final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
-                mw, null);
+                mw.build().toByteArray(), null);
         agmb.isGateway(true);
         sendRequest(agmb.build());
 
@@ -930,8 +931,10 @@ public class ReliableMulticastChannel extends NetChannel {
                 logger.warn("connection to {}:{} failed: ", new Object[] {
                         parent.mMulticastGroup, parent.mMulticastPort
                 }, ex);
-                parent.mJGroupChannel.disconnect();
-                parent.mJGroupChannel.close();
+                if( parent.mJGroupChannel != null ) {
+                	parent.mJGroupChannel.disconnect();
+                	parent.mJGroupChannel.close();
+                }
                 parent.mJGroupChannel = null;
                 return false;
             }
@@ -1221,33 +1224,49 @@ public class ReliableMulticastChannel extends NetChannel {
                   continue;
                 }
                 
+
+                ByteBufferAdapter buf = null;
                 try {
-                    ByteBuffer buf = msg.serialize(endian,
+                    buf = msg.serialize(endian,
                             AmmoGatewayMessage.VERSION_1_FULL, (byte) 0);
                     setSenderState(INetChannel.SENDING);
+                    int size = buf.remaining();
+                    
+                    if( logger.isDebugEnabled() ) {
+                        if (buf.array().length <= TRACE_CUTOFF_SIZE) {
+        			       logger.debug("...{}", buf.array());
+        		        } else {
+        			       logger.debug("...buffer: {} bytes", buf.array().length);
+        		        }
+                    	logger.debug("...{}", size);
+                    	logger.debug("...{}", mChannel.mMulticastGroup);
+                    	logger.debug("...{}", mChannel.mMulticastPort);
+                    }
 
+                    /*
                     DatagramPacket packet = new DatagramPacket(buf.array(),
                             buf.remaining(), mChannel.mMulticastGroup,
                             mChannel.mMulticastPort);
                     logger.debug("Sending datagram packet. length={}",
                             packet.getLength());
+                    */
         
-        		    if (buf.array().length <= TRACE_CUTOFF_SIZE) {
-        			logger.debug("...{}", buf.array());
-        		    } else {
-        			logger.debug("...buffer: {} bytes", buf.array().length);
-        		    }
-                    logger.debug("...{}", buf.remaining());
-                    logger.debug("...{}", mChannel.mMulticastGroup);
-                    logger.debug("...{}", mChannel.mMulticastPort);
-
-                    mJChannel.send(null, buf.array());
+                    // this isn't very efficient but I don't feel like 
+                    // picking through jgroups right now.
+                    // TODO: make jgroups use ByteBuffers
+                    {
+                       byte[] tmp = new byte[buf.remaining()];
+                       buf.get(tmp);
+                       mJChannel.send(null, tmp);
+                    }
 
                     mMessagesSent.incrementAndGet();
+                    /*
                     mBytesSent += packet.getLength();
+                    */
+                    mBytesSent += size;
 
-                    logger.info("Send packet to Network, size ({})",
-                            packet.getLength());
+                    logger.info("Send packet to Network, size ({})", mBytesSent);
 
                     // legitimately sent to gateway.
                     if (msg.handler != null)
@@ -1275,6 +1294,9 @@ public class ReliableMulticastChannel extends NetChannel {
                     setSenderState(INetChannel.INTERRUPTED);
                     mParent.socketOperationFailed();
                     break;
+                } finally {
+                	if( buf != null ) buf.release();
+                	if( msg != null ) msg.releasePayload();
                 }
             }
             logger.info("Thread <{}>::end()", Thread.currentThread().getId());

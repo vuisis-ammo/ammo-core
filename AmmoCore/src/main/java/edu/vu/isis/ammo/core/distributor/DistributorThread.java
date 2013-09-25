@@ -44,9 +44,9 @@ import android.net.Uri;
 import android.os.Debug;
 import android.os.Process;
 import android.preference.PreferenceManager;
+import android.util.Log;
 
 import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.api.AmmoRequest;
@@ -81,6 +81,7 @@ import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement;
 import edu.vu.isis.ammo.core.pb.AmmoMessages.PushAcknowledgement.PushStatus;
 import edu.vu.isis.ammo.core.provider.Relations;
 import edu.vu.isis.ammo.core.ui.AmmoCore;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 import edu.vu.isis.ammo.util.FullTopic;
 
 /**
@@ -92,7 +93,7 @@ public class DistributorThread extends Thread {
     // ===========================================================
     // Constants
     // ===========================================================
-    public static final Logger logger = LoggerFactory.getLogger("dist.thread");
+    private static final Logger logger = LoggerFactory.getLogger("dist.thread");
     private static final Logger resLogger = LoggerFactory.getLogger("test.queue.response");
     private static final Logger reqLogger = LoggerFactory.getLogger("test.queue.request");
     private static final boolean RUN_TRACE = false;
@@ -603,6 +604,7 @@ public class DistributorThread extends Thread {
                 // condition wait, is there something to process?
                 synchronized (this) {
                     while (!this.isReady()) {
+                        logger.info("No data to process");
                         this.wait(BURP_TIME);
 
                         final long currentTime = System.currentTimeMillis();
@@ -622,7 +624,7 @@ public class DistributorThread extends Thread {
                     }
 
                     if (!this.channelAck.isEmpty()) {
-                        logger.trace("processing channel acks, remaining {}",
+                        logger.info("processing channel acks, remaining {}",
                                 this.channelAck.size());
                         try {
                             final ChannelAck ack = this.channelAck.take();
@@ -830,26 +832,30 @@ public class DistributorThread extends Thread {
             if (agm.isSerialChannel)
                 networkManager.receivedCorruptPacketOnSerialChannel();
 
+            agm.releasePayload();
             return false;
         }
 
         total_recv.incrementAndGet();
-
+        
         final AmmoMessages.MessageWrapper mw;
         try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
-        } catch (InvalidProtocolBufferException ex) {
+            mw = AmmoMessageSerializer.deserialize(agm.payload);
+        } catch (Exception ex) {
             logger.error("parsing gateway message", ex);
+            agm.releasePayload();
             return false;
         }
         if (mw == null) {
             logger.error("mw was null!");
+            agm.releasePayload();
             return false; // TBD SKN: this was true, why? if we can't parse it
             // then its bad
         }
         final MessageType mtype = mw.getType();
         if (mtype == MessageType.HEARTBEAT) {
             logger.trace("heartbeat");
+            agm.releasePayload();
             return true;
         }
 
@@ -857,7 +863,7 @@ public class DistributorThread extends Thread {
             case DATA_MESSAGE:
             case TERSE_MESSAGE:
                 final boolean subscribeResult = receiveSubscribeResponse(context, mw, agm.channel,
-                        agm.priority);
+                        agm.priority, agm.payload);
                 logger.debug("subscribe reply {}", subscribeResult);
                 if (mw.hasDataMessage()) {
                     final AmmoMessages.DataMessage dm = mw.getDataMessage();
@@ -868,22 +874,34 @@ public class DistributorThread extends Thread {
                                 .upsert();
                     }
                 }
+                if( subscribeResult ) {
+                	agm.payload = null;
+                } else {
+                	agm.releasePayload();
+                }
                 break;
 
             case AUTHENTICATION_RESULT:
                 final boolean result = receiveAuthenticateResponse(context, mw);
                 logger.debug("authentication result={}", result);
+                agm.releasePayload();
                 break;
 
             case PUSH_ACKNOWLEDGEMENT:
                 final boolean postalResult = receivePostalResponse(context, mw, agm.channel);
                 logger.debug("post acknowledgement {}", postalResult);
+                agm.releasePayload();
                 break;
 
             case PULL_RESPONSE:
                 final boolean retrieveResult = receiveRetrievalResponse(context, mw, agm.channel,
-                        agm.priority);
+                        agm.priority, agm.payload);
                 logger.debug("retrieve response {}", retrieveResult);
+                if( retrieveResult ) {
+                	agm.payload = null;
+                } else {
+                	agm.releasePayload();
+                }
                 break;
 
             case SUBSCRIBE_MESSAGE:
@@ -908,15 +926,18 @@ public class DistributorThread extends Thread {
                                 .upsert();
                     }
                 }
+                agm.releasePayload();
                 break;
 
             case AUTHENTICATION_MESSAGE:
             case PULL_REQUEST:
             case UNSUBSCRIBE_MESSAGE:
                 logger.debug("{} message, no processing", mw.getType());
+                agm.releasePayload();
                 break;
             default:
                 logger.error("unexpected reply type. {}", mw.getType());
+                agm.releasePayload();
         }
 
         return true;
@@ -1017,10 +1038,10 @@ public class DistributorThread extends Thread {
                 final DistributorThread parent = DistributorThread.this;
 
                 @Override
-                public byte[] run(Encoding encode) {
+                public ByteBufferAdapter run(Encoding encode) {
                     // TODO FPE handle payload with data types
                     if (serializer_.payload.whatContent() != Payload.Type.NONE) {
-                        final byte[] result =
+                        final ByteBufferAdapter result =
                                 RequestSerializer.serializeFromContentValues(
                                         serializer_.payload.getCV(),
                                         encode);
@@ -1034,7 +1055,7 @@ public class DistributorThread extends Thread {
                         // return serializer_.payload.asBytes();
                     } else {
                         try {
-                            final byte[] result = RequestSerializer.serializeFromProvider(
+                            final ByteBufferAdapter result = RequestSerializer.serializeFromProvider(
                                     that_.getContext().getContentResolver(), serializer_.provider.asUri(),
                                     encode);
 
@@ -1068,7 +1089,7 @@ public class DistributorThread extends Thread {
             values.put(PostalTableSchema.DISPOSITION.cv(), DisposalTotalState.DISTRIBUTE.cv());
             // We synchronize on the store to avoid a race between dispatch and
             // queuing
-            synchronized (this.store) {
+            synchronized (this.store) {            	
                 final long id = this.store.upsertPostal(values, policy.makeRouteMap(channel));
 
                 final Dispersal dispatchResult = this.dispatchPostalRequest(that, ar.notice,
@@ -1205,11 +1226,10 @@ public class DistributorThread extends Thread {
                 final String data_ = data;
 
                 @Override
-                public byte[] run(Encoding encode) {
+                public ByteBufferAdapter run(Encoding encode) {
                     switch (serialType_) {
                         case DIRECT:
-                            return (data_.length() > 0) ? data_.getBytes() : null;
-
+                            return (data.length() > 0) ? ByteBufferAdapter.obtain(data.getBytes()) : null;
                         case INDIRECT:
                         case DEFERRED:
                         default:
@@ -1331,7 +1351,7 @@ public class DistributorThread extends Thread {
 
         serializer.setAction(new RequestSerializer.OnReady() {
             @Override
-            public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+            public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter serialized) {
 
                 if (serialized == null) {
                     logger.error("No Payload");
@@ -1340,6 +1360,7 @@ public class DistributorThread extends Thread {
 
                 final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                         .newBuilder();
+                AmmoGatewayMessage.Builder agmb = null; 
                 if (encode.getType() != Encoding.Type.TERSE) {
                     final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
                             .newBuilder()
@@ -1347,8 +1368,7 @@ public class DistributorThread extends Thread {
                             .setMimeType(msgType)
                             .setEncoding(encode.getType().name())
                             .setUserId(networkManager.getOperatorId())
-                            .setOriginDevice(networkManager.getDeviceId())
-                            .setData(ByteString.copyFrom(serialized));
+                            .setOriginDevice(networkManager.getDeviceId());
 
                     if (notice != null) {
                         final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds
@@ -1363,7 +1383,12 @@ public class DistributorThread extends Thread {
 
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
                     mw.setDataMessage(pushReq);
-
+                    try {
+                    	agmb = AmmoGatewayMessage.newBuilder(
+                    			AmmoMessageSerializer.serialize(mw, serialized), handler);
+                    } catch ( Exception e ) {
+                    	throw new RuntimeException(e.getMessage(), e);
+                    }
                 } else {
                     final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
                     if (mimeId == null) {
@@ -1373,14 +1398,14 @@ public class DistributorThread extends Thread {
                     final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
                             .newBuilder()
                             .setMimeType(mimeId)
-                            .setData(ByteString.copyFrom(serialized));
+                            .setData(ByteString.copyFrom(serialized.array()));
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
                     mw.setTerseMessage(pushReq);
+                    agmb = AmmoGatewayMessage.newBuilder(mw.build().toByteArray(), handler);
                 }
 
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
-                        System.currentTimeMillis() - now, serialized.length);
-                final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                        System.currentTimeMillis() - now, serialized.limit());
                 agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
 			      notice.atGatewayDelivered.getVia().isActive() ||
 			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
@@ -1737,13 +1762,13 @@ public class DistributorThread extends Thread {
                 private AmmoMessages.PullRequest.Builder retrieveReq_ = retrieveReq;
 
                 @Override
-                public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+                public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter adapter) {
                     final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                             .newBuilder();
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
                     mw.setPullRequest(retrieveReq_);
-                    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw,
-                            handler);
+                    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+                    		mw.build().toByteArray(), handler);
                     return agmb.build();
                 }
             });
@@ -1762,7 +1787,7 @@ public class DistributorThread extends Thread {
      * @return
      */
     private boolean receiveRetrievalResponse(Context context, AmmoMessages.MessageWrapper mw,
-            NetChannel channel, int priority) {
+            NetChannel channel, int priority, ByteBufferAdapter payload) {
         if (mw == null)
             return false;
         if (!mw.hasPullResponse())
@@ -1791,10 +1816,9 @@ public class DistributorThread extends Thread {
         final Uri provider = Uri.parse(uriString);
 
         // update the actual provider
-
         final Encoding encoding = Encoding.getInstanceByName(resp.getEncoding());
         final boolean queued = this.deserialThread.toProvider(priority, context, channel.name,
-                provider, encoding, resp.getData().toByteArray());
+                provider, encoding, AmmoMessageSerializer.getDataBuffer(payload, resp.getData()));
         logger.debug("tuple upserted {}", queued);
 
         return true;
@@ -2024,12 +2048,13 @@ public class DistributorThread extends Thread {
             final AmmoMessages.SubscribeMessage.Builder subscribeReq_ = subscribeReq;
 
             @Override
-            public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+            public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter serialized) {
                 final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                         .newBuilder();
                 mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
                 mw.setSubscribeMessage(subscribeReq_);
-                final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+                		mw.build().toByteArray(), handler);
                 return agmb.build();
             }
         });
@@ -2044,7 +2069,7 @@ public class DistributorThread extends Thread {
      * the subscription table.
      */
     private boolean receiveSubscribeResponse(Context context, AmmoMessages.MessageWrapper mw,
-            NetChannel channel, int priority) {
+            NetChannel channel, int priority, ByteBufferAdapter payload) {
         if (mw == null) {
             logger.warn("no message");
             return false;
@@ -2134,7 +2159,8 @@ public class DistributorThread extends Thread {
                     .setType(AmmoMessages.MessageWrapper.MessageType.PUSH_ACKNOWLEDGEMENT)
                     .setPushAcknowledgement(pushAck);
 
-            final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(mwb,
+            final AmmoGatewayMessage.Builder oagmb = AmmoGatewayMessage.newBuilder(
+            		mwb.build().toByteArray(),
                     new INetworkService.OnSendMessageHandler() {
                         // final AmmoMessages.PushAcknowledgement.Builder ack_ =
                         // pushAck;
@@ -2150,11 +2176,11 @@ public class DistributorThread extends Thread {
             }
         }
 
-        final Encoding encoding = Encoding.getInstanceByName(encode);
+        final Encoding encoding = Encoding.getInstanceByName(encode);        
         this.deserialThread.toProvider(priority, context, channel.name, provider, encoding,
-                data.toByteArray());
-
-        logger.info("Ammo received message on topic: {} for provider: {}", mime, uriString);
+        		AmmoMessageSerializer.getDataBuffer(payload, data));
+        
+        logger.debug("Ammo received message on topic: {} for provider: {}", mime, uriString);
 
         return true;
     }
@@ -2169,5 +2195,5 @@ public class DistributorThread extends Thread {
     }
 
     // =============== UTILITY METHODS ======================== //
-
+    
 }

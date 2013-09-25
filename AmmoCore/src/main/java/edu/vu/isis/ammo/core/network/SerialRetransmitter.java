@@ -20,6 +20,10 @@ import java.util.zip.CRC32;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
+import edu.vu.isis.ammo.util.CheckSum;
+import edu.vu.isis.ammo.util.NioByteBufferAdapter;
+
 
 
 /**
@@ -227,7 +231,7 @@ public class SerialRetransmitter
 
             // Prevent sign extension and mask out 7 bit since it's not really
             // an ack for a packet.
-            int theirAckBitsForMe = agm.payload[ mySlotNumber ] & 0x0000007F;
+            int theirAckBitsForMe = agm.payload.get( mySlotNumber ) & 0x0000007F;
             if ( theirAckBitsForMe != 0 ) {
                 // because I am getting an ack for my messages remote is receiving
                 // directly from me
@@ -320,13 +324,13 @@ public class SerialRetransmitter
             try {
                 // TODO: check if we have not already received a packet with this uid
                 // otherwise do this work...
-                ByteBuffer b = ByteBuffer.wrap( agm.payload );
+                ByteBufferAdapter b = agm.payload;
                 b.order( ByteOrder.LITTLE_ENDIAN );
                 int firstFourBytes = b.getInt();
                 logger.trace( "resend UID as int: {}", firstFourBytes );
 
-                int b1 = agm.payload[3] & 0x000000FF;
-                int b2 = agm.payload[2] & 0x000000FF;
+                int b1 = agm.payload.get(3) & 0x000000FF;
+                int b2 = agm.payload.get(2) & 0x000000FF;
                 int originalHP = ( (b1 << 8) | b2 ) & 0x0000FFFF;
 
                 logger.trace( "resend packet originalHP={}, currentHP={}", originalHP, hyperperiod );
@@ -334,8 +338,8 @@ public class SerialRetransmitter
 
                 // If within our dup window
                 if ( hpDelta < mSlotRecords.getMaxSlotHistory() ) {
-                    final byte originalSlot = agm.payload[1];
-                    final byte originalIdx = agm.payload[0];
+                    final byte originalSlot = agm.payload.get(1);
+                    final byte originalIdx = agm.payload.get(0);
 
                     logger.trace( "resend packet originalSlot={}, originalIdx={}", originalSlot, originalIdx );
 
@@ -367,21 +371,21 @@ public class SerialRetransmitter
                         byte[] newPayload = new byte[ newSize ];
 
 
-                        logger.trace( "agm.payload.length={}", agm.payload.length );
+                        logger.trace( "agm.payload.length={}", agm.payload.limit() );
 
                         // TODO: optimize this - OR create a new
                         // AmmoGatewayMessage rather than modifying
                         // the one received
                         for ( int i = 0; i < newSize; ++i ) {
-                            newPayload[i] = agm.payload[i+4];
+                            newPayload[i] = agm.payload.get(i+4);
                         }
 
-                        agm.payload = newPayload;
+                        agm.payload = new NioByteBufferAdapter(ByteBuffer.wrap(newPayload));
                         agm.size = newSize;
 
                         CRC32 crc32 = new CRC32();
                         crc32.update( newPayload );
-                        agm.payload_checksum = new AmmoGatewayMessage.CheckSum(crc32.getValue());
+                        agm.payload_checksum = CheckSum.newInstance(crc32.getValue());
 
                         // Add this for further relay if union of connectivity
                         // vector of original sender (originalSlot) and relayer
@@ -476,6 +480,7 @@ public class SerialRetransmitter
                 logger.trace( "...packets sent this slot={}", mSlotRecords.getCurrentSendCount() );
             } else {
                 logger.error("... number of packets in this slot={} >= MAX_PACKET_PERSLOT .. NOT adding to the slot record", mSlotRecords.getCurrentSendCount() );
+                agm.releasePayload();
             }
         } else {
             // Resend packets have an existing PacketRecord, which we reuse.
@@ -500,7 +505,7 @@ public class SerialRetransmitter
 
         PacketRecord pr = mResendQueue.peek();
         while ( pr != null ) {
-            if ( pr.mPacket.payload.length + 20 > bytesAvailable ) {
+            if ( pr.mPacket.payload.limit() + 20 > bytesAvailable ) {
                 break;
             } else {
                 // Here is where the resend packet containing the retransmitted
@@ -520,8 +525,8 @@ public class SerialRetransmitter
                     pr.mResends--;
                     logger.trace( "...packets sent this slot={}", mSlotRecords.getCurrentSendCount() );
 
-                    int size = pr.mPacket.payload.length + 4;
-                    ByteBuffer b = ByteBuffer.allocate( size );
+                    int size = pr.mPacket.payload.limit() + 4;
+                    ByteBufferAdapter b = new NioByteBufferAdapter(ByteBuffer.allocate( size ));
                     b.order( ByteOrder.LITTLE_ENDIAN );
 
                     b.putInt( pr.mUID );
@@ -829,12 +834,12 @@ class ConnectivityMatrix
     }
 
 
-    public void processAckPacketPayload( int theirSlotID, byte[] payload )
+    public void processAckPacketPayload( int theirSlotID, ByteBufferAdapter payload )
     {
         for ( int i = 0; i < mMaxSlots; ++i ) {
             // remote is receiving directly from slot i, top bit in the ack
             // slot is set for receive info
-            if ( (payload[i] & 0x00000080) == 0x00000080 )
+            if ( (payload.get(i) & 0x00000080) == 0x00000080 )
                 mConnectivityMatrix[theirSlotID] |= (0x1 << i);
             else
                 mConnectivityMatrix[theirSlotID] &= ~(0x1 << i);

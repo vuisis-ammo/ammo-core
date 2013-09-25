@@ -17,12 +17,14 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Comparator;
 import java.util.UUID;
-import java.util.zip.CRC32;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
+import edu.vu.isis.ammo.util.CheckSum;
+import edu.vu.isis.ammo.util.ExpandoByteBufferAdapter;
 
 /**
  * see /opt/ammo/Gateway/AndroidGatewayPlugin/
@@ -67,7 +69,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     @SuppressWarnings("unused")
     private static final long INT_MASK = 0x0FFFFFFFFL; //
     private static final int BYTE_MASK = 0x0FF;
-    private static final long BYTE_MASK_LONG = 0x0FFL;
 
     public static final int HEADER_DATA_LENGTH =
             4 // magic length
@@ -114,7 +115,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     public final byte priority;
     public final byte version;
     public CheckSum payload_checksum;
-    public byte[] payload;
+    public ByteBufferAdapter payload;
     public final INetworkService.OnSendMessageHandler handler;
 
     public final boolean isMulticast;
@@ -224,7 +225,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             return 1;
         if (this.size > that.size)
             return -1;
-        final int compareCS = CheckSum.compare(this.payload_checksum, that.payload_checksum);
+        final int compareCS = this.payload_checksum.compareTo(that.payload_checksum);
         if (compareCS != 0) return compareCS;
         return 0;
     }
@@ -429,14 +430,26 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public Builder isHeartbeat(boolean val) { this.isHeartbeat = val; return this; }
  
        private byte[] payload_serialized;
+       private ByteBufferAdapter payload_serializedBuf;
         public byte[] payload() {
             return this.payload_serialized;
+        }
+        
+        public ByteBufferAdapter payloadBuffer() {
+        	return payload_serializedBuf;
         }
 
         public Builder payload(byte[] val) {
             // if (this.size != val.length)
             // throw new IllegalArgumentException("payload size incorrect");
             this.payload_serialized = val;
+            return this;
+        }
+        
+        public Builder payload(ByteBufferAdapter val) {
+            // if (this.size != val.length)
+            // throw new IllegalArgumentException("payload size incorrect");
+            this.payload_serializedBuf = val;
             return this;
         }
 
@@ -466,8 +479,15 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         }
 
         public AmmoGatewayMessage build() {
+        	if( this.payload_serialized == null && this.payload_serializedBuf == null ) {
+        		throw new IllegalStateException("No payload!");
+        	} else if( this.payload_serializedBuf != null ) {
+        		if( this.size != this.payload_serializedBuf.remaining() )
+        			throw new IllegalStateException("payload size incorrect");
+        		return new AmmoGatewayMessage(this, payload_serializedBuf);
+        	}
             if (this.size != this.payload_serialized.length)
-                throw new IllegalArgumentException("payload size incorrect");
+                throw new IllegalStateException("payload size incorrect");
             return new AmmoGatewayMessage(this, this.payload_serialized);
         }
 
@@ -489,13 +509,13 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         }
     }
 
-    private AmmoGatewayMessage(Builder builder, byte[] payload) {
+    private AmmoGatewayMessage(Builder builder, ByteBufferAdapter payload) {
         this.size = builder.size;
-        if (this.size != payload.length)
+        if (this.size != payload.limit())
             throw new IllegalArgumentException("payload size incorrect");
         this.priority = builder.priority;
         this.version = builder.version;
-        this.payload_checksum = new CheckSum(builder.checksum);
+        this.payload_checksum = CheckSum.newInstance(builder.checksum);
         this.payload = payload;
         this.handler = builder.handler;
 
@@ -517,17 +537,25 @@ public class AmmoGatewayMessage implements Comparable<Object> {
          * record the time when the message is built so we can sort it by time
          * if the priority is same
          */
-        this.buildTime = System.currentTimeMillis();
+        this.buildTime = System.currentTimeMillis();    	
+    }
+    
+    private AmmoGatewayMessage(Builder builder, byte[] payload) {
+    	this(builder, ByteBufferAdapter.obtain(payload));
     }
 
-    public static AmmoGatewayMessage.Builder newBuilder(AmmoMessages.MessageWrapper.Builder mwb,
+    public static AmmoGatewayMessage.Builder newBuilder(byte[] payload,
             INetworkService.OnSendMessageHandler handler) {
-        byte[] payload = mwb.build().toByteArray();
+    	return newBuilder(ByteBufferAdapter.obtain(payload), handler);
+    }
+    
+    public static AmmoGatewayMessage.Builder newBuilder(ByteBufferAdapter payload,
+            INetworkService.OnSendMessageHandler handler) {
 
-        final CheckSum crc32 = CheckSum.newInstance(payload);
+        final CheckSum crc32 = payload.checksum();
 
         return AmmoGatewayMessage.newBuilder()
-                .size(payload.length)
+                .size(payload.limit())
                 .payload(payload)
                 .checksum(crc32.asLong())
                 .priority(PriorityLevel.NORMAL.v)
@@ -548,7 +576,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 .version(version)
                 .handler(handler);
     }
-
+    
+    public void releasePayload() {
+    	if( payload != null ) payload.release();
+    	payload = null;
+    }
 
     /**
      * Serialize the AmmoMessage for transmission.
@@ -557,7 +589,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * 
      * @return
      */
-    public ByteBuffer serialize(ByteOrder endian, byte version, byte phone_id) {
+    public ByteBufferAdapter serialize(ByteOrder endian, byte version, byte phone_id) {
 
         if (version == VERSION_1_FULL) {
             return serializeFull_V1(endian, phone_id,
@@ -581,48 +613,37 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * 
      * @return
      */
-    static public ByteBuffer serializeFull_V1(ByteOrder endian, byte phone_id, int size,
-            byte[] payload, CheckSum checksum, byte priority)
+    static public ByteBufferAdapter serializeFull_V1(ByteOrder endian, byte phone_id, int size,
+            ByteBufferAdapter payload, CheckSum checksum, byte priority)
     {
-        int total_length = HEADER_LENGTH + payload.length;
-        ByteBuffer buf = ByteBuffer.allocate(total_length);
-        buf.order(endian);
+        ByteBufferAdapter header = ByteBufferAdapter.obtain(new byte[HEADER_LENGTH]);
+        header.order(endian);
 
-        buf.put(MAGIC[2]);
-        buf.put(MAGIC[1]);
-        buf.put(MAGIC[0]);
-        buf.put(VERSION_1_FULL);
+        header.put(MAGIC[2]);
+        header.put(MAGIC[1]);
+        header.put(MAGIC[0]);
+        header.put(VERSION_1_FULL);
 
-        buf.putInt(size);
+        header.putInt(size);
         logger.debug("   size={}", size);
 
-        buf.put(priority);
+        header.put(priority);
         /** three bytes reserved for future use */
-        buf.put((byte) 0x0).put((byte) 0x0).put((byte) 0x0);
+        header.put((byte) 0x0).put((byte) 0x0).put((byte) 0x0);
 
         logger.debug("   payload_checksum={}", checksum);
-        buf.put(checksum.asByteArray(), 0, 4);
+        header.put(checksum.asByteArray(), 0, 4);
 
         // checksum of header
-        int pos = buf.position();
-        byte[] base = buf.array();
-        final CheckSum crc32 = CheckSum.newInstance(base, 0, pos);
-        buf.put(crc32.asByteArray());
+        int position = header.position();
+        header.position(0).limit(position);
+        final CheckSum crc32 = header.checksum();
+        header.limit(HEADER_LENGTH).position(position);
+        header.put(crc32.asByteArray());
 
         // payload
-        buf.put(payload);
-        if (logger.isDebugEnabled()) {
-
-            if (payload.length > 450) {
-                // ByteBuffer tmp = ByteBuffer.wrap(payload, 0, 450);
-                logger.debug("  payload length={} ", payload.length);
-            }
-            else
-                logger.debug("   payload={}", payload);
-        }
-
-        buf.flip();
-        return buf;
+        ExpandoByteBufferAdapter buf = ByteBufferAdapter.obtain();
+        return buf.add(header.flip()).add(payload).flip();
     }
 
     /**
@@ -633,11 +654,11 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * 
      * @return
      */
-    public ByteBuffer serializeTerse_V1(ByteOrder endian, byte phone_id,
-            int size, byte[] payload, CheckSum checksum, long gpsOffset)
+    public ByteBufferAdapter serializeTerse_V1(ByteOrder endian, byte phone_id,
+            int size, ByteBufferAdapter payload, CheckSum checksum, long gpsOffset)
     {
-        int total_length = HEADER_LENGTH_TERSE + payload.length;
-        ByteBuffer buf = ByteBuffer.allocate(total_length);
+        int total_length = HEADER_LENGTH_TERSE + payload.remaining();
+        ByteBufferAdapter buf = ByteBufferAdapter.obtain(total_length);
         buf.order(endian);
 
         buf.put(MAGIC[2]);
@@ -683,17 +704,20 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         // Put two-byte header checksum here. The checksum covers the
         // magic sequence and everything up to and including the six
         // zero bytes just written.
-        CheckSum crc32 = CheckSum.newInstance(buf.array(), 0, HEADER_LENGTH_TERSE - 2);
+        int pos = buf.position();
+        buf.position(0).limit(HEADER_LENGTH_TERSE - 2);
+        CheckSum crc32 = buf.checksum();
         byte[] headerChecksum = crc32.asByteArray();
+        buf.limit(total_length).position(pos);
         buf.put(headerChecksum[0]);
         buf.put(headerChecksum[1]);
 
         // payload
         buf.put(payload);
-        logger.debug("   payload={}", payload);
         buf.flip();
         return buf;
     }
+    
 
     /**
      * Must leave the position of drain pointing at the first byte which might
@@ -736,13 +760,13 @@ public class AmmoGatewayMessage implements Comparable<Object> {
 
                     drain.get(checkBytes, 0, 4);
                     logger.debug("   payload check={}", checkBytes);
-                    long payload_checksum = new CheckSum(checkBytes).asLong();
+                    long payload_checksum = CheckSum.newInstance(checkBytes).asLong();
 
                     drain.get(checkBytes, 0, 4);
                     logger.debug("   header check={}", checkBytes);
-                    long header_checksum = new CheckSum(checkBytes).asLong();
+                    long header_checksum = CheckSum.newInstance(checkBytes).asLong();
 
-                    final CheckSum crc32 = CheckSum.newInstance(drain.array(), start, HEADER_DATA_LENGTH);
+                    final CheckSum crc32 = CheckSum.newInstance().update(drain.array(), start, HEADER_DATA_LENGTH);
                     if (header_checksum != crc32.asLong())
                         continue;
 
@@ -763,7 +787,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                     checkPayloadBytes[2] = 0;
                     checkPayloadBytes[3] = 0;
                     // drain.get( checkBytes, 0, 2 );
-                    CheckSum csum = new CheckSum(checkPayloadBytes);
+                    CheckSum csum = CheckSum.newInstance(checkPayloadBytes);
                     long payload_checksum = csum.asLong();
                     logger.debug("   payload check={}, asLong={}", checkPayloadBytes, Long.toHexString(payload_checksum));
 
@@ -794,7 +818,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                      * magic sequence out of this function, since it should be
                      * channel-specific.
                      */
-                    CheckSum terseHeaderCrc32 = CheckSum.newInstance(drain.array(), start, HEADER_DATA_LENGTH_TERSE - 2);
+                    CheckSum terseHeaderCrc32 = CheckSum.newInstance().update(drain.array(), start, HEADER_DATA_LENGTH_TERSE - 2);
                     byte[] computedChecksum = terseHeaderCrc32.asByteArray();
 
                     // Return null if the header checksum fails.
@@ -888,81 +912,6 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         }
     }
 
-    /**
-     * A worker for dealing with check sums.
-     */
-    static public class CheckSum {
-        final private long cs;
-
-        public CheckSum(byte[] checkBytes) {
-            this.cs = convert(checkBytes);
-        }
-        
-        public CheckSum(long checkLong) {
-            this.cs = checkLong;
-        }
-        
-        public static int compare(CheckSum lhs, CheckSum rhs) {
-            if (lhs.cs == rhs.cs) return 0;
-            if (lhs.cs < rhs.cs) return -1;
-            return 1;
-        }
-       
-        static public CheckSum newInstance(byte[] target) {
-            final CRC32 crc32 = new CRC32();
-            crc32.update(target, 0, target.length);
-            return new CheckSum( crc32.getValue() );
-        }
-        
-        static public CheckSum newInstance(byte[] target, int start, int length) {
-            final CRC32 crc32 = new CRC32();
-            crc32.update(target, start, length);
-            return new CheckSum( crc32.getValue() );
-        }
-        /**
-         * The four least significant bytes of a long make the checksum array.
-         * 
-         * @param cvalue
-         * @return
-         */
-        public byte[] asByteArray() {
-            return new byte[] {
-                    (byte) this.cs,
-                    (byte) (this.cs >>> 8),
-                    (byte) (this.cs >>> 16),
-                    (byte) (this.cs >>> 24)
-            };
-        }
-        public long asLong() {
-            return this.cs;
-        }
-       
-        public boolean equals(long value) {
-            return (this.cs == value);
-        }
-        
-        public boolean equals(byte[] checkBytes) {
-            return (this.cs == convert(checkBytes));
-        }
-        
-        private long convert(byte[] checkBytes) {
-            return  ((BYTE_MASK_LONG & checkBytes[0]) << 0)
-                    | ((BYTE_MASK_LONG & checkBytes[1]) << 8)
-                    | ((BYTE_MASK_LONG & checkBytes[2]) << 16)
-                    | ((BYTE_MASK_LONG & checkBytes[3]) << 24);
-        }
-        
-        @Override 
-        public boolean equals(Object obj) {
-            if (!(obj instanceof CheckSum)) return false;
-            final CheckSum that = (CheckSum)obj;
-            return (this.cs == that.cs);
-        }
-        public Object toHexString() {
-            return Long.toHexString(this.cs);
-        }
-    }
-
 
     /**
      * Verify the checksum. Normal messages examine four byte checksums; terse
@@ -971,7 +920,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      * @return
      */
     public boolean hasValidChecksum() {
-        final CheckSum crc32 = CheckSum.newInstance(payload);
+        final CheckSum crc32 = payload.checksum();
 
         if (version == VERSION_1_FULL) {
             if (! crc32.equals(this.payload_checksum)) {

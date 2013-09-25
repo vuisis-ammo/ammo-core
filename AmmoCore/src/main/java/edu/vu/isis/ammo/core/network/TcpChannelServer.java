@@ -10,17 +10,19 @@ purpose whatsoever, and to have or authorize others to do so.
  */
 package edu.vu.isis.ammo.core.network;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.net.ServerSocket;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,16 +30,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import javax.net.ServerSocketFactory;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import android.content.Context;
-import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorDataStore.DisposalState;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 
 
 /**
@@ -88,7 +88,13 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		final TcpChannelServer instance = new TcpChannelServer(name, iChannelManager );
 		return instance;
 	}
+	
+	// ===========================================================
+	// 
+	// ===========================================================
 
+	private static final AtomicInteger portOffsetCounter = new AtomicInteger(-1);
+	
 	// ===========================================================
 	// Members
 	// ===========================================================
@@ -97,6 +103,9 @@ public class TcpChannelServer extends TcpChannelAbstract {
 	// all over ...
 	final private Logger logger;
 
+	/** allows us to support multiple channels */
+	private final int portOffset = portOffsetCounter.incrementAndGet();
+	
 	/** default timeout is 45 seconds */
 	private int DEFAULT_WATCHDOG_TIMOUT = 45;
 
@@ -115,12 +124,9 @@ public class TcpChannelServer extends TcpChannelAbstract {
 	private boolean shouldBeEnabled = true;
 	private long flatLineTime;
 
-	private Socket mSocket;
-	private SenderThread mSender;
-	private ReceiverThread mReceiver;
-	private DataInputStream mDataInputStream;
-	private DataOutputStream mDataOutputStream;
 
+	private int senderState = INetChannel.PENDING;
+	private int receiverState = INetChannel.PENDING;
 	private final SenderQueue mSenderQueue;
 
 	private final AtomicBoolean mIsAuthorized;
@@ -256,8 +262,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		logger.trace("Thread <{}>::reset", Thread.currentThread().getId());
 		logger.trace("connector: {} sender: {} receiver: {}",
 				this.connectorThread.showState(),
-				(this.mSender == null ? "none" : this.mSender.getSenderState()),
-				(this.mReceiver == null ? "none" : this.mReceiver.getReceiverState()));
+				senderState, receiverState);
 
 		synchronized (this.syncObj) {
 			if (! this.connectorThread.isAlive()) {
@@ -272,8 +277,6 @@ public class TcpChannelServer extends TcpChannelAbstract {
 	private void statusChange()
 	{
 		int connState = this.connectorThread.state.value;
-		int senderState = (mSender != null) ? mSender.getSenderState() : INetChannel.PENDING;
-		int receiverState = (mReceiver != null) ? mReceiver.getReceiverState() : INetChannel.PENDING;
 
 		try {
 			mChannelManager.statusChange(this,
@@ -293,6 +296,11 @@ public class TcpChannelServer extends TcpChannelAbstract {
 	// Security things
 	// ===========================================================
 
+	private void setSecurityObjectIfNeeded( ISecurityObject iSecurityObject )
+	{
+		mSecurityObject.compareAndSet(null, iSecurityObject);
+	}
+	
 	private void setSecurityObject( ISecurityObject iSecurityObject )
 	{
 		mSecurityObject.set( iSecurityObject );
@@ -403,7 +411,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 			return;
 
 		// Send the heartbeat here.
-		logger.warn( "Sending a heartbeat. t={}", nowInMillis );
+		logger.debug( "Sending a heartbeat. t={}", nowInMillis );
 
 		// Create a heartbeat message and call the method to send it.
 		final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
@@ -415,7 +423,8 @@ public class TcpChannelServer extends TcpChannelAbstract {
 
 		mw.setHeartbeat( message );
 
-		final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, null);
+		final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+				mw.build().toByteArray(), null);
 		agmb.isGateway(true);
 		agmb.isHeartbeat(true);
 		this.sendRequest( agmb.build() );
@@ -427,6 +436,80 @@ public class TcpChannelServer extends TcpChannelAbstract {
 	// ===========================================================
 	// Queues/Senders/Receivers
 	// ===========================================================
+	
+	private class ClientThread extends Thread {
+		private final Socket client;
+		private final ConnectorThread parent;
+		private SenderThread sender;
+		private ReceiverThread receiver;
+		
+		public ClientThread(ConnectorThread parent, Socket client) {
+			super(new StringBuilder("USB-Client-").append(Thread.activeCount()).toString());
+			this.parent = parent;
+			this.client = client;
+			parent.connectionCount.incrementAndGet();
+		}
+		
+		@Override
+		public void run() {
+			
+			sender = new SenderThread( 
+					parent, parent.parent, mSenderQueue, client );
+			sender.start();
+			
+			receiver = new ReceiverThread( 
+					parent, parent.parent, client );
+			receiver.start();
+			
+			while( !client.isClosed() ) {
+				int s = parent.state.get();
+				if( s == DISABLED || s == STALE ) {
+					logger.warn("dropped connection {}", s);
+					parent.disconnect();
+				} else {
+					sendHeartbeatIfNeeded();
+					try {
+						Thread.sleep(mHeartbeatInterval);
+					} catch ( Exception e ) {}
+				}
+			}
+		}
+		
+		public void disconnect() {
+			parent.connectionCount.decrementAndGet();
+
+			if ( sender != null ) {
+				logger.debug( "interrupting SenderThread" );
+				try {
+					sender.interrupt();
+				} catch ( Exception e ) {
+					logger.error( "Failed to interrupt sender", e );		
+				}
+				sender = null;
+			}
+			if ( receiver != null ) {
+				logger.debug( "interrupting ReceiverThread" );
+				try {
+					receiver.interrupt();
+				} catch ( Exception e ) {
+					logger.error( "Failed to interrupt receiver", e );
+				}
+				receiver = null;
+			}
+			if ( client != null )
+			{
+				logger.debug( "Closing socket..." );
+				try {
+					client.close();
+				} catch ( Exception e ) {
+					logger.error( "Failed to close socket", e );
+				}
+				logger.debug( "Done" );
+			}
+
+			logger.debug( "returning after successful disconnect()." );
+		}
+	}
 
 	/**
 	 * manages the connection.
@@ -439,13 +522,14 @@ public class TcpChannelServer extends TcpChannelAbstract {
 	private class ConnectorThread extends Thread {
 		final private Logger logger;
 
-		private final int DEFAULT_PORT = INetPrefKeys.DEFAULT_SERVER_PORT;
+		private final int DEFAULT_PORT = 51423;//INetPrefKeys.DEFAULT_SERVER_PORT;
 
 		private TcpChannelServer parent;
 		private final State state;
 
-		private AtomicBoolean mIsConnected;
-		private ServerSocket server;
+		private List<ClientThread> clients = new CopyOnWriteArrayList<ClientThread>();
+		private AtomicInteger connectionCount = new AtomicInteger();
+		private ServerSocketChannel server;
 
 
 		public void statusChange()
@@ -457,10 +541,12 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		// Called by the sender and receiver when they have an exception on the
 		// Socket.  We only want to call reset() once, so we use an
 		// AtomicBoolean to keep track of whether we need to call it.
-		public void socketOperationFailed()
+		public void socketOperationFailed( Exception ex )
 		{
-			if ( mIsConnected.compareAndSet( true, false ))
+			if ( connectionCount.getAndSet( 0 ) > 0 ) {
+				logger.warn("Socket op failed", ex);
 				state.reset();
+			}
 		}
 
 
@@ -472,7 +558,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 			logger.trace("Thread <{}>ConnectorThread::<constructor>", Thread.currentThread().getId());
 			this.parent = parent;
 			this.state = new State();
-			mIsConnected = new AtomicBoolean( false );
+			connectionCount = new AtomicInteger( 0 );
 		}
 
 		private class State {
@@ -517,6 +603,14 @@ public class TcpChannelServer extends TcpChannelAbstract {
 				this.set(state);
 				return true;
 			}
+			
+			public synchronized boolean setUnlessDisabledOrNoClients(int state) {
+				logger.trace("Thread <{}>State::setUnlessDisabled", 
+						Thread.currentThread().getId());
+				if (state == DISABLED || connectionCount.get() > 0) return false;
+				this.set(state);
+				return true;
+			}
 
 			public synchronized int get() { return this.value; }
 
@@ -542,6 +636,11 @@ public class TcpChannelServer extends TcpChannelAbstract {
 			public synchronized boolean reset() {
 				attempt++;
 				this.value = STALE;
+				if( server != null ) {
+					try {
+						server.close();	
+					} catch ( Exception e ) {}
+				}
 				this.notifyAll();
 				return true;
 			}
@@ -586,44 +685,47 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		public void run() {
 
 			// start the server and wait for a client connect
-			logger.info("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+			logger.debug("Thread <{}>ConnectorThread::run", Thread.currentThread().getId());
+			final int port = ((parent.serverPort > 10) ? parent.serverPort : DEFAULT_PORT) + parent.portOffset;
 			for( ;; ) {
-				logger.trace("channel goal {}", (parent.shouldBeEnabled) ? "enable" : "disable");
+				logger.debug("channel goal {}", (parent.shouldBeEnabled) ? "enable" : "disable");
 				if(! parent.shouldBeEnabled) {
-					logger.trace("disabling channel... {}", parent.shouldBeEnabled);
+					logger.debug("disabling channel... {}", parent.shouldBeEnabled);
 					state.set(NetChannel.DISABLED);
 				}
 
 				// if disabled, wait till we're enabled again				
 				synchronized (state) {
-					logger.trace("channel is {}", state.get());
+					logger.debug("channel is {}", state.get());
 					while( state.get() == DISABLED ) {
 						try {
 							state.wait(BURP_TIME);
-							logger.trace("burp {}", state);
+							logger.debug("burp {}", state);
 						} catch ( InterruptedException ex ) {
 							logger.trace("interrupting channel wait.");
 						}
 					}
 				}
 
-				logger.trace("set to disconnected state");
-				state.setUnlessDisabled(NetChannel.DISCONNECTED);
-				final int port =  (parent.serverPort > 10) ? parent.serverPort : DEFAULT_PORT;
+				logger.debug("set to disconnected state");
+				state.setUnlessDisabled(NetChannel.DISCONNECTED);				
 				
 				try {
 					// open the server socket
-					server = ServerSocketFactory.getDefault().createServerSocket(port);
-					logger.info("Opened server socket {}", server.getLocalSocketAddress());					
+					server = ServerSocketChannel.open();
+					server.configureBlocking(true);
+					server.socket().bind(new InetSocketAddress(port));
+					logger.info("Opened server socket {}", server.socket().getLocalSocketAddress());					
 
 					// got a socket, wait for a client connection
-					while( server != null && !server.isClosed() ) {
+					while( server != null && !server.socket().isClosed() ) {
 						Socket client = null;
+						ClientThread clientThread = null;
 						try {
-							state.setUnlessDisabled(NetChannel.WAIT_CONNECT);
+							state.setUnlessDisabledOrNoClients(NetChannel.WAIT_CONNECT);
 							logger.info("Awaiting client connection...");
-							client = server.accept();
-							state.setUnlessDisabled(NetChannel.CONNECTING);
+							client = server.accept().socket();
+							state.setUnlessDisabledOrNoClients(NetChannel.CONNECTING);
 
 							logger.info("Received client connection, send GTG...");
 							client.getOutputStream().write(1);
@@ -633,24 +735,16 @@ public class TcpChannelServer extends TcpChannelAbstract {
 							
 							// I think we're good
 							state.setUnlessDisabled(NetChannel.CONNECTED);
-
+							
 							// while the socket is good, send a heartbeat
-							while( !client.isClosed() ) {
-								int s = state.get();
-								if( s == DISABLED || s == STALE ) {
-									logger.info("dropped connection {}", s);
-									disconnect();
-								} else {
-									sendHeartbeatIfNeeded();
-									synchronized (state) {
-										state.wait(mHeartbeatInterval);
-									}
-								}
-							}
+							clientThread = new ClientThread(this,client);
+							clientThread.start();
+							clients.add(clientThread);
 
 						} catch ( Exception e ) {
 							logger.error("Failed to handle client connection on {}", port, e);
 							state.setUnlessDisabled(NetChannel.DISCONNECTED);
+							disconnect();
 							if( client != null ) try { client.close(); } catch ( Exception ignored ) {}
 						}
 					}
@@ -658,7 +752,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 				} catch ( Exception e ) {
 					logger.error("Failed to open server socket on {}", port, e);
 					state.setUnlessDisabled(NetChannel.DISCONNECTED);
-					if( server != null ) try { server.close(); } catch ( Exception ignored ) {}
+					disconnect();
 				}
 			}
 			
@@ -669,23 +763,14 @@ public class TcpChannelServer extends TcpChannelAbstract {
 			logger.trace( "Thread <{}>ConnectorThread::connect",
 					Thread.currentThread().getId() );
 
-			if ( parent.mSocket != null ) {
-				logger.error( "Tried to create mSocket when we already had one." );
-				parent.mSocket.close();
-			}
-
 			final long startConnectionMark = System.currentTimeMillis();
-			parent.mSocket = socket;
-			parent.mSocket.setSoTimeout( parent.socketTimeout );
+			socket.setSoTimeout( parent.socketTimeout );
 			final long finishConnectionMark = System.currentTimeMillis();
 			logger.info("connection time to establish={} ms", finishConnectionMark-startConnectionMark);
 
-			parent.mDataInputStream = new DataInputStream( parent.mSocket.getInputStream() );
-			parent.mDataOutputStream = new DataOutputStream( parent.mSocket.getOutputStream() );
-
 			logger.info( "connection established to {}", socket.getLocalSocketAddress() );
 
-			mIsConnected.set( true );
+			connectionCount.incrementAndGet();
 			mBytesSent = 0;
 			mBytesRead = 0;
 			mLastBytesSent = 0;
@@ -697,28 +782,13 @@ public class TcpChannelServer extends TcpChannelAbstract {
 			// the ReceiverThread is created in case we receive a
 			// message before the SecurityObject is ready to have it
 			// delivered.
-			if ( parent.getSecurityObject() != null )
-				logger.error( "Tried to create SecurityObject when we already had one." );
-			parent.setSecurityObject( new TcpSecurityObject( parent ));
-
-			// Create the sending thread.
-			if ( parent.mSender != null )
-				logger.error( "Tried to create Sender when we already had one." );
-			parent.mSender = new SenderThread( this,
-					parent,
-					parent.mSenderQueue,
-					parent.mSocket );
-			parent.mSender.start();
-
-			// Create the receiving thread.
-			if ( parent.mReceiver != null )
-				logger.error( "Tried to create Receiver when we already had one." );
-			parent.mReceiver = new ReceiverThread( this, parent, parent.mSocket );
-			parent.mReceiver.start();
+			parent.setSecurityObjectIfNeeded(new TcpSecurityObject( parent ));
 
 			// FIXME: don't pass in the result of buildAuthenticationRequest(). This is
 			// just a temporary hack.
-			parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest() );
+			if( !mIsAuthorized.get() ) {
+				parent.getSecurityObject().authorize( mChannelManager.buildAuthenticationRequest() );
+			}
 		}
 
 
@@ -726,40 +796,14 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		{
 			logger.trace( "Thread <{}>ConnectorThread::disconnect",
 					Thread.currentThread().getId() );
-			mIsConnected.set( false );
+			connectionCount.set( 0 );
 
-			if ( mSender != null ) {
-				logger.debug( "interrupting SenderThread" );
-				try {
-					mSender.interrupt();
-				} catch ( Exception e ) {
-					logger.error( "Failed to interrupt sender", e );		
-				}
-				mSender = null;
+			for( ClientThread c : clients ) {
+				c.disconnect();
 			}
-			if ( mReceiver != null ) {
-				logger.debug( "interrupting ReceiverThread" );
-				try {
-					mReceiver.interrupt();
-				} catch ( Exception e ) {
-					logger.error( "Failed to interrupt receiver", e );
-				}
-				mReceiver = null;
-			}
+			clients.clear();
 
 			mSenderQueue.reset();
-
-			if ( parent.mSocket != null )
-			{
-				logger.debug( "Closing socket..." );
-				try {
-					parent.mSocket.close();
-				} catch ( Exception e ) {
-					logger.error( "Failed to close socket", e );
-				}
-				logger.debug( "Done" );
-				parent.mSocket = null;
-			}
 
 			if( server != null ) {
 				logger.debug( "Closing socket..." );
@@ -773,8 +817,6 @@ public class TcpChannelServer extends TcpChannelAbstract {
 
 			setIsAuthorized( false );
 			parent.setSecurityObject( null );
-			parent.mSender = null;
-			parent.mReceiver = null;
 			logger.debug( "returning after successful disconnect()." );
 			return true;
 		}
@@ -943,6 +985,7 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		public void run()
 		{
 			logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
+			SocketChannel channel = mSocket.getChannel();
 
 			// Block on reading from the queue until we get a message to send.
 			// Then send it on the socket channel. Upon getting a socket error,
@@ -964,20 +1007,24 @@ public class TcpChannelServer extends TcpChannelAbstract {
 					break;
 				}
 
+				ByteBufferAdapter buf = null;
 				try
 				{
-					ByteBuffer buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
+					buf = msg.serialize( endian, AmmoGatewayMessage.VERSION_1_FULL, (byte)0 );
 					setSenderState( INetChannel.SENDING );
-					int bytesToSend = buf.remaining();
-					mDataOutputStream.write( buf.array(), 0, bytesToSend );
-					mBytesSent += bytesToSend;
+					int bytesSent = 0;
+					while( buf.remaining() > 0 ) {
+						bytesSent = buf.write(channel);
+						mBytesSent += bytesSent;
 
-					logger.info( "Send packet to Network, size ({})", bytesToSend );
+						logger.info( "Send packet to Network, size ({})", bytesSent );
 
-					//set time of heartbeat sent 
-					if (msg.isHeartbeat()) {
-						if (mTimeOfLastGoodSend.get() == 0)
-							mTimeOfLastGoodSend.set( System.currentTimeMillis() );
+						//set time of heartbeat sent 
+//						if (msg.isHeartbeat()) {
+//							if (mTimeOfLastGoodSend.get() == 0)
+//								mTimeOfLastGoodSend.set( System.currentTimeMillis() );
+//						}
+						mTimeOfLastGoodSend.set( System.currentTimeMillis() );
 					}
 
 
@@ -994,7 +1041,10 @@ public class TcpChannelServer extends TcpChannelAbstract {
 					if ( msg.handler != null )
 						mChannel.ackToHandler( msg.handler, DisposalState.REJECTED );
 					setSenderState( INetChannel.INTERRUPTED );
-					mParent.socketOperationFailed();
+					mParent.socketOperationFailed( ex );
+				} finally {
+					if( buf != null ) buf.release();
+					if( msg != null ) msg.releasePayload();
 				}
 			}
 		}
@@ -1002,10 +1052,8 @@ public class TcpChannelServer extends TcpChannelAbstract {
 
 		private void setSenderState( int iState )
 		{
-			synchronized ( this )
-			{
-				mState = iState;
-			}
+			mState = iState;
+			senderState = mState;
 			mParent.statusChange();
 		}
 
@@ -1015,7 +1063,6 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		private ConnectorThread mParent;
 		private TcpChannelServer mChannel;
 		private SenderQueue mQueue;
-		@SuppressWarnings("unused")
 		private Socket mSocket;
 		private Logger logger = null;
 	}
@@ -1046,21 +1093,19 @@ public class TcpChannelServer extends TcpChannelAbstract {
 		public void run()
 		{
 			logger.trace( "Thread <{}>::run()", Thread.currentThread().getId() );
-
+			SocketChannel channel = mSocket.getChannel();
 
 			ByteBuffer bbuf = ByteBuffer.allocate( TCP_RECV_BUFF_SIZE );
 			bbuf.order( endian ); // mParent.endian
-			byte[] bbufArray = bbuf.array();
+			ByteBufferAdapter payload = null;
 
 			threadWhile:
 				while ( mState != INetChannel.INTERRUPTED && !isInterrupted() )
 				{
 					try {
-						int position = bbuf.position();
-						int bytesRead = mDataInputStream.read( bbufArray, position, bbuf.remaining() );
+						int bytesRead = channel.read( bbuf );
 						if ( isInterrupted() )
 							break threadWhile; // exit thread
-						bbuf.position( position + bytesRead );
 
 						mDestination.resetTimeoutWatchdog();
 						logger.debug( "Socket getting header read bytes={}", bytesRead );
@@ -1069,94 +1114,96 @@ public class TcpChannelServer extends TcpChannelAbstract {
 						if (bytesRead < 0) {
 							logger.error("bytes read = {}, exiting", bytesRead);
 							setReceiverState( INetChannel.INTERRUPTED );
-							mParent.socketOperationFailed();
+							mParent.socketOperationFailed(new Exception("No bytes read " + bytesRead));
 							return;
 						}
 
 						mBytesRead += bytesRead;
 						setReceiverState( INetChannel.START );
-
+						
 						// prepare to drain buffer
 						bbuf.flip(); 
 						for (AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.extractHeader(bbuf);
 								agmb != null; agmb = AmmoGatewayMessage.extractHeader(bbuf)) 
 						{
 							// if the message size is zero then there may be an error
-							if (agmb.size() < 1) {
+							int size = agmb.size();
+							if (size < 1) {
 								logger.warn("discarding empty message error {}",
 										agmb.error());
 								// TODO cause the reconnection behavior to change based on the error code
 								continue;
 							}
-							// if the message is TOO BIG then throw away the message
-							if (agmb.size() > MAX_MESSAGE_SIZE) {
-								logger.warn("discarding message of size {} with checksum {}", 
-										agmb.size(), Long.toHexString(agmb.checksum()));
-								int size = agmb.size();
-								while (true) {
-									if (bbuf.remaining() < size) {
-										int rem =  bbuf.remaining();
-										size -= rem;
-										bbuf.clear();
-										position = bbuf.position();
-										bytesRead = mDataInputStream.read( bbufArray, position, bbuf.remaining() );
-										if ( isInterrupted() )
-											break threadWhile; // exit thread
-										bbuf.position( position + bytesRead );
-										if (bytesRead < 0) {
-											logger.error("bytes read = {}, exiting", bytesRead);
-											setReceiverState( INetChannel.INTERRUPTED );
-											mParent.socketOperationFailed();
-											return;                      
-										}
-										mBytesRead += bytesRead;
-										mDestination.resetTimeoutWatchdog(); // a successfull read should reset the timer
-										bbuf.flip();
-										continue;
-									}
-									bbuf.position(size);
-									break;
-								}
-								continue;
-							}
+
 							// extract the payload
-							byte[] payload = new byte[agmb.size()];
-							int size = agmb.size();
-							int offset = 0;
+							payload = ByteBufferAdapter.obtain(size);
+							int bytesToRead = size;
 							while (true) {
-								if (bbuf.remaining() < size) {
-									int rem =  bbuf.remaining();
-									bbuf.get(payload, offset, rem);
-									offset += rem;
-									size -= rem;
-									bbuf.clear();
-									position = bbuf.position();
-									bytesRead = mDataInputStream.read( bbufArray, position, bbuf.remaining() );
+								// we done with this payload?
+								if (bytesToRead > 0) {
+
+									// if we have some of the payload on the buffer
+									// after the header, make sure to grab it first
+									if( bbuf.remaining() > 0 ) {
+										// go ahead and slice the buffer because we
+										// may not want all of it
+										ByteBuffer slice = bbuf.slice();
+										if( slice.limit() > bytesToRead ) {
+											// we didn't wan't that many so limit the slice
+											slice.limit(bytesToRead);
+										}										
+										// add the slice to the payload
+										payload.put(slice);
+										// advance the buffer for the bytes we took.  There may
+										// be more data on the buffer for the header of the next
+										// message
+										bbuf.position(bbuf.position()+slice.limit());
+										// keep track so we know when we have all of the payload
+										bytesToRead -= slice.limit();
+										bytesRead = 0;
+
+
+									} else {
+										// otherwise get the rest of the bytes from the channel
+										bytesRead = payload.read(channel);
+										bytesToRead -= bytesRead;
+									}
+
+
 									if ( isInterrupted() )
 										break threadWhile; // exit thread
-									bbuf.position( position + bytesRead );
+
+									// something aint right
 									if (bytesRead < 0) {
 										logger.error("bytes read = {}, exiting", bytesRead);
 										setReceiverState( INetChannel.INTERRUPTED );
-										mParent.socketOperationFailed();
+										mParent.socketOperationFailed(new Exception("No bytes read " + bytesRead));
 										return;                    
 									}                
-									mDestination.resetTimeoutWatchdog();  // a successfull read should reset the timer
+
+									// a successful read should reset the timer
+									mDestination.resetTimeoutWatchdog();
+									// also keep the count of the bytes that we've read
 									mBytesRead += bytesRead;
-									bbuf.flip();
 									continue;
 								}
-								bbuf.get(payload, offset, size);
 
+								// flip to prepare for read
+								payload.flip();
 								AmmoGatewayMessage agm = agmb.payload(payload).channel(this.mDestination).build();
-								logger.info( "Received a packet from gateway size({}) @{}, csum {}", 
-										new Object[]{agm.size, agm.buildTime, agm.payload_checksum}  );
+								if( logger.isDebugEnabled() ) {
+									logger.debug("Received a packet from gateway size({}) @{"+agm.buildTime+"}, csum({})",
+											agm.size, agm.payload_checksum);
+								}
 
 								setReceiverState( INetChannel.DELIVER );
 								mDestination.deliverMessage( agm );
 
 								// received a valid message, update status count .... 
 								mMessagesReceived.incrementAndGet();
+
+								// unset payload
+								payload = null;
 								break;
 							}
 						}
@@ -1167,30 +1214,29 @@ public class TcpChannelServer extends TcpChannelAbstract {
 					} catch (ClosedChannelException ex) {
 						logger.warn("receiver threw exception", ex);
 						setReceiverState( INetChannel.INTERRUPTED );
-						mParent.socketOperationFailed();
+						mParent.socketOperationFailed(ex);
 					} catch ( Exception ex ) {
 						logger.warn("receiver threw exception", ex);
 						setReceiverState( INetChannel.INTERRUPTED );
-						mParent.socketOperationFailed();
+						mParent.socketOperationFailed(ex);
+					} finally {
+						if( payload != null ) payload.release();
 					}
 				}
 		}
 
 		private void setReceiverState( int iState )
 		{
-			synchronized ( this )
-			{
-				mState = iState;
-			}
+			mState = iState;
+			receiverState = iState;
 			mParent.statusChange();
 		}
 
 		public synchronized int getReceiverState() { return mState; }
 
-		private int mState = INetChannel.TAKING; // FIXME
+		private int mState;
 		private ConnectorThread mParent;
 		private TcpChannelServer mDestination;
-		@SuppressWarnings("unused")
 		private Socket mSocket;
 		private Logger logger = null;
 	}

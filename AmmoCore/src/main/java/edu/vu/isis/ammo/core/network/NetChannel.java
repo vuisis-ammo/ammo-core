@@ -82,6 +82,11 @@ public abstract class NetChannel implements INetChannel {
 	protected NetChannel(String name) {
 		this.name = name;
 	}
+	
+	@Override
+	public String getName() {
+		return name;
+	}
 
 	@Override
 	public String toString() {

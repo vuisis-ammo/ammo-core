@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Process;
 import edu.vu.isis.ammo.core.PLogger;
 import edu.vu.isis.ammo.core.distributor.DistributorPolicy.Encoding;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
 
 public class RequestDeserializerThread extends Thread {
     private static final Logger logger = LoggerFactory.getLogger("dist.deserializer");
@@ -28,10 +29,10 @@ public class RequestDeserializerThread extends Thread {
         final public String channelName;
         final public Uri provider;
         final public Encoding encoding;
-        final public byte[] data;
+        final public ByteBufferAdapter data;
 
         public Item(final int priority, final Context context, final String channelName, 
-                final Uri provider, final Encoding encoding, final byte[] data) 
+                final Uri provider, final Encoding encoding, final ByteBufferAdapter data) 
         {
             this.priority = priority;
             this.sequence = masterSequence.getAndIncrement();
@@ -85,7 +86,7 @@ public class RequestDeserializerThread extends Thread {
      * @return
      */
     public boolean toProvider(int priority, Context context, final String channelName,
-            Uri provider, Encoding encoding, byte[] data) 
+            Uri provider, Encoding encoding, ByteBufferAdapter data) 
     {
         this.queue.offer(new Item(priority, context, channelName, provider, encoding, data));
         return true;
@@ -113,6 +114,8 @@ public class RequestDeserializerThread extends Thread {
                 } catch (Exception ex) {
                     logger.error("insert failed provider: [{}], remaining in insert queue [{}]", 
                             new Object []{item.provider, queue.size()}, ex);
+                } finally {
+                	item.data.release();
                 }
 
             }
