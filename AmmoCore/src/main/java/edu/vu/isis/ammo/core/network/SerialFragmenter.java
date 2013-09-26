@@ -172,8 +172,11 @@ public class SerialFragmenter {
 
     public void destroy()
     {
+        logger.debug( "SerialFragmenter::destroy()" );
         stopResetTimer();
         stopTokenTimer();
+        logger.debug( "Calling shutdownNow() on mScheduler." );
+        mScheduler.shutdownNow();
     }
 
 
@@ -203,9 +206,12 @@ public class SerialFragmenter {
 
     public void stopResetTimer()
     {
+        logger.debug( "SerialFragmenter::stopResetTimer()" );
         // We received an acknowledgement for an ack, so disable the timer.
         if ( resetterHandle != null ) {
-            resetterHandle.cancel( true );
+            logger.debug( "  cancelling the reset timer" );
+            boolean result = resetterHandle.cancel( true );
+            logger.debug( "  returned: {}", result );
             resetterHandle = null;
 
             mSynced = true;
@@ -334,6 +340,9 @@ public class SerialFragmenter {
      */
     private synchronized void processAck( int count, ByteBuffer buf )
     {
+        if ( mAckedPackets == null )
+            return;
+
         // Unset the bits with the numbers in the ack.
         for ( int i = 0; i < count; ++i ) {
             short sequenceNumber = buf.getShort();
@@ -468,7 +477,9 @@ public class SerialFragmenter {
                 message = mSmallQueue.poll();
             }
 
-            sendFragments();
+            if ( mCurrentLarge != null ) {
+                sendFragments();
+            }
 
             // After that, add a token packet to the queue, too.
             sendToken();
@@ -500,7 +511,7 @@ public class SerialFragmenter {
         // duration long enough to take that into account.  We may want to
         // do some sort of callback later on for when the send queue becomes
         // empty.
-        mChannel.addMessageToSenderQueue( createTokenPacket() );
+        //mChannel.addMessageToSenderQueue( createTokenPacket() );
 
         if ( resetterHandle != null ) {
             logger.error( "Tried to create reset timer when we already had one." );
@@ -512,6 +523,7 @@ public class SerialFragmenter {
                 }
             };
 
+        mTokenSent = true;
         mTokenTimerHandle = mScheduler.scheduleAtFixedRate( resetter, 
                                                             0, // initial delay
                                                             TOKEN_PACKET_INTERVAL,
@@ -521,9 +533,12 @@ public class SerialFragmenter {
 
     private void stopTokenTimer()
     {
+        logger.debug( "SerialFragmenter::stopTokenTimer()" );
         // We received an acknowledgement for an ack, so disable the timer.
         if ( mTokenTimerHandle != null ) {
-            mTokenTimerHandle.cancel( true );
+            logger.debug( "  stopping the token timer" );
+            boolean result = mTokenTimerHandle.cancel( true );
+            logger.debug( "  returned: {}", result );
             mTokenTimerHandle = null;
 
             mTokenSent = false;
