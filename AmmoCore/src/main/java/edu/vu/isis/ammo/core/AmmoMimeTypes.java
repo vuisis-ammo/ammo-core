@@ -46,6 +46,8 @@ public class AmmoMimeTypes {
 
         mimeTypes.put( 7, "ammo/transapps.chat.media_groupAll" );
         mimeIds.put( "ammo/transapps.chat.media_groupAll", 7 ); // we are supporting small media attachments
+        mimeTypes.put( 8, "ammo/edu.vu.isis.ammo.dash.media" );
+        mimeIds.put( "ammo/edu.vu.isis.ammo.dash.media", 8 );
         
         // NO blob, no media
         // mimeTypes.put( 4, "ammo/edu.vu.isis.ammo.dash.media" );
