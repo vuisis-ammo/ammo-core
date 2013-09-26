@@ -349,8 +349,16 @@ public class SerialFragmenter {
         // Test the BitSet to see if all are true. If so, start
         // sending the next packet if there is one in the queue.
         if ( mAckedPackets.cardinality() == 0 ) {
-            // FIXME: Tell the distributor that mCurrentLarge was sent.
-            //        Reset the relevent member variables.
+            // legitimately sent (all packets were acked).
+            if ( mCurrentLarge.handler != null ) {
+                mCurrentLarge.handler.ack( mChannel.name , DisposalState.SENT );
+            }
+
+            // No reset the relevant member variables
+            mCurrentLarge = null;
+            mCurrentLargeBaseSequence = -1;
+            mNumberOfFragments = -1;
+            mAckedPackets = null;
 
             startSendingLargePacket();
         }
