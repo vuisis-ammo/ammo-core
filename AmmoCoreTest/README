@@ -38,7 +38,9 @@ Alternatively, you can "manually" install the APK onto the phone and run the tes
 
 $ adb install -r AmmoCoreTest-release.apk
 
-$ adb shell am instrument -w edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner
+$ (adb shell am instrument -w edu.vu.isis.ammo.core.tests/pl.polidea.instrumentation.PolideaInstrumentationTestRunner) This is an old command which currently will not work. Use this instead:
+
+    adb shell am instrument -w edu.vu.isis.ammo.core.tests/android.test.InstrumentationTestRunner
 
 
 OUTPUT
