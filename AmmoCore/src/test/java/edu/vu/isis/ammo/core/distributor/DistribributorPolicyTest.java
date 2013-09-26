@@ -65,7 +65,7 @@ public class DistribributorPolicyTest
         final DistributorPolicy policy = DistributorPolicy.newInstance(is);
         logger.trace("policy=[{}]", policy);
 
-        Assert.assertEquals("topic count @", 14, policy.topicCount());
+        Assert.assertEquals("topic count @", 16, policy.topicCount());
 
         {
             final Topic actual = policy

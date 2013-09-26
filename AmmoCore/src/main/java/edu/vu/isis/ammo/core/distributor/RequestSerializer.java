@@ -11,26 +11,53 @@ purpose whatsoever, and to have or authorize others to do so.
 
 package edu.vu.isis.ammo.core.distributor;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import java.util.ArrayList;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.net.Uri;
+import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
+import android.os.ParcelFileDescriptor.AutoCloseOutputStream;
+import android.os.RemoteException;
 import android.util.SparseArray;
+import edu.vu.isis.ammo.api.IDistributorAdaptor;
 import edu.vu.isis.ammo.api.type.Payload;
 import edu.vu.isis.ammo.api.type.Provider;
 import edu.vu.isis.ammo.core.NetworkManager;
@@ -43,6 +70,9 @@ import edu.vu.isis.ammo.core.distributor.serializer.ISerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.JsonSerializer;
 import edu.vu.isis.ammo.core.distributor.serializer.TerseSerializer;
 import edu.vu.isis.ammo.core.network.AmmoGatewayMessage;
+import edu.vu.isis.ammo.util.ByteBufferAdapter;
+import edu.vu.isis.ammo.util.ByteBufferInputStream;
+import edu.vu.isis.ammo.util.ExpandoByteBufferAdapter;
 
 /**
  * The purpose of these objects is lazily serialize an object. Once it has been
@@ -93,7 +123,8 @@ public class RequestSerializer {
 			this.code = code;
 		}
 
-		private static final SparseArray<FieldType> codemap = new SparseArray<FieldType>();
+		private static final SparseArray<FieldType> codemap = 
+              new SparseArray<FieldType>();
 		static {
 			for (FieldType t : FieldType.values()) {
 				FieldType.codemap.put(t.code, t);
@@ -193,13 +224,11 @@ public class RequestSerializer {
 	}
 
 	public interface OnReady {
-		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
+        public AmmoGatewayMessage run(Encoding encode, ByteBufferAdapter serialized);
 	}
 
 	public interface OnSerialize {
-		public void run(final Encoding encode);
-
-        public byte[] getBytes();
+        public ByteBufferAdapter run(Encoding encode);
 	}
 
 	public final Provider provider;
@@ -226,6 +255,13 @@ public class RequestSerializer {
 			cv = new ContentValues();
 			blobs = new HashMap<String, BlobData>();
 		}
+    /**
+     * This maintains a set of persistent connections to content provider
+     * adapter services.
+     */
+    final static private Map<String, IDistributorAdaptor> remoteServiceMap;
+    static {
+        remoteServiceMap = new HashMap<String, IDistributorAdaptor>(10);
 	}
 
 	private RequestSerializer(Provider provider, Payload payload) {
@@ -280,9 +316,8 @@ public class RequestSerializer {
 		final Encoding local_encode = encode;
 		final String local_channel = channel;
 		if (parent.agm == null) {
-			parent.serializeActor.run(local_encode);
-			byte[] bytes = parent.serializeActor.getBytes();
-                parent.agm = parent.readyActor.run(local_encode, bytes);
+            final ByteBufferAdapter agmBytes = parent.serializeActor.run(local_encode);
+            parent.agm = parent.readyActor.run(local_encode, agmBytes);
 		}
 		if (parent.agm == null)
 			return null;
@@ -318,7 +353,7 @@ public class RequestSerializer {
 	 * @param contractStore
 	 * @return
 	 */
-	public static byte[] serializeFromContentValues(ContentValues cv,
+	public static ByteBufferAdapter serializeFromContentValues(ContentValues cv,
 			final DistributorPolicy.Encoding encoding, final String topic,
 			final ContractStore contractStore) {
 		logger.trace("serializing using content values and encoding {}",
@@ -326,8 +361,11 @@ public class RequestSerializer {
 
 		final ISerializer serializer;
 		switch (encoding.getType()) {
-		case JSON: {
-			serializer = new JsonSerializer();
+		case JSON: {		
+            /* TODO proposed replacement
+            return ByteBufferAdapter.obtain(encodeAsJson(cv));
+            */
+            serializer = new JsonSerializer();
 			break;
 		}
 
@@ -362,6 +400,35 @@ public class RequestSerializer {
 
 		return result;
 	}
+
+   /**
+   * The following proposed method localizes the encoding a bit.
+   */
+   private static byte[] encodeAsJson(ContentValues cv) {
+        // encoding in json for now ...
+        if (cv == null) {
+            return null;
+        }
+        final Set<Map.Entry<String, Object>> data = cv.valueSet();
+        final Iterator<Map.Entry<String, Object>> iter = data.iterator();
+        final JSONObject json = new JSONObject();
+
+        while (iter.hasNext())
+        {
+            Map.Entry<String, Object> entry = (Map.Entry<String, Object>) iter.next();
+            try {
+                if (entry.getValue() instanceof String)
+                    json.put(entry.getKey(), cv.getAsString(entry.getKey()));
+                else if (entry.getValue() instanceof Integer)
+                    json.put(entry.getKey(), cv.getAsInteger(entry.getKey()));
+            } catch (JSONException ex) {
+                logger.warn("cannot encode content values as json", ex);
+                return null;
+            }
+        }
+
+        return json.toString().getBytes();
+    }
 
 	/**
 	 * Given a byte array, serialize it into a set of content values. The type

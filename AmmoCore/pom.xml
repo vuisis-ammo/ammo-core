@@ -71,6 +71,7 @@
     <dependency>
       <groupId>transapps</groupId>
       <artifactId>tasettings-api</artifactId>
+	  <version>1.0.27</version>
     </dependency>
   </dependencies>
 

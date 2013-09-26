@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.TextView;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.core.R;
+import edu.vu.isis.ammo.core.network.INetChannel;
 import edu.vu.isis.ammo.core.network.NetChannel;
 
 public class Usb extends ModelChannel {
@@ -69,7 +70,7 @@ public class Usb extends ModelChannel {
         mStatus = status;
     }
 
-    private Usb(Context context, String name, NetChannel channel) {
+    private Usb(Context context, String name, INetChannel channel) {
         super(context, name);
         this.port = Integer.valueOf(this.prefs.getString(INetPrefKeys.GATEWAY_PORT,
                 String.valueOf(INetPrefKeys.DEFAULT_GATEWAY_PORT)));
@@ -81,7 +82,7 @@ public class Usb extends ModelChannel {
         mNetChannel = channel;
     }
 
-    public static Usb getInstance(Context context, NetChannel channel) {
+    public static Usb getInstance(Context context, INetChannel channel) {
         // initialize the gateway from the shared preferences
         logger.trace("{} asked for a new Gateway instance", new Throwable().getStackTrace()[1]);
         return new Usb(context, "USB Channel", channel);

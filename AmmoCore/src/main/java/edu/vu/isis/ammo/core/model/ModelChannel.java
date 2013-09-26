@@ -20,7 +20,7 @@ import android.preference.PreferenceManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import edu.vu.isis.ammo.core.OnNameChangeListener;
-import edu.vu.isis.ammo.core.network.NetChannel;
+import edu.vu.isis.ammo.core.network.INetChannel;
 
 public abstract class ModelChannel implements OnSharedPreferenceChangeListener{
 
@@ -32,7 +32,7 @@ public abstract class ModelChannel implements OnSharedPreferenceChangeListener{
 	protected String name = "";
 	protected SharedPreferences prefs = null;
 	
-	protected NetChannel mNetChannel = null;
+	protected INetChannel mNetChannel = null;
 	
 	protected ModelChannel(Context context, String name)
 	{
@@ -43,7 +43,7 @@ public abstract class ModelChannel implements OnSharedPreferenceChangeListener{
 		logger.trace("Channel {} constructed", name);
 	}
 	
-	public NetChannel getNetChannel () {return mNetChannel;}
+	public INetChannel getNetChannel () {return mNetChannel;}
 	
 	public void setName(String newName)
 	{

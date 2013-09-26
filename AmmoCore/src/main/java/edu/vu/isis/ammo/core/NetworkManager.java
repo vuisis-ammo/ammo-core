@@ -38,9 +38,6 @@ import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
-
-import com.google.protobuf.InvalidProtocolBufferException;
-
 import edu.vu.isis.ammo.INetDerivedKeys;
 import edu.vu.isis.ammo.INetPrefKeys;
 import edu.vu.isis.ammo.IntentNames;
@@ -76,8 +73,8 @@ import edu.vu.isis.ammo.core.network.TcpChannelServer;
 import edu.vu.isis.ammo.core.pb.AmmoMessages;
 import edu.vu.isis.ammo.core.receiver.CellPhoneListener;
 import edu.vu.isis.ammo.core.receiver.WifiReceiver;
+import edu.vu.isis.ammo.util.ByteBufferInputStream;
 import edu.vu.isis.ammo.util.IRegisterReceiver;
-import edu.vu.isis.ammo.util.UniqueIdentifiers;
 
 /**
  * <p>
@@ -219,8 +216,11 @@ public enum NetworkManager  implements INetworkService,
 
     public String getDeviceId() {
         if (this.deviceId == null) {
+/* If No PathrPrefs
             this.deviceId = UniqueIdentifiers.device(this.context);
-            this.updatePref(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);
+            this.updatePref(INetPrefKeys.CORE_DEVICE_ID, this.deviceId);        
+*/
+            this.deviceId = aggregatePref(Keys.HardwareKeys.DEVICE_ID, this.deviceId);
             logger.warn("no device specified, generating: [{}]", this.deviceId);
         }
         return deviceId;
@@ -302,7 +302,7 @@ public enum NetworkManager  implements INetworkService,
         
         this.multicastChannel.init(context);
         
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             channel.init(context);
         }
 
@@ -521,7 +521,7 @@ public enum NetworkManager  implements INetworkService,
         this.reliableMulticastChannel.reset();
         this.reliableMcastMediaChannel.reset();
         this.serialChannel.reset();
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             channel.reset();
         }
 
@@ -549,7 +549,7 @@ public enum NetworkManager  implements INetworkService,
             this.journalChannel.close();
         if (serialChannel != null)
             this.serialChannel.disable();
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             if (channel != null) {
                 channel.disable();
             }
@@ -699,8 +699,13 @@ public enum NetworkManager  implements INetworkService,
                         this.networkingSwitch);
         logger.trace("acquired networkingSwitch {}", this.networkingSwitch);
 
+        /*  If No PathrPrefs
         this.deviceId = this.localSettings
                 .getString(INetPrefKeys.CORE_DEVICE_ID,
+                        this.deviceId);
+        */
+        this.deviceId = this
+                .aggregatePref(Keys.HardwareKeys.DEVICE_ID,
                         this.deviceId);
 
         this.operatorId = this
@@ -774,7 +779,7 @@ public enum NetworkManager  implements INetworkService,
         final String serverPortStr = this.localSettings
                 .getString(INetPrefKeys.SERVER_PORT,
                         String.valueOf(INetPrefKeys.DEFAULT_SERVER_PORT));
-        int serverPort = Integer.valueOf(serverPortStr);
+        final int serverPort = Integer.valueOf(serverPortStr);
         PLogger.SET_PANTHR.debug("acquire server port={}",
         		serverPort);
         
@@ -932,7 +937,7 @@ public enum NetworkManager  implements INetworkService,
         
         this.serialChannel.toLog("acquire ");
 
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             channel.toLog("acquire");
         }
 
@@ -979,6 +984,10 @@ public enum NetworkManager  implements INetworkService,
                         final boolean active = parent.updatePref(key, parent.isJournalUserDisabled);
                         PLogger.SET_PANTHR_JOURNAL.debug("suppress[{} -> {}]",
                                 parent.isJournalUserDisabled, active);
+                    }
+                    
+                    else if( key.equals(INetPrefKeys.SERVER_ENABLED)) {
+                    	
                     }
 
                     //
@@ -1269,7 +1278,7 @@ public enum NetworkManager  implements INetworkService,
                             // convert seconds into milliseconds
                         }
                         else if (key.equals(INetPrefKeys.SERVER_PORT)) {
-                            int serverPort = Integer.valueOf(prefs.getString(
+                            final int serverPort = Integer.valueOf(prefs.getString(
                                     key, String.valueOf(INetPrefKeys.DEFAULT_SERVER_PORT)));
                             parent.reverseTcpChannel.setPort(serverPort);
                         }
@@ -1480,8 +1489,11 @@ public enum NetworkManager  implements INetworkService,
 
         final AmmoMessages.AuthenticationMessage.Builder authreq =
                 AmmoMessages.AuthenticationMessage.newBuilder();
+        /*  If No PathrPrefs
         authreq.setDeviceId(
                 UniqueIdentifiers.device(this.context))
+        */
+        authreq.setDeviceId(getDeviceId())
                 .setUserId(this.operatorId).setUserKey(this.operatorKey);
 
         mw.setAuthenticationMessage(authreq);
@@ -1512,7 +1524,7 @@ public enum NetworkManager  implements INetworkService,
         // agm.setSessionUuid( sessionId );
         if (!netChannelMap.containsKey(channelName))
             return DisposalState.REJECTED;
-        final NetChannel channel = netChannelMap.get(channelName);
+        final INetChannel channel = netChannelMap.get(channelName);
         if (!channel.isConnected())
             return DisposalState.PENDING;
         return channel.sendRequest(agm);
@@ -1522,7 +1534,7 @@ public enum NetworkManager  implements INetworkService,
         if (!netChannelMap.containsKey(channelName))
             return ChannelStatus.DOWN;
 
-        final NetChannel channel = netChannelMap.get(channelName);
+        final INetChannel channel = netChannelMap.get(channelName);
         if (channel.isBusy()) // this is to improve performance
             return ChannelStatus.FULL;
         if (!channel.isConnected())
@@ -1562,7 +1574,7 @@ public enum NetworkManager  implements INetworkService,
         this.reliableMcastMediaChannel.disable();
         this.serialChannel.disable();
 
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             channel.disable();
         }
     }
@@ -1581,7 +1593,7 @@ public enum NetworkManager  implements INetworkService,
                 || reliableMcastMediaChannel.isConnected()
                 || ((serialChannel != null) && serialChannel.isConnected()));
 
-        for (NetChannel channel : this.registeredChannels) {
+        for (INetChannel channel : this.registeredChannels) {
             any = any || channel.isConnected();
         }
         logger.debug("::isConnected ? {}", any);
@@ -1613,7 +1625,8 @@ public enum NetworkManager  implements INetworkService,
 
         /** Message Building */
         final AmmoMessages.MessageWrapper.Builder mwb = buildAuthenticationRequest();
-        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mwb, this);
+        final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(
+        		mwb.build().toByteArray(), this);
         agmb.isGateway(true);
         switch (sendRequest(agmb.build(), DistributorPolicy.DEFAULT)) {
             case SENT:
@@ -1643,8 +1656,9 @@ public enum NetworkManager  implements INetworkService,
         // HACK! Fixme
         final AmmoMessages.MessageWrapper mw;
         try {
-            mw = AmmoMessages.MessageWrapper.parseFrom(agm.payload);
-        } catch (InvalidProtocolBufferException ex) {
+            mw = AmmoMessages.MessageWrapper.parseFrom(
+            		new ByteBufferInputStream(agm.payload));
+        } catch (Exception ex) {
             logger.error("parsing payload failed", ex);
             return;
         }
@@ -1707,7 +1721,7 @@ public enum NetworkManager  implements INetworkService,
 					AmmoIntents.AMMO_ACTION_CONNECTION_STATUS_CHANGE);
 			broadcastIntent.putExtra(AmmoIntents.EXTRA_CHANNEL, channel.name);
 			broadcastIntent.putExtra(AmmoIntents.EXTRA_CONNECT_STATUS, connStatus);
-			this.context.sendBroadcast(broadcastIntent);
+			this.context.sendStickyBroadcast(broadcastIntent);
         }
 
         switch (connStatus) {
@@ -1786,8 +1800,8 @@ public enum NetworkManager  implements INetworkService,
     private SerialChannel serialChannel = null;
     
    
-    final public List<NetChannel> registeredChannels =
-            new ArrayList<NetChannel>();
+    final public List<INetChannel> registeredChannels =
+            new ArrayList<INetChannel>();
 
     /**
      * No channels can be registered until after onCreate() The channel must be
@@ -1800,9 +1814,9 @@ public enum NetworkManager  implements INetworkService,
      * 
      * @param channel
      */
-    public void registerChannel(NetChannel channel) {
+    public void registerChannel(INetChannel channel) {
         this.registeredChannels.add(channel);
-        NetworkManager.netChannelMap.put(channel.name, channel);
+        NetworkManager.netChannelMap.put(channel.getName(), channel);
 
         // TODO load any preferences here.
 
@@ -1810,11 +1824,11 @@ public enum NetworkManager  implements INetworkService,
         channel.enable();
     }
 
-    static final private Map<String, NetChannel> netChannelMap;
+    static final private Map<String, INetChannel> netChannelMap;
 
     static {
         modelChannelMap = new HashMap<String, ModelChannel>();
-        netChannelMap = new HashMap<String, NetChannel>();
+        netChannelMap = new HashMap<String, INetChannel>();
     }
 
     static void addChannel() {
@@ -1918,7 +1932,7 @@ public enum NetworkManager  implements INetworkService,
           reliableMulticastChannel.linkDown(null);
           reliableMcastMediaChannel.linkDown(null);
           
-          for (NetChannel channel : NetworkManager.this.registeredChannels) {
+          for (INetChannel channel : NetworkManager.this.registeredChannels) {
               channel.linkDown(null);
           }
         }
@@ -1933,7 +1947,7 @@ public enum NetworkManager  implements INetworkService,
           reliableMulticastChannel.linkUp(null);
           reliableMcastMediaChannel.linkUp(null);        
           
-          for (NetChannel channel : NetworkManager.this.registeredChannels) {
+          for (INetChannel channel : NetworkManager.this.registeredChannels) {
               channel.linkUp(null);
           }
         }

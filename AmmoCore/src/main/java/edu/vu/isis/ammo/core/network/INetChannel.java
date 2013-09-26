@@ -47,6 +47,8 @@ public interface INetChannel {
     int SIZED = 56; // indicating the next thing is a checksum
     int CHECKED = 57; // indicating the bytes are being read
     int DELIVER = 58; // indicating the message has been read
+    
+    String getName();
 
     void reset();
 
