@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.github.tony19:logback-android-classic:1.0.8-1">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/tony19/logback-android-classic/1.0.8-1/logback-android-classic-1.0.8-1.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/tony19/logback-android-classic/1.0.8-1/logback-android-classic-1.0.8-1-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/tony19/logback-android-classic/1.0.8-1/logback-android-classic-1.0.8-1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
