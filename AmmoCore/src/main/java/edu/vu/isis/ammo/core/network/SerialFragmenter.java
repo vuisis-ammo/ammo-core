@@ -271,6 +271,9 @@ public class SerialFragmenter {
                 ++mNumberOfFragments;
             }
 
+            mCurrentLargeBaseSequence = mSequenceNumber;
+            incrementSequenceNumber( mNumberOfFragments );
+
             // Create a BitSet and default to true, so we can test for all
             // falses to tell if we're done.
             mAckedPackets = new BitSet( mNumberOfFragments );
@@ -293,7 +296,7 @@ public class SerialFragmenter {
             // The last fragment's length may be a fraction of MAX_PACKET_SIZE.
             // Figure out what it should be.
             int lengthOfFragment = MAX_PACKET_SIZE;
-            if ( index == mNumberOfFragments ) {
+            if ( index == mNumberOfFragments - 1 ) {
                 lengthOfFragment = mCurrentLarge.payload.length % MAX_PACKET_SIZE;
             }
 
