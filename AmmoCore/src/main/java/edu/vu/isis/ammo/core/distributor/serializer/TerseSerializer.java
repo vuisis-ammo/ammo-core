@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,10 +15,18 @@ import edu.vu.isis.ammo.core.distributor.RequestSerializer.FieldType;
 public class TerseSerializer implements ISerializer {
     static final Logger logger = LoggerFactory.getLogger("dist.serializer.terse");
 
+    /**
+     * The tuple must be created before calling this method.
+     * final ByteBuf tuple = Unpooled.buffer(2048)
+     * should do the trick.
+     *
+     * @param tuple
+     * @param item The item to be serialized
+     * @return
+     * @throws IOException
+     */
     @Override
-    public byte[] serialize(final IContentItem item) throws IOException {
-        final ByteBuffer tuple = ByteBuffer.allocate(2048);
-
+    public ByteBuf serialize(final ByteBuf tuple, final IContentItem item) throws IOException {
         // For the new serialization for the 152s, write the data we want to
         // tuple.
         for (final String key : item.getOrderedKeys()) {
@@ -28,7 +37,7 @@ public class TerseSerializer implements ISerializer {
                 case LONG:
                 case FK: {
                     final long longValue = item.getAsLong(key);
-                    tuple.putLong(longValue);
+                    tuple.writeLong(longValue);
                     break;
                 }
                 case TIMESTAMP: {
@@ -38,7 +47,7 @@ public class TerseSerializer implements ISerializer {
                                                                    // seconds
                                                                    // only on
                                                                    // serial
-                    tuple.putInt(intValue);
+                    tuple.writeInt(intValue);
                     break;
                 }
                 case TEXT:
@@ -53,55 +62,55 @@ public class TerseSerializer implements ISerializer {
                         byte[] serializedString = svalue.getBytes("UTF8");
                         int length = serializedString.length;
                         if(length <= Short.MAX_VALUE) { 
-                            tuple.putShort((short) length);
-                            tuple.put(serializedString);
+                            tuple.writeShort((short) length);
+                            tuple.writeBytes(serializedString);
                         } else {
-                            tuple.putShort((short) 0);
+                            tuple.writeShort((short) 0);
                             logger.warn("Omitting too-long string of length {}", length);
                         }
                     } else {
-                        tuple.putShort((short) 0);
+                        tuple.writeShort((short) 0);
                     }
                     
                     break;
                 }
                 case SHORT: {
                     final short shortValue = item.getAsShort(key);
-                    tuple.putShort(shortValue);
+                    tuple.writeShort(shortValue);
                     break;
                 }
                 case BOOL: {
                     final boolean boolValue = item.getAsBoolean(key);
-                    byte byteValue;
+                    final int byteValue;
                     if(boolValue == true) {
                         byteValue = 1;
                     } else {
                         byteValue = 0;
                     }
-                    tuple.put(byteValue);
+                    tuple.writeByte(byteValue);
                     break;
                 }
                 case INTEGER:
                 case EXCLUSIVE:
                 case INCLUSIVE: {
                     final int intValue = item.getAsInteger(key);
-                    tuple.putInt(intValue);
+                    tuple.writeInt(intValue);
                     break;
                 }
                 case REAL:
                 case FLOAT: {
                     final double doubleValue = item.getAsDouble(key);
-                    tuple.putDouble(doubleValue);
+                    tuple.writeDouble(doubleValue);
                     break;
                 }
                 case BLOB: {
                     final byte[] bytesValue = item.getAsByteArray(key);
                     if(bytesValue != null) {
                     // check that bytes count does not exceed our buffer size
-                    tuple.putShort((short) bytesValue.length);
-                    tuple.put(bytesValue);
+                    tuple.writeShort((short) bytesValue.length);
+                    tuple.writeBytes(bytesValue);
                     } else {
-                        tuple.putShort((short) 0);
+                        tuple.writeShort((short) 0);
                     }
                     break;
                 }
@@ -109,20 +118,16 @@ public class TerseSerializer implements ISerializer {
                     logger.warn("unhandled data type {}", type);
             }
         }
-        // we only process one
-        tuple.flip();
-        final byte[] tupleBytes = new byte[tuple.limit()];
-        tuple.get(tupleBytes);
         PLogger.API_STORE.debug("terse tuple=[{}]", tuple);
-        return tupleBytes;
+        return tuple;
     }
 
     @Override
-    public DeserializedMessage deserialize(final byte[] data, final List<String> fieldNames,
-            final List<FieldType> dataTypes) {
+    public DeserializedMessage deserialize(final ByteBuf tuple,
+                                           final List<String> fieldNames, final List<FieldType> dataTypes)
+    {
         final DeserializedMessage decodedObject = new DeserializedMessage();
 
-        final ByteBuffer tuple = ByteBuffer.wrap(data);
         int i = 0;
         for (String key : fieldNames) {
             FieldType type = dataTypes.get(i);
@@ -132,18 +137,18 @@ public class TerseSerializer implements ISerializer {
                     // wrap.put(key, null);
                     break;
                 case SHORT: {
-                    final short shortValue = tuple.getShort();
+                    final short shortValue = tuple.readShort();
                     decodedObject.cv.put(key, shortValue);
                     break;
                 }
                 case LONG:
                 case FK: {
-                    final long longValue = tuple.getLong();
+                    final long longValue = tuple.readLong();
                     decodedObject.cv.put(key, longValue);
                     break;
                 }
                 case TIMESTAMP: {
-                    final int intValue = tuple.getInt();
+                    final int intValue = tuple.readInt();
                     final long longValue = 1000l * (long) intValue; // seconds
                                                                     // -->
                                                                     // milliseconds
@@ -152,18 +157,15 @@ public class TerseSerializer implements ISerializer {
                 }
                 case TEXT:
                 case GUID: {
-                    final short textLength = tuple.getShort();
+                    final short textLength = tuple.readShort();
                     if (textLength > 0) {
                         try {
                             byte[] textBytes = new byte[textLength];
-                            tuple.get(textBytes, 0, textLength);
+                            tuple.readBytes(textBytes, 0, textLength);
                             String textValue = new String(textBytes, "UTF8");
                             decodedObject.cv.put(key, textValue);
                         } catch (java.io.UnsupportedEncodingException ex) {
-                            logger.error("Error in string encoding{}",
-                                    new Object[] {
-                                        ex.getStackTrace()
-                                    });
+                            logger.error("Error in string encoding", ex);
                         }
                     }
                     // final char[] textValue = new char[textLength];
@@ -176,23 +178,23 @@ public class TerseSerializer implements ISerializer {
                 case INTEGER:
                 case EXCLUSIVE:
                 case INCLUSIVE: {
-                    final int intValue = tuple.getInt();
+                    final int intValue = tuple.readInt();
                     decodedObject.cv.put(key, intValue);
                     break;
                 }
                 case REAL:
                 case FLOAT: {
-                    final double doubleValue = tuple.getDouble();
+                    final double doubleValue = tuple.readDouble();
                     decodedObject.cv.put(key, doubleValue);
                     break;
                 }
                 case BLOB: {
-                    final short bytesLength = tuple.getShort();
+                    final short bytesLength = tuple.readShort();
                     if (bytesLength > 0) {
                         final byte[] bytesValue = new byte[bytesLength];
-                        tuple.get(bytesValue, 0, bytesLength);
-                        decodedObject.cv.put(key, bytesValue); //TODO: put this in the DecodedMessage blob field like in the JSON serializer
-                    }
+                        tuple.readBytes(bytesValue, 0, bytesLength);
+                        //TODO: put this in the DecodedMessage blob field like in the JSON serializer
+                        decodedObject.cv.put(key, bytesValue);                     }
                     break;
                 }
                 case FILE: {

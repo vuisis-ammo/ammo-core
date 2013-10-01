@@ -11,6 +11,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.util.CharsetUtil;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -41,9 +44,10 @@ public class JsonSerializer implements ISerializer {
     public static final byte BLOB_MARKER_FIELD = (byte) 0xff;
 
     @Override
-    public byte[] serialize(final IContentItem item) throws IOException {
+    public ByteBuf serialize(final ByteBuf tuple, final IContentItem item) throws IOException {
         logger.debug("Serialize the non-blob data <{}>", item);
-        
+        tuple.order(ByteOrder.BIG_ENDIAN);
+
         final JSONObject json = new JSONObject();
         int countBinaryFields = 0;
         for (final String field : item.keySet()) {
@@ -75,162 +79,139 @@ public class JsonSerializer implements ISerializer {
             }
         }
         final String jsonString = json.toString();
-        final byte[] tuple = jsonString.getBytes();
+        tuple.writeBytes(jsonString.getBytes(CharsetUtil.UTF_8));
         logger.debug("serialized payload <{}> <{}>", jsonString, tuple);
         if (countBinaryFields < 1) {
             return tuple;
         }
 
-        logger.trace("loading larger tuple buffer");
-        ByteArrayOutputStream bigTuple = null;
-        try {
-            bigTuple = new ByteArrayOutputStream();
+        logger.trace("enlarge tuple buffer");
+        tuple.writeByte(0x0);
 
-            bigTuple.write(tuple);
-            bigTuple.write(0x0);
-
-            logger.trace("Serialize the blob data (if any)");
-            final byte[] buffer = new byte[1024];
-            for (final String field : item.keySet()) {
-                final FieldType type = item.getTypeForKey(field);
-                switch (type) {
-                    case BLOB:
-                    case FILE:
-                        break;
-                    default:
-                        continue;
-                }
-                bigTuple.write(field.getBytes());
-                bigTuple.write(0x0);
-
-                switch (type) {
-                    case BLOB:
-                        final byte[] tempBlob = item.getAsByteArray(field);
-                        final BlobTypeEnum tempBlobType = BlobTypeEnum.infer(field,
-                                tempBlob);
-                        switch (tempBlobType) {
-                            case SMALL:
-                                try {
-                                    logger.trace("field name=[{}] blob=[{}]", field,
-                                            tempBlob);
-                                    final ByteBuffer fieldBlobBuffer = ByteBuffer
-                                            .wrap(tempBlob);
-
-                                    final ByteBuffer bb = ByteBuffer.allocate(4);
-                                    bb.order(ByteOrder.BIG_ENDIAN);
-                                    final int size = fieldBlobBuffer.capacity();
-                                    bb.putInt(size);
-                                    bigTuple.write(bb.array());
-
-                                    bigTuple.write(fieldBlobBuffer.array());
-
-                                    bigTuple.write(BLOB_MARKER_FIELD);
-                                    bigTuple.write(bb.array(), 1, bb.array().length - 1);
-                                } finally {
-                                }
-                                break;
-                            case LARGE:
-                            default:
-                                break;
-                        }
-                        continue;
-                    default:
-                        break;
-                }
-
-                logger.trace("field name=[{}] ", field);
-                try {
-                    final AssetFileDescriptor afd = item.getAssetFileDescriptor(field);
-                    if(afd != null) {
-                        final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
-    
-                        final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(
-                                pfd);
-                        final ByteBuffer fieldBlobBuffer;
-                        ByteArrayOutputStream fieldBlob = null;
-                        BufferedInputStream bis = null;
-                        try {
-                            bis = new BufferedInputStream(instream);
-                            fieldBlob = new ByteArrayOutputStream();
-                            for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1;) {
-                                fieldBlob.write(buffer, 0, bytesRead);
-                            }
-                            fieldBlobBuffer = ByteBuffer.wrap(fieldBlob.toByteArray());
-                        } finally {
-                            if (bis != null)
-                                bis.close();
-                            if (fieldBlob != null)
-                                fieldBlob.close();
-                        }
-    
-                        // write it out
-                        final ByteBuffer bb = ByteBuffer.allocate(4);
-                        bb.order(ByteOrder.BIG_ENDIAN);
-                        final int size = fieldBlobBuffer.capacity();
-                        bb.putInt(size);
-                        bigTuple.write(bb.array());
-    
-                        bigTuple.write(fieldBlobBuffer.array());
-                        bigTuple.write(bb.array());
-                    } else {
-                        logger.error("Didn't get an asset file descriptor for field {}", field);
-                    }
-                } catch (IOException ex) {
-                    logger.trace("unable to create stream {}", field, ex);
-                    throw new FileNotFoundException("Unable to create stream");
-                }
-
+        // We know how much bigger each piece will be.
+        // It is because of this that a composite buffer may be of use.
+        logger.trace("Serialize the blob data (if any)");
+        for (final String field : item.keySet()) {
+            final FieldType type = item.getTypeForKey(field);
+            switch (type) {
+                case BLOB:
+                case FILE:
+                    break;
+                default:
+                    continue;
             }
-            final byte[] finalTuple = bigTuple.toByteArray();
-            bigTuple.close();
-            PLogger.API_STORE.debug("json tuple=[{}] size=[{}]",
-                    tuple, finalTuple.length);
-            PLogger.API_STORE.trace("json finalTuple=[{}]",
-                    finalTuple);
-            return finalTuple;
+            tuple.writeBytes(field.getBytes());
+            tuple.writeByte(0x0);
 
-        } finally {
-            if (bigTuple != null)
-                bigTuple.close();
+            switch (type) {
+                case BLOB:
+                    final byte[] tempBlob = item.getAsByteArray(field);
+                    final BlobTypeEnum tempBlobType = BlobTypeEnum.infer(field, tempBlob);
+                    switch (tempBlobType) {
+                        case SMALL:
+                            logger.trace("field name=[{}] blob=[{}]", field, tempBlob);
+                            final int size = tempBlob.length;
+
+                            // write the header (size)
+                            tuple.writeInt(size);
+
+                            // write the payload
+                            tuple.writeBytes(tempBlob);
+
+                            // write the footer
+                            final ByteBuf overwrite = tuple.markWriterIndex();
+                            tuple.writeInt(size);
+                            overwrite.writeByte(BLOB_MARKER_FIELD);
+                            break;
+                        case LARGE:
+                        default:
+                            break;
+                    }
+                    continue;
+                default:
+                    break;
+            }
+
+            logger.trace("field name=[{}] ", field);
+            try {
+                final AssetFileDescriptor afd = item.getAssetFileDescriptor(field);
+                if (afd != null) {
+                    final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
+                    final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+                    BufferedInputStream bis = null;
+
+                    int size = 0;
+                    tuple.order(ByteOrder.BIG_ENDIAN);
+                    final ByteBuf overwrite = tuple.markWriterIndex();
+                    tuple.writeInt(0); // reserve the space
+
+                    try {
+                        final byte[] buffer = new byte[1024];
+                        bis = new BufferedInputStream(instream);
+                        for (int bytesRead = 0; (bytesRead = bis.read(buffer)) != -1; ) {
+                            size += bytesRead;
+                            tuple.writeBytes(buffer, 0, bytesRead);
+                        }
+                    } finally {
+                        if (bis != null)
+                            bis.close();
+                    }
+                    // write the size out
+                    overwrite.writeInt(size);
+                    tuple.writeInt(size);
+
+                } else {
+                    logger.error("Didn't get an asset file descriptor for field {}", field);
+                }
+            } catch (IOException ex) {
+                logger.trace("unable to create stream {}", field, ex);
+                throw new FileNotFoundException("Unable to create stream");
+            }
+
         }
+        PLogger.API_STORE.debug("json tuple=[{}] size=[{}]",
+                tuple, tuple.readableBytes());
+
+        return tuple;
     }
 
     @Override
-    public DeserializedMessage deserialize(final byte[] data, final List<String> fieldNames,
-            final List<FieldType> dataTypes) {
+    public DeserializedMessage deserialize(final ByteBuf tuple,
+                                           final List<String> fieldNames, final List<FieldType> dataTypes)
+    {
         final DeserializedMessage msg = new DeserializedMessage();
-        final ByteBuffer dataBuff = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
-        // find the end of the json portion of the data
-        int position = 0;
-        for (; position < data.length && data[position] != (byte) 0x0; position++) {
-        }
 
-        final int length = position;
-        final byte[] payload = new byte[length];
-        System.arraycopy(data, 0, payload, 0, length);
+        tuple.order(ByteOrder.BIG_ENDIAN);
+        // get the end of the json portion of the data
+        final int jsonLength;
+        {
+            final int bytesBefore = tuple.bytesBefore((byte)0x0);
+            jsonLength = (bytesBefore < 0) ? tuple.capacity() : bytesBefore;
+        }
+        final String jsonString = tuple.toString(0, jsonLength, CharsetUtil.UTF_8);
+        tuple.readerIndex(jsonLength);
         final JSONObject input;
-        final String parsePayload = new String(payload);
-        try {  
-            final Object value = new JSONTokener(parsePayload).nextValue();
+        try {
+            final Object value = new JSONTokener(jsonString).nextValue();
             if (value instanceof JSONObject) {
                 input = (JSONObject) value;
                 PLogger.API_STORE.trace("JSON payload=[{}]", value);
             } else if (value instanceof JSONArray) {
-                PLogger.API_STORE.warn("invalid JSON payload=[{}]", parsePayload);
+                PLogger.API_STORE.warn("invalid JSON payload=[{}]", jsonString);
                 return null;
             } else if (value == JSONObject.NULL) {
-                PLogger.API_STORE.warn("null JSON payload=[{}]", parsePayload);
+                PLogger.API_STORE.warn("null JSON payload=[{}]", jsonString);
                 return null;
             } else {
                 PLogger.API_STORE.warn("{} JSON payload=[{}]", value.getClass().getName(),
-                        parsePayload);
+                        jsonString);
                 return null;
             }
         } catch (ClassCastException ex) {
-            PLogger.API_STORE.warn("invalid JSON content, <{}>", parsePayload, ex);
+            PLogger.API_STORE.warn("invalid JSON content, <{}>", jsonString, ex);
             return null;
         } catch (JSONException ex) {
-            PLogger.API_STORE.warn("invalid JSON content, <{}>", parsePayload, ex);
+            PLogger.API_STORE.warn("invalid JSON content, <{}>", jsonString, ex);
             return null;
         }
 
@@ -279,60 +260,52 @@ public class JsonSerializer implements ISerializer {
             }
         }
 
-        // if we're already at the end of the message, we're done
-        if (position == data.length) {
+        // if already at the end of the message, we're done
+        if (tuple.readableBytes() < 1) {
             return msg;
         }
-
-        // process the blobs
-        position++; // move past the null terminator
-        dataBuff.position(position);
-        while (dataBuff.position() < data.length) {
-            // get the field name
-            final int nameStart = dataBuff.position();
-            int nameLength;
-            for (nameLength = 0; position < data.length; nameLength++, position++) {
-                if (data[position] == 0x0)
-                    break;
+        // move past the json terminator
+        if (tuple.readByte() != 0x0) {
+            logger.error("the json terminator is not a null {}");
+        }
+        while (tuple.readableBytes() > 0) {
+            final int fieldNameLength;
+            {
+                final int bytesBefore = tuple.bytesBefore((byte)0x0);
+                fieldNameLength = (bytesBefore < 0) ? tuple.capacity() : bytesBefore;
             }
-            final String fieldName = new String(data, nameStart, nameLength);
-            position++; // move past the null
+            // get the field name
+            final String fieldName = tuple.toString(0, fieldNameLength, CharsetUtil.UTF_8);
+            tuple.readerIndex(fieldNameLength+1);
 
-            // get the last three bytes of the length, to be used as a simple
-            // checksum
-            dataBuff.position(position);
-            dataBuff.get();
+            // get the last three bytes of the length, to be used as a simple checksum
             final byte[] beginningPsuedoChecksum = new byte[3];
-            dataBuff.get(beginningPsuedoChecksum);
+            tuple.getBytes(0, beginningPsuedoChecksum, 1, 3);
 
             // get the blob length for real
-            dataBuff.position(position);
-            final int dataLength = dataBuff.getInt();
+            final int dataLength = tuple.readInt();
 
-            if (dataLength > dataBuff.remaining()) {
+            if (dataLength > tuple.readableBytes()) {
                 logger.error("payload size is wrong {} {}",
-                        dataLength, data.length);
+                        dataLength, tuple.readableBytes());
                 return null;
             }
             // get the blob data
             final byte[] blob = new byte[dataLength];
-            final int blobStart = dataBuff.position();
-            System.arraycopy(data, blobStart, blob, 0, dataLength);
-            dataBuff.position(blobStart + dataLength);
+            tuple.readBytes(blob);
 
             // check for storage type
-            final byte storageMarker = dataBuff.get();
+            final byte storageMarker = tuple.readByte();
 
             // get and compare the beginning and ending checksum
             final byte[] endingPsuedoChecksum = new byte[3];
-            dataBuff.get(endingPsuedoChecksum);
+            tuple.readBytes(endingPsuedoChecksum);
             if (!Arrays.equals(endingPsuedoChecksum, beginningPsuedoChecksum)) {
                 logger.error("blob checksum mismatch {} {}", endingPsuedoChecksum,
                         beginningPsuedoChecksum);
                 break;
             }
-            BlobTypeEnum blobType;
-
+            final BlobTypeEnum blobType;
             if (storageMarker == BLOB_MARKER_FIELD) {
                 blobType = BlobTypeEnum.SMALL;
             } else {

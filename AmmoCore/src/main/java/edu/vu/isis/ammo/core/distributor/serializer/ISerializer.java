@@ -3,6 +3,7 @@ package edu.vu.isis.ammo.core.distributor.serializer;
 import java.io.IOException;
 import java.util.List;
 
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +19,7 @@ public interface ISerializer {
      * @return the serialized content
      * @throws IOException 
      */
-    public byte[] serialize(final IContentItem item) throws IOException;
+    public ByteBuf serialize(final ByteBuf buf, final IContentItem item) throws IOException;
     
     /**
      * Deserializes a content item.
@@ -28,5 +29,5 @@ public interface ISerializer {
      * @param dataTypes an ordered list of data types for the fields in fieldNames
      * @return a DeserializedMessage object containing the deserialized data
      */
-    public DeserializedMessage deserialize(final byte[] data, final List<String> fieldNames, final List<FieldType> dataTypes);
+    public DeserializedMessage deserialize(final ByteBuf data, final List<String> fieldNames, final List<FieldType> dataTypes);
 }

@@ -25,6 +25,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import net.jcip.annotations.ThreadSafe;
 
 import org.slf4j.Logger;
@@ -718,7 +720,8 @@ public class DistributorThread extends Thread {
      * <li>Receive the message
      * </ol>
      * 
-     * @param instream
+     * @param that
+     * @param agm
      * @return was the message clean (true) or garbled (false).
      */
     private boolean doRequest(NetworkManager that, AmmoRequest agm) {
@@ -833,7 +836,8 @@ public class DistributorThread extends Thread {
      * <li>Receive the message
      * </ol>
      * 
-     * @param instream
+     * @param context
+     * @param agm
      * @return was the message clean (true) or garbled (false).
      */
     private boolean doResponse(Context context, AmmoGatewayMessage agm) {
@@ -978,10 +982,7 @@ public class DistributorThread extends Thread {
      * request is recorded for later use.
      * 
      * @param that
-     * @param uri
-     * @param mimeType
-     * @param data
-     * @param handler
+     * @param ar
      * @return
      */
     private void doPostalRequest(final NetworkManager that, final AmmoRequest ar) {
@@ -1033,23 +1034,22 @@ public class DistributorThread extends Thread {
                 final RequestSerializer serializer_ = serializer;
                 final NetworkManager that_ = that;
                 final DistributorThread parent = DistributorThread.this;
-                
-                byte[] bytes = null;
+
+                ByteBuf bytes = Unpooled.buffer(256);
                 @Override
                 public byte[] getBytes() {
-                    return this.bytes;
+                    return this.bytes.array();
                 }
              
                 @Override
-                public void run(Encoding encode) {
-                    // TODO FPE handle payload with data types
+                public ByteBuf run(Encoding encode) {
                     if (serializer_.payload.whatContent() != Payload.Type.NONE) {
                         if (this.bytes != null) {
                             logger.warn("bytes already bound {}", this.bytes);
-                            return;
+                            return null;
                         }
                         this.bytes =
-                                RequestSerializer.serializeFromContentValues(
+                                RequestSerializer.serializeFromContentValues( this.bytes,
                                         serializer_.payload.getCV(),
                                         encode, ar.topic.asString(), contractStore);
 
@@ -1059,7 +1059,7 @@ public class DistributorThread extends Thread {
                                     encode);
                         }
                         
-                        return;
+                        return null;
                         
                     } else {
                         try {
@@ -1071,7 +1071,7 @@ public class DistributorThread extends Thread {
                             switch (encodingType) {
                             case CUSTOM:
                                 parent.ammoAdaptorCache.serialize(tupleUri, encode);
-                                return;
+                                return this.bytes;
                             case JSON:
                                 serializer = new JsonSerializer();
                                 break;
@@ -1080,27 +1080,28 @@ public class DistributorThread extends Thread {
                                 break;
                             default:
                                 parent.ammoAdaptorCache.serialize(tupleUri, encode);
-                                return;
+                                return this.bytes;
                             }
                             if (this.bytes != null) {
                                 logger.warn("bytes already bound {}", this.bytes);
-                                return;
+                                return this.bytes;
                             }
                             final ContentProviderContentItem item = new ContentProviderContentItem(
                                     tupleUri, 
                                     that_.getContext().getContentResolver(), 
                                     encode);
-                            this.bytes = serializer.serialize(item);
+                            final ByteBuf bytes = Unpooled.buffer(128);
+                            this.bytes = serializer.serialize(bytes, item);
                             item.close();
 
                             if (this.bytes == null) {
                                 logger.error("Null result from serialize {} {} ",
                                         serializer_.provider, encode);
                             }
-                            return;
+                            return this.bytes;
                         } catch (IOException ex) {
                             logger.error("invalid row for serialization", ex);
-                            return;
+                            return this.bytes;
                         } catch (TupleNotFoundException e) {
                             logger.error("tuple not found when processing postal table");
                             parent.store().deletePostal(new StringBuilder()
@@ -1111,10 +1112,10 @@ public class DistributorThread extends Thread {
                                     new String[] {
                                             e.missingTupleUri.getPath(), topic
                                     });
-                            return;
+                            return this.bytes;
                         } catch (NonConformingAmmoContentProvider ex) {
                             logger.error("non-conforming content provider", ex);
-                            return;
+                            return this.bytes;
                         }
                     }
                 }
@@ -1259,22 +1260,23 @@ public class DistributorThread extends Thread {
                 final SerializeMode serialType_ = serialType;
                 final String data_ = data;
                 
-                byte[] bytes = null;
+                ByteBuf bytes = null;
                 @Override
                 public byte[] getBytes() {
-                    return this.bytes;
+                    return this.bytes.array();
                 }
 
                 @Override
-                public void run(Encoding encode) {
+                public ByteBuf run(Encoding encode) {
                     switch (serialType_) {
                         case DIRECT: {
                             if (this.bytes != null) {
                                 logger.warn("bytes already bound {}", this.bytes);
-                                return;
+                                return null;
                             }
-                            this.bytes = (data_.length() > 0) ? data_.getBytes() : null;
-                            return;
+                            this.bytes = (data_.length() > 0) ?
+                                    Unpooled.wrappedBuffer(data_.getBytes()) : null;
+                            return this.bytes;
                         }
                         case INDIRECT:
                         case DEFERRED:
@@ -1283,11 +1285,12 @@ public class DistributorThread extends Thread {
                                 if (payload != null && payload.isSet()) {
                                     if (this.bytes != null) {
                                         logger.warn("bytes already bound {}", this.bytes);
-                                        return;
+                                        return null;
                                     }
-                                    this.bytes = RequestSerializer.serializeFromContentValues(
+                                    final ByteBuf bytes = Unpooled.buffer(128);
+                                    this.bytes = RequestSerializer.serializeFromContentValues( bytes,
                                             payload.getCV(), encode, topic, contractStore);
-                                    return;
+                                    return Unpooled.wrappedBuffer(this.bytes);
                                 } else {
 
                                     logger.trace("serializing using encoding {}", encode);
@@ -1298,7 +1301,7 @@ public class DistributorThread extends Thread {
                                     switch (encodingType) {
                                     case CUSTOM:
                                         parent.ammoAdaptorCache.serialize(tupleUri, encode);
-                                        return;
+                                        return this.bytes;
                                     case JSON:
                                         serializer = new JsonSerializer();
                                         break;
@@ -1307,19 +1310,19 @@ public class DistributorThread extends Thread {
                                         break;
                                     default:
                                         parent.ammoAdaptorCache.serialize(tupleUri, encode);
-                                        return;
+                                        return this.bytes;
                                     }
                                     if (this.bytes != null) {
                                         logger.warn("bytes already bound {}", this.bytes);
-                                        return;
+                                        return this.bytes;
                                     }
                                     final ContentProviderContentItem item = new ContentProviderContentItem(
                                             tupleUri, 
                                             that_.getContext().getContentResolver(), 
                                             encode);
-                                    this.bytes = serializer.serialize(item);
+                                    this.bytes = serializer.serialize(this.bytes, item);
                                     item.close();
-                                    return;
+                                    return this.bytes;
                                 }
                             } catch (IOException e1) {
                                 logger.error("invalid row for serialization");
@@ -1340,6 +1343,7 @@ public class DistributorThread extends Thread {
                             }
                     }
                     logger.error("no serialized data produced");
+                    return null;
                 }
             });
 
@@ -1410,9 +1414,11 @@ public class DistributorThread extends Thread {
      * connection to the network service exists before this method is called.
      * 
      * @param that
-     * @param provider
+     * @param notice
+     * @param uuid
      * @param msgType
-     * @param data
+     * @param dispersal
+     * @param serializer
      * @param handler
      * @return
      */
@@ -1428,15 +1434,15 @@ public class DistributorThread extends Thread {
 
         serializer.setReadyActor(new RequestSerializer.OnReady() {
             @Override
-            public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+            public AmmoGatewayMessage run(final Encoding encode, final ByteBuf serialized) {
 
                 if (serialized == null) {
                     logger.error("No Payload");
                     return null;
                 }
 
-                final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
-                        .newBuilder();
+                final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
+                final AmmoGatewayMessage.Builder agmb;
                 if (encode.getType() != Encoding.Type.TERSE) {
                     final AmmoMessages.DataMessage.Builder pushReq = AmmoMessages.DataMessage
                             .newBuilder()
@@ -1444,8 +1450,7 @@ public class DistributorThread extends Thread {
                             .setMimeType(msgType)
                             .setEncoding(encode.getType().name())
                             .setUserId(networkManager.getOperatorId())
-                            .setOriginDevice(networkManager.getDeviceId())
-                            .setData(ByteString.copyFrom(serialized));
+                            .setOriginDevice(networkManager.getDeviceId());
 
                     if (notice != null) {
                         final AcknowledgementThresholds.Builder noticeBuilder = AcknowledgementThresholds
@@ -1459,7 +1464,11 @@ public class DistributorThread extends Thread {
                     }
 
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.DATA_MESSAGE);
+                    final byte[] bytes = new byte[serialized.readableBytes()];
+                    serialized.readBytes(bytes);
+                    pushReq.setData(ByteString.copyFrom(bytes));
                     mw.setDataMessage(pushReq);
+                    agmb =  AmmoGatewayMessage.newBuilder(mw, handler);
 
                 } else {
                     final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
@@ -1470,14 +1479,14 @@ public class DistributorThread extends Thread {
                     final AmmoMessages.TerseMessage.Builder pushReq = AmmoMessages.TerseMessage
                             .newBuilder()
                             .setMimeType(mimeId)
-                            .setData(ByteString.copyFrom(serialized));
+                            .setData(ByteString.copyFrom(serialized.array()));
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.TERSE_MESSAGE);
                     mw.setTerseMessage(pushReq);
+                    agmb = AmmoGatewayMessage.newBuilder(mw, handler);
                 }
 
                 logger.debug("Finished wrap build @ timeTaken {} ms, serialized-size={} \n",
-                        System.currentTimeMillis() - now, serialized.length);
-                final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
+                        System.currentTimeMillis() - now, serialized);
                 agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
 			      notice.atGatewayDelivered.getVia().isActive() ||
 			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
@@ -1608,7 +1617,6 @@ public class DistributorThread extends Thread {
      * 
      * @param that
      * @param ar
-     * @param st
      */
     private void doRetrievalRequest(NetworkManager that, AmmoRequest ar) {
         logger.trace("process request RETRIEVAL {} {}", ar.topic.toString(), ar.provider.toString());
@@ -1834,13 +1842,11 @@ public class DistributorThread extends Thread {
                 private AmmoMessages.PullRequest.Builder retrieveReq_ = retrieveReq;
 
                 @Override
-                public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
-                    final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
-                            .newBuilder();
+                public AmmoGatewayMessage run(final Encoding encode, final ByteBuf serialized) {
+                    final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
                     mw.setType(AmmoMessages.MessageWrapper.MessageType.PULL_REQUEST);
                     mw.setPullRequest(retrieveReq_);
-                    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw,
-                            handler);
+                    final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
                     return agmb.build();
                 }
             });
@@ -1894,7 +1900,7 @@ public class DistributorThread extends Thread {
         
         final RequestDeserializer deserializeCommand = 
                 this.requestDeserializerBuilder.toProvider(priority, context, channel.name,
-                provider, encoding, resp.getData().toByteArray());
+                provider, encoding, resp.getData());
         this.deserializeExecutor.execute(deserializeCommand);
        
         logger.debug("tuple upserted");
@@ -1915,7 +1921,7 @@ public class DistributorThread extends Thread {
      * here.
      * 
      * @param that
-     * @param agm
+     * @param ar
      * @param st
      */
     private void doSubscribeRequest(final NetworkManager that, final AmmoRequest ar, int st) {
@@ -2038,9 +2044,8 @@ public class DistributorThread extends Thread {
             final String selection = pending.getString(pending
                     .getColumnIndex(SubscribeTableSchema.SELECTION.n));
 
-            logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}", new Object[] {
-                    id, topic, selection
-            });
+            logger.trace(MARK_SUBSCRIBE, "process row SUBSCRIBE {} {} {}",
+                    id, topic, selection );
 
             final DistributorPolicy.Topic policy = that.policy().matchSubscribe(topic);
             final Dispersal dispersal = policy.makeRouteMap(null);
@@ -2126,9 +2131,8 @@ public class DistributorThread extends Thread {
             final AmmoMessages.SubscribeMessage.Builder subscribeReq_ = subscribeReq;
 
             @Override
-            public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
-                final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
-                        .newBuilder();
+            public AmmoGatewayMessage run(final Encoding encode, final ByteBuf serialized) {
+                final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper.newBuilder();
                 mw.setType(AmmoMessages.MessageWrapper.MessageType.SUBSCRIBE_MESSAGE);
                 mw.setSubscribeMessage(subscribeReq_);
                 final AmmoGatewayMessage.Builder agmb = AmmoGatewayMessage.newBuilder(mw, handler);
@@ -2261,7 +2265,7 @@ public class DistributorThread extends Thread {
        
        final RequestDeserializer deserializeCommand = 
                this.requestDeserializerBuilder.toProvider(priority, context, channel.name,
-               provider, encoding, data.toByteArray());
+               provider, encoding, data);
        this.deserializeExecutor.execute(deserializeCommand);
      
         if(topicPolicy.getRouted() == true) {

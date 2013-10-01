@@ -25,6 +25,11 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-all</artifactId>
+        <version>4.0.9.Final</version>
+      </dependency>
 
       <dependency>
         <groupId>edu.vu.isis</groupId>

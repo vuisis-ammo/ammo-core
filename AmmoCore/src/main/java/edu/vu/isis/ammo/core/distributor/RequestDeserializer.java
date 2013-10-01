@@ -3,6 +3,9 @@ package edu.vu.isis.ammo.core.distributor;
 import java.util.Comparator;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.google.protobuf.ByteString;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,11 +47,21 @@ public class RequestDeserializer implements Runnable {
         
         public RequestDeserializer toProvider(
                 final int priority, final Context context, final String channelName,
-                final Uri provider, final Encoding encoding, final byte[] data) 
+                final Uri provider, final Encoding encoding, final ByteBuf data)
         {
             return new RequestDeserializer(this, 
                     new Item(priority, DeserializerOperation.TO_PROVIDER, 
                     context, channelName, provider, encoding, "", data));
+        }
+
+        public RequestDeserializer toProvider(
+                final int priority, final Context context, final String channelName,
+                final Uri provider, final Encoding encoding, final ByteString data)
+        {
+            final ByteBuf buf = Unpooled.wrappedBuffer(data.asReadOnlyByteBuffer());
+            return new RequestDeserializer(this,
+                    new Item(priority, DeserializerOperation.TO_PROVIDER,
+                            context, channelName, provider, encoding, "", buf));
         }
         
     }
@@ -68,12 +81,12 @@ public class RequestDeserializer implements Runnable {
         final public Uri provider;
         final public Encoding encoding;
         final public String mimeType;
-        final public byte[] data;
+        final public ByteBuf data;
         final public long timestamp;
 
         public Item(final int priority, final DeserializerOperation operation,
                 final Context context, final String channelName,
-                final Uri provider, final Encoding encoding, final String mimeType, final byte[] data)
+                final Uri provider, final Encoding encoding, final String mimeType, final ByteBuf data)
         {
             this.timestamp = System.currentTimeMillis();
             this.priority = priority;
@@ -131,8 +144,9 @@ public class RequestDeserializer implements Runnable {
     /**
     * Creates a new RequestDeserializerThread.
     *
-    * @param distributor The distributor thread to be used for re-posting
+    * @param creator The distributor thread to be used for re-posting
     *                    messages to be forwarded.
+    * @param item
     */
     private RequestDeserializer(final Builder creator, final Item item) {
         this.item = item;
@@ -166,14 +180,9 @@ public class RequestDeserializer implements Runnable {
 
     /**
      * proxy for the RequestSerializer deserializeToProvider method.
-     * 
-     * @param context
-     * @param provider
-     * @param encoding
-     * @param data
+     *
      * @return
      */
- 
     public RequestDeserializer toReroute() 
     {
         return new RequestDeserializer(this.creator, 

@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -193,11 +194,11 @@ public class RequestSerializer {
 	}
 
 	public interface OnReady {
-		public AmmoGatewayMessage run(Encoding encode, byte[] serialized);
+		public AmmoGatewayMessage run(final Encoding encode, final ByteBuf serialized);
 	}
 
 	public interface OnSerialize {
-		public void run(final Encoding encode);
+		public ByteBuf run(final Encoding encode);
 
         public byte[] getBytes();
 	}
@@ -235,15 +236,16 @@ public class RequestSerializer {
 
 		this.readyActor = new RequestSerializer.OnReady() {
 			@Override
-			public AmmoGatewayMessage run(Encoding encode, byte[] serialized) {
+			public AmmoGatewayMessage run(final Encoding encode, final ByteBuf serialized) {
 				logger.trace("ready actor not defined {}", encode);
 				return null;
 			}
 		};
 		this.serializeActor = new RequestSerializer.OnSerialize() {
 			@Override
-			public void run(final Encoding encode) {
+			public ByteBuf run(final Encoding encode) {
 				logger.trace("serialize actor not defined {}", encode);
+                return null;
 			}
 
             @Override
@@ -280,9 +282,8 @@ public class RequestSerializer {
 		final Encoding local_encode = encode;
 		final String local_channel = channel;
 		if (parent.agm == null) {
-			parent.serializeActor.run(local_encode);
-			byte[] bytes = parent.serializeActor.getBytes();
-                parent.agm = parent.readyActor.run(local_encode, bytes);
+			final ByteBuf agmBytes = parent.serializeActor.run(local_encode);
+                parent.agm = parent.readyActor.run(local_encode, agmBytes);
 		}
 		if (parent.agm == null)
 			return null;
@@ -318,7 +319,7 @@ public class RequestSerializer {
 	 * @param contractStore
 	 * @return
 	 */
-	public static byte[] serializeFromContentValues(ContentValues cv,
+	public static ByteBuf serializeFromContentValues(final ByteBuf buf, ContentValues cv,
 			final DistributorPolicy.Encoding encoding, final String topic,
 			final ContractStore contractStore) {
 		logger.trace("serializing using content values and encoding {}",
@@ -350,17 +351,15 @@ public class RequestSerializer {
 		final ContentValuesContentItem item = new ContentValuesContentItem(cv,
 				relation, encoding);
 
-		byte[] result = null;
-
 		try {
-			result = serializer.serialize(item);
-		} catch (IOException e) {
+			return serializer.serialize(buf, item);
+		} catch (IOException ex) {
 			logger.error(
 					"IOException occurred while serializing from content values",
-					e);
+					ex);
 		}
 
-		return result;
+		return null;
 	}
 
 	/**
@@ -375,7 +374,7 @@ public class RequestSerializer {
 	 * @param contractStore
 	 * @return
 	 */
-	public static ContentValues deserializeToContentValues(byte[] data,
+	public static ContentValues deserializeToContentValues(final ByteBuf data,
 			final DistributorPolicy.Encoding encoding, final String mimeType,
 			final ContractStore contractStore) {
 
@@ -433,7 +432,7 @@ public class RequestSerializer {
 	 */
 	   public static Uri deserializeToProvider(final CustomAdaptorCache ammoAdaptorCache, 
 	            final ContentResolver resolver, final String channelName,
-	            final Uri provider, final Encoding encoding, final byte[] data) {
+	            final Uri provider, final Encoding encoding, final ByteBuf data) {
 	      
                final ISerializer serializer;
                switch (encoding.getType()) {
@@ -457,11 +456,11 @@ public class RequestSerializer {
 	   }
 
 	/**
-	 * @see serializeFromProvider with which this method is symmetric.
+	 *  serializeFromProviderLocal with which this method is symmetric.
 	 */
 	public static Uri deserializeToProviderLocal(final ISerializer serializer,
 			final ContentResolver resolver, final String channelName,
-			final Uri provider, final Encoding encoding, final byte[] data) {
+			final Uri provider, final Encoding encoding, final ByteBuf data) {
 
 		logger.debug("deserialize message <{}>", data);
 
@@ -615,48 +614,5 @@ public class RequestSerializer {
 
 		return tupleUri;
 	}
-
-	/**
-	 * A pair of functions which communicate with a Content Adaptor Service.
-	 * These Content Adaptor Services are created by the code generator.
-	 */
-	public static byte[] serializeCustomFromProvider(
-			final ContentResolver resolver, final Uri tupleUri,
-			final DistributorPolicy.Encoding encoding)
-			throws TupleNotFoundException, NonConformingAmmoContentProvider,
-			IOException {
-
-		final Uri serialUri = Uri.withAppendedPath(tupleUri,
-				encoding.getPayloadSuffix());
-
-		final Cursor tupleCursor;
-		try {
-			tupleCursor = resolver.query(serialUri, null, null, null, null);
-		} catch (IllegalArgumentException ex) {
-			logger.warn("unknown content provider ", ex);
-			return null;
-		}
-		if (tupleCursor == null) {
-			throw new TupleNotFoundException("while serializing from provider",
-					tupleUri);
-		}
-
-		if (!tupleCursor.moveToFirst()) {
-			tupleCursor.close();
-			return null;
-		}
-		int columnCount = tupleCursor.getColumnCount();
-		if (columnCount < 1) {
-			tupleCursor.close();
-			return null;
-		}
-		tupleCursor.moveToFirst();
-
-		final String tupleString = tupleCursor.getString(0);
-		tupleCursor.close();
-		return tupleString.getBytes();
-
-	}
-
 
 }

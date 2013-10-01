@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +86,7 @@ public class CustomAdaptorCache  {
         return null;
     }
 
-    public void deserialize(final Uri tupleUri, final Encoding encode, final byte[] data) {
+    public void deserialize(final Uri tupleUri, final Encoding encode, final ByteBuf data) {
         // TODO Auto-generated method stub
         return;
     }
