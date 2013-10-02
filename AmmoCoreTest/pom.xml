@@ -37,14 +37,14 @@
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammocore</artifactId>
       <scope>provided</scope>
-      <version>${project.version}</version>
+      <version>1.8.0-SNAPSHOT</version>
       <type>apk</type>
     </dependency>
     <dependency>
       <groupId>edu.vu.isis</groupId>
       <artifactId>ammocore</artifactId>
       <scope>provided</scope>
-      <version>${project.version}</version>
+      <version>1.8.0-SNAPSHOT</version>
       <type>jar</type>
     </dependency>
 
