@@ -23,6 +23,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Executors;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.zip.CRC32;
 import java.util.zip.Checksum;
 
@@ -151,22 +153,22 @@ public class SerialFragmenter {
         mChannel = channel;
         mChannelManager = channelManager;
 
-        // String operatorId = mChannelManager.getOperatorId();
+        String operatorId = mChannelManager.getOperatorId();
 
-        // // CRC this and put the bytes in mOperatorIdCrc.
-        // byte bytes[] = operatorId.getBytes();
-        // Checksum checksum = new CRC32();
-        // checksum.update( bytes, 0, bytes.length );
-        // long checksumValue = checksum.getValue();
+        // CRC this and put the bytes in mOperatorIdCrc.
+        byte bytes[] = operatorId.getBytes();
+        Checksum checksum = new CRC32();
+        checksum.update( bytes, 0, bytes.length );
+        long checksumValue = checksum.getValue();
 
-        // mOperatorIdAsInt = (int) checksumValue;
+        mOperatorIdAsInt = (int) checksumValue;
 
-        // mOperatorIdCrc[0] = (byte) checksumValue;
-        // mOperatorIdCrc[1] = (byte) (checksumValue >>> 8);
-        // mOperatorIdCrc[2] = (byte) (checksumValue >>> 16);
-        // mOperatorIdCrc[3] = (byte) (checksumValue >>> 24);
+        mOperatorIdCrc[0] = (byte) checksumValue;
+        mOperatorIdCrc[1] = (byte) (checksumValue >>> 8);
+        mOperatorIdCrc[2] = (byte) (checksumValue >>> 16);
+        mOperatorIdCrc[3] = (byte) (checksumValue >>> 24);
 
-        //logger.debug( "Created Fragmenter for operatorID={}", operatorId );
+        logger.debug( "Created Fragmenter for operatorID={}", operatorId );
     }
 
 
@@ -338,42 +340,83 @@ public class SerialFragmenter {
     }
 
 
+    private boolean isInCurrentLargePacket( short sequenceNumber )
+    {
+        // This maps sequence numbers below the large packet into
+        // areas high in the range of a short.  As a result, we can
+        // just test whether index < mNumberOfFragments to tell if the
+        // sequenceNumber belongs to a fragment.
+        short index = (short) (sequenceNumber - mCurrentLargeBaseSequence);
+        if ( index < 0 ) {
+            index += Short.MAX_VALUE;
+        }
+        
+        return index < mNumberOfFragments;
+    }
+
+
     /**
      *
      */
     private synchronized void processAck( int count, ByteBuffer buf )
     {
-        if ( mAckedPackets == null )
-            return;
+        // For each item in the ack, we need to figure out if it's a
+        // fragment of a large one or an individual small one, since
+        // we need to treat these differently.
 
-        // Unset the bits with the numbers in the ack.
         for ( int i = 0; i < count; ++i ) {
             short sequenceNumber = buf.getShort();
 
-            short index = (short) (sequenceNumber - mCurrentLargeBaseSequence);
-            if ( index < 0 ) {
-                index += Short.MAX_VALUE;
+            if ( isInCurrentLargePacket( sequenceNumber )) {
+                // This is a fragment of the current large packet.
+
+                if ( mAckedPackets == null )
+                    continue;
+
+                // Unset the bits with the numbers in the ack.
+                short index = (short) (sequenceNumber - mCurrentLargeBaseSequence);
+                if ( index < 0 ) {
+                    index += Short.MAX_VALUE;
+                }
+
+                mAckedPackets.clear( index );
+
+                // Test the BitSet to see if all are true. If so, start
+                // sending the next packet if there is one in the queue.
+                if ( mAckedPackets.cardinality() == 0 ) {
+                    // legitimately sent (all packets were acked).
+                    if ( mCurrentLarge.handler != null ) {
+                        mCurrentLarge.handler.ack( mChannel.name , DisposalState.SENT );
+                    }
+
+                    // No reset the relevant member variables
+                    mCurrentLarge = null;
+                    mCurrentLargeBaseSequence = -1;
+                    mNumberOfFragments = -1;
+                    mAckedPackets = null;
+
+                    startSendingLargePacket();
+                }
+            } else {
+                // This is an individual packet (not a fragment).
+                
+
+                // Remove the packet from the list if it's present.
+                for ( WrappedAgm wagm : mWaitingToBeAcked ) {
+                    if ( wagm.mSequenceNumber == sequenceNumber ) {
+                        mWaitingToBeAcked.remove( wagm );
+
+                        // Let the distributor know that the packet has
+                        // been successfully sent.
+                        if ( wagm.mAgm.handler != null ) {
+                            wagm.mAgm.handler.ack( mChannel.name , DisposalState.SENT );
+                        }
+
+                        break;
+                    }
+                }
             }
-
-            mAckedPackets.clear( index );
-        }
-
-        // Test the BitSet to see if all are true. If so, start
-        // sending the next packet if there is one in the queue.
-        if ( mAckedPackets.cardinality() == 0 ) {
-            // legitimately sent (all packets were acked).
-            if ( mCurrentLarge.handler != null ) {
-                mCurrentLarge.handler.ack( mChannel.name , DisposalState.SENT );
-            }
-
-            // No reset the relevant member variables
-            mCurrentLarge = null;
-            mCurrentLargeBaseSequence = -1;
-            mNumberOfFragments = -1;
-            mAckedPackets = null;
-
-            startSendingLargePacket();
-        }
+        }        
     }
 
 
@@ -386,7 +429,7 @@ public class SerialFragmenter {
         logger.debug( "  deliver()" );
         boolean result = false;
 
-
+        
         // When the token packet is sent, set the timeout.  Upon
         // expiring, we put another token in the queue and set the
         // timeout again.
@@ -475,9 +518,27 @@ public class SerialFragmenter {
             while ( message != null ) {
                 logger.debug( "  moving message from small queue to sender queue." );
                 logger.debug( "mSmallQueue.size() = {}", mSmallQueue.size() );
-                AmmoGatewayMessage wrappedAgm = wrapAgm( message );
-                mChannel.addMessageToSenderQueue( wrappedAgm );
+                WrappedAgm wagm = wrapAgm( message );
+
+                mChannel.addMessageToSenderQueue( wagm.mAgm );
+
+                // Once we've put the message in the send queue, also
+                // add it to the mWaitingToBeAcked queue, if the
+                // message needs to be acked.
+                if ( wagm.mAgm.mReliable ) {
+                    mWaitingToBeAcked.add( wagm );
+                }
+
                 message = mSmallQueue.poll();
+            }
+
+            // Resend any unacked small packets each time.  Once
+            // they're acked, they won't be in this list anymore, so
+            // just send the whole list each time.
+            if ( !mWaitingToBeAcked.isEmpty() ) {
+                for ( WrappedAgm wagm : mWaitingToBeAcked ) {
+                    mChannel.addMessageToSenderQueue( wagm.mAgm );
+                }
             }
 
             if ( mCurrentLarge != null ) {
@@ -561,8 +622,10 @@ public class SerialFragmenter {
      * This function takes an AmmoGatewayMessage that came from the distributor
      * and wraps is with additional SATCOM channel information.
      */
-    private AmmoGatewayMessage wrapAgm( AmmoGatewayMessage orig )
+    private WrappedAgm wrapAgm( AmmoGatewayMessage orig )
     {
+        WrappedAgm wagm = new WrappedAgm();
+
         byte[] old_payload = orig.payload; 
         byte[] new_payload = new byte[orig.payload.length + 7];
 
@@ -570,10 +633,14 @@ public class SerialFragmenter {
         buf.order( ByteOrder.LITTLE_ENDIAN );
 
         // For wrapped packets, messageType should be 0x10. (1 byte)
-        buf.put( (byte) 0x10 );
+        // NOTE: 0x10 is for when we don't need ack.  With reliable
+        // chat messages and dash events, we need to use 0x30.
+        buf.put( (byte) 0x30 );
         
         // Sequence number (2 bytes)
+        
         buf.putShort( mSequenceNumber );
+        wagm.mSequenceNumber = mSequenceNumber;
         incrementSequenceNumber( 1 );
 
         // Index of packet in multi-packet sequence (0 for wrapped packets) (2 bytes)
@@ -595,7 +662,9 @@ public class SerialFragmenter {
             .size( new_payload.length )
             .checksum( payload_checksum );
 
-        return agmb.build();
+        wagm.mAgm = agmb.build();
+
+        return wagm;
     }
 
 
@@ -630,23 +699,23 @@ public class SerialFragmenter {
     }
 
 
-    // private void receivedResetPacket( ByteBuffer buf )
-    // {
-    //     byte[] crcBuf = new byte[4];
+    private void receivedResetPacket( ByteBuffer buf )
+    {
+        byte[] crcBuf = new byte[4];
 
-    //     crcBuf[3] = buf.get();
-    //     crcBuf[2] = buf.get();
-    //     crcBuf[1] = buf.get();
-    //     crcBuf[0] = buf.get();
+        crcBuf[3] = buf.get();
+        crcBuf[2] = buf.get();
+        crcBuf[1] = buf.get();
+        crcBuf[0] = buf.get();
 
-    //     // Now create an int so we can compare it.
-    //     int theirs = (crcBuf[3] <<  24)
-    //                | (crcBuf[2] <<  16)
-    //                | (crcBuf[1] <<   8)
-    //                |  crcBuf[0];
+        // Now create an int so we can compare it.
+        int theirs = (crcBuf[3] <<  24)
+                   | (crcBuf[2] <<  16)
+                   | (crcBuf[1] <<   8)
+                   |  crcBuf[0];
 
-    //     logger.error( "Their id={}, My id={}", mOperatorIdAsInt, theirs );
-    // }
+        logger.error( "Their id={}, My id={}", mOperatorIdAsInt, theirs );
+    }
 
 
     private AmmoGatewayMessage createEmptyAckPacket()
@@ -685,6 +754,14 @@ public class SerialFragmenter {
     private BlockingQueue<AmmoGatewayMessage> mLargeQueue
         = new LinkedBlockingQueue<AmmoGatewayMessage>( FRAGMENTER_SENDQUEUE_MAX_SIZE );
 
+    private class WrappedAgm {
+        AmmoGatewayMessage mAgm;
+        short mSequenceNumber;
+    };
+
+    // Contains a list of WRAPPED AmmoGatewayMessages.  Each item can be resent as-is.
+    private List<WrappedAgm> mWaitingToBeAcked = new ArrayList<WrappedAgm>(16);
+
     // Reference to the current large packet we're sending.
     private volatile AmmoGatewayMessage mCurrentLarge = null;
     private volatile int mCurrentLargeBaseSequence = 0;
@@ -697,8 +774,8 @@ public class SerialFragmenter {
     // True once we have received an ack to a reset packet.
     private boolean mSynced = false;
 
-    //private static final byte[] mOperatorIdCrc = new byte[4];
-    //private int mOperatorIdAsInt = 0;
+    private static final byte[] mOperatorIdCrc = new byte[4];
+    private int mOperatorIdAsInt = 0;
 
     private final ScheduledExecutorService mScheduler =
         Executors.newScheduledThreadPool( 1 );

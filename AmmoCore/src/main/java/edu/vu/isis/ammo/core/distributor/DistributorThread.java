@@ -1435,6 +1435,7 @@ public class DistributorThread extends Thread {
                     return null;
                 }
 
+                Integer mimeId = -1;
                 final AmmoMessages.MessageWrapper.Builder mw = AmmoMessages.MessageWrapper
                         .newBuilder();
                 if (encode.getType() != Encoding.Type.TERSE) {
@@ -1462,7 +1463,7 @@ public class DistributorThread extends Thread {
                     mw.setDataMessage(pushReq);
 
                 } else {
-                    final Integer mimeId = AmmoMimeTypes.mimeIds.get(msgType);
+                    mimeId = AmmoMimeTypes.mimeIds.get(msgType);
                     if (mimeId == null) {
                         logger.error("no integer mapping for this mime type {}", msgType);
                         return null;
@@ -1481,7 +1482,9 @@ public class DistributorThread extends Thread {
                 agmb.needAck( notice.atDeviceDelivered.getVia().isActive() ||
 			      notice.atGatewayDelivered.getVia().isActive() ||
 			      notice.atPluginDelivered.getVia().isActive() ) // does App need an Ack
-                    .uuid( uuid );
+                    .uuid( uuid )
+                    .reliable( AmmoMimeTypes.shouldBeReliable( mimeId ));
+
                 return agmb.build();
             }
         });

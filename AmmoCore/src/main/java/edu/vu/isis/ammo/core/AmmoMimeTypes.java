@@ -26,6 +26,13 @@ public class AmmoMimeTypes {
         mimeTypes = new HashMap<Integer, String>();
         mimeIds = new HashMap<String, Integer>();
 
+        // !!!!!!
+        //
+        // WARNING: If any of these numbers are changed, make sure to
+        // keep the shouldBeReliable() method below up to date.
+        //
+        // !!!!!!
+
         mimeTypes.put( 1, "ammo/edu.vu.isis.ammo.sms.message" );
         mimeIds.put( "ammo/edu.vu.isis.ammo.sms.message",   1 );
 
@@ -46,6 +53,7 @@ public class AmmoMimeTypes {
 
         mimeTypes.put( 7, "ammo/transapps.chat.media_groupAll" );
         mimeIds.put( "ammo/transapps.chat.media_groupAll", 7 ); // we are supporting small media attachments
+
         mimeTypes.put( 8, "ammo/edu.vu.isis.ammo.dash.media" );
         mimeIds.put( "ammo/edu.vu.isis.ammo.dash.media", 8 );
         
@@ -53,19 +61,35 @@ public class AmmoMimeTypes {
         // mimeTypes.put( 4, "ammo/edu.vu.isis.ammo.dash.media" );
         // mimeIds.put( "ammo/edu.vu.isis.ammo.dash.media", 4 );
 
-	// NOTE: The following is a Rochester-specific workaround for
-	// the issue of static/dynamic MIME types serialized over the
-	// serial channel (relevant for SMS, obviously).
-    // a/e.v.i.a.sms.message_ta152-1  == 128
-    // a/e.v.i.a.sms.message_ta152-2  == 129   
-	String smsMimeBase = "ammo/edu.vu.isis.ammo.sms.message_ta152-";
-	for (int i=64; i < 94; i++) {	    
-	    //String smsMime = smsMimeBase;
-	    //smsMime.concat(String.valueOf(i-63));
-	    mimeTypes.put( i, smsMimeBase + String.valueOf(i-63) );
-	    mimeIds.put( smsMimeBase + String.valueOf(i-63),  i );
-	}
+        // NOTE: The following is a Rochester-specific workaround for
+        // the issue of static/dynamic MIME types serialized over the
+        // serial channel (relevant for SMS, obviously).
+        // a/e.v.i.a.sms.message_ta152-1  == 128
+        // a/e.v.i.a.sms.message_ta152-2  == 129   
+        String smsMimeBase = "ammo/edu.vu.isis.ammo.sms.message_ta152-";
+        for (int i=64; i < 94; i++) {	    
+            //String smsMime = smsMimeBase;
+            //smsMime.concat(String.valueOf(i-63));
+            mimeTypes.put( i, smsMimeBase + String.valueOf(i-63) );
+            mimeIds.put( smsMimeBase + String.valueOf(i-63),  i );
+        }
 
+    }
+
+    public static boolean shouldBeReliable( int mimeId ) {
+
+        // None of the PLI-related packets should be reliable.  This
+        // function is a bit of a hack, but it seemed like the
+        // cleanest way to do this without doing major surgery on
+        // distributor policy code.
+
+        if ( mimeId == 2         // nevada.locations
+             || mimeId == 5      // pli.locations
+             || mimeId == 6 ) {  // pli.group_locations
+            return false;
+        } else {
+            return true;
+        }
     }
 
 }

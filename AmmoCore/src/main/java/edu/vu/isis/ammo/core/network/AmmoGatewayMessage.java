@@ -193,6 +193,9 @@ public class AmmoGatewayMessage implements Comparable<Object> {
     // Hop count for Harris 152 resend/retransmit mechanism
     public int mHopCount;
 
+    // Whether we need reliability or not (e.g. PLI==false, Chat==true)
+    public boolean mReliable;
+
 
     /**
      * This is used by PriorityBlockingQueue() to prioritize it contents. when
@@ -402,6 +405,10 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         public int hopCount() { return mHopCount; }
         public Builder hopCount( int hopcount ) { mHopCount = hopcount; return this; }
 
+        private boolean mReliable;
+        public boolean reliable() { return mReliable; }
+        public Builder reliable( boolean reliable ) { mReliable = reliable; return this; }
+
 
 
         private INetworkService.OnSendMessageHandler handler;
@@ -509,6 +516,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             mSlotID = -1;       // default to an invalid slot
             mIndexInSlot = -1;  // default to an invalid index
             mNeedAck = false;   // default to an invalid index
+            mReliable = true;
             mHopCount = 1;
         }
     }
@@ -536,6 +544,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         mNeedAck =      builder.mNeedAck;
         mUUID =         builder.mUUID;
         mHopCount =     builder.mHopCount;
+        mReliable =     builder.mReliable;
 
         /**
          * record the time when the message is built so we can sort it by time
