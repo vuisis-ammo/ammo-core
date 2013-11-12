@@ -113,6 +113,29 @@ public class TerseSerializer implements ISerializer {
                 case FILE: {
                     final AssetFileDescriptor afd = item.getAssetFileDescriptor(key);
                     if(afd != null) {
+                        //get the data type and write it as a string before the file contents
+                        {
+                            // The database will return null if the string is empty,
+                            // so detect that and write a zero length if it happens.
+                            // Don't modify this code without testing on the serial
+                            // channel using radios.
+                            String svalue = item.getAsString(key + "_type");
+                            
+                            if(svalue != null) {
+                                byte[] serializedString = svalue.getBytes("UTF8");
+                                int length = serializedString.length;
+                                if(length <= Short.MAX_VALUE) { 
+                                    tuple.writeShort((short) length);
+                                    tuple.write(serializedString, 0, (short) length);
+                                } else {
+                                    tuple.writeShort((short) 0);
+                                    logger.warn("Omitting too-long string of length {}", length);
+                                }
+                            } else {
+                                tuple.writeShort((short) 0);
+                            }
+                        }
+
                         final ParcelFileDescriptor pfd = afd.getParcelFileDescriptor();
                         final InputStream instream = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
                         final ByteBuffer fieldBlobBuffer;
@@ -233,6 +256,22 @@ public class TerseSerializer implements ISerializer {
                     break;
                 }
                 case FILE: {
+                    //get the file's type, which comes before the file contents and goes into the field {key}_type
+                    final short textLength = tuple.getShort();
+                    if (textLength > 0) {
+                        try {
+                            byte[] textBytes = new byte[textLength];
+                            tuple.get(textBytes, 0, textLength);
+                            String textValue = new String(textBytes, "UTF8");
+                            decodedObject.cv.put(key + "_type", textValue);
+                        } catch (java.io.UnsupportedEncodingException ex) {
+                            logger.error("Error in string encoding{}",
+                                    new Object[] {
+                                        ex.getStackTrace()
+                                    });
+                        }
+                    }
+
                     final int bytesLength = tuple.getInt();
                     if(bytesLength > 0) {
                         final byte[] bytesValue = new byte[bytesLength];
