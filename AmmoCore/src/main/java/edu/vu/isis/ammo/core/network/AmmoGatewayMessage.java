@@ -516,7 +516,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
             mSlotID = -1;       // default to an invalid slot
             mIndexInSlot = -1;  // default to an invalid index
             mNeedAck = false;   // default to an invalid index
-            mReliable = true;
+            mReliable = false;
             mHopCount = 1;
         }
     }
@@ -936,6 +936,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
      */
     static public AmmoGatewayMessage.Builder extractHeaderSatcom( ByteBuffer drain ) throws IOException
     {
+        logger.debug( "extractHeaderSatcom()" );
+
         // The mark is used to indicate the position where a header may start.
         try {
             while ( drain.remaining() > 0 ) {
@@ -975,7 +977,7 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 checkPayloadBytes[3] = 0;
                 CheckSum csum = new CheckSum( checkPayloadBytes );
                 long payload_checksum = csum.asLong();
-                logger.debug( "   payload check={}, asLong={}", checkPayloadBytes,
+                logger.debug( "   payload checksum from packet={}, asLong={}", checkPayloadBytes,
                               Long.toHexString(payload_checksum) );
 
                 // 5. Header checksum (2 bytes)
@@ -986,18 +988,19 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                                                                   start,
                                                                   HEADER_DATA_LENGTH_SATCOM );
                 byte[] computedChecksum = terseHeaderCrc32.asByteArray();
+                logger.debug( "   computed header checksum={}, asLong={}", computedChecksum,
+                              Long.toHexString(terseHeaderCrc32.asLong()) );
 
                 // Return null if the header checksum fails.
                 byte first = drain.get();
                 byte second = drain.get();
+                logger.warn( "  Computed [0]={}, [1]={}", Long.toHexString(computedChecksum[0]),
+                             Long.toHexString(computedChecksum[1]) );
+                logger.warn( "  Received [0]={}, [1]={}", Long.toHexString(first),
+                             Long.toHexString(second) );
                 // HACK: why does first/second need to be reversed versus the terse header?
                 // It's the same code here and the same code on the Gateway.
                 if ( first != computedChecksum[0] || second != computedChecksum[1] ) {
-                    logger.warn( "  Computed [0]={}, [1]={}", Long.toHexString(computedChecksum[0]),
-                                 Long.toHexString(computedChecksum[1]) );
-                    logger.warn( "  Received [0]={}, [1]={}", Long.toHexString(first),
-                                 Long.toHexString(second) );
-
                     logger.warn( "Corrupt terse header; packet discarded." );
                     return null;
                 }
@@ -1022,6 +1025,28 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         }
 
         return null;
+    }
+
+
+    public void removeSatcomHeaderFromPayload()
+    {
+        int size = 1 + 2 + 2 + 2;
+
+        logger.debug( "payload={}", payload );
+
+        logger.debug( "removing front {} bytes", size );
+        logger.debug( "Old payload length: {}", payload.length );
+
+
+
+        byte[] newArray = new byte[ payload.length - size ];
+        System.arraycopy( payload, size,
+                          newArray, 0,
+                          payload.length - size );
+        payload = newArray;
+        logger.debug( "New payload length: {}", payload.length );
+
+        payload_checksum = CheckSum.newInstance( payload, 0, payload.length );
     }
 
 
@@ -1177,8 +1202,8 @@ public class AmmoGatewayMessage implements Comparable<Object> {
         } else if ((version & 0xC0) == 0x40) {
             // Only use the relevant two bytes of the four byte checksum.
 
-            logger.debug("CRC32 of payload={}", crc32.toHexString());
-            logger.debug("payload_checksum={}", this.payload_checksum.toHexString());
+            logger.debug("computed CRC32 of payload={}", crc32.toHexString());
+            logger.debug("checksum from packet header={}", this.payload_checksum.toHexString());
 
             byte[] computed = crc32.asByteArray();
             byte[] fromHeader = this.payload_checksum.asByteArray();
@@ -1195,9 +1220,29 @@ public class AmmoGatewayMessage implements Comparable<Object> {
                 return false;
             }
         } else {
-            logger.error("attempting to verify payload checksum but version invalid");
+            // SATCOM
+            // Only use the relevant two bytes of the four byte checksum.
+
+            logger.debug("computed CRC32 of payload={}", crc32.toHexString());
+            logger.debug("checksum from packet header={}", this.payload_checksum.toHexString());
+
+            byte[] computed = crc32.asByteArray();
+            byte[] fromHeader = this.payload_checksum.asByteArray();
+
+            logger.debug("computed={}, fromHeader={}", computed, fromHeader);
+
+            logger.debug("computed[0]={}, fromHeader[0]={}", computed[0], fromHeader[0]);
+            logger.debug("computed[1]={}, fromHeader[1]={}", computed[1], fromHeader[1]);
+
+            if (computed[0] != fromHeader[0] || computed[1] != fromHeader[1]) {
+                logger.warn("you have received a bad message, the checksums [{}:{}] did not match",
+                        crc32.toHexString(),
+                        this.payload_checksum.toHexString());
+                return false;
+            }
         }
 
+        logger.debug( "Checksums match; this is a valid packet" );
         return true;
     }
 }

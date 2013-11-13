@@ -631,7 +631,8 @@ public class SerialChannel extends NetChannel
                 logger.debug( "SATCOM enabled. Creating SATCOM sender and receiver threads" );
                 if ( getFragmenter() != null )
                     logger.warn( "Tried to create SerialFragmenter when we already had one." );
-                setFragmenter( new SerialFragmenter( SerialChannel.this, mChannelManager ));
+                setFragmenter( new SerialFragmenter( SerialChannel.this, mChannelManager,
+                                                     mContext, mSlotNumber.get() ));
 
                 // Create the sending thread.
                 if ( mSatcomSender != null )
@@ -1008,22 +1009,26 @@ public class SerialChannel extends NetChannel
             logger.debug( "taking from SenderQueue" );
             if ( getIsAuthorized() ) {
                 // This is where the authorized SenderThread blocks.
+                logger.debug( "  (1)" );
                 return mDistQueue.take();
             } else {
                 if ( mAuthQueue.size() > 0 ) {
                     // return the first item in mAuthqueue and remove
                     // it from the queue.
+                    logger.debug( "  (2)" );
                     return mAuthQueue.remove();
                 } else {
                     logger.debug( "wait()ing in SenderQueue" );
                     wait(); // This is where the SenderThread blocks.
 
                     if ( getIsAuthorized() ) {
+                        logger.debug( "  (3)" );
                         return mDistQueue.take();
                     } else {
                         // We are not yet authorized, so return the
                         // first item in mAuthqueue and remove
                         // it from the queue.
+                        logger.debug( "  (4)" );
                         return mAuthQueue.remove();
                     }
                 }
@@ -1946,27 +1951,21 @@ public class SerialChannel extends NetChannel
                             buf_payload[i] = c;
                         }
 
-                        if ( (buf_payload[0] & 0x10) != 0 ) {
-                            logger.debug( "Received packet from self, size={}. Discarding...",
-                                          payload_size );
-                            break;
-                        } else {
-                            agmb.isSerialChannel( true );
-                            AmmoGatewayMessage agm = agmb
-                                .payload( buf_payload )
-                                .channel( SerialChannel.this )
-                                .build();
+                        agmb.isSerialChannel( true );
+                        AmmoGatewayMessage agm = agmb
+                            .payload( buf_payload )
+                            .channel( SerialChannel.this )
+                            .build();
 
-                            mMessagesReceived.getAndIncrement();
-                            logger.debug( "received message size={}, checksum={}, data:{}",
-                                          new Object[] {
-                                              agm.size,
-                                              agm.payload_checksum.toHexString(),
-                                              agm.payload } );
+                        mMessagesReceived.getAndIncrement();
+                        logger.debug( "received message: payload size={}, checksum from packet={}, data:{}",
+                                      new Object[] {
+                                          agm.size,
+                                          agm.payload_checksum.toHexString(),
+                                          agm.payload } );
 
-                            setReceiverState( INetChannel.DELIVER );
-                            deliverMessage( agm );
-                        }
+                        setReceiverState( INetChannel.DELIVER );
+                        deliverMessage( agm );
 
                         header.clear();
                         setReceiverState( INetChannel.START );
@@ -2001,13 +2000,13 @@ public class SerialChannel extends NetChannel
             int val = -1;
             mSecondsSinceByteRead.set( 0 );
             while ( val == -1 &&  mReceiverState.get() != INetChannel.INTERRUPTED ) {
-                logger.trace( "SerialPort.read()" );
+                //logger.trace( "SerialPort.read()" );
                 val = mInputStream.read();
                 if ( val == -1 )
                     mSecondsSinceByteRead.getAndIncrement();
             }
 
-            logger.trace( "val={}", (byte) val );
+            //logger.trace( "val={}", (byte) val );
             mBytesSinceMagic.getAndIncrement();
             mBytesRead += 1;
 
@@ -2084,6 +2083,7 @@ public class SerialChannel extends NetChannel
         // We shouldn't expose the sender queue this way, but the
         // SerialFragmenter needs to be able to add things to it.
         // Java doesn't really have good support for things like this.
+        logger.debug( "addMessageToSenderQueue()" );
         return mSenderQueue.putFromDistributor( agm );
     }
 
