@@ -667,11 +667,11 @@ public class SerialFragmenter {
             // this is a duplicate, so ignore this token.  If not,
             // process the token packet.
             logger.debug( "count={}", count );
-            logger.debug( "The &={}", (count & 0x0000007F) );
+            logger.debug( "The &={}", (count & 0x00007FFF) );
             logger.debug( "mLastTokenReceived={}", mLastTokenReceived );
-            logger.debug( "Is equals? = ", (count & 0x0000007F) == mLastTokenReceived );
+            logger.debug( "Is equals? = ", (count & 0x00007FFF) == mLastTokenReceived );
 
-            if ( false ) { // (count & 0x0000007F) == mLastTokenReceived ) {
+            if ( (count & 0x00007FFF) == mLastTokenReceived ) {
                 logger.debug( "Received duplicate token packet={}. Discarding...", mLastTokenReceived );
             } else {
                 // When an token packet is received
@@ -679,7 +679,7 @@ public class SerialFragmenter {
                 //   2. Move all the messages in mSmallQueue to
                 //   mSenderQueue.
 
-                mLastTokenReceived = count & 0x0000007F;
+                mLastTokenReceived = count & 0x00007FFF;
                 logger.debug( "Token packet number={}.", mLastTokenReceived );
 
                 // First send an empty ack packet.
@@ -733,7 +733,7 @@ public class SerialFragmenter {
 
 
     //
-    // Token-related memebers.
+    // Token-related members.
     //
     private void sendToken()
     {
@@ -745,7 +745,7 @@ public class SerialFragmenter {
         // do some sort of callback later on for when the send queue becomes
         // empty.
 
-        final int newTokenNumber = (mLastTokenReceived + 1) % 0x0000007F;
+        final int newTokenNumber = (mLastTokenReceived + 1) % 0x00007FFF;
         logger.debug( "Sending token number {}.", newTokenNumber );
 
         if ( mTokenTimerHandle != null ) {
@@ -828,26 +828,30 @@ public class SerialFragmenter {
     }
 
 
-    // Fixme: this is busted.
-    // private AmmoGatewayMessage createTokenPacket( int tokenNumber )
-    // {
-    //     logger.debug( "creating token packet. Byte 2 is {}", (0x00000080 | (tokenNumber & 0x0000007F)) );
-
-    //     byte[] payload = { (byte) 0xB0,
-    //                        (byte) (0x00000080 | (tokenNumber & 0x0000007F)),
-    //                        (byte) 0x00 };
-
-    //     return createPacket( payload );
-    // }
-
-
     private AmmoGatewayMessage createTokenPacket( int tokenNumber )
     {
-        // Remember to put the last two bytes in in reverse order,
-        // since they need to be LSB.
-        byte[] payload = { (byte) 0xB0, (byte) 0x00, (byte) 0x80 };
+        logger.debug( "creating token packet. tokenNumber={}", tokenNumber );
+
+        int newBytes = (0x00008000 | (tokenNumber & 0x00007FFF));
+        byte highByte = (byte) ((newBytes >>> 8) & 0x000000FF);
+        byte lowByte = (byte) (newBytes & 0x000000FF);
+
+        // Remember: the second and third bytes are a short using LSB,
+        // so put the lowByte in, then the highByte.
+        byte[] payload = { (byte) 0xB0, lowByte, highByte };
+
         return createPacket( payload );
     }
+
+
+    // Original
+    // private AmmoGatewayMessage createTokenPacket( int tokenNumber )
+    // {
+    //     // Remember to put the last two bytes in in reverse order,
+    //     // since they need to be LSB.
+    //     byte[] payload = { (byte) 0xB0, (byte) 0x00, (byte) 0x80 };
+    //     return createPacket( payload );
+    // }
 
 
     private AmmoGatewayMessage createResetPacket()
