@@ -15,7 +15,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/ma
   <artifactId>ammocore-parent</artifactId>
   <packaging>pom</packaging>
   
-  <version>1.8.0</version>
+  <version>1.8.0-SNAPSHOT</version>
   <name>ammocore parent project</name>
 
   <modules>
