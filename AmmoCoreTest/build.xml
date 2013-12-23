@@ -94,12 +94,15 @@
               tofile="${out.dir}/${ant.project.name}-${version}.apk" />
     </target>
 
-    <target name="-dependencies"
+    <target name="-dependencies" 
           description="get java jar libraries" >
-        <mkdir dir="${basedir}/libs"/> 
+        <mkdir dir="${basedir}/libs"/>
         <symlink taskname="add-junitrunner-lib" action="single" overwrite="true"
               link="${basedir}/libs/android-xml-junit-test-runner.jar"
-              resource="${repo.dir}/Android-libs/java/android-xml-junit-test-runner.jar"/>
+              resource="${basedir}/../Android-libs/android-xml-junit-test-runner.jar"/>
+        <symlink taskname="add-ammocore-lib" action="single" overwrite="true"
+              link="${basedir}/libs/ammocore-link.jar"
+              resource="${basedir}/../AmmoCore/target/ammocore-1.8.0-SNAPSHOT.jar" />
     </target>
 
     <target name="-pre-compile" depends="-dependencies">
