@@ -1280,6 +1280,16 @@ public class SerialChannel extends NetChannel
                 //outputStream.write( buf.array() );
                 //outputStream.flush();
 
+                byte[] fillBytes = {(byte) 0xf1, (byte) 0xf1, (byte) 0xf1, (byte) 0xf1};
+
+                int result1 = mPort.write( fillBytes );
+                if ( result1 < 0 ) {
+                    // If we got a negative number from the write(),
+                    // we are in an error state, so throw an exception
+                    // and shut down.
+                    throw new IOException( "fill bytes write on serial port returned: " + result1 );
+                }
+
                 int result = mPort.write( buf.array() );
                 if ( result < 0 ) {
                     // If we got a negative number from the write(),

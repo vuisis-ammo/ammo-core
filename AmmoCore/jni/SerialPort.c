@@ -122,6 +122,10 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_isCorrectTTY( JNIEnv *env,
                                                             jobject thiz,
                                                             jstring path )
 {
+    //HACK FOR 148 (uncomment the below block for the "correct" behavior)
+    return JNI_TRUE;
+    
+    /*
     // If CTS is high, this is the correct port.
     // If CTS is low, this is not the correct port.
     // So, if we get an error, default to returning JNI_FALSE.
@@ -191,7 +195,7 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_isCorrectTTY( JNIEnv *env,
         LOGE( "CTS was false" );
     }
 
-    return JNI_FALSE;
+    return JNI_FALSE;*/
 }
 
 
@@ -332,6 +336,11 @@ Java_edu_vu_isis_ammo_core_network_SerialPort_open( JNIEnv *env,
 
         // Enable hardware flow control
 		cfg.c_cflag |= CRTSCTS;
+
+        // for 148 support
+        // disalbe HW flow control
+        cfg.c_cflag &= !CRTSCTS;
+        // end 148 support
 
         // Use raw input rather than canonical (line-oriented)
         cfg.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
