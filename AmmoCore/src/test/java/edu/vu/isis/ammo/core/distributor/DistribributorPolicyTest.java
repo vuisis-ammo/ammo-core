@@ -52,7 +52,7 @@ public class DistribributorPolicyTest
     public void testBasicPolicy()
     {
         logger.info("test supplied distribution policy");
-        final File policyFile = new File("assets", DistributorPolicy.policy_file);
+        final File policyFile = new File("src/main/assets", DistributorPolicy.policy_file);
         Assert.assertTrue("file does not exist " + policyFile, policyFile.exists());
         final InputStream inputStream;
         try {
